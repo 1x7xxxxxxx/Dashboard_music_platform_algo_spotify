@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
+.PHONY: error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -230,6 +230,21 @@ test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE R
 	@#
 	@# Coût sur ext4 : **297 s en série** pour 7 054 tests (1 146 s sur /mnt/c avant R117).
 	$(PYTHON) -m pytest tests/ -q --store-durations
+
+test-durations-missing: ## [SECONDES] Durées des SEULS fichiers de tests inconnus de .test_durations
+	@# Le 2026-09-26, la CI de main est restée ROUGE toute une nuit — 60 exécutions —
+	@# sur un seul garde : `test_the_durations_file_still_describes_this_suite`, plafond
+	@# 0, et chaque fichier de test NEUF arrivait sans durée. Le remède documenté,
+	@# `test-durations`, relance la suite entière en série (297 s) ; celui-ci ne lance
+	@# que les fichiers manquants. `pytest-split` FUSIONNE (sans `--clean-durations`) :
+	@# les durées connues restent, les neuves s'ajoutent. En série, comme l'autre.
+	@test -x $(PYTHON) || { echo "❌ interpréteur absent. Run: make sync"; exit 1; }
+	@missing=$$($(PYTHON) -c "import sys; sys.path.insert(0, 'tests'); \
+	  from test_the_shards_are_balanced_by_real_durations import files_without_duration as f; \
+	  print(' '.join(f()))"); \
+	if [ -z "$$missing" ]; then echo "✅ aucun fichier de tests sans durée"; exit 0; fi; \
+	echo "→ durées à enregistrer : $$missing"; \
+	$(PYTHON) -m pytest $$missing -q -p no:randomly --store-durations
 
 test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — LA cible de la boucle de code (règle 16)
 	@# Journal comme `make test` : le 2026-09-25 le verdict de cette cible a été tronqué

@@ -491,10 +491,10 @@ Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quo
 |---|---|
 | [`a-proxy-rendered-under-the-name-of-the-thing-it-proxies`](error-classes.md#a-proxy-rendered-under-the-name-of-the-thing-it-proxies) | une figure, une tuile ou un tableau affiche un indicateur INTERMÉDIAIRE sous le nom du résultat final qu'on aimerait mesurer. Rien ne lève : le chiffr |
 | [`a-scoring-call-that-omits-its-context`](error-classes.md#a-scoring-call-that-omits-its-context) | un rapprochement correct cesse d'être proposé tout seul, et rien ne le signale. Pas d'exception, pas de compte qui change : le score passe simplement  |
-| [`df-na-rep`](error-classes.md#df-na-rep) | `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window). |
 | [`trigger-threshold-split`](error-classes.md#trigger-threshold-split) | a rule, the agent it spawns, and the hook that signals it state different thresholds. The agent's `description` wins, because it is the only one the r |
 | [`an-exemption-that-outlives-what-it-exempted`](error-classes.md#an-exemption-that-outlives-what-it-exempted) | une exemption reste dans une liste après la disparition de ce qu'elle exemptait. Elle ne casse rien le jour où ça arrive — elle devient du **budget**  |
 | [`a-threshold-true-at-one-grain-and-false-at-another`](error-classes.md#a-threshold-true-at-one-grain-and-false-at-another) | un garde rougit alors que rien n'est cassé, uniquement parce que la figure a changé de PAS. Le sien exigeait « au moins 30 pas non mesurés couverts »  |
+| [`df-na-rep`](error-classes.md#df-na-rep) | `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window). |
 | [`object-dtype-numeric-op`](error-classes.md#object-dtype-numeric-op) | a numeric DB column that contains a NULL loads as pandas `object` dtype; subsequent arithmetic + `Series.round(n)` then raises `TypeError: Expected nu |
 | [`second-factor-budget-refunded-by-the-first`](error-classes.md#second-factor-budget-refunded-by-the-first) | a multi-factor flow rate-limits each step, and the earlier step's success resets the later step's budget. The attacker holds the earlier factor by ass |
 | [`a-window-widened-to-its-bucket-instead-of-the-bucket-clipped`](error-classes.md#a-window-widened-to-its-bucket-instead-of-the-bucket-clipped) | une figure ou un total bornés par une période affichent PLUS que ce que la période contient. Mesuré le 2026-09-10 sur l'accueil : « 12 mois · Par anné |
@@ -623,4 +623,4 @@ Ces classes ne tombent dans aucun motif. **Ce compte est un cliquet : il ne peut
 
 <!-- error-class-families: total=418 families=18 orphans=3 -->
 
-<!-- error-class-families: sha256=d276c7e4ffe66f0a691ce331dc7a1fea248ae3b9e01df2525c21bc74e19468f8 -->
+<!-- error-class-families: sha256=686c61a806d3ca8514321c6381cd88d2762e93f227f9cd052da715471bf886d4 -->

@@ -945,7 +945,7 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                     t("revenue_forecast.col_in", "Encaissé (€)"),
                     t("revenue_forecast.col_out", "Dépensé (€)"),
                     t("revenue_forecast.col_net", "Net (€)"),
-                    t("revenue_forecast.col_cumul", "Cumul (€)")]),
+                    t("revenue_forecast.col_cumul", "Cumul (€)")], na_rep="—"),
                 width='stretch', hide_index=True)
 
     # ── LE « ROI Meta » A DISPARU, ABSORBÉ — 2026-09-21 ──────────────────────

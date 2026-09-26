@@ -33,6 +33,33 @@ import re
 import sys
 
 
+def unprotected_formats(content: str) -> list[int]:
+    """Lines of `.style.format(...)` calls that pass no `na_rep`. Pure.
+
+    Read on the TREE. The textual version looked for « na_rep » in the next 500
+    characters: a comment or a docstring was enough to silence the warning on a
+    genuinely unprotected call — the weakness six `signature.cmd` carried until
+    2026-09-04. A file mid-edit that does not parse has nothing to say.
+    """
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return []
+    lines = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if getattr(func, "attr", None) != "format":
+            continue
+        if getattr(getattr(func, "value", None), "attr", None) != "style":
+            continue
+        if any(k.arg == "na_rep" for k in node.keywords):
+            continue
+        lines.append(node.lineno)
+    return lines
+
+
 def main() -> None:
     try:
         data = json.load(sys.stdin)
@@ -66,25 +93,9 @@ def main() -> None:
     # un appel réellement non protégé. C'est le mécanisme de détection cité par la
     # classe `df-na-rep` du catalogue, et il portait la même faiblesse que six
     # `signature.cmd` corrigées le 2026-09-04.
-    try:
-        tree = ast.parse(content)
-    except SyntaxError:
-        tree = None                 # un fichier en cours d'écriture : rien à dire
-    if tree is not None:
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            func = node.func
-            if getattr(func, "attr", None) != "format":
-                continue
-            if getattr(getattr(func, "value", None), "attr", None) != "style":
-                continue
-            if any(k.arg == "na_rep" for k in node.keywords):
-                continue
-            warnings.append(
-                f"  L{node.lineno}: .style.format(...) without na_rep "
-                "→ see dashboard-view.md pitfall #1"
-            )
+    warnings += [f"  L{line}: .style.format(...) without na_rep "
+                 "→ see dashboard-view.md pitfall #1"
+                 for line in unprotected_formats(content)]
 
     for m in re.finditer(r"make_subplots\s*\((.*?)\)", content, re.DOTALL):
         body = m.group(1)

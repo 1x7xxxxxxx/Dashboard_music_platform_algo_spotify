@@ -66,23 +66,25 @@ def _files_with_durations() -> set[str]:
     return {k.split("::", 1)[0] for k in data}
 
 
+def files_without_duration() -> list[str]:
+    """Test files `.test_durations` knows nothing about. `make test-durations-missing`
+    stores durations for exactly these — seconds, not the 297 s serial full run."""
+    present = {str(p.relative_to(_ROOT)).replace("\\", "/") for p in _TESTS.glob("test_*.py")}
+    return sorted(present - _files_with_durations())
+
+
 def test_the_durations_file_still_describes_this_suite() -> None:
     assert _DURATIONS.is_file(), (
         "`.test_durations` a disparu. `pytest-split` répartirait alors sur le NOMBRE "
         "de tests, et `test_views_render_smoke.py` (172,6 s, 19 % de la suite) "
         "tomberait entier dans un shard. Remède : `make test-durations`."
     )
-    known = _files_with_durations()
-    present = {
-        str(p.relative_to(_ROOT)).replace("\\", "/")
-        for p in _TESTS.glob("test_*.py")
-    }
-    missing = sorted(present - known)
+    missing = files_without_duration()
     assert len(missing) <= _MAX_FILES_WITHOUT_DURATION, (
         f"{len(missing)} fichier(s) de tests n'ont aucune durée connue, contre un "
         f"plafond de {_MAX_FILES_WITHOUT_DURATION}. `pytest-split` leur donne une durée "
         "MOYENNE, ce qui redéséquilibre les shards en silence.\n"
-        "Remède : `make test-durations` (puis commiter `.test_durations`).\n  "
+        "Remède : `make test-durations-missing` — quelques secondes, les SEULS fichiers manquants — puis commiter `.test_durations`.\n  "
         + "\n  ".join(missing)
     )
 

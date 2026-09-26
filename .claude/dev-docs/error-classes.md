@@ -274,7 +274,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [sql-fstring-identifier](#sql-fstring-identifier) | P1 | deterministic | guarded | none |
 | [db-connection-per-show](#db-connection-per-show) | P3 | heuristic | open | none |
 | [naive-datetime-now](#naive-datetime-now) | P2 | heuristic | open | none |
-| [df-na-rep](#df-na-rep) | P3 | heuristic | guarded | none |
+| [df-na-rep](#df-na-rep) | P3 | deterministic | guarded | none |
 | [unregistered-write-table](#unregistered-write-table) | P2 | deterministic | guarded | none |
 | [view-session-adoption](#view-session-adoption) | P4 | heuristic | open | none |
 | [mixed-date-timestamp](#mixed-date-timestamp) | P2 | heuristic | guarded | none |
@@ -940,26 +940,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-05-15 (ref: DEVLOG#2026-05-15)
 - History:
   - 2026-05-15: catalogued. Heuristic — cosmetic strftime/filename/pdf/email uses are exempt per python.md; the `grep -vi` is a coarse exemption filter, manual triage on hits.
-
-## df-na-rep
-- status: guarded
-- severity: P3
-- kind: heuristic
-- symptom: `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window).
-- signature: `! grep -rnE "\.style\.format\(" src/dashboard/views/ | grep -v "na_rep"`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- root_cause: `Styler.format` raises on None rather than rendering an empty cell, and the NULL only appears when a LEFT JOIN misses — which dev data usually does not.
-- cause_evidence: read (2026-09-26 — `.claude/hooks/lint_dashboard_view.py:7` refuse un `.style.format(...)` sans `na_rep` à l'édition : le Styler lève sur `None` au lieu de rendre une cellule vide, et le NULL n'apparaît qu'au LEFT JOIN manqué, rare en données de dev)
-- long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
-- guard: { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
-- siblings: swept:2026-09-17 — **3 candidats** `\.style\.format\(` dans `src/dashboard/views/`, tous les trois portant `na_rep=` DANS leur propre appel (lu à l'AST, pas dans une fenêtre de 500 caractères — c'est la lecture textuelle que le 2026-09-04 avait déjà prise en défaut sur cette classe). **0 site vivant.**
-- guard_scope: un-garde-qui-ne-garde-pas — afficher `nan` à un artiste au lieu d'une absence ; couvre: DEUX surfaces — un hook PostToolUse qui relit le fichier qu'on vient d'écrire s'il est sous `src/dashboard/views/`, **et** une signature qui balaie tout ce répertoire à chaque `make audit` ; ne couvre pas: (1) ⚠️ **le hook AVERTIT, il ne bloque pas** — exit 0 par conception, donc un `nan` part en production si personne ne lit stderr ; (2) ⚠️ **le balayage du parc existe mais rend des faux positifs** : mesuré le 2026-09-17, exit 1 sur `meta_ads_overview.py:645` et `meta_x_spotify.py:315`, tous deux corrects — `na_rep=` y est sur une autre ligne que `.style.format(`, que la grep ne voit pas. Un balayage bruyant se fait ignorer ; (3) tout ce qui n'est pas dans `views/` — un helper d'`utils/`, le PDF, un e-mail, l'API ; (4) les autres façons de rendre un `nan` visible — un f-string, un `st.metric`, une figure Plotly, un `to_markdown()`.
-- rex_ref: .claude/skills/dashboard-view/SKILL.md
-- first_seen: 2026-05-14 (ref: DEVLOG#2026-05-14)
-- History:
-  - 2026-05-14: `lint_dashboard_view.py` PostToolUse hook added (warns on save).
-  - 2026-05-15: catalogued so `make audit` also sweeps the existing tree (the hook only catches new edits).
-  - 2026-09-04 (garde): le garde cité par cette classe est le hook `lint_dashboard_view.py`, qui cherchait « na_rep » dans les 500 caractères suivant `.style.format(`. Un commentaire y suffisait à supprimer l'avertissement. Passé en AST (mot-clé `na_rep` de l'appel). Trois mutations : sans `na_rep` → 1 avertissement ; avec → 0 ; `na_rep` en COMMENTAIRE → **ancien 0** (aveuglé), **nouveau 1**.
 
 ## view-session-adoption
 - status: open
@@ -4275,7 +4255,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 235 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 236 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4287,7 +4267,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 183 classes encore vivantes.
+> les 182 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4301,6 +4281,27 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > de moitié vivante ; une classe qui remplit les quatre conditions descend ici. Les deux
 > nombres ci-dessus sont recalculés à chaque passe. `make error-health-check` (CI) échoue
 > si le catalogue n'est pas rangé — un rangement oublié ne peut plus être commité.
+
+## df-na-rep
+- status: guarded
+- severity: P3
+- kind: deterministic
+- symptom: `df.style.format({...})` without `na_rep=` → `TypeError` when a formatted column is NULL (LEFT JOIN / empty window).
+- signature: `python3 -m pytest tests/test_a_styled_table_names_its_missing_values.py -q` — le prédicat d'ARBRE du hook, appliqué à toutes les vues. Avant (textuelle, heuristique) : `! grep -rnE "\.style\.format\(" src/dashboard/views/ | grep -v "na_rep"`
+- seen_red: self-proving (tests/test_a_styled_table_names_its_missing_values.py::test_the_detector_sees_the_defect_it_is_written_for) — un `.style.format` non protégé est nommé même quand un commentaire de la même ligne dit `na_rep` (la forme qui satisfait la signature textuelle) ; l'appel protégé, un `str.format` et un fichier en cours d'écriture ne le sont pas. Muté rouge le 2026-09-26 (exemption `na_rep` retirée ; receveur `.style` non vérifié ; fichier non parsable qui lève), et vu rouge sur le VRAI arbre avant correctif (`revenue_forecast.py:938`), puis en retirant `na_rep` en laissant `# na_rep` en commentaire. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- root_cause: `Styler.format` raises on None rather than rendering an empty cell, and the NULL only appears when a LEFT JOIN misses — which dev data usually does not.
+- cause_evidence: read (2026-09-26 — `.claude/hooks/lint_dashboard_view.py:7` refuse un `.style.format(...)` sans `na_rep` à l'édition : le Styler lève sur `None` au lieu de rendre une cellule vide, et le NULL n'apparaît qu'au LEFT JOIN manqué, rare en données de dev)
+- long_term_fix: the PostToolUse hook rejects a `.style.format(` with no `na_rep=` at edit time, before the view is ever rendered.
+- guard: { type: pytest, ref: tests/test_a_styled_table_names_its_missing_values.py } + { type: posttooluse-hook, ref: .claude/hooks/lint_dashboard_view.py }
+- siblings: swept:2026-09-17 — **3 candidats** `\.style\.format\(` dans `src/dashboard/views/`, tous les trois portant `na_rep=` DANS leur propre appel (lu à l'AST, pas dans une fenêtre de 500 caractères — c'est la lecture textuelle que le 2026-09-04 avait déjà prise en défaut sur cette classe). **0 site vivant.**
+- guard_scope: un-garde-qui-ne-garde-pas — afficher `nan` à un artiste au lieu d'une absence ; couvre: DEUX surfaces — un hook PostToolUse qui relit le fichier qu'on vient d'écrire s'il est sous `src/dashboard/views/`, **et** une signature qui balaie tout ce répertoire à chaque `make audit` ; ne couvre pas: (1) ⚠️ **le hook AVERTIT, il ne bloque pas** — exit 0 par conception, donc un `nan` part en production si personne ne lit stderr ; (2) ⚠️ **le balayage du parc existe mais rend des faux positifs** : mesuré le 2026-09-17, exit 1 sur `meta_ads_overview.py:645` et `meta_x_spotify.py:315`, tous deux corrects — `na_rep=` y est sur une autre ligne que `.style.format(`, que la grep ne voit pas. Un balayage bruyant se fait ignorer ; (3) tout ce qui n'est pas dans `views/` — un helper d'`utils/`, le PDF, un e-mail, l'API ; (4) les autres façons de rendre un `nan` visible — un f-string, un `st.metric`, une figure Plotly, un `to_markdown()`.
+- rex_ref: .claude/skills/dashboard-view/SKILL.md
+- first_seen: 2026-05-14 (ref: DEVLOG#2026-05-14)
+- History:
+  - 2026-05-14: `lint_dashboard_view.py` PostToolUse hook added (warns on save).
+  - 2026-05-15: catalogued so `make audit` also sweeps the existing tree (the hook only catches new edits).
+  - 2026-09-04 (garde): le garde cité par cette classe est le hook `lint_dashboard_view.py`, qui cherchait « na_rep » dans les 500 caractères suivant `.style.format(`. Un commentaire y suffisait à supprimer l'avertissement. Passé en AST (mot-clé `na_rep` de l'appel). Trois mutations : sans `na_rep` → 1 avertissement ; avec → 0 ; `na_rep` en COMMENTAIRE → **ancien 0** (aveuglé), **nouveau 1**.
+  - 2026-09-26 (garde): **un site vivant**, `src/dashboard/views/revenue_forecast.py:938` — le tableau mensuel du prévisionnel, `.style.format("{:,.2f}", subset=[…])` sans `na_rep`. La signature textuelle était ROUGE et personne ne le lisait : elle rougissait AUSSI sur `meta_ads_overview.py:559`, protégé mais dont le `na_rep` tombe sur une autre ligne. Un faux positif permanent a rendu invisible le vrai. Le hook, lui, n'avertit qu'au moment d'écrire le fichier, et n'a pas bloqué. Corrigé (`na_rep="—"`), et la classe passe à un garde pytest BLOQUANT qui applique à toutes les vues le prédicat d'arbre du hook, extrait en `unprotected_formats`. Balayage `src/`, `airflow/`, `tools/` avec ce prédicat : 1 site, celui-là.
 
 ## a-secret-committed-to-a-public-history
 - status: guarded
