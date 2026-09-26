@@ -8025,14 +8025,14 @@
         "2026-08-26"
       ],
       "kind": "deterministic",
-      "seen_red": "2026-09-18",
+      "seen_red": "self-proving",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-26",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11445,13 +11445,13 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 442,
+      "catalogue_revisions": 443,
       "head_date": "2026-09-26"
     },
     "holes": {
       "cause_inferred": 0,
       "cause_unknown": 13,
-      "guard_does_not_prove_itself": 245,
+      "guard_does_not_prove_itself": 244,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
       "scope_on_a_shared_guard_without_naming_its_tests": 15,
@@ -11507,20 +11507,20 @@
       "by_seen_red": {
         "daté": {
           "events": 10,
-          "class_days": 3204,
-          "per_class_month": 0.0949,
+          "class_days": 3173,
+          "per_class_month": 0.0958,
           "ci95": [
-            0.0454,
-            0.1745
+            0.0459,
+            0.1762
           ]
         },
         "jamais-ou-inconnu": {
           "events": 51,
-          "class_days": 8457,
-          "per_class_month": 0.1833,
+          "class_days": 8488,
+          "per_class_month": 0.1827,
           "ci95": [
-            0.1365,
-            0.241
+            0.136,
+            0.2402
           ]
         }
       },

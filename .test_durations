@@ -611,6 +611,7 @@
     "tests/test_a_deploy_covers_every_service_it_starts.py::test_the_script_still_parses": 0.0030501559976983117,
     "tests/test_a_description_does_not_execute.py::test_no_description_string_can_execute": 0.006289400000241585,
     "tests/test_a_description_does_not_execute.py::test_the_scan_sees_shell_files": 0.005925828001636546,
+    "tests/test_a_diagnosis_keeps_its_second_half.py::test_the_detector_sees_the_defect_it_is_written_for": 0.08226076800201554,
     "tests/test_a_diagnostic_reads_a_route_not_a_name.py::test_an_elif_branch_does_not_inherit_the_previous_import": 0.010861160000786185,
     "tests/test_a_diagnostic_reads_a_route_not_a_name.py::test_an_unrouted_page_raises_rather_than_importing_by_name": 0.014366190998771344,
     "tests/test_a_diagnostic_reads_a_route_not_a_name.py::test_each_routed_module_exists_and_exposes_show": 0.0575173690012889,

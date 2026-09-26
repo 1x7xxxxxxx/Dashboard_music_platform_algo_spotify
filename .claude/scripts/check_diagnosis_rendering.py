@@ -49,6 +49,39 @@ def _is_markup(joined: ast.JoinedStr) -> bool:
     return "<" in literal and ">" in literal
 
 
+def hits_in(tree: ast.AST, rel: str) -> list[str]:
+    """The two ways a diagnosis loses its second half, for ONE module. Pure, so a test
+    can hand it fabricated code (R169, 2026-09-26)."""
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Attribute)
+                and node.value.func.attr == "splitlines"
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == 0):
+            hits.append(f"{rel}:{node.lineno}: diagnosis flattened to its first "
+                        f"line — the half that says what to DO is dropped")
+
+    for joined in ast.walk(tree):
+        if not isinstance(joined, ast.JoinedStr) or not _is_markup(joined):
+            continue
+        for node in joined.values:
+            if not isinstance(node, ast.FormattedValue):
+                continue
+            if not (_names_in(node.value) & CARRIERS):
+                continue
+            call = node.value
+            if not (isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id == "as_html"):
+                hits.append(f"{rel}:{node.lineno}: diagnosis reaches an HTML cell "
+                            f"without as_html() — breaks and emphasis dropped, "
+                            f"and a platform's own `<` goes in raw")
+
+    return hits
+
+
 def main() -> int:
     hits: list[str] = []
     for rel in CONSUMERS:
@@ -58,31 +91,7 @@ def main() -> int:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
 
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.Subscript)
-                    and isinstance(node.value, ast.Call)
-                    and isinstance(node.value.func, ast.Attribute)
-                    and node.value.func.attr == "splitlines"
-                    and isinstance(node.slice, ast.Constant)
-                    and node.slice.value == 0):
-                hits.append(f"{rel}:{node.lineno}: diagnosis flattened to its first "
-                            f"line — the half that says what to DO is dropped")
-
-        for joined in ast.walk(tree):
-            if not isinstance(joined, ast.JoinedStr) or not _is_markup(joined):
-                continue
-            for node in joined.values:
-                if not isinstance(node, ast.FormattedValue):
-                    continue
-                if not (_names_in(node.value) & CARRIERS):
-                    continue
-                call = node.value
-                if not (isinstance(call, ast.Call)
-                        and isinstance(call.func, ast.Name)
-                        and call.func.id == "as_html"):
-                    hits.append(f"{rel}:{node.lineno}: diagnosis reaches an HTML cell "
-                                f"without as_html() — breaks and emphasis dropped, "
-                                f"and a platform's own `<` goes in raw")
+        hits += hits_in(tree, rel)
 
     for h in hits:
         print(h)
