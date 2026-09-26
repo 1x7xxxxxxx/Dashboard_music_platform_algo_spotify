@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline
+.PHONY: error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline charts-dossier
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -434,6 +434,18 @@ roadmap-sync: ## Remet l'ancre de reprise d'accord avec les deux tables d'index
 night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, journal (~1 s)
 	@python3 tools/dev/night_run.py status
 	@python3 tools/dev/roadmap_discipline.py || true
+
+charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=<dossier hors dépôt> [PROM=http://127.0.0.1:19090]
+	@test -n "$(OUT)" || { echo "❌ OUT= manquant — un dossier HORS du dépôt (le PDF contient des données d'artiste)"; exit 1; }
+	@.venv/bin/python -c "import kaleido" 2>/dev/null || { echo "❌ kaleido absent. Run: uv sync --frozen --extra dev"; exit 1; }
+	@docker exec postgres_spotify_airflow psql -U postgres -tAc "select 1 from pg_database where datname='spotify_etl_review'" 2>/dev/null | grep -q 1 || { \
+		echo "❌ instantané absent. Le créer (lecture seule en prod) :"; \
+		echo "   ssh root@167.233.92.1 'docker exec postgres_spotify_airflow pg_dump -U postgres -Fc spotify_etl' > $(OUT)/prod.dump"; \
+		echo "   docker exec postgres_spotify_airflow createdb -U postgres spotify_etl_review"; \
+		echo "   docker exec -i postgres_spotify_airflow pg_restore -U postgres -d spotify_etl_review --no-owner --no-privileges < $(OUT)/prod.dump"; \
+		exit 1; }
+	@.venv/bin/python tools/dev/charts_dossier/capture.py "$(OUT)"
+	@.venv/bin/python tools/dev/charts_dossier/main.py "$(OUT)" $(PROM)
 
 roadmap-discipline: ## R197 — actions de dev sans ligne de roadmap AVANT, critic, âge des lignes ; ≠ 0 si à redire. DAYS=14 BASELINE=1 WRITE=1
 	@command -v git >/dev/null 2>&1 || { echo "❌ git introuvable — installer git"; exit 1; }

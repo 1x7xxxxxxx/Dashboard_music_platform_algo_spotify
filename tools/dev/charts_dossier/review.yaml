@@ -1,0 +1,1099 @@
+# R203 — la revue de chaque graphique, écrite à la main après les avoir REGARDÉS
+# (rendus sur un instantané de la prod du 2026-09-26, artiste 1, choix par défaut des filtres).
+#
+# Clé : `fichier:ligne` du site qui dessine (inventaire gold-coverage), `pdf:<clé>` pour le
+# rapport artiste, `grafana:<id>` pour un panneau. Chaque entrée :
+#   q        la décision à laquelle la figure répond
+#   role     meta | plateforme | prediction | archi | business
+#   d        DÉCISION /5 — se lit d'un coup d'œil et fait agir (Few, Information Dashboard Design)
+#   c        CONFIANCE /5 — donnée établie, couche or, refuse de conclure quand elle ne suit pas
+#   p        PERTINENCE /5 pour son rôle (KPI de plateforme, 4 signaux d'or SRE, dérive d'un modèle)
+#   v        garder | corriger | fusionner | retirer | a-trancher
+#   note     ce que j'ai vu, et le geste proposé — « à vérifier » quand je ne l'ai pas mesuré
+# Garde : tests/test_the_charts_dossier_covers_every_figure.py
+
+# ── Accueil ──────────────────────────────────────────────────────────────────
+src/dashboard/utils/platform_chart.py:1090:
+  q: "Mes écoutes progressent-elles, toutes plateformes ?"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 5
+  v: corriger
+  note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
+src/dashboard/utils/platform_chart.py:1200:
+  q: "(variante par plateforme du graphique d'accueil)"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: a-trancher
+  note: "Non atteint par le rendu par défaut (branche d'un autre réglage) — à regarder dans l'app."
+
+# ── Spotify + S4A ────────────────────────────────────────────────────────────
+src/dashboard/views/spotify_s4a_combined.py:230:
+  q: "Ma dernière sortie fait-elle mieux que les précédentes au même âge ?"
+  role: plateforme
+  d: 5
+  c: 5
+  p: 5
+  v: garder
+  note: "Lecture immédiate, horloge alignée sur la sortie, cumuls étiquetés. Le meilleur graphique de décision de l'app."
+src/dashboard/views/spotify_s4a_combined.py:353:
+  q: "Quel titre bouge EN CE MOMENT, et avec quel indice de popularité ?"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 5
+  v: corriger
+  note: "Les barres « 28 derniers jours » sont presque invisibles quand la fenêtre est calme ; noms de titres coupés à gauche dans l'export. Afficher la valeur récente en texte."
+src/dashboard/views/spotify_s4a_combined.py:445:
+  q: "Le titre choisi est-il encore écouté, encore vu par Spotify ; mon audience grandit-elle ?"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Nouvelle figure à deux panneaux (R194). Chaque unité sur son axe ; le PI plancher (< 10) se lit bien comme « loin des portes »."
+
+# ── Bilan annuel (Wrapped) ───────────────────────────────────────────────────
+src/dashboard/views/data_wrapped.py:353:
+  q: "Mes volumes annuels montent-ils ?"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Deux années seulement : deux points par série. Utile une fois par an."
+src/dashboard/views/data_wrapped.py:362:
+  q: "Touché-je plus de pays ?"
+  role: plateforme
+  d: 2
+  c: 4
+  p: 2
+  v: fusionner
+  note: "Un chiffre par an — une tuile suffirait. Fusionner avec « Heures d'écoute » en deux tuiles."
+src/dashboard/views/data_wrapped.py:371:
+  q: "Écoute-t-on plus d'heures ?"
+  role: plateforme
+  d: 2
+  c: 4
+  p: 2
+  v: fusionner
+  note: "Idem « Pays touchés »."
+src/dashboard/views/data_wrapped.py:388:
+  q: "De combien mes auditeurs ont-ils progressé cette année ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 3
+  v: corriger
+  note: "« +0,0 % » en 2025 alors que les volumes chutent de 107 k à 17 k streams — probablement un gain absent affiché comme zéro. À vérifier ; les quatre figures de gain partagent le calcul."
+src/dashboard/views/data_wrapped.py:394:
+  q: "De combien mes streams ont-ils progressé ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 3
+  v: corriger
+  note: "Même défaut que « Gain listeners » (+0,0 % en 2025)."
+src/dashboard/views/data_wrapped.py:402:
+  q: "De combien mes sauvegardes ont-elles progressé ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 2
+  v: fusionner
+  note: "Même défaut ; quatre barres de gain pour une seule idée — les réunir en une figure groupée."
+src/dashboard/views/data_wrapped.py:408:
+  q: "De combien mes ajouts en playlist ont-ils progressé ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 2
+  v: fusionner
+  note: "Voir « Gain saves »."
+src/dashboard/views/data_wrapped.py:422:
+  q: "Combien de fans m'ont eu dans leur top ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 2
+  v: corriger
+  note: "11 → 0 en 2025 — un Wrapped non saisi se lit comme « plus aucun fan ». Une absence doit rester une absence."
+
+# ── Plateformes ──────────────────────────────────────────────────────────────
+src/dashboard/views/apple_music.py:143:
+  q: "Quels titres portent mon Apple Music ?"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: corriger
+  note: "Noms de titres coupés à gauche (« en le français »). Un instantané cumulé, pas une série."
+src/dashboard/views/apple_music.py:312:
+  q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
+src/dashboard/views/soundcloud.py:279:
+  q: "Mes écoutes SoundCloud croissent-elles ?"
+  role: plateforme
+  d: 2
+  c: 1
+  p: 3
+  v: corriger
+  note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
+src/dashboard/views/soundcloud.py:302:
+  q: "Quelle métrique SoundCloud bouge depuis la sortie ?"
+  role: plateforme
+  d: 2
+  c: 3
+  p: 2
+  v: retirer
+  note: "Base 100 sur des cumuls quasi plats (99,5–100,5) : rien à décider. Le top titres en dit plus."
+src/dashboard/views/soundcloud.py:429:
+  q: "Mes écoutes et mon engagement SoundCloud progressent-ils ?"
+  role: plateforme
+  d: 2
+  c: 1
+  p: 3
+  v: corriger
+  note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
+src/dashboard/views/soundcloud.py:498:
+  q: "Quels titres SoundCloud marchent, et engagent ?"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Volume et taux d'engagement côte à côte, noms complets — lisible."
+src/dashboard/views/youtube.py:185:
+  q: "Ma chaîne gagne-t-elle abonnés et vues ?"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 4
+  v: garder
+  note: "La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
+src/dashboard/views/youtube.py:364:
+  q: "Quelles vidéos marchent ?"
+  role: plateforme
+  d: 2
+  c: 4
+  p: 3
+  v: corriger
+  note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
+src/dashboard/views/instagram.py:438:
+  q: "Ma communauté Instagram grandit-elle ?"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Abonnés 1 605 → 1 520 en neuf mois : la baisse se voit d'un coup d'œil. Au niveau du COMPTE."
+src/dashboard/views/instagram.py:251:
+  q: "Quels mois de publication ont le plus engagé ?"
+  role: plateforme
+  d: 2
+  c: 3
+  p: 2
+  v: corriger
+  note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
+src/dashboard/views/instagram.py:300:
+  q: "Mon taux d'engagement tient-il ?"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Marqué « indicatif », et c'est juste (quatre points)."
+src/dashboard/views/hypeddit.py:303:
+  q: "Mes smart links Hypeddit convertissent-ils ?"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée."
+src/dashboard/views/imusician.py:329:
+  q: "Combien me rapportent mes ventes, mois par mois ?"
+  role: business
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
+src/dashboard/views/imusician.py:488:
+  q: "Ce que je dépense en pub est-il couvert par ce que je gagne ?"
+  role: meta
+  d: 5
+  c: 4
+  p: 5
+  v: garder
+  note: "LA réponse à « qu'apporte Meta » côté argent — 1 500 €/mois de pub contre ~20 € de revenus. Même axe, donc la disproportion se voit."
+src/dashboard/views/sacem.py:148:
+  q: "Combien la SACEM me reverse-t-elle par trimestre ?"
+  role: business
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Barres noires sans couleur de marque, mais lecture correcte (43 € cumulés)."
+
+# ── Meta Ads ─────────────────────────────────────────────────────────────────
+src/dashboard/views/meta_ads_overview.py:174:
+  q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
+src/dashboard/views/meta_ads_overview.py:370:
+  q: "Mes campagnes côte à côte — laquelle dépense le plus, pour quels clics ?"
+  role: meta
+  d: 2
+  c: 1
+  p: 4
+  v: corriger
+  note: "≈ 9 000 € de budget et 65 k clics pour la MÊME campagne que la figure voisine (756 €, 5 963 clics) — barres empilées de nombreux segments. Probable double comptage (lignes par jour ou par créa sommées). À vérifier en premier (P2)."
+src/dashboard/views/meta_ads_overview.py:473:
+  q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Dépense, clics et CPR sur la campagne : on voit les clics s'effondrer avec le budget le 20/09."
+src/dashboard/views/meta_ads_overview.py:616:
+  q: "Quel objectif d'optimisation coûte le moins cher par résultat ?"
+  role: meta
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Deux objectifs dont un quasi nul en dépense — la comparaison de CPR est fragile, à marquer."
+src/dashboard/views/meta_breakdowns.py:94:
+  q: "Où ma pub a-t-elle dépensé, dans le monde ?"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: fusionner
+  note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
+src/dashboard/views/meta_breakdowns.py:100:
+  q: "Par pays, combien dépensé et à quel coût par clic sortant ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Mexique ≈ 850 € à CPR 0,11 € ; les pays chers se repèrent. Plus utile que la carte."
+src/dashboard/views/meta_breakdowns.py:123:
+  q: "(répartition par placement / âge — autre choix du sélecteur)"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: a-trancher
+  note: "Non rendu : n'apparaît qu'avec un autre choix du sélecteur de dimension."
+src/dashboard/views/meta_breakdowns.py:133:
+  q: "(répartition — autre choix du sélecteur)"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: a-trancher
+  note: "Non rendu : autre choix du sélecteur."
+src/dashboard/views/meta_cpr_optimizer.py:451:
+  q: "Quelle tranche d'âge coûte le moins cher par résultat ?"
+  role: prediction
+  d: 4
+  c: 3
+  p: 4
+  v: garder
+  note: "35-44 à 0,088 € contre 25-34 à 0,147 € — décision directe de ciblage. Or 25-34 est la tranche la plus dépensée (1 398 €)."
+src/dashboard/views/meta_creatives.py:473:
+  q: "Quelle créa coûte le moins cher, et engage le plus ?"
+  role: meta
+  d: 3
+  c: 1
+  p: 5
+  v: corriger
+  note: "CTR à 233 %, 387 %, 1 111 % — un taux de clic ne dépasse pas 100 %. Probable pourcentage multiplié deux fois. Le classement CPR, lui, est lisible. À vérifier (P2)."
+src/dashboard/views/meta_creatives.py:518:
+  q: "Les créas avec « hook » coûtent-elles moins cher que sans ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Sans hook 0,104 € < Hook 1 0,113 € < Hook 2 0,127 € — mais sur 69 € de dépense « sans hook » : à marquer comme fragile."
+src/dashboard/views/meta_creatives.py:740:
+  q: "Une créa donne-t-elle des revenus dans le temps ?"
+  role: meta
+  d: 2
+  c: 2
+  p: 3
+  v: corriger
+  note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
+src/dashboard/views/meta_creatives.py:775:
+  q: "Où sont mes créas en dépense × coût ?"
+  role: meta
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Nuage lisible : les grosses dépenses ont les CPR les plus bas. La couleur CTR hérite du même défaut d'échelle."
+src/dashboard/views/meta_creatives.py:810:
+  q: "Quelle créa a le meilleur CTR ?"
+  role: meta
+  d: 1
+  c: 1
+  p: 3
+  v: retirer
+  note: "CTR jusqu'à 1 100 % (même défaut d'échelle) et doublon du classement en tête de page."
+src/dashboard/views/meta_creatives.py:852:
+  q: "Où se perdent les gens entre l'impression et le clic sortant ?"
+  role: meta
+  d: 3
+  c: 2
+  p: 4
+  v: corriger
+  note: "60 clics SORTANTS pour 48 clics — un entonnoir qui s'élargit. Définitions Meta à vérifier (clic lien vs clic)."
+src/dashboard/views/meta_creatives.py:919:
+  q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
+  role: meta
+  d: 3
+  c: 2
+  p: 4
+  v: corriger
+  note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
+src/dashboard/views/meta_creatives.py:949:
+  q: "Quelle créa a tourné quand ?"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
+src/dashboard/views/meta_creatives.py:961:
+  q: "Combien chaque créa a-t-elle dépensé au total ?"
+  role: meta
+  d: 1
+  c: 1
+  p: 3
+  v: corriger
+  note: "Une « dépense cumulée » qui redescend à 0 — un cumul ne décroît jamais. Tracé non trié, ou cumul remis à zéro par période. Illisible en l'état."
+
+# ── Impact de mes campagnes (toutes plateformes) ─────────────────────────────
+src/dashboard/views/meta_x_spotify.py:620:
+  q: "Ma dernière pub m'a-t-elle amené des auditeurs ?"
+  role: meta
+  d: 5
+  c: 5
+  p: 5
+  v: garder
+  note: "Refuse de conclure quand deux campagnes se chevauchent — c'est exactement ce que demande « corrélation n'est pas causalité » (Observability Engineering, p. 49)."
+src/dashboard/views/meta_x_spotify.py:406:
+  q: "Pendant la campagne, qu'ont fait budget, clics, streams (base 100) ?"
+  role: meta
+  d: 3
+  c: 4
+  p: 5
+  v: garder
+  note: "Streams montent avec le budget puis retombent à ~150 (au-dessus de la base 100) — lisible, mais six séries en base 100."
+src/dashboard/views/meta_x_spotify.py:881:
+  q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"
+  role: meta
+  d: 1
+  c: 3
+  p: 5
+  v: corriger
+  note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
+src/dashboard/views/meta_x_spotify.py:991:
+  q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
+  role: meta
+  d: 4
+  c: 3
+  p: 5
+  v: garder
+  note: "Dépense, écoutes et € par écoute par pays — la meilleure réponse géographique. Le Brésil sort à 0,17 €/écoute."
+
+# ── Road to Algo et modèle ───────────────────────────────────────────────────
+src/dashboard/views/trigger_algo/_tab_catalogue.py:153:
+  q: "Où chaque titre en est-il de ses portes d'algorithme ?"
+  role: prediction
+  d: 4
+  c: 3
+  p: 5
+  v: garder
+  note: "Barres d'avancement avec le levier écrit — c'est l'aperçu gratuit en plus détaillé."
+src/dashboard/views/trigger_algo/_tab_algo_streams.py:80:
+  q: "Combien de streams chaque algorithme m'apporte-t-il ?"
+  role: prediction
+  d: 1
+  c: 1
+  p: 4
+  v: corriger
+  note: "Graphique VIDE, axe du temps réduit à une seconde (23:59:59,9996 → 00:00:00,0004) — la série est vide et l'axe se replie. Afficher « aucune donnée » au lieu d'un axe cassé."
+src/dashboard/views/trigger_algo/_tab_lifecycle.py:48:
+  q: "Mon titre suit-il la courbe de vie de la cohorte ?"
+  role: prediction
+  d: 3
+  c: 3
+  p: 4
+  v: garder
+  note: "Médiane + P25–P75 ; « Ce titre » n'est pas tracé (seulement nommé) — à vérifier."
+src/dashboard/views/trigger_algo/_tab_budget_roi.py:321:
+  q: "Mes revenus suivent-ils ma dépense Meta ?"
+  role: meta
+  d: 1
+  c: 1
+  p: 4
+  v: corriger
+  note: "Une régression « R² = 1,00 » tracée sur UN point (2024-04) — trompeur. Refuser la droite sous un minimum de points."
+src/dashboard/views/trigger_algo/_tab_budget_roi.py:513:
+  q: "Quand la pub aura-t-elle été remboursée ?"
+  role: meta
+  d: 2
+  c: 2
+  p: 5
+  v: corriger
+  note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
+src/dashboard/views/trigger_algo/_tab_algos.py:138:
+  q: "(probabilités par algorithme — onglet non atteint par défaut)"
+  role: prediction
+  d: 3
+  c: 2
+  p: 4
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/trigger_algo/_tab_algos.py:228:
+  q: "(détail par algorithme — non atteint par défaut)"
+  role: prediction
+  d: 3
+  c: 2
+  p: 4
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/trigger_algo/_common/_pi_gates.py:76:
+  q: "À quel indice de popularité chaque algorithme se déclenche-t-il ?"
+  role: prediction
+  d: 4
+  c: 4
+  p: 4
+  v: a-trancher
+  note: "Non rendu à l'écran par défaut ; son jumeau du PDF (pdf:pi_gate) est clair."
+src/dashboard/views/trigger_algo/_tab_model.py:90:
+  q: "(qualité du modèle — branche non atteinte)"
+  role: prediction
+  d: 3
+  c: 3
+  p: 4
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/trigger_algo/_tab_model.py:116:
+  q: "La prévision Release Radar colle-t-elle au réel ?"
+  role: prediction
+  d: 2
+  c: 2
+  p: 5
+  v: corriger
+  note: "TOUTES les prévisions RR valent 0 (points alignés sur l'axe) — le modèle rend une constante. À vérifier dans le scoring avant d'afficher."
+src/dashboard/views/trigger_algo/_tab_model.py:152:
+  q: "La prévision Radio colle-t-elle au réel ?"
+  role: prediction
+  d: 3
+  c: 3
+  p: 5
+  v: garder
+  note: "Sept points, prévisions 6–21 contre réel 0–5 : sur-estimation systématique visible."
+src/dashboard/views/trigger_algo/_tab_model.py:191:
+  q: "(qualité du modèle — branche non atteinte)"
+  role: prediction
+  d: 3
+  c: 3
+  p: 4
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/trigger_algo/_tab_explainability.py:104:
+  q: "Qu'est-ce qui pousse la prédiction (SHAP) ?"
+  role: prediction
+  d: 3
+  c: 3
+  p: 4
+  v: a-trancher
+  note: "Derrière un clic ; non rendu."
+src/dashboard/views/trigger_algo/_tab_explainability.py:135:
+  q: "(SHAP — détail)"
+  role: prediction
+  d: 3
+  c: 3
+  p: 3
+  v: a-trancher
+  note: "Derrière un clic ; non rendu."
+src/dashboard/views/trigger_algo/_tab_explainability.py:169:
+  q: "(SHAP — détail)"
+  role: prediction
+  d: 3
+  c: 3
+  p: 3
+  v: a-trancher
+  note: "Derrière un clic ; non rendu."
+src/dashboard/utils/ml_widgets.py:168:
+  q: "Le modèle se trompe-t-il, et comment ?"
+  role: prediction
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Matrice de confusion du jeu de test (VP 66, FN 38). Manque la même chose en PRODUCTION, dans le temps (dérive — ML Production Systems, p. 322)."
+src/dashboard/utils/ml_widgets.py:224:
+  q: "(estimateur Release Radar avant sortie)"
+  role: prediction
+  d: 3
+  c: 3
+  p: 4
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/utils/ml_widgets.py:294:
+  q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
+  role: prediction
+  d: 1
+  c: 2
+  p: 4
+  v: corriger
+  note: "P(DW) plate à ~15 % de 0 à 200 k streams/7 j — le modèle ne réagit pas au levier qu'il prétend mesurer. Cohérent avec des probabilités au plancher ; à ne pas montrer tel quel."
+src/dashboard/utils/ml_widgets.py:351:
+  q: "Où en est chaque indicateur par rapport à sa porte ?"
+  role: prediction
+  d: 2
+  c: 3
+  p: 3
+  v: corriger
+  note: "44 jauges sur une page ; bande rouge/verte sans curseur visible dans l'export. Trop de jauges pour un coup d'œil (Few)."
+src/dashboard/utils/s4a_entry_insight.py:259:
+  q: "La prédiction d'hier s'est-elle vérifiée ?"
+  role: prediction
+  d: 3
+  c: 4
+  p: 5
+  v: garder
+  note: "11–12 % prédits, 0 streams algo constatés — la bonne confrontation prédiction/réalité, et elle dit que le modèle n'a encore rien prouvé."
+src/dashboard/utils/s4a_entry_insight.py:318:
+  q: "Mes ajouts en playlist progressent-ils entre deux saisies ?"
+  role: plateforme
+  d: 1
+  c: 3
+  p: 2
+  v: retirer
+  note: "Trois points en deux jours, axe en heures — rien à lire ; les chiffres sont déjà en tuiles."
+
+# ── Revenus et abonnement ────────────────────────────────────────────────────
+src/dashboard/views/revenue_forecast.py:94:
+  q: "(MRR — onglet non atteint)"
+  role: business
+  d: 3
+  c: 3
+  p: 3
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/revenue_forecast.py:224:
+  q: "Quand atteindrai-je mon objectif de revenu mensuel ?"
+  role: business
+  d: 2
+  c: 3
+  p: 3
+  v: garder
+  note: "MRR à 0 sur douze mois face à une cible de 500 € — juste (aucun abonné payant), mais une ligne plate ; une tuile le dirait."
+src/dashboard/views/revenue_forecast.py:306:
+  q: "Combien vaut un abonné selon sa rétention ?"
+  role: business
+  d: 2
+  c: 2
+  p: 2
+  v: a-trancher
+  note: "LTV par hypothèse de rétention — sans aucun abonné réel, c'est une table de multiplication."
+src/dashboard/views/revenue_forecast.py:478:
+  q: "Ce qui rentre et ce qui sort — quand serai-je à l'équilibre ?"
+  role: meta
+  d: 5
+  c: 4
+  p: 5
+  v: garder
+  note: "« Point mort dans 2 899 mois — 242 ans » : la réponse brutale et juste à « qu'apporte Meta » en argent. À mettre en avant."
+src/dashboard/views/revenue_forecast.py:754:
+  q: "Combien vaut un déclenchement d'algorithme pour moi ?"
+  role: prediction
+  d: 4
+  c: 3
+  p: 4
+  v: garder
+  note: "Valeur d'un déclenchement vs espérance catalogue — lisible, médiane marquée."
+
+# ── Administration et santé de l'app ─────────────────────────────────────────
+src/dashboard/views/alerts.py:440:
+  q: "Combien d'artistes, et combien paient ?"
+  role: business
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "8 artistes, 3 premium — lisible."
+src/dashboard/views/admin.py:358:
+  q: "(tableau d'administration)"
+  role: business
+  d: 3
+  c: 3
+  p: 2
+  v: a-trancher
+  note: "Non rendu par défaut."
+src/dashboard/views/usage_analytics.py:56:
+  q: "L'app est-elle utilisée, jour après jour ?"
+  role: business
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Pics d'usage lisibles (tests compris ?) — à filtrer du propriétaire."
+src/dashboard/views/usage_analytics.py:69:
+  q: "Quelles pages sont vues ?"
+  role: business
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Onboarding, credentials, accueil en tête ; Road to Algo tout en bas — une donnée produit à regarder."
+src/dashboard/views/usage_analytics.py:83:
+  q: "Quels évènements se produisent ?"
+  role: business
+  d: 1
+  c: 4
+  p: 2
+  v: retirer
+  note: "Quatre barres dont deux nulles — une ligne de tuiles suffit."
+src/dashboard/views/db_health.py:252:
+  q: "Quelle source n'a pas été importée depuis longtemps ?"
+  role: archi
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Seuils 14/30 j marqués ; fond noir forcé (thème sombre) à vérifier à l'impression."
+src/dashboard/views/db_health.py:294:
+  q: "Quand les données arrivent-elles, table par table ?"
+  role: archi
+  d: 1
+  c: 3
+  p: 3
+  v: corriger
+  note: "Carte de chaleur sans libellés de lignes : on ne sait pas quelle table est quelle ligne."
+src/dashboard/views/db_health.py:353:
+  q: "Mes tables grossissent-elles normalement ?"
+  role: archi
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Lignes cumulées par table — la cassure de S4A Timeline en juillet se voit."
+src/dashboard/views/db_health.py:421:
+  q: "Combien de lignes neuves par jour ?"
+  role: archi
+  d: 2
+  c: 4
+  p: 3
+  v: fusionner
+  note: "Doublon en flux de la figure cumulée ; garder l'un des deux."
+src/dashboard/views/etl_logs.py:231:
+  q: "Quelles collectes échouent ?"
+  role: archi
+  d: 5
+  c: 4
+  p: 5
+  v: garder
+  note: "meta_ads_api_daily rouge chaque jour (R13, code 190) — la panne se voit en une seconde."
+src/dashboard/views/airflow_kpi.py:626:
+  q: "(durées et succès des DAG)"
+  role: archi
+  d: 4
+  c: 4
+  p: 4
+  v: a-trancher
+  note: "Non rendu : lit l'API Airflow, absente de ce rendu."
+src/dashboard/views/airflow_kpi.py:644:
+  q: "(durées des DAG)"
+  role: archi
+  d: 3
+  c: 4
+  p: 4
+  v: a-trancher
+  note: "Non rendu : lit l'API Airflow."
+src/dashboard/views/airflow_kpi.py:667:
+  q: "(succès des DAG)"
+  role: archi
+  d: 3
+  c: 4
+  p: 4
+  v: a-trancher
+  note: "Non rendu : lit l'API Airflow ; recoupe etl_logs:231."
+
+# ── Rapport PDF de l'artiste ─────────────────────────────────────────────────
+pdf:streams:
+  q: "Mes streams Spotify sur la période"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Lisible ; les pics de 2024 se voient."
+pdf:platform:
+  q: "Quelle plateforme pèse le plus ?"
+  role: plateforme
+  d: 2
+  c: 2
+  p: 3
+  v: corriger
+  note: "Apple affiché à « 0 » alors qu'il n'a qu'un instantané — une absence écrite comme un zéro."
+pdf:platform_evo:
+  q: "Toutes mes plateformes, en cumul"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 4
+  v: corriger
+  note: "Même marche YouTube que l'accueil (arrivée d'historique)."
+pdf:ml:
+  q: "Mes chances de déclencher les algorithmes (J+28)"
+  role: prediction
+  d: 2
+  c: 2
+  p: 4
+  v: corriger
+  note: "7 %, 7 %, 11 % affichés comme des pourcentages alors qu'ils sont au plancher du calibrage — l'aperçu gratuit refuse déjà de les montrer (R193). Même règle ici."
+pdf:j28:
+  q: "Ma trajectoire des 28 premiers jours"
+  role: prediction
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Lisible ; sans repère de cohorte."
+pdf:roi:
+  q: "Mes revenus couvrent-ils ma pub ?"
+  role: meta
+  d: 5
+  c: 4
+  p: 5
+  v: garder
+  note: "261 € contre 3 088 € — la phrase que tout le dossier Meta doit porter."
+pdf:s4a_top:
+  q: "Mes titres les plus écoutés sur la période"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: corriger
+  note: "Deux nombres superposés (« 3 442 » dans la barre de 60 032, « 2 431 » sur « 2 219 »)."
+pdf:youtube:
+  q: "Mes vidéos les plus vues"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: corriger
+  note: "Nombres superposés (« 7 503 » sur « 7 507 »)."
+pdf:soundcloud:
+  q: "Mes titres SoundCloud les plus écoutés"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "Lisible."
+pdf:apple:
+  q: "Mes titres Apple les plus écoutés"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: corriger
+  note: "Nombres superposés (« 305 » dans la barre de 422)."
+pdf:instagram:
+  q: "Mes abonnés Instagram"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "La baisse est lisible."
+pdf:meta:
+  q: "Combien chaque campagne a-t-elle coûté ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Huit campagnes, 756 € pour la plus grosse — cohérent avec l'écran « overview », pas avec « côte à côte »."
+pdf:hypeddit:
+  q: "Mes smart links, visites et clics"
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Lisible."
+pdf:bd_country:
+  q: "Où ma pub a-t-elle dépensé ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "Mexique en tête."
+pdf:bd_placement:
+  q: "Sur quel placement ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "Reels Instagram en tête."
+pdf:bd_age:
+  q: "Sur quel âge ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "25-34 ans en tête — alors que c'est la tranche la plus chère par résultat (écran de l'optimiseur)."
+pdf:revenue_fc:
+  q: "Mes revenus et leur tendance"
+  role: business
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Tendance décroissante lisible."
+pdf:mxs:
+  q: "Meta × Spotify pendant la campagne (base 100)"
+  role: meta
+  d: 3
+  c: 4
+  p: 5
+  v: garder
+  note: "Streams +20–60 % pendant la dépense, retour à 100 à l'arrêt — lisible."
+pdf:playlist_adds:
+  q: "Mes ajouts en playlist récents"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Trois fenêtres 7/28 j/12 mois — une tuile ferait aussi bien."
+pdf:meta_funnel:
+  q: "L'entonnoir de ma pub"
+  role: meta
+  d: 2
+  c: 4
+  p: 4
+  v: corriger
+  note: "Échelle linéaire : tout sous les impressions est invisible. Pourcentages d'étape à étape."
+pdf:meta_daily:
+  q: "Budget, clics sortants, CPR au jour le jour"
+  role: meta
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Toute l'histoire des campagnes ; dense mais juste."
+pdf:pi_gate:
+  q: "À quel indice de popularité chaque algorithme se déclenche-t-il ?"
+  role: prediction
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Parts observées par tranche de PI, cohorte nommée — clair, et c'est la connaissance du produit."
+pdf:apple_daily:
+  q: "Apple — plays et shazams"
+  role: plateforme
+  d: 2
+  c: 4
+  p: 2
+  v: garder
+  note: "Trois relevés — honnête."
+pdf:sc_multi:
+  q: "SoundCloud — écoutes et engagement"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Sans la chute à zéro de l'écran (relevés nettoyés ?) — à comparer à soundcloud.py:429."
+pdf:ig_engagement:
+  q: "Mon engagement Instagram par mois"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Plus lisible que l'écran (likes et commentaires en deux couleurs)."
+pdf:s4a_cumulative:
+  q: "Mes streams cumulés en carrière"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "Lisible."
+pdf:s4a_audience:
+  q: "Mes auditeurs et abonnés Spotify"
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "Lisible ; le pic d'un jour en mai 2025 mérite une note."
+pdf:yt_growth:
+  q: "Ma chaîne YouTube"
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Même marche d'abonnés que l'écran."
+pdf:song_tl:
+  q: "La chronologie d'un titre"
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: a-trancher
+  note: "Non rendu : n'existe que si UN seul titre est choisi pour le rapport."
+
+# ── Grafana — robustesse de l'app (les 4 signaux d'or, SRE p. 86) ────────────
+grafana:1:
+  q: "LATENCE — l'app répond-elle vite (cadre vs corps de page) ?"
+  role: archi
+  d: 1
+  c: 1
+  p: 5
+  v: corriger
+  note: "DEUX points mesurés en 7 jours alors que le trafic existe — le signal d'or « latence » est aveugle. Vérifier que l'histogramme de rendu est bien observé en prod (couture metrics_seam)."
+grafana:2:
+  q: "SATURATION — des rendus s'empilent-ils ?"
+  role: archi
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Toujours 0 : juste pour ce trafic ; utile le jour où il monte."
+grafana:3:
+  q: "SATURATION — le pool Postgres tient-il, ou retombe-t-on en connexions directes ?"
+  role: archi
+  d: 3
+  c: 2
+  p: 5
+  v: corriger
+  note: "« REPLIS directs » grimpe jusqu'à ~8 000 en dents de scie (remis à zéro à chaque déploiement) — soit le pool n'est presque jamais utilisé en prod, soit la jauge compte un cumul. La règle ConnectionPoolExhausted (direct_fallback > 0) devrait alors être en feu. À vérifier en PREMIER côté archi."
+grafana:4:
+  q: "ERREURS — quelles pages lèvent ?"
+  role: archi
+  d: 3
+  c: 4
+  p: 5
+  v: garder
+  note: "Vide sur 7 jours = zéro erreur (et le panneau 11 prouve que la lecture fonctionne). Un « 0 » écrit vaudrait mieux qu'un graphique vide."
+grafana:5:
+  q: "SATURATION — CPU, RAM, disque de la machine"
+  role: archi
+  d: 4
+  c: 5
+  p: 5
+  v: garder
+  note: "CPU ~9 %, RAM ~40 %, disque 55 → 60 % en une semaine : la pente du disque est à surveiller."
+grafana:6:
+  q: "TRAFIC — requêtes au proxy"
+  role: archi
+  d: 3
+  c: 5
+  p: 4
+  v: garder
+  note: "< 1 req/s : le signal existe et il est juste."
+grafana:7:
+  q: "LATENCE — quelle page est lente ?"
+  role: archi
+  d: 1
+  c: 1
+  p: 5
+  v: corriger
+  note: "UN seul point en 7 jours — même cécité que le panneau 1."
+grafana:8:
+  q: "SATURATION — mémoire des processus"
+  role: archi
+  d: 4
+  c: 5
+  p: 4
+  v: garder
+  note: "Le dashboard a monté à ~450 Mo le 22/09 puis est redescendu — lisible."
+grafana:9:
+  q: "SATURATION — CPU des processus"
+  role: archi
+  d: 3
+  c: 5
+  p: 3
+  v: garder
+  note: "< 2 % ; bruit de fond."
+grafana:10:
+  q: "ERREURS — défauts ouverts, persistants entre déploiements"
+  role: archi
+  d: 3
+  c: 4
+  p: 5
+  v: garder
+  note: "Vide = 0 défaut ouvert (confirmé par le panneau 11)."
+grafana:11:
+  q: "Le compteur de défauts sait-il lire ?"
+  role: archi
+  d: 4
+  c: 5
+  p: 4
+  v: garder
+  note: "Lecture réussie = 1 en continu ; âge de la dernière lecture < 45 s. Le bon garde-fou contre un « 0 » aveugle."
+grafana:12:
+  q: "TRAFIC — combien d'artistes et de sessions ?"
+  role: business
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "Trois pics à 1 artiste en 7 jours — l'usage réel, et il est faible (ADR-028 : l'activation est le blocage)."
+grafana:13:
+  q: "TRAFIC — quelles routes d'API, quels statuts ?"
+  role: archi
+  d: 2
+  c: 5
+  p: 3
+  v: garder
+  note: "Surtout /metrics et /health (la supervision elle-même) ; le trafic utile est invisible dessous — filtrer ces deux routes."
+grafana:14:
+  q: "LATENCE — l'API répond-elle vite ?"
+  role: archi
+  d: 3
+  c: 5
+  p: 4
+  v: garder
+  note: "p95 < 80 ms ; idem, dominé par /health."
+grafana:15:
+  q: "ERREURS — volume de journaux par niveau"
+  role: archi
+  d: 2
+  c: 4
+  p: 2
+  v: fusionner
+  note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."

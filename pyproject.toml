@@ -100,6 +100,10 @@ dev = [
     # `tests/test_live_pulse.py` est le seul à écrire une table réelle
     # (`active_sessions`), il ne peut donc pas se courir après lui-même.
     "pytest-xdist>=3.5.0",
+    # R203 (2026-09-26): renders the on-screen Plotly figures to PNG for the charts review
+    # dossier (`make charts-dossier`). 0.2.1 needs no browser and matches plotly 5.24; the
+    # 1.x line needs Chrome. Dev only — never in the production image.
+    "kaleido==0.2.1",
     # L'INSTRUMENT de `--dist loadgroup`, pas un agrément. Okken, *Python Testing
     # with pytest* p.211 : `pytest-xdist` et `pytest-randomly` sont les deux
     # greffons qui accélèrent ET « trouvent les dépendances accidentelles entre

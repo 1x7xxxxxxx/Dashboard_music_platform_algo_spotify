@@ -42,6 +42,11 @@ _ALLOWED_TO_RESOLVE = {
 # Nourrir la porte et diagnostiquer son absence ne sont pas inventer une precedence.
 # Les garder dans le balayage aurait rendu neuf faux positifs permanents — et un garde
 # bruyant se fait desactiver, ce qui coute plus cher que le trou qu'il couvrait.
+# Modules that FEED the shared door (set a DSN variable so `from_env_or_config` resolves it)
+# without ever reading one. R203 (2026-09-26): the charts dossier points the app at the
+# local production snapshot by setting DATABASE_URL before rendering — the door still
+# resolves. `test_a_feeder_only_writes_the_door` keeps it to writes.
+_FEEDS_THE_DOOR = {REPO / "tools" / "dev" / "charts_dossier" / "capture.py"}
 _SCANNED_TREES = [REPO / "src", REPO / "airflow" / "dags", REPO / "tools"]
 _DSN_VARS = {"DATABASE_URL", "DATABASE_HOST", "DATABASE_PORT",
              "DATABASE_NAME", "DATABASE_USER", "DATABASE_PASSWORD"}
@@ -52,7 +57,7 @@ def _modules_reading_dsn_env() -> dict:
     out: dict[str, list[str]] = {}
     for tree_root in _SCANNED_TREES:
         for path in sorted(tree_root.rglob("*.py")):
-            if path in _ALLOWED_TO_RESOLVE:
+            if path in _ALLOWED_TO_RESOLVE or path in _FEEDS_THE_DOOR:
                 continue
             try:
                 found = dsn_reads(path.read_text(encoding="utf-8"))
@@ -439,3 +444,25 @@ def test_the_test_door_speaks_the_handlers_language_under_DATABASE_URL(monkeypat
         f"`dsn()` rend {sorted(kw or {})} ; `PostgresHandler` accepte {sorted(_handler_kwargs())}")
     assert (kw["user"], kw["password"], kw["port"]) == ("u@x", "p:w", 6543), (
         "les identifiants d'une URI se décodent comme le fait libpq")
+
+
+def env_reads(source: str) -> list[str]:
+    """DSN variables READ (`os.environ.get`, `os.getenv`, `os.environ[...]` as a value). Pure."""
+    tree = ast.parse(source)
+    written = {id(t.slice) for n in ast.walk(tree) if isinstance(n, ast.Assign)
+               for t in n.targets if isinstance(t, ast.Subscript)}
+    out = []
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Constant) and n.value in _DSN_VARS and id(n) not in written):
+            out.append(f"{n.value}:{n.lineno}")
+    return out
+
+
+def test_a_feeder_only_writes_the_door() -> None:
+    """A module exempted as a FEEDER may set a DSN variable, never read one."""
+    assert env_reads('import os\nos.environ["DATABASE_URL"] = "x"\n') == []
+    assert env_reads('import os\nu = os.environ.get("DATABASE_URL")\n') == ["DATABASE_URL:2"]
+    for path in _FEEDS_THE_DOOR:
+        with open(path, encoding="utf-8") as fh:
+            reads = env_reads(fh.read())
+        assert not reads, f"{path.relative_to(REPO)} READS {reads} — it would be a second door"
