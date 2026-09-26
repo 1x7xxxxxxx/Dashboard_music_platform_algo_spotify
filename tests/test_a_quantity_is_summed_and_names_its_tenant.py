@@ -116,6 +116,27 @@ def test_these_sources_really_are_quantities_and_not_counters(source) -> None:
         "inverse inventerait des visites qui n'ont pas eu lieu.")
 
 
+_QUANTITIES = frozenset({"hypeddit_daily_stats", "imusician_monthly_revenue",
+                         "distrokid_monthly_revenue", "sacem_statement", "s4a_song_timeline"})
+
+
+def quantities_carried_forward(targets) -> list[str]:
+    """Quantity tables listed among the counters whose return to zero is impossible —
+    `targets` rows are `(table, …)` like `ZERO_RESET_TARGETS`. Pure."""
+    return sorted({t for t, *_ in targets} & _QUANTITIES)
+
+
+def test_the_counter_list_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-quantity-mistaken-for-a-counter`: Hypeddit put among the
+    carried-forward counters — the 93 alerts over 1 254 days — is named; a list of true
+    counters is not."""
+    counters = [("youtube_channel_history", "view_count", "channel_id"),
+                ("soundcloud_track_history", "playback_count", "track_id")]
+    assert quantities_carried_forward(counters) == []
+    wrong = counters + [("hypeddit_daily_stats", "visits", "artist_id")]
+    assert quantities_carried_forward(wrong) == ["hypeddit_daily_stats"]
+
+
 def test_no_quantity_source_is_treated_as_a_counter() -> None:
     """Elles ne doivent PAS figurer parmi les cibles de report en avant.
 
@@ -127,10 +148,7 @@ def test_no_quantity_source_is_treated_as_a_counter() -> None:
     sys.path.insert(0, str(_ROOT))
     from src.utils.value_monitor import ZERO_RESET_TARGETS
 
-    counters = {t for t, *_ in ZERO_RESET_TARGETS}
-    quantities = {"hypeddit_daily_stats", "imusician_monthly_revenue",
-                  "distrokid_monthly_revenue", "sacem_statement", "s4a_song_timeline"}
-    wrong = sorted(counters & quantities)
+    wrong = quantities_carried_forward(ZERO_RESET_TARGETS)
     assert not wrong, (
         f"table(s) de quantités traitées comme des compteurs : {wrong}. Un zéro y "
         "veut dire « rien ce jour-là », pas « collecte ratée ».")

@@ -1655,6 +1655,7 @@
     "tests/test_a_pytest_run_carries_what_the_conftest_needs.py::test_the_extraction_sees_the_real_workflows_and_the_real_hooks": 0.054541938996408135,
     "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_every_read_of_these_relations_names_its_tenant": 1.503720197999428,
     "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_no_quantity_source_is_treated_as_a_counter": 0.0011171210007887566,
+    "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_the_counter_list_detector_sees_the_defect_it_is_written_for": 0.08078039101383183,
     "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0013555120094679296,
     "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_the_scan_actually_sees_these_relations": 0.02207826799894974,
     "tests/test_a_quantity_is_summed_and_names_its_tenant.py::test_these_sources_really_are_quantities_and_not_counters[Hypeddit]": 0.010181994999584276,
