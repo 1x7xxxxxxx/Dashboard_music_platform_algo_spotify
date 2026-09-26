@@ -320,15 +320,27 @@ def test_the_notes_renderer_receives_the_mode() -> None:
 # jour, c'est LUI qui redevient le sujet, et ce garde se réécrit à ce moment-là.
 
 
-def test_no_dead_constant_pretends_to_drive_the_subtitle() -> None:
-    """`_UNSTACKED` était déclarée, jamais lue, ET fausse — `share` empile."""
-    tree = _tree("src/dashboard/utils/platform_chart.py")
+def dead_constants(tree: ast.AST) -> set[str]:
+    """Private module CONSTANTS assigned and never read. Pure."""
     names = {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
              for t in n.targets if isinstance(t, ast.Name)}
     reads = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)
              and isinstance(n.ctx, ast.Load)}
-    dead = {n for n in names
-            if n.isupper() and n.startswith("_") and n not in reads}
+    return {n for n in names if n.isupper() and n.startswith("_") and n not in reads}
+
+
+def test_the_dead_constant_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity, class `a-caption-written-beside-the-behaviour-instead-of-derived-
+    from-it`: `_UNSTACKED` declared and never read (the 2026-09-10 caption source) is
+    named; a constant the code reads, and a public one, are not."""
+    tree = ast.parse("_UNSTACKED = {'share'}\n_STACKED = {'abs'}\nPUBLIC = 1\n"
+                     "def mode(m):\n    return m in _STACKED\n")
+    assert dead_constants(tree) == {"_UNSTACKED"}
+
+
+def test_no_dead_constant_pretends_to_drive_the_subtitle() -> None:
+    """`_UNSTACKED` était déclarée, jamais lue, ET fausse — `share` empile."""
+    dead = dead_constants(_tree("src/dashboard/utils/platform_chart.py"))
     assert not dead, (
         f"constante(s) de module déclarée(s) et jamais lue(s) : {sorted(dead)}. "
         "`_UNSTACKED` a vécu ainsi jusqu'au 2026-09-10 en affirmant que `share` "
