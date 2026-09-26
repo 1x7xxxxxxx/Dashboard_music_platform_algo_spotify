@@ -82,6 +82,13 @@ def test_every_row_already_written_still_validates(db, table, model, cols):
     )
 
 
+def invented_length_bounds(models) -> list[str]:
+    """Every `max_length` a model declares — none has a column to justify it. Pure."""
+    return [f"{m.__name__}.{name} (max_length={meta.max_length})"
+            for m in models for name, field in m.model_fields.items()
+            for meta in field.metadata if getattr(meta, "max_length", None) is not None]
+
+
 def test_no_length_bound_is_declared_without_a_column_to_justify_it():
     """Aucune borne de longueur inventée ne revient par la petite porte.
 
@@ -89,15 +96,25 @@ def test_no_length_bound_is_declared_without_a_column_to_justify_it():
     schéma, et une borne qu'aucune colonne ne porte est un refus arbitraire sur de
     la donnée légitime.
     """
-    offenders = []
-    for model in (MetaCampaign, MetaAdset, MetaAd, MetaInsight):
-        for name, field in model.model_fields.items():
-            for meta in field.metadata:
-                if getattr(meta, "max_length", None) is not None:
-                    offenders.append(f"{model.__name__}.{name} (max_length="
-                                     f"{meta.max_length})")
+    offenders = invented_length_bounds((MetaCampaign, MetaAdset, MetaAd, MetaInsight))
     assert not offenders, (
         "borne(s) de longueur déclarée(s) sans colonne qui la porte : "
         f"{offenders}. Les colonnes de noms sont des `text`. Si une vraie limite "
         "apparaît un jour, la lire dans `information_schema`, ne pas la retaper."
     )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the bound that refused real campaign names — `max_length=255` on a
+    `text` column — is named; the unbounded field, and a numeric bound, are not."""
+    from pydantic import BaseModel, Field
+
+    class Invented(BaseModel):
+        campaign_name: str = Field(max_length=255)
+
+    class Honest(BaseModel):
+        campaign_name: str
+        daily_budget: float = Field(ge=0)
+
+    assert invented_length_bounds([Invented]) == ["Invented.campaign_name (max_length=255)"]
+    assert invented_length_bounds([Honest]) == []

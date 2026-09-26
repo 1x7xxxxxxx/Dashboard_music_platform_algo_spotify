@@ -47,20 +47,26 @@ def test_the_script_exists(rel: str) -> None:
     assert (ROOT / rel).is_file(), f"{rel} is referenced as operational but missing"
 
 
+def tools_missing(service_def: dict) -> bool | None:
+    """Does a service mount ./src WITHOUT ./tools? None when it mounts no ./src. Pure."""
+    volumes = service_def.get("volumes") or []
+    mounts = [v if isinstance(v, str) else v.get("source", "") for v in volumes]
+    if not any(m.startswith("./src:") for m in mounts):
+        return None
+    return not any(m.startswith("./tools:") for m in mounts)
+
+
 @pytest.mark.parametrize("service", AIRFLOW_SERVICES)
 def test_tools_is_mounted_wherever_src_is(service: str, compose: dict) -> None:
     """Anywhere the app code is mounted, the scripts that drive it must be too."""
     services = compose.get("services", {})
     if service not in services:
         pytest.skip(f"{service} not declared")
-    volumes = services[service].get("volumes") or []
-    mounts = [v if isinstance(v, str) else v.get("source", "") for v in volumes]
-
-    has_src = any(m.startswith("./src:") for m in mounts)
-    if not has_src:
+    missing = tools_missing(services[service])
+    if missing is None:
         pytest.skip(f"{service} does not mount ./src either")
 
-    assert any(m.startswith("./tools:") for m in mounts), (
+    assert not missing, (
         f"{service} mounts ./src but not ./tools. The operational scripts need "
         "psycopg2, which exists only inside the containers — so the documented "
         "production procedure cannot run anywhere. Add:\n"
@@ -78,3 +84,14 @@ def test_the_mount_is_read_only(compose: dict) -> None:
                     f"{service} mounts ./tools writable. A container that can rewrite "
                     "the repo's operational scripts is a surprise nobody wants."
                 )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for() -> None:
+    """Non-vacuity: a scheduler mounting ./src but not ./tools — the state in which the
+    documented production procedure could run nowhere — is refused; the long-form
+    volume syntax is read too; a service with neither is not judged."""
+    src = "./src:/opt/airflow/src:ro"
+    assert tools_missing({"volumes": [src]}) is True
+    assert tools_missing({"volumes": [src, "./tools:/opt/airflow/tools:ro"]}) is False
+    assert tools_missing({"volumes": [{"source": "./src:/x"}, {"source": "./tools:/y"}]}) is False
+    assert tools_missing({"volumes": ["./dags:/opt/airflow/dags"]}) is None

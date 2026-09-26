@@ -36,8 +36,8 @@ from pathlib import Path
 _APP = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "app.py"
 
 
-def _main() -> ast.FunctionDef:
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
+def _main(source: str | None = None) -> ast.FunctionDef:
+    tree = ast.parse(_APP.read_text(encoding="utf-8") if source is None else source)
     return next(n for n in ast.walk(tree)
                 if isinstance(n, ast.FunctionDef) and n.name == "main")
 
@@ -56,9 +56,8 @@ def test_main_is_nothing_but_the_boundary():
     assert len(tries) == 1, f"attendu exactement un try dans main(), trouvé {len(tries)}"
 
 
-def test_no_view_is_called_outside_the_boundary():
-    """Aucun `show*()` ne s'exécute hors du try — c'est la forme exacte du défaut."""
-    main = _main()
+def views_outside_the_boundary(main: ast.FunctionDef) -> list[str]:
+    """`show*()` / `_main_body()` calls in `main` that no `try` covers. Pure."""
     tries = [n for n in ast.walk(main) if isinstance(n, ast.Try)]
     covered = set()
     for t in tries:
@@ -70,6 +69,12 @@ def test_no_view_is_called_outside_the_boundary():
             name = getattr(n.func, "id", "") or getattr(n.func, "attr", "")
             if name.startswith("show") or name == "_main_body":
                 outside.append(f"{name}@L{n.lineno}")
+    return outside
+
+
+def test_no_view_is_called_outside_the_boundary():
+    """Aucun `show*()` ne s'exécute hors du try — c'est la forme exacte du défaut."""
+    outside = views_outside_the_boundary(_main())
     assert not outside, (
         f"{outside} : appel de vue hors frontière. Les surfaces NON AUTHENTIFIÉES "
         f"(vie privée, onboarding, barres latérales) étaient précisément celles qui "
@@ -91,3 +96,17 @@ def test_control_flow_still_propagates():
     tree = ast.parse(src)
     reraises = [n for n in ast.walk(tree) if isinstance(n, ast.Raise) and n.exc is None]
     assert reraises, "aucun `raise` nu : les signaux de contrôle seraient avalés"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the pre-2026-08-23 shape — the privacy page and the sidebar rendered
+    BEFORE the `try` — is refused; everything inside it is accepted."""
+    defect = ("def main():\n"
+              "    show_privacy()\n"
+              "    try:\n        _main_body()\n"
+              "    except Exception:\n        raise\n")
+    assert views_outside_the_boundary(_main(defect)) == ["show_privacy@L2"]
+    fixed = ("def main():\n"
+             "    try:\n        show_privacy()\n        _main_body()\n"
+             "    except Exception:\n        raise\n")
+    assert views_outside_the_boundary(_main(fixed)) == []
