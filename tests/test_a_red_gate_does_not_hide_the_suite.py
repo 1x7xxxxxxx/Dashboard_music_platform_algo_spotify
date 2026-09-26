@@ -109,6 +109,26 @@ def _needs_closure(name: str, jobs: dict) -> set[str]:
     return seen
 
 
+def suite_behind_a_gate(jobs: dict) -> dict:
+    """{suite job: [gates it waits on]} — directly or through a chain. Pure."""
+    gates = {n for n, j in jobs.items() if _carries_a_gate(j)}
+    chained = {n: sorted(_needs_closure(n, jobs) & gates)
+               for n, j in jobs.items() if _runs_the_suite(j)}
+    return {n: g for n, g in chained.items() if g}
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: the September chain — the suite `needs:` a lint job that `needs:`
+    the gate — is named even two hops away; the same jobs in parallel are not."""
+    gate = {"steps": [{"name": f"secrets{_GATE_SUFFIX}", "run": "gitleaks"}]}
+    suite = {"steps": [{"run": "pytest tests/ -q"}]}
+    chained = {"gate": gate, "lint": {"needs": "gate", "steps": []},
+               "tests": {**suite, "needs": ["lint"]}}
+    assert suite_behind_a_gate(chained) == {"tests": ["gate"]}
+    parallel = {"gate": gate, "lint": {"steps": []}, "tests": dict(suite)}
+    assert suite_behind_a_gate(parallel) == {}
+
+
 def test_no_job_that_runs_the_suite_waits_on_a_gate():
     """La panne de septembre, posée à l'échelle du job."""
     jobs = _jobs()
@@ -123,8 +143,7 @@ def test_no_job_that_runs_the_suite_waits_on_a_gate():
         "disparu, soit le marqueur est cassé. Dans les deux cas ce fichier ne garde plus rien."
     )
 
-    chained = {n: sorted(_needs_closure(n, jobs) & gates) for n in suite}
-    bad = {n: g for n, g in chained.items() if g}
+    bad = suite_behind_a_gate(jobs)
     assert not bad, (
         f"ces jobs de suite attendent une porte : {bad}.\n"
         "Une porte rouge les rendrait « skipped » — pas même un log. C'est la panne des "

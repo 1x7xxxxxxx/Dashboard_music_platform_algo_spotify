@@ -153,3 +153,13 @@ def test_every_invariant_names_the_defect_it_would_have_caught(gi) -> None:
         f"invariant(s) dont le `why` ne dit pas quel défaut il attrape : {thin}")
     names = [inv.name for inv in gi.INVARIANTS]
     assert len(names) == len(set(names)), f"noms d'invariants en double : {names}"
+
+
+def test_the_detector_sees_the_defect_it_is_written_for(gi) -> None:
+    """Non-vacuity, without a database: the two halves of this family — a figure that
+    differs, and a tenant a join lost on ONE side — are both disagreements; equal
+    figures (within tolerance) on both sides are not."""
+    left = {1: 118_219.0, 2: 500.0, 3: 42.0}
+    right = {1: 21.0, 2: 500.0}                     # 1 differs, 3 was lost by a join
+    assert sorted(t for t, _a, _b in gi.compare(left, right)) == [1, 3]
+    assert gi.compare({1: 10.0, 2: 5.0}, {1: 10.0, 2: 5.0}) == []

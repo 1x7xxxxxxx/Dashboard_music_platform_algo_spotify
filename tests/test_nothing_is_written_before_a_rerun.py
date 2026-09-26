@@ -45,10 +45,10 @@ def _tree() -> ast.Module:
     return ast.parse(_VIEW.read_text(encoding="utf-8"))
 
 
-def _blocks_containing_a_rerun() -> list[ast.stmt]:
+def _blocks_containing_a_rerun(tree: ast.Module | None = None) -> list[ast.stmt]:
     """Les blocs `if`/`for` dont le corps se termine par un `st.rerun()`."""
     found = []
-    for node in ast.walk(_tree()):
+    for node in ast.walk(_tree() if tree is None else tree):
         body = getattr(node, "body", None)
         if not isinstance(body, list) or not body:
             continue
@@ -68,9 +68,10 @@ def test_the_view_still_reruns_somewhere():
     )
 
 
-def test_no_screen_output_precedes_a_rerun():
-    offenders = []
-    for block in _blocks_containing_a_rerun():
+def written_then_erased(tree: ast.Module) -> list[str]:
+    """`st.<writer>` calls in a block that ends with `st.rerun()` — erased unseen. Pure."""
+    out = []
+    for block in _blocks_containing_a_rerun(tree):
         for stmt in block.body[:-1]:
             for node in ast.walk(stmt):
                 if (isinstance(node, ast.Call)
@@ -78,7 +79,25 @@ def test_no_screen_output_precedes_a_rerun():
                         and node.func.attr in _WRITERS
                         and isinstance(node.func.value, ast.Name)
                         and node.func.value.id == "st"):
-                    offenders.append(f"st.{node.func.attr} ligne {node.lineno}")
+                    out.append(f"st.{node.func.attr} ligne {node.lineno}")
+    return out
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity: « 3 fichiers importés » written, then erased by the rerun that
+    empties the drop zone, is named; the message parked in session and rendered after
+    the rerun is not."""
+    writer = sorted(_WRITERS)[0]
+    defect = ast.parse(f"if clicked:\n    st.{writer}('3 fichiers importés')\n"
+                       "    _clear_uploader(aid)\n    st.rerun()\n")
+    assert written_then_erased(defect) == [f"st.{writer} ligne 2"]
+    fixed = ast.parse("if clicked:\n    st.session_state['flash'] = '3 fichiers'\n"
+                      "    _clear_uploader(aid)\n    st.rerun()\n")
+    assert written_then_erased(fixed) == []
+
+
+def test_no_screen_output_precedes_a_rerun():
+    offenders = written_then_erased(_tree())
 
     assert not offenders, (
         "écrit à l'écran puis relance le script, qui efface tout : "
