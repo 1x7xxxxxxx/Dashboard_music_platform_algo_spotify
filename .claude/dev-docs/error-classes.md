@@ -353,7 +353,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-verdict-whose-validator-lives-outside-the-repo](#a-verdict-whose-validator-lives-outside-the-repo) | P3 | deterministic | guarded | none |
 | [a-threshold-true-at-one-grain-and-false-at-another](#a-threshold-true-at-one-grain-and-false-at-another) | P3 | deterministic | guarded | none |
 | [a-kill-pattern-that-matches-its-own-shell](#a-kill-pattern-that-matches-its-own-shell) | P3 | deterministic | guarded | none |
-| [a-verdict-from-a-tree-that-moved-under-it](#a-verdict-from-a-tree-that-moved-under-it) | P3 | heuristic | guarded | none |
+| [a-verdict-from-a-tree-that-moved-under-it](#a-verdict-from-a-tree-that-moved-under-it) | P3 | deterministic | guarded | none |
 | [a-bash-hook-that-blocks-the-prose-about-the-gesture](#a-bash-hook-that-blocks-the-prose-about-the-gesture) | P2 | deterministic | guarded | none |
 | [a-counter-drawn-from-zero-before-anyone-was-looking](#a-counter-drawn-from-zero-before-anyone-was-looking) | P2 | deterministic | guarded | none |
 | [a-rule-that-was-right-for-quantities-applied-to-counters](#a-rule-that-was-right-for-quantities-applied-to-counters) | P2 | manual | reported | none |
@@ -3381,13 +3381,13 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 ## a-verdict-from-a-tree-that-moved-under-it
 - status: guarded
 - severity: P3
-- kind: heuristic
+- kind: deterministic
 - symptom: la suite complète rend des échecs qui **n'existent pas** — verts dès qu'on les rejoue. Mesuré le 2026-09-12 : quatre signalés sur deux exécutions, **trois faux**.
 - root_cause: la suite met 6 min 35, et j'ai édité des modules, régénéré des documents et ajouté des fichiers de test pendant qu'elle tournait. pytest lit les fichiers au fil de la collecte et de l'exécution : un arbre qui bouge sous elle produit un verdict qui ne décrit aucun état réel du dépôt.
 - cause_evidence: read (2026-09-26 — `.claude/hooks/check_python_syntax.py:57` `warn_if_a_full_suite_is_running` : pytest lit les fichiers au fil de la collecte, donc un fichier écrit pendant une suite complète n'y figure pas et son verdict décrit un arbre qui n'existe plus ; le hook le dit à chaque écriture)
 - long_term_fix: hook `PostToolUse` sur Write|Edit. Il dit, AU MOMENT de l'écriture, qu'une suite complète tourne et depuis combien de temps. Ce constat ne peut pas être une note : il dépend d'un fait invisible au moment du geste. Avertissement et jamais blocage — éditer pendant une exécution ciblée (`-k`) est normal, et même sous une suite complète c'est parfois le bon choix, à condition de savoir que le verdict ne vaudra rien.
-- signature: `python3 -c "import sys;sys.path.insert(0,'.claude/hooks');import check_python_syntax as m;sys.exit(0 if callable(getattr(m,'warn_if_a_full_suite_is_running',None)) else 1)"`
-- seen_red: unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- signature: `python3 -m pytest tests/test_a_verdict_names_the_tree_it_ran_on.py -q`. Avant (demandait seulement si la fonction EXISTE) : `python3 -c "import sys;sys.path.insert(0,'.claude/hooks');import check_python_syntax as m;sys.exit(0 if callable(getattr(m,'warn_if_a_full_suite_is_running',None)) else 1)"`
+- seen_red: self-proving (tests/test_a_verdict_names_the_tree_it_ran_on.py::test_the_detector_sees_the_defect_it_is_written_for) — la détection du hook est extraite en `running_suite(ps_lines, cwd_of, repo)` ; une suite complète de CE dépôt est vue avec son âge, un run `-k`, le `grep` qui la cherche et la suite d'un AUTRE dépôt ne le sont pas. Muté rouge le 2026-09-26 sur ses trois exemptions (la troisième avait survécu à une première preuve dont le `grep` n'avait pas de répertoire). Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
 - guard: { type: posttooluse-hook, ref: .claude/hooks/check_python_syntax.py }
 - guard_scope: un-garde-qui-ne-garde-pas — éditer l'arbre pendant qu'une suite le lit ; couvre: un AVERTISSEMENT au moment d'un `Write`/`Edit` de `.py`, quand un `pytest tests/` tourne ; ne couvre pas: (a) l'édition d'un **fichier non-Python** que des tests lisent — un `.md` généré, une migration, le `Makefile` — le hook ne se déclenche que sur `.py` ; (b) une régénération par `make`, qui n'est pas un `Write` d'outil ; (c) et il n'empêche RIEN : c'est un avertissement, ignoré quatre fois le 2026-09-16 par son propre auteur.
 - siblings: swept:2026-09-17 — **0 site vivant.** le garde est un CROCHET (`check_python_syntax.py`), pas un test : il avertit quand une suite complète tourne pendant qu'on écrit, parce que le fichier qu'on vient d'écrire n'y sera pas. ⚠️ Vérifié sur la séance elle-même : **j'ai gelé l'arbre à chaque `make test` de la soirée** — une quinzaine — et les deux fois où j'ai dû muter pendant une suite, je l'ai fait sur des copies du scratchpad, jamais sur l'arbre. ⚠️ Ne couvre pas un arbre qui bouge pour une AUTRE raison qu'une écriture de ma part : un `git pull`, un crochet qui reformate, un générateur lancé en parallèle.

@@ -73,27 +73,39 @@ def warn_if_a_full_suite_is_running() -> None:
     try:
         out = subprocess.run(["ps", "-eo", "pid,etimes,args"],
                              capture_output=True, text=True, timeout=5)
-        for line in out.stdout.splitlines():
-            if _FULL_SUITE not in line or " -k " in line or "grep" in line:
-                continue
-            _pid = line.split(None, 1)[0]
-            if not _pid.isdigit() or not _cwd_of(_pid).startswith(racine):
-                continue          # une suite d'un AUTRE dépôt — pas notre affaire
-            parts = line.split(None, 2)
-            if len(parts) < 3 or not parts[1].isdigit():
-                continue
+        found = running_suite(out.stdout.splitlines(), _cwd_of, racine)
+        if found:
+            pid, age = found
             print(
-                f"⚠️  Une suite COMPLÈTE tourne depuis {int(parts[1])} s (pid "
-                f"{parts[0]}). Le fichier qu'on vient d'écrire n'y sera pas — son "
+                f"⚠️  Une suite COMPLÈTE tourne depuis {age} s (pid "
+                f"{pid}). Le fichier qu'on vient d'écrire n'y sera pas — son "
                 "verdict décrira un arbre qui n'existe plus.\n"
                 "   Deux fois le 2026-09-12 : 3 « échecs » sur 4 n'existaient pas, "
                 "et le seul vrai a failli être rangé avec eux.\n"
                 "   Soit tuer la suite et la relancer après, soit ne rien conclure "
                 "de ce qu'elle rendra.",
                 file=sys.stderr)
-            return
     except Exception:      # noqa: BLE001 — un hook qui lève bloquerait chaque écriture
         return
+
+
+def running_suite(ps_lines: list, cwd_of, repo: str):
+    """`(pid, age_s)` of a FULL suite of THIS repo among `ps -eo pid,etimes,args`
+    lines, or None. `cwd_of(pid)` names the process's working directory. Pure.
+
+    A filtered run (`-k`) is not the full suite; a `grep` for it is not a run; a
+    suite whose cwd is another repository is not ours (2026-09-18).
+    """
+    for line in ps_lines:
+        if _FULL_SUITE not in line or " -k " in line or "grep" in line:
+            continue
+        parts = line.split(None, 2)
+        if len(parts) < 3 or not parts[0].isdigit() or not parts[1].isdigit():
+            continue
+        if not cwd_of(parts[0]).startswith(repo):
+            continue          # une suite d'un AUTRE dépôt — pas notre affaire
+        return parts[0], int(parts[1])
+    return None
 
 
 def run_ruff(file_path: str) -> int:
