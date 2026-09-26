@@ -21,7 +21,12 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
-pytestmark = requires_live_db()
+
+def unclaimed(scoped) -> list[str]:
+    """Tenant-scoped tables no platform prefix owns and no excuse names. Pure."""
+    from tools.tenant_contamination_check import _OUT_OF_SCOPE, platform_of
+
+    return sorted(t for t in scoped if platform_of(t) is None and t not in _OUT_OF_SCOPE)
 
 
 @pytest.fixture(scope="module")
@@ -33,10 +38,9 @@ def db():
     conn.close()
 
 
+@requires_live_db()
 def test_every_tenant_scoped_table_is_claimed_or_excused(db):
-    from tools.tenant_contamination_check import (
-        _OUT_OF_SCOPE, platform_of, tenant_scoped_tables,
-    )
+    from tools.tenant_contamination_check import tenant_scoped_tables
 
     scoped = tenant_scoped_tables(db)
     assert len(scoped) > 30, (
@@ -44,10 +48,9 @@ def test_every_tenant_scoped_table_is_claimed_or_excused(db):
         "reading the live database, and every assertion here is true of nothing"
     )
 
-    unclaimed = sorted(t for t in scoped
-                       if platform_of(t) is None and t not in _OUT_OF_SCOPE)
-    assert not unclaimed, (
-        f"{unclaimed} carry a tenant column and are neither owned by a platform "
+    missing = unclaimed(scoped)
+    assert not missing, (
+        f"{missing} carry a tenant column and are neither owned by a platform "
         "prefix nor listed in _OUT_OF_SCOPE.\n"
         "Step 5 of `make artist-preflight` says no row under a tenant belongs to "
         "someone else. It can only say that about tables it looks at. Either give "
@@ -64,6 +67,7 @@ def test_out_of_scope_entries_carry_a_reason():
     assert not empty, f"{empty} are excluded with no reason given"
 
 
+@requires_live_db()
 def test_out_of_scope_does_not_name_tables_that_no_longer_exist(db):
     """A stale exclusion silently protects nothing and hides that it is stale."""
     from tools.tenant_contamination_check import _OUT_OF_SCOPE, tenant_scoped_tables
@@ -102,6 +106,7 @@ def test_the_platforms_that_fetch_under_a_tenant_identity_are_all_covered():
     )
 
 
+@requires_live_db()
 def test_the_scan_returns_findings_shaped_the_way_the_preflight_reads_them(db):
     """`artist_preflight.step_contamination` filters on `artist_id`; keep that key."""
     from tools.tenant_contamination_check import scan
@@ -110,3 +115,15 @@ def test_the_scan_returns_findings_shaped_the_way_the_preflight_reads_them(db):
         assert {"artist_id", "table", "kind", "rows", "detail"} <= set(finding), (
             f"a finding is missing keys the preflight reads: {finding}"
         )
+
+
+def test_the_detector_sees_the_defect_it_is_written_for():
+    """Non-vacuity, both halves, without a database: a tenant table for a platform
+    nobody registered (the 2026-08-22 shape — `tracks` had no Spotify entry) is named;
+    a table a prefix owns, and one excused with a reason, are not."""
+    from tools.tenant_contamination_check import _OUT_OF_SCOPE
+
+    excused = next(iter(_OUT_OF_SCOPE))
+    assert unclaimed(["bandcamp_sales_daily", "youtube_videos", excused]) \
+        == ["bandcamp_sales_daily"]
+    assert unclaimed(["youtube_videos", excused]) == []
