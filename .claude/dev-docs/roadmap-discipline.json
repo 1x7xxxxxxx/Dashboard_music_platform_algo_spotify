@@ -2,8 +2,8 @@
   "days": 14,
   "baseline": false,
   "git": {
-    "product": 42,
-    "ok": 42,
+    "product": 43,
+    "ok": 43,
     "no_id": 0,
     "not_open": 0,
     "undecided": 0,
@@ -11,8 +11,8 @@
     "bypasses": []
   },
   "critic": {
-    "requis": 19,
-    "with_critic": 18,
+    "requis": 20,
+    "with_critic": 19,
     "without_critic": 1,
     "missing": [
       "R248"
@@ -27,13 +27,11 @@
     "R265": 0,
     "R266": 0,
     "R267": 0,
-    "R268": 0,
     "R269": 0,
     "R270": 0,
     "R271": 0,
     "R272": 0,
-    "R273": 0,
-    "R274": 0
+    "R273": 0
   },
   "stale": []
 }

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R268 — **Roadmap et chaîne de dev fiables** (notes L71, L165, L172) : relevé de discipline rég… (livrée 2026-09-27)
+
+- [x] **R268 — **Roadmap et chaîne de dev fiables** (notes L71, L165, L172) : relevé de discipline régénéré chaque nuit, temps de suite depuis une seule source générée, nettoyage de l'obsolète, allègement des livrables (décision), manques de la chaîne commit → CI → push ; CLAUDE.md sous un budget de taille ; le commit rattaché à LA ligne citée** (P3) ✅ (2026-09-27, cb2d6357, edec2c3c, 55b13396, 2818322b, c22daa8f)
+  Mesuré par : REQ-ROAD-03, REQ-TEST-03 conformes
+  porte CI a la fermeture (rouge, en cours, non pousse refuses ; annulee jugee sur le run descendant ; sha complet), notes livrees a la fermeture, perimetre scope par ligne des R279, temps de suite ecrit par make test, budget CLAUDE.md 52 933 octets
+  Commits : cb2d6357 R268 : une CI annulee (remplacee par un push suivant) ne vaut ni rouge · edec2c3c R268 : la porte CI interroge gh avec le sha COMPLET (un sha court rend · 55b13396 R268 : roadmap-close lit la CI du commit de livraison (refuse rouge, e · 2818322b R268 : toute exigence non tenue est portee par une ligne de roadmap OU · c22daa8f R268 : une note encore a faire doit pointer une ligne OUVERTE (index, 
+
 ## ✅ R260 — **Porte de dessin et formats uniques** (notes L87, L242, L549) : couleurs de plateforme… (livrée 2026-09-27)
 
 - [x] **R260 — **Porte de dessin et formats uniques** (notes L87, L242, L549) : couleurs de plateforme en dur 42 → 0 (PDF compris) ; Pareto par défaut sur les barres par catégorie ; un formateur de nombres/monnaie/% pour tuiles et tableaux + cliquet (164 st.metric, 12 formateurs) ; un style commun pour les 71 tableaux ; actions en gras, informations en petit** (P3) ✅ (2026-09-27, 07803176, 9fadbf95)

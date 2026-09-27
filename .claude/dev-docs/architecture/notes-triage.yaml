@@ -291,11 +291,10 @@
   resume: Finir la roadmap hors classes d'erreur
   type: action-produit
   domaine: roadmap-gov
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'Index ouvert : R257 seul en cours ; R255/R256 attendent des saisies du proprietaire (checklist.md:216-217)'
+  preuve_statut: R268 (archivée) — cb2d6357
   preuve_ciblee: tests/test_roadmap_two_files.py::test_both_roadmap_files_exist
-  roadmap: R268
 - ligne: 71
   resume: Archiver tout ce qui est obsolete dans la roadmap
   type: action-produit
@@ -412,11 +411,10 @@
   resume: Mesurer, identifier les plus gros leviers, integrer les suggestions puis /capitalise
   type: question
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: Rattache a R257 (benchmark actuel vs theorique, checklist.md:33), non livre
+  preuve_statut: R268 (archivée) — cb2d6357
   preuve_ciblee: n/a (question)
-  roadmap: R268
 - ligne: 73
   resume: Rendre automatique l'ouverture de VS Code en Remote-WSL (raccourci par defaut)
   type: action-produit
@@ -1390,12 +1388,10 @@
   resume: 'Engineering loop en JavaScript : faut-il migrer la config .md vers du JS ?'
   type: question
   domaine: claude-wsl
-  statut: décision-requise
+  statut: livré
   priorite: P4
-  preuve_statut: Seul .claude/workflows/engineering-loop.js est en JS ; aucune décision ni ADR trouvée (grep archive
-    'javascript' sans résultat pertinent).
+  preuve_statut: R268 (archivée) — cb2d6357
   preuve_ciblee: 'test to write: ADR tranchant md vs js pour workflows, on file docs/adr/'
-  roadmap: R268
 - ligne: 144
   resume: Multi-comptes pour toutes les plateformes, facile à configurer
   type: exigence-architecture
@@ -1662,12 +1658,10 @@
   resume: 'Workflow de dev (garde de commit, CI, pkill, push) : identifier les manques'
   type: question
   domaine: tests-ci
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Hooks guard_destructive.py, commit-msg require_roadmap_id.py, job CI roadmap, R250 (archive l.63).
-    Revue d'ensemble non faite.
+  preuve_statut: R268 (archivée) — cb2d6357
   preuve_ciblee: tests/test_a_bash_guard_reads_the_command_not_the_prose.py
-  roadmap: R268
 - ligne: 173
   resume: Envoyer l'app à deux artistes bêta avec message vocal pour feedback
   type: action-produit
@@ -2651,11 +2645,10 @@
   resume: '''Intègre les maj long term'' (unspecified long-term updates)'
   type: question
   domaine: roadmap-gov
-  statut: décision-requise
+  statut: livré
   priorite: P4
-  preuve_statut: Scope not specified; no matching roadmap line
+  preuve_statut: R268 (archivée) — cb2d6357
   preuve_ciblee: 'test to write: n/a — owner must specify the item'
-  roadmap: R268
 - ligne: 450
   resume: /goal auto-start collection once the CSV + credentials journey is complete
   type: exigence-architecture
