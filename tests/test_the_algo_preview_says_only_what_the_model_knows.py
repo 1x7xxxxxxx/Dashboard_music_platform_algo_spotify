@@ -44,3 +44,28 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     nothing = ap.compose(None, {}, eur_per_stream=0.10, worth={})
     assert all(r["proba"] is None and r["next"] is None for r in nothing["rows"])
     assert nothing["budget"] is None
+
+
+def test_an_algo_stream_estimate_is_refused_under_its_minimum():
+    """R247 (fiche 43): a cell with fewer triggered songs than MIN_N gives NO number."""
+    import importlib.util
+    from pathlib import Path
+    import pandas as pd
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "export_algo_stream_estimates", root / "machine_learning/export_algo_stream_estimates.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    col = mod.COLUMNS["dw"]
+    thr = mod.TARGET_THRESHOLDS["dw"]
+    rows = [{"DaysSinceRelease": 10, col: thr + 1 + i} for i in range(mod.MIN_N)]
+    rows += [{"DaysSinceRelease": 10, col: thr}]               # at the threshold: not triggered
+    rows += [{"DaysSinceRelease": 180, col: thr + 50}]        # one 6-month song only
+    d = pd.DataFrame(rows).assign(**{mod.COLUMNS["rr"]: 0, mod.COLUMNS["radio"]: 0})
+    est = mod.estimates(d)["dw"]
+    assert est["j28"]["n"] == mod.MIN_N and "p50" in est["j28"]
+    assert est["m6"] == {"n": 1, "refused": True}
+    from src.dashboard.views.trigger_algo._tab_algo_streams import estimates_figure
+    fig = estimates_figure({"estimates": {"dw": est}})
+    notes = " ".join(a.text.replace("<br>", " ") for a in fig.layout.annotations)
+    assert "pas assez de titres" in notes and "(1)" in notes, notes

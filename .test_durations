@@ -8688,6 +8688,7 @@
     "tests/test_the_alert_survives_a_broken_repo.py::test_a_broken_repo_still_loads_the_env_file": 0.17875637400175037,
     "tests/test_the_alert_survives_a_broken_repo.py::test_the_alert_survives_a_broken_repo": 0.12105542600147601,
     "tests/test_the_alert_survives_a_broken_repo.py::test_the_broken_tree_really_has_no_src": 0.008189112999389181,
+    "tests/test_the_algo_preview_says_only_what_the_model_knows.py::test_an_algo_stream_estimate_is_refused_under_its_minimum": 0.227698547008913,
     "tests/test_the_algo_preview_says_only_what_the_model_knows.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0033096580009441823,
     "tests/test_the_announced_collection_time_is_the_real_one.py::test_a_csv_source_promises_no_hour": 0.0011475239971332485,
     "tests/test_the_announced_collection_time_is_the_real_one.py::test_an_api_source_announces_the_hour_its_dag_actually_runs": 0.002088322002236964,

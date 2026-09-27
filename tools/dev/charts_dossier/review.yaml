@@ -1116,3 +1116,11 @@ src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
   p: 5
   v: garder
   note: "Nouveau (R246, fiche 40) : jusqu'à 5 titres comparés, deux chaînes côte à côte — côté pub (impressions → clics) et côté smart link (visites → clics plateformes) —, échelle log. Une étape qui s'élargit ou n'est pas mesurée est retirée et nommée ; les écoutes gagnées sont écrites à part."
+src/dashboard/views/trigger_algo/_tab_algo_streams.py::_render_estimates#1:
+  q: "Si un algorithme se déclenche, combien de streams rapporte-t-il d'habitude, au 1er mois, vers 6 mois, vers 1 an ?"
+  role: prediction
+  d: 4
+  c: 3
+  p: 5
+  v: garder
+  note: "Nouveau (R247, fiche 43) : médiane et P25–P75 des streams algorithmiques sur 28 jours, chez les titres DÉCLENCHÉS du jeu d'entraînement (seuils du modèle : DW>137, RR>130, Radio>639), à trois âges ; un panneau par algorithme, chacun à son échelle ; une case de moins de 10 titres est écrite « pas assez de titres » (1 an : refusé partout). Une estimation, pas une prévision pour le titre."

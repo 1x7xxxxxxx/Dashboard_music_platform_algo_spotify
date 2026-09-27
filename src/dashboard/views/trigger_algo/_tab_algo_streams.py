@@ -9,6 +9,9 @@ answers "how many streams did each playlist actually generate?" — the realized
 not the prediction. Shows the cumulative total AND each playlist's contribution, over the
 chosen window (7d / 28d / custom).
 """
+import textwrap
+from pathlib import Path
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -20,6 +23,7 @@ from src.utils.artist_name_filter import (
     ARTIST_NAME_LIKE as _ARTIST_FILTER,
 )
 from src.dashboard.utils import charts
+from src.dashboard.utils.ui import secondary_analyses
 _WINDOWS = [("7d", "7 jours"), ("28d", "28 jours"), ("custom", "Période perso")]
 _SOURCE_LABELS = {"dw_streams": "Discover Weekly", "rr_streams": "Release Radar", "radio_streams": "Radio"}
 _SOURCE_COLORS = {"Discover Weekly": "#1DB954", "Release Radar": "#F037A5", "Radio": "#FFA726"}
@@ -32,6 +36,7 @@ def _show_tab_algo_streams(db, song, artist_id):
                  "Une fois un titre capté par les algos, combien de streams chaque playlist a "
                  "réellement généré. Saisie dans 📝 Saisie S4A. Le total = somme des 3 sources."))
 
+    _render_estimates()   # R247 (fiche 43) — visible même sans aucune saisie
     if not song:
         st.info(t("trigger_algo.algostreams_no_track", "Sélectionne un titre ci-dessus."))
         return
@@ -86,8 +91,84 @@ def _show_tab_algo_streams(db, song, artist_id):
     )
     fig.update_layout(hovermode="x unified", legend_title_text="")
     fig.update_xaxes(type="category")
-    charts.plotly_chart(fig, width="stretch")
+    # R247 : l'historique des saisies se replie — l'estimation (fiche 43) est la réponse
+    # que le propriétaire demandait ; les quatre tuiles au-dessus portent déjà le dernier relevé.
+    with secondary_analyses(t("trigger_algo.algostreams_history", "📊 Historique de tes saisies")):
+        charts.plotly_chart(fig, width="stretch")
 
     with st.expander(t("trigger_algo.algostreams_table", "📋 Détail chiffré")):
         show = df.rename(columns={"recorded_at": "Date", **_SOURCE_LABELS, "total": "Total"})
         st.dataframe(show, hide_index=True, width="stretch")
+
+
+# ── R247 (fiche 43) — what an algorithm usually brings once it has triggered ──────────
+_ESTIMATES = (Path(__file__).resolve().parents[4]
+              / "machine_learning" / "models" / "v3" / "algo_stream_estimates.json")
+_AGE_LABELS = {"j28": "Le 1er mois", "m6": "Vers 6 mois", "y1": "Vers 1 an"}
+_ALGO_LABELS = {"dw": "Discover Weekly", "rr": "Release Radar", "radio": "Radio"}
+
+
+def load_estimates() -> dict:
+    """The exported estimates, or {} when the artefact is absent. Pure on the file.
+
+    No `path=` parameter: the gold-coverage map cannot resolve a default argument at the
+    call site, and filed this figure « indéterminée » instead of « hors base »."""
+    import json
+    try:
+        return json.loads(_ESTIMATES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def estimates_figure(est: dict):
+    """One panel per algorithm, on its OWN scale (Radio at 6 months runs to 22 490 and
+    flattened the rest on a shared axis): median bar + P25–P75 whisker per age, and a
+    refused cell WRITTEN in its place — an empty bar carries no text (render, 2026-09-27)."""
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    algos = list((est.get("estimates") or {}).items())
+    fig = make_subplots(rows=1, cols=max(len(algos), 1), horizontal_spacing=0.08,
+                        subplot_titles=[_ALGO_LABELS.get(a, a) for a, _ in algos])
+    for i, (algo, ages) in enumerate(algos, start=1):
+        xs = [t(f"trigger_algo.est_age.{age}", _AGE_LABELS[age]) for age in ages]
+        cells = list(ages.values())
+        fig.add_trace(go.Bar(
+            x=xs, y=[None if c.get("refused") else c["p50"] for c in cells],
+            text=[None if c.get("refused") else
+                  f"{c['p50']:,.0f}<br>({c['p25']:,.0f}–{c['p75']:,.0f})".replace(",", " ")
+                  for c in cells],
+            textposition="outside", cliponaxis=False, showlegend=False,
+            marker_color=_SOURCE_COLORS.get(_ALGO_LABELS.get(algo)),
+            error_y=dict(type="data", symmetric=False,
+                         array=[None if c.get("refused") else c["p75"] - c["p50"] for c in cells],
+                         arrayminus=[None if c.get("refused") else c["p50"] - c["p25"] for c in cells])),
+            row=1, col=i)
+        for x, c in zip(xs, cells):
+            if c.get("refused"):
+                fig.add_annotation(x=x, y=0, row=1, col=i,
+                                   yanchor="bottom", showarrow=False, font=dict(size=10, color="#888"),
+                                   text="<br>".join(textwrap.wrap(
+                                       t("trigger_algo.est_refused", "pas assez de titres ({n})")
+                                       .format(n=c["n"]), 12)))
+    fig.update_layout(height=380, margin=dict(t=50))
+    fig.update_yaxes(rangemode="tozero")
+    fig.update_yaxes(title_text=t("trigger_algo.est_axis", "Streams de l'algorithme sur 28 jours"),
+                     row=1, col=1)
+    return fig
+
+
+def _render_estimates() -> None:
+    est = load_estimates()
+    if not est.get("estimates"):
+        return
+    st.markdown(t("trigger_algo.est_head",
+                  "**Si l'algorithme se déclenche, ce qu'il rapporte d'habitude** — estimation "
+                  "sur les {n} titres du jeu d'entraînement, pas une prévision pour ton titre."
+                  ).format(n=est.get("rows", "?")))
+    charts.plotly_chart(estimates_figure(est), width="stretch")
+    st.caption(t("trigger_algo.est_caption",
+                 "Barre = la médiane, trait = de P25 à P75 (la moitié des titres déclenchés est "
+                 "dans cette fourchette). Ce sont des streams PAR MOIS À CET ÂGE, chez des titres "
+                 "qui avaient déclenché — pas un total cumulé. « Pas assez de titres » : moins de "
+                 "{m} titres déclenchés de cet âge dans le jeu, donc aucun chiffre."
+                 ).format(m=est.get("min_n", 10)))

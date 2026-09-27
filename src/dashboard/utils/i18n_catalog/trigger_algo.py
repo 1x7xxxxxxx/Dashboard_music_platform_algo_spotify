@@ -2,6 +2,11 @@
 
 EN = {
     # router.py — page-level
+    "trigger_algo.algostreams_history": "📊 History of your entries",
+    "trigger_algo.est_head": "**If the algorithm triggers, what it usually brings** — estimate over the {n} songs of the training set, not a forecast for your track.",
+    "trigger_algo.est_caption": "Bar = the median, line = from P25 to P75 (half of the triggered songs fall in this range). These are streams PER MONTH AT THAT AGE, for songs that had triggered — not a cumulative total. « Not enough songs »: fewer than {m} triggered songs of that age in the set, so no figure.",
+    "trigger_algo.est_axis": "Algorithm streams over 28 days",
+    "trigger_algo.est_refused": "not enough songs ({n})",
     "trigger_algo.roi.trace_cumul_costs": "Cumulative spend (ads + costs)",
     "trigger_algo.roi.trace_cumul_income": "Cumulative income (sales + SACEM)",
     "trigger_algo.roi.breakeven_chart_title_all": "Everything in against everything out, cumulated",
