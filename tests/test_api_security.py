@@ -184,3 +184,18 @@ def test_production_boots_strict_even_without_the_flag(monkeypatch):
     import pytest
     with pytest.raises(RuntimeError, match="refusing to start"):
         main._preflight()
+
+
+def test_every_service_holding_the_jwt_key_says_which_instance_it_is():
+    """R267 (security-specialist) — `_strict()` reads STREAMLYTICS_ENV; a service that holds
+    API_SECRET_KEY without it boots strict only through its flag, the one line a rebuilt
+    compose file can lose."""
+    from pathlib import Path
+
+    import yaml
+    compose = yaml.safe_load((Path(__file__).resolve().parents[1]
+                              / "docker-compose.example.yml").read_text(encoding="utf-8"))
+    holders = {name: svc.get("environment") or {} for name, svc in compose["services"].items()
+               if "API_SECRET_KEY" in (svc.get("environment") or {})}
+    assert holders, "no service reads API_SECRET_KEY — the check reads nothing"
+    assert all("STREAMLYTICS_ENV" in env for env in holders.values()), sorted(holders)

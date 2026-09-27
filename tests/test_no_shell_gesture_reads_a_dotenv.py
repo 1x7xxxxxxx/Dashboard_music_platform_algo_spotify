@@ -10,7 +10,8 @@ and both inside `$( )` or backticks. Writing a `.env` (`> .env`), testing its pr
 `.env.example` is committed and public: exempt.
 
 Mutation record (2026-09-28) : the reader set emptied → red ; the redirect branch removed
-→ red ; the `.env.example` exemption removed → red on the allowed side.
+→ red ; the `.env.example` exemption removed → red on the allowed side ; the wrapper
+branch (`_remote_command`) disabled → red on `bash -c`, `docker exec`, `ssh`.
 """
 import sys
 from pathlib import Path
@@ -22,10 +23,14 @@ import guard_destructive as g  # noqa: E402
 
 READS = ["cat .env", "grep KEY .env.local", "source ~/streamlytics/.env.local",
          "sudo cat /opt/app/.env.prod", "python3 x.py < .env", "python3 x.py <.env.local",
-         "echo $(cat .env)", "echo `grep A .env`", "head -3 .env | wc -l"]
+         "echo $(cat .env)", "echo `grep A .env`", "head -3 .env | wc -l",
+         # security-specialist review (R267): the wrappers and the glob.
+         "bash -c 'cat .env'", "docker exec -it api cat /opt/airflow/.env",
+         "ssh root@host cat /opt/app/.env", "echo .env | xargs cat", "cat .env*"]
 ALLOWED = ["cat .env.example", 'git commit -m "never cat .env"', "test -f .env.local",
            "ls -la .env", "cat <<EOF > .env\nA=1\nEOF", "cat x >> .env.local",
-           "grep -rn dotenv src/"]
+           "grep -rn dotenv src/", "docker exec api ls /app", "ssh root@host uptime",
+           'bash -c "echo hi"', "echo hi | xargs cat"]
 
 
 @pytest.mark.parametrize("cmd", READS)

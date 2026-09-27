@@ -714,11 +714,40 @@ _ENV_FILE = re.compile(r"^\.env(?:\.[\w.-]+)?$")
 
 def _is_env(arg: str) -> str | None:
     name = arg.lstrip("<").rsplit("/", 1)[-1]
+    if name.startswith(".en") and any(c in name for c in "*?["):
+        return arg.lstrip("<")                 # `cat .env*`, `cat .en?` — a glob that hits it
     return arg.lstrip("<") if _ENV_FILE.match(name) and name != ".env.example" else None
+
+
+def _remote_command(argv: list[str]) -> str | None:
+    """The command a wrapper runs: `bash -c '…'`, `docker exec <ctr> …`, `ssh <host> …`."""
+    if not argv:
+        return None
+    head = argv[0].rsplit("/", 1)[-1]
+    if head in ("bash", "sh", "zsh", "dash") and "-c" in argv:
+        k = argv.index("-c")
+        return argv[k + 1] if k + 1 < len(argv) else None
+    if head == "docker" and len(argv) > 2 and argv[1] in ("exec", "run"):
+        j = 2
+        while j < len(argv) and argv[j].startswith("-"):
+            j += 2 if argv[j] in ("-u", "--user", "-e", "--env", "-w", "--workdir") else 1
+        return " ".join(argv[j + 1:]) or None          # argv[j] is the container
+    if head == "ssh":
+        j = 1
+        while j < len(argv) and argv[j].startswith("-"):
+            j += 2 if argv[j] in ("-o", "-i", "-p", "-l", "-J", "-F") else 1
+        return " ".join(argv[j + 1:]) or None          # argv[j] is the host
+    return None
 
 
 def _reads_an_env_file(command: str) -> str | None:
     """The `.env` file a segment's command would read, or None.
+
+    ⚠️ A SPEED BUMP, not a boundary (security-specialist, R267): `python3 -c
+    "open('.env')"`, `git show HEAD:.env`, `vim`, `docker compose config` all read it and
+    are not caught — no reading of the command's STRUCTURE can list every program that
+    opens a file. It stops the reflexes: a reader, a redirect, a substitution, a wrapper
+    (`bash -c`, `docker exec`, `ssh`), `xargs`, a glob.
 
     Three shapes: a READER given the file (`cat .env`), ANY command fed it by an input
     redirection (`python3 x.py < .env`), and either of those inside a command
@@ -742,6 +771,15 @@ def _reads_an_env_file(command: str) -> str | None:
         i = 0
         while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
             i += 1
+        inner = _remote_command(argv[i:])
+        if inner and _reads_an_env_file(inner):
+            return _reads_an_env_file(inner)
+        if i < len(argv) and argv[i] == "xargs":        # `echo .env | xargs cat`
+            rest = [a for a in argv[i + 1:] if not a.startswith("-")]
+            if rest and rest[0].rsplit("/", 1)[-1] in _ENV_READERS and any(
+                    _is_env(tok) for seg in re.split(r"[|;&\n]", body)
+                    for tok in seg.split()):
+                return "(par xargs)"
         if i >= len(argv) or argv[i].rsplit("/", 1)[-1] not in _ENV_READERS:
             continue
         args = argv[i + 1:]
