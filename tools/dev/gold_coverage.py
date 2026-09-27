@@ -1671,6 +1671,58 @@ _HEAD = ["fichier:ligne", "fonction", "surface", "visible",
          "lu dans la même fonction (aucun lien prouvé)"]
 
 
+def tests_naming(names: set[str]) -> dict[str, list[str]]:
+    """{object: [test files whose STRING CONSTANTS name it]} — read by AST, so a name in a
+    comment does not count as a test (R231: a registry entry must point at a real test)."""
+    out: dict[str, list[str]] = {n: [] for n in names}
+    for path in sorted((ROOT / "tests").glob("test_*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        consts = " ".join(n.value for n in ast.walk(tree)
+                          if isinstance(n, ast.Constant) and isinstance(n.value, str))
+        for name in names:
+            if re.search(rf"\b{re.escape(name)}\b", consts):
+                out[name].append(path.name)
+    return out
+
+
+def render_registry(gold) -> list[str]:
+    """R231 — « Le registre des métriques » : one row per gold object, the hand-written
+    definition (`tools/dev/metric_registry.py`) beside what the code computes."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "metric_registry", ROOT / "tools" / "dev" / "metric_registry.py")
+    reg = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = reg          # a dataclass resolves its module by name
+    spec.loader.exec_module(reg)
+    tests = tests_naming(set(reg.REGISTRY) | set(gold))
+    rows = []
+    for obj, m in sorted(reg.REGISTRY.items(), key=lambda kv: kv[1].name):
+        g = gold.get(obj)
+        t = tests.get(obj, [])
+        rows.append([f"**{m.name}**", m.definition, f"`{obj}`", f"`{m.formula}`", m.grain,
+                     m.sense, m.window, str(len(g.consumers)) if g else "—",
+                     f"{len(t)} — `{t[0]}`" + (" …" if len(t) > 1 else "") if t else "**0**"])
+    unregistered = sorted(n for n, g in gold.items() if g.consumers and n not in reg.REGISTRY)
+    L = ["", "## Le registre des métriques", "",
+         "Une métrique = une définition = une source. Écrit à la main dans "
+         "`tools/dev/metric_registry.py` : le nom, la définition, la mesure, la granularité, "
+         "le **sens** (flux se somme ; cumul se différencie, jamais ne se somme ; niveau se lit "
+         "à sa dernière valeur) et la période. Calculé ici depuis le code : la source, les "
+         "surfaces, les tests qui la nomment. La formule est un POINTEUR vers la vue, jamais "
+         "une copie de son SQL.", ""]
+    L += _table(rows, ["métrique", "définition", "source", "formule", "granularité", "sens",
+                       "période", "surfaces", "tests qui la nomment"])
+    L += ["", f"Objets or lus par une surface et absents du registre : "
+              f"**{len(unregistered)}**" + (" — " + ", ".join(f"`{n}`" for n in unregistered)
+                                              if unregistered else ""), ""]
+    for src, m in sorted(reg.TO_CONFORM.items()):
+        L.append(f"- ⚠️ **{m.name}** hors couche or — `{src}` ({m.formula}) : à conformer.")
+    return L
+
+
 def render(gold, surfaces, files, reads) -> str:
     figs = [s for s in surfaces if s.kind == "figure"]
     tiles = [s for s in surfaces if s.kind == "tuile"]
@@ -1776,6 +1828,7 @@ def render(gold, surfaces, files, reads) -> str:
          for g in grows],
         ["objet", "genre", "définie par", "lit", "surfaces qui la lisent",
          "définitions supplantées"])
+    L += render_registry(gold)
 
     for title, group, note in (
         ("Les figures d'écran", figs,
@@ -2035,7 +2088,10 @@ def render(gold, surfaces, files, reads) -> str:
 
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build() -> str:
+def analyse():
+    """(gold, surfaces, files, reads) with every gold object's CONSUMERS filled — the one
+    computation both the document and its guards read (R231: a guard that rebuilt it
+    by hand saw no consumer at all, and passed on a deleted registry entry)."""
     gold, known = scan_sql()
     files = load_python()
     calls = build_call_index(files)
@@ -2069,7 +2125,11 @@ def build() -> str:
         for name in r.relations:
             if name in gold:
                 gold[name].consumers.add(f"{r.rel}:{r.line}")
-    return render(gold, surfaces, files, reads)
+    return gold, surfaces, files, reads
+
+
+def build() -> str:
+    return render(*analyse())
 
 
 def main() -> int:

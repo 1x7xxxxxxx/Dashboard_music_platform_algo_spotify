@@ -87,6 +87,50 @@ Cinq mots de confiance, et rien d'autre :
 | `v_spotify_followers_daily` | vue | `migrations/120_gold_spotify_followers.sql` | `artist_history` · `saas_artists` · `v_s4a_audience_daily` | 1 | — |
 | `v_spotify_track_pi_daily` | vue | `migrations/130_gold_spotify_track_popularity.sql` | `track_platform_link` · `track_popularity_history` · `track_release_reference` | 7 | — |
 
+## Le registre des métriques
+
+Une métrique = une définition = une source. Écrit à la main dans `tools/dev/metric_registry.py` : le nom, la définition, la mesure, la granularité, le **sens** (flux se somme ; cumul se différencie, jamais ne se somme ; niveau se lit à sa dernière valeur) et la période. Calculé ici depuis le code : la source, les surfaces, les tests qui la nomment. La formule est un POINTEUR vers la vue, jamais une copie de son SQL.
+
+| métrique | définition | source | formule | granularité | sens | période | surfaces | tests qui la nomment |
+|---|---|---|---|---|---|---|---|---|
+| **active_budget** | Budget quotidien des campagnes actives. | `v_meta_active_budget` | `v_meta_active_budget.daily_budget` | campagne | niveau | maintenant | 10 | **0** |
+| **ad_engagement** | Interactions sur les publicités (réactions, sauvegardes, partages). | `v_meta_engagement_daily` | `v_meta_engagement_daily` | jour × campagne | flux | période choisie | 4 | 2 — `test_a_join_never_multiplies_the_grain.py` … |
+| **ad_performance** | Les mêmes mesures par publicité, avec ses réglages. | `v_meta_ad_daily` | `v_meta_ad_daily` | jour × publicité | flux | période choisie | 1 | 2 — `test_a_join_never_multiplies_the_grain.py` … |
+| **ad_spend_daily** | Dépense Meta par jour et par artiste. | `v_meta_daily` | `v_meta_daily.spend` | jour | flux | période choisie | 25 | 8 — `test_a_campaign_figure_carries_its_date.py` … |
+| **ad_spend_total** | Dépense et résultats Meta totaux — la définition OR de « combien dépensé ». | `v_meta_spend_totals` | `v_meta_spend_totals.spend/results` | compte | flux | tout | 2 | 2 — `test_the_gold_layer_agrees_with_itself.py` … |
+| **adset_performance** | Les mêmes mesures par ensemble de publicités. | `v_meta_adset_daily` | `v_meta_adset_daily` | jour × adset | flux | période choisie | 2 | 1 — `test_an_account_filter_names_one_column.py` |
+| **apple_cumulative** | Cumul Apple par titre et par relevé (exports d'un jour exclus). | `v_apple_song_cumulative` | `v_apple_song_cumulative.plays/shazam_count` | relevé × titre | cumul | tout | 4 | 3 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **apple_daily** | Écoutes et Shazams Apple quotidiens : export d'un jour, ou écart de cumuls. | `v_apple_song_daily` | `v_apple_song_daily.daily_plays/daily_shazams` | jour × titre | flux | période choisie | 4 | 2 — `test_a_daily_apple_export_gives_daily_shazams.py` … |
+| **apple_lifetime** | Écoutes et Shazams Apple à vie par titre (dernier relevé). | `gold_apple_lifetime` | `gold_apple_lifetime(artist_id)` | titre | cumul | à vie | 8 | 4 — `test_a_gold_rule_is_declarative.py` … |
+| **campaign_funnel** | Impressions, clics, clics lien, vues de page, clics sortants, dépense par campagne. | `v_meta_campaign_daily` | `v_meta_campaign_daily.*` | jour × campagne | flux | fenêtre de campagne | 24 | 6 — `test_a_join_never_multiplies_the_grain.py` … |
+| **campaign_track** | Le titre lié à une campagne, par lien confirmé. | `v_meta_track_attribution` | `v_meta_track_attribution` | campagne | attribut | tout | 1 | **0** |
+| **cashflow** | Tout l'argent au mois : revenus nets (+1) et dépenses Meta + coûts (−1). | `v_artist_monthly_cashflow` | `v_artist_monthly_cashflow.amount_eur × direction` | mois × source | flux | tout | 19 | 5 — `test_a_break_even_is_a_date_not_a_crash.py` … |
+| **costs** | Coûts saisis par l'artiste, étalés au mois (annuel /12, ponctuel dans son mois). | `v_artist_monthly_costs` | `v_artist_monthly_costs.amount_eur` | mois × catégorie | flux | tout | 1 | **0** |
+| **creative_funnel** | Par créative : impressions, clics lien, clics sortants (mesurés ou non), dépense. | `v_meta_creative_daily` | `v_meta_creative_daily.total_link_clicks/total_outbound` | jour × créative | flux | période choisie | 15 | 5 — `test_a_creative_funnel_never_widens.py` … |
+| **hypeddit_funnel** | Visites du smart link et clics vers les plateformes, par campagne. | `v_hypeddit_daily` | `v_hypeddit_daily.visits/clicks` | jour × campagne | flux | période choisie | 15 | 5 — `test_a_failed_read_is_not_an_absence.py` … |
+| **instagram_engagement** | Likes et commentaires acquis à ce jour par mois de publication. | `v_instagram_media_monthly` | `v_instagram_media_monthly.likes/comments` | mois de publication | cumul | 12 mois | 4 | 4 — `test_a_failed_read_is_not_an_absence.py` … |
+| **instagram_followers** | Abonnés, abonnements et publications Instagram. | `v_instagram_followers_daily` | `v_instagram_followers_daily.followers/follows/media` | jour | niveau | période choisie | 8 | 1 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` |
+| **platform_levels** | Dernier niveau mesuré par plateforme (collecte partielle ≠ niveau). | `v_platform_levels` | `v_platform_levels` | plateforme | niveau | dernier relevé | 3 | 6 — `test_a_curve_ends_where_its_tile_says.py` … |
+| **release_cohort** | Écoutes d'un titre par jour depuis SA sortie (âge en jours). | `v_s4a_release_cohort` | `v_s4a_release_cohort.streams` | titre × âge | flux | depuis la sortie | 2 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **release_reach** | Portée d'une sortie : écoutes cumulées à J+7 / J+28. | `v_s4a_release_reach` | `v_s4a_release_reach` | titre | cumul | fenêtres fixes | 1 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **revenue_gross** | Revenus BRUTS au mois : distributeurs + SACEM (répartition). | `v_artist_monthly_revenue` | `v_artist_monthly_revenue.revenue_eur` | mois × source | flux | 12 mois | 14 | 6 — `test_a_failed_read_is_not_an_absence.py` … |
+| **revenue_net** | Revenus NETS au mois, retenues déduites. | `v_artist_monthly_revenue_net` | `v_artist_monthly_revenue_net.net_eur` | mois × source | flux | 12 mois | 1 | 2 — `test_a_deduction_is_subtracted_from_the_right_base.py` … |
+| **sacem** | Relevé SACEM au mois par nature de ligne (répartition, charges, virements). | `v_sacem_monthly` | `v_sacem_monthly.amount` | mois × nature | flux | tout | 3 | 3 — `test_a_deduction_is_subtracted_from_the_right_base.py` … |
+| **soundcloud_catalog** | Écoutes, likes, reposts du catalogue, avec la lisibilité par métrique. | `v_soundcloud_catalog_daily` | `v_soundcloud_catalog_daily.plays (+ lisible)` | jour | cumul | période choisie | 3 | 1 — `test_a_chart_is_bounded_by_the_period_it_announces.py` |
+| **soundcloud_track** | Les mêmes compteurs par titre. | `v_soundcloud_track_daily` | `v_soundcloud_track_daily.playback_count` | jour × titre | cumul | période choisie | 6 | 1 — `test_a_chart_is_bounded_by_the_period_it_announces.py` |
+| **soundcloud_track_latest** | Dernier relevé par titre SoundCloud. | `v_soundcloud_track_latest` | `v_soundcloud_track_latest` | titre | cumul | dernier relevé | 5 | 4 — `test_a_failed_read_is_not_an_absence.py` … |
+| **spotify_audience** | Auditeurs, écoutes, sauvegardes, ajouts en playlist (artiste) et niveau d'abonnés. | `v_s4a_audience_daily` | `v_s4a_audience_daily.listeners/saves/playlist_adds (flux) · followers_level (niveau)` | jour | flux | période choisie | 6 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **spotify_audience_monthly** | La même audience agrégée au mois (abonnés : dernier niveau). | `v_s4a_audience_monthly` | `v_s4a_audience_monthly` | mois | flux | 12 mois | 1 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **spotify_followers** | Abonnés Spotify de l'artiste (niveau), CSV S4A ou API selon la source. | `v_spotify_followers_daily` | `v_spotify_followers_daily.followers` | jour | niveau | période choisie | 1 | 3 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **spotify_measured_span** | Premier et dernier jour mesurés par titre — borne toute fenêtre. | `v_s4a_song_measured_span` | `v_s4a_song_measured_span.first_measured/last_measured` | titre | attribut | tout | 3 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
+| **spotify_popularity** | Indice de popularité Spotify (0-100) par titre. | `v_spotify_track_pi_daily` | `v_spotify_track_pi_daily.popularity` | jour × titre | niveau | période choisie | 7 | **0** |
+| **streams_all_platforms** | Écoutes par plateforme sur une fenêtre — LA porte des totaux. | `v_platform_totals` | `v_platform_totals.total` | plateforme | flux | période choisie | 15 | 11 — `test_a_curve_ends_where_its_tile_says.py` … |
+| **streams_spotify** | Écoutes Spotify par titre et par jour (export S4A, ligne Total exclue). | `v_s4a_song_daily` | `v_s4a_song_daily.streams` | jour × titre | flux | période choisie | 35 | 7 — `test_a_failed_read_is_not_an_absence.py` … |
+
+Objets or lus par une surface et absents du registre : **0**
+
+- ⚠️ **mrr** hors couche or — `src/utils/mrr.py::mrr_by_plan_sql` (mrr_by_plan_sql() — une jointure, pas encore une vue or) : à conformer.
+
 ## Les figures d'écran
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
@@ -638,4 +682,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=30 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=74d91ece0422b1a58084af8b6c806951bb354a137e9d3197d941df8e0056673b -->
+<!-- gold-coverage: sha256=0a91a128ee5bc02e8611c42d09c5ecf6e0e71128086f011b488d1f8344dfdc22 -->

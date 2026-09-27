@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R235 — **Shazam → streams — SOLUTION** : importer chaque jour, pendant une campagne, le CSV «… (livrée 2026-09-27)
+
+- [x] **R235 — **Shazam → streams — SOLUTION** : importer chaque jour, pendant une campagne, le CSV « performance des chansons » d'Apple Music for Artists ; `v_apple_song_daily` en dérive les Shazams et écoutes QUOTIDIENS par titre (écart de 1 jour entre deux cumuls) et « Tout mon funnel » les trace déjà. Deux manques : la date du relevé est le jour de l'IMPORT (`apple_music_csv_parser.py:159`), pas celui de l'export — lire la date dans le fichier ou la demander ; et la corrélation Shazam → streams avec son délai quand ≥ 14 jours quotidiens existent** (P3) ✅ (2026-09-27, 91055163)
+  Mesuré par : un import daté par l'export ; la corrélation affichée ou « pas assez de jours »
+  9105516, deploye avec la migration 142 : export Apple d'un jour = Shazams du jour, cumuls differencies par origine, releve date par l'export, correlation Shazam -> ecoutes des 14 jours ; verifie en prod : totaux inchanges
+  Commits : 91055163 R235 : Shazams et ecoutes Apple QUOTIDIENS depuis un export d'un jour 
+
+## ✅ R233 — **Attribution par créative et par placement jusqu'au stream — SOLUTION** : la CAPI d'Hy… (livrée 2026-09-27)
+
+- [x] **R233 — **Attribution par créative et par placement jusqu'au stream — SOLUTION** : la CAPI d'Hypeddit renvoie à Meta l'évènement « clic sortant » avec l'identifiant de la publicité, et la maille publicité le stocke depuis la migration 139 (`custom_conversions` par `ad_id`) — donc les CLICS VERS LES PLATEFORMES par créa sont MESURÉS. Les écoutes par créa sont une ESTIMATION, affichée comme telle : écoutes gagnées de la campagne réparties au prorata des clics sortants de chaque créa (pas des clics Meta : le clic sortant est l'étape juste avant l'écoute). Vue « créa → clics → clics plateformes → écoutes estimées → coût » ; placement idem par la maille placement** (P2) ✅ (2026-09-27, 3dfcafa7)
+  Mesuré par : une créa avec ses clics plateformes et son estimation étiquetée
+  3dfcafa, deploye : clics plateformes et cout par clic plateforme par crea (mesure), estimation des ecoutes par crea refusee ; 0/61 mesurees jusqu'a la recollecte R237
+  Commits : 3dfcafa7 R233 : l'etape MESUREE par creative - clics vers les plateformes et co
+
+## ✅ R227 — Une alerte Prometheus active depuis plus de 24 h remonte dans l'OBJET du récap du soir… (livrée 2026-09-27)
+
+- [x] **R227 — Une alerte Prometheus active depuis plus de 24 h remonte dans l'OBJET du récap du soir — `ConnectionPoolExhausted` a sonné 27 h sans être vue (R215)** (P3) ✅ (2026-09-27, 151f8c7f, 7f0593c3)
+  Mesuré par : objet du récap avec une alerte longue
+  7f0593c + 151f8c7, deploye (DAG par git pull) : alerte active 24 h+ dans l'objet du recap, par ALERTS_FOR_STATE
+  Commits : 151f8c7f R227 : le garde du recap lit la structure (AST : long_firing(ops_alert · 7f0593c3 R227 : une alerte Prometheus active depuis 24 h ou plus entre dans l'O
+
+## ✅ R224 — Un commit qui ne touche que la roadmap ou un journal n'annule plus la CI d'un commit de… (livrée 2026-09-27)
+
+- [x] **R224 — Un commit qui ne touche que la roadmap ou un journal n'annule plus la CI d'un commit de code (groupe de concurrence) — mesuré nuit du 2026-09-27 : 6 runs annulées sur 27, chaque déploiement retardé d'une CI** (P3) ✅ (2026-09-27, a5335b19, 9a4692d9)
+  Mesuré par : runs `cancelled` sur main par nuit
+  a5335b1, en prod : une CI en cours sur main n'est plus annulee par le push suivant
+  Commits : a5335b19 R224 : sur main, une CI en cours n'est plus annulee par le push suivan · 9a4692d9 R223 : capitaliser la nuit du 2026-09-27 - classe a-sql-file-that-swit
+
 ## ✅ R225 — `make roadmap-close ID=Rnnn` ferme aussi l'unité de nuit ouverte de la même tâche — mes… (livrée 2026-09-27)
 
 - [x] **R225 — `make roadmap-close ID=Rnnn` ferme aussi l'unité de nuit ouverte de la même tâche — mesuré : 3 unités restées ouvertes (R213, R215, R218), `night-check` rouge en fin de nuit** (P3) ✅ (2026-09-27, da1a119a)
