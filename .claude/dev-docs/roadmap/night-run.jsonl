@@ -550,3 +550,4 @@
 {"at": "2026-09-27T01:45:50+00:00", "head": "bcbf6b8d", "kind": "done", "task": "R220", "what": "livree, deployee, verifiee en prod"}
 {"at": "2026-09-27T01:46:23+00:00", "head": "9928a380", "kind": "done", "task": "R215", "what": "livree et verifiee en prod (le parcage etait un point d'attente, pas un blocage)"}
 {"at": "2026-09-27T01:47:06+00:00", "head": "9928a380", "kind": "done", "task": "R218", "what": "dossier regenere 2x, instantane et dump supprimes"}
+{"at": "2026-09-27T01:47:22+00:00", "head": "bae107c6", "kind": "done", "task": "R213", "what": "livree, deployee, archivee (fermeture tardive du journal)"}
