@@ -44,6 +44,39 @@ def changed_guards(days: int = 2) -> list[str]:
     return keep
 
 
+# R238 (2026-09-27) — two kinds of evidence the generic mutations cannot produce, and
+# that made the job mail « 6 gardes à relire » for six guards that all bite.
+#
+# 1. A guard that PROVES ITSELF: a test that builds the defect and demands the detector
+#    see it (`test_the_detector_sees_…`) turns red at every run, not one night in six.
+# 2. A red seen BY HAND on a mutation that EMBODIES the defect — the only red that says
+#    something about the class (a generic rename breaks a guard for a trivial reason).
+#    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
+SEEN_RED: dict[str, str] = {
+    "tests/test_a_creative_funnel_never_widens.py":
+        "2026-09-27 — funnel_stages lit `total_results` (le résultat de l'objectif) comme "
+        "clics sortants → 3 rouges",
+    "tests/test_a_roi_verdict_needs_a_crossing_and_enough_points.py":
+        "2026-09-27 — MIN_FIT_POINTS 5 → 2 (un ajustement sur deux points) → 2 rouges",
+    "tests/test_a_floor_probability_is_never_shown_as_a_measure.py":
+        "2026-09-27 — proba_affichable ne refuse plus le plancher → 16 rouges",
+    "tests/test_a_lever_curve_resolves_where_the_model_responds.py":
+        "2026-09-27 — _lever_grid échantillonne un levier _log LINÉAIREMENT en unités "
+        "humaines (le défaut mesuré) → 7 rouges",
+    "tests/test_every_quality_check_has_a_category.py":
+        "2026-09-27 — un check_ du soir ajouté sans catégorie → 1 rouge ; un pointeur "
+        "renommé vers une fonction absente → 2 rouges",
+}
+
+
+def self_proving(path: Path) -> bool:
+    """Does the guard carry a test that fabricates its defect? Read in the AST."""
+    import ast
+    tree = ast.parse(path.read_text())
+    return any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and n.name.startswith("test_the_detector_sees") for n in ast.walk(tree))
+
+
 def verdict(result: dict) -> str | None:
     """A suspicion to report, or None. Pure: tested without running anything."""
     if "skipped" in result:
@@ -56,7 +89,16 @@ def verdict(result: dict) -> str | None:
 
 
 def main() -> int:
-    guards = changed_guards()
+    guards, credited = [], []
+    for rel in changed_guards():
+        if rel in SEEN_RED:
+            credited.append(f"   ✓ {rel} — vu rouge à la main : {SEEN_RED[rel]}")
+        elif self_proving(_ROOT / rel):
+            credited.append(f"   ✓ {rel} — auto-prouvant (il fabrique son défaut à chaque run)")
+        else:
+            guards.append(rel)
+    if credited:
+        print("\n".join(credited))
     dropped = max(0, len(guards) - _MAX_GUARDS)
     guards = guards[:_MAX_GUARDS]
     print(f"▶ {len(guards)} garde(s) ajouté(s) en 2 jours (le job tourne chaque nuit)"

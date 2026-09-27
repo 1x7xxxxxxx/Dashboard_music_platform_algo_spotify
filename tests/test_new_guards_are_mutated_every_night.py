@@ -31,3 +31,21 @@ def test_the_nightly_runs_it_with_a_database_and_mails_it() -> None:
     assert "nightly_guard_mutation.py" in str(job["steps"])
     assert "postgres" in job.get("services", {}), "a DB guard would read as blind without it"
     assert "guard-mutation" in wf["jobs"]["notify"]["needs"]
+
+
+def test_a_self_proving_guard_is_credited_and_a_plain_one_is_not(tmp_path) -> None:
+    """R238: six guards that all bite were mailed as suspects — three prove themselves."""
+    proving = tmp_path / "test_p.py"
+    proving.write_text("def test_the_detector_sees_the_defect_it_is_written_for():\n    pass\n")
+    plain = tmp_path / "test_q.py"
+    plain.write_text("def test_something():\n    '''test_the_detector_sees'''\n")
+    assert ngm.self_proving(proving)
+    assert not ngm.self_proving(plain), "a docstring naming it is not the test"
+
+
+def test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation() -> None:
+    import re
+    for rel, why in ngm.SEEN_RED.items():
+        assert (_ROOT / rel).is_file(), f"{rel} no longer exists — drop it from SEEN_RED"
+        assert re.match(r"\d{4}-\d{2}-\d{2} — .{20,}→", why), (
+            f"{rel}: « {why} » — a hand-seen red names the date, the mutation and its reds")
