@@ -2013,3 +2013,28 @@ base, **0 créative sur 61** est mesurée aujourd'hui.
 
 **Vérification** : page **🎨 Visuels de campagne** → tableau replié « Le classement au
 chiffre près » → la légende dit « (N/61 mesurées) » avec N > 0.
+
+## 33. R255 — Saisir le coût de distribution de tes titres · P3
+
+**Pourquoi** : le « remboursement de la pub » (fiche 46) et la trésorerie comptent tes
+frais. Sans le coût de distribution (iMusician, DistroKid…), ils sont sous-estimés — la
+fiche 62 attend cette saisie.
+
+1. Ouvre **📈 Prévisions revenus**.
+2. Déplie **💳 Mes coûts (distribution, mastering, visuel…) — saisir**.
+3. Catégorie **distribution**, choisis le **Titre concerné**, le montant et sa période
+   (une fois ou par mois), puis **💾 Enregistrer**. Une ligne par titre.
+
+**Vérification** : le message « ✅ … € enregistrés » s'affiche, et le tableau des coûts
+sous le formulaire liste une ligne *distribution* par titre saisi.
+
+## 34. R256 — Saisir les coûts d'exploitation de l'app · P3
+
+**Pourquoi** : la marge de l'admin (fiche 66) ne peut rien afficher tant qu'aucun coût
+d'exploitation n'est saisi — hébergement Hetzner, nom de domaine, outils payants.
+
+1. Ouvre **⚙️ Admin**, section **💸 Coûts d'exploitation & marge**.
+2. Déplie **➕ Ajouter un coût** : catégorie, libellé, montant, période → **💾 Enregistrer**.
+3. Recommence pour chaque poste (serveur, domaine, outils).
+
+**Vérification** : la section affiche la liste de tes coûts et la marge n'est plus vide.

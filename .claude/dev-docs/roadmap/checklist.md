@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R254 | **Un id du dossier KPI désigne une ligne de roadmap réelle** : une action passait « ✅ fait » dès que son id était ABSENT de l'index ouvert (un id mal tapé s'affichait fait) et une action « toi » n'avait aucun id — les deux gestes du propriétaire (fiches 62, 66) vivaient hors roadmap. ✅ = présent dans l'archive, ⏳ = ouvert, sinon la génération échoue ; `rid` obligatoire ; garde qui lit actions.yaml <!-- anchor: r254 --> <!-- critic: non — outillage du dossier --> | P3 | un id fabriqué fait échouer la génération et le garde |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R254, R255, R256 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -212,6 +213,8 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R255 | Saisir le **coût de distribution** de chaque titre (fiche 62) | P3 | ta saisie dans 📈 Prévisions revenus → 💳 Mes coûts, catégorie distribution, un titre par ligne — runbook § 33 |
+| R256 | Saisir les **coûts d'exploitation** de l'app (fiche 66) | P3 | ta saisie dans ⚙️ Admin → 💸 Coûts d'exploitation & marge — runbook § 34 |
 
 ---
 
