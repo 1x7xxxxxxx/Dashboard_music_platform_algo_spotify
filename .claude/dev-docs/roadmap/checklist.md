@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R242 | **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflow) — fiches 2, 26, 27, 47–50, 52–54, 56, 60, 66, 74–76 ; garde : aucune fiche d'app sans image sauf exemption écrite <!-- anchor: r242 --> <!-- critic: non — outillage du dossier --> | P2 | 0 fiche d'app non rendue |
 | R243 | **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR, CPM…), palette distincte, tri Pareto des barres par catégorie, pour TOUS les graphiques ; garde AST refusant un graphique qui la contourne (fiches 24, 28, 29, 33, 39) <!-- anchor: r243 --> <!-- critic: requis --> | P3 | 0 `st.plotly_chart` hors de la porte |
 | R244 | **Fusions** : fiche 5 (un graphique), 18+19+63 (trésorerie cumulée unique), 31 (quatre panneaux → un), 35 (deux axes), 67+68+69 (usage admin, pages vues + évènements en légende) <!-- anchor: r244 --> <!-- critic: non — mise en page --> | P3 | fiches fusionnées rendues, doublons retirés |
 | R245 | **Anneaux avec totaux étiquetés** : fiche 17 (campagnes Hypeddit depuis la sortie), fiche 23 (objectifs) <!-- anchor: r245 --> <!-- critic: non — mise en page --> | P3 | anneaux rendus, totaux lisibles |
@@ -93,7 +92,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R242, R243, R244, R245, R246, R247, R248, R249 -->
+<!-- reprise: open=R243, R244, R245, R246, R247, R248, R249 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

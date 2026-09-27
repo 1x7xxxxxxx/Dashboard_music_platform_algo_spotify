@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R242 — **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflo… (livrée 2026-09-27)
+
+- [x] **R242 — **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflow) — fiches 2, 26, 27, 47–50, 52–54, 56, 60, 66, 74–76 ; garde : aucune fiche d'app sans image sauf exemption écrite** (P2) ✅ (2026-09-27, afb45a9a)
+  Mesuré par : 0 fiche d'app non rendue
+  81 figures au lieu de 68 ; sélecteur Engagement ouvert, API Airflow rejouée depuis la prod (74-76), SHAP réparé en prod (shap 0.49 + xgboost 3 : valeurs par xgboost pred_contribs, vérifié en prod) ; 7 fiches sans image déclarent leur cause ; numérotation stable ; déployé afb45a9a
+  Commits : afb45a9a R242 : tout rendre - le dossier ouvre les branches cachees (selecteur 
+
 ## ✅ R241 — **Chiffres justes, vérifiés un par un** : chaque figure rendue rapprochée de sa vue or… (livrée 2026-09-27)
 
 - [x] **R241 — **Chiffres justes, vérifiés un par un** : chaque figure rendue rapprochée de sa vue or sur l'instantané ; fiches 1, 4, 6, 8, 10, 13, 15, 29 vérifiées sur le rendu ; méthode « un chiffre juste » (bronze → argent → or) et livrable « KPI → graphiques qui le lisent » dans le PDF** (P2) ✅ (2026-09-27, d161515d)
