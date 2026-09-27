@@ -60,4 +60,5 @@ EN = {
                                             "under 90 days AND the "
                                             "`instagram_manage_insights` scope — check the "
                                             "permission in **🔑 Credentials**.",
+    "instagram.community_axis": "Gained since the first reading",
 }

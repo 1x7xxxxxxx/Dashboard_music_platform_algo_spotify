@@ -391,48 +391,40 @@ if __name__ == "__main__":
 
 
 def _render_community(df_hist, window, last_date: str) -> None:
-    """Abonnés, abonnements et publications — trois cadres, une horloge.
+    """Abonnés, abonnements et publications — UN cadre, une horloge (R210, 2026-09-27).
 
-    REMPLACE DEUX FIGURES PAR UNE, et répond à la demande du 2026-09-21 : « si on
-    peut mettre sur un axe temporel le nombre d'abonnés et d'abonnement et de
-    publication », et « supprimer le graphique base 100 ».
+    Le propriétaire, devant le dossier : « abonnés, abonnements et publications sur un
+    même graphique ». La version d'avant empilait trois cadres, et pour une raison
+    réelle : les NIVEAUX sont dans un rapport de 30 (1 522 / 621 / 51), donc sur un
+    repère commun deux séries sont des lignes plates au fond. La base 100, qui résolvait
+    ce rapport, a été refusée le 2026-09-21 : on y lit « 103 » au lieu d'un nombre.
 
-    ⚠️ POURQUOI PAS UN SEUL CADRE. Les trois séries sont dans un rapport de 30
-    (1 522 / 621 / 51) : sur un repère commun, les deux dernières sont deux lignes
-    plates au fond du cadre. C'est exactement le problème que la base 100 résolvait
-    — en payant les CHIFFRES, puisqu'on y lit « 103 » au lieu de « 1 525 abonnés ».
-    Les petits multiples le résolvent sans rien normaliser : chaque série garde son
-    échelle ET ses valeurs.
-
-    ⚠️ ET POURQUOI PAS UN DOUBLE AXE. Trois séries, trois ordres de grandeur : un
-    axe secondaire n'en sauverait qu'une, et leur croisement serait un artefact de
-    cadrage. La règle du dépôt est constante là-dessus.
-
-    L'AXE DE CHAQUE CADRE EST RESSERRÉ sur la plage réelle, pas ancré à zéro : à
-    1 522 abonnés, une variation de 3 est invisible sur un axe qui part de 0 — et
-    c'est pourtant toute l'information d'une semaine.
+    LA VARIATION DEPUIS LE PREMIER RELEVÉ résout les deux. Les trois séries partagent
+    alors une unité — un compte gagné ou perdu — et des ordres de grandeur voisins
+    (+12 abonnés, +3 abonnements, +2 publications). Chaque point garde sa VALEUR au
+    survol. Aucun double axe : la règle du dépôt est constante là-dessus.
     """
-    from plotly.subplots import make_subplots
-
     series = (
-        ("followers_count", t("instagram.followers", "Abonnés"), _IG),
-        ("follows_count", t("instagram.follows", "Abonnements"), _IG),
-        ("media_count", t("instagram.publications", "Publications"), _IG),
+        ("followers_count", t("instagram.followers", "Abonnés"), "solid"),
+        ("follows_count", t("instagram.follows", "Abonnements"), "dash"),
+        ("media_count", t("instagram.publications", "Publications"), "dot"),
     )
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.07,
-                        subplot_titles=[lbl for _, lbl, _ in series])
-    for i, (col, lbl, ink) in enumerate(series, start=1):
+    fig = go.Figure()
+    for col, lbl, dash in series:
+        values = pd.to_numeric(df_hist[col], errors="coerce")
+        first = values.dropna().iloc[0] if values.notna().any() else None
+        if first is None:
+            continue
         fig.add_trace(go.Scatter(
-            x=df_hist["collected_at"], y=df_hist[col], mode="lines+markers",
-            name=lbl, line=dict(color=ink, width=2), marker=dict(size=6),
-            hovertemplate=f"{lbl} : %{{y:,.0f}}<extra></extra>"), row=i, col=1)
-        # L'axe suit la plage RÉELLE : à 1 522 abonnés, +3 est invisible depuis 0.
-        vmin, vmax = float(df_hist[col].min()), float(df_hist[col].max())
-        marge = max((vmax - vmin) * 0.15, 1)
-        fig.update_yaxes(range=[vmin - marge, vmax + marge], row=i, col=1)
-
+            x=df_hist["collected_at"], y=values - first, mode="lines+markers",
+            name=lbl, customdata=values, connectgaps=False,
+            line=dict(color=_IG, width=2, dash=dash), marker=dict(size=6),
+            hovertemplate=f"{lbl} : %{{customdata:,.0f}} (%{{y:+,.0f}})<extra></extra>"))
+    fig.add_hline(y=0, line=dict(color="#888", width=1, dash="dot"))
     fig.update_layout(
-        height=640, hovermode="x unified", showlegend=False, margin=dict(t=90),
+        height=460, hovermode="x unified", margin=dict(t=70, b=80),
+        legend=dict(orientation="h", yanchor="top", y=-0.15, x=0),
+        yaxis_title=t("instagram.community_axis", "Gagnés depuis le premier relevé"),
         title_text=t("instagram.community_title",
                      "Ma communauté dans le temps ({label})").format(label=window.label))
     st.plotly_chart(fig, width="stretch")
