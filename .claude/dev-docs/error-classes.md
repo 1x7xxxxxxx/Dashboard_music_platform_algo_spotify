@@ -338,6 +338,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts](#a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts) | P2 | deterministic | guarded | none |
 | [a-truncated-label-that-merges-two-categories](#a-truncated-label-that-merges-two-categories) | P3 | deterministic | guarded | none |
 | [an-all-tenants-total-that-counts-the-sandbox](#an-all-tenants-total-that-counts-the-sandbox) | P2 | deterministic | guarded | none |
+| [a-sql-file-that-switches-its-own-database](#a-sql-file-that-switches-its-own-database) | P3 | deterministic | guarded | none |
 | [a-read-that-failed-is-rendered-as-a-number](#a-read-that-failed-is-rendered-as-a-number) | P2 | deterministic | guarded | none |
 | [a-quantity-mistaken-for-a-counter](#a-quantity-mistaken-for-a-counter) | P3 | deterministic | guarded | none |
 | [a-late-platform-has-no-tenant-guard](#a-late-platform-has-no-tenant-guard) | P2 | deterministic | guarded | none |
@@ -4591,6 +4592,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-27
 - History:
   - 2026-09-27: trouvée en regardant le dossier des graphiques régénéré sur un instantané frais (R218) : la trésorerie admin valait le double de celle de l'artiste 1. code-critic a trouvé le 7e site (`load_subscriptions`) que le balayage ratait — il cherchait une branche `None`, et ce site n'avait jamais eu de filtre du tout.
+## a-sql-file-that-switches-its-own-database
+- status: guarded
+- severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
+- kind: deterministic
+- admitted: sites:3
+- admitted_detail: balayage sibling-sweeper du 2026-09-27 — `init_db.sql:6`, `migrations/002_schema_fixes.sql:5`, `migrations/create_missing_tables.sql:8`, tous `\c spotify_etl`.
+- symptom: `psql -d <base jetable> < fichier.sql` écrit dans `spotify_etl` (la base de dev) au lieu de la base visée : une vue remplacée par une version ancienne, une ligne de test insérée, sans une erreur.
+- signature: `.venv/bin/python -m pytest tests/test_a_sql_file_never_switches_database.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_sql_file_never_switches_database.py::test_the_detector_sees_the_defect_it_is_written_for) — et 2026-09-27, `migrations/999_mutation_probe.sql` portant `\c spotify_etl` ⇒ rouge, retiré ⇒ vert.
+- root_cause: la méta-commande psql `\c spotify_etl` reconnecte la session à la base NOMMÉE, quelle que soit celle passée par `-d` ; `init_db.sql` en a besoin (l'entrypoint Docker le joue sur `postgres`), deux migrations anciennes l'ont hérité.
+- cause_evidence: measured (2026-09-27 : `v_artist_monthly_revenue` de la base de dev remplacée par la version d'`init_db.sql`, restaurée depuis la migration 111 et vérifiée identique à la prod par md5 ; une ligne `test_track_001` insérée puis retirée)
+- long_term_fix: une migration ne nomme jamais sa base — c'est l'appelant qui la choisit ; les trois sites existants sont déclarés, tout nouveau `\c` est refusé. Pour une base jetable, retirer d'abord les lignes `\c` (`sed '/^\\c /d'`).
+- guard: { type: pytest, ref: tests/test_a_sql_file_never_switches_database.py }
+- guard_scope: une-configuration-qui-diverge-de-la-prod — un `\c`/`\connect` en tête de ligne dans `init_db.sql` ou `migrations/*.sql` ; couvre: tout nouveau fichier SQL versionné ; ne couvre pas: les trois sites déclarés (qui restent un piège à la main), un `SET search_path` ou un `dblink` qui écrirait ailleurs, un script shell qui passe une autre base que `spotify_etl` à `tools/migrate.sh` via `PGDATABASE`.
+- siblings: swept:2026-09-27 — candidats bruts : 3 fichiers `\c` (grep exhaustif sur `*.sql`) ; appelants écartés un par un : `tools/migrate.sh` (cible = `spotify_etl`), `make canon-pg`/`schema-check` (conteneur isolé, `POSTGRES_DB=spotify_etl`), `provision-postgres` en CI (idem), `db_restore_test.sh` (dump sans `-C`, pas de `\connect`), `charts-dossier` (`pg_restore` binaire), tests qui lisent le SQL comme texte. **3 sites vivants** (déclarés, gardés) ; 0 appelant versionné qui les fait écrire ailleurs — le piège ne joue qu'à la main, comme cette nuit.
+- rex_ref: init_db.sql
+- first_seen: 2026-09-27
+- History:
+  - 2026-09-27: trouvée en construisant une base façon CI pour mesurer la dérive de nullabilité (R219) ; l'effet sur la base de dev a été vu parce que `make migrate` a ensuite annoncé « nothing to apply » sur une vue pourtant revenue en arrière.
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 238 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -4605,7 +4626,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 188 classes encore vivantes.
+> les 189 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de

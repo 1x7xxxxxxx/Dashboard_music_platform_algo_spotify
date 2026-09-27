@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**426 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**427 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -28,7 +28,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 8 | **1/8** · 12.5 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 26 | **3/26** · 11.5 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 43 | **4/43** · 9.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 44 | **4/44** · 9.1 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 4 | **0/4** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 0 | — | — |
 
@@ -559,7 +559,7 @@ Règle de rattachement : `secret|token|credential|auth|jwt|mail|smtp|http|webhoo
 
 **Ce que le dépôt déclare est-il ce que la production exécute ?**
 
-Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 43 classe(s).
+Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compose|pin|lock|requirements|manifest|ddl|init_db|version|montée de majeure|valeur par défaut|majeure|reload-that-does-not-reload|bind-address-that-hides-the-service` sur l'identifiant et le symptôme. 44 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -583,6 +583,7 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-replica-that-builds-its-own-image`](error-classes.md#a-replica-that-builds-its-own-image) | une seconde instance d'un service, définie par `extends`, sert un artefact DIFFÉRENT de celui qu'elle réplique — code applicatif d'un autre commit, au |
 | [`a-local-measurement-presented-as-a-production-fact`](error-classes.md#a-local-measurement-presented-as-a-production-fact) | un chiffre relevé sur l'environnement de développement est énoncé comme une propriété de la PRODUCTION. Il n'y a ni erreur ni exception : la requête r |
 | [`a-test-that-only-ever-ran-on-its-authors-machine`](error-classes.md#a-test-that-only-ever-ran-on-its-authors-machine) | un test vert sur le poste et rouge en CI — ou l'inverse — sur un code identique. Il n'a jamais tourné que dans UNE des deux formes d'environnement : s |
+| [`a-sql-file-that-switches-its-own-database`](error-classes.md#a-sql-file-that-switches-its-own-database) | `psql -d <base jetable> < fichier.sql` écrit dans `spotify_etl` (la base de dev) au lieu de la base visée : une vue remplacée par une version ancienne |
 | [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
 | [`audit-reads-the-constraints-not-the-installed-set`](error-classes.md#audit-reads-the-constraints-not-the-installed-set) | l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes |
 | [`config-not-env`](error-classes.md#config-not-env) | a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `con |
@@ -628,6 +629,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=426 families=18 orphans=0 -->
+<!-- error-class-families: total=427 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=b233d96cc18358b4f1286bbf701e2357e65229450e630977dd1fc99adb72ba5d -->
+<!-- error-class-families: sha256=77d8ae097c3a3847d7ada3c5727fd7c23db39895c30418a653d54fb582e0b88e -->
