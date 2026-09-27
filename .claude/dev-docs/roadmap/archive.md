@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R252 — **Le dossier met en tête les écarts MESURÉS, pas une notation ancienne** : « chiffres p… (livrée 2026-09-27)
+
+- [x] **R252 — **Le dossier met en tête les écarts MESURÉS, pas une notation ancienne** : « chiffres probablement FAUX » listait des fiches notées à 03:44 (dont 8, 10, 29 corrigées ou vérifiées le jour même) ; la liste vient désormais du verdict `écart` de numbers_check sur l'instantané, avec sa raison** (P3) ✅ (2026-09-27, 3a8cbfa2)
+  Mesuré par : la section = les fiches au verdict écart
+  la tete du dossier liste les ecarts mesures ; 2 faux positifs du controle corriges (axe indice, Gantt) ; 0 ecart sur l instantane
+  Commits : 3a8cbfa2 R252 : le dossier met en tete les ecarts MESURES sur l instantane (ver
+
 ## ✅ R251 — **Le garde des durées juge toute la collecte, pas les seuls fichiers indexés** : le hoo… (livrée 2026-09-27)
 
 - [x] **R251 — **Le garde des durées juge toute la collecte, pas les seuls fichiers indexés** : le hook de R250 ne regardait que les tests DES fichiers indexés ; un id paramétré par le contenu d'un AUTRE fichier (numéro de ligne) a décalé et la CI de main est passée rouge (0dee1d41). Au commit, pre-commit a déjà remisé le non-indexé : seul le NON SUIVI est à exclure** (P3) ✅ (2026-09-27, 9c619fbf)
