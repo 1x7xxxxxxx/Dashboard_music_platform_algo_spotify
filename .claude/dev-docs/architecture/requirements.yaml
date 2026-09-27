@@ -1,0 +1,506 @@
+# R257 — le catalogue des exigences d'architecture de streaMLytics.
+#
+# Une entrée = UNE propriété durable que le système doit tenir (pas une retouche de page :
+# celles-là sont des lignes de roadmap, voir notes-triage.yaml).
+#   sources  : `notes: Lnnn` = revue/notes-architecture-2026-09-27.md (hors dépôt, dépôt public),
+#              `kpi: fiche N` = revue/relecture-kpi.md, `adr:` / `doc:` = fichier du dépôt,
+#              `theorie:` = livre de la bibliothèque, avec sa page (search_books).
+#   statut   : conforme | partiel | absent | non-mesure — ce que l'on CROIT ; la preuve rejouée
+#              par `make arch-benchmark` dit ce qui est VRAI (une preuve rouge sur un
+#              « conforme » s'imprime RÉGRESSION).
+#   preuve   : `pytest:` un nœud existant, ou `cmd:` une commande dont le code de sortie juge.
+#   a_ecrire : quand aucune preuve n'existe — le test ciblé à écrire, sur quel site. Compté
+#              comme TROU dans le benchmark, jamais omis.
+#   mutation : l'édition, sur une ligne précise, qui doit faire rougir la preuve.
+#   roadmap  : la ligne Rnnn qui porte le livrable, quand l'écart en demande un.
+
+# ── Or : une métrique, une définition ──────────────────────────────────────────
+- id: REQ-GOLD-01
+  domaine: gold
+  enonce: Une métrique = une définition canonique = une vue or, déclarée au registre avec son sens (flux, cumul, niveau)
+  sources: [{notes: L499}, {notes: L502}, {kpi: fiche 41}, {theorie: "Reis & Housley, Fundamentals of Data Engineering p.482 (metrics layer)"}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_every_metric_is_registered.py::test_every_read_gold_object_is_registered_and_no_entry_is_dead}
+  mutation: "supprimer une entrée de REGISTRY dans tools/dev/metric_registry.py → l'objet or lu n'est plus déclaré"
+- id: REQ-GOLD-02
+  domaine: gold
+  enonce: Chaque KPI porte définition, source(s), formule, granularité, période et tests de qualité
+  sources: [{notes: L508}, {theorie: "Reis & Housley p.482"}]
+  priorite: P2
+  statut: partiel
+  preuve: {pytest: tests/test_every_metric_is_registered.py::test_every_metric_says_its_sense}
+  ecart: le registre porte le sens et la vue, pas encore formule, granularité, période ni le test de qualité associé
+  mutation: "retirer `sense` d'une entrée du registre"
+  roadmap: R258
+
+- id: REQ-GOLD-03
+  domaine: gold
+  enonce: Un graphique ou une tuile ne lit que l'or ; le nombre de lectures du brut ne fait que baisser
+  sources: [{notes: L9}, {kpi: fiche 41}, {adr: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md}]
+  priorite: P2
+  statut: partiel
+  preuve: {pytest: tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens}
+  ecart: 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md
+  mutation: "ajouter une lecture de meta_insights_performance_day dans une vue → la frontière s'élargit"
+  roadmap: R258
+
+- id: REQ-GOLD-04
+  domaine: gold
+  enonce: Deux définitions censées coïncider sont comparées sur les vraies données, et l'écart alerte
+  sources: [{notes: L490}, {theorie: "Moses et al., Data Quality Fundamentals p.152 (piliers de l'observabilité)"}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_the_gold_layer_agrees_with_itself.py::test_every_gold_invariant_holds_on_the_real_data}
+  mutation: "fausser une des deux requêtes d'un invariant de src/utils/gold_invariants.py"
+- id: REQ-GOLD-05
+  domaine: gold
+  enonce: Ce que la figure DESSINE est contrôlé après sa lecture or (taux ≤ 100 %, cumul qui ne retombe pas, pas deux barres sous un nom)
+  sources: [{notes: L9}, {kpi: fiche 29}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_the_detector_sees_the_defect_it_is_written_for}
+  mutation: "retirer la règle des taux > 100 % de verdict() dans tools/dev/charts_dossier/numbers_check.py"
+
+# ── Argent ────────────────────────────────────────────────────────────────────
+- id: REQ-SILVER-01
+  domaine: silver
+  enonce: La couche argent a une identité mécanique — on sait, par le nom ou un registre, quelle vue est argent et laquelle est or
+  sources: [{notes: L499}, {adr: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md}]
+  priorite: P3
+  statut: absent
+  a_ecrire: "test qui classe chaque v_* créée par migrations/*.sql en argent ou or via le registre, et refuse une vue non classée"
+  ecart: argent et or partagent le préfixe v_* ; aucun test ni document ne les distingue
+  roadmap: R258
+
+# ── Bronze et ingestion ───────────────────────────────────────────────────────
+
+- id: REQ-BRONZE-01
+  domaine: bronze
+  enonce: Tout upsert vise un index unique existant et nomme son locataire
+  sources: [{doc: .claude/rules/python.md}, {theorie: "Densmore, Data Pipelines Pocket Reference p.55 (chargement incrémental)"}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_an_upsert_targets_an_index_that_exists.py::test_every_literal_upsert_target_has_a_matching_unique_index}
+  mutation: "changer une clé de conflit d'un upsert collecteur vers une colonne sans index unique"
+- id: REQ-BRONZE-02
+  domaine: bronze
+  enonce: Rien d'écrasé n'est perdu — l'historique d'une donnée réécrite est conservé automatiquement
+  sources: [{adr: docs/adr/ADR-018-nothing-overwritten-is-lost.md}]
+  priorite: P2
+  statut: conforme
+  preuve: {cmd: "make schema-check-local"}
+  mutation: "retirer une table d'historique d'une migration (le schéma local diverge)"
+- id: REQ-COLLECT-01
+  domaine: collect
+  enonce: Un collecteur lève ; jamais de retour vide silencieux dans un except
+  sources: [{doc: CLAUDE.md}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_the_collector_audit_sees_a_silent_return.py}
+  mutation: "remplacer un raise par return [] dans un except de src/collectors/"
+- id: REQ-ORCH-01
+  domaine: orchestration
+  enonce: La durée d'une collecte ne croît pas linéairement avec le nombre de locataires — un locataire lent ne retarde pas les autres (fan-out par locataire)
+  sources: [{notes: L72}, {notes: L80}, {theorie: "Kleppmann, Designing Data-Intensive Applications p.39 (repenser à chaque ordre de grandeur)"}, {theorie: "Golding, Multi-Tenant SaaS p.449 (noisy neighbor)"}]
+  priorite: P2
+  statut: absent
+  a_ecrire: "test qui refuse, dans airflow/dags/*_daily.py, une boucle `for` sur les locataires à l'intérieur d'un seul PythonOperator (exiger .expand() ou une tâche par locataire)"
+  ecart: 5 DAGs bouclent sur les locataires dans une seule tâche ; meta p95 1 953 s pour ~1 locataire réel, timeout 3 h dépassé vers 10×
+  roadmap: R266
+
+- id: REQ-ORCH-02
+  domaine: orchestration
+  enonce: Chaque DAG de collecte enregistre le résultat de chaque locataire (succès, échec, sauté)
+  sources: [{notes: L5}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_every_collection_dag_records_its_tenants.py::test_a_collection_dag_records_each_tenant_outcome}
+  mutation: "retirer l'appel d'enregistrement par locataire dans un DAG de collecte"
+- id: REQ-ORCH-03
+  domaine: orchestration
+  enonce: Les quotas d'API partagés (YouTube, Meta) sont budgétés par locataire et leur consommation est mesurée
+  sources: [{notes: L80}, {theorie: "Golding p.341 (métriques de consommation par locataire)"}]
+  priorite: P3
+  statut: absent
+  a_ecrire: "compteur Prometheus par plateforme et par locataire incrémenté dans src/utils/request_throttle.py, testé par un appel simulé"
+  roadmap: R266
+
+- id: REQ-ORCH-04
+  domaine: orchestration
+  enonce: La collecte d'une plateforme part dès que ses identifiants sont validés, sans attendre la nuit
+  sources: [{notes: L417}, {notes: L450}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_credentials_save_triggers_the_right_dag.py::test_each_tab_starts_only_its_own_collection}
+  mutation: "retirer le déclenchement du DAG à l'enregistrement dans src/dashboard/utils/collection_trigger.py"
+
+# ── Qualité des données ───────────────────────────────────────────────────────
+- id: REQ-DQ-01
+  domaine: data-quality
+  enonce: "Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes"
+  sources: [{notes: L490}, {theorie: "Moses et al. p.135 et p.152"}]
+  priorite: P2
+  statut: partiel
+  preuve: {pytest: tests/test_every_quality_check_has_a_category.py}
+  ecart: "R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables)"
+  roadmap: R230
+  mutation: "retirer la catégorie d'un contrôle dans tools/dev/dq_catalogue.py"
+- id: REQ-DQ-02
+  domaine: data-quality
+  enonce: Une anomalie d'ingestion se mesure en lignes attendues × locataires contre lignes reçues, avec seuil
+  sources: [{notes: L80}, {kpi: fiche 72}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_an_ingestion_gap_is_expected_against_received.py}
+  mutation: "moyenner sur les seuls jours non vides dans ingestion_gaps (src/dashboard/views/db_health.py)"
+- id: REQ-DQ-03
+  domaine: data-quality
+  enonce: Un défaut de donnée est corrigé à sa cause, pas maquillé ; une absence n'est jamais dessinée comme un zéro
+  sources: [{notes: L99}, {notes: L499}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py}
+  roadmap: R206
+  mutation: "remplir de 0 les jours sans mesure dans src/dashboard/utils/platform_chart.py"
+
+# ── Filtres ───────────────────────────────────────────────────────────────────
+- id: REQ-FILTER-01
+  domaine: filters
+  enonce: Une seule couche de filtres (période, titre, plateforme, compte, campagne) ; aucune vue n'écrit son propre filtre
+  sources: [{notes: L511}, {notes: L98}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter}
+  ecart: 7 vues passent par filters.py ; smart_date_range (imusician, meta_creatives) et meta_accounts (5 vues Meta) la contournent
+  mutation: "ajouter st.date_input dans une vue hors liste déclarée"
+  roadmap: R259
+
+- id: REQ-FILTER-02
+  domaine: filters
+  enonce: Le filtre de période s'ouvre par défaut sur « depuis la dernière sortie », dans toute l'app
+  sources: [{notes: L89}, {notes: L91}, {kpi: fiche 42}]
+  priorite: P3
+  statut: partiel
+  ecart: "chaque vue de plateforme passe last_release elle-même, mais le défaut de la couche partagée reste « current » (src/dashboard/utils/period_filter.py _default_preset) et aucun test ne l'exige"
+  a_ecrire: "test qui appelle _default_preset sans override et exige « depuis la dernière sortie » quand une date de sortie existe, puis rend chaque vue à filtre de période"
+  roadmap: R259
+
+- id: REQ-FILTER-03
+  domaine: filters
+  enonce: Élargir n'importe quel filtre ne fait jamais planter la vue
+  sources: [{kpi: fiche 42}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_a_widened_filter_still_renders.py::test_widening_every_filter_does_not_raise}
+  mutation: "remettre max_selections=5 sur le sélecteur de sorties de _tab_catalogue.py"
+
+# ── Porte de dessin et formats ────────────────────────────────────────────────
+- id: REQ-CHART-01
+  domaine: chart-door
+  enonce: Tout graphique passe par une seule porte (légende, glossaire, palette)
+  sources: [{kpi: fiche 24}, {theorie: "Few, Information Dashboard Design p.74 (attributs visuels constants)"}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_every_chart_goes_through_the_door.py::test_no_chart_walks_around_the_door}
+  mutation: "appeler st.plotly_chart directement dans une vue"
+- id: REQ-CHART-02
+  domaine: chart-door
+  enonce: Une plateforme a UNE couleur dans toute l'app (Meta bleu, Spotify vert, SoundCloud orange…) ; aucune couleur de plateforme en dur dans les vues
+  sources: [{notes: L87}, {notes: L99}, {kpi: fiche 39}, {theorie: "Few p.74"}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_a_platform_colour_has_one_definition.py::test_no_new_hardcoded_platform_colour}
+  ecart: "le cliquet tolère encore 42 couleurs de plateforme en dur (_PLAFOND = 42) ; les graphiques PDF (matplotlib) ont leur palette propre"
+  mutation: "ajouter '#1DB954' en dur dans une vue"
+  roadmap: R260
+
+- id: REQ-CHART-03
+  domaine: chart-door
+  enonce: Tri Pareto par défaut sur les barres par catégorie
+  sources: [{kpi: fiche 28}, {kpi: fiche 33}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_every_chart_goes_through_the_door.py}
+  ecart: Pareto opt-in, 3 appelants seulement
+  roadmap: R260
+
+- id: REQ-CHART-04
+  domaine: chart-door
+  enonce: Aucune redondance — une page ne dessine pas deux fois la même mesure
+  sources: [{kpi: fiche 41}, {notes: L224}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_no_two_figures_on_a_page_share_a_fingerprint.py::test_no_page_draws_the_same_measure_twice}
+  ecart: une tuile qui répète un graphique de la même page n'est pas vue ; le tableau KPI → fiches n'est lu par aucun test
+  mutation: "dessiner deux fois v_s4a_song_daily.streams sur une même page"
+  roadmap: R258
+
+- id: REQ-FORMAT-01
+  domaine: formats
+  enonce: Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques
+  sources: [{notes: L549}, {theorie: "Few p.74"}]
+  priorite: P3
+  statut: absent
+  a_ecrire: "cliquet sur le nombre de .replace(',', ' ') et de f-strings {:,} dans src/dashboard/views/ ; module de formats unique testé en FR et EN"
+  ecart: 164 st.metric sans formateur commun, 12 formateurs concurrents, ~86 bricolages de séparateur
+  roadmap: R260
+
+- id: REQ-FORMAT-02
+  domaine: formats
+  enonce: Une date affichée suit la langue du lecteur
+  sources: [{notes: L549}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_a_date_shown_to_a_reader_follows_their_language.py::test_no_view_formats_a_date_day_first}
+  mutation: "formater une date en strftime('%d/%m/%Y') dans une vue"
+
+# ── Pages, navigation, parcours ───────────────────────────────────────────────
+- id: REQ-UX-01
+  domaine: pages-ux
+  enonce: Chaque graphique répond à une question et écrit la décision qu'il permet ; un plafond de figures au premier écran
+  sources: [{kpi: fiche 32}, {kpi: fiche 45}, {notes: L224}, {theorie: "Few p.26 (l'essentiel, d'un coup d'œil)"}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_the_first_screen_counts_its_gauges.py::test_no_view_exceeds_its_recorded_ceiling}
+  ecart: la décision écrite n'est gardée que pour les fiches traitées par R247 ; aucun test ne l'exige partout
+  roadmap: R271
+
+- id: REQ-UX-02
+  domaine: pages-ux
+  enonce: Naviguer dans l'app n'ouvre jamais d'onglet ; une redirection mène toujours à la même étape quel que soit l'onglet d'origine
+  sources: [{notes: L275}, {notes: L356}, {notes: L357}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_navigation_inside_the_app_opens_no_tab.py::test_no_markdown_link_navigates_between_screens}
+  ecart: pas de contrat de routage unique (page d'arrivée selon l'état de configuration) testé de bout en bout
+  roadmap: R261
+
+- id: REQ-UX-03
+  domaine: pages-ux
+  enonce: Chaque vue se rend sans erreur sur une base réelle
+  sources: [{kpi: fiche 26}, {kpi: fiche 74}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_views_render_smoke.py}
+  mutation: "lever une exception dans show() d'une vue"
+- id: REQ-ONB-01
+  domaine: onboarding
+  enonce: Le parcours d'inscription est rejouable de bout en bout (compte → mail → connexion → assistant → identifiants → collecte)
+  sources: [{notes: L5}, {notes: L275}]
+  priorite: P2
+  statut: partiel
+  preuve: {pytest: tests/test_canary_onboarding_walk.py}
+  ecart: le mail et les inscriptions tierces (Business Manager) ne sont pas dans la marche rejouée
+  roadmap: R270
+
+- id: REQ-ONB-02
+  domaine: onboarding
+  enonce: Enregistrer un identifiant rend un verdict immédiat (la plateforme répond, avec des données) et le montre
+  sources: [{notes: L357}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_saving_credentials_yields_a_verdict_now.py}
+  mutation: "retirer l'appel de test de connexion après l'enregistrement"
+
+# ── Runtime, API, scalabilité ─────────────────────────────────────────────────
+- id: REQ-RUN-01
+  domaine: app-runtime
+  enonce: Un rendu ouvre au plus son plafond de connexions et les referme sur tous les chemins
+  sources: [{doc: CLAUDE.md}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_a_render_opens_one_connection.py::test_rendering_a_view_opens_at_most_its_ceiling}
+  mutation: "ouvrir une seconde connexion dans un show()"
+- id: REQ-RUN-02
+  domaine: app-runtime
+  enonce: La latence de rendu est mesurée par page (p50/p95) et reste sous son seuil d'ADR à la charge visée
+  sources: [{notes: L67}, {notes: L80}, {adr: docs/adr/ADR-007-performance-work-is-trigger-gated.md}, {theorie: "Kleppmann p.44 (percentiles)"}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_a_fragment_never_captures_a_connection.py}
+  ecart: "la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue"
+  a_ecrire: "cible de charge à N sessions sur l'instantané qui sort ≠ 0 si p95 > seuil ADR-007"
+  roadmap: R266
+- id: REQ-RUN-03
+  domaine: app-runtime
+  enonce: Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée
+  sources: [{notes: L72}, {notes: L80}]
+  priorite: P3
+  statut: absent
+  a_ecrire: "test qui lit docker-compose*.yml et exige mem_limit (ou deploy.resources) sur chaque service"
+  roadmap: R266
+
+- id: REQ-API-01
+  domaine: api
+  enonce: L'API mesure sa latence par motif de route, sans libellés non bornés
+  sources: [{notes: L67}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_the_api_measures_itself_without_unbounded_labels.py::test_the_route_label_is_the_pattern_not_the_url}
+  mutation: "mettre l'URL brute comme libellé de la métrique HTTP"
+
+# ── Multi-locataire, sécurité ─────────────────────────────────────────────────
+- id: REQ-TENANT-01
+  domaine: tenancy-plans
+  enonce: Aucune surface d'un locataire ne voit les données d'un autre ; une vue or est aveugle aux lignes d'autrui
+  sources: [{notes: L243}, {theorie: "Golding p.449 (isolation)"}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_a_gold_view_is_blind_to_another_tenants_rows.py::test_a_gold_view_is_blind_to_another_tenants_rows}
+  mutation: "retirer le filtre artist_id d'une vue or"
+- id: REQ-TENANT-02
+  domaine: tenancy-plans
+  enonce: L'état de la flotte (DAG, autres artistes) n'apparaît jamais sur une surface d'artiste
+  sources: [{notes: L243}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_fleet_state_never_reaches_a_tenant_surface.py}
+  mutation: "afficher le dernier run d'un DAG sur la page identifiants"
+- id: REQ-SEC-01
+  domaine: security
+  enonce: Aucun secret n'entre dans l'historique ; un secret indexé est refusé au commit et en CI
+  sources: [{notes: L170}, {theorie: "Janca, Alice and Bob Learn Application Security (index p.210, user secrets)"}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_a_staged_secret_is_refused.py::test_the_detector_sees_the_defect_it_is_written_for}
+  mutation: "retirer le hook gitleaks-staged de .pre-commit-config.yaml"
+- id: REQ-SEC-02
+  domaine: security
+  enonce: Le contrôle de sécurité nocturne est bloquant (gitleaks et audit des dépendances, API comprise)
+  sources: [{notes: L170}]
+  priorite: P1
+  statut: partiel
+  a_ecrire: "test qui lit .github/workflows/security-nightly.yml et refuse continue-on-error ou `|| true` sur gitleaks et pip-audit ; audit de requirements-api.txt"
+  ecart: gitleaks nocturne en continue-on-error, pip-audit en || true, requirements-api.txt non audité
+  roadmap: R267
+
+- id: REQ-SEC-03
+  domaine: security
+  enonce: Aucun fichier de secret ne voyage dans une couche d'image Docker
+  sources: [{notes: L170}]
+  priorite: P1
+  statut: conforme
+  preuve: {pytest: tests/test_a_secret_never_rides_into_an_image_layer.py::test_every_secret_the_repo_hides_is_also_kept_out_of_the_build_context}
+  mutation: "retirer .env de .dockerignore"
+
+# ── Tests, CI, poste ──────────────────────────────────────────────────────────
+- id: REQ-TEST-01
+  domaine: tests-ci
+  enonce: La CI répartit la suite en shards équilibrés par des durées réelles, chaque test neuf apporte sa durée
+  sources: [{notes: L72}, {theorie: "Khorikov, Unit Testing p.113 (retour rapide)"}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_a_new_test_brings_its_duration.py::test_the_hook_judges_every_tracked_test_not_only_the_staged_files}
+  mutation: "restreindre le hook aux fichiers indexés (outside() ignoré)"
+- id: REQ-TEST-02
+  domaine: tests-ci
+  enonce: La boucle de code ne lance que les tests atteignables depuis le diff
+  sources: [{notes: L72}]
+  priorite: P4
+  statut: conforme
+  preuve: {pytest: tests/test_the_selector_selects_what_changed.py}
+  mutation: "faire rendre la suite entière par select_tests.py pour tout diff"
+- id: REQ-TEST-03
+  domaine: tests-ci
+  enonce: Les chiffres de temps de suite publiés sont UNE source générée, pas trois documents qui se contredisent
+  sources: [{notes: L72}]
+  priorite: P4
+  statut: absent
+  a_ecrire: "test qui refuse un temps de suite écrit à la main dans Makefile, CLAUDE.md et test-suite-performance.md s'il diffère du dernier .pytest-last.log"
+  roadmap: R268
+
+- id: REQ-CLAUDE-01
+  domaine: claude-wsl
+  enonce: Un agent n'existe que s'il a un déclencheur qui peut se produire ; la liste de refus des permissions ne rétrécit pas
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_claude_config_floor.py::test_the_permission_deny_list_does_not_shrink}
+  mutation: "retirer une entrée deny de .claude/settings.json"
+- id: REQ-CLAUDE-02
+  domaine: claude-wsl
+  enonce: Claude Code lit la fiche d'un domaine avant d'y toucher ; toute exigence nouvelle entre au catalogue avec sa preuve
+  sources: [{notes: L549}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_every_requirement_has_a_probe.py}
+  ecart: la règle CLAUDE.md et l'injection par mots-clés sont livrées par R257
+  roadmap: R257
+
+# ── Roadmap, classes d'erreur, observabilité ──────────────────────────────────
+
+- id: REQ-ROAD-01
+  domaine: roadmap-gov
+  enonce: Toute action de code a sa ligne de roadmap AVANT, archivée seulement livrée et testée
+  sources: [{notes: L71}, {kpi: fiche 1}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_an_action_is_on_the_roadmap_before_it_runs.py::test_the_detector_sees_the_defect_it_is_written_for}
+  mutation: "faire accepter par require_roadmap_id.py un commit sans id"
+- id: REQ-ROAD-02
+  domaine: roadmap-gov
+  enonce: Chaque avis du propriétaire devient une action reliée à une ligne réelle de la roadmap
+  sources: [{notes: L549}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_every_dossier_action_is_in_the_roadmap.py::test_every_dossier_action_names_a_real_roadmap_row}
+  mutation: "remettre « fait = absent de l'index » dans action_state()"
+- id: REQ-ROAD-03
+  domaine: roadmap-gov
+  enonce: La discipline de roadmap est mesurée et son relevé n'est jamais périmé
+  sources: [{notes: L71}]
+  priorite: P3
+  statut: partiel
+  preuve: {cmd: "make roadmap-discipline"}
+  ecart: .claude/dev-docs/roadmap-discipline.json date du 2026-09-26 et liste des lignes fermées depuis
+  roadmap: R268
+
+- id: REQ-ERR-01
+  domaine: error-classes
+  enonce: Une classe d'erreur n'entre qu'avec un billet d'admission chiffré, une signature vue rouge et un balayage
+  sources: [{notes: L9}, {notes: L60}, {theorie: "Beyer et al., The Site Reliability Workbook p.213 (actions préventives d'un postmortem)"}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected}
+  mutation: "retirer `signature` d'une entrée du catalogue"
+- id: REQ-ERR-02
+  domaine: error-classes
+  enonce: Le registre des erreurs applicatives reçoit les erreurs de TOUTE l'infra (dashboard, API, DAG, collecteurs), par empreinte et par page
+  sources: [{notes: L67}, {notes: L80}]
+  priorite: P2
+  statut: partiel
+  preuve: {pytest: tests/test_an_error_leaves_a_row.py}
+  ecart: app_error_log n'est alimenté que par le dashboard ; l'API et les DAG ne l'appellent pas ; « No data » sur les erreurs par page dans Grafana
+  a_ecrire: "test qui exige record_error dans le gestionnaire d'exception de src/api/main.py et dans on_failure_callback des DAGs"
+  roadmap: R265
+
+- id: REQ-ERR-03
+  domaine: error-classes
+  enonce: Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille
+  sources: [{notes: L9}, {notes: L60}]
+  priorite: P3
+  statut: partiel
+  preuve: {pytest: tests/test_the_error_class_families_only_improve.py}
+  ecart: 12 familles et 18 règles existent ; pas de table en base pour suivre pertinence et échecs des classes dans le temps
+  roadmap: R264
+
+- id: REQ-OBS-01
+  domaine: infra-observability
+  enonce: "Grafana montre la santé et l'échelle : CPU, RAM, disque du VPS, pool de connexions, utilisateurs connectés, latence, erreurs par page, lignes et taille de base — chacun avec un seuil d'alerte"
+  sources: [{notes: L67}, {notes: L80}, {adr: docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md}, {theorie: "Golding p.339 (mesurer la réponse du système)"}, {theorie: "Beyer et al., SRE Workbook p.111 (alerter sur SLO)"}]
+  priorite: P3
+  statut: partiel
+  preuve: {cmd: "python3 -c \"import yaml;yaml.safe_load(open('deploy/prometheus/rules/streamlytics.yml'))\""}
+  ecart: "taille base, lignes, ressources par conteneur et quotas ne sont pas des métriques (make scale-check relit les déclencheurs d'ADR-014 à la main) ; erreurs par page sans données"
+  roadmap: R265
+  a_ecrire: "test qui croise une liste déclarée d'indicateurs de santé avec les métriques exportées (src/utils/metrics.py) et les règles d'alerte"
+- id: REQ-OBS-02
+  domaine: infra-observability
+  enonce: Ce qui se trace dans Grafana n'est pas redit dans la vue admin (et inversement)
+  sources: [{notes: L140}, {notes: L80}]
+  priorite: P4
+  statut: partiel
+  preuve: {cmd: "test -f .claude/dev-docs/grafana-correspondence.md"}
+  ecart: la correspondance est un document, pas un contrôle
+  roadmap: R265

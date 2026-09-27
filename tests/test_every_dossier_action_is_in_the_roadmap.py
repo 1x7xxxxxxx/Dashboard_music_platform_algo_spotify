@@ -52,8 +52,9 @@ def test_the_detector_sees_a_ghost_id_and_a_gesture_outside_the_waiting_table():
     m, _, open_ids, done, waiting = _state()
     ghost = {"f": {"actions": [{"qui": "moi", "texte": "x", "rid": "R9999"}]}}
     assert m.unknown_actions(ghost, open_ids, done, waiting)
-    stray = {"f": {"actions": [{"qui": "toi", "texte": "x", "rid": "R254"}]}}
-    assert m.unknown_actions(stray, open_ids | {"R254"}, done, waiting - {"R254"}), (
+    # A synthetic id: a real one gets archived one day and the example stops meaning « open ».
+    stray = {"f": {"actions": [{"qui": "toi", "texte": "x", "rid": "R9998"}]}}
+    assert m.unknown_actions(stray, open_ids | {"R9998"}, done, waiting - {"R9998"}), (
         "an owner's gesture on an index row (not the 🙋 table) went unseen")
     fine = {"f": {"actions": [{"qui": "moi", "texte": "x", "rid": sorted(done)[0]}]}}
     assert not m.unknown_actions(fine, open_ids, done, waiting)

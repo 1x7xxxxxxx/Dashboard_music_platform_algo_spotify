@@ -1,0 +1,176 @@
+# R257 — la carte des domaines micro de streaMLytics.
+#
+# Un domaine = un périmètre, les fichiers qui le portent, les gardes qui le tiennent, les
+# mesures qui le chiffrent. Chaque chemin est VÉRIFIÉ sur disque par
+# tests/test_every_requirement_has_a_probe.py — un domaine qui cite un fichier disparu rougit.
+# Les exigences vivent dans requirements.yaml (clé `domaine`), le benchmark est généré
+# (make arch-benchmark → benchmark.md). Rien ici n'est une statistique : les chiffres sont
+# dans les documents générés, jamais recopiés.
+
+collect:
+  nom: Collecteurs API
+  perimetre: appels aux API externes (Spotify, Meta, Instagram, YouTube, SoundCloud), pagination, reprise, quotas ; un collecteur LÈVE (règle 6)
+  fichiers: [src/collectors/meta_ads_api_collector.py, src/collectors/instagram_api_collector.py, src/collectors/youtube_collector.py, src/collectors/soundcloud_api_collector.py, src/collectors/spotify_api.py, src/collectors/_meta_retry.py, src/utils/retry.py, src/utils/circuit_breaker.py, src/utils/request_throttle.py]
+  gardes: [tests/test_collectors_errors.py, tests/test_the_collector_audit_sees_a_silent_return.py, tests/test_a_collector_can_be_asked_a_question_without_a_database.py]
+  mesures: []
+
+orchestration:
+  nom: Orchestration Airflow et fan-out par locataire
+  perimetre: DAGs, planification, boucle par locataire, timeouts, journal de collecte par locataire
+  fichiers: [airflow/dags/spotify_api_daily.py, airflow/dags/meta_ads_api_daily.py, airflow/dags/instagram_daily.py, airflow/dags/youtube_daily.py, airflow/dags/soundcloud_daily.py, src/utils/dag_timeouts.py, src/utils/dag_run_logger.py, src/utils/airflow_trigger.py]
+  gardes: [tests/test_every_dag_imports.py, tests/test_dag_fleet_isolation.py, tests/test_every_collection_dag_records_its_tenants.py, tests/test_a_dag_trigger_names_its_tenant.py]
+  mesures: [src/utils/dag_timeouts.py]
+
+bronze:
+  nom: Bronze — tables de collecte et schéma
+  perimetre: tables brutes par plateforme, migrations avant seulement, upsert idempotent nommant son locataire
+  fichiers: [migrations, src/database/postgres_handler.py, src/utils/source_registry.py]
+  gardes: [tests/test_an_upsert_targets_an_index_that_exists.py, tests/test_the_bronze_boundary_only_tightens.py, tests/test_no_sixth_list_of_the_same_tables.py]
+  mesures: [make schema-check-local]
+
+silver:
+  nom: Argent — séries conformées
+  perimetre: une ligne par jour et par titre, ligne « Total » retirée, cumul gardé cumul ; aujourd'hui les v_*_daily et platform_timeseries
+  fichiers: [src/dashboard/utils/platform_timeseries.py, docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md]
+  gardes: [tests/test_the_gold_layer_defines_every_platform.py]
+  mesures: []
+
+gold:
+  nom: Or — une définition par KPI
+  perimetre: vues or v_*/gold_*, registre des métriques (sens flux/cumul/niveau), carte de couverture des figures et tuiles
+  fichiers: [tools/dev/metric_registry.py, tools/dev/gold_coverage.py, .claude/dev-docs/gold-coverage.md]
+  gardes: [tests/test_every_metric_is_registered.py, tests/test_the_gold_coverage_only_improves.py, tests/test_the_gold_layer_agrees_with_itself.py, tests/test_a_gold_view_is_blind_to_another_tenants_rows.py, tests/test_a_gold_rule_is_declarative.py]
+  mesures: [make gold-coverage, make gold-coverage-check]
+
+data-quality:
+  nom: Qualité et observabilité des données
+  perimetre: fraîcheur, volume, invariants entre définitions, bornes, remises à zéro, doublons, divergences plateformes, mapping
+  fichiers: [tools/dev/dq_catalogue.py, src/utils/gold_invariants.py, src/utils/metric_bounds.py, src/utils/volume_monitor.py, src/utils/value_monitor.py, src/utils/freshness_monitor.py, airflow/dags/alert_monitor.py]
+  gardes: [tests/test_every_quality_check_has_a_category.py, tests/test_quality_checks_stand_on_freshness.py, tests/test_a_freshness_verdict_reads_the_date_the_data_carries.py, tests/test_an_ingestion_gap_is_expected_against_received.py]
+  mesures: [tools/dev/charts_dossier/numbers_check.py]
+
+filters:
+  nom: Filtres modulaires
+  perimetre: une seule couche de filtres (période, titre, plateforme, compte, campagne), mêmes libellés, défaut « dernière sortie »
+  fichiers: [src/dashboard/utils/filters.py, src/dashboard/utils/period_filter.py, src/dashboard/utils/date_range.py, src/dashboard/utils/entry_period.py, src/dashboard/utils/meta_accounts.py]
+  gardes: [tests/test_a_view_filters_through_the_shared_layer.py, tests/test_a_period_selector_is_the_shared_one.py, tests/test_a_widened_filter_still_renders.py, tests/test_an_account_filter_names_one_column.py]
+  mesures: []
+
+chart-door:
+  nom: Porte de dessin — légendes, palette, Pareto
+  perimetre: tout graphique passe par charts.plotly_chart ; légende, glossaire, palette distincte, couleurs de plateforme, Pareto
+  fichiers: [src/dashboard/utils/charts.py, src/dashboard/utils/platform_colors.py, src/dashboard/utils/semantic_colors.py, src/dashboard/utils/pdf_charts.py]
+  gardes: [tests/test_every_chart_goes_through_the_door.py, tests/test_the_legend_says_what_the_figure_shows.py, tests/test_the_legend_is_the_source_filter.py, tests/test_no_two_figures_on_a_page_share_a_fingerprint.py]
+  mesures: [make figure-contrast, make chart-budget, make charts-dossier]
+
+formats:
+  nom: Formats — tuiles, tableaux, nombres, dates
+  perimetre: un formateur de nombre, de monnaie, de date ; mêmes séparateurs et unités sur toutes les surfaces
+  fichiers: [src/dashboard/utils/date_format.py, src/dashboard/utils/safe_number.py, src/dashboard/utils/kpi_helpers.py, src/dashboard/utils/labels.py]
+  gardes: [tests/test_a_date_shown_to_a_reader_follows_their_language.py]
+  mesures: []
+
+pages-ux:
+  nom: Pages, navigation et premier écran
+  perimetre: une question par figure, une décision écrite, plafond de figures au premier écran, sections et onglets, redirections
+  fichiers: [src/dashboard/app.py, src/dashboard/utils/nav_sections.py, src/dashboard/utils/navigation.py, src/dashboard/utils/nav_header.py, src/dashboard/views]
+  gardes: [tests/test_the_first_screen_counts_its_gauges.py, tests/test_navigation_inside_the_app_opens_no_tab.py, tests/test_views_render_smoke.py]
+  mesures: [make charts-dossier]
+
+onboarding:
+  nom: Inscription, mise en route et identifiants
+  perimetre: parcours création de compte → mail → connexion → assistant → identifiants → première collecte ; même parcours quel que soit l'onglet d'origine
+  fichiers: [src/dashboard/utils/setup_completion.py, src/dashboard/utils/setup_progress.py, src/dashboard/utils/setup_focus.py, src/dashboard/utils/status_matrix.py, src/dashboard/utils/collection_trigger.py, src/utils/verification_email.py, src/utils/platform_identity_resolver.py]
+  gardes: [tests/test_canary_onboarding_walk.py, tests/test_saving_credentials_yields_a_verdict_now.py, tests/test_credentials_save_triggers_the_right_dag.py, tests/test_the_end_of_setup_buttons_actually_navigate.py, tests/test_connection_test_proves_tenant.py]
+  mesures: []
+
+app-runtime:
+  nom: Runtime du dashboard — latence et concurrence
+  perimetre: une connexion par rendu, pool, cache, fragments, coût des figures, rendus concurrents
+  fichiers: [src/dashboard/serve.py, src/dashboard/utils/fragment_db.py, src/dashboard/utils/metrics_seam.py, src/dashboard/utils/cache_epoch.py, src/utils/pg_connect.py, docs/adr/ADR-007-performance-work-is-trigger-gated.md]
+  gardes: [tests/test_a_render_opens_one_connection.py, tests/test_a_fragment_never_captures_a_connection.py, tests/test_a_connection_is_closed_on_every_path.py]
+  mesures: [.claude/dev-docs/test-suite-performance.md]
+
+api:
+  nom: API REST
+  perimetre: routes JWT, limites de débit, colonnes existantes, entrées hostiles, mesure de latence par route
+  fichiers: [src/api/main.py, src/api/auth.py, src/api/deps.py, src/api/security.py, src/api/routers]
+  gardes: [tests/test_api_security.py, tests/test_api_survives_hostile_input.py, tests/test_every_api_query_names_columns_that_exist.py, tests/test_the_api_measures_itself_without_unbounded_labels.py]
+  mesures: []
+
+tenancy-plans:
+  nom: Multi-locataire et plans
+  perimetre: identité de locataire jamais par défaut, écriture nommant son locataire, isolation des vues or, plans free/premium, cadenas
+  fichiers: [src/utils/tenant_identity.py, src/utils/tenant_kind.py, src/utils/tenant_tables.py, src/utils/plan_resolver.py, src/dashboard/utils/plan_gate.py]
+  gardes: [tests/test_tenant_isolation.py, tests/test_e2e_two_tenants.py, tests/test_a_tenant_scoped_action_names_its_tenant.py, tests/test_fleet_state_never_reaches_a_tenant_surface.py, tests/test_an_all_tenants_total_counts_only_humans.py]
+  mesures: [python3 .claude/scripts/audit_tenant_writes.py]
+
+security:
+  nom: Cybersécurité
+  perimetre: secrets (jamais indexés, rotation), dépendances, JWT, frontière d'erreur, surfaces publiques
+  fichiers: [.github/workflows/security-nightly.yml, .pre-commit-config.yaml, .secrets.baseline, src/api/auth.py, .streamlit/config.toml]
+  gardes: [tests/test_credentials_security.py, tests/test_a_staged_secret_is_refused.py, tests/test_a_secret_never_rides_into_an_image_layer.py, tests/test_a_credential_in_a_query_param_never_reaches_a_message.py]
+  mesures: [make audit-deps]
+
+tests-ci:
+  nom: Tests locaux et CI
+  perimetre: suite parallèle calibrée mémoire en local, 6 shards équilibrés par durées en CI, tests atteignables depuis le diff
+  fichiers: [Makefile, tools/dev/pytest_workers.py, .claude/scripts/select_tests.py, .github/workflows/ci.yml, .test_durations, tools/dev/check_durations_are_collectable.py]
+  gardes: [tests/test_the_shards_are_balanced_by_real_durations.py, tests/test_a_new_test_brings_its_duration.py]
+  mesures: [make test-durations-missing, .claude/dev-docs/test-suite-performance.md]
+
+claude-wsl:
+  nom: Configuration Claude Code et poste WSL
+  perimetre: hooks, règles, agents, skills, workflows ; RTK ; dépôt sur ext4 ; VS Code Remote-WSL
+  fichiers: [CLAUDE.md, .claude/settings.json, .claude/hooks, .claude/agents, .claude/workflows]
+  gardes: [tests/test_claude_config_floor.py]
+  mesures: [python3 .claude/scripts/usage_report.py]
+
+roadmap-gov:
+  nom: Gouvernance de la roadmap
+  perimetre: une ligne avant tout code (hook + commit-msg + CI), clôture par make roadmap-close, deux fichiers, discipline mesurée
+  fichiers: [.claude/dev-docs/roadmap/checklist.md, .claude/dev-docs/roadmap/archive.md, .claude/hooks/require_roadmap_entry.py, tools/dev/require_roadmap_id.py, tools/dev/roadmap_discipline.py]
+  gardes: [tests/test_an_action_is_on_the_roadmap_before_it_runs.py, tests/test_roadmap_index_is_honest.py, tests/test_roadmap_two_files.py, tests/test_every_dossier_action_is_in_the_roadmap.py]
+  mesures: [make roadmap-discipline]
+
+error-classes:
+  nom: Classes d'erreur et registre applicatif
+  perimetre: catalogue avec billet d'admission, signature vue rouge, familles, balayage ; app_error_log par empreinte
+  fichiers: [.claude/dev-docs/error-classes.md, .claude/dev-docs/error-class-families.md, .claude/scripts/audit_runner.py, src/utils/error_registry.py]
+  gardes: [tests/test_every_error_class_is_complete.py, tests/test_error_class_index_is_complete.py, tests/test_the_error_class_health_only_improves.py, tests/test_the_error_class_families_only_improve.py]
+  mesures: [make error-health, make error-families, make error-inbox]
+
+infra-observability:
+  nom: Infrastructure et observabilité
+  perimetre: VPS unique, conteneurs, Prometheus/Grafana, règles d'alerte, résumé quotidien en base, sauvegardes
+  fichiers: [docker-compose.yml, deploy/prometheus/rules/streamlytics.yml, src/utils/metrics.py, src/utils/daily_ops_metrics.py, src/utils/ops_alerts.py, docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md]
+  gardes: []
+  mesures: [.claude/dev-docs/grafana-correspondence.md]
+
+ml:
+  nom: Machine learning — déclenchement des algorithmes
+  perimetre: scoring quotidien, probabilités calibrées, sensibilité locale, SHAP, estimation des streams une fois déclenché
+  fichiers: [src/utils/ml_inference.py, src/utils/shap_explain.py, airflow/dags/ml_scoring_daily.py, machine_learning]
+  gardes: [tests/test_a_shap_explanation_never_goes_through_shaps_loader.py, tests/test_a_release_target_says_where_it_comes_from.py]
+  mesures: []
+
+product-offer:
+  nom: Offre, plans et parcours commercial
+  perimetre: free vs premium, essai, offre d'accompagnement, facturation Stripe, parrainage
+  fichiers: [src/dashboard/utils/service_offer.py, src/dashboard/utils/plan_pitch.py, src/api/routers/stripe_webhook.py, docs/adr/ADR-029-your-data-is-free-predictions-are-paid.md]
+  gardes: []
+  mesures: []
+
+rag-knowledge:
+  nom: Base de connaissance et RAG
+  perimetre: corpus de livres indexé (projet knowledge-rag hors dépôt), ingestion, recherche hybride, futur assistant in-app
+  fichiers: []
+  gardes: []
+  mesures: []
+
+pc-perf:
+  nom: Poste de développement
+  perimetre: WSL (mémoire, ext4), conteneurs locaux concurrents (n8n, knowledge-rag), VS Code Remote-WSL, alias de lancement
+  fichiers: [tools/dev/pytest_workers.py]
+  gardes: []
+  mesures: []
