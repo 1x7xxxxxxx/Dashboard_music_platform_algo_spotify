@@ -566,3 +566,5 @@
 {"at": "2026-09-27T10:37:31+00:00", "kind": "done", "task": "R224", "what": "fermée par roadmap-close — a5335b1, en prod : une CI en cours sur main n'est plus annulee par le push suivant"}
 {"at": "2026-09-27T10:37:31+00:00", "kind": "done", "task": "R233", "what": "fermée par roadmap-close — 3dfcafa, deploye : clics plateformes et cout par clic plateforme par crea (mesure), estimation des ecoutes par crea refusee ; 0/61 mesurees jusqu'a la recollecte R237"}
 {"at": "2026-09-27T10:37:31+00:00", "kind": "done", "task": "R235", "what": "fermée par roadmap-close — 9105516, deploye avec la migration 142 : export Apple d'un jour = Shazams du jour, cumuls differencies par origine, releve date par l'export, correlation Shazam -> ecoutes des 14 jours ; verifie en prod : totaux inchanges"}
+{"at": "2026-09-27T10:44:37+00:00", "head": "b12c250e", "kind": "done", "task": "R231", "what": "livree b12c250"}
+{"at": "2026-09-27T10:44:37+00:00", "head": "b12c250e", "kind": "start", "task": "R236", "what": "vue financiere en une ligne"}

@@ -404,6 +404,33 @@ def _frag_artist_forecast(artist_id: int | None) -> None:
 from src.dashboard.utils.treasury_chart import FLUX_NAMES as _FLUX_NOMS  # noqa: E402
 
 
+def _render_ledger(db, artist_id, cashflow: pd.DataFrame, mensuel: pd.DataFrame) -> None:
+    """R236 — the whole money story in ONE line above the treasury: what came in, what
+    went out (ads apart), the result, and what the ads bought in streams. A text line,
+    not a figure: the page sits at its figure ceiling, and six numbers read in a row."""
+    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.dashboard.utils.treasury_chart import ledger_summary
+    totals = platform_totals(db, artist_id) or {}
+    measured = [v for v in totals.values() if v is not None]
+    s = ledger_summary(cashflow, mensuel, float(sum(measured)) if measured else None)
+
+    def eur(v):
+        return "—" if v is None else f"{v:,.0f} €".replace(",", " ")
+    head = t("revenue_forecast.ledger_head",
+             "| Revenus | Dépenses | dont pub | Résultat financier | Écoutes (toutes plateformes) "
+             "| Pub par écoute |")
+    streams = "—" if s['streams'] is None else f"{s['streams']:,.0f}".replace(",", " ")
+    per_stream = ("—" if s['cost_per_stream'] is None
+                  else f"{s['cost_per_stream']:.3f} €".replace(".", ","))
+    row = (f"| {eur(s['revenue'])} | {eur(s['spend'])} | {eur(s['ads'])} | "
+           f"**{eur(s['result'])}** | {streams} | {per_stream} |")
+    st.markdown(head + "\n|---|---|---|---|---|---|\n" + row)
+    st.caption(t("revenue_forecast.ledger_caption",
+                 "Depuis le début. « Pub par écoute » divise la dépense publicitaire par TOUTES "
+                 "les écoutes, organiques comprises : c'est un plafond, pas ce qu'une écoute "
+                 "gagnée a coûté — celui-là est dans « Tout mon funnel », campagne par campagne."))
+
+
 def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                         pm: dict, horizon: int) -> None:
     """The treasury (shared with iMusician and SACEM), plus the premium projection."""
@@ -850,6 +877,7 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                t("revenue_forecast.be_no_date", "hors d'atteinte")),
         delta_color="off")
 
+    _render_ledger(db, target_id, cashflow, mensuel)
     _render_money_chart(cashflow, mensuel, pm, horizon)
     _render_cost_entry(db, target_id)
     _render_trigger_value(db, target_id, mensuel)

@@ -169,3 +169,28 @@ def _add_balance(fig: go.Figure, mensuel: pd.DataFrame,
         xref="x2 domain", yref="y2", x=0.01, y=0,
         text=t("revenue_forecast.breakeven_line", "point mort"),
         showarrow=False, yshift=9, font={'size': 11, 'color': "#888"})
+
+
+def ledger_summary(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
+                   streams_total: float | None) -> dict:
+    """The one-line ledger above the treasury (R236): money in, money out (ads apart),
+    the result, and what the ads bought in streams. Pure.
+
+    `streams_total` is every platform's streams from the start (`platform_totals`); the
+    cost per stream divides ad spend by ALL streams, organic included — it is a ceiling
+    on what ads cost per stream, not an attribution, and the page says so."""
+    d = cashflow.copy() if cashflow is not None else pd.DataFrame(columns=['flux', 'source', 'amount_eur'])
+    d['amount_eur'] = pd.to_numeric(d.get('amount_eur'), errors='coerce')
+    rev = d.loc[d['flux'] == 'revenu', 'amount_eur'].sum(min_count=1)
+    out = d.loc[d['flux'] == 'depense', 'amount_eur'].sum(min_count=1)
+    ads = d.loc[(d['flux'] == 'depense') & (d['source'] == 'meta_ads'), 'amount_eur'].sum(min_count=1)
+    cumul = float(mensuel['cumul'].iloc[-1]) if mensuel is not None and not mensuel.empty else None
+    def val(v):
+        return None if pd.isna(v) else float(v)
+    ads_v = val(ads)
+    return {
+        'revenue': val(rev), 'spend': val(out), 'ads': ads_v,
+        'other': (val(out) - (ads_v or 0.0)) if val(out) is not None else None,
+        'result': cumul, 'streams': streams_total,
+        'cost_per_stream': (ads_v / streams_total) if ads_v and streams_total else None,
+    }
