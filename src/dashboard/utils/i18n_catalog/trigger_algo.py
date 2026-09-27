@@ -120,58 +120,9 @@ EN = {
         "the track over 7 days. No data measures {label}-sourced streams alone: this view "
         "shows a trend, not the model's error."
     ),
-    "trigger_algo.model.residuals_header": "📉 Residuals over time (Actual − DW Forecast)",
-    "trigger_algo.model.residuals_expander": "📉 Model diagnostics — residuals (optional)",
-    "trigger_algo.model.no_residuals": (
-        "DW residuals unavailable — DW volume is not predicted (regressor frozen "
-        "by design). Nothing abnormal for this track."
-    ),
-    "trigger_algo.model.bias_caption": "Mean bias: {mean:,.0f} streams | Std dev: {std:,.0f} streams",
-    "trigger_algo.model.systematic_bias": (
-        "Systematic bias detected — the model consistently over- or under-predicts "
-        "for this track."
-    ),
     "trigger_algo.model.chart_unavailable": "Actual vs Predicted chart unavailable: {err}",
 
     # _tab_algos.py
-    "trigger_algo.algos.caption": (
-        "📊 **Tracking & action** — the verdict (STOP / OPTIMISE / SCALE), the concrete "
-        "levers to open each algorithmic door, your position on the PI curves, and the "
-        "trajectory of the first 28 days vs the real trigger thresholds."
-    ),
-    "trigger_algo.algos.rr_simulator": "🔮 Release Radar simulator (pre-release) — plan a release",
-    "trigger_algo.algos.streams_probas_header": "📈 Streams & algorithmic probabilities",
-    "trigger_algo.algos.no_streams_period": "No streams over this period.",
-    "trigger_algo.algos.no_ml_history": "No ML probability history over this period.",
-    "trigger_algo.algos.chart_streams_probas_title": "Streams & probabilities — {track}",
-    "trigger_algo.algos.axis_streams": "Streams",
-    "trigger_algo.algos.axis_proba_pi": "Algo proba (%) / Popularity Index",
-    "trigger_algo.algos.chart_unavailable": "Streams/probabilities chart unavailable: {err}",
-    "trigger_algo.algos.j28_header": "🗓️ J+28 trajectory (since release)",
-    "trigger_algo.algos.j28_chart_title": "Trajectory of '{track}' (first 28 days)",
-    "trigger_algo.algos.axis_days_since": "Days since release (J+)",
-    "trigger_algo.algos.axis_stream_volume": "Stream volume",
-    "trigger_algo.algos.axis_popularity": "Popularity (0-100)",
-    "trigger_algo.algos.j28_caption": (
-        "Curve = the track's cumulative streams over its first 28 days. "
-        "ℹ️ **About trigger thresholds:** when an algorithmic playlist fires, it generates "
-        "its own volume of algo-streams (28d) that starts around **~130 (RR)**, **~137 (DW)**, "
-        "**~639 (Radio)** and settles toward **~417 / ~1,333 / ~8,423** once established. "
-        "These are volumes **produced by the playlists** (a detection signal) — **not** a "
-        "stream target to reach yourself to trigger them. That's why they aren't drawn as "
-        "target lines on your curve."
-    ),
-    "trigger_algo.algos.projection": "🔮 **Projection:** At this pace → ~**{streams:,.0f} streams** in 28d.",
-    "trigger_algo.algos.proj_dw": (
-        "🌟 Volume consistent with an emerging Discover Weekly trigger "
-        "(at the algo-stream level a playlist emits at its start)."
-    ),
-    "trigger_algo.algos.proj_rr": (
-        "⚠️ At the level of a starting Release Radar trigger; Discover Weekly still short."
-    ),
-    "trigger_algo.algos.proj_below": "📉 Below the algo-stream level of a starting trigger.",
-    "trigger_algo.algos.j28_unavailable": "J+28 trajectory unavailable: {err}",
-
     # _tab_explainability.py
     "trigger_algo.explain.caption": (
         "🔍 **The why behind the score** — which factors lift or sink each probability "
@@ -337,30 +288,6 @@ EN = {
         "and is less reliable for this track."
     ),
     "trigger_algo.common.drift_none": "📉 Drift: all variables are within the training envelope.",
-    "trigger_algo.common.pi_gate_header": "🚪 Algorithmic doors by Popularity Index",
-    "trigger_algo.common.pi_gate_caption": (
-        "The Popularity Index (0-100) is the entry door of each algorithm. "
-        "The white bar locates your track; n = sample size per bracket."
-    ),
-    "trigger_algo.common.pi_tables_unavailable": (
-        "The algorithmic gates have not been computed for your catalogue yet. "
-        "They will appear after the next run — nothing to do on your side."
-    ),
-    "trigger_algo.common.pi_predicted_metric": "Predicted Popularity Index",
-    "trigger_algo.common.pi_predicted_help": (
-        "PI regressor (model v3). R²=0.92 [0.88–0.94] validated in "
-        "per-song group-CV, MAE ~2 pts — robust (verified 2026-06-05)."
-    ),
-    "trigger_algo.common.pi_no_pred": "No predicted PI for this track (daily ML scoring not yet run).",
-    "trigger_algo.common.pi_chances": (
-        "At **PI {here}**, your trigger chances: "
-        "Release Radar **{rr}** · Discover Weekly **{dw}** · Radio **{radio}**."
-    ),
-    "trigger_algo.common.pi_lever1": (
-        "🎯 Lever #1 — the Discover Weekly key is at **PI {bracket}** "
-        "({prob:.0f}% trigger). Focus organic streams + saves "
-        "to push the PI toward that bracket before scaling the budget."
-    ),
     "trigger_algo.common.pi_breakeven_header": "**🎯 Profitability driven by the Popularity Index**",
     "trigger_algo.common.pi_breakeven_caption": (
         "Current predicted PI: **{pi} / 100** (bracket {bracket}). You only break even "
@@ -369,9 +296,6 @@ EN = {
     "trigger_algo.common.gate_reached": "✅ door reached",
     "trigger_algo.common.gate_requires": "⛔ requires PI {gate}",
     "trigger_algo.common.gate_line": "- **{label}**: door at PI **{gate}** — {status}",
-    "trigger_algo.algos.floor_points_hidden": ("Points missing from the curve are "
-        "probabilities on the calibration floor: no reliable estimate, the model decided "
-        "nothing on those days."),
     "trigger_algo.roi.ml_proba_floor": ("No reliable estimate for this track: its "
         "three probabilities are on the calibration floor. Dividing a cost by that floor "
         "would invent a « best bet » the model never gave."),

@@ -101,7 +101,7 @@ _CEILING: dict[str, int] = {
     # aussi trompeur qu'un livrable qui invente.
     # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
     # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
-    "figures.unknown": 4,  # 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
+    "figures.unknown": 2,  # 4 → 2 le 2026-09-27 (R247) : deux d'entre elles étaient dans le code mort retiré ; 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la
@@ -223,7 +223,7 @@ _FLOOR: dict[str, int] = {
     # désormais UN appel dans `_show_volume_scatter`, en boucle sur les trois. Ce qui
     # s'affiche a baissé à dessein : un volume que `volume_forecast_reliable` masque
     # n'est plus dessiné (classe `a-surface-that-draws-a-forecast-its-gate-suppresses`).
-    "figures.total": 72,  # 76 → 72 le 2026-09-27 (R244) : fusions demandées par le propriétaire — la trésorerie dessinée UNE fois (SACEM et « Prévisions revenus » y renvoient), l'usage admin en un graphique (3 → 1) ; 84 → 76 le 2026-09-27 (R214) : les 8 graphiques Wrapped deviennent des tuiles annuelles repliées (une valeur par an), rien de retiré ; 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
+    "figures.total": 67,  # 72 → 67 le 2026-09-27 (R247) : cinq figures de code mort retirées — l'onglet « Algorithmes » que rien n'appelait (fiches 47/48), la section des portes PI (49), l'estimateur RR avant sortie (56), les résidus DW jamais rendus (50) ; 76 → 72 le 2026-09-27 (R244) : fusions demandées par le propriétaire — la trésorerie dessinée UNE fois (SACEM et « Prévisions revenus » y renvoient), l'usage admin en un graphique (3 → 1) ; 84 → 76 le 2026-09-27 (R214) : les 8 graphiques Wrapped deviennent des tuiles annuelles repliées (une valeur par an), rien de retiré ; 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une

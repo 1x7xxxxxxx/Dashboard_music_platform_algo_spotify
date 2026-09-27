@@ -20,24 +20,6 @@ EN = {
     "ml_widgets.cm_tp": "TP {n}",
     "ml_widgets.cm_title": "Confusion matrix (test set)",
     # Pre-release Release Radar estimator
-    "ml_widgets.pre_rr_title": "#### 🔮 Release Radar simulator (pre-release)",
-    "ml_widgets.pre_rr_caption": "Estimates Release Radar odds **before the first stream**, "
-                                 "from release metadata alone (metadata-only model, AUC 0.92 "
-                                 "validated per song). Planning tool — no data is stored.",
-    "ml_widgets.pre_rr_followers": "Spotify followers",
-    "ml_widgets.pre_rr_catalog": "Tracks already released",
-    "ml_widgets.pre_rr_cadence": "Release cadence (weeks)",
-    "ml_widgets.pre_rr_dm": "Discovery Mode enabled",
-    "ml_widgets.pre_rr_dm_help": "Note: the model confirms that Discovery Mode does NOT "
-                                 "influence Release Radar (flat effect) — useful for DW/Radio.",
-    "ml_widgets.pre_rr_unavailable": "Pre-release model unavailable "
-                                     "(artifact `rr_premiere_classifier` missing).",
-    "ml_widgets.pre_rr_curve_title": "Release Radar probability by track age",
-    "ml_widgets.pre_rr_xaxis": "days after release",
-    "ml_widgets.pre_rr_peak": "🎯 Estimated eligibility peak at **D+{day}** "
-                              "(**{prob:.0f}%**). Release Radar window 0–40 d.",
-    "ml_widgets.pre_rr_band": "Metadata-only model: AUC {auc} [{lo}–{hi}] "
-                              "(group-CV per song, N=508). Indicative estimate, not a guarantee.",
     "ml_widgets.calibration": "🎯 Calibration: {note}",
     # Local lever sensitivity
     "ml_widgets.sens_title": "**🎛️ Local sensitivity — move one lever on THIS track**",

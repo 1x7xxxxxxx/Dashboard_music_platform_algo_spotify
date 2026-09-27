@@ -481,50 +481,6 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   owner: "Pas mal ; retirer la popularité 0 ; ajouter SACEM, tous les revenus, et le coût de distribution (10–30 €) en charge."
   cause: ajustement-trompeur
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
-src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
-  q: "(probabilités par algorithme — onglet non atteint par défaut)"
-  role: prediction
-  d: 3
-  c: 2
-  p: 4
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu."
-  absent: "code mort — `_show_tab_algos` n'est appelé par aucune page (le routeur Trigger Algo ne l'atteint pas)"
-  note: "Non rendu par défaut."
-src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
-  q: "(détail par algorithme — non atteint par défaut)"
-  role: prediction
-  d: 3
-  c: 2
-  p: 4
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu."
-  absent: "code mort — même fonction que la fiche 47"
-  note: "Non rendu par défaut."
-src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
-  q: "À quel indice de popularité chaque algorithme se déclenche-t-il ?"
-  role: prediction
-  d: 4
-  c: 4
-  p: 4
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu, voir pourquoi."
-  absent: "code mort — `_show_pi_gate_section` n'est appelé que par `_show_tab_algos`, que rien n'appelle"
-  note: "Non rendu à l'écran par défaut ; son jumeau du PDF (pdf:pi_gate) est clair."
-src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
-  q: "(qualité du modèle — branche non atteinte)"
-  role: prediction
-  d: 3
-  c: 3
-  p: 4
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu, idem."
-  absent: "donnée absente — le régresseur de volume DW est désactivé (jugé non fiable) : aucune prévision à confronter"
-  note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
   role: prediction
@@ -576,17 +532,6 @@ src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   owner_v: corriger
   owner: "À garder en admin, pas sur Grafana : c'est du suivi de performance du modèle."
   note: "Matrice de confusion du jeu de test (VP 66, FN 38). Manque la même chose en PRODUCTION, dans le temps (dérive — ML Production Systems, p. 322)."
-src/dashboard/utils/ml_widgets.py::render_prerelease_rr_estimator#1:
-  q: "(estimateur Release Radar avant sortie)"
-  role: prediction
-  d: 3
-  c: 3
-  p: 4
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu."
-  absent: "code mort — l'estimateur Release Radar avant sortie n'est appelé que par `_show_tab_algos`"
-  note: "Non rendu par défaut."
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
   role: prediction

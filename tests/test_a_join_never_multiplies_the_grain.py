@@ -220,7 +220,6 @@ _GRANDFATHERED: dict[str, int] = {
     "src/dashboard/views/meta_x_spotify.py": 2,
     "src/dashboard/views/soundcloud.py": 1,
     "src/dashboard/views/spotify_s4a_combined.py": 2,
-    "src/dashboard/views/trigger_algo/_tab_algos.py": 1,
 }
 
 

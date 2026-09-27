@@ -34,9 +34,9 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 |---|---|---|
 | `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 17 |
 | `identifiant-non-résolu` | un nom capté dans un FROM qui n'existe ni en migration ni dans init_db.sql (CTE, alias, sous-requête) — écarté plutôt que publié | 2 |
-| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 4 |
-| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 40 |
-| `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 13 |
+| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 3 |
+| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 38 |
+| `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 11 |
 | `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 14 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
 | `sans-retour` | fonction traversée qui ne retourne rien d'attribuable | 0 |
@@ -160,16 +160,14 @@ Les sept familles de contrôles demandées, et les contrôles qui TOURNENT déj�
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
 
-**54 sur 72** portent une source établie ; **4** sont déclarées indéterminées et listées en tête ; 14 sont hors base par nature — la tranche a fini proprement sans lire la base — et 49 des attribuées ont plusieurs amonts.
+**51 sur 67** portent une source établie ; **2** sont déclarées indéterminées et listées en tête ; 14 sont hors base par nature — la tranche a fini proprement sans lire la base — et 46 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
-| ⚠️ `utils/ml_widgets.py:219` | `render_prerelease_rr_estimator` | plotly_chart | à l'écran | — | — | indéterminée | appelants-multiples · profondeur | — |
 | ⚠️ `views/admin.py:358` | `_render_costs` | plotly_chart | à l'écran | — | — | indéterminée | profondeur | — |
 | ⚠️ `views/db_health.py:220` | `_show_freshness_bar` | plotly_chart | à l'écran | — | — | indéterminée | sql-dynamique | — |
-| ⚠️ `views/trigger_algo/_common/_pi_gates.py:77` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur · sans-appelant | — |
 | `utils/campaign_compare.py:426` | `_render_track_funnel` | plotly_chart | à l'écran | `v_hypeddit_daily` · `v_meta_ad_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_s4a_song_daily` · `campaign_track_mapping` · `track_platform_link` | mixte | plusieurs amonts | profondeur | — |
-| `utils/ml_widgets.py:301` | `render_lever_sensitivity` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
+| `utils/ml_widgets.py:232` | `render_lever_sensitivity` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `utils/platform_chart.py:1082` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sans-appelant | — |
 | `utils/platform_chart.py:1192` | `_render_facets` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `utils/s4a_entry_insight.py:280` | `render_prediction_vs_reality` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | clé-à-l-exécution · identifiant-non-résolu · profondeur | — |
@@ -206,14 +204,11 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/spotify_s4a_combined.py:359` | `_render_momentum` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_track_pi_daily` | or | plusieurs amonts | profondeur | — |
 | `views/spotify_s4a_combined.py:453` | `_render_secondary` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | profondeur | — |
 | `views/trigger_algo/_tab_algo_streams.py:89` | `_show_tab_algo_streams` | plotly_chart | à l'écran | `s4a_song_algo_outcomes` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_algos.py:159` | `_show_tab_algos` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_timeline` · `track_popularity_history` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_algos.py:249` | `_show_tab_algos` | plotly_chart | à l'écran | `s4a_song_timeline` · `track_popularity_history` | brut | plusieurs amonts | sans-appelant | ?`ml_song_predictions` |
 | `views/trigger_algo/_tab_budget_roi.py:362` | `_render_fit` | plotly_chart | à l'écran | `get_monthly_roi_series()` | or | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_budget_roi.py:519` | `_render_breakeven` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_meta_daily` · `saas_artists` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
 | `views/trigger_algo/_tab_catalogue.py:159` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/trigger_algo/_tab_lifecycle.py:49` | `_show_tab_lifecycle` | plotly_chart | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_model.py:100` | `_show_tab_model` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_model.py:180` | `_show_volume_scatter` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | — | — |
+| `views/trigger_algo/_tab_model.py:133` | `_show_volume_scatter` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | — | — |
 | `views/usage_analytics.py:59` | `show` | plotly_chart | à l'écran | `usage_events` | brut | plusieurs amonts | — | — |
 | `views/youtube.py:185` | `show` | plotly_chart | à l'écran | `youtube_cumulative_views()` · `youtube_channel_history` · `youtube_video_stats` · `youtube_videos` | mixte | plusieurs amonts | — | — |
 | `views/youtube.py:376` | `show` | plotly_chart | à l'écran | `youtube_video_stats` · `youtube_videos` | brut | plusieurs amonts | clé-à-l-exécution | ?`youtube_channel_history` |
@@ -241,7 +236,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 
 `st.metric` n'est que 17 des 207 tuiles du produit ; les 190 autres passent par une poignée de colonne (`c1.metric`). Un inventaire qui n'aurait compté que le receveur `st` décrirait 8 % du produit.
 
-**74 sur 170** portent une source établie ; **10** sont déclarées indéterminées et listées en tête ; 86 sont hors base par nature — la tranche a fini proprement sans lire la base — et 45 des attribuées ont plusieurs amonts.
+**74 sur 169** portent une source établie ; **10** sont déclarées indéterminées et listées en tête ; 85 sont hors base par nature — la tranche a fini proprement sans lire la base — et 45 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -394,7 +389,6 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/soundcloud.py:139` | `show` | soundcloud.kpi_reposts | à l'écran | — | — | hors base | — | ?`soundcloud_tracks_daily` · ?`v_soundcloud_catalog_daily` · ?`v_soundcloud_track_latest` |
 | `views/soundcloud.py:148` | `show` | soundcloud.kpi_comments | à l'écran | — | — | hors base | — | ?`soundcloud_tracks_daily` · ?`v_soundcloud_catalog_daily` · ?`v_soundcloud_track_latest` |
 | `views/trigger_algo/_common/_budget_roi.py:146` | `_show_budget_pacing_calculator` | trigger_algo.common.pacing_daily_metric | à l'écran | — | — | hors base | — | ?`v_meta_active_budget` |
-| `views/trigger_algo/_common/_pi_gates.py:46` | `_show_pi_gate_section` | trigger_algo.common.pi_predicted_metric | à l'écran | — | — | hors base | — | — |
 | `views/trigger_algo/_tab_algo_streams.py:66` | `_show_tab_algo_streams` | 🟢 Discover Weekly | à l'écran | — | — | hors base | — | ?`s4a_song_algo_outcomes` |
 | `views/trigger_algo/_tab_algo_streams.py:67` | `_show_tab_algo_streams` | 🩷 Release Radar | à l'écran | — | — | hors base | — | ?`s4a_song_algo_outcomes` |
 | `views/trigger_algo/_tab_algo_streams.py:68` | `_show_tab_algo_streams` | 🟠 Radio | à l'écran | — | — | hors base | — | ?`s4a_song_algo_outcomes` |
@@ -466,7 +460,7 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 | Meta Ads | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` · `meta_insights_performance` · `meta_insights_performance_day` | `v_artist_monthly_cashflow` · `v_meta_active_budget` · `v_meta_ad_daily` · `v_meta_adset_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_meta_daily` · `v_meta_spend_totals` · `v_meta_track_attribution` | 48 | 22 |
 | Revenu | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `v_artist_monthly_revenue_net` · `v_sacem_monthly` | 15 | 3 |
 | SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_catalog_daily` · `v_soundcloud_track_daily` · `v_soundcloud_track_latest` | 26 | 4 |
-| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 58 | 21 |
+| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 58 | 17 |
 | YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 8 |
 
 ## Les cliquets
@@ -642,12 +636,11 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights` | `v_meta_ad_daily` | 1 | 1 | 0 | dashboard/views/meta_creatives.py:1053 |
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:191 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:66 · dashboard/views/imusician.py:33 · dashboard/views/imusician.py:42 · dashboard/views/meta_x_spotify.py:750 · dashboard/views/meta_x_spotify.py:770 |
-| `s4a_song_timeline` | `v_s4a_song_daily` | 16 | 4 | 0 | api/routers/streams.py:92 · dashboard/utils/pdf_exporter/_report.py:79 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:260 |
+| `s4a_song_timeline` | `v_s4a_song_daily` | 12 | 4 | 0 | api/routers/streams.py:92 · dashboard/utils/pdf_exporter/_report.py:79 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:260 |
 | `saas_artists` | `v_spotify_followers_daily` | 66 | 10 | 0 | dashboard/utils/live_pulse.py:118 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:404 · dashboard/views/meta_mapping/_campaigns.py:191 · dashboard/views/referral_admin.py:149 · dashboard/views/referral_admin.py:176 · dashboard/views/trigger_algo/_tab_budget_roi.py:394 · utils/daily_ops_metrics.py:206 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_daily` | 4 | 1 | 0 | dashboard/views/soundcloud.py:89 |
 | `track_platform_link` | `v_spotify_track_pi_daily` | 10 | 3 | 0 | dashboard/utils/campaign_compare.py:89 · dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 |
-| `track_popularity_history` | `v_spotify_track_pi_daily` | 4 | — | 0 | dashboard/views/trigger_algo/_tab_algos.py:175 · dashboard/views/trigger_algo/_tab_algos.py:184 · dashboard/views/trigger_algo/_tab_algos.py:79 · dashboard/views/trigger_algo/_tab_algos.py:95 |
 | `track_release_reference` | `v_spotify_track_pi_daily` | 7 | 3 | 0 | dashboard/utils/period_filter.py:197 · dashboard/utils/period_side_metrics.py:84 · utils/freshness_monitor.py:260 |
 | `youtube_video_stats` | `v_platform_levels` | 5 | 2 | 0 | dashboard/utils/pdf_exporter/_collectors.py:296 · dashboard/views/youtube.py:271 |
 
@@ -694,8 +687,8 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
-<!-- gold-coverage-figures: total=72 unknown=4 -->
-<!-- gold-coverage-tiles: total=170 unknown=10 -->
+<!-- gold-coverage-figures: total=67 unknown=2 -->
+<!-- gold-coverage-tiles: total=169 unknown=10 -->
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=33 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
@@ -705,4 +698,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=e9b8ab7fd6800d731bc3ab3c79492416e450754a0f303ddd38b3c80b9dd00779 -->
+<!-- gold-coverage: sha256=a19792bd2b2164daac7f06d2046c7550ad5ed0e41fc6a1886bfd5abb530026b9 -->

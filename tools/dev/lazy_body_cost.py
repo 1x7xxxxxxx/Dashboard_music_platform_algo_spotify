@@ -86,7 +86,7 @@ st.session_state["_hidden_ms"] = _HID[0]
 """
 STUB = """
 import src.dashboard.views.trigger_algo.router as _r
-for _n in ("_show_tab_algos", "_show_tab_budget_roi", "_show_tab_explainability",
+for _n in ("_show_tab_budget_roi", "_show_tab_explainability",
            "_show_tab_model", "_show_tab_lifecycle", "_show_tab_algo_streams"):
     setattr(_r, _n, lambda *a, **k: None)
 """
