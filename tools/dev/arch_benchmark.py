@@ -178,7 +178,7 @@ def main() -> int:
         print("❌ catalogue invalide :\n  " + "\n  ".join(errs), file=sys.stderr)
         return 1
     proofs = None if args.no_run else replay(reqs)
-    (ARCH / "benchmark.md").write_text(render(domains, reqs, proofs) + "\n", encoding="utf-8")
+    (ARCH / "benchmark.md").write_text(render(domains, reqs, proofs).rstrip("\n") + "\n", encoding="utf-8")
     red = [k for k, v in (proofs or {}).items() if v == "rouge"]
     print(f"écrit : {ARCH / 'benchmark.md'} — {len(reqs)} exigences, {len(red)} preuve(s) rouge(s)")
     return 0
