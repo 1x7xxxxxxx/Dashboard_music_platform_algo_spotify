@@ -61,7 +61,7 @@ from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
 from src.dashboard.utils.formats import num
-from src.dashboard.utils.platform_colors import platform_color
+from src.dashboard.utils.platform_colors import DISTINCT, platform_color
 from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.followers_agreement import comparer
@@ -153,6 +153,50 @@ def _frag_releases(frag: str, params: tuple) -> None:
         _render_releases(db, frag, params)
 
 
+def worth_a_panel(df: pd.DataFrame, col: str) -> bool:
+    """A panel is drawn only if one of its values is non-zero. Pure (R271)."""
+    return (not df.empty and col in df.columns
+            and float(pd.to_numeric(df[col], errors="coerce").fillna(0).abs().sum()) > 0)
+
+
+def _release_overlays(db, keys: list, horizon: int, frag: str,
+                      params: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(Meta € per day, Shazams per reading) by release title and day since release.
+
+    Meta: the campaigns tied to the track (`campaign_track_mapping`) on the gold daily
+    spend. Shazams: the Apple title linked to the release (`track_platform_link`) on the
+    gold per-reading series — Apple publishes readings, not days.
+    """
+    meta = _df(db, f"""
+        SELECT r.title, (d.day - r.release_date) AS day_index, SUM(d.spend) AS spend
+          FROM (SELECT artist_id, campaign_name, day, spend FROM v_meta_daily
+                 WHERE spend > 0 {frag}) d
+          JOIN (SELECT artist_id, campaign_name, track_name FROM campaign_track_mapping
+                 WHERE TRUE {frag}) m
+            ON m.artist_id = d.artist_id AND m.campaign_name = d.campaign_name
+          JOIN (SELECT artist_id, match_key, title, release_date
+                  FROM track_release_reference WHERE match_key = ANY(%s) {frag}) r
+            ON r.artist_id = m.artist_id AND lower(r.title) = lower(m.track_name)
+         WHERE d.day - r.release_date BETWEEN 0 AND %s
+         GROUP BY 1, 2 ORDER BY 1, 2
+    """, (*params, *params, keys, *params, horizon - 1))
+    shazam = _df(db, f"""
+        SELECT r.title, (a.day - r.release_date) AS day_index,
+               SUM(a.daily_shazams) AS shazams
+          FROM (SELECT artist_id, song_name, day, daily_shazams FROM v_apple_song_daily
+                 WHERE daily_shazams IS NOT NULL {frag}) a
+          JOIN (SELECT artist_id, match_key, platform_title FROM track_platform_link
+                 WHERE platform = 'apple' {frag}) l
+            ON l.artist_id = a.artist_id AND l.platform_title = a.song_name
+          JOIN (SELECT artist_id, match_key, title, release_date
+                  FROM track_release_reference WHERE match_key = ANY(%s) {frag}) r
+            ON r.artist_id = l.artist_id AND r.match_key = l.match_key
+         WHERE a.day - r.release_date BETWEEN 0 AND %s
+         GROUP BY 1, 2 ORDER BY 1, 2
+    """, (*params, *params, keys, *params, horizon - 1))
+    return meta, shazam
+
+
 def _render_releases(db, frag: str, params: tuple) -> None:
     """Les sorties recalées sur J+0, comparées à fenêtre ÉGALE.
 
@@ -204,7 +248,22 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
         return
 
-    fig = go.Figure()
+    # R271 (owner note L470) — « y superposer la dépense Meta Ads et les Shazams par jour
+    # depuis la sortie, pour benchmarker ». Superposer trois UNITÉS sur un axe serait lire
+    # des euros contre des écoutes : chaque mesure a son panneau, et les trois partagent
+    # l'axe « jours depuis la sortie ». Un panneau n'existe que si sa donnée existe.
+    meta, shazam = _release_overlays(db, list(keys), horizon, frag, params)
+    # Seen on the render (2026-09-28): two readings at 0 drew a panel on a −1..1 axis. A
+    # panel of zeros says nothing a caption cannot — it appears only once a reading gains.
+    if not worth_a_panel(shazam, "shazams"):
+        shazam = shazam.iloc[0:0]
+    if not worth_a_panel(meta, "spend"):
+        meta = meta.iloc[0:0]
+    rows = 1 + (not meta.empty) + (not shazam.empty)
+    from plotly.subplots import make_subplots
+    fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        row_heights=[0.6] + [0.4 / (rows - 1)] * (rows - 1) if rows > 1 else [1])
+    colour = {t_: DISTINCT[i % len(DISTINCT)] for i, t_ in enumerate(cohort["title"].unique())}
     for title, grp in cohort.groupby("title", sort=False):
         # L'ÉTIQUETTE DE VALEUR EST AU DERNIER POINT, ET NULLE PART AILLEURS.
         # C'est la seule abscisse où deux sorties se comparent — le bout de
@@ -217,19 +276,42 @@ def _render_releases(db, frag: str, params: tuple) -> None:
             labels[-1] = num(int(grp['streams_cumulative'].iloc[-1]), 0)
         fig.add_trace(go.Scatter(
             x=grp["day_index"], y=grp["streams_cumulative"],
-            mode="lines+text", name=str(title), line=dict(width=2.5),
-            text=labels, textposition="middle left",
-            textfont=dict(size=13), cliponaxis=False))
+            mode="lines+text", name=str(title), line=dict(width=2.5, color=colour[title]),
+            text=labels, textposition="middle left", legendgroup=str(title),
+            textfont=dict(size=13), cliponaxis=False), row=1, col=1)
+    row = 2
+    if not meta.empty:
+        for title, grp in meta.groupby("title", sort=False):
+            fig.add_trace(go.Bar(x=grp["day_index"], y=grp["spend"], name=str(title),
+                                 legendgroup=str(title), showlegend=False,
+                                 marker_color=colour.get(title, "#888")), row=row, col=1)
+        fig.update_yaxes(title_text=t("spotify_s4a_combined.meta_spend_axis", "Meta €/jour"),
+                         row=row, col=1)
+        row += 1
+    if not shazam.empty:
+        for title, grp in shazam.groupby("title", sort=False):
+            fig.add_trace(go.Scatter(x=grp["day_index"], y=grp["shazams"], name=str(title),
+                                     mode="markers", legendgroup=str(title), showlegend=False,
+                                     marker=dict(color=colour.get(title, "#888"), size=8)),
+                          row=row, col=1)
+        fig.update_yaxes(title_text=t("spotify_s4a_combined.shazam_axis",
+                                      "Shazams (par relevé)"), row=row, col=1)
+    fig.update_yaxes(title_text=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
+                     row=1, col=1)
+    fig.update_xaxes(title_text=t("spotify_s4a_combined.days_since_release",
+                                  "Jours depuis la sortie"), row=rows, col=1)
     fig.update_layout(
         # Seule sur sa rangée depuis R195 (le verdict Meta est parti vers « Impact de mes
         # campagnes ») ; `_ROW_HEIGHT` reste sa hauteur.
-        height=_ROW_HEIGHT, hovermode="x unified",
+        height=_ROW_HEIGHT + 160 * (rows - 1), hovermode="x unified",
         # Le dernier point porte son nombre : sans marge à droite, il sort du cadre.
         margin=dict(r=90),
-        xaxis_title=t("spotify_s4a_combined.days_since_release", "Jours depuis la sortie"),
-        yaxis_title=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
         legend=dict(orientation="h", y=1.12))
     charts.plotly_chart(fig, width="stretch")
+    if not shazam.empty:
+        st.caption(t("spotify_s4a_combined.shazam_caption",
+                     "Apple ne publie pas de Shazams par jour : chaque point est le nombre "
+                     "de Shazams gagnés depuis le relevé précédent, posé au jour du relevé."))
 
     # ⚠️ DEUX LÉGENDES RETIRÉES le 2026-09-22, demandé en regardant l'écran.
     #

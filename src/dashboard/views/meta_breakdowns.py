@@ -27,6 +27,8 @@ from src.dashboard.utils.filters import (
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.formats import num
+from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
 
 
@@ -45,6 +47,14 @@ _PANELS = (("country", "Pays"), ("placement", "Placement"),
 _FAMILIES = {"Performance": "performance", "Engagement": "engagement"}
 _ENG_COLS = ["page_interactions", "post_reactions", "comments",
              "saves", "shares", "link_clicks", "post_likes"]
+# R271 (owner note L242 : « 7 séries noires hors thème, libellés coupés ») — what is
+# STACKED. Measured 2026-09-28 on the country breakdown: `page_interactions` = 284 847
+# against 27 268 for the sum of the specific actions — it is Meta's aggregate, which
+# CONTAINS them. Stacked, it counted every action twice and crushed the five into a
+# sliver; `post_likes` was 0 (`post_reactions` carries them). Five series, the five
+# colours of the palette; the aggregate is said in a caption.
+_ENG_STACK = {"post_reactions": "Réactions", "comments": "Commentaires",
+              "saves": "Enregistrements", "shares": "Partages", "link_clicks": "Clics lien"}
 
 # Allowlist of every breakdown table this view may query (rule #8 — table names are
 # composed below, so the final name is asserted against this fixed set).
@@ -140,11 +150,19 @@ def _render_performance(df):
             charts.plotly_chart(fig, width="stretch")
 
 
+def _one_dimension(df):
+    """ONE breakdown's rows — the four cover the same activity, summing them counts it ×4."""
+    base = df[df['dim'] == "country"]
+    return base if not base.empty else df[df['dim'] == df['dim'].iloc[0]]
+
+
 def _render_engagement(df):
     df = df.copy()
     for c in _ENG_COLS:
         df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0).astype(int)
-    df['total'] = df[_ENG_COLS].sum(axis=1)
+    df['post_reactions'] = df['post_reactions'] + df['post_likes']
+    stack = list(_ENG_STACK)
+    df['total'] = df[stack].sum(axis=1)
     if df['total'].sum() == 0:
         st.info(t("meta_breakdowns.no_engagement", "Aucune interaction d'engagement sur cette sélection."))
         return
@@ -154,7 +172,7 @@ def _render_engagement(df):
         cols = st.columns(2)
         for col, (panel, label) in zip(cols, row):
             part = _panel(df, panel)
-            part['total'] = part[_ENG_COLS].sum(axis=1)
+            part['total'] = part[stack].sum(axis=1)
             part = part[part['total'] > 0].sort_values('total', ascending=False).head(8)
             with col:
                 if part.empty:
@@ -162,16 +180,27 @@ def _render_engagement(df):
                                  "{dim} — aucune donnée sur cette sélection.").format(
                                      dim=t(f"meta_breakdowns.dim.{panel}", label)))
                     continue
-                melted = part.melt(id_vars='dim_label', value_vars=_ENG_COLS,
-                                   var_name=var_col, value_name=val_col)
+                melted = part.rename(columns={
+                    k: t(f"meta_breakdowns.eng.{k}", v) for k, v in _ENG_STACK.items()}
+                ).melt(id_vars='dim_label',
+                       value_vars=[t(f"meta_breakdowns.eng.{k}", v) for k, v in _ENG_STACK.items()],
+                       var_name=var_col, value_name=val_col)
                 fig = px.bar(melted, y='dim_label', x=val_col, color=var_col,
-                             orientation='h',
+                             orientation='h', color_discrete_sequence=list(DISTINCT),
                              title=t(f"meta_breakdowns.dim.{panel}", label),
                              labels={'dim_label': ''})
+                # `automargin`: the long placement labels were cut at a 10 px margin.
                 fig.update_layout(barmode='stack', height=340,
-                                  legend={'orientation': 'h', 'y': -0.2},
-                                  margin={'t': 40, 'l': 10, 'r': 10})
+                                  legend={'orientation': 'h', 'y': -0.25},
+                                  margin={'t': 40, 'r': 10})
+                fig.update_yaxes(automargin=True, categoryorder='total ascending')  # largest on top
                 charts.plotly_chart(fig, width="stretch")
+
+    st.caption(t("meta_breakdowns.page_interactions_note",
+                 "Meta compte aussi {n} « interactions avec la page », un total qui CONTIENT "
+                 "ces actions (et d'autres, comme les lectures vidéo) : il n'est pas empilé, "
+                 "il les compterait deux fois.").format(
+                     n=num(int(_one_dimension(df)['page_interactions'].sum()), 0)))
 
     geo = _panel(df, "country")
     geo['iso3'] = geo['k'].map(iso2_to_iso3)

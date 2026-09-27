@@ -48,4 +48,13 @@ EN = {
     "meta_breakdowns.interactions": "Interactions",
     "meta_breakdowns.type": "Type",
     "meta_breakdowns.volume": "Volume",
+    "meta_breakdowns.eng.post_reactions": "Reactions",
+    "meta_breakdowns.eng.comments": "Comments",
+    "meta_breakdowns.eng.saves": "Saves",
+    "meta_breakdowns.eng.shares": "Shares",
+    "meta_breakdowns.eng.link_clicks": "Link clicks",
+    "meta_breakdowns.page_interactions_note": "Meta also counts {n} « page interactions », a "
+                                              "total that CONTAINS these actions (and others, "
+                                              "such as video plays): it is not stacked, it "
+                                              "would count them twice.",
 }

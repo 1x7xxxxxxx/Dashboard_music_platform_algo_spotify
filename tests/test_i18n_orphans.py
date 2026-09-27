@@ -20,6 +20,8 @@ _DYNAMIC_PREFIXES = (
     "campaign_compare.stage_", "campaign_compare.chain_", "campaign_funnel.flow_",
     # R243 — the drawing door's glossary: keys held in `charts.GLOSSARY`, rendered by t().
     "charts.gloss.",
+    # R271 — the stacked engagement actions, keyed by their column in `_ENG_STACK`.
+    "meta_breakdowns.eng.",
     # Les refus de la couture Google voyagent dans un `Refus(raison, defaut)`
     # et se rendent par `t(refus.raison, refus.defaut)`. Ce sont des DONNÉES,
     # pas des littéraux d'appel — un refus doit pouvoir être rendu par la

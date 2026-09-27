@@ -68,4 +68,9 @@ EN = {
                                           "Artists. Enter them here and the year-over-year "
                                           "curve builds itself.",
     "spotify_s4a_combined.recent_tag": "{r} recent",
+    "spotify_s4a_combined.meta_spend_axis": "Meta €/day",
+    "spotify_s4a_combined.shazam_axis": "Shazams (per reading)",
+    "spotify_s4a_combined.shazam_caption": "Apple publishes no daily Shazams: each point is the "
+                                           "Shazams gained since the previous reading, placed "
+                                           "on the reading's day.",
 }
