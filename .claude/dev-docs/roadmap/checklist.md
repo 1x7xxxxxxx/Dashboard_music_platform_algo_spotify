@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R253 | **Chaque avis du propriétaire a son action dans le dossier** : 51 et 72 avaient perdu leur lien (fonctions renommées) ; les fiches Grafana 106/108/112/120, livrées par R205/R207 à la relecture précédente, n'affichaient aucune action <!-- anchor: r253 --> <!-- critic: non — données du dossier --> | P3 | 0 avis sans entrée d'action parmi les fiches du dossier |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R253 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
