@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R243 — **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR,… (livrée 2026-09-27)
+
+- [x] **R243 — **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR, CPM…), palette distincte, tri Pareto des barres par catégorie, pour TOUS les graphiques ; garde AST refusant un graphique qui la contourne (fiches 24, 28, 29, 33, 39)** (P3) ✅ (2026-09-27, c9d915ae)
+  Mesuré par : 0 `st.plotly_chart` hors de la porte
+  charts.plotly_chart : 74 sites, légende, glossaire des sigles, palette mesurée (pire paire ΔE 26,5), Pareto sur demande (28, 33), tri au choix (29), fiche 39 allégée ; garde AST ; déployé c9d915ae
+  Commits : c9d915ae R243 : une porte de dessin pour les 74 graphiques (charts.plotly_chart
+
 ## ✅ R242 — **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflo… (livrée 2026-09-27)
 
 - [x] **R242 — **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflow) — fiches 2, 26, 27, 47–50, 52–54, 56, 60, 66, 74–76 ; garde : aucune fiche d'app sans image sauf exemption écrite** (P2) ✅ (2026-09-27, afb45a9a)
