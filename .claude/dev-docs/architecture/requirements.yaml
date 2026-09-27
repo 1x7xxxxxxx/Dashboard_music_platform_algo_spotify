@@ -613,3 +613,12 @@
   preuve: {pytest: tests/test_a_commit_stays_in_its_rows_scope.py::test_a_file_outside_the_declared_scope_is_refused}
   ecart: "R268 : une ligne déclare `<!-- scope: … -->`, le hook de commit refuse un fichier produit hors de ce périmètre ; toute ligne à partir de R279 doit le déclarer"
   mutation: "faire rendre [] à out_of_scope"
+- id: REQ-TEST-04
+  domaine: tests-ci
+  enonce: Un corps de fonction n'est écrit qu'une fois, dans un script ou entre scripts ; le graphe de code ne garde aucun fichier disparu
+  sources: [{notes: L166}, {notes: L169}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_a_function_is_written_once.py::test_the_copies_only_become_fewer}
+  ecart: "R269 : 5 groupes / 11 sites mesurés le 2026-09-27, 4 factorisés ; reste la paire de rappels d'échec DAG (R265 les factorise avec les dix autres). graphify : 2 fichiers fantômes retirés, `make graph-update` élague"
+  mutation: "recoller une copie d'un lecteur de kpi_helpers, ou retirer l'effacement des littéraux du détecteur"

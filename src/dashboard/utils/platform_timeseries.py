@@ -670,6 +670,24 @@ def apple_period_plays(db, artist_id, since=None, until=None):
     return max(rows[-1][1] - rows[0][1], 0)
 
 
+def _gold_apple(db, artist_id, sql: str, label: str):
+    """One `gold_apple_lifetime` read — None when unmeasured or unreadable, never 0.
+
+    R269 — plays and Shazams carried this body word for word; the Shazam copy was once
+    left behind when the plays one was fixed (2026-09-12).
+    """
+    if db is None or artist_id is None:
+        return None
+    try:
+        row = _q(db, sql, (artist_id,))
+    except Exception as exc:      # noqa: BLE001
+        logger.warning("apple %s unavailable: %s", label, type(exc).__name__)
+        return None
+    if not row or row[0][0] is None:
+        return None
+    return int(row[0][0])
+
+
 def apple_lifetime_plays(db, artist_id):
     """Le total Apple « depuis le début » — LU dans la couche or, jamais recalculé.
 
@@ -693,16 +711,7 @@ def apple_lifetime_plays(db, artist_id):
     écoute », il n'a pas de mesure, et le `COALESCE(…, 0)` qui vivait dans cette
     requête effaçait la différence. Même correctif que `_lifetime`, le 2026-09-12.
     """
-    if db is None or artist_id is None:
-        return None
-    try:
-        row = _q(db, "SELECT gold_apple_lifetime(%s)::bigint", (artist_id,))
-    except Exception as exc:      # noqa: BLE001
-        logger.warning("apple lifetime unavailable: %s", type(exc).__name__)
-        return None
-    if not row or row[0][0] is None:
-        return None
-    return int(row[0][0])
+    return _gold_apple(db, artist_id, "SELECT gold_apple_lifetime(%s)::bigint", "lifetime")
 
 
 def apple_lifetime_shazams(db, artist_id):
@@ -719,17 +728,8 @@ def apple_lifetime_shazams(db, artist_id):
     fonctions qui portent la même règle se corrigent ensemble, sinon la seconde est
     la prochaine occurrence.
     """
-    if db is None or artist_id is None:
-        return None
-    try:
-        row = _q(db, "SELECT gold_apple_lifetime(%s, 'shazam_count')::bigint",
-                 (artist_id,))
-    except Exception as exc:      # noqa: BLE001
-        logger.warning("apple shazams unavailable: %s", type(exc).__name__)
-        return None
-    if not row or row[0][0] is None:
-        return None
-    return int(row[0][0])
+    return _gold_apple(db, artist_id,
+                       "SELECT gold_apple_lifetime(%s, 'shazam_count')::bigint", "shazams")
 
 
 def apple_snapshot_count(db, artist_id) -> int:

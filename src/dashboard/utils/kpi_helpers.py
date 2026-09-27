@@ -455,26 +455,18 @@ def freshness_status(last_dt, kind: str = "api"):
 
 # ─── KPI Streams ────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=_KPI_TTL)
-def get_total_streams_s4a(_db, artist_id):
-    """Total streams Spotify S4A — la branche `spotify` de la couche or.
+def _tenant_sum(db, select: str, cond: str | None, artist_id) -> int | None:
+    """One gold-layer SUM for one tenant, or for the fleet when `artist_id` is None.
 
-    La déduplication par (jour, titre) et le retrait de la ligne « Total » des CSV
-    vivent dans `v_s4a_song_daily` (migration 105), que `v_platform_totals` agrège.
-    Les recopier ici les faisait diverger : c'est la plateforme dont le total avait
-    trois définitions différentes le 2026-09-11.
+    R269 — four readers carried this body word for word (and its `except`). `select` and
+    `cond` are module constants written by the callers below, never user input.
     """
-    db = _db
+    clauses = [c for c in (cond, "artist_id = %s" if artist_id is not None else None) if c]
+    sql = select + (" WHERE " + " AND ".join(clauses) if clauses else "")
     try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
-                " WHERE platform = 'spotify' AND artist_id = %s", (artist_id,))
-        else:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
-                " WHERE platform = 'spotify'")
-        return int(row[0][0] or 0)
+        row = (db.fetch_query(sql, (artist_id,)) if artist_id is not None
+               else db.fetch_query(sql))
+        return int(row[0][0] or 0) if row else 0
     except Exception as exc:      # noqa: BLE001
         # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
         # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
@@ -487,6 +479,21 @@ def get_total_streams_s4a(_db, artist_id):
         logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
                        type(exc).__name__)
         return None
+
+
+_PLATFORM_TOTAL = "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
+
+
+@st.cache_data(ttl=_KPI_TTL)
+def get_total_streams_s4a(_db, artist_id):
+    """Total streams Spotify S4A — la branche `spotify` de la couche or.
+
+    La déduplication par (jour, titre) et le retrait de la ligne « Total » des CSV
+    vivent dans `v_s4a_song_daily` (migration 105), que `v_platform_totals` agrège.
+    Les recopier ici les faisait diverger : c'est la plateforme dont le total avait
+    trois définitions différentes le 2026-09-11.
+    """
+    return _tenant_sum(_db, _PLATFORM_TOTAL, "platform = 'spotify'", artist_id)
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -502,23 +509,7 @@ def get_total_views_youtube(_db, artist_id):
     celui de l'accueil et de l'API pour le même locataire au même instant. Mesuré le
     2026-09-10 sur l'artiste 1 : 120 627 ici contre 118 219 par la définition retenue.
     """
-    db = _db
-    try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT COALESCE(total, 0) FROM v_platform_totals "
-                "WHERE artist_id = %s AND platform = 'youtube'", (artist_id,))
-        else:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals "
-                "WHERE platform = 'youtube'")
-        return int(row[0][0] or 0) if row else 0
-    except Exception as exc:      # noqa: BLE001
-        # `None`, comme les quatre autres totaux : un zéro est une mesure, un échec de
-        # lecture n'en est pas une. Le seul appelant (`data_wrapped.py:273`) fait
-        # `_fmt_big(yt) if yt else "—"`, qui traite `None` exactement comme `0`.
-        logger.warning("YouTube total unreadable: %s", type(exc).__name__)
-        return None
+    return _tenant_sum(_db, _PLATFORM_TOTAL, "platform = 'youtube'", artist_id)
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -530,29 +521,7 @@ def get_total_plays_soundcloud(_db, artist_id):
     recopiée ici dédupliquait par `track_id` SEUL — deux locataires qui repostent le
     même titre n'en gardaient qu'un.
     """
-    db = _db
-    try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
-                " WHERE platform = 'soundcloud' AND artist_id = %s", (artist_id,))
-        else:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(total), 0) FROM v_platform_totals"
-                " WHERE platform = 'soundcloud'")
-        return int(row[0][0] or 0)
-    except Exception as exc:
-        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
-        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
-        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
-        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
-        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
-        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
-        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
-        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
-        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
-                       type(exc).__name__)
-        return None
+    return _tenant_sum(_db, _PLATFORM_TOTAL, "platform = 'soundcloud'", artist_id)
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -611,47 +580,41 @@ def get_total_plays_apple(_db, artist_id):
 
 # ─── KPI ML ─────────────────────────────────────────────────────────────────
 
+_LATEST_ORDER_COLS = frozenset({"date", "collected_at"})
+
+
+def _latest_row(db, select: str, order_col: str, artist_id):
+    """The most recent row of a snapshot table — one tenant, or the fleet when None.
+
+    R269 — two readers carried this body word for word. `select` and `order_col` are
+    constants written by the callers, never user input. None when absent or unreadable.
+    """
+    if order_col not in _LATEST_ORDER_COLS:                  # rule 8 — identifier allowlist
+        raise ValueError(f"order column not allowed: {order_col!r}")
+    where = " WHERE artist_id = %s" if artist_id is not None else ""
+    sql = f"{select}{where} ORDER BY {order_col} DESC LIMIT 1"
+    try:
+        row = db.fetch_query(sql, (artist_id,)) if artist_id is not None else db.fetch_query(sql)
+    except Exception as exc:      # noqa: BLE001 — une tuile ne fait pas tomber la page
+        logger.warning("kpi_helpers: dernier relevé illisible (%s)", type(exc).__name__)
+        return None
+    return row[0] if row and row[0][0] is not None else None
+
+
 @st.cache_data(ttl=_KPI_TTL)
 def get_spotify_popularity(_db, artist_id):
     """Score de popularité Spotify (dernier enregistrement)."""
-    db = _db
-    try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT popularity, track_name FROM track_popularity_history WHERE artist_id = %s ORDER BY date DESC LIMIT 1",
-                (artist_id,)
-            )
-        else:
-            row = db.fetch_query(
-                "SELECT popularity, track_name FROM track_popularity_history ORDER BY date DESC LIMIT 1"
-            )
-        if row and row[0][0] is not None:
-            return {'score': int(row[0][0]), 'track': row[0][1]}
-    except Exception:
-        pass
-    return None
+    row = _latest_row(_db, "SELECT popularity, track_name FROM track_popularity_history",
+                      "date", artist_id)
+    return {'score': int(row[0]), 'track': row[1]} if row else None
 
 
 @st.cache_data(ttl=_KPI_TTL)
 def get_instagram_followers(_db, artist_id):
     """Nombre d'abonnés Instagram (dernier snapshot)."""
-    db = _db
-    try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                """SELECT followers_count, collected_at FROM instagram_daily_stats
-                   WHERE artist_id = %s ORDER BY collected_at DESC LIMIT 1""",
-                (artist_id,)
-            )
-        else:
-            row = db.fetch_query(
-                "SELECT followers_count, collected_at FROM instagram_daily_stats ORDER BY collected_at DESC LIMIT 1"
-            )
-        if row and row[0][0] is not None:
-            return {'followers': int(row[0][0]), 'date': row[0][1]}
-    except Exception:
-        pass
-    return None
+    row = _latest_row(_db, "SELECT followers_count, collected_at FROM instagram_daily_stats",
+                      "collected_at", artist_id)
+    return {'followers': int(row[0]), 'date': row[1]} if row else None
 
 
 @st.cache_data(ttl=_KPI_TTL)
@@ -662,28 +625,9 @@ def get_soundcloud_likes(_db, artist_id):
     exprimer une deuxième mesure ; les likes se lisent sur la vue de grain,
     `v_soundcloud_track_latest`. Même règle que les écoutes, écrite une seule fois.
     """
-    db = _db
-    try:
-        if artist_id is not None:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest"
-                " WHERE artist_id = %s", (artist_id,))
-        else:
-            row = db.fetch_query(
-                "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest")
-        return int(row[0][0] or 0)
-    except Exception as exc:
-        # ⚠️ `None`, PAS `0`. Un zéro est une MESURE — « cet artiste a zéro écoute » —
-        # et une lecture qui échoue n'a rien mesuré. Les deux surfaces qui lisent ces
-        # totaux rendent déjà `"—"` sur une valeur fausse, donc rien ne change à
-        # l'écran ; ce qui change, c'est qu'un échec LAISSE UNE TRACE au lieu de se
-        # déguiser en absence, et que le cache de 600 s ne fige plus un chiffre
-        # fabriqué. Classe `une-erreur-avalée-devient-une-absence`, balayée le
-        # 2026-09-17 : 46 `except` muets rendant une valeur vide dans le dépôt, 14
-        # au-dessus d'une lecture de données, ces 4 au-dessus d'un TOTAL de locataire.
-        logger.warning("kpi_helpers: total illisible (%s) — rendu ABSENT, pas zéro",
-                       type(exc).__name__)
-        return None
+    return _tenant_sum(
+        _db, "SELECT COALESCE(SUM(likes_count), 0) FROM v_soundcloud_track_latest", None,
+        artist_id)
 
 
 # ─── ROI Breakheaven ─────────────────────────────────────────────────────────
@@ -725,6 +669,18 @@ def _human_only() -> str:
 
 
 _HUMAN_ONLY = _human_only()
+
+
+def _month_scope(artist_id, eff_from, eff_to) -> tuple[str, tuple]:
+    """WHERE + params over whole months — one tenant, or the HUMAN tenants when None.
+
+    R269 — the ROI tile and the ROI chart built this clause twice, word for word.
+    """
+    where = "make_date(year, month, 1) BETWEEN %s AND %s"
+    if artist_id is not None:
+        return "artist_id = %s AND " + where, (artist_id, eff_from, eff_to)
+    # R220 — all tenants = the HUMAN ones (the sandbox mirrors artist 1).
+    return _HUMAN_ONLY + where, (eff_from, eff_to)
 
 
 def fmt_eur(val, digits: int = 2) -> str:
@@ -770,14 +726,7 @@ def get_roi_data(_db, artist_id, from_date, to_date):
     # deductions), spend is Meta Ads PLUS the costs the artist entered. Reading gross
     # revenue from `v_artist_monthly_revenue` and Meta from `v_meta_daily` here put a
     # gross KPI next to a net chart on the same screen.
-    where = "make_date(year, month, 1) BETWEEN %s AND %s"
-    params: tuple = (eff_from, eff_to)
-    if artist_id is not None:
-        where = "artist_id = %s AND " + where
-        params = (artist_id, eff_from, eff_to)
-    else:
-        # R220 — all tenants = the HUMAN ones (the sandbox mirrors artist 1).
-        where = _HUMAN_ONLY + where
+    where, params = _month_scope(artist_id, eff_from, eff_to)
 
     try:
         row = _db.fetch_query(
@@ -829,14 +778,7 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     eff_from, eff_to = month_window(from_date, to_date)
     cols = ['period_date', 'distributor_revenue', 'sacem_revenue', 'meta_spend',
             'other_costs']
-    where = "make_date(year, month, 1) BETWEEN %s AND %s"
-    params: tuple = (eff_from, eff_to)
-    if artist_id is not None:
-        where = "artist_id = %s AND " + where
-        params = (artist_id, eff_from, eff_to)
-    else:
-        # R220 — all tenants = the HUMAN ones (the sandbox mirrors artist 1).
-        where = _HUMAN_ONLY + where
+    where, params = _month_scope(artist_id, eff_from, eff_to)
     try:
         # One scan, both sides on the SAME month grain and the same bounds. A FILTER sum
         # over no row is NULL: « no SACEM this month » stays absent, never 0.

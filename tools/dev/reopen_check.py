@@ -196,30 +196,27 @@ def _r114() -> tuple[str, str]:
         else "les deux déclencheurs sous le seuil")
 
 
-def _fact_table_rows() -> tuple[str, str]:
-    """« Retirer les 110 index jamais scannés » — rouvre si une table de faits > 1 M."""
+def _scalar(sql: str):
+    """One number read from the live base (R269 — two probes carried this body)."""
     from src.database.postgres_handler import PostgresHandler
 
     db = PostgresHandler.from_env_or_config()
     try:
-        n = db.fetch_query("SELECT COALESCE(max(n_live_tup), 0) "
-                           "FROM pg_stat_user_tables")[0][0]
+        return db.fetch_query(sql)[0][0]
     finally:
         db.close()
+
+
+def _fact_table_rows() -> tuple[str, str]:
+    """« Retirer les 110 index jamais scannés » — rouvre si une table de faits > 1 M."""
+    n = _scalar("SELECT COALESCE(max(n_live_tup), 0) FROM pg_stat_user_tables")
     return (MET if n > 1_000_000 else NOT_MET), f"{n:,} lignes (seuil : 1 000 000)"
 
 
 def _gold_layer() -> tuple[str, str]:
     """« Construire la couche or » — rouvre si un locataire depasse 100 000 lignes."""
-    from src.database.postgres_handler import PostgresHandler
-
-    db = PostgresHandler.from_env_or_config()
-    try:
-        n = db.fetch_query(
-            "SELECT COALESCE(max(c), 0) FROM ("
-            "  SELECT count(*) c FROM s4a_song_timeline GROUP BY artist_id) x")[0][0]
-    finally:
-        db.close()
+    n = _scalar("SELECT COALESCE(max(c), 0) FROM ("
+                "  SELECT count(*) c FROM s4a_song_timeline GROUP BY artist_id) x")
     return (MET if n > 100_000 else NOT_MET), f"{n:,} lignes pour le plus gros locataire"
 
 

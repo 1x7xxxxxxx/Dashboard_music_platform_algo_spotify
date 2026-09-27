@@ -84,7 +84,12 @@ def test_the_named_readers_still_exist() -> None:
         "MÊME COMMIT, sinon ce test garde un fantôme.")
 
 
-@pytest.mark.parametrize("name", _READERS)
+# R269 — the four readers share ONE body since 2026-09-27: `_tenant_sum` carries their
+# `except`, so the shape checks read it too (a reader without handler would pass vacuously).
+_SHAPES = _READERS + ("_tenant_sum",)
+
+
+@pytest.mark.parametrize("name", _SHAPES)
 def test_a_failed_read_returns_absence_not_zero(name: str) -> None:
     """Dans le `except`, aucun `return` d'un nombre : l'absence est `None`."""
     fn = _functions()[name]
@@ -102,7 +107,7 @@ def test_a_failed_read_returns_absence_not_zero(name: str) -> None:
         "Rendre `None` — les surfaces affichent déjà « — » dessus.")
 
 
-@pytest.mark.parametrize("name", _READERS)
+@pytest.mark.parametrize("name", _SHAPES)
 def test_a_failed_read_leaves_a_trace(name: str) -> None:
     """Et il le DIT : sans trace, l'échec est indiscernable d'un catalogue vide."""
     fn = _functions()[name]

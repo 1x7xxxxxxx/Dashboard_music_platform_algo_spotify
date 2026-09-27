@@ -73,7 +73,7 @@ Cinq mots de confiance, et rien d'autre :
 | `v_meta_spend_totals` | vue | `migrations/101_gold_meta_spend.sql` | `meta_insights_performance_day` | 2 | — |
 | `v_meta_track_attribution` | vue | `migrations/116_gold_meta_track_attribution.sql` | `track_platform_link` · `v_meta_campaign_daily` | 1 | — |
 | `v_platform_levels` | vue | `migrations/112_gold_partial_collection_is_not_a_level.sql` | `s4a_song_timeline` · `soundcloud_tracks_daily` · `youtube_video_stats` | 3 | `migrations/104_gold_platform_levels.sql` |
-| `v_platform_totals` | vue | `migrations/107_gold_soundcloud_track_latest.sql` | `apple_songs_performance` · `gold_apple_lifetime` · `v_s4a_song_daily` · `v_soundcloud_track_latest` · `youtube_video_stats` | 15 | `migrations/097_v_platform_totals.sql` · `migrations/102_gold_apple.sql` · `migrations/103_gold_apple_metric.sql` |
+| `v_platform_totals` | vue | `migrations/107_gold_soundcloud_track_latest.sql` | `apple_songs_performance` · `gold_apple_lifetime` · `v_s4a_song_daily` · `v_soundcloud_track_latest` · `youtube_video_stats` | 9 | `migrations/097_v_platform_totals.sql` · `migrations/102_gold_apple.sql` · `migrations/103_gold_apple_metric.sql` |
 | `v_s4a_audience_daily` | vue | `migrations/117_gold_s4a_audience.sql` | `s4a_audience` | 7 | — |
 | `v_s4a_audience_monthly` | vue | `migrations/117_gold_s4a_audience.sql` | `v_s4a_audience_daily` | 1 | — |
 | `v_s4a_release_cohort` | vue | `migrations/119_gold_s4a_release_cohort.sql` | `track_platform_link` · `track_release_reference` · `v_s4a_song_daily` | 2 | — |
@@ -83,7 +83,7 @@ Cinq mots de confiance, et rien d'autre :
 | `v_sacem_monthly` | vue | `migrations/111_gold_sacem_monthly.sql` | `sacem_statement` | 3 | — |
 | `v_soundcloud_catalog_daily` | vue | `migrations/138_gold_soundcloud_catalog_per_metric_readability.sql` | `soundcloud_tracks_daily` | 3 | `migrations/132_gold_soundcloud_daily.sql` |
 | `v_soundcloud_track_daily` | vue | `migrations/132_gold_soundcloud_daily.sql` | `soundcloud_tracks_daily` · `v_soundcloud_catalog_daily` | 6 | — |
-| `v_soundcloud_track_latest` | vue | `migrations/107_gold_soundcloud_track_latest.sql` | `soundcloud_tracks_daily` | 5 | — |
+| `v_soundcloud_track_latest` | vue | `migrations/107_gold_soundcloud_track_latest.sql` | `soundcloud_tracks_daily` | 3 | — |
 | `v_spotify_followers_daily` | vue | `migrations/120_gold_spotify_followers.sql` | `artist_history` · `saas_artists` · `v_s4a_audience_daily` | 1 | — |
 | `v_spotify_track_pi_daily` | vue | `migrations/130_gold_spotify_track_popularity.sql` | `track_platform_link` · `track_popularity_history` · `track_release_reference` | 7 | — |
 
@@ -118,13 +118,13 @@ Une métrique = une définition = une source. Écrit à la main dans `tools/dev/
 | **sacem** | Relevé SACEM au mois par nature de ligne (répartition, charges, virements). | `v_sacem_monthly` | `v_sacem_monthly.amount` | mois × nature | flux | tout | 3 | 3 — `test_a_deduction_is_subtracted_from_the_right_base.py` … |
 | **soundcloud_catalog** | Écoutes, likes, reposts du catalogue, avec la lisibilité par métrique. | `v_soundcloud_catalog_daily` | `v_soundcloud_catalog_daily.plays (+ lisible)` | jour | cumul | période choisie | 3 | 1 — `test_a_chart_is_bounded_by_the_period_it_announces.py` |
 | **soundcloud_track** | Les mêmes compteurs par titre. | `v_soundcloud_track_daily` | `v_soundcloud_track_daily.playback_count` | jour × titre | cumul | période choisie | 6 | 1 — `test_a_chart_is_bounded_by_the_period_it_announces.py` |
-| **soundcloud_track_latest** | Dernier relevé par titre SoundCloud. | `v_soundcloud_track_latest` | `v_soundcloud_track_latest` | titre | cumul | dernier relevé | 5 | 4 — `test_a_failed_read_is_not_an_absence.py` … |
+| **soundcloud_track_latest** | Dernier relevé par titre SoundCloud. | `v_soundcloud_track_latest` | `v_soundcloud_track_latest` | titre | cumul | dernier relevé | 3 | 4 — `test_a_failed_read_is_not_an_absence.py` … |
 | **spotify_audience** | Auditeurs, écoutes, sauvegardes, ajouts en playlist (artiste) et niveau d'abonnés. | `v_s4a_audience_daily` | `v_s4a_audience_daily.listeners/saves/playlist_adds (flux) · followers_level (niveau)` | jour | flux | période choisie | 7 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
 | **spotify_audience_monthly** | La même audience agrégée au mois (abonnés : dernier niveau). | `v_s4a_audience_monthly` | `v_s4a_audience_monthly` | mois | flux | 12 mois | 1 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
 | **spotify_followers** | Abonnés Spotify de l'artiste (niveau), CSV S4A ou API selon la source. | `v_spotify_followers_daily` | `v_spotify_followers_daily.followers` | jour | niveau | période choisie | 1 | 3 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
 | **spotify_measured_span** | Premier et dernier jour mesurés par titre — borne toute fenêtre. | `v_s4a_song_measured_span` | `v_s4a_song_measured_span.first_measured/last_measured` | titre | attribut | tout | 3 | 2 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
 | **spotify_popularity** | Indice de popularité Spotify (0-100) par titre. | `v_spotify_track_pi_daily` | `v_spotify_track_pi_daily.popularity` | jour × titre | niveau | période choisie | 7 | **0** |
-| **streams_all_platforms** | Écoutes par plateforme sur une fenêtre — LA porte des totaux. | `v_platform_totals` | `v_platform_totals.total` | plateforme | flux | période choisie | 15 | 11 — `test_a_curve_ends_where_its_tile_says.py` … |
+| **streams_all_platforms** | Écoutes par plateforme sur une fenêtre — LA porte des totaux. | `v_platform_totals` | `v_platform_totals.total` | plateforme | flux | période choisie | 9 | 11 — `test_a_curve_ends_where_its_tile_says.py` … |
 | **streams_spotify** | Écoutes Spotify par titre et par jour (export S4A, ligne Total exclue). | `v_s4a_song_daily` | `v_s4a_song_daily.streams` | jour × titre | flux | période choisie | 39 | 7 — `test_a_failed_read_is_not_an_absence.py` … |
 
 Objets or lus par une surface et absents du registre : **0**
@@ -444,25 +444,26 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 
 | plateforme | tables de fait | vues or qui la définissent | lectures des vues or | lectures brutes |
 |---|---|---|---|---|
-| Apple Music | `apple_songs_history` · `apple_songs_performance` | `v_apple_song_cumulative` · `v_apple_song_daily` · `v_platform_totals` | 20 | 2 |
+| Apple Music | `apple_songs_history` · `apple_songs_performance` | `v_apple_song_cumulative` · `v_apple_song_daily` · `v_platform_totals` | 14 | 2 |
 | Hypeddit | `hypeddit_daily_stats` | `v_hypeddit_daily` | 8 | 0 |
 | Instagram | `instagram_daily_stats` · `instagram_media` | `v_instagram_followers_daily` · `v_instagram_media_monthly` | 5 | 11 |
 | Meta Ads | `meta_ads` · `meta_adsets` · `meta_campaigns` · `meta_insights` · `meta_insights_performance` · `meta_insights_performance_day` | `v_artist_monthly_cashflow` · `v_meta_active_budget` · `v_meta_ad_daily` · `v_meta_adset_daily` · `v_meta_campaign_daily` · `v_meta_creative_daily` · `v_meta_daily` · `v_meta_spend_totals` · `v_meta_track_attribution` | 48 | 22 |
 | Revenu | `distrokid_monthly_revenue` · `imusician_monthly_revenue` · `sacem_statement` | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `v_artist_monthly_revenue_net` · `v_sacem_monthly` | 15 | 3 |
-| SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_catalog_daily` · `v_soundcloud_track_daily` · `v_soundcloud_track_latest` | 26 | 4 |
-| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 58 | 17 |
-| YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 17 | 8 |
+| SoundCloud | `soundcloud_tracks_daily` | `v_platform_levels` · `v_platform_totals` · `v_soundcloud_catalog_daily` · `v_soundcloud_track_daily` · `v_soundcloud_track_latest` | 18 | 4 |
+| Spotify S4A | `s4a_audience` · `s4a_song_timeline` · `s4a_songs_global` | `v_platform_levels` · `v_platform_totals` · `v_s4a_audience_daily` · `v_s4a_audience_monthly` · `v_s4a_release_cohort` · `v_s4a_release_reach` · `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_followers_daily` | 52 | 17 |
+| YouTube | `youtube_channel_history` · `youtube_video_stats` | `v_platform_levels` · `v_platform_totals` | 11 | 8 |
 
 ## Les cliquets
 
-**26 valeurs gelées** dans 20 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
+**27 valeurs gelées** dans 21 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 
-**0 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
+**1 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
 
 Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une phrase de mutation, un nom de test de non-vacuité) : un faux négatif est possible, il se corrige en écrivant la phrase.
 
 | fichier | constante | valeur gelée | non-vacuité | trace de mutation |
 |---|---|---|---|---|
+| `test_a_function_is_written_once.py` | `CEILING_SITES` | 2 | **absent** | — |
 | `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | — |
 | `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 0 | — | — |
 | `test_a_gold_rule_is_declarative.py` | `_CEILING` | 1 | — | — |
@@ -683,10 +684,10 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=33 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
-<!-- gold-coverage-ratchets: total=26 without_nonvacuity=0 without_mutation=0 -->
+<!-- gold-coverage-ratchets: total=27 without_nonvacuity=1 without_mutation=0 -->
 <!-- gold-coverage-error-classes: total=427 guard_missing=0 guard_unnamed=8 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=de9c4aee7281f6d6a2d4ff611adc5ee1b181c5a9468b6e2097d76200d55d339e -->
+<!-- gold-coverage: sha256=aebaab2f2bc85fab32d2885bcdae516266c99fa5917a05c85aa060a38c3ceb64 -->
