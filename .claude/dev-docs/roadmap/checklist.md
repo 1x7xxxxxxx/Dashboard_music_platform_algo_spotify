@@ -33,6 +33,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R247 | **Trigger Algo refait, simple et visuel** : 42 (5 dernières sorties, 5 indicateurs, puis valeurs vs cible 100 %, SHAP 52–54 intégré) ; 43 estimation J+28 / 6 mois / 1 an sur le jeu d'entraînement (P25–P75, « estimation ») ; 44 cohorte expliquée ; 45 sans équation ; 51/57/58/64 refaits ou expliqués <!-- anchor: r247 --> <!-- critic: requis --> | P2 | fiches 42–64 relues sur leur rendu |
 | R248 | **Argent** : 46 sans « popularité 0 », cumul avec SACEM et coût de distribution ; saisie du coût de distribution PAR TITRE dans « Mes revenus » (catégorie + titre), sommée dans la trésorerie <!-- anchor: r248 --> <!-- critic: requis --> | P2 | coût saisi → visible dans la trésorerie |
 | R249 | **Admin** : 55 et 62 (LTV + MRR) déplacés en admin ; 59, 61, 70, 71 retirés, et le mode mort « chacune à son échelle » (fiche 2) ; 72 → détection d'anomalie d'ingestion (lignes attendues × locataires contre lignes reçues, alerte au-delà d'un seuil) <!-- anchor: r249 --> <!-- critic: non — déplacement et retrait ; 72 réutilise volume_monitor --> | P3 | admin porte 55/62/72, 4 figures retirées |
+| R251 | **Le garde des durées juge toute la collecte, pas les seuls fichiers indexés** : le hook de R250 ne regardait que les tests DES fichiers indexés ; un id paramétré par le contenu d'un AUTRE fichier (numéro de ligne) a décalé et la CI de main est passée rouge (0dee1d41). Au commit, pre-commit a déjà remisé le non-indexé : seul le NON SUIVI est à exclure <!-- anchor: r251 --> <!-- critic: non — resserrement d'un filtre d'outillage --> | P3 | l'id décalé de 0dee1d41 est refusé au commit |
 
 ---
 
@@ -88,7 +89,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R247, R248, R249 -->
+<!-- reprise: open=R247, R248, R249, R251 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
