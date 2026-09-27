@@ -80,11 +80,52 @@ def open_roadmap_ids(checklist_text: str) -> set[str]:
     return set(re.findall(r"^\| (R\d+) \|", checklist_text, re.M))
 
 
+def archived_roadmap_ids(archive_text: str) -> set[str]:
+    """The ids DELIVERED — an entry `- [x] **Rnnn —` or `## ✅ Rnnn —` of the archive. Pure.
+
+    R254 — « done » is read HERE, never deduced from an id being absent from the open
+    index: a mistyped or never-registered id was absent too, and showed « ✅ fait »."""
+    import re
+    return set(re.findall(r"^(?:- \[x\] \*\*|## ✅ )(R\d+)\b", archive_text, re.M))
+
+
+def waiting_ids(checklist_text: str) -> set[str]:
+    """The rows of the « 🙋 En attente de toi » table — the owner's gestures. Pure."""
+    import re
+    part = checklist_text.split("## 🙋", 1)[1] if "## 🙋" in checklist_text else ""
+    return set(re.findall(r"^\| (R\d+) \|", part.split("\n---", 1)[0], re.M))
+
+
+def action_state(rid: str | None, open_ids: set[str], done_ids: set[str]) -> str:
+    """« fait » (archived), « ouvert » (a row of either table), else « inconnu ». Pure."""
+    if rid and rid in done_ids:
+        return "fait"
+    if rid and rid in open_ids:
+        return "ouvert"
+    return "inconnu"
+
+
+def unknown_actions(acts: dict, open_ids: set[str], done_ids: set[str],
+                    waiting: set[str]) -> list[str]:
+    """Every action that points at no real roadmap row, or an owner's gesture outside the
+    🙋 table. The generation refuses to print a dossier with one of these. Pure."""
+    bad = []
+    for key, e in acts.items():
+        for a in (e or {}).get("actions") or []:
+            rid = a.get("rid")
+            if action_state(rid, open_ids, done_ids) == "inconnu":
+                bad.append(f"{key} : « {a.get('texte', '')[:50]} » — id {rid or 'absent'} "
+                           "introuvable dans la roadmap")
+            elif a.get("qui") == "toi" and rid not in waiting and rid not in done_ids:
+                bad.append(f"{key} : geste du propriétaire {rid} hors de la table 🙋")
+    return bad
+
+
 STATUSES = {"a-faire": "À faire", "revalider": "Fait — à revalider",
             "sans-avis": "Sans avis", "valide": "Validé"}
 
 
-def status(entry: dict | None, open_ids: set[str]) -> str:
+def status(entry: dict | None, open_ids: set[str], done_ids: set[str] | None = None) -> str:
     """Where a fiche goes in the dossier. Pure.
 
     `valide` — the owner kept it with nothing to do: the END of the dossier. An action of
@@ -95,8 +136,8 @@ def status(entry: dict | None, open_ids: set[str]) -> str:
     if entry.get("valide"):
         return "valide"
     acts = entry.get("actions") or []
-    if acts and all(a.get("qui") == "moi" and a.get("rid") and a["rid"] not in open_ids
-                    for a in acts):
+    done = done_ids if done_ids is not None else set()
+    if acts and all(a.get("qui") == "moi" and a.get("rid") in done for a in acts):
         return "revalider"
     return "a-faire"
 
@@ -114,7 +155,8 @@ def number_html(number: tuple | None) -> str:
     return f'<p class="num num-{key}"><b>{NV[key]}</b> — {esc(why)}</p>'
 
 
-def actions_html(entry: dict | None, open_ids: set[str]) -> str:
+def actions_html(entry: dict | None, open_ids: set[str],
+                 done_ids: set[str] | None = None) -> str:
     acts = (entry or {}).get("actions") or []
     if not acts:
         return ""
@@ -122,8 +164,9 @@ def actions_html(entry: dict | None, open_ids: set[str]) -> str:
     for a in acts:
         who = "Toi" if a["qui"] == "toi" else "Moi"
         rid = a.get("rid")
-        state = ("" if not rid else (" · <b>✅ fait</b>" if rid not in open_ids
-                                    else " · en cours"))
+        state = {"fait": " · <b>✅ fait</b>",
+                 "ouvert": " · ⏳ en attente de toi" if a["qui"] == "toi" else " · en cours",
+                 "inconnu": " · ❓ id inconnu"}[action_state(rid, open_ids, done_ids or set())]
         rows.append(f"<li><b>{who}</b> — {esc(a['texte'])}"
                     f"{f' <code>{esc(rid)}</code>' if rid else ''}{state}</li>")
     return f'<ul class="acts">{"".join(rows)}</ul>'
@@ -131,7 +174,8 @@ def actions_html(entry: dict | None, open_ids: set[str]) -> str:
 
 def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
           no: int | None = None, entry: dict | None = None,
-          open_ids: set[str] | None = None, number: tuple | None = None) -> str:
+          open_ids: set[str] | None = None, number: tuple | None = None,
+          done_ids: set[str] | None = None) -> str:
     v = r.get("v", "a-trancher")
     owner = ""
     if r.get("owner_v") or r.get("owner"):
@@ -144,7 +188,7 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
 {img_html}
-{number_html(number)}<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set())}
+{number_html(number)}<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set(), done_ids)}
 <p class="site"><code>{esc(key)}</code> · {esc(ROLES.get(r.get('role'), r.get('role')))} {meta_line}{extra}</p></div>"""
 
 
@@ -327,9 +371,19 @@ def build(out: Path) -> Path:
     # (owner, 2026-09-27); its fiche numbers are kept, never reused.
     review = {k: r for k, r in review.items() if not k.startswith("pdf:")}
     acts = load_actions()
-    open_ids = open_roadmap_ids(
-        (ROOT / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8"))
-    st_of = {k: status(acts.get(k), open_ids) for k in review}
+    checklist = (ROOT / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8")
+    open_ids = open_roadmap_ids(checklist)
+    done_ids = archived_roadmap_ids(
+        (ROOT / ".claude/dev-docs/roadmap/archive.md").read_text(encoding="utf-8"))
+    # R254 — an action that names no real roadmap row stops the dossier: printed, it
+    # would read « ✅ fait » or float outside every table the owner and I read.
+    bad = unknown_actions(acts, open_ids, done_ids, waiting_ids(checklist))
+    if bad:
+        print(f"❌ {len(bad)} action(s) sans ligne de roadmap réelle :", file=sys.stderr)
+        for b_ in bad:
+            print(f"   {b_}", file=sys.stderr)
+        raise SystemExit(1)
+    st_of = {k: status(acts.get(k), open_ids, done_ids) for k in review}
     number_of, method = numbers_section(out, review, cap, key_of, inv, no_of, views_of)
     missing = unexplained(review, set(first))
     if missing:
@@ -373,7 +427,8 @@ connectée au rendu. Réglages par défaut des pages.</p>
             png, pts = gpng.get(k, (None, None))
             return fiche(k, review[k], png,
                          f"· {pts if pts is not None else '?'} points mesurés en 7 jours",
-                         no=no_of[k], entry=acts.get(k), open_ids=open_ids)
+                         no=no_of[k], entry=acts.get(k), open_ids=open_ids,
+                         done_ids=done_ids)
         f = first.get(k)
         s_ = inv.get(k, {})
         meta_line = (f"· couche {esc(s_.get('layer', '—'))} · sources : "
@@ -384,7 +439,8 @@ connectée au rendu. Réglages par défaut des pages.</p>
         if len(views_of.get(k, [])) > 1:
             extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
         return fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
-                     no_of[k], entry=acts.get(k), open_ids=open_ids, number=number_of.get(k))
+                     no_of[k], entry=acts.get(k), open_ids=open_ids, number=number_of.get(k),
+                     done_ids=done_ids)
 
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     graf_keys = [k for k in review if k.startswith("grafana:")]

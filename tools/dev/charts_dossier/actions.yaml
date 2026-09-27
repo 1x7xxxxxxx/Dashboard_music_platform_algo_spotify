@@ -375,6 +375,7 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
     rid: R248
   - qui: toi
     texte: Saisir le coût de distribution de tes titres une fois la saisie livrée
+    rid: R255
 src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
   valide: false
   actions:
@@ -395,6 +396,7 @@ src/dashboard/views/admin.py::_render_costs#1:
   actions:
   - qui: toi
     texte: Saisir tes coûts d'exploitation (hébergement, domaine, outils) dans l'admin
+    rid: R256
 src/dashboard/views/usage_analytics.py::show#1:
   valide: false
   actions:

@@ -73,8 +73,11 @@ def plan_actions(comments: dict, fiches: dict[int, str]) -> tuple[dict[str, dict
                 errors.append(f"fiche {no} : action {a!r} — qui ∈ {sorted(WHO)} et un texte")
                 continue
             rid = a.get("rid")
-            if rid is not None and not _re.fullmatch(r"R\d+", str(rid)):
-                errors.append(f"fiche {no} : id de roadmap « {rid} » invalide")
+            # R254 — every action names its roadmap row, the owner's gestures included
+            # (a row of the « 🙋 En attente de toi » table): R196, row first, then the work.
+            if rid is None or not _re.fullmatch(r"R\d+", str(rid)):
+                errors.append(f"fiche {no} : id de roadmap « {rid} » absent ou invalide — "
+                              "inscrire la ligne d'abord (R196)")
                 continue
             acts.append({"qui": a["qui"], "texte": str(a["texte"]).strip(),
                          **({"rid": str(rid)} if rid else {})})

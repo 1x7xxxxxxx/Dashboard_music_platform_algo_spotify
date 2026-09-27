@@ -161,11 +161,16 @@ def test_a_fiche_goes_where_its_actions_say() -> None:
     open_ids = {"R242"}
     assert m.status({"valide": True, "actions": []}, open_ids) == "valide"
     assert m.status(None, open_ids) == "sans-avis"
+    archived = {"R241"}
     done = {"actions": [{"qui": "moi", "texte": "x", "rid": "R241"}]}
-    assert m.status(done, open_ids) == "revalider"
-    assert m.status({"actions": [{"qui": "moi", "texte": "x", "rid": "R242"}]}, open_ids) == "a-faire"
-    mine_and_yours = {"actions": [*done["actions"], {"qui": "toi", "texte": "saisir"}]}
-    assert m.status(mine_and_yours, open_ids) == "a-faire", "the owner's own action was ignored"
+    assert m.status(done, open_ids, archived) == "revalider"
+    assert m.status({"actions": [{"qui": "moi", "texte": "x", "rid": "R242"}]},
+                    open_ids, archived) == "a-faire"
+    mine_and_yours = {"actions": [*done["actions"], {"qui": "toi", "texte": "saisir", "rid": "R255"}]}
+    assert m.status(mine_and_yours, open_ids, archived) == "a-faire", "the owner's own action was ignored"
+    # R254 — an id in NEITHER table nor the archive is not « done » by being absent.
+    ghost = {"actions": [{"qui": "moi", "texte": "x", "rid": "R9999"}]}
+    assert m.status(ghost, open_ids, archived) == "a-faire"
 
 
 def test_the_open_ids_are_read_from_the_index_rows() -> None:
@@ -185,8 +190,13 @@ def test_an_action_names_who_and_a_real_roadmap_id() -> None:
     assert errors
     _, errors = ac.plan_actions({2: {"actions": [{"qui": "moi", "texte": "x", "rid": "241"}]}}, fiches)
     assert errors
-    _, errors = ac.plan_actions({1: {"valide": True, "actions": [{"qui": "moi", "texte": "x"}]}}, fiches)
+    _, errors = ac.plan_actions({1: {"valide": True, "actions": [
+        {"qui": "moi", "texte": "x", "rid": "R241"}]}}, fiches)
     assert errors, "a fiche both validated and carrying actions was accepted"
+    # R254 — no action without its roadmap row, the owner's gestures included.
+    for who in ("moi", "toi"):
+        _, errors = ac.plan_actions({2: {"actions": [{"qui": who, "texte": "x"}]}}, fiches)
+        assert errors, f"an action « {who} » without a roadmap id was accepted"
 
 
 def test_a_fiche_keeps_its_number_when_another_is_retired() -> None:
