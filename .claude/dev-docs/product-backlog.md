@@ -17,6 +17,7 @@ attend un geste, l'index sinon).
 | R163 | Brancher Hypeddit sur le pixel et sa Conversions API, au lancement | **déclencheur : l'app terminée ET une campagne Meta relancée.** Choisir le pixel dans Hypeddit, y coller un jeton CAPI, rattacher le pixel à chaque smart link, vérifier l'évènement en test, puis 48 h après voir `custom_conversions` remonter — runbook §24 | runbook §24 |
 | R276 | Assistant in-app (FAQ + RAG) pour lire un graphique, décider, configurer ses identifiants — architecture RAG en couches (sécurité entrée/sortie, cache, citations, évaluation) — notes L174-L220, L452 | **déclencheur : tous les KPI validés et au moins cinq artistes actifs** — sinon il n'aurait rien de stable à expliquer | à écrire au déclenchement |
 | R277 | PDF de prospection de 2 pages (graphiques à plus forte valeur, questions marketing et streams) — notes L167 | **déclencheur : tous les KPI validés** (décision du 2026-09-27 : le rapport PDF artiste attend la validation) | à écrire au déclenchement |
+| R278 | Formats : migrer les 26 séparateurs faits main, les 77 formats `{:,}` et les 45 tableaux sans format vers `formats.num/eur/pct/table` — suite de R260 | **déclencheur : toute modification d'une vue qui en porte** ; le cliquet de `tests/test_a_number_is_written_one_way.py` interdit d'en ajouter et se baisse dans le même commit | la vue touchée |
 
 ---
 
