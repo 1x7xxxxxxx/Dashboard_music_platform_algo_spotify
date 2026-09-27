@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R231 — **Registre des métriques** : une entrée par KPI — `metric_name → définition → source(s)… (livrée 2026-09-27)
+
+- [x] **R231 — **Registre des métriques** : une entrée par KPI — `metric_name → définition → source(s) → formule → granularité → période → tests de qualité` — lié aux 40 vues or ; cliquet : toute figure et toute tuile citent une métrique du registre (prolonge gold-coverage)** (P2) ✅ (2026-09-27, b12c250e)
+  Mesuré par : `make gold-coverage` : figures hors registre = 0
+  registre des 33 objets or dans tools/dev/metric_registry.py, rendu dans gold-coverage.md ; 0 objet or hors registre, 4 sans test nommé (plafond gardé) ; MRR déclaré à conformer
+  Commits : b12c250e R231 : le registre des metriques - une entree par objet or (33) : nom,
+
 ## ✅ R235 — **Shazam → streams — SOLUTION** : importer chaque jour, pendant une campagne, le CSV «… (livrée 2026-09-27)
 
 - [x] **R235 — **Shazam → streams — SOLUTION** : importer chaque jour, pendant une campagne, le CSV « performance des chansons » d'Apple Music for Artists ; `v_apple_song_daily` en dérive les Shazams et écoutes QUOTIDIENS par titre (écart de 1 jour entre deux cumuls) et « Tout mon funnel » les trace déjà. Deux manques : la date du relevé est le jour de l'IMPORT (`apple_music_csv_parser.py:159`), pas celui de l'export — lire la date dans le fichier ou la demander ; et la corrélation Shazam → streams avec son délai quand ≥ 14 jours quotidiens existent** (P3) ✅ (2026-09-27, 91055163)

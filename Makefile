@@ -272,6 +272,13 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@if { git status --porcelain -- tests; git diff --name-only @{u}.. -- tests 2>/dev/null; } \
 	   | grep -qE '(^|/)test_[^/]*\.py$$'; then \
 	  $(MAKE) --no-print-directory test-durations-missing; fi
+	@# R228: a changed test that writes rows, or a migration ⇒ local↔canonical schema
+	@# on shared tables (~26 s). Two fixtures green here went red in CI on a NOT NULL
+	@# only canonical carried (R219). Skipped, and said, when the local Postgres is down.
+	@if $(PYTHON) tools/dev/changed_tests_write_db.py; then \
+	  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx '$(LOCAL_PG)'; then \
+	    $(MAKE) --no-print-directory schema-check-shared || exit 1; \
+	  else echo "⚠ R228: local Postgres down — schema check skipped. Run: make up"; fi; fi
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
 	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
@@ -720,6 +727,11 @@ schema-check-local: canon-pg ## Diff the LOCAL dev database vs canonical — the
 	@docker exec -i $(LOCAL_PG) psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_local.tsv 2>/dev/null \
 		|| { echo "❌ local Postgres unreachable ($(LOCAL_PG)). Run: make up"; exit 1; }
 	@python3 tools/dev/schema_drift_check.py /tmp/_local.tsv /tmp/_canon.tsv local
+
+schema-check-shared: canon-pg ## (internal) local vs canonical on tables BOTH carry — R228, run by test-changed
+	@docker exec -i $(LOCAL_PG) psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_local.tsv 2>/dev/null \
+		|| { echo "❌ local Postgres unreachable ($(LOCAL_PG)). Run: make up"; exit 1; }
+	@python3 tools/dev/schema_drift_check.py /tmp/_local.tsv /tmp/_canon.tsv local --shared-tables
 
 canon-pg: ## (internal) build the throwaway canonical database and fingerprint it
 	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }

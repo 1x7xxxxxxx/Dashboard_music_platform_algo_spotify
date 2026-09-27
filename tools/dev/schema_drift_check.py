@@ -92,6 +92,28 @@ def find_drift(live: dict[str, set[str]], canon: dict[str, set[str]]) -> dict:
     return out
 
 
+def _table_of(item: str) -> str:
+    """`t.col`, `t:KEY (...)` → `t`."""
+    return item.replace(":", ".", 1).split(".", 1)[0]
+
+
+def on_shared_tables(drift: dict) -> dict:
+    """The drift restricted to tables BOTH sides have. Pure.
+
+    R228 (2026-09-27): what makes a fixture green locally and red in CI is a column,
+    a key or a NOT NULL that differs on a table the CI also builds (R219). A table
+    only the local database carries — a leftover nothing writes — cannot flip a
+    test that way, and gating on it would make `make test-changed` red for good on
+    a debris the developer cannot drop from a test run.
+    """
+    local_only = set(drift["tables_live_only"])
+    out = {k: [x for x in v if _table_of(x) not in local_only]
+           for k, v in drift.items() if isinstance(v, list) and k != "tables_live_only"}
+    out["tables_live_only"] = []
+    out["found"] = any(out.values())
+    return out
+
+
 def _used_in_src(column: str) -> bool:
     """True if `column` (the bare name) appears in src/ outside schema/init files."""
     try:
@@ -106,6 +128,9 @@ def _used_in_src(column: str) -> bool:
 
 
 def main() -> None:
+    shared_only = "--shared-tables" in sys.argv
+    if shared_only:
+        sys.argv.remove("--shared-tables")
     if len(sys.argv) not in (3, 4):
         print("usage: schema_drift_check.py <live_dump.tsv> <canonical_dump.tsv> [label]",
               file=sys.stderr)
@@ -179,6 +204,10 @@ def main() -> None:
         print("  → a test green on one side is red on the other. Reconcile by migration "
               "(SET / DROP NOT NULL), never by editing a fixture to fit.\n")
 
+    if shared_only and drift["found"] and not on_shared_tables(drift)["found"]:
+        print(f"✅ {side} == canonical on every table both carry — "
+              f"{len(tables_prod_only)} {side}-only table(s) reported above, not gated (R228)")
+        sys.exit(0)
     if drift["found"]:
         print("⚠ schema drift found — triage above (report-only; never auto-ALTER prod). "
               "USED items belong in the version-controlled schema; orphans can be dropped/documented.")
