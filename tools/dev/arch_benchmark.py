@@ -46,9 +46,22 @@ def load() -> tuple[dict, list[dict]]:
     return domains, reqs
 
 
+def _tracked() -> set[str]:
+    """Paths git tracks, with every parent directory. A file that only exists on this
+    machine (docker-compose.yml is ignored) passed a disk check here and failed in CI —
+    the catalogue may only cite what a fresh checkout has."""
+    out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout
+    paths = set()
+    for f in out.splitlines():
+        parts = f.split("/")
+        paths.update("/".join(parts[:i]) for i in range(1, len(parts) + 1))
+    return paths
+
+
 def structure_errors(domains: dict, reqs: list[dict]) -> list[str]:
     """What makes the catalogue unusable — the guard test reads this. Pure on the files."""
     errs, seen = [], set()
+    tracked = _tracked()
     for r in reqs:
         rid = r.get("id", "?")
         if rid in seen:
@@ -64,7 +77,7 @@ def structure_errors(domains: dict, reqs: list[dict]) -> list[str]:
         node = preuve.get("pytest")
         if node:
             path = node.split("::")[0]
-            if not (ROOT / path).is_file():
+            if path not in tracked:
                 errs.append(f"{rid} : preuve pytest vers un fichier absent ({path})")
             elif "::" in node:
                 name = node.split("::")[1].split("[")[0]
@@ -81,8 +94,8 @@ def structure_errors(domains: dict, reqs: list[dict]) -> list[str]:
             errs.append(f"{rid} : déclaré conforme sans preuve rejouable")
     for key, d in domains.items():
         for f in (d.get("fichiers") or []) + (d.get("gardes") or []):
-            if not (ROOT / f).exists():
-                errs.append(f"domaine {key} : chemin absent {f}")
+            if f.rstrip("/") not in tracked:
+                errs.append(f"domaine {key} : chemin absent du dépôt {f}")
     return errs
 
 

@@ -60,6 +60,11 @@ def test_the_detector_sees_each_defect_it_is_written_for():
                                  "fichiers": [*domains["gold"]["fichiers"], "src/moved_away.py"]}}
     assert any("moved_away" in e for e in bench.structure_errors(moved, [good])), (
         "a domain citing a file that no longer exists went unseen")
+    local_only = {**domains, "infra-observability": {
+        **domains["infra-observability"],
+        "fichiers": [*domains["infra-observability"]["fichiers"], "docker-compose.yml"]}}
+    assert any("docker-compose.yml" in e for e in bench.structure_errors(local_only, [good])), (
+        "a file present on this machine but ignored by git was accepted — CI would not have it")
 
 
 def test_a_red_proof_is_never_printed_as_conforme():

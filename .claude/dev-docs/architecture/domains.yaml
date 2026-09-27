@@ -143,7 +143,7 @@ error-classes:
 infra-observability:
   nom: Infrastructure et observabilité
   perimetre: VPS unique, conteneurs, Prometheus/Grafana, règles d'alerte, résumé quotidien en base, sauvegardes
-  fichiers: [docker-compose.yml, deploy/prometheus/rules/streamlytics.yml, src/utils/metrics.py, src/utils/daily_ops_metrics.py, src/utils/ops_alerts.py, docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md]
+  fichiers: [docker-compose.example.yml, deploy/prometheus/rules/streamlytics.yml, src/utils/metrics.py, src/utils/daily_ops_metrics.py, src/utils/ops_alerts.py, docs/adr/ADR-026-observability-is-adopted-to-watch-the-triggers.md]
   gardes: []
   mesures: [.claude/dev-docs/grafana-correspondence.md]
 
