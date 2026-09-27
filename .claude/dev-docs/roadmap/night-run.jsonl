@@ -537,3 +537,8 @@
 {"at": "2026-09-27T00:50:23+00:00", "head": "51fcf87", "kind": "start", "task": "R209", "what": "lisibilite des fiches"}
 {"at": "2026-09-27T01:08:34+00:00", "head": "3c0869a", "kind": "done", "task": "R209", "what": "livree 3c0869a"}
 {"at": "2026-09-27T01:08:35+00:00", "head": "3c0869a", "kind": "start", "task": "R202", "what": "R122 a rouvrir + libelle 47/48"}
+{"at": "2026-09-27T01:09:27+00:00", "head": "1510d69", "kind": "done", "task": "R202", "what": "R122 acquittee, seuil 53"}
+{"at": "2026-09-27T01:09:34+00:00", "head": "1510d69", "kind": "start", "task": "R215", "what": "Grafana latence aveugle + replis du pool"}
+{"at": "2026-09-27T01:10:50+00:00", "head": "1510d69", "kind": "park", "task": "R215", "what": "diagnostic de la fuite du pool en cours (agent) ; reprise apres R219"}
+{"at": "2026-09-27T01:10:51+00:00", "head": "1510d69", "kind": "start", "task": "R219", "what": "derive de schema prod vs init_db"}
+{"at": "2026-09-27T01:14:15+00:00", "head": "1510d69", "kind": "park", "task": "R219", "what": "en attente d'un point"}

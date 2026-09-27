@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R214 — Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, a… (livrée 2026-09-27)
+
+- [x] **R214 — Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205)** (P4) ✅ (2026-09-27, 51fcf87)
+  Mesuré par : dossier
+  livre 51fcf87, deploye 2026-09-27 : les 8 graphiques Wrapped deviennent un tableau annuel replie, tuiles de la derniere annee en tete
+  Commits : 51fcf87 R214 : Wrapped - les 8 graphiques (une valeur par an chacun) deviennen
+
+## ✅ R209 — Lisibilité : libellés tronqués ou superposés, légendes en bas, couleurs Instagram, top… (livrée 2026-09-27)
+
+- [x] **R209 — Lisibilité : libellés tronqués ou superposés, légendes en bas, couleurs Instagram, top YouTube, carte de chaleur sans libellés, graphique vide → « aucune donnée », entonnoirs en % d'étape à étape (fiches 4, 14, 21, 23, 40, 43, 49, 52, 83, 96, 97, 99, 109)** (P3) ✅ (2026-09-27, 3c0869a)
+  Mesuré par : `tests/test_a_rendered_figure_is_laid_out.py` + dossier
+  livre 3c0869a, deploye 2026-09-27 : libelles qui fusionnaient deux barres (5 sites, classe + utils/labels.py), top YouTube horizontal, couleurs Instagram, CPR et CTR des creas, parcours explique, impressions hors entonnoir, releves algo dates, valeur recente Spotify, top Apple nomme cumul
+  Commits : 3c0869a R209 : lisibilite - libelles coupes qui fusionnaient deux barres (5 si
+
 ## ✅ R202 — R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R… (livrée 2026-09-27)
 
 - [x] **R202 — R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48** (P3) ✅ (2026-09-27, 8ea378d, f2af9a0)
