@@ -223,7 +223,7 @@ _FLOOR: dict[str, int] = {
     # désormais UN appel dans `_show_volume_scatter`, en boucle sur les trois. Ce qui
     # s'affiche a baissé à dessein : un volume que `volume_forecast_reliable` masque
     # n'est plus dessiné (classe `a-surface-that-draws-a-forecast-its-gate-suppresses`).
-    "figures.total": 84,  # 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
+    "figures.total": 76,  # 84 → 76 le 2026-09-27 (R214) : les 8 graphiques Wrapped deviennent des tuiles annuelles repliées (une valeur par an), rien de retiré ; 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une

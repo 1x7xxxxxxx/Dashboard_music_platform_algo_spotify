@@ -215,18 +215,23 @@ def test_the_listener_verdict_opens_the_campaign_page() -> None:
     assert order == ["_render_listener_verdict", "_show_body"], order
 
 
-def test_the_three_wrapped_charts_share_one_row() -> None:
-    """Volumes, pays et heures racontent la même année : on les lit d'un regard."""
+def test_the_wrapped_reads_as_a_folded_yearly_table_not_charts() -> None:
+    """R214 (2026-09-27) supersedes the three-charts row of 2026-09-22.
+
+    The owner, after the charts dossier: « Wrapped : peu de plus-value, graphes laids —
+    tuiles annuelles repliées, rien retiré ». A Wrapped is one number per year; a line
+    through three points drew nothing a table does not say better. So: no figure in
+    `_tab_charts`, and the yearly values in ONE table inside a folded section.
+    """
     tree = ast.parse(_WRAPPED.read_text(encoding="utf-8"))
     fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                and n.name == "_tab_charts"), None)
     assert fn is not None, "`_tab_charts` a disparu"
-    trois = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
-             and getattr(n.func, "attr", None) == "columns"
-             and n.args and isinstance(n.args[0], ast.Constant) and n.args[0].value == 3]
-    assert trois, (
-        "les trois figures du bilan annuel ne partagent plus une rangée : "
-        "`st.columns(3)` a disparu de `_tab_charts`.")
+    calls = [getattr(n.func, "attr", getattr(n.func, "id", ""))
+             for n in ast.walk(fn) if isinstance(n, ast.Call)]
+    assert "plotly_chart" not in calls, "a Wrapped chart is back in `_tab_charts`"
+    assert "dataframe" in calls and "secondary_analyses" in calls, (
+        "the yearly values are no longer one folded table in `_tab_charts`")
 
 
 # ══════════════════════════════════════════════════════════════════════════

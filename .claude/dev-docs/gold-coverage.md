@@ -37,7 +37,7 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 | `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 6 |
 | `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 37 |
 | `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 13 |
-| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 22 |
+| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 16 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
 | `sans-retour` | fonction traversée qui ne retourne rien d'attribuable | 0 |
 
@@ -91,7 +91,7 @@ Cinq mots de confiance, et rien d'autre :
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
 
-**65 sur 84** portent une source établie ; **6** sont déclarées indéterminées et listées en tête ; 13 sont hors base par nature — la tranche a fini proprement sans lire la base — et 57 des attribuées ont plusieurs amonts.
+**57 sur 76** portent une source établie ; **6** sont déclarées indéterminées et listées en tête ; 13 sont hors base par nature — la tranche a fini proprement sans lire la base — et 49 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -107,14 +107,6 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `utils/s4a_entry_insight.py:276` | `render_prediction_vs_reality` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | identifiant-non-résolu | — |
 | `utils/s4a_entry_insight.py:335` | `render_playlist_history` | plotly_chart | à l'écran | `s4a_song_playlist_adds` | brut | plusieurs amonts | — | — |
 | `views/alerts.py:440` | `_section_plan_evolution` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plan_history` · `subscription_plans` | brut | plusieurs amonts | profondeur | — |
-| `views/data_wrapped.py:376` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:385` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
-| `views/data_wrapped.py:394` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | — | — |
-| `views/data_wrapped.py:411` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:417` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:425` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:431` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
-| `views/data_wrapped.py:445` | `_tab_charts` | plotly_chart | à l'écran | `artist_wrapped` · `saas_artists` | brut | plusieurs amonts | clé-à-l-exécution | — |
 | `views/etl_logs.py:231` | `_section_trend` | plotly_chart | à l'écran | `etl_run_log` | brut | plusieurs amonts | — | — |
 | `views/hypeddit.py:337` | `_render_campaign_series` | plotly_chart | à l'écran | `v_hypeddit_daily` | or | plusieurs amonts | — | — |
 | `views/imusician.py:451` | `show` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `meta_insights_performance_day` | mixte | plusieurs amonts | profondeur | ?`saas_artists` |
@@ -279,10 +271,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/billing.py:173` | `_show_current_plan` | billing.metric_plan | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
 | `views/billing.py:174` | `_show_current_plan` | billing.metric_price | à l'écran | — | — | hors base | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
 | `views/billing.py:175` | `_show_current_plan` | billing.metric_status | à l'écran | `artist_subscriptions` · `subscription_plans` | brut | directe | — | ?`saas_artists` |
-| `views/data_wrapped.py:323` | `_tab_charts` | data_wrapped.field_listeners | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:326` | `_tab_charts` | data_wrapped.col_streams | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:329` | `_tab_charts` | data_wrapped.field_saves | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
-| `views/data_wrapped.py:332` | `_tab_charts` | data_wrapped.kpi_countries | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:238` | `_tab_charts` | data_wrapped.field_listeners | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:241` | `_tab_charts` | data_wrapped.col_streams | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:244` | `_tab_charts` | data_wrapped.field_saves | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
+| `views/data_wrapped.py:247` | `_tab_charts` | data_wrapped.kpi_countries | à l'écran | `artist_wrapped` · `saas_artists` | brut | directe | — | — |
 | `views/db_health.py:143` | `_show_health_table` | db_health.kpi_active | à l'écran | — | — | hors base | — | — |
 | `views/db_health.py:144` | `_show_health_table` | db_health.kpi_empty | à l'écran | — | — | hors base | — | — |
 | `views/etl_logs.py:78` | `_section_kpis` | etl_logs.kpi_runs | à l'écran | `etl_run_log` | brut | directe | — | — |
@@ -635,7 +627,7 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
-<!-- gold-coverage-figures: total=84 unknown=6 -->
+<!-- gold-coverage-figures: total=76 unknown=6 -->
 <!-- gold-coverage-tiles: total=169 unknown=10 -->
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=33 orphans=0 -->
@@ -646,4 +638,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=30 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=a07c174e07116a5bb0b5095b1e45ad2fd093753f10ab33d91a26469820a66752 -->
+<!-- gold-coverage: sha256=dea1e132d12a4b3644f1603c9a205849a0fbb0077f597621347f3a7c50349894 -->

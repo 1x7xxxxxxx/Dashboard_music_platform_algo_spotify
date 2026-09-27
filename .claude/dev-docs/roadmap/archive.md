@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R211 — Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102) (livrée 2026-09-27)
+
+- [x] **R211 — Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102)** (P3) ✅ (2026-09-27, 2fdb3dc)
+  Mesuré par : dossier
+  livre 2fdb3dc, deploye 2026-09-27 : un anneau de conversion par campagne, taux au centre, volumes en barres
+  Commits : 2fdb3dc R211 : Hypeddit - un anneau de conversion par campagne (a clique / est
+
+## ✅ R207 — **Plus de doublons** : empreinte (sources, mesure, grain) + question par figure, le gar… (livrée 2026-09-27)
+
+- [x] **R207 — **Plus de doublons** : empreinte (sources, mesure, grain) + question par figure, le garde rougit sur deux figures identiques d'une même page ; exécuter toutes les fusions proposées (fiches 7, 8, 11, 12, 33, 85, 133)** (P3) ✅ (2026-09-27, 77476af, 66c4f21)
+  Mesuré par : `tests/test_the_charts_dossier_covers_every_figure.py`
+  livre 66c4f21 + 77476af, deploye 2026-09-27 : empreinte (page, sources, mesure lue dans le code), garde bloquant auto-prouvant (0 couple sur 84 figures, mute rouge) + doublons probables dans tri.md ; fusions db_health (cumul) et Grafana 15 ; course entre tests balayee (1 paire corrigee, 5 lecteurs a trancher)
+  Commits : 77476af R207 : la course entre tests, balayee - deux lecteurs YouTube de tous  · 66c4f21 R207 : plus de doublons - empreinte (page, sources, MESURE lue dans le
+
 ## ✅ R210 — Instagram : abonnés, abonnements et publications sur un même graphique (fiches 22, 100) (livrée 2026-09-27)
 
 - [x] **R210 — Instagram : abonnés, abonnements et publications sur un même graphique (fiches 22, 100)** (P3) ✅ (2026-09-27, f1bf116)

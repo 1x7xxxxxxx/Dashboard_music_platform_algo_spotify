@@ -531,3 +531,5 @@
 {"at": "2026-09-27T00:16:04+00:00", "head": "f1bf116", "kind": "start", "task": "R207", "what": "methode anti-doublons (3 axes) + fusions db_health et grafana:15"}
 {"at": "2026-09-27T00:28:42+00:00", "head": "66c4f21", "kind": "done", "task": "R207", "what": "livree 66c4f21, CI en cours"}
 {"at": "2026-09-27T00:28:42+00:00", "head": "66c4f21", "kind": "start", "task": "R211", "what": "Hypeddit anneaux de conversion"}
+{"at": "2026-09-27T00:36:57+00:00", "head": "77476af", "kind": "done", "task": "R211", "what": "livree 2fdb3dc ; R207 complete 77476af"}
+{"at": "2026-09-27T00:36:57+00:00", "head": "77476af", "kind": "start", "task": "R214", "what": "Wrapped tuiles annuelles repliees"}

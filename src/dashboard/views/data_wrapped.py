@@ -17,9 +17,8 @@ Le « Recap auto », qui recalculait en carrière des chiffres ayant déjà leur
 Le détail du raisonnement est écrit au-dessus de `_tab_charts`, à l'endroit où
 les cinq fonctions vivaient.
 """
+import pandas as pd
 import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 import sys
 from pathlib import Path
@@ -160,105 +159,6 @@ def _fmt_pct(v):
     return f"{float(v):+.1f}%"
 
 
-# One height for the three figures of the Wrapped row (R189, 2026-09-26): the combined
-# chart was 400 next to two 260, so the row ended at three different levels — seen on
-# screen, never by a test. `tests/test_a_rendered_figure_is_laid_out.py` now measures it.
-_ROW_HEIGHT = 320
-_ROW_BOTTOM = 90
-
-
-def _line_chart(df, col, title, color="#1DB954", fmt_fn=None, height=260):
-    df_plot = df[['year', col]].dropna().sort_values('year')
-    if df_plot.empty:
-        return None
-    fig = px.line(
-        df_plot, x='year', y=col,
-        markers=True,
-        title=title,
-        color_discrete_sequence=[color],
-        labels={'year': '', col: ''},
-    )
-    fig.update_traces(
-        mode='lines+markers',
-        line=dict(width=2.5),
-        marker=dict(size=8),
-    )
-    if fmt_fn:
-        fig.update_traces(
-            text=[fmt_fn(v) for v in df_plot[col]],
-            textposition='top center',
-            mode='lines+markers+text',
-        )
-    fig.update_layout(
-        xaxis=dict(dtick=1, tickformat='d'),
-        yaxis_title='',
-        showlegend=False,
-        hovermode='x unified',
-        margin=dict(t=40, b=20),
-        height=height,
-    )
-    return fig
-
-
-def _bar_gain_chart(df, col, title, pos_color="#1DB954", neg_color="#e63946",
-                    fmt_fn=_fmt_big):
-    df_plot = df[['year', col]].dropna().sort_values('year')
-    if df_plot.empty:
-        return None
-    colors = [pos_color if v >= 0 else neg_color for v in df_plot[col]]
-    fig = go.Figure(go.Bar(
-        x=df_plot['year'],
-        y=df_plot[col],
-        marker_color=colors,
-        text=[fmt_fn(v) for v in df_plot[col]],
-        textposition='outside',
-    ))
-    fig.update_layout(
-        title=title,
-        xaxis=dict(dtick=1, tickformat='d'),
-        yaxis_title='',
-        showlegend=False,
-        hovermode='x unified',
-        margin=dict(t=40, b=20),
-        height=260,
-    )
-    return fig
-
-
-def _multi_line_chart(df, series, title, log_scale=False, height=400):
-    """Combine several volume metrics on one chart. series: list of (col, label, color)."""
-    df_s = df.sort_values('year')
-    fig = go.Figure()
-    has_data = False
-    for col, label, color in series:
-        if col not in df_s.columns:
-            continue
-        sub = df_s[['year', col]].dropna()
-        if sub.empty:
-            continue
-        has_data = True
-        fig.add_trace(go.Scatter(
-            x=sub['year'], y=sub[col],
-            mode='lines+markers', name=label,
-            line=dict(width=2.5, color=color), marker=dict(size=8),
-            hovertemplate=f"{label}: %{{y:,.0f}}<extra></extra>",
-        ))
-    if not has_data:
-        return None
-    fig.update_layout(
-        title=title,
-        xaxis=dict(dtick=1, tickformat='d'),
-        yaxis=dict(title='', type='log' if log_scale else 'linear'),
-        hovermode='x unified',
-        # The legend goes UNDER the plot: above it, four entries wrapped over the title
-        # in a third of the page (R189, measured in the browser: legend 0-86 px, title 30-51).
-        margin=dict(t=40, b=20),
-        height=height,
-        legend=dict(orientation='h', yanchor='top', y=-0.15, xanchor='left', x=0),
-    )
-    return fig
-
-
 # ---------------------------------------------------------------------------
 # Recap auto — all-time multi-platform bilan (read-only, reuses kpi_helpers)
 # ---------------------------------------------------------------------------
@@ -289,6 +189,21 @@ def _multi_line_chart(df, series, title, log_scale=False, height=400):
 # ---------------------------------------------------------------------------
 # Main view
 # ---------------------------------------------------------------------------
+
+# R214 (2026-09-27) — the owner: « Wrapped : peu de plus-value, graphes laids — tuiles
+# annuelles repliées, rien retiré ». The eight charts drew ONE number per year each (a
+# Wrapped is a yearly recap): a line through three points, a bar per gain. Every value
+# they drew is now a TILE, one row per year, folded under the latest year's tiles.
+_YEAR_TILES = (
+    ("listeners", "Listeners", "listener_gain_pct"),
+    ("streams", "Streams", "stream_gain_pct"),
+    ("saves", "Saves", "save_gain_pct"),
+    ("playlist_adds", "Playlist adds", "playlist_add_gain_pct"),
+    ("countries", "Pays", None),
+    ("hours_listened", "Heures d'écoute", None),
+    ("top_fans_count", "Super-fans", None),
+)
+
 
 @st.fragment
 def _tab_charts(artist_options: dict) -> None:
@@ -332,126 +247,23 @@ def _tab_charts(artist_options: dict) -> None:
             k4.metric(t("data_wrapped.kpi_countries", "Pays"),
                       _fmt_big(latest.get('countries')))
 
-            st.markdown("---")
-
-            # Combined evolution — listeners / streams / saves / playlist adds
-            st.markdown(t("data_wrapped.combined_header", "#### Évolution combinée"))
-            log_scale = st.toggle(
-                t("data_wrapped.log_scale", "Échelle logarithmique"),
-                value=False, key="wrapped_log_scale",
-                help=t("data_wrapped.log_scale_help",
-                       "Recommandé si les volumes diffèrent fortement "
-                       "(ex: streams ≫ saves), pour voir toutes les courbes."),
-            )
-            fig = _multi_line_chart(
-                df,
-                [
-                    ('listeners', 'Listeners', '#1DB954'),
-                    ('streams', 'Streams', '#457b9d'),
-                    ('saves', 'Saves', '#e9c46a'),
-                    ('playlist_adds', 'Playlist adds', '#f4a261'),
-                ],
-                # « Volumes », not the four names: the legend already carries them, and the
-                # 43-character title was wider than its column (288 px in 227).
-                t("data_wrapped.chart_combined_title", "Volumes"),
-                log_scale=log_scale, height=_ROW_HEIGHT,
-            )
-            # ── LES TROIS SUR UNE LIGNE — 2026-09-22 ────────────────────────
-            #
-            # Demandé en regardant l'écran : « mets les 3 graphiques de Spotify
-            # Wrapped sur la même ligne pour gagner en visibilité ». Le combiné
-            # était pleine largeur, puis Pays et Heures côte à côte en dessous —
-            # donc deux rangées, et un défilement entre trois figures qui
-            # racontent la même année.
-            #
-            # Le sous-titre « Pays & écoute » disparaît avec la rangée qu'il
-            # coiffait : chaque figure porte déjà son propre titre.
-            c_vol, c_pays, c_heures = st.columns(3)
-            with c_vol:
-                if fig:
-                    # the legend lives under this plot; the same bottom margin on the three
-                    # keeps their x axes on one line (seen at 1366 px: y=-0.12 with b=20
-                    # covered the year labels).
-                    fig.update_layout(margin=dict(b=_ROW_BOTTOM))
-                    st.plotly_chart(fig, width="stretch")
-            with c_pays:
-                fig_p = _line_chart(df, 'countries',
-                                    t("data_wrapped.chart_countries_reached",
-                                      "Pays touchés"),
-                                    color="#457b9d", fmt_fn=_fmt_big,
-                                    height=_ROW_HEIGHT)
-                if fig_p:
-                    fig_p.update_layout(margin=dict(b=_ROW_BOTTOM))
-                    st.plotly_chart(fig_p, width="stretch")
-            with c_heures:
-                fig_h = _line_chart(df, 'hours_listened',
-                                    t("data_wrapped.chart_hours_listened",
-                                      "Heures d'écoute"),
-                                    color="#e9c46a", fmt_fn=_fmt_big,
-                                    height=_ROW_HEIGHT)
-                if fig_h:
-                    fig_h.update_layout(margin=dict(b=_ROW_BOTTOM))
-                    st.plotly_chart(fig_h, width="stretch")
-
-            # Quatre graphiques de GAIN : ils raffinent la lecture des volumes
-            # ci-dessus, aucun ne fait décider seul. Repliés — rien n'est
-            # supprimé, tout reste à un clic. `secondary_analyses()` a été
-            # écrit le 2026-08-12 pour la remarque « réduire le nombre de
-            # graphs » et n'était appliqué sur aucune des cinq vues denses.
-            with secondary_analyses(t("data_wrapped.gains_expander",
-                                      "📊 Gains annuels (%) — détail")):
-                # Annual gains (%)
-                st.markdown(t("data_wrapped.annual_gains_header", "#### Gains annuels (%)"))
-                col_lg, col_stg = st.columns(2)
-                with col_lg:
-                    fig = _bar_gain_chart(df, 'listener_gain_pct',
-                                          t("data_wrapped.chart_listener_gain",
-                                            "Gain listeners / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_stg:
-                    fig = _bar_gain_chart(df, 'stream_gain_pct',
-                                          t("data_wrapped.chart_stream_gain",
-                                            "Gain streams / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-
-                col_sg, col_pg = st.columns(2)
-                with col_sg:
-                    fig = _bar_gain_chart(df, 'save_gain_pct',
-                                          t("data_wrapped.chart_save_gain",
-                                            "Gain saves / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-                with col_pg:
-                    fig = _bar_gain_chart(df, 'playlist_add_gain_pct',
-                                          t("data_wrapped.chart_playlist_gain",
-                                            "Gain playlist adds / an (%)"), fmt_fn=_fmt_pct)
-                    if fig:
-                        st.plotly_chart(fig, width="stretch")
-
-            # Super-fans — fans who ranked the artist in their top N
-            top_rows = df[df['top_fans_count'].notna()][
-                ['year', 'top_fans_count', 'top_fans_rank']
-            ].sort_values('year')
-            if not top_rows.empty:
-                st.markdown(t("data_wrapped.superfans_header",
-                              "#### Super-fans (vous dans leur top artistes)"))
-                fig = _line_chart(df, 'top_fans_count',
-                                  t("data_wrapped.chart_superfans",
-                                    "Fans vous ayant en top artiste"),
-                                  color="#9d4edd", fmt_fn=_fmt_big)
-                if fig:
-                    st.plotly_chart(fig, width="stretch")
-                st.dataframe(
-                    top_rows.rename(columns={
-                        'year': t("data_wrapped.col_year", "Année"),
-                        'top_fans_count': t("data_wrapped.col_fans_count", "Nb fans"),
-                        'top_fans_rank': t("data_wrapped.col_fans_rank", "Rang (top N)"),
-                    }),
-                    hide_index=True,
-                    width="stretch",
-                )
+            # R214 — every yearly value, one ROW per year (newest first), folded. ONE table
+            # and not a row of tiles per year: a figure per element of a query is what
+            # `test_a_loop_never_draws_one_figure_per_row` refuses — the years are
+            # unbounded, the first-screen count would not see them.
+            with secondary_analyses(t("data_wrapped.years_expander",
+                                      "📅 Mes Wrapped, année par année ({n})").format(n=len(df))):
+                years = pd.DataFrame({
+                    t("data_wrapped.tile.year", "Année"): df['year'].astype(int).astype(str)})
+                for field, label, gain in _YEAR_TILES:
+                    cell = df[field].map(_fmt_big)
+                    if gain:
+                        cell = cell + df[gain].map(
+                            lambda v: "" if _absent(v) else f" ({_fmt_pct(v)})")
+                    years[t(f"data_wrapped.tile.{field}", label)] = cell
+                years[t("data_wrapped.tile.top_fans_rank", "Rang super-fans")] = \
+                    df['top_fans_rank'].map(lambda v: "—" if _absent(v) else f"top {int(v)}")
+                st.dataframe(years, hide_index=True, width="stretch")
 
 
 
