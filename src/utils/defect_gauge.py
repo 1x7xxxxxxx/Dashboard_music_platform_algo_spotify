@@ -104,9 +104,13 @@ def _fetch_sessions(db) -> tuple[float, float]:
     ⚠️ Aucun label de locataire, ici ni ailleurs : `grafana-correspondence.md` refuse une
     cardinalite qui croitrait avec le nombre de clients.
     """
+    # R220 — the same exclusion as `sessions` below: one call, one population.
     artists = db.fetch_query(
-        "SELECT COUNT(*) FROM active_sessions "
-        "WHERE last_heartbeat > now() - interval '5 minutes'")
+        "SELECT COUNT(*) FROM active_sessions s "
+        "LEFT JOIN saas_artists a ON a.id = s.artist_id "
+        "WHERE s.last_heartbeat > now() - interval '5 minutes' "
+        "AND COALESCE(a.is_canary, FALSE) = FALSE "
+        "AND COALESCE(a.is_sandbox, FALSE) = FALSE")
     sessions = db.fetch_query(
         """
         SELECT COUNT(DISTINCT u.session_id)

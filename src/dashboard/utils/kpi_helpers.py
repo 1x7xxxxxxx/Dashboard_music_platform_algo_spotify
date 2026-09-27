@@ -718,6 +718,14 @@ def month_window(from_date, to_date):
     return eff_from, eff_to
 
 
+def _human_only() -> str:
+    from src.utils.tenant_kind import NON_HUMAN_TENANT
+    return f"artist_id IN (SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT}) AND "
+
+
+_HUMAN_ONLY = _human_only()
+
+
 def fmt_eur(val, digits: int = 2) -> str:
     """Un montant, ou « — ». Jamais « 0,00 € » pour une valeur qu'on n'a pas pu lire."""
     if val is None:
@@ -764,6 +772,9 @@ def get_roi_data(_db, artist_id, from_date, to_date):
     if artist_id is not None:
         where = "artist_id = %s AND " + where
         params = (artist_id, eff_from, eff_to)
+    else:
+        # R220 — all tenants = the HUMAN ones (the sandbox mirrors artist 1).
+        where = _HUMAN_ONLY + where
 
     try:
         row = _db.fetch_query(
@@ -820,6 +831,9 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     if artist_id is not None:
         where = "artist_id = %s AND " + where
         params = (artist_id, eff_from, eff_to)
+    else:
+        # R220 — all tenants = the HUMAN ones (the sandbox mirrors artist 1).
+        where = _HUMAN_ONLY + where
     try:
         # One scan, both sides on the SAME month grain and the same bounds. A FILTER sum
         # over no row is NULL: « no SACEM this month » stays absent, never 0.

@@ -42,7 +42,11 @@ def get_kpis(
 ):
     # aid is None only for admin tokens (all-tenants); non-admins are always scoped.
     p_aid = (aid,) if aid is not None else ()
-    filt = "AND artist_id = %s" if aid is not None else ""
+    # R220 — all tenants = the HUMAN ones: the sandbox mirrors artist 1 and doubled
+    # every admin total. `NON_HUMAN_TENANT` is a constant, never user input.
+    from src.utils.tenant_kind import NON_HUMAN_TENANT
+    filt = ("AND artist_id = %s" if aid is not None else
+            f"AND artist_id IN (SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT})")
 
     # Spotify — streams last 7 days
     raw_spotify = _first_val(

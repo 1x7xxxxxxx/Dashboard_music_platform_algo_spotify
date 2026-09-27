@@ -13,6 +13,8 @@ from datetime import datetime
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
+from src.utils.tenant_kind import non_human_tenant
+
 
 # ── Data loaders (read-only) ────────────────────────────────────────────────
 
@@ -29,8 +31,11 @@ def load_subscriptions(db) -> pd.DataFrame:
         FROM artist_subscriptions asub
         JOIN subscription_plans sp  ON sp.id  = asub.plan_id
         JOIN saas_artists        sa  ON sa.id  = asub.artist_id
+        -- R220: the admin MRR counts customers — never the canary or the sandbox
+        -- (its Stripe test subscription survives every sandbox reset).
+        WHERE NOT {non_human}
         ORDER BY sp.price_monthly DESC, sa.name
-    """)
+    """.format(non_human=non_human_tenant("sa")))
 
 
 def load_artist_revenues(db, artist_id: int) -> pd.DataFrame:

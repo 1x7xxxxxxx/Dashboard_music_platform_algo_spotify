@@ -34,7 +34,10 @@ class StreamSummary(BaseModel):
 def _artist_clause(artist_id: Optional[int]) -> tuple[str, tuple]:
     # artist_id is None only for admin (all-tenants); non-admins are always scoped.
     if artist_id is None:
-        return "", ()
+        # R220 — the human tenants only (the sandbox mirrors artist 1).
+        from src.utils.tenant_kind import NON_HUMAN_TENANT
+        return (f"AND artist_id IN (SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT})",
+                ())
     return "AND artist_id = %s", (artist_id,)
 
 

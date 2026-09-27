@@ -67,7 +67,12 @@ def _pulse_counts(_db, cutoff: datetime) -> tuple[int, int]:
     """La lecture elle-même. `_db` est exclu de la clé de cache (préfixe `_`)."""
     rows = _db.fetch_query(
         "SELECT "
-        "  (SELECT COUNT(*) FROM active_sessions WHERE last_heartbeat > %s) AS live, "
+        # R220 — « live » counts the same population as « registered »: an operator
+        # testing as the sandbox or the canary is not an artist online.
+        "  (SELECT COUNT(*) FROM active_sessions s LEFT JOIN saas_artists a "
+        "     ON a.id = s.artist_id WHERE s.last_heartbeat > %s "
+        "     AND COALESCE(a.is_canary, FALSE) = FALSE "
+        "     AND COALESCE(a.is_sandbox, FALSE) = FALSE) AS live, "
         f"  (SELECT COUNT(*) FROM saas_artists WHERE {_HUMAN_TENANTS}) AS registered",
         (cutoff,),
     )

@@ -59,9 +59,15 @@ def load_cashflow(db, artist_id: int | None) -> pd.DataFrame:
             """SELECT year, month, flux, source, amount_eur, direction
                FROM v_artist_monthly_cashflow WHERE artist_id = %s""",
             (artist_id,))
+    # R220 — « all artists » means the HUMAN ones: the sandbox (tenant 18) mirrors
+    # artist 1 byte for byte, and summing it doubled the admin treasury (−5 906 € for
+    # −2 833 €, measured on a prod snapshot 2026-09-27). An inactive human keeps its
+    # money history, so the predicate is « not canary, not sandbox », not « active ».
+    from src.utils.tenant_kind import NON_HUMAN_TENANT
     return db.fetch_df(
-        """SELECT year, month, flux, source, SUM(amount_eur) AS amount_eur, direction
+        f"""SELECT year, month, flux, source, SUM(amount_eur) AS amount_eur, direction
            FROM v_artist_monthly_cashflow
+           WHERE artist_id IN (SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT})
            GROUP BY year, month, flux, source, direction""")
 
 
