@@ -40,6 +40,7 @@ from src.dashboard.utils.ui import secondary_analyses
 
 from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
+from src.dashboard.utils.algo_knowledge import nearest_gate
 from ._pareto import LEVIERS_CHIFFRES, pareto
 
 _NOMS = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
@@ -72,7 +73,11 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
             feats = {}
 
     valeurs, source_taux, eur_stream = _valeur_porte(db, artist_id, track)
-    plan = pareto(feats, valeur_porte=_valeur_de(valeurs, None))
+    # R263 — ONE `pareto` call (it was two: the first only to learn the algorithm, and
+    # each call replays the model twice per lever). The gate is known without the model.
+    porte = nearest_gate(feats)
+    plan = (pareto(feats, valeur_porte=_valeur_de(valeurs, porte["algo"]))
+            if porte else None)
     if not plan:
         st.success(t("trigger_algo.titre.nothing_left",
                      "✅ Aucune métrique mesurée de ce titre n'est sous son objectif. "
@@ -82,7 +87,6 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
 
     algo = plan["algo"]
     valeur_algo = _valeur_de(valeurs, algo)
-    plan = pareto(feats, valeur_porte=valeur_algo)
 
     # ── L'en-tête : la porte, sa valeur, l'espérance ─────────────────────────
     proba = proba_affichable(algo.lower(), ml_pred.get(f"{algo.lower()}_probability"))

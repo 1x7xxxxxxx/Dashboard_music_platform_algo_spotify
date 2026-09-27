@@ -87,6 +87,18 @@ def shortest_route(levers: dict, algo: str) -> dict | None:
     return {"lever": fid, **best}
 
 
+def by_proximity(tracks: list[str], levers_by_track: dict) -> list[str]:
+    """Tracks, the one closest to ANY gate first (R263, critic (b)). Pure.
+
+    The gauges were drawn in release order; the question they answer is « which one do
+    I push », so the closest leads. A track with no measurable route goes last.
+    """
+    def best(song):
+        routes = [shortest_route(levers_by_track.get(song, {}), a) for a in ALGOS]
+        return max((r["progress"] for r in routes if r), default=-1.0)
+    return sorted(tracks, key=best, reverse=True)
+
+
 def last_releases(df: pd.DataFrame, n: int = MAX_TRACKS) -> list[str]:
     """The `n` most recent songs by days since release (unknown age last). Pure."""
     if df is None or df.empty:

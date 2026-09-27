@@ -204,7 +204,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/trigger_algo/_tab_budget_roi.py:361` | `_render_fit` | plotly_chart | à l'écran | `get_monthly_roi_series()` | or | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_budget_roi.py:524` | `_render_breakeven` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_meta_daily` · `saas_artists` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
 | `views/trigger_algo/_tab_catalogue.py:157` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | profondeur | — |
-| `views/trigger_algo/_tab_catalogue.py:163` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
+| `views/trigger_algo/_tab_catalogue.py:165` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
 | `views/trigger_algo/_tab_lifecycle.py:55` | `_show_tab_lifecycle` | plotly_chart | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_model.py:117` | `_show_volume_vs_recorded` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | identifiant-non-résolu | — |
 | `views/usage_analytics.py:59` | `show` | plotly_chart | à l'écran | `usage_events` | brut | plusieurs amonts | — | — |
@@ -283,9 +283,9 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/trigger_algo/_tab_catalogue.py:141` | `_show_tab_catalogue` | trigger_algo.cat.tile_closest | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/trigger_algo/_tab_catalogue.py:146` | `_show_tab_catalogue` | trigger_algo.cat.tile_progress | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/trigger_algo/_tab_lifecycle.py:38` | `_show_tab_lifecycle` | trigger_algo.lifecycle.age_metric | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_titre.py:90` | `_show_tab_titre` | trigger_algo.titre.tile_gate | à l'écran | `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
-| `views/trigger_algo/_tab_titre.py:92` | `_show_tab_titre` | trigger_algo.titre.tile_value | à l'écran | `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
-| `views/trigger_algo/_tab_titre.py:96` | `_show_tab_titre` | trigger_algo.titre.tile_expect | à l'écran | `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
+| `views/trigger_algo/_tab_titre.py:94` | `_show_tab_titre` | trigger_algo.titre.tile_gate | à l'écran | `ml_song_predictions` · `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
+| `views/trigger_algo/_tab_titre.py:96` | `_show_tab_titre` | trigger_algo.titre.tile_value | à l'écran | `ml_song_predictions` · `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
+| `views/trigger_algo/_tab_titre.py:100` | `_show_tab_titre` | trigger_algo.titre.tile_expect | à l'écran | `ml_song_predictions` · `s4a_song_timeline` · `tracks` | brut | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `utils/creative_decisions.py:138` | `render_creative_gain` | meta_creatives.gain_metric | à l'écran | — | — | hors base | — | — |
 | `utils/ml_widgets.py:128` | `render_classification_scorecard` | AUC | à l'écran | — | — | hors base | — | — |
 | `utils/ml_widgets.py:134` | `render_classification_scorecard` | ml_widgets.precision | à l'écran | — | — | hors base | — | — |
@@ -690,4 +690,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=02b794b680f5e121c62483f8fddb846bb9703e90ef39bf1e03029b6f107b8141 -->
+<!-- gold-coverage: sha256=1b42f58cb22b1bd09385a3065555aafc1df307503f2b0521c320af9e780e620c -->
