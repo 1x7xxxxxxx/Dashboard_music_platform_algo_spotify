@@ -1,0 +1,39 @@
+"""EN strings for « Comparer mes campagnes » (tab of `meta_x_spotify`, R234)."""
+
+EN = {
+    "campaign_compare.empty": "No campaign to compare on this account.",
+    "campaign_compare.head": "**Which campaign bought the cheapest stream?** — streams of "
+                             "the linked track during the campaign, above its level over "
+                             "the {n} days before.",
+    "campaign_compare.c_campaign": "Campaign",
+    "campaign_compare.c_track": "Linked track",
+    "campaign_compare.c_family": "Objective",
+    "campaign_compare.c_spend": "Spend (€)",
+    "campaign_compare.c_gained": "Streams gained",
+    "campaign_compare.c_cost": "€ / stream gained",
+    "campaign_compare.c_lag": "Ad → stream delay",
+    "campaign_compare.c_overlap": "Overlaps another",
+    "campaign_compare.c_clicks": "Clicks to platforms",
+    "campaign_compare.c_per_click": "Streams gained / click",
+    "campaign_compare.lag_days": "{n} d",
+    "campaign_compare.cohort": "Your **{a}** campaigns bought a gained stream cheaper than "
+                               "your **{b}** campaigns: {x} € against {y} € (medians).",
+    "campaign_compare.cohort_thin": "Engagement against traffic: comparing needs at least "
+                                    "{n} measured campaigns of each kind — you have {e} "
+                                    "engagement and {tr} traffic.",
+    "campaign_compare.biases": "Two limits, written so they are not forgotten. ⚠️ = another "
+                               "campaign pushed the same track during this one or its {n} "
+                               "days before: both claim the same streams, and the « before » "
+                               "level already contains ads. « — » = no confirmed linked "
+                               "track, fewer than 14 measured days before, or no stream "
+                               "gained. The delay shows only if spend AND streams varied "
+                               "over at least 14 days: a flat-budget campaign has none, and "
+                               "that is expected.",
+    "campaign_compare.countries": "The country that converts best: **🌍 By country** tab, "
+                                  "campaign by campaign.",
+    "campaign_compare.tracks_head": "**Which track turns clicks into streams best?** — "
+                                    "clicks to platforms (Hypeddit) and streams gained "
+                                    "during its campaigns.",
+    "campaign_compare.tracks_empty": "No Hypeddit link attached to a Spotify track: attach "
+                                     "them in **🔗 Cross-platform mapping**.",
+}

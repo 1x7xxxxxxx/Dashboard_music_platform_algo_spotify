@@ -827,10 +827,11 @@ def _show_body(db, artist_id) -> None:
     # des tables différentes et qu'aucune n'est la plus chère de la page ; on l'a
     # refusé sur `data_wrapped`, où le quatrième onglet interrogeait cinq
     # domaines.
-    tab_impact, tab_funnel, tab_pays = st.tabs([
+    tab_impact, tab_funnel, tab_pays, tab_cmp = st.tabs([
         t("meta_x_spotify.tab_impact", "📈 Impact dans le temps"),
         t("meta_x_spotify.tab_funnel", "🔽 Le parcours complet"),
         t("meta_x_spotify.tab_countries", "🌍 Par pays"),
+        t("meta_x_spotify.tab_compare", "🏁 Comparer mes campagnes"),  # R234
     ])
     with tab_impact:
         _render_chart(master, campaign)
@@ -841,6 +842,9 @@ def _show_body(db, artist_id) -> None:
         _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
     with tab_pays:
         _render_countries(db, artist_id, acct, acct_p)
+    with tab_cmp:
+        from src.dashboard.utils.campaign_compare import render as _render_compare
+        _render_compare(db, artist_id, acct, acct_p)
 
 
 def show():

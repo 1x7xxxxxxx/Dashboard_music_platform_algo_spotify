@@ -163,20 +163,24 @@ MIN_PAIRED_DAYS = 14
 MAX_LAG_DAYS = 7
 
 
-def shazam_stream_lag(master: pd.DataFrame) -> dict | None:
-    """The lag (0-7 days) at which daily Shazams best precede daily streams. Pure.
+def best_lag(master: pd.DataFrame, lead: str, follow: str) -> dict | None:
+    """The lag (0-7 days) at which daily `lead` best precedes daily `follow`. Pure.
 
-    Needs `MIN_PAIRED_DAYS` days where BOTH are measured — a daily Apple export during
-    the campaign (migration 142). Returns {lag, corr, days} or None; a correlation on a
-    handful of days is noise, so fewer days is « not enough », never a number."""
-    if master is None or not {"apple_shazams", "streams"} <= set(master.columns):
+    Needs `MIN_PAIRED_DAYS` days where BOTH are measured, and both must MOVE: a flat
+    series (a campaign spending the same every day) correlates with nothing, and that is
+    the expected answer, not a failure. Returns {lag, corr, days} or None — a correlation
+    on a handful of days is noise, so fewer days is « not enough », never a number.
+    R234 generalised it from the Shazam case (code-critic: generalise, don't duplicate)."""
+    if master is None or not {lead, follow} <= set(master.columns):
         return None
-    d = master[["date", "apple_shazams", "streams"]].copy()
+    d = master[["date", lead, follow]].copy()
     d["date"] = pd.to_datetime(d["date"])
     d = d.set_index("date").sort_index()
+    for col in (lead, follow):
+        d[col] = pd.to_numeric(d[col], errors="coerce")
     best = None
     for lag in range(MAX_LAG_DAYS + 1):
-        pair = pd.concat([d["apple_shazams"], d["streams"].shift(-lag, freq="D")],
+        pair = pd.concat([d[lead], d[follow].shift(-lag, freq="D")],
                          axis=1, keys=["s", "t"]).dropna()
         if len(pair) < MIN_PAIRED_DAYS or pair["s"].std() == 0 or pair["t"].std() == 0:
             continue
@@ -184,6 +188,12 @@ def shazam_stream_lag(master: pd.DataFrame) -> dict | None:
         if best is None or corr > best["corr"]:
             best = {"lag": lag, "corr": corr, "days": len(pair)}
     return best
+
+
+def shazam_stream_lag(master: pd.DataFrame) -> dict | None:
+    """The lag at which daily Shazams best precede daily streams (daily Apple export,
+    migration 142)."""
+    return best_lag(master, "apple_shazams", "streams")
 
 
 # ── The money around a campaign (moved from views/meta_x_spotify.py, R235) ─────────
