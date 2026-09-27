@@ -1032,8 +1032,11 @@ def build() -> tuple[str, str]:
             "declarative": _declarative(declared, observed),
             "generated_from": {
                 "catalogue_revisions": observed["revisions"],
-                # Idem : pas de SHA ici non plus.
-                "head_date": (_git("log", "-1", "--format=%cI").strip()[:10] or None),
+                # Idem : pas de SHA ici non plus. The date of the last CATALOGUE commit,
+                # not of HEAD: HEAD's date made the document stale on every commit made
+                # after midnight — the catalogue unchanged, the gate red (2026-09-28, bc971878).
+                "head_date": (_git("log", "-1", "--format=%cI", "--", CAT_REL).strip()[:10]
+                              or None),
             },
             "holes": dict(sorted(holes.items())),
             "population": dict(sorted(population.items())),
