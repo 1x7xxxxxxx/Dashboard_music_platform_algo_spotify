@@ -101,7 +101,7 @@ _CEILING: dict[str, int] = {
     # aussi trompeur qu'un livrable qui invente.
     # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
     # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
-    "figures.unknown": 6,  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
+    "figures.unknown": 4,  # 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la

@@ -7,9 +7,7 @@ EN = {
     "hypeddit.save_error": "❌ Error: {err}",
     "hypeddit.global_stats": "📊 Global statistics",
     "hypeddit.no_data_period": "📭 No data found for the selected period.",
-    "hypeddit.visits": "Visits",
     "hypeddit.chart_title": "My Hypeddit campaigns ({label})",
-    "hypeddit.volume_axis": "Volume",
     "hypeddit.history_header": "📋 History",
     "hypeddit.session_invalid": "Invalid session.",
     "hypeddit.empty_history": "History empty.",
@@ -26,15 +24,13 @@ EN = {
     "hypeddit.reset_btn": "🔄 Reset",
     "hypeddit.campaign_name_required": "Campaign name required",
     # Les campagnes nommées + le taux de conversion (2026-09-21).
-    "hypeddit.panel_volume": "Visits and clicks, per campaign",
-    "hypeddit.clicks": "Clicks",
     "hypeddit.conv_caption": "**{n} campaign(s)** over the period. The **conversion "
                              "rate** is what judges a smart link: its whole purpose is "
                              "to turn a visit into a click through to a platform. Here it "
                              "runs from **{mini:.0f} %** to **{maxi:.0f} %** — **{best}** "
                              "converts best. A visit that does not click is budget spent "
                              "for nothing.\n\n"
-                             "⚠️ {solo} campaign(s) carry only **one reading**: their bar "
+                             "⚠️ {solo} campaign(s) carry only **one reading**: their ring "
                              "is a campaign TOTAL, not a day. {zero}",
     "hypeddit.zero_campaigns": "{k} campaign(s) have nothing but zero readings over this "
                                "period: their conversion is incomputable, not null.",
@@ -44,5 +40,7 @@ EN = {
                           "Enter at least one value, or leave the day out.",
     "hypeddit.ring_clicked": "Clicked through",
     "hypeddit.ring_left": "Left",
-    "hypeddit.rings_capped": "Rings: the {k} most recent campaigns. {h} older one(s) keep their volume bars above.",
+    "hypeddit.rings_capped": "Rings: the {k} most recent campaigns; {h} older one(s) stay in the detail.",
+    "hypeddit.ring_visits": "visits",
+    "hypeddit.ring_clicks": "clicks",
 }

@@ -222,7 +222,8 @@ def _render_global_stats(db):
     _render_campaign_series(df, window)
 
 
-_MAX_RINGS = 6   # one row of rings; older campaigns keep their bars, and the caption says so
+_MAX_RINGS = 12  # two rows of six rings (R245); the caption names what is left out
+_RINGS_PER_ROW = 6
 
 
 def _short(name, lines: int = 2, width: int = 16) -> str:
@@ -286,60 +287,16 @@ def _render_campaign_series(df, window) -> None:
     # PAR CAMPAGNE : la part qui clique contre la part qui repart, le taux au centre. Une
     # barre de taux se lisait contre un axe à 100 ; un anneau se lit seul. Les campagnes
     # sans visite mesurée n'ont pas d'anneau (incalculable, pas nul) — la légende le dit.
+    # R245 (fiche 17, 2026-09-27 : « sous forme de ronds, les graphes c'est pas très
+    # pertinent ; la valeur totale de chaque en étiquette ») — les barres de volume
+    # disparaissent : chaque campagne est UN anneau, son taux au centre, ses totaux dessous.
     ringed = par_camp[taux.notna()].tail(_MAX_RINGS)
-    n_rings = max(len(ringed), 1)
-    from plotly.subplots import make_subplots
-    fig = make_subplots(
-        rows=2, cols=n_rings, vertical_spacing=0.30, row_heights=[0.55, 0.45],
-        specs=[[{"type": "xy", "colspan": n_rings}] + [None] * (n_rings - 1),
-               [{"type": "domain"}] * n_rings],
-        subplot_titles=[t("hypeddit.panel_volume", "Visites et clics, par campagne")])
-
-    # Le VOLUME, en barres nommées. L'axe des x porte les campagnes : cinq d'entre
-    # elles n'ont qu'un relevé, une date ne les distingue donc pas.
-    fig.add_trace(go.Bar(
-        x=par_camp['campaign_name'], y=par_camp['visits'],
-        name=t("hypeddit.visits", "Visites"), marker_color=_HYP, opacity=0.45,
-        hovertemplate="%{x}<br>%{y:,.0f} visite(s)<extra></extra>"), row=1, col=1)
-    fig.add_trace(go.Bar(
-        x=par_camp['campaign_name'], y=par_camp['clicks'],
-        name=t("hypeddit.clicks", "Clics"), marker_color=_HYP,
-        hovertemplate="%{x}<br>%{y:,.0f} clic(s)<extra></extra>"), row=1, col=1)
-
-    clicked, left = t("hypeddit.ring_clicked", "Ont cliqué"), t("hypeddit.ring_left", "Sont repartis")
-    for i, (_, row) in enumerate(ringed.iterrows(), start=1):
-        v, c = float(row['visits']), float(row['clicks'])
-        fig.add_trace(go.Pie(
-            values=[c, max(v - c, 0)], labels=[clicked, left], hole=0.62, sort=False,
-            marker=dict(colors=[_HYP, "rgba(150,150,150,0.25)"]), textinfo="none",
-            showlegend=(i == 1),
-            # The rate sits IN the hole: Plotly centres a pie's title there itself.
-            title=dict(text=f"<b>{taux.loc[row.name]:.0f} %</b>", position="middle center",
-                       font=dict(size=15)),
-            hovertemplate="%{label} : %{value:,.0f}<extra></extra>"), row=2, col=i)
-    # The campaign's name UNDER its ring, short and on two lines: full names overlapped
-    # each other and the bar labels on the first render.
-    for i, (_, row) in enumerate(ringed.iterrows()):
-        dom = fig.data[2 + i].domain
-        fig.add_annotation(x=(dom.x[0] + dom.x[1]) / 2, y=dom.y[0] - 0.02,
-                           xref="paper", yref="paper", showarrow=False, yanchor="top",
-                           xanchor="center", align="center",
-                           text=_short(row['campaign_name']), font=dict(size=11))
-
-    fig.update_layout(
-        height=680, barmode='group', margin=dict(t=90, b=60),
-        legend=dict(orientation="h", y=-0.12),
-        title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
-        .format(label=window.label))
-    fig.update_xaxes(tickangle=-20, tickvals=list(par_camp['campaign_name']),
-                     ticktext=[_short(c, 1) for c in par_camp['campaign_name']], row=1, col=1)
-    fig.update_yaxes(title_text=t("hypeddit.volume_axis", "Volume"), row=1, col=1)
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(rings_figure(ringed, taux, window), width="stretch")
     hidden = int(taux.notna().sum()) - len(ringed)
     if hidden > 0:
         st.caption(t("hypeddit.rings_capped",
-                     "Anneaux : les {k} campagnes les plus récentes. {h} plus ancienne(s) "
-                     "gardent leurs barres de volume au-dessus.").format(k=len(ringed), h=hidden))
+                     "Anneaux : les {k} campagnes les plus récentes ; {h} plus ancienne(s) "
+                     "restent dans le détail.").format(k=len(ringed), h=hidden))
 
     # CE QUE LE TAUX DIT, et le nombre de relevés derrière chaque barre.
     _mesure = par_camp[taux.notna()]
@@ -354,7 +311,7 @@ def _render_campaign_series(df, window) -> None:
             "visite en clic vers une plateforme. Il va ici de **{mini:.0f} %** à "
             "**{maxi:.0f} %** — **{best}** convertit le mieux. Une visite qui ne "
             "clique pas est un budget dépensé pour rien.\n\n"
-            "⚠️ {solo} campagne(s) ne portent qu'**un seul relevé** : leur barre "
+            "⚠️ {solo} campagne(s) ne portent qu'**un seul relevé** : leur anneau "
             "est un TOTAL de campagne, pas une journée. {zero}"
         ).format(n=len(par_camp), mini=_t.min(), maxi=_t.max(), best=meilleure,
                  solo=int((par_camp['releves'] == 1).sum()),
@@ -482,3 +439,43 @@ def show():
 
 if __name__ == "__main__":
     show()
+
+
+def ring_label(name: str, visits: float, clicks: float) -> str:
+    """The text under a ring: the campaign, then its TOTALS (fiche 17). Pure."""
+    fmt = lambda v: f"{v:,.0f}".replace(",", " ")   # noqa: E731
+    return (f"{_short(name)}<br>{fmt(visits)} " + t("hypeddit.ring_visits", "visites")
+            + f" · {fmt(clicks)} " + t("hypeddit.ring_clicks", "clics"))
+
+
+def rings_figure(ringed, taux, window):
+    """One ring per campaign (R245): its conversion rate in the hole, its totals under it."""
+    import math
+
+    from plotly.subplots import make_subplots
+    n = max(len(ringed), 1)
+    cols, rows = min(n, _RINGS_PER_ROW), math.ceil(n / _RINGS_PER_ROW)
+    fig = make_subplots(rows=rows, cols=cols, specs=[[{"type": "domain"}] * cols] * rows,
+                        vertical_spacing=0.25)
+    clicked, left = t("hypeddit.ring_clicked", "Ont cliqué"), t("hypeddit.ring_left", "Sont repartis")
+    for i, (_, row) in enumerate(ringed.iterrows()):
+        v, c = float(row['visits']), float(row['clicks'])
+        fig.add_trace(go.Pie(
+            values=[c, max(v - c, 0)], labels=[clicked, left], hole=0.62, sort=False,
+            marker=dict(colors=[_HYP, "rgba(150,150,150,0.25)"]), textinfo="none",
+            showlegend=(i == 0),
+            title=dict(text=f"<b>{taux.loc[row.name]:.0f} %</b>", position="middle center",
+                       font=dict(size=15)),
+            hovertemplate="%{label} : %{value:,.0f}<extra></extra>"),
+            row=i // cols + 1, col=i % cols + 1)
+        dom = fig.data[i].domain
+        fig.add_annotation(x=(dom.x[0] + dom.x[1]) / 2, y=dom.y[0] - 0.02, xref="paper",
+                           yref="paper", showarrow=False, yanchor="top", xanchor="center",
+                           align="center", text=ring_label(row['campaign_name'], v, c),
+                           font=dict(size=11))
+    fig.update_layout(
+        height=300 * rows + 60, margin=dict(t=70, b=70),
+        legend=dict(orientation="h", y=-0.08),
+        title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
+        .format(label=window.label))
+    return fig

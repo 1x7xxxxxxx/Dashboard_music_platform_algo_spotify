@@ -49,6 +49,34 @@ def pareto_spend_cpr(df, dim_col: str, title: str, *, top_n: int = 15):
     return fig
 
 
+
+def spend_ring(df, dim_col: str, title: str):
+    """A ring of the SPEND split by `dim_col`, each slice labelled with its € and its CPR.
+
+    R245 (fiche 23, owner 2026-09-27 : « changer le graphe en rond pour la lisibilité »).
+    CPR = spend / results, « — » when a slice has no result (never a fake 0 €). Returns a
+    go.Figure, or None when there is nothing spent."""
+    if df is None or df.empty:
+        return None
+    d = df.copy()
+    d['spend'] = pd.to_numeric(d['spend'], errors='coerce').fillna(0.0)
+    d['results'] = pd.to_numeric(d['results'], errors='coerce').fillna(0.0)
+    d = d[d['spend'] > 0].sort_values('spend', ascending=False)
+    if d.empty:
+        return None
+    cpr = d['spend'] / d['results'].where(d['results'] > 0)
+    eur = lambda v: f"{v:,.0f}".replace(",", " ")   # noqa: E731
+    text = [f"{eur(sp)} € · CPR {c:.2f} €".replace(".", ",") if c == c else f"{eur(sp)} € · CPR —"
+            for sp, c in zip(d['spend'], cpr)]
+    fig = go.Figure(go.Pie(
+        labels=d[dim_col].astype(str), values=d['spend'], hole=0.55, sort=False,
+        text=text, textinfo="label+text", textposition="outside",
+        hovertemplate="%{label}<br>%{value:,.0f} € (%{percent})<extra></extra>"))
+    fig.update_layout(title=title, height=420, showlegend=False,
+                      annotations=[dict(text=f"<b>{eur(d['spend'].sum())} €</b>", showarrow=False,
+                                        font=dict(size=16))])
+    return fig
+
 # ── R243 — THE drawing door (owner, 2026-09-27) ──────────────────────────────────────
 #
 # « mettre des légendes sur tous les graphes » (he could not tell what CPR meant),

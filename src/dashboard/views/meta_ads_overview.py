@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
-from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ui import secondary_analyses
@@ -651,7 +650,9 @@ def _show_meta_ads(db, artist_id):
         dim_disp = t(f"meta_ads_overview.dim.{dim_col}", dim_label)
         agg = df_tgt.groupby(dim_col, as_index=False).agg(spend=('spend', 'sum'),
                                                           results=('results', 'sum'))
-        fig_tgt = pareto_spend_cpr(
+        # R245 (fiche 23 « en rond pour la lisibilité ») : la part de la dépense, € et CPR
+        # écrits sur chaque part.
+        fig_tgt = charts.spend_ring(
             agg, dim_col,
             t("meta_ads_overview.pareto_by_dim", "Dépense & CPR par {dim}").format(dim=dim_disp.lower()))
         if fig_tgt is not None:
