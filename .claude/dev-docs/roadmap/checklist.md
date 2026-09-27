@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R250 | Un test neuf commité sans durée a rougi main TROIS fois le 2026-09-27 (0b711193, R238, R228 la veille) : le hook pre-commit refuse un commit qui ajoute un test de `tests/` sans durée dans `.test_durations`, avec le remède (`make test-durations-missing`) <!-- anchor: r250 --> <!-- critic: non — outillage de commit, le contrôle existe déjà en CI --> | P3 | un commit de test sans durée refusé localement |
 | R244 | **Fusions** : fiche 5 (un graphique), 18+19+63 (trésorerie cumulée unique), 31 (quatre panneaux → un), 35 (deux axes), 67+68+69 (usage admin, pages vues + évènements en légende) <!-- anchor: r244 --> <!-- critic: non — mise en page --> | P3 | fiches fusionnées rendues, doublons retirés |
 | R245 | **Anneaux avec totaux étiquetés** : fiche 17 (campagnes Hypeddit depuis la sortie), fiche 23 (objectifs) <!-- anchor: r245 --> <!-- critic: non — mise en page --> | P3 | anneaux rendus, totaux lisibles |
 | R246 | **Meta** : 21 étiquettes budget/clics/CPR ; 22 streams + « clic Hypeddit » ; 25–27 géographie avec placement/âge/plateforme ; 34 funnel complet avec streams ; 38 streams, abonnés, playlists, sauvegardes, cumul ; 40 funnel par titre comparable (≤ 5) ; 30/32/36/37/41 décision écrite ou retrait si doublon <!-- anchor: r246 --> <!-- critic: requis --> | P2 | chaque fiche Meta répond à une décision écrite |
@@ -91,7 +92,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R244, R245, R246, R247, R248, R249 -->
+<!-- reprise: open=R244, R245, R246, R247, R248, R249, R250 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
