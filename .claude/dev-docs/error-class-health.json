@@ -4779,6 +4779,33 @@
       "history_additions": 0,
       "renamed_from": null
     },
+    "an-all-tenants-total-that-counts-the-sandbox": {
+      "cause_evidence": "measured",
+      "first_seen_declared": "2026-09-27",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_an_all_tenants_total_counts_only_humans.py",
+      "guard_ref_exists": true,
+      "guard_scope_declared_family": "le-locataire",
+      "guard_scope_derived_family": "le-locataire",
+      "guard_scope_has_not_covered": true,
+      "guard_scope_names_a_test": false,
+      "guard_type": "pytest",
+      "has_signature": true,
+      "history_dates_declared": [
+        "2026-09-27"
+      ],
+      "kind": "deterministic",
+      "seen_red": "self-proving",
+      "severity": "P2",
+      "siblings_is_a_guard_rerun": false,
+      "siblings_sites": 7,
+      "siblings_swept": true,
+      "status": "guarded",
+      "introduced_date": "2026-09-27",
+      "revisions": 0,
+      "history_additions": 0,
+      "renamed_from": null
+    },
     "an-empty-group-wins-a-desc-ranking": {
       "cause_evidence": "measured",
       "first_seen_declared": "2026-09-13",
@@ -11699,7 +11726,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 569,
+      "catalogue_revisions": 570,
       "head_date": "2026-09-27"
     },
     "holes": {
@@ -11719,11 +11746,11 @@
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
-      "automatic_guard": 417,
-      "classes": 425,
+      "automatic_guard": 418,
+      "classes": 426,
       "ever_recurred_observed": 53,
       "prose_only": 8,
-      "with_signature": 414
+      "with_signature": 415
     },
     "recurrence": {
       "window_start": "2026-05-15",
@@ -11828,11 +11855,11 @@
       }
     },
     "sweep_yield": {
-      "sweeps_done": 425,
-      "sweeps_with_a_verdict": 425,
-      "sweeps_that_found_something": 128,
-      "live_sites_found": 526,
-      "hit_rate_on_verdicts": 0.301,
+      "sweeps_done": 426,
+      "sweeps_with_a_verdict": 426,
+      "sweeps_that_found_something": 129,
+      "live_sites_found": 533,
+      "hit_rate_on_verdicts": 0.303,
       "note": "Le taux porte sur les balayages dont le verdict est LISIBLE. Les autres sont comptés dans holes.sites_unknown — un balayage muet n'est pas un balayage sans trouvaille."
     }
   }

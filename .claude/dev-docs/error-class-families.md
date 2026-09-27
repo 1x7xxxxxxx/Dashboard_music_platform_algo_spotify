@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**425 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**426 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -12,7 +12,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 | famille | classes | récidive | la question |
 |---|---|---|---|
-| [le-locataire](#le-locataire) | 21 | **8/21** · 38.1 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
+| [le-locataire](#le-locataire) | 22 | **8/22** · 36.4 % | Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ? |
 | [un-cumul-pris-pour-un-quotidien](#un-cumul-pris-pour-un-quotidien) | 12 | **1/12** · 8.3 % | Cette colonne est-elle une quantité du jour ou un compteur qui ne redescend pas ? Et si c'est un compteur, la fenêtre est-elle `niveau(fin) − niveau(début)` ? |
 | [un-travail-qui-n-arrive-nulle-part](#un-travail-qui-n-arrive-nulle-part) | 24 | **5/24** · 20.8 % | Ce résultat atteint-il quelqu'un ? Ce code est-il appelé par quelque chose qu'un humain peut déclencher ? |
 | [un-nombre-affirmé-qui-n-a-pas-été-mesuré](#un-nombre-affirmé-qui-n-a-pas-été-mesuré) | 33 | **5/33** · 15.2 % | Ce chiffre a-t-il été mesuré, ou construit ? Le lecteur peut-il distinguer « zéro » de « on ne sait pas » ? |
@@ -36,7 +36,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 
 **Cette lecture, cette écriture, cette jointure nomment-elles leur locataire — toutes, et pas seulement la première ?**
 
-Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 21 classe(s).
+Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|canary|sandbox|deux locataires|par locataire|du locataire|son locataire|le locataire|d'un locataire|leur locataire|chaque locataire|un locataire|locataires? multi|aux locataires` sur l'identifiant et le symptôme. 22 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -53,6 +53,7 @@ Règle de rattachement : `tenant|artist[_-]id|saas_artist|multitenant|fleet|cana
 | [`canary-tenant-unwatched`](error-classes.md#canary-tenant-unwatched) | every global freshness light is green while every real artist collects nothing. |
 | [`an-exemption-on-one-surface-reads-as-a-failure-on-another`](error-classes.md#an-exemption-on-one-surface-reads-as-a-failure-on-another) | une fonctionnalité reste vide pour un locataire, et le message d'explication — pourtant mesuré et exact — se termine par « rien à faire de ton côté ». |
 | [`a-truncated-read-recorded-as-a-complete-one`](error-classes.md#a-truncated-read-recorded-as-a-complete-one) | la collecte d'un locataire s'enregistre `success`, et une partie de ses données n'a pas été lue. L'artiste voit un historique amputé sans que rien ne  |
+| [`an-all-tenants-total-that-counts-the-sandbox`](error-classes.md#an-all-tenants-total-that-counts-the-sandbox) | la vue admin « tous les artistes » double l'argent de l'artiste 1 (trésorerie −5 906 € au lieu de −2 833 €) ; les compteurs live / MRR / API comptent  |
 | [`artist-id-or-1`](error-classes.md#artist-id-or-1) | `get_artist_id() or 1` coerces an unhydrated session onto artist 1 → cross-tenant data leak (CLAUDE.md rule #7). |
 | [`an-account-filter-that-names-no-single-column`](error-classes.md#an-account-filter-that-names-no-single-column) | une page tombe — pas un chiffre faux, une exception — et **seulement chez les locataires multi-comptes**. `column "ad_account_id" does not exist` ou ` |
 | [`a-late-platform-has-no-tenant-guard`](error-classes.md#a-late-platform-has-no-tenant-guard) | une plateforme arrivée tard dans le produit n'est couverte par AUCUN garde de tenance. Aucun symptôme visible — jusqu'au jour où une lecture sans `art |
@@ -627,6 +628,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=425 families=18 orphans=0 -->
+<!-- error-class-families: total=426 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=434a9d5c1841b2850231b78377ba3bd458dcc7e171fdd252a17048dc924f85e8 -->
+<!-- error-class-families: sha256=b233d96cc18358b4f1286bbf701e2357e65229450e630977dd1fc99adb72ba5d -->

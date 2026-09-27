@@ -337,6 +337,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [a-form-default-persisted-as-a-measurement](#a-form-default-persisted-as-a-measurement) | P2 | deterministic | guarded | none |
 | [a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts](#a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts) | P2 | deterministic | guarded | none |
 | [a-truncated-label-that-merges-two-categories](#a-truncated-label-that-merges-two-categories) | P3 | deterministic | guarded | none |
+| [an-all-tenants-total-that-counts-the-sandbox](#an-all-tenants-total-that-counts-the-sandbox) | P2 | deterministic | guarded | none |
 | [a-read-that-failed-is-rendered-as-a-number](#a-read-that-failed-is-rendered-as-a-number) | P2 | deterministic | guarded | none |
 | [a-quantity-mistaken-for-a-counter](#a-quantity-mistaken-for-a-counter) | P3 | deterministic | guarded | none |
 | [a-late-platform-has-no-tenant-guard](#a-late-platform-has-no-tenant-guard) | P2 | deterministic | guarded | none |
@@ -4570,6 +4571,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-27
 - History:
   - 2026-09-27: trouvée par la revue du dossier (fiches 21 et 96) et en regardant les rendus de R209 ; le balayage a trouvé trois sites de plus que les deux vus.
+## an-all-tenants-total-that-counts-the-sandbox
+- status: guarded
+- severity: P2
+- family: le-locataire
+- kind: deterministic
+- admitted: sites:7
+- admitted_detail: balayage sibling-sweeper du 2026-09-27 + code-critic — `treasury_chart.load_cashflow(None)`, `kpi_helpers.get_roi_data` et `get_monthly_roi_series` (branche `None`), `revenue_forecast.load_subscriptions` (MRR admin, aucun filtre), `live_pulse._pulse_counts` (live), `defect_gauge._fetch_sessions` (`streamlytics_active_artists`), API `kpis` et `streams/summary` sans `artist_id`.
+- symptom: la vue admin « tous les artistes » double l'argent de l'artiste 1 (trésorerie −5 906 € au lieu de −2 833 €) ; les compteurs live / MRR / API comptent le canari et le bac à sable comme des clients.
+- signature: `.venv/bin/python -m pytest tests/test_an_all_tenants_total_counts_only_humans.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_an_all_tenants_total_counts_only_humans.py::test_the_detector_sees_the_defect_it_is_written_for) — et 2026-09-27, deux mutations : l'exclusion retirée de `load_cashflow` puis de la branche `None` de `kpi_helpers` ⇒ rouge chacune.
+- root_cause: un agrégat « tous locataires » se lisait sans `WHERE artist_id` ; le bac à sable (locataire 18, `is_sandbox`) rejoue l'onboarding avec les identifiants de l'opérateur et porte une COPIE des données de l'artiste 1 — le sommer double tout. Le prédicat existait (`src/utils/tenant_kind.py::NON_HUMAN_TENANT`) mais n'était appliqué qu'aux compteurs qui filtraient déjà un drapeau.
+- cause_evidence: measured (instantané de prod `spotify_etl_review` 2026-09-27 : `v_artist_monthly_cashflow` par locataire, 1 → −2 833,43, 18 → −3 073,10)
+- long_term_fix: tout agrégat tous-locataires passe par `tenant_kind` (`NOT NON_HUMAN_TENANT` pour l'argent et l'historique — un humain inactif garde le sien ; `human_tenants()` pour « combien de clients »).
+- guard: { type: pytest, ref: tests/test_an_all_tenants_total_counts_only_humans.py }
+- guard_scope: le-locataire — un total tous-locataires qui somme le bac à sable ; couvre: la trésorerie admin et le ROI admin (comportement, sur un locataire bac à sable éphémère à 12 345 €) ; ne couvre pas: les compteurs live, MRR et API (corrigés, sans garde de comportement), un agrégat futur écrit sans branche `None` (forme que le balayage a d'abord ratée sur `load_subscriptions`), le compteur d'inscriptions `admin.py` sur `saas_users` (laissé ouvert : décision produit).
+- siblings: swept:2026-09-27 — ~25 candidats bruts ; écartés : `value_monitor` (balaie tous les locataires par conception), santé applicative de `daily_ops_metrics`, diagnostics opérateur par locataire, sites déjà filtrés (`mrr.py`, `admin.py:409`, `live_pulse.registered`, `activation.py`). **7 sites vivants, corrigés** ; à trancher : `admin.py:397-401` (inscriptions sur `saas_users`, un utilisateur sans artiste existe).
+- rex_ref: src/utils/tenant_kind.py
+- first_seen: 2026-09-27
+- History:
+  - 2026-09-27: trouvée en regardant le dossier des graphiques régénéré sur un instantané frais (R218) : la trésorerie admin valait le double de celle de l'artiste 1. code-critic a trouvé le 7e site (`load_subscriptions`) que le balayage ratait — il cherchait une branche `None`, et ce site n'avait jamais eu de filtre du tout.
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 238 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -4584,7 +4605,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 187 classes encore vivantes.
+> les 188 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
