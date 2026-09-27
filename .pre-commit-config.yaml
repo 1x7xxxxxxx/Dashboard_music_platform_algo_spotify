@@ -36,7 +36,7 @@ repos:
         language: system
         entry: .venv/bin/python tools/dev/check_durations_are_collectable.py
         files: ^tests/test_[^/]*\.py$
-        pass_filenames: false
+        pass_filenames: true        # only the STAGED test files are judged
 
   # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
   - repo: https://github.com/astral-sh/ruff-pre-commit

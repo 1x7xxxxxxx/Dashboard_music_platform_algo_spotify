@@ -92,6 +92,11 @@ def main() -> int:
     # owns reads as a phantom. On 2026-09-25 that is how a missing FERNET_KEY in this
     # job was reported: 37 "tests that no longer exist" in two files that exist.
     erreurs = collection_errors(r.stdout)
+    # R250 — scoped to the staged files, an error in ANOTHER file is not this commit's:
+    # a test in progress beside it cannot import code the commit does not carry.
+    scope = {a for a in sys.argv[1:] if a.startswith("tests/")}
+    if scope:
+        erreurs = [f for f in erreurs if f in scope]
     if erreurs:
         print(f"❌ la collecte a échoué sur {len(erreurs)} fichier(s) — leurs durées "
               "passeraient pour des fantômes. Ce n'est pas `.test_durations` qui est "
@@ -104,6 +109,12 @@ def main() -> int:
     durees = json.loads(_DUR.read_text(encoding="utf-8"))
     fantomes = {k: v for k, v in durees.items() if k not in collectes}
     sans = sorted(collectes - set(durees))
+    # R250 — the pre-commit hook passes the STAGED test files: judge those only. A test
+    # file still in progress next to the commit (untracked, or its durations unstaged)
+    # made the hook refuse a commit that did not contain it.
+    if scope:
+        fantomes = {k: v for k, v in fantomes.items() if k.split("::")[0] in scope}
+        sans = [k for k in sans if k.split("::")[0] in scope]
 
     if not fantomes and not sans:
         print(f"▶ durations: {len(durees)} entrée(s), {len(collectes)} test(s) collecté(s)")
