@@ -65,7 +65,7 @@ from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.followers_agreement import comparer
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
-from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.filters import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
 
 _SPOTIFY_GREEN = "#1DB954"

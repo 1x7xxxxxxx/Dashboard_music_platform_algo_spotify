@@ -32,12 +32,12 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 
 | motif | ce qu'il veut dire | occurrences |
 |---|---|---|
-| `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 19 |
+| `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 17 |
 | `identifiant-non-résolu` | un nom capté dans un FROM qui n'existe ni en migration ni dans init_db.sql (CTE, alias, sous-requête) — écarté plutôt que publié | 2 |
-| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 6 |
-| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 39 |
+| `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 4 |
+| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 37 |
 | `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 13 |
-| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 19 |
+| `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 18 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
 | `sans-retour` | fonction traversée qui ne retourne rien d'attribuable | 0 |
 
@@ -179,7 +179,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/revenue_forecast.py:441` | `_render_money_chart` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `meta_insights_performance_day` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
 | `views/revenue_forecast.py:717` | `_render_trigger_value` | plotly_chart | à l'écran | `algo_lifecycle_benchmark` · `ml_song_predictions` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
 | `views/sacem.py:145` | `show` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `meta_insights_performance_day` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
-| `views/soundcloud.py:269` | `show` | plotly_chart | à l'écran | `v_soundcloud_track_daily` · `v_soundcloud_track_latest` · `soundcloud_tracks_daily` · `track_release_reference` | mixte | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sql-dynamique | ?`v_soundcloud_catalog_daily` |
+| `views/soundcloud.py:269` | `show` | plotly_chart | à l'écran | `v_soundcloud_track_daily` · `v_soundcloud_track_latest` · `soundcloud_tracks_daily` | mixte | plusieurs amonts | — | ?`v_soundcloud_catalog_daily` |
 | `views/soundcloud.py:292` | `show` | plotly_chart | à l'écran | `v_soundcloud_track_daily` | or | plusieurs amonts | — | ?`soundcloud_tracks_daily` · ?`v_soundcloud_catalog_daily` · ?`v_soundcloud_track_latest` |
 | `views/soundcloud.py:524` | `_render_top_chart` | plotly_chart | à l'écran | `v_soundcloud_track_latest` · `soundcloud_tracks_daily` | mixte | plusieurs amonts | — | — |
 | `views/spotify_s4a_combined.py:359` | `_render_momentum` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_track_pi_daily` | or | plusieurs amonts | profondeur | — |
@@ -192,7 +192,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/trigger_algo/_tab_lifecycle.py:48` | `_show_tab_lifecycle` | plotly_chart | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_model.py:100` | `_show_tab_model` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_model.py:180` | `_show_volume_scatter` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | — | — |
-| `views/youtube.py:185` | `show` | plotly_chart | à l'écran | `youtube_cumulative_views()` · `track_release_reference` · `youtube_channel_history` · `youtube_video_stats` · `youtube_videos` | mixte | plusieurs amonts | appelants-multiples · profondeur · sql-dynamique | — |
+| `views/youtube.py:185` | `show` | plotly_chart | à l'écran | `youtube_cumulative_views()` · `youtube_channel_history` · `youtube_video_stats` · `youtube_videos` | mixte | plusieurs amonts | — | — |
 | `views/youtube.py:376` | `show` | plotly_chart | à l'écran | `youtube_video_stats` · `youtube_videos` | brut | plusieurs amonts | clé-à-l-exécution | ?`youtube_channel_history` |
 | `utils/ml_widgets.py:163` | `render_classification_scorecard` | plotly_chart | à l'écran | — | — | hors base | — | — |
 | `views/airflow_kpi.py:628` | `show` | plotly_chart | à l'écran | — | — | hors base | — | — |
@@ -683,4 +683,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=fcb67e812218ed99b10268e75ccd425a87876629965e347de66c54c75f4bbf5e -->
+<!-- gold-coverage: sha256=0e23e79e91d8b869284c3fec106e03eb2b14440b9e21083fc4a1d5017d982a59 -->

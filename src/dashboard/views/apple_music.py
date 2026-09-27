@@ -47,7 +47,7 @@ import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
+from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.ui import say_why_it_is_empty
 
 def show():

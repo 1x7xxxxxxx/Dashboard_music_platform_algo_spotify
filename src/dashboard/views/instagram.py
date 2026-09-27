@@ -40,7 +40,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import (
+from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
 )

@@ -48,7 +48,7 @@ from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import (
+from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
 )

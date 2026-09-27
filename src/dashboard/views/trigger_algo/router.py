@@ -3,7 +3,7 @@ from datetime import date
 from datetime import timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import smart_period_filter
+from src.dashboard.utils.filters import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
 from src.utils.track_matching import canonical_song_sql
 import streamlit as st

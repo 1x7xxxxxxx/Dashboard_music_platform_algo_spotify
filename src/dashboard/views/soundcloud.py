@@ -46,7 +46,7 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.period_filter import EntitySpec, entity_period_filter
+from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
