@@ -191,7 +191,13 @@ def ci_verdict(runs: list[dict]) -> str:
     being read. A delivery is closed on a green CI, never on a hope."""
     if not runs:
         return "inconnu"
-    if any(r.get("conclusion") in ("failure", "cancelled", "timed_out") for r in runs):
+    # A CANCELLED run proves nothing either way: CI concurrency cancels the run of a commit
+    # as soon as a later one is pushed. All cancelled → « remplacée », judged on a descendant.
+    live = [r for r in runs if r.get("conclusion") != "cancelled"]
+    if not live:
+        return "remplacée"
+    runs = live
+    if any(r.get("conclusion") in ("failure", "timed_out", "startup_failure") for r in runs):
         return "rouge"
     if any(r.get("status") != "completed" for r in runs):
         return "en cours"
@@ -223,9 +229,33 @@ def _delivery_ci(commits: list[str]) -> tuple[str, str]:
     out = subprocess.run(["gh", "run", "list", "--commit", full, "--json", "status,conclusion"],
                          cwd=str(ROOT), capture_output=True, text=True)
     try:
-        return ci_verdict(json.loads(out.stdout or "[]")), sha
+        verdict = ci_verdict(json.loads(out.stdout or "[]"))
     except ValueError:
         return "inconnu", sha
+    if verdict == "remplacée":
+        verdict = _descendant_ci(full)
+    return verdict, sha
+
+
+def _descendant_ci(full: str) -> str:
+    """The verdict of the most recent main run whose commit CONTAINS `full` — the run that
+    replaced the cancelled one tested the delivery plus what came after."""
+    import json
+    import subprocess
+    out = subprocess.run(["gh", "run", "list", "--branch", "main", "-L", "20", "--json",
+                          "headSha,status,conclusion"], cwd=str(ROOT), capture_output=True,
+                         text=True)
+    try:
+        runs = json.loads(out.stdout or "[]")
+    except ValueError:
+        return "inconnu"
+    for run in runs:
+        if run.get("conclusion") == "cancelled":
+            continue
+        if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", full,
+                           run.get("headSha", "")], capture_output=True).returncode == 0:
+            return ci_verdict([run])
+    return "inconnu"
 
 
 def _close_notes(tid: str, commit: str) -> int:

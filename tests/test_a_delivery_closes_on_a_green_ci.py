@@ -11,7 +11,8 @@ unpushed. And CLAUDE.md, read at every session, weighed 52 935 bytes.
 
 Mutation record (2026-09-27) : `ci_verdict` answering « ok » on a failure → red ; the
 running case dropped → red ; the budget set below the file's size → the budget test
-went red ; the gh query given the short sha again → red (2026-09-27).
+went red ; the gh query given the short sha again → red ; the ancestor check of the
+replacing run bypassed → red (2026-09-27).
 """
 import importlib.util
 from pathlib import Path
@@ -32,8 +33,12 @@ CLAUDE_MD_BUDGET = 52_933
 def test_a_red_or_running_ci_refuses_the_closure():
     assert roadmap.ci_verdict([{"status": "completed", "conclusion": "success"}]) == "ok"
     assert roadmap.ci_verdict([{"status": "completed", "conclusion": "failure"}]) == "rouge"
-    assert roadmap.ci_verdict([{"status": "completed", "conclusion": "success"},
+    assert roadmap.ci_verdict([{"status": "completed", "conclusion": "failure"},
                                {"status": "completed", "conclusion": "cancelled"}]) == "rouge"
+    # cancelled = superseded by a later push: it proves nothing, a descendant run judges
+    assert roadmap.ci_verdict([{"status": "completed", "conclusion": "cancelled"}]) == "remplacée"
+    assert roadmap.ci_verdict([{"status": "completed", "conclusion": "success"},
+                               {"status": "completed", "conclusion": "cancelled"}]) == "ok"
     assert roadmap.ci_verdict([{"status": "in_progress", "conclusion": ""}]) == "en cours"
     assert roadmap.ci_verdict([]) == "inconnu"
 
@@ -88,3 +93,30 @@ def test_the_ci_is_asked_with_the_full_sha(monkeypatch):
         pytest.skip("no origin/main in this checkout")
     verdict, _ = roadmap._delivery_ci([f"{head[:8]} x"])
     assert asked == [head] and verdict == "ok"
+
+
+def test_a_superseded_run_is_judged_on_the_run_that_replaced_it(monkeypatch):
+    """CI concurrency cancels a commit's run when the next push lands: the delivery is then
+    judged on the most recent main run that CONTAINS it, never read as red nor as green."""
+    import json
+    import subprocess
+    real = subprocess.run
+    head = real(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True,
+                text=True).stdout.strip()
+    parent = real(["git", "-C", str(ROOT), "rev-parse", "HEAD~1"], capture_output=True,
+                  text=True).stdout.strip()
+
+    def gh(runs):
+        def fake(cmd, *a, **kw):
+            if cmd[0] == "gh":
+                return subprocess.CompletedProcess(cmd, 0, json.dumps(runs), "")
+            return real(cmd, *a, **kw)
+        return fake
+    monkeypatch.setattr(subprocess, "run", gh([
+        {"headSha": "0" * 40, "status": "completed", "conclusion": "success"},  # unrelated
+        {"headSha": head, "status": "completed", "conclusion": "failure"}]))
+    assert roadmap._descendant_ci(parent) == "rouge"
+    monkeypatch.setattr(subprocess, "run", gh([
+        {"headSha": head, "status": "completed", "conclusion": "cancelled"},
+        {"headSha": parent, "status": "completed", "conclusion": "success"}]))
+    assert roadmap._descendant_ci(parent) == "ok"
