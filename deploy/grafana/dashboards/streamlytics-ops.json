@@ -467,7 +467,7 @@
       "id": 14,
       "type": "timeseries",
       "title": "API — latence par route (p95)",
-      "description": "p95 vue du serveur. Aucun seuil d'alerte n'y est adosse : il n'existe pas encore assez de trafic pour en deriver un, et le depot refuse un seuil ecrit d'instinct.",
+      "description": "p95 vue du serveur. Seuil d'alerte ApiLatencyDegraded : 2 s pendant 15 min — ~2x le pire releve en production sur 7 jours (/kpis, 0,93 s), R265.",
       "datasource": {
         "type": "prometheus",
         "uid": "PROM"
@@ -533,6 +533,51 @@
           },
           "expr": "sum by (logger) (rate(streamlytics_log_records_total{level=\"ERROR\"}[5m]))",
           "legendFormat": "ERROR · {{logger}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Base — taille et lignes par table",
+      "description": "Taille de spotify_etl et lignes vivantes estimees (pg_stat_user_tables) des 30 plus grosses tables. Alerte FactTablePastIndexTrigger au-dela de 1 M (ADR-026). R265.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "topk(10, streamlytics_postgres_table_live_rows)",
+          "legendFormat": "{{table}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          },
+          "expr": "streamlytics_postgres_database_bytes / 1e6",
+          "legendFormat": "base (Mo)",
           "refId": "B"
         }
       ]

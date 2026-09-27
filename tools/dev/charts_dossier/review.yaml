@@ -1049,6 +1049,14 @@ grafana:14:
   p: 4
   v: garder
   note: "p95 < 80 ms ; idem, dominé par /health."
+grafana:16:
+  q: "ÉCHELLE — la base grossit-elle, et quelle table approche du million ?"
+  role: archi
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "R265. Noté sur sa REQUÊTE, pas sur son rendu : les deux séries n'existent en prod qu'après le déploiement de la jauge. À regarder dans Grafana au premier jour ; s4a_song_timeline mène (34 078 lignes en local)."
 grafana:15:
   q: "ERREURS — volume de journaux par niveau"
   role: archi

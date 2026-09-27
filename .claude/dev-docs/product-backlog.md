@@ -19,6 +19,7 @@ attend un geste, l'index sinon).
 | R277 | PDF de prospection de 2 pages (graphiques à plus forte valeur, questions marketing et streams) — notes L167 | **déclencheur : tous les KPI validés** (décision du 2026-09-27 : le rapport PDF artiste attend la validation) | à écrire au déclenchement |
 | R278 | Formats : migrer les 26 séparateurs faits main, les 77 formats `{:,}` et les 45 tableaux sans format vers `formats.num/eur/pct/table` — suite de R260 | **déclencheur : toute modification d'une vue qui en porte** ; le cliquet de `tests/test_a_number_is_written_one_way.py` interdit d'en ajouter et se baisse dans le même commit | la vue touchée |
 | R280 | Lectures brutes → or : descendre le plafond de 66 (18 figures, 44 tuiles) vue par vue, en vérifiant la sémantique de chacune (`v_meta_daily` n'a pas de `cpr` ; Apple à vérifier) — suite de R258, verdict critic (c) | **déclencheur : toute modification d'une vue qui lit le brut** ; le cliquet de `tests/test_the_bronze_boundary_only_tightens.py` interdit d'en ajouter |
+| R281 | Alertmanager : le déclencheur d'ADR-026 (~10 règles) est franchi le 2026-09-28 (11 règles, R265) ; non adopté tant qu'aucune alerte ne doit joindre quelqu'un avant le mail de 23 h | **déclencheur : une alerte qui ne peut pas attendre le soir** (astreinte, client payant touché en journée) |
 
 ---
 

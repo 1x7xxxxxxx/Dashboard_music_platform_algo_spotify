@@ -34,9 +34,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 sys.path.insert(0, '/opt/airflow')
+from src.utils.dag_callbacks import on_failure  # noqa: E402 — R265, the ONE callback
 
 from src.utils.dag_timeouts import dagrun_timeout_for      # noqa: E402
-from src.utils.email_alerts import dag_failure_callback    # noqa: E402
 from src.utils.safe_error import safe_error                # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ default_args = {
     'depends_on_past': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
-    'on_failure_callback': dag_failure_callback,
+    'on_failure_callback': on_failure,
 }
 
 

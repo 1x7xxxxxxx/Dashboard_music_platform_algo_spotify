@@ -10,6 +10,7 @@ import os
 import logging
 
 sys.path.insert(0, '/opt/airflow')
+from src.utils.dag_callbacks import on_failure  # noqa: E402 — R265, the ONE callback
 
 # Redact credentials out of any exception this module logs: an HTTP
 # exception message embeds the prepared URL, and several upstream APIs take
@@ -24,20 +25,12 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 
-def _on_failure_callback(context):
-    try:
-        from src.utils.email_alerts import dag_failure_callback
-        dag_failure_callback(context)
-    except Exception as e:
-        logger.error(f"Failure callback error: {safe_error(e)}")
-
-
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
-    'on_failure_callback': _on_failure_callback,
+    'on_failure_callback': on_failure,
 }
 
 

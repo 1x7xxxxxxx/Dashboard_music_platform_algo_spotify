@@ -111,6 +111,11 @@ from src.utils.log_metrics import install_log_counter  # noqa: E402
 install_http_metrics(app)
 install_log_counter()
 
+# R265 — an unhandled exception is a DEFECT in app_error_log, not only a 500 and a log.
+from src.api.error_capture import install_error_registry  # noqa: E402
+
+install_error_registry(app)
+
 # `/metrics` — ADR-026. Pas de serveur lateral ici, contrairement au dashboard :
 # l'API a deja un serveur HTTP, lui en ajouter un second n'acheterait rien.
 #

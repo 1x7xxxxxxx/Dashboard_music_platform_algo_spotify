@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**65 exigences** sur **20 domaines** (carte : 24). conforme : 42 · partiel : 16 · absent : 7 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 12
+**65 exigences** sur **20 domaines** (carte : 24). conforme : 46 · partiel : 13 · absent : 6 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 11
 
 ## Collecteurs API (`collect`)
 
@@ -108,7 +108,7 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-API-01 | L'API mesure sa latence par motif de route, sans libellés non bornés | conforme | `tests/test_the_api_measures_itself_without_unbounded_labels.py::test_the_route_label_is_the_pattern_not_the_url` ✅ | — | — |
-| REQ-API-02 | La latence de l'API a un chiffre publié (p95 par route) et un seuil d'alerte | absent | `—`  | — | l'API est instrumentée, mais aucun chiffre de latence n'est relevé ni alerté → R265 |
+| REQ-API-02 | La latence de l'API a un chiffre publié (p95 par route) et un seuil d'alerte | conforme | `tests/test_an_api_or_dag_failure_is_a_registered_defect.py::test_the_api_latency_has_a_measured_alert_per_route` ✅ | — | R265 : p95 par route releve (0,93 s au pire sur 7 jours), alerte a 2 s pendant 15 min → R265 |
 
 ## Multi-locataire et plans (`tenancy-plans`)
 
@@ -159,7 +159,7 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-ERR-01 | Une classe d'erreur n'entre qu'avec un billet d'admission chiffré, une signature vue rouge et un balayage | conforme | `tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected` ✅ | Beyer et al., The Site Reliability Workbook p.213 (actions préventives d'un postmortem) | — |
-| REQ-ERR-02 | Le registre des erreurs applicatives reçoit les erreurs de TOUTE l'infra (dashboard, API, DAG, collecteurs), par empreinte et par page | partiel | `tests/test_an_error_leaves_a_row.py` ✅ | — | app_error_log n'est alimenté que par le dashboard ; l'API et les DAG ne l'appellent pas ; « No data » sur les erreurs par page dans Grafana → R265 |
+| REQ-ERR-02 | Le registre des erreurs applicatives reçoit les erreurs de TOUTE l'infra (dashboard, API, DAG, collecteurs), par empreinte et par page | conforme | `tests/test_an_api_or_dag_failure_is_a_registered_defect.py::test_an_unhandled_api_exception_is_registered_and_stays_a_bare_500` ✅ | — | R265 : API (gestionnaire d exception, hors boucle d evenements) et 13 DAG (un seul rappel) ecrivent dans app_error_log → R265 |
 | REQ-ERR-03 | Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille | partiel | `tests/test_the_error_class_families_only_improve.py` ✅ | — | 12 familles et 18 règles existent ; pas de table en base pour suivre pertinence et échecs des classes dans le temps → R264 |
 | REQ-ERR-04 | Le balayage de toutes les signatures tient dans le budget de la CI | absent | `—`  | — | audit_runner --deterministic dépasse 1 800 s → R264 |
 
@@ -167,8 +167,8 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-OBS-01 | Grafana montre la santé et l'échelle : CPU, RAM, disque du VPS, pool de connexions, utilisateurs connectés, latence, erreurs par page, lignes et taille de base — chacun avec un seuil d'alerte | partiel | `python3 -c "import yaml;yaml.safe_load(open('deploy/prometheus/rules/streamlytics.yml'))"` ✅ | Golding p.339 (mesurer la réponse du système); Beyer et al., SRE Workbook p.111 (alerter sur SLO) | taille base, lignes, ressources par conteneur et quotas ne sont pas des métriques (make scale-check relit les déclencheurs d'ADR-014 à la main) ; erreurs par page sans données → R265 |
-| REQ-OBS-02 | Ce qui se trace dans Grafana n'est pas redit dans la vue admin (et inversement) | partiel | `test -f .claude/dev-docs/grafana-correspondence.md` ✅ | — | la correspondance est un document, pas un contrôle → R265 |
+| REQ-OBS-01 | Grafana montre la santé et l'échelle : CPU, RAM, disque du VPS, pool de connexions, utilisateurs connectés, latence, erreurs par page, lignes et taille de base — chacun avec un seuil d'alerte | conforme | `tests/test_a_mute_defect_gauge_does_not_read_as_zero.py::test_the_base_size_and_its_largest_tables_are_exposed` ✅ | Golding p.339 (mesurer la réponse du système); Beyer et al., SRE Workbook p.111 (alerter sur SLO) | R265 : taille de base et lignes par table exposees, panneau Base, trois regles calibrees sur 7 jours de prod → R265 |
+| REQ-OBS-02 | Ce qui se trace dans Grafana n'est pas redit dans la vue admin (et inversement) | conforme | `test -f .claude/dev-docs/grafana-correspondence.md` ✅ | — | R265 (critic e) : la correspondance a conclu que l admin ne porte que du par-locataire, que Grafana ne peut pas tenir ; rien a retirer → R265 |
 
 ## Trous — exigences sans preuve rejouable
 
@@ -182,7 +182,6 @@
 - REQ-RUN-04
 - REQ-RUN-05
 - REQ-RUN-06
-- REQ-API-02
 - REQ-ERR-04
 
 ## Rejouer une preuve sur une ligne précise

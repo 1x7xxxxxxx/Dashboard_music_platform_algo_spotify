@@ -21,6 +21,7 @@ Implements bricks:
 """
 import sys
 sys.path.insert(0, '/opt/airflow')
+from src.utils.dag_callbacks import on_failure  # noqa: E402 — R265, the ONE callback
 
 # Redact credentials out of any exception this module logs: an HTTP
 # exception message embeds the prepared URL, and several upstream APIs take
@@ -70,20 +71,12 @@ MONITORED_DAGS = [
 ]
 
 
-def _on_failure_callback(context):
-    try:
-        from src.utils.email_alerts import dag_failure_callback
-        dag_failure_callback(context)
-    except Exception as e:
-        logger.error(f"Failure callback error: {safe_error(e)}")
-
-
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
-    'on_failure_callback': _on_failure_callback,
+    'on_failure_callback': on_failure,
 }
 
 
@@ -1038,7 +1031,6 @@ def check_onboarding_readiness(**context):
     return flags
 
 
-
 def check_collection_outcomes(**context):
     """Per-tenant collection failures, read from the run ledger.
 
@@ -1154,7 +1146,6 @@ def check_collection_outcomes(**context):
 
     logger.info(f"collection outcomes: {len(problems)} tenant/platform failure(s)")
     context['task_instance'].xcom_push(key='collection_failures', value=problems)
-
 
 
 def check_offsite_backup(**context):
@@ -1548,7 +1539,6 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
             db.close()
     except Exception as e:  # noqa: BLE001
         logger.error("could not close the alert-delivery ledger row: %s", safe_error(e))
-
 
 
 def check_metric_bounds(**context):

@@ -20,6 +20,7 @@ from src.utils.safe_error import redact
 from src.utils.dag_timeouts import dagrun_timeout_for
 
 sys.path.insert(0, '/opt/airflow')
+from src.utils.dag_callbacks import on_failure  # noqa: E402 — R265, the ONE callback
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,21 +28,12 @@ logger = logging.getLogger(__name__)
 REFRESH_THRESHOLD_DAYS = 30  # refresh if token expires within this many days
 
 
-def _failure_callback(context):
-    try:
-        from src.utils.email_alerts import dag_failure_callback
-        dag_failure_callback(context)
-    except Exception as e:
-        from src.utils.safe_error import safe_error
-        logger.error(f"Failure callback error: {safe_error(e)}")
-
-
 default_args = {
     'owner': 'data_team',
     'depends_on_past': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
-    'on_failure_callback': _failure_callback,
+    'on_failure_callback': on_failure,
 }
 
 

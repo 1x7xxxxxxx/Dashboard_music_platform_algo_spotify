@@ -616,9 +616,9 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 
 | table brute | vue or qui la couvre | lectures | agrégeantes | dont hors cliquet | où (les hors-cliquet d'abord) |
 |---|---|---|---|---|---|
-| `artist_history` | `v_spotify_followers_daily` | 1 | 1 | **1** | utils/gold_invariants.py:662 |
 | `apple_songs_performance` | `v_apple_song_daily` | 2 | — | 0 | dashboard/utils/pdf_exporter/_collectors.py:461 · dashboard/views/apple_music.py:122 |
 | `artist_cost_entries` | `v_artist_monthly_costs` | 1 | — | 0 | dashboard/views/revenue_forecast.py:483 |
+| `artist_history` | `v_spotify_followers_daily` | 1 | 1 | 0 | utils/gold_invariants.py:662 |
 | `distrokid_monthly_revenue` | `v_artist_monthly_revenue_net` | 1 | 1 | 0 | utils/distrokid_rollup.py:59 |
 | `imusician_monthly_revenue` | `v_artist_monthly_revenue_net` | 1 | 1 | 0 | utils/imusician_rollup.py:42 |
 | `instagram_daily_stats` | `v_instagram_followers_daily` | 8 | 2 | 0 | dashboard/utils/pdf_exporter/_collectors.py:344 · dashboard/views/instagram.py:136 |
@@ -656,7 +656,7 @@ Le critère se vérifie contre le schéma réel : `tests/test_a_dimension_table_
 
 ### Les agrégats DÉCLARÉS
 
-**13 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
+**14 couples (fichier, table)** agrègent une table de fait hors de tout cliquet, délibérément. La frontière est nette : un COMPTE, une DATE ou une CONCATÉNATION de noms répond « qu'y a-t-il » ; une somme d'argent, d'écoutes, de vues ou de clics répond « combien » et appartient à la couche or, sans exception.
 
 Chaque déclaration est vérifiée : le site doit encore exister et encore agréger cette table. Une déclaration qui survit à ce qu'elle déclarait est du budget pour la prochaine occurrence.
 
@@ -674,6 +674,7 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 | `utils/distrokid_rollup.py` | `distrokid_monthly_revenue` | COUNT(*) des mois issus d'un import, renvoyé par le rollup qui vient de les écrire. C'est un accusé de réception, pas un revenu. |
 | `utils/freshness_monitor.py` | `meta_campaigns` | count(*) FILTER (status = 'ACTIVE') — une sonde de santé. Elle demande « ce locataire a-t-il des campagnes », pas « combien ont-elles coûté ». |
 | `utils/freshness_monitor.py` | `s4a_song_timeline` | MAX(date) : jusqu'où la mesure va, pour décider si une sortie attend d'être importée. Une borne, jamais un volume — et rien de ce nombre n'est affiché. |
+| `utils/gold_invariants.py` | `artist_history` | R258 — COUNT(*) des jours écrits deux fois ces deux derniers jours : un contrôle de DOUBLONS du soir, jamais affiché comme une mesure (la mesure passe par la vue or de la migration 120). |
 | `utils/imusician_rollup.py` | `imusician_monthly_revenue` | idem : le compte des mois que le rollup vient d'écrire. |
 
 ## Les chiffres gelés
@@ -684,11 +685,11 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-tiles: total=162 unknown=10 -->
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=33 orphans=0 -->
-<!-- gold-coverage-unguarded-aggregates: total=1 -->
+<!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=27 without_nonvacuity=0 without_mutation=0 -->
 <!-- gold-coverage-error-classes: total=427 guard_missing=0 guard_unnamed=8 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=ca0cd599491d6bbc3e82bb74299a8f9ac68f36c40ce95c9e543c9059d060a34d -->
+<!-- gold-coverage: sha256=8ab1c15e4ac6671c7c864d419dc7f1ef224017e00da0c52059cd982ca8d07b32 -->

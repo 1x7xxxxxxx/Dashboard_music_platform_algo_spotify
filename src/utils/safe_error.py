@@ -74,6 +74,15 @@ _JSON_SECRET_RE = re.compile(
 _URL_USERINFO_RE = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+:)([^\s@/]+)(@)")
 
 
+# R265 (security-specialist, 2026-09-28) — three shapes that carry their secret with NO
+# `name=`: a bare JWT, a Stripe key or webhook secret, and `Bearer xxx` outside an
+# `Authorization` header. They reach `app_error_log` since the API and the DAGs write to
+# it too, and that table is read in a mail.
+_JWT_RE = re.compile(r"\beyJ[\w-]{5,}\.[\w-]{5,}\.[\w-]{5,}")
+_STRIPE_RE = re.compile(r"\b(?:(?:sk|rk|pk)_(?:live|test)|whsec)_[A-Za-z0-9]{8,}")
+_BEARER_RE = re.compile(r"(?i)\b(bearer)(\s+)([A-Za-z0-9._~+/=-]{12,})")
+
+
 def redact(text: object) -> str:
     """Replace credential values with `***`, keeping the surrounding message."""
     out = str(text)
@@ -82,6 +91,9 @@ def redact(text: object) -> str:
     out = _AUTH_HEADER_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}***", out)
     out = _JSON_SECRET_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}***{m.group(4)}", out)
     out = _URL_USERINFO_RE.sub(lambda m: f"{m.group(1)}***{m.group(3)}", out)
+    out = _JWT_RE.sub("eyJ***", out)
+    out = _STRIPE_RE.sub("***", out)
+    out = _BEARER_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}***", out)
     return out
 
 

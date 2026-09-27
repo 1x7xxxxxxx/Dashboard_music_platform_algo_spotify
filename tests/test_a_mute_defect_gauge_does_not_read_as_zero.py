@@ -88,6 +88,10 @@ class _FakeDb:
             return [[self._artists]]
         if "usage_events" in sql:
             return [[self._sessions]]
+        if "pg_database_size" in sql:          # R265
+            return [[123456789]]
+        if "pg_stat_user_tables" in sql:       # R265
+            return [("s4a_song_timeline", 34078), ("meta_insights", 900)]
         return self._rows
 
     def close(self):
@@ -237,3 +241,17 @@ def test_the_session_query_excludes_canary_and_sandbox(gauge_module):
         "La requete des sessions ne filtre plus canari/bac a sable. Elle surestimerait "
         "la charge, et c'est elle qui informe la decision de repliquer."
     )
+
+
+def test_the_base_size_and_its_largest_tables_are_exposed(gauge_module):
+    """R265 — the two ADR-026 triggers (base size, a fact table past 1 M rows), live."""
+    db = _FakeDb(rows=[("home", "KeyError", 3)])
+    size = _samples(gauge_module, db, "postgres_database_bytes")
+    assert [s.value for s in size] == [123456789.0]
+    rows = _samples(gauge_module, db, "postgres_table_live_rows")
+    assert {s.labels["table"]: s.value for s in rows} == {
+        "s4a_song_timeline": 34078.0, "meta_insights": 900.0}
+
+
+def test_a_failed_read_exposes_no_size_either(gauge_module):
+    assert not _samples(gauge_module, _FakeDb(raises=True), "postgres_database_bytes")

@@ -14,21 +14,13 @@ import time as _time
 from src.utils.dag_timeouts import dagrun_timeout_for
 
 sys.path.insert(0, '/opt/airflow')
+from src.utils.dag_callbacks import on_failure  # noqa: E402 — R265, the ONE callback
 
 #Déjà lecture via docker-compose.yml
 #from dotenv import load_dotenv
 #load_dotenv('/opt/airflow/.env')
 
 logger = logging.getLogger(__name__)
-
-
-def _on_failure_callback(context):
-    try:
-        from src.utils.email_alerts import dag_failure_callback
-        dag_failure_callback(context)
-    except Exception as e:
-        from src.utils.safe_error import safe_error
-        logger.error(f"Failure callback error: {safe_error(e)}")
 
 
 default_args = {
@@ -38,7 +30,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=10),
-    'on_failure_callback': _on_failure_callback,
+    'on_failure_callback': on_failure,
 }
 
 

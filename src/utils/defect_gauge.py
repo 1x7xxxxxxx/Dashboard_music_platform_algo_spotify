@@ -76,11 +76,12 @@ class _Snapshot:
     pendant une panne de base.
     """
 
-    __slots__ = ("rows", "sessions", "taken_at", "last_success")
+    __slots__ = ("rows", "sessions", "size", "taken_at", "last_success")
 
     def __init__(self) -> None:
         self.rows: Optional[list[tuple[str, str, int]]] = None
         self.sessions: Optional[tuple[float, float]] = None
+        self.size: Optional[tuple[float, list[tuple[str, float]]]] = None
         self.taken_at: float = 0.0
         self.last_success: float = 0.0
 
@@ -123,6 +124,22 @@ def _fetch_sessions(db) -> tuple[float, float]:
     return (float((artists or [[0]])[0][0]), float((sessions or [[0]])[0][0]))
 
 
+# R265 (critic c) — the base's size and its largest tables, the two ADR-026 triggers that
+# lived only in `tools/scale_check.sh` and `reopen_check.py` (one table past 1 M rows).
+# `pg_stat_user_tables.n_live_tup` is an ESTIMATE kept by autovacuum — a count(*) per table
+# would scan 131 tables every 30 s. Top 30 only: the tail is small by definition.
+_MAX_TABLES = 30
+
+
+def _fetch_size(db) -> tuple[float, list[tuple[str, float]]]:
+    size = db.fetch_query("SELECT pg_database_size(current_database())")
+    tables = db.fetch_query(
+        "SELECT relname, n_live_tup FROM pg_stat_user_tables "
+        "ORDER BY n_live_tup DESC NULLS LAST LIMIT %s", (_MAX_TABLES,))
+    return (float((size or [[0]])[0][0] or 0),
+            [(str(t)[:63], float(n or 0)) for t, n in tables or []])
+
+
 def _fetch(db_factory):
     """Lit les defauts ouverts. LEVE si la base ne repond pas — l'appelant tranche.
 
@@ -136,6 +153,7 @@ def _fetch(db_factory):
     try:
         db.execute_query(f"SET statement_timeout = {_STATEMENT_TIMEOUT_MS}")
         sessions = _fetch_sessions(db)
+        size = _fetch_size(db)
         rows = db.fetch_query(
             """
             SELECT COALESCE(NULLIF(page, ''), '?')     AS page,
@@ -159,7 +177,8 @@ def _fetch(db_factory):
             db.close()
         except Exception:                                      # noqa: BLE001
             pass
-    return [(str(r[0])[:120], str(r[1])[:120], int(r[2])) for r in (rows or [])], sessions
+    return ([(str(r[0])[:120], str(r[1])[:120], int(r[2])) for r in (rows or [])],
+            sessions, size)
 
 
 def _fold(rows: list[tuple[str, str, int]]) -> list[tuple[str, str, int]]:
@@ -192,17 +211,19 @@ def _refresh(db_factory) -> None:
     if _SNAP.rows is not None and (now - _SNAP.taken_at) < _TTL_SECONDS:
         return
     try:
-        rows, sessions = _fetch(db_factory)
+        rows, sessions, size = _fetch(db_factory)
         rows = _fold(rows)
     except Exception as exc:                                   # noqa: BLE001
         _SNAP.rows = None
         _SNAP.sessions = None
+        _SNAP.size = None
         _SNAP.taken_at = now
         logger.warning("defauts ouverts illisibles (%s) — la jauge se declare aveugle "
                        "plutot que de rendre zero", type(exc).__name__)
         return
     _SNAP.rows = rows
     _SNAP.sessions = sessions
+    _SNAP.size = size
     _SNAP.taken_at = now
     _SNAP.last_success = time.time()
 
@@ -264,6 +285,22 @@ class OpenDefectsCollector:
                 "exclus. Meme grandeur que le declencheur n1 de tools/scale_check.sh.")
             g2.add_metric([], sessions_1m)
             yield g2
+
+        if _SNAP.size is not None:
+            db_bytes, tables = _SNAP.size
+            g3 = GaugeMetricFamily(
+                f"{_NS}_postgres_database_bytes",
+                "Taille de la base spotify_etl (pg_database_size). R265.")
+            g3.add_metric([], db_bytes)
+            yield g3
+            g4 = GaugeMetricFamily(
+                f"{_NS}_postgres_table_live_rows",
+                "Lignes vivantes estimees (pg_stat_user_tables.n_live_tup) des 30 plus "
+                "grosses tables. Declencheur ADR-026 : une table de faits > 1 M. R265.",
+                labels=["table"])
+            for table, n in tables:
+                g4.add_metric([table], n)
+            yield g4
 
         defects = GaugeMetricFamily(
             f"{_NS}_open_defects",

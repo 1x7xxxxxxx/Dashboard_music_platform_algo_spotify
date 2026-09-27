@@ -244,6 +244,10 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
     ("src/collectors/_meta_insight_fetch.py", "meta_insights_performance_day"):
         "MAX(day_date) : le point de reprise de la collecte incrémentale. Un "
         "collecteur n'est pas une surface, et cette date n'est affichée nulle part.",
+    ("src/utils/gold_invariants.py", "artist_history"):
+        "R258 — COUNT(*) des jours écrits deux fois ces deux derniers jours : un contrôle "
+        "de DOUBLONS du soir, jamais affiché comme une mesure (la mesure passe par la vue "
+        "or de la migration 120).",
     ("src/utils/distrokid_rollup.py", "distrokid_monthly_revenue"):
         "COUNT(*) des mois issus d'un import, renvoyé par le rollup qui vient de "
         "les écrire. C'est un accusé de réception, pas un revenu.",
