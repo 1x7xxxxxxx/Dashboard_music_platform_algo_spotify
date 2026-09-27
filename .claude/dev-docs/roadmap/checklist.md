@@ -30,6 +30,16 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R240 | **Le dossier des KPI porte les actions** (relecture du 2026-09-27, `revue/relecture-kpi.md`) : chaque fiche montre tes actions et les miennes avec leur Rnnn et leur état, les fiches à faire en tête et les VALIDÉES en fin, sans le rapport PDF artiste ni les notes /5 <!-- anchor: r240 --> <!-- critic: non — outillage du dossier --> | P2 | PDF : validées en fin, 0 section rapport artiste |
+| R241 | **Chiffres justes, vérifiés un par un** : chaque figure rendue rapprochée de sa vue or sur l'instantané ; fiches 1, 4, 6, 8, 10, 13, 15, 29 vérifiées sur le rendu ; méthode « un chiffre juste » (bronze → argent → or) et livrable « KPI → graphiques qui le lisent » dans le PDF <!-- anchor: r241 --> <!-- critic: requis --> | P2 | chaque fiche marquée chiffre vérifié ou écart nommé |
+| R242 | **Tout rendre** : le dossier rend chaque branche (sélecteur, bouton, onglet, API Airflow) — fiches 2, 26, 27, 47–50, 52–54, 56, 60, 66, 74–76 ; garde : aucune fiche d'app sans image sauf exemption écrite <!-- anchor: r242 --> <!-- critic: non — outillage du dossier --> | P2 | 0 fiche d'app non rendue |
+| R243 | **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR, CPM…), palette distincte, tri Pareto des barres par catégorie, pour TOUS les graphiques ; garde AST refusant un graphique qui la contourne (fiches 24, 28, 29, 33, 39) <!-- anchor: r243 --> <!-- critic: requis --> | P3 | 0 `st.plotly_chart` hors de la porte |
+| R244 | **Fusions** : fiche 5 (un graphique), 18+19+63 (trésorerie cumulée unique), 31 (quatre panneaux → un), 35 (deux axes), 67+68+69 (usage admin, pages vues + évènements en légende) <!-- anchor: r244 --> <!-- critic: non — mise en page --> | P3 | fiches fusionnées rendues, doublons retirés |
+| R245 | **Anneaux avec totaux étiquetés** : fiche 17 (campagnes Hypeddit depuis la sortie), fiche 23 (objectifs) <!-- anchor: r245 --> <!-- critic: non — mise en page --> | P3 | anneaux rendus, totaux lisibles |
+| R246 | **Meta** : 21 étiquettes budget/clics/CPR ; 22 streams + « clic Hypeddit » ; 25–27 géographie avec placement/âge/plateforme ; 34 funnel complet avec streams ; 38 streams, abonnés, playlists, sauvegardes, cumul ; 40 funnel par titre comparable (≤ 5) ; 30/32/36/37/41 décision écrite ou retrait si doublon <!-- anchor: r246 --> <!-- critic: requis --> | P2 | chaque fiche Meta répond à une décision écrite |
+| R247 | **Trigger Algo refait, simple et visuel** : 42 (5 dernières sorties, 5 indicateurs, puis valeurs vs cible 100 %, SHAP 52–54 intégré) ; 43 estimation J+28 / 6 mois / 1 an sur le jeu d'entraînement (P25–P75, « estimation ») ; 44 cohorte expliquée ; 45 sans équation ; 51/57/58/64 refaits ou expliqués <!-- anchor: r247 --> <!-- critic: requis --> | P2 | fiches 42–64 relues sur leur rendu |
+| R248 | **Argent** : 46 sans « popularité 0 », cumul avec SACEM et coût de distribution ; saisie du coût de distribution PAR TITRE dans « Mes revenus » (catégorie + titre), sommée dans la trésorerie <!-- anchor: r248 --> <!-- critic: requis --> | P2 | coût saisi → visible dans la trésorerie |
+| R249 | **Admin** : 55 et 62 (LTV + MRR) déplacés en admin ; 59, 61, 70, 71 retirés ; 72 → détection d'anomalie d'ingestion (lignes attendues × locataires contre lignes reçues, alerte au-delà d'un seuil) <!-- anchor: r249 --> <!-- critic: non — déplacement et retrait ; 72 réutilise volume_monitor --> | P3 | admin porte 55/62/72, 4 figures retirées |
 
 ---
 
@@ -85,7 +95,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R240, R241, R242, R243, R244, R245, R246, R247, R248, R249 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
