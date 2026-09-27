@@ -51,6 +51,7 @@ import os
 import pathlib
 import re
 import sys
+from pathlib import Path
 
 # ⚠️ `ROADMAP_ROOT` existe pour que cet outil soit TESTABLE sans copier son propre code.
 # Sans elle, un test devait recopier ce fichier dans une arborescence temporaire pour que
@@ -153,6 +154,35 @@ def _insert_at_top(archive: str, block: str) -> str:
     return archive[:j] + "\n" + block + "\n" + archive[j:].lstrip("\n")
 
 
+def close_night_unit(tid: str, note: str | None, journal: Path | None = None) -> bool:
+    """Close the night-run unit of the SAME task, if one is open. True when it did.
+
+    R225 (2026-09-27). Closing a task and closing its night unit were two gestures; the
+    second was forgotten three times in one night (R213, R215, R218) and `night-check`
+    ended red. The journal is append-only, so closing is appending a `done` record."""
+    import importlib.util
+    import json
+    spec = importlib.util.spec_from_file_location(
+        "night_run", Path(__file__).resolve().parent / "night_run.py")
+    nr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nr)
+    path = journal or nr.JOURNAL
+    entries = []
+    if path.exists():
+        entries = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    closed: set = set()
+    for entry in reversed(entries):
+        if entry.get("kind") in ("done", "park"):
+            closed.add(entry.get("task"))
+        elif entry.get("kind") == "start" and entry.get("task") == tid and tid not in closed:
+            record = {"at": nr._now(), "kind": "done", "task": tid,
+                      "what": f"fermée par roadmap-close — {note or ''}".strip(" —")}
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+            return True
+    return False
+
+
 def cmd_close(args) -> int:
     """Retire la ligne d'index, ÉCRIT l'entrée d'archive si elle manque, recale l'ancre."""
     tid = args.id.upper()
@@ -206,6 +236,8 @@ def cmd_close(args) -> int:
     text = _set_anchor(text, ids)
     CHECKLIST.write_text(text, encoding="utf-8")
     print(f"✅ {tid} retirée de l'index · ancre → {', '.join(ids) or '(vide)'}")
+    if close_night_unit(tid, args.note):
+        print(f"   unité de nuit [{tid}] fermée avec la tâche")
     print(f"   reste {len(ids)} tâche(s) ouverte(s)")
     print("   vérifier : python3 -m pytest tests/test_roadmap_two_files.py "
           "tests/test_the_resume_header_is_checked.py -q")
