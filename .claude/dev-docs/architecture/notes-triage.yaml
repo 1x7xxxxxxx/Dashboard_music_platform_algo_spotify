@@ -453,12 +453,13 @@
   resume: Transferer la surveillance de la vue admin vers Grafana
   type: décision-requise
   domaine: infra-observability
-  statut: décision-requise
+  statut: ouvert
   priorite: P4
   preuve_statut: 'grafana-correspondence.md (condition bloquante R115 etape 6) : trois des quatre vues admin ne
     font pas doublon avec Grafana ; transfert total contredit par ce document'
   preuve_ciblee: n/a (decision)
   roadmap: R265
+  decision: Grafana seul ; l'admin garde la gestion (2026-09-27)
 - ligne: 80
   resume: 'S''inspirer de msdr : CPU, RAM, stockage VPS, pool de connexions, goulots pour l''exigence de scalabilite'
   type: exigence-architecture
@@ -2194,12 +2195,13 @@
   resume: Put Data Wrapped in Analytics section under Hypeddit
   type: décision-requise
   domaine: pages-ux
-  statut: décision-requise
+  statut: ouvert
   priorite: P4
   preuve_statut: data_wrapped is out of NAV_SECTIONS, route-only (architecture.md:320; app.py:590); Hypeddit sits
     in configuration section — request not applied, reason not recorded
   preuve_ciblee: 'test to write: data_wrapped key present in utils/nav_sections.NAV_SECTIONS analytics section'
   roadmap: R261
+  decision: Data Wrapped intégré à la page Spotify & S4A (2026-09-27)
 - ligne: 271
   resume: 'Renames: DW prediction → algo trigger prediction (DW, Radio, RR); Créatives → Visuels de campagne; Breakdowns
     → clearer; ''Données'' → ''Configuration de streaMLytics'''
