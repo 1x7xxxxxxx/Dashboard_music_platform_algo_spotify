@@ -71,7 +71,7 @@ EN = {
     "email.welcome.one_thing": "<strong>One thing to get started:</strong> follow the "
                                "<strong>getting-started guide</strong>. It is attached "
                                "to this e-mail, and in the app under "
-                               "“📋 Getting started”.",
+                               "“🚀 Setup”.",
     "email.welcome.cta": "Open my getting-started guide",
     "email.welcome.guide_note": "📎 The <strong>getting-started PDF guide</strong> is "
                                 "attached to this e-mail.",

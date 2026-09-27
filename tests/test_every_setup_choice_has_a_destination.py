@@ -65,11 +65,10 @@ def _routed_pages() -> set[str]:
     fois : les quatre autres interrogent bien le menu (un libellé, une entrée
     attendue), et gardent donc leur lecture.
     """
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    return {n.comparators[0].value for n in ast.walk(tree)
-            if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-            and n.comparators and isinstance(n.comparators[0], ast.Constant)
-            and isinstance(n.comparators[0].value, str)}
+    # R261 — read from THE route table app.py dispatches through, no longer parsed out
+    # of an `elif page == …` chain.
+    from src.dashboard.routes import ROUTES
+    return set(ROUTES)
 
 
 def test_every_checkbox_leads_somewhere_that_exists():

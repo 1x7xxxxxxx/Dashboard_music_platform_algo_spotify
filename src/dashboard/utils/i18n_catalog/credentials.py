@@ -14,7 +14,7 @@ EN = {
     # ── router.py ──────────────────────────────────────────────────────
     "credentials.title": "🔑 API Credentials + CSV imports",
     "credentials.tab_bar": "Platform",
-    "credentials.csv_tab": "📂 My files (Spotify for Artists, Apple, distributor)",
+    "credentials.csv_tab": "📂 Add my figures (Spotify for Artists, Apple, distributor)",
     "credentials.csv_tab_help": (
         "These sources do not connect with an identifier: they let you download "
         "a spreadsheet file. Drop it here — the type is recognised on its own."),

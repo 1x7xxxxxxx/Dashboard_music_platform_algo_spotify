@@ -48,8 +48,12 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
 
 
 def test_every_routed_view_is_rendered() -> None:
-    missing = _unrendered(ast.parse(_APP.read_text(encoding="utf-8")),
-                          set(VIEWS) | set(EMPTY_TENANT_VIEWS))
+    # R261 — the page routes are THE table `src/dashboard/routes.py`; the imports left in
+    # app.py are the unauthenticated surfaces. Both are routes.
+    from src.dashboard.routes import ROUTES
+    rendered = set(VIEWS) | set(EMPTY_TENANT_VIEWS)
+    missing = _unrendered(ast.parse(_APP.read_text(encoding="utf-8")), rendered)
+    missing |= {m.split(".")[1] for m in ROUTES.values()} - rendered
     assert not missing, (
         f"routed in app.py but rendered by no test: {sorted(missing)} — add them to "
         "VIEWS (admin render) in tests/render_harness.py, and to EMPTY_TENANT_VIEWS if an "

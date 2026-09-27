@@ -25,8 +25,11 @@ MAC = "mac"
 # both, Windows first.
 BOTH = "both"
 
+# R261 (note L270) — « Linux » dropped from the label: no artist reads these guides on
+# Linux, the machine is detected from the browser, and the switch stays for a wrong
+# detection (the Mac beta tester, 2026-08-12 — tests/test_the_os_switch_is_visible.py).
 OS_LABELS = {
-    WINDOWS: "💻 Windows / Linux",
+    WINDOWS: "💻 Windows",
     MAC: "🍎 macOS",
 }
 

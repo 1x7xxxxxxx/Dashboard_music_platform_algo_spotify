@@ -94,11 +94,10 @@ def test_every_setup_page_is_actually_reachable():
 
 def _routed_pages() -> set[str]:
     """Les clés que `_main_body` sait rendre — lues sur les comparaisons `page == …`."""
-    tree = ast.parse(_APP.read_text(encoding="utf-8"))
-    return {n.comparators[0].value for n in ast.walk(tree)
-            if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-            and n.comparators and isinstance(n.comparators[0], ast.Constant)
-            and isinstance(n.comparators[0].value, str)}
+    # R261 — read from THE route table app.py dispatches through, no longer parsed out
+    # of an `elif page == …` chain.
+    from src.dashboard.routes import ROUTES
+    return set(ROUTES)
 
 
 # ── L'ordre des opérations, qui EST le défaut ───────────────────────────────

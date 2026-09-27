@@ -35,7 +35,7 @@ Injected when prompt contains: "dashboard", "view", "streamlit", "page", "show()
 
 1. Create `src/dashboard/views/<name>.py` with `show()` function
 2. Add `("<label>", "<name>")` to the relevant section in `_NAV_SECTIONS` (`app.py`) — the sidebar is grouped by section, pick the one matching the user journey. Admin-only pages: also add the key to `_ADMIN_ONLY`.
-3. Add routing: `elif page == "<name>": from views.<name> import show; show()`
+3. Add routing: `"<name>": "views.<name>",` in `ROUTES` (`src/dashboard/routes.py`) — THE route table since R261
 
 ---
 

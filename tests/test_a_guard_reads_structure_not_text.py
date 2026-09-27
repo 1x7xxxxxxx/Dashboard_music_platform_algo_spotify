@@ -456,7 +456,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_one_email_path_for_freshness.py": 1,
     "test_tenant_scope_is_not_view_session.py": 2,
     "test_the_alert_names_a_workable_action.py": 1,
-    "test_the_credentials_page_asks_before_it_reports.py": 2,
+    "test_the_credentials_page_asks_before_it_reports.py": 1,
     # 2 → 0 le 2026-09-21. Les deux assertions textuelles cherchaient
     # `"def secondary_analyses("` et `"expanded=False"` dans le source de
     # `ui.py`. La seconde est passée ROUGE le jour où la fonction a gagné un
@@ -474,7 +474,7 @@ _TEXT_ASSERTIONS_ON_PY: dict[str, int] = {
     "test_the_menu_says_what_each_page_is.py": 1,
     "test_the_pdf_says_what_the_screen_says.py": 2,
     "test_the_setup_asks_only_what_it_needs.py": 1,
-    "test_the_setup_guide_is_reachable.py": 3,
+    "test_the_setup_guide_is_reachable.py": 2,
     "test_the_setup_page_is_reachable_and_on_top.py": 23,
     "test_the_soundcloud_ask_is_one_thing.py": 1,
     "test_the_trigger_rate_compares_the_same_ruler.py": 1,

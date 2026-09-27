@@ -92,9 +92,11 @@ def test_the_dispatcher_refuses_admin_pages_to_non_admins():
     guards = [n for n in fn.body
               if isinstance(n, ast.If) and "_ADMIN_ONLY" in ast.unparse(n.test)]
     assert guards, "la lecture de `_ADMIN_ONLY` n'est pas une condition de haut niveau"
+    # R261 — the dispatch is `module = ROUTES.get(page)` since 2026-09-27. Not found =
+    # a refusal, never « the guard is first » by default (that read green on nothing).
     first_dispatch = next(
-        (i for i, n in enumerate(fn.body)
-         if isinstance(n, ast.If) and "page ==" in ast.unparse(n.test)), len(fn.body))
+        (i for i, n in enumerate(fn.body) if "ROUTES.get(page)" in ast.unparse(n)), None)
+    assert first_dispatch is not None, "no `ROUTES.get(page)` dispatch in `_render_page`"
     assert fn.body.index(guards[0]) < first_dispatch, (
         "la garde admin est placée APRÈS le premier aiguillage : la page se rend, "
         "puis on dit non")

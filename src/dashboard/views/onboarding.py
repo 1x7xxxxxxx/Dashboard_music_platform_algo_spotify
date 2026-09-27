@@ -512,7 +512,8 @@ def _render_setup_checklist(db, artist_id: int, plan: str) -> tuple:
     if not state.steps:
         return fallback
 
-    st.markdown("#### " + t("onboarding.checklist_title", "Ta mise en route"))
+    # R261 (note L277) — the « Ta mise en route » header is gone: the page title already
+    # says it, and the owner asked for it removed.
     for step in state.steps:
         st.markdown(f"- {'✅' if step.done else '⬜'} {STEP_LABELS[step.key]()}")
         hint = STEP_HINTS.get(step.key)

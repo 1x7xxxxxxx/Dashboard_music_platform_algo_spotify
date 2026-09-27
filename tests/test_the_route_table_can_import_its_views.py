@@ -111,6 +111,10 @@ def test_every_routed_view_module_exists():
         if isinstance(node, ast.ImportFrom)
         and node.module and node.module.startswith("views.")
     }
+    # R261 — the page routes live in ONE table since 2026-09-27; the imports left in
+    # app.py are the unauthenticated surfaces (privacy, login…).
+    from src.dashboard.routes import ROUTES
+    routed |= {m.split(".", 1)[1] for m in ROUTES.values()}
 
     assert routed, "no `from views.<page> import` route found — parser is blind"
 

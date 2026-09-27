@@ -102,44 +102,23 @@ def test_an_unrouted_page_raises_rather_than_importing_by_name():
         tool._module_of("une_page_qui_n_existe_pas_du_tout")
 
 
-def test_the_resolver_parses_and_does_not_grep():
-    """Une route citée dans un COMMENTAIRE n'est pas une route.
+def test_the_resolver_reads_the_table_app_py_dispatches_through():
+    """R261 — the tool and app.py read ONE table; there is no chain left to mis-parse.
 
-    Le premier garde de `a-verification-read-through-a-filtering-wrapper` a été refusé
-    le jour de son écriture pour avoir cherché une chaîne ; celui-ci passe par `ast`,
-    et ce test le prouve en lui donnant un `app.py` où la seule mention est du texte.
+    Until 2026-09-27 the tool parsed app.py's `elif` chain, and this test proved it
+    ignored a route quoted in a comment. The chain is gone: the proof is now identity.
     """
-    tool = _tool()
-    fake = (
-        "def _render_page(page):\n"
-        "    # elif page == \"fantome\": from views.fantome import show; show()\n"
-        "    '''from views.docstring_only import show'''\n"
-        "    if page == \"vraie\":\n"
-        "        from views.vraie import show; show()\n"
-    )
-    tree = ast.parse(fake)
-    dispatch = next(n for n in ast.walk(tree)
-                    if isinstance(n, ast.FunctionDef) and n.name == "_render_page")
-    routes = {}
-    for node in ast.walk(dispatch):
-        if not isinstance(node, ast.If):
-            continue
-        for key in tool._compared_keys(node.test):
-            mods = [s.module for stmt in node.body for s in ast.walk(stmt)
-                    if isinstance(s, ast.ImportFrom) and s.module
-                    and any(a.name == "show" for a in s.names)]
-            if mods:
-                routes[key] = mods[0]
-    assert routes == {"vraie": "views.vraie"}, (
-        f"le résolveur a ramassé une mention textuelle : {routes}")
+    from src.dashboard.routes import ROUTES
+    assert _tool()._route_map() == ROUTES
+    tree = ast.parse((ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8"))
+    dispatch = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Attribute) and n.func.attr == "get"
+                and getattr(n.func.value, "id", "") == "ROUTES"]
+    assert dispatch, "app.py no longer dispatches through ROUTES"
 
 
-def test_an_elif_branch_does_not_inherit_the_previous_import():
-    """`ast.walk(node)` descend dans `orelse` : toute la chaîne hériterait du premier.
-
-    C'est l'erreur exacte que `node.body` évite. Sans elle, `home` et les 41 autres
-    pages résoudraient toutes vers `views.home`, et l'outil rendrait vert partout.
-    """
+def test_the_routes_are_distinct_not_vacuous():
+    """Each page resolves to its OWN module — the chain once made all 43 read `views.home`."""
     tool = _tool()
     routes = tool._route_map()
     distinct = set(routes.values())

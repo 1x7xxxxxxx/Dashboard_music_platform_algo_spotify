@@ -202,9 +202,6 @@ def test_the_status_page_left_the_menu_but_not_the_router():
     des messages y renvoient : retirer la ROUTE transformerait ces renvois en
     culs-de-sac, ce que ce dépôt a payé six fois en une séance.
     """
-    app = (_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8")
-    tree = ast.parse(app)
-
     # L'ENTRÉE de menu vit dans `utils/nav_sections.py` depuis le 2026-09-12 ; la
     # ROUTE, elle, reste dans `app.py` — et ce test tient précisément qu'elles se
     # sont séparées : l'entrée retirée, la route gardée.
@@ -215,10 +212,8 @@ def test_the_status_page_left_the_menu_but_not_the_router():
         "la page d'état est revenue au menu : chaque onglet montre déjà les quatre "
         "pastilles de sa plateforme, là où l'on agit")
 
-    routed = {n.comparators[0].value for n in ast.walk(tree)
-              if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-              and n.comparators and isinstance(n.comparators[0], ast.Constant)}
-    assert "platform_status" in routed, (
+    from tests.nav_source import routed_pages
+    assert "platform_status" in routed_pages(), (
         "la ROUTE a disparu avec l'entrée de menu : les messages qui y renvoient ne "
         "mènent plus nulle part")
 

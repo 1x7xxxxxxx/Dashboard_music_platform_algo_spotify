@@ -207,7 +207,7 @@ def send_welcome_email(to_email: str, username: str, trial_days: int = 30,
       <p>{_tr('email.welcome.one_thing',
             "<strong>Une seule chose à faire pour démarrer :</strong> suis le "
             "<strong>guide de démarrage</strong>. Il est en pièce jointe de cet e-mail, "
-            "et dans l'application sous « 📋 Guide de démarrage ».", lang)}</p>
+            "et dans l'application sous « 🚀 Mise en route ».", lang)}</p>
         <p style="text-align: center; margin: 30px 0;">
             <a href="{onboarding_url}"
                style="display: inline-block; background-color: #1DB954; color: white;

@@ -14,8 +14,8 @@ faisait rougir la CI. Le cliquet a fait son travail : il a refusé la dette et r
 l'extraction obligatoire, au lieu d'être relevé.
 
 C'est le même geste que `csv_platforms.py` et `platform_sharing.py` le 2026-09-12 : une
-déclaration descend hors du module qui la consomme. `app.py` garde le ROUTAGE — la
-chaîne `elif page == …` — qui ne dépend pas de cet ordre.
+déclaration descend hors du module qui la consomme. Le ROUTAGE — la table
+`ROUTES` de `routes.py` depuis R261 — ne dépend pas de cet ordre.
 
 ⚠️ Le cliquet avait explicitement DIFFÉRÉ ce découpage : « un découpage de la
 navigation ne peut être validé qu'au navigateur », parce que deux causes racines de

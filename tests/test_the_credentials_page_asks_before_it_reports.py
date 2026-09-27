@@ -146,12 +146,8 @@ def test_the_matrix_still_has_a_home_even_out_of_the_menu():
     src = _PAGE.read_text(encoding="utf-8")
     assert "render_status_matrix(" in src, "la page ne rend pas la matrice"
 
-    app = _APP.read_text(encoding="utf-8")
-    tree = ast.parse(app)
-    routed = {n.comparators[0].value for n in ast.walk(tree)
-              if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-              and n.comparators and isinstance(n.comparators[0], ast.Constant)}
-    assert "platform_status" in routed, (
+    from src.dashboard.routes import ROUTES          # R261 — the ONE route table
+    assert "platform_status" in ROUTES, (
         "la route a disparu : cliquer sur un renvoi vers l'état n'afficherait rien")
 
 def test_the_csv_import_is_a_tab_not_a_separate_menu_entry():
@@ -191,8 +187,8 @@ def test_the_old_csv_route_still_answers():
     « prochaine étape » de la matrice, et les signets. Le dépôt a déjà payé six fois
     « du code correct que rien n'atteint » ; sa réciproque coûte autant.
     """
-    app = _APP.read_text(encoding="utf-8")
-    assert 'page == "upload_csv"' in app, (
+    from src.dashboard.routes import ROUTES          # R261 — the ONE route table
+    assert "upload_csv" in ROUTES, (
         "la route `upload_csv` a disparu : les pointeurs qui la visent ne mènent plus "
         "nulle part")
 
@@ -203,10 +199,7 @@ def test_the_old_csv_route_still_answers():
     # routes depuis que S4A et Apple Music y pointent (2026-09-06) — et déclarer
     # « routée nulle part » un onglet visible à l'écran.
     from src.dashboard.views.credentials.router import all_tab_keys
-    tree = ast.parse(app)
-    routed = {n.comparators[0].value for n in ast.walk(tree)
-              if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-              and n.comparators and isinstance(n.comparators[0], ast.Constant)}
+    routed = set(ROUTES)
     tabs = set(all_tab_keys())
 
     missing = sorted(p for p in {page for _key, page in _STEP_PAGES}

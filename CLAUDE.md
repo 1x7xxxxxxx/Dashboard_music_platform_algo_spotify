@@ -207,7 +207,7 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 ### Adding a New View
 1. Create `src/dashboard/views/<name>.py` with a `show()` function (no arguments).
 2. Add `("<label>", "<name>")` to the relevant section in the `_NAV_SECTIONS` constant in `app.py` (sidebar is grouped by section; pick the section matching the user journey). Admin-only pages: also add the key to `_ADMIN_ONLY`.
-3. Add routing: `elif page == "<name>": from views.<name> import show; show()`.
+3. Add routing: `"<name>": "views.<name>"` in `src/dashboard/routes.py`.
 → Full patterns (DB queries, artist filter, role gate): `.claude/skills/dashboard-view/SKILL.md`
 
 ### Adding a New DAG

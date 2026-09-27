@@ -117,23 +117,13 @@ def test_the_one_uploader_sits_in_a_module_the_router_never_renders_as_a_page():
 
 def test_the_retired_route_still_lands_on_the_tab_that_holds_the_uploader():
     """`?page=upload_csv` is bookmarked and linked; it must reach the drop tab."""
-    app_src = (_VIEWS.parent / "app.py").read_text(encoding="utf-8")
-    tree = ast.parse(app_src)
-    branch = next(
-        (n for n in ast.walk(tree)
-         if isinstance(n, ast.Compare) and getattr(n.left, "id", "") == "page"
-         and n.comparators and isinstance(n.comparators[0], ast.Constant)
-         and n.comparators[0].value == "upload_csv"), None)
-    assert branch is not None, (
-        "la route `upload_csv` a disparu d'app.py — six pointeurs la visent, "
+    from src.dashboard.routes import ROUTES          # R261 — THE route table
+    assert "upload_csv" in ROUTES, (
+        "la route `upload_csv` a disparu — six pointeurs la visent, "
         "elle deviendrait un cul-de-sac")
-    # La branche `elif` qui la porte doit rendre la page Credentials.
-    parent = next(n for n in ast.walk(tree)
-                  if isinstance(n, ast.If) and n.test is branch)
-    rendered = {imp.module for imp in ast.walk(parent)
-                if isinstance(imp, ast.ImportFrom) and imp.module}
-    assert "views.credentials" in rendered, (
-        f"`?page=upload_csv` rend {sorted(rendered)} et non `views.credentials` — "
+    rendered = ROUTES["upload_csv"]
+    assert rendered == "views.credentials", (
+        f"`?page=upload_csv` rend {rendered} et non `views.credentials` — "
         "l'artiste qui suit un ancien lien n'atterrit pas sur la zone de dépôt.")
 
 

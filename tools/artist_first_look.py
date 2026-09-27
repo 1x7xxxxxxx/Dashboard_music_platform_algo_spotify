@@ -80,59 +80,14 @@ load_project_env()
 # but to READ the routing dispatch of `app.py`. Parsed with `ast`, never by regex:
 # a comment that mentions `from views.x import show` is not a route.
 def _route_map() -> dict[str, str]:
-    """`{page key: dotted module}` — every branch of `_render_page` in `app.py`."""
-    import ast
-    import pathlib
+    """`{page key: dotted module}` — THE route table app.py dispatches through (R261).
 
-    src = pathlib.Path(ROOT) / "src" / "dashboard" / "app.py"
-    tree = ast.parse(src.read_text(encoding="utf-8"))
-
-    dispatch = next(
-        (n for n in ast.walk(tree)
-         if isinstance(n, ast.FunctionDef) and n.name == "_render_page"), None)
-    if dispatch is None:
-        raise RuntimeError(
-            f"{src}: aucune fonction `_render_page` — la table de routage a été "
-            f"renommée ou déplacée. Cet outil ne peut plus résoudre les pages.")
-
-    routes: dict[str, str] = {}
-    for node in ast.walk(dispatch):
-        if not isinstance(node, ast.If):
-            continue
-        keys = _compared_keys(node.test)
-        if not keys:
-            continue
-        # `node.body` only — never `ast.walk(node)`, whose `orelse` carries the whole
-        # elif chain: every branch would inherit the first branch's import.
-        modules = [
-            sub.module
-            for stmt in node.body
-            for sub in ast.walk(stmt)
-            if isinstance(sub, ast.ImportFrom) and sub.module
-            and any(a.name == "show" for a in sub.names)
-        ]
-        for key in keys:
-            if modules:
-                routes[key] = modules[0]
-    return routes
-
-
-def _compared_keys(test: "object") -> list[str]:
-    """The page keys a branch test matches: `page == "x"`, `page in ("x", "y")`."""
-    import ast
-
-    if not isinstance(test, ast.Compare) or len(test.ops) != 1:
-        return []
-    left = test.left
-    if not (isinstance(left, ast.Name) and left.id == "page"):
-        return []
-    right = test.comparators[0]
-    if isinstance(test.ops[0], ast.Eq) and isinstance(right, ast.Constant):
-        return [right.value] if isinstance(right.value, str) else []
-    if isinstance(test.ops[0], ast.In) and isinstance(right, (ast.Tuple, ast.List, ast.Set)):
-        return [e.value for e in right.elts
-                if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-    return []
+    It parsed the 43-branch `elif page == …` chain of `app.py` until 2026-09-27 — with a
+    guard against a branch inheriting its neighbour's import. The chain is now a
+    constant, read here the same way app.py reads it: nothing left to mis-parse.
+    """
+    from src.dashboard.routes import ROUTES
+    return dict(ROUTES)
 
 
 def _module_of(view: str) -> str:
@@ -145,8 +100,8 @@ def _module_of(view: str) -> str:
     module = routes.get(view)
     if module is None:
         raise KeyError(
-            f"la page « {view} » n'est routée par aucune branche de `_render_page` "
-            f"dans `app.py` — elle est INATTEIGNABLE pour un artiste, ou ce nom de "
+            f"la page « {view} » n'est dans aucune entrée de `ROUTES` "
+            f"(src/dashboard/routes.py) — elle est INATTEIGNABLE pour un artiste, ou ce nom de "
             f"page n'existe plus. {len(routes)} pages routées.")
     return module if module.startswith("src.") else f"src.dashboard.{module}"
 

@@ -56,13 +56,13 @@ def always_accessible(plans_source: str) -> set[str]:
             if isinstance(c, ast.Constant) and isinstance(c.value, str)}
 
 
-def unreachable_because(page: str, nav: set[str], app_source: str,
+def unreachable_because(page: str, nav: set[str], routed: set[str],
                         plans_source: str) -> list[str]:
     """Every reason `page` cannot be reached by a free artist. Pure."""
     why = []
     if page not in nav:
         why.append("absent du menu")
-    if f'page == "{page}"' not in app_source:
+    if page not in routed:
         why.append("aucune branche de routage")
     if page not in always_accessible(plans_source):
         why.append("verrouillée par le plan")
@@ -78,8 +78,8 @@ def test_the_wizard_is_in_the_navigation():
 
 
 def test_the_wizard_is_routed():
-    text = _APP.read_text(encoding="utf-8")
-    assert 'page == "onboarding"' in text, (
+    from src.dashboard.routes import ROUTES          # R261 — the ONE route table
+    assert "onboarding" in ROUTES, (
         "l'entrée de menu existe mais aucune branche de routage ne la sert : la page "
         "s'afficherait vide."
     )
@@ -140,7 +140,8 @@ def test_the_navigation_rule_lives_in_one_place():
 
 def test_the_wizard_is_reachable_on_every_count():
     """The three conditions together, through the same predicate the proof below runs."""
-    assert unreachable_because("onboarding", _nav_keys(), _APP.read_text(encoding="utf-8"),
+    from src.dashboard.routes import ROUTES
+    assert unreachable_because("onboarding", _nav_keys(), set(ROUTES),
                                _PLANS.read_text(encoding="utf-8")) == []
 
 
@@ -150,8 +151,8 @@ def test_the_detector_sees_the_defect_it_is_written_for():
     exactly its own reason."""
     plans_locked = "ALWAYS_ACCESSIBLE = frozenset({'home', 'account'})\n"
     plans_open = "ALWAYS_ACCESSIBLE = frozenset({'home', 'account', 'onboarding'})\n"
-    routed = 'if page == "home": pass\nelif page == "onboarding": pass\n'
-    assert unreachable_because("onboarding", {"home"}, 'if page == "home": pass\n',
+    routed = {"home", "onboarding"}
+    assert unreachable_because("onboarding", {"home"}, {"home"},
                                plans_locked) == [
         "absent du menu", "aucune branche de routage", "verrouillée par le plan"]
     assert unreachable_because("onboarding", {"home", "onboarding"}, routed,

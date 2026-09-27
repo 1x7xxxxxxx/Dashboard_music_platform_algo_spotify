@@ -25,9 +25,9 @@ _st = importlib.util.spec_from_file_location("suite_timing", ROOT / "tools/dev/s
 suite_timing = importlib.util.module_from_spec(_st)
 _st.loader.exec_module(suite_timing)
 
-# 52 933 bytes on 2026-09-27 (52 935 before R268 shortened its own line). It may only go down — or be raised in the same commit, with
+# 52 926 bytes on 2026-09-27 (52 935 before R268 shortened its own line, 52 933 before R261 rewrote « Adding a New View » step 3). It may only go down — or be raised in the same commit, with
 # the reason written here.
-CLAUDE_MD_BUDGET = 52_933
+CLAUDE_MD_BUDGET = 52_926
 
 
 def test_a_red_or_running_ci_refuses_the_closure():

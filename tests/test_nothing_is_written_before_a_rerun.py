@@ -146,14 +146,8 @@ def test_the_mapping_button_targets_a_real_page():
     targets = _navigation_targets(_tree())
     assert targets, "aucun bouton de navigation dans la vue — garde à repointer"
 
-    app = pathlib.Path("src/dashboard/app.py").read_text(encoding="utf-8")
-    app_tree = ast.parse(app)
-    routed = {
-        cmp.value
-        for node in ast.walk(app_tree) if isinstance(node, ast.Compare)
-        for cmp in node.comparators
-        if isinstance(cmp, ast.Constant) and isinstance(cmp.value, str)
-    }
+    from tests.nav_source import routed_pages
+    routed = routed_pages()
     for page in targets:
         assert page in routed, (
             f"la vue envoie l'artiste sur `{page}`, qu'`app.py` ne route pas : il "

@@ -85,3 +85,14 @@ def menu_labels() -> set:
 def menu_entries() -> list:
     """`[(libellé, clé), …]`, dans l'ordre du menu."""
     return [(lbl, key) for _sid, _hdr, items in nav_sections() for lbl, key in items]
+
+
+def routed_pages() -> set[str]:
+    """Every page key a `?page=…` reaches — THE route table (R261, 2026-09-27).
+
+    Same lesson as the menu, one move later: the 43-branch `elif page == …` chain of
+    app.py became `src/dashboard/routes.py:ROUTES`, and eleven guards that each parsed
+    the chain their own way went red together. One reader here; the next move costs one.
+    """
+    from src.dashboard.routes import ROUTES
+    return set(ROUTES)

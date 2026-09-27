@@ -329,7 +329,7 @@ def show():
         ordered = sorted(PLATFORMS.items(),
                          key=lambda kv: (_rank.get(kv[0], len(_rank)), kv[0]))
 
-        _CSV_TAB = t("credentials.csv_tab", "📂 Mes fichiers (Spotify for Artists, Apple, distributeur)")
+        _CSV_TAB = t("credentials.csv_tab", "📂 Ajouter mes chiffres (Spotify for Artists, Apple, distributeur)")
         # « La suivante » n'est plus tirée d'une sélection — il n'y en a plus. C'est
         # le prochain ONGLET non connecté dans l'ordre conseillé, ce qui est la même
         # promesse en plus simple : le parcours incite à tout faire, dans cet ordre.

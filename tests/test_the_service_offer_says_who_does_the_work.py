@@ -83,16 +83,8 @@ _MONTANT = re.compile(r"€|\bEUR\b", re.I)
 
 def _routable_pages() -> set[str]:
     """Les pages qu'un `?page=…` atteint — reprend le prédicat de l'autre garde."""
-    tree = ast.parse((_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8"))
-    out: set[str] = set()
-    for n in ast.walk(tree):
-        if (isinstance(n, ast.Compare)
-                and isinstance(n.left, ast.Name) and n.left.id == "page"
-                and len(n.comparators) == 1
-                and isinstance(n.comparators[0], ast.Constant)
-                and isinstance(n.comparators[0].value, str)):
-            out.add(n.comparators[0].value)
-    return out
+    from tests.nav_source import routed_pages
+    return routed_pages()
 
 
 def _capacites() -> set[str]:

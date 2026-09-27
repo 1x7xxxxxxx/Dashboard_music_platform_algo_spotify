@@ -92,17 +92,8 @@ def _routable_pages() -> set[str]:
     `a-sweep-predicate-that-matches-a-form-not-a-property`, règle transverse 20,
     attrapée par une mutation involontaire : la vraie donnée du dépôt.
     """
-    src = (_ROOT / "src" / "dashboard" / "app.py").read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    out: set[str] = set()
-    for n in ast.walk(tree):
-        if (isinstance(n, ast.Compare)
-                and isinstance(n.left, ast.Name) and n.left.id == "page"
-                and len(n.comparators) == 1
-                and isinstance(n.comparators[0], ast.Constant)
-                and isinstance(n.comparators[0].value, str)):
-            out.add(n.comparators[0].value)
-    return out | _nav_pages()
+    from tests.nav_source import routed_pages
+    return routed_pages() | _nav_pages()
 
 
 def _admin_pages() -> set[str]:

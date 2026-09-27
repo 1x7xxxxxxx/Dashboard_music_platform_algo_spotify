@@ -1,4 +1,5 @@
 """Application Streamlit principale avec déclenchement des DAGs."""
+import importlib
 import warnings
 
 # Harmless duplicate-matplotlib warning (Axes3D import) emitted transitively at import
@@ -549,6 +550,9 @@ def _show_cookie_notice():
     ))
 
 
+from src.dashboard.routes import ROUTES  # noqa: E402 — THE route table (R261)
+
+
 def _render_page(page):
     """Dispatch a page key to its view's show(). Wrapped by main()'s error handler
     (C1) — a view crash is caught, alerted, and shown as a friendly message instead
@@ -588,80 +592,9 @@ def _render_page(page):
     from src.dashboard.utils.ui import show_flash
     show_flash()
 
-    if page == "home":
-        from views.home import show; show()
-
-    elif page == "onboarding":
-        # L'assistant n'était joignable QUE par `?page=onboarding`, produit uniquement
-        # par l'écran post-inscription et l'e-mail de vérification. Mail fermé, onglet
-        # fermé : il n'existait plus pour l'artiste, alors que c'est lui — et non
-        # `process_guide` — qui porte la sélection par plateforme et la matrice.
-        from views.onboarding import show; show()
-
-    # Routing
-    elif page == "trigger_algo": from views.trigger_algo import show; show()
-    elif page == "algo_preview": from views.algo_preview import show; show()
-    elif page == "meta_ads_overview": from views.meta_ads_overview import show; show()
-    elif page == "meta_x_spotify": from views.meta_x_spotify import show; show()
-    elif page == "spotify_s4a_combined": from views.spotify_s4a_combined import show; show()
-    elif page == "hypeddit": from views.hypeddit import show; show()
-    elif page == "apple_music": from views.apple_music import show; show()
-    elif page == "youtube": from views.youtube import show; show()
-    elif page == "soundcloud": from views.soundcloud import show; show()
-    elif page == "instagram": from views.instagram import show; show()
-    elif page == "data_wrapped": from views.data_wrapped import show; show()
-    elif page == "imusician": from views.imusician import show; show()
-    elif page == "credentials": from views.credentials import show; show()
-    elif page == "process_guide":
-        # LA ROUTE SURVIT, LA PAGE NON. « 📋 Guide de démarrage » a été supprimée le
-        # 2026-09-06 — « l'app est bien mieux faite et ça rajoute de l'inutile ». Elle
-        # redisait en quatre listes à puces ce que l'assistant montre, ce que les
-        # onglets de Credentials déplient et ce que la matrice d'état mesure.
-        #
-        # Ses deux sections uniques — le PDF des identifiants, la définition des CSV
-        # attendus — vivent maintenant dans « 🚦 Santé onboarding », qui est donc la
-        # destination juste : un ancien lien y trouve ce qu'il venait chercher, et
-        # non une page d'accueil générique. Supprimer la route en ferait des
-        # culs-de-sac, ce que ce dépôt a déjà payé six fois en une séance.
-        from views.onboarding_health import show; show()
-    elif page == "platform_status":
-        # Hors du menu depuis le 2026-09-05, mais toujours ROUTÉE : la matrice
-        # complète reste la seule vue qui montre les six sources d'un coup, et des
-        # messages y renvoient. La supprimer transformerait ces renvois en
-        # culs-de-sac — ce dépôt a payé la réciproque six fois en une séance.
-        from views.platform_status import show; show()
-    elif page == "onboarding_health": from views.onboarding_health import show; show()
-    elif page == "upload_csv":
-        # La page a fusionné dans Credentials le 2026-09-04, mais la ROUTE survit :
-        # six pointeurs la visent — les boutons d'étape de `setup_completion`, la
-        # destination de S4A et Apple Music (`platform_destination`), la colonne
-        # « prochaine étape » de la matrice, et les signets. Supprimer la route les
-        # transformerait en culs-de-sac, ce que ce dépôt a déjà payé.
-        from views.credentials import show; show()
-    elif page == "saisie_s4a": from views.saisie_s4a import show; show()
-    elif page == "export_pdf": from views.export_pdf import show; show()
-    elif page == "export_csv": from views.export_csv import show; show()
-    elif page == "airflow_kpi": from views.airflow_kpi import show; show()
-    elif page == "db_health": from views.db_health import show; show()
-    elif page == "etl_logs": from views.etl_logs import show; show()
-    elif page == "ml_performance": from views.ml_performance import show; show()
-    elif page == "useful_links": from views.useful_links import show; show()
-    elif page == "service": from views.service import show; show()
-    elif page == "billing": from views.billing import show; show()
-    elif page == "revenue_forecast": from views.revenue_forecast import show; show()
-    elif page == "sacem": from views.sacem import show; show()
-    elif page == "meta_mapping": from views.meta_mapping import show; show()
-    elif page == "admin": from views.admin import show; show()
-    elif page == "account": from views.account import show; show()
-    elif page == "meta_creatives": from views.meta_creatives import show; show()
-    elif page == "meta_breakdowns": from views.meta_breakdowns import show; show()
-    elif page == "meta_cpr_optimizer": from views.meta_cpr_optimizer import show; show()
-    elif page == "referral": from views.referral import show; show()
-    elif page == "referral_kpi": from views.referral_admin import show; show()
-    elif page == "promo_admin": from views.promo_admin import show; show()
-    elif page == "upgrade": from views.upgrade import show; show()
-    elif page == "usage_analytics": from views.usage_analytics import show; show()
-    elif page == "alerts": from views.alerts import show; show()
+    module = ROUTES.get(page)
+    if module is not None:
+        importlib.import_module(module).show()
 
 
 def main():
