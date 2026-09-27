@@ -5,6 +5,7 @@ Uses: streamlit (st.login / st.user / st.logout), src.dashboard.auth
 Depends on: saas_users.google_sub (migration 135), .streamlit/secrets.toml [auth]
 Triggers: src/dashboard/auth.py::require_login
 Persists in: PostgreSQL spotify_etl (saas_users.google_sub, google_linked_at)
+Security review (scopes, the four checks, what is left): .claude/dev-docs/google-sign-in-review.md
 
 Le principe, et pourquoi il tient tout le fichier
 --------------------------------------------------
