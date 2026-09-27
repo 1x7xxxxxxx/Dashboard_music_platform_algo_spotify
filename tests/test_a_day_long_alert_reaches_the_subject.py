@@ -27,7 +27,13 @@ def test_only_a_still_firing_day_long_alert_is_selected() -> None:
 
 
 def test_the_recap_subject_reads_the_long_alerts() -> None:
-    src = (ROOT / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8")
-    body = src[src.index("def send_consolidated_alert"):]
-    assert "long_firing(ops_alerts)" in body and "subject_parts.append" in body, (
-        "the recap subject no longer names an alert that has fired for a day")
+    """Read by AST: inside `send_consolidated_alert`, a call `long_firing(ops_alerts)` —
+    the structure, never a string that a comment could carry."""
+    import ast
+    tree = ast.parse((ROOT / "airflow/dags/alert_monitor.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "send_consolidated_alert")
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", "") in ("long_firing", "_long_firing")
+             and n.args and getattr(n.args[0], "id", "") == "ops_alerts"]
+    assert calls, "the recap subject no longer names an alert that has fired for a day"
