@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R269 — **Redondances de code et graphify** (notes L166, L169) : graphe régénéré et nettoyé des… (livrée 2026-09-27)
+
+- [x] **R269 — **Redondances de code et graphify** (notes L166, L169) : graphe régénéré et nettoyé des fichiers fantômes, doublons intra et inter-scripts listés et refactorés** (P3) ✅ (2026-09-27, fc462f53)
+  Mesuré par : liste de doublons réduite, graphe sans fantôme
+  graphify elague (make graph-update), detecteur de doublons AST mute dans les deux sens, 4 groupes factorises, cliquet a 2 sites. CI forcee : fc462f53 rouge (non-vacuite non nommee), corrige par fc6dd117 verte
+  Commits : fc462f53 R269 : doublons de fonctions mesures (detecteur AST, litteraux effaces
+
 ## ✅ R268 — **Roadmap et chaîne de dev fiables** (notes L71, L165, L172) : relevé de discipline rég… (livrée 2026-09-27)
 
 - [x] **R268 — **Roadmap et chaîne de dev fiables** (notes L71, L165, L172) : relevé de discipline régénéré chaque nuit, temps de suite depuis une seule source générée, nettoyage de l'obsolète, allègement des livrables (décision), manques de la chaîne commit → CI → push ; CLAUDE.md sous un budget de taille ; le commit rattaché à LA ligne citée** (P3) ✅ (2026-09-27, cb2d6357, edec2c3c, 55b13396, 2818322b, c22daa8f)

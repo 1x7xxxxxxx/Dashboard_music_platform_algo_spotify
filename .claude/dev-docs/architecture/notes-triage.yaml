@@ -1574,12 +1574,10 @@
   resume: Identifier les redondances intra/inter-scripts pour un refactor modulaire et scalable (avec graphify)
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: 'R257 ouverte (checklist.md l.33) : référentiel domains.yaml/requirements.yaml, « les refactors
-    qui en sortent prennent chacun leur ligne ».'
+  preuve_statut: R269 (archivée) — fc462f53
   preuve_ciblee: make arch-benchmark (R257)
-  roadmap: R269
 - ligne: 167
   resume: 'PDF : graphique 30 premiers jours vs actuel sur le taux de trigger'
   type: action-produit
@@ -1612,11 +1610,10 @@
   resume: Nettoyage graphify + optimisations en conséquence
   type: action-produit
   domaine: claude-wsl
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: 'CLAUDE.md : 24 fichiers fantômes dans graph.json, le résidu grandit ; aucune tâche ouverte.'
+  preuve_statut: R269 (archivée) — fc462f53
   preuve_ciblee: 'test to write: 0 source_file absent du disque dans graphify-out/graph.json, on file tools/dev/graphify_render_html.py:1'
-  roadmap: R269
 - ligne: 169
   resume: Tests de charge (Locust) à intégrer ?
   type: question

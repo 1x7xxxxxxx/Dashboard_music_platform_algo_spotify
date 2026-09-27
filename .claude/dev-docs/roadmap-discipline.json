@@ -2,8 +2,8 @@
   "days": 14,
   "baseline": false,
   "git": {
-    "product": 43,
-    "ok": 43,
+    "product": 45,
+    "ok": 45,
     "no_id": 0,
     "not_open": 0,
     "undecided": 0,
@@ -27,7 +27,6 @@
     "R265": 0,
     "R266": 0,
     "R267": 0,
-    "R269": 0,
     "R270": 0,
     "R271": 0,
     "R272": 0,
