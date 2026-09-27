@@ -112,7 +112,7 @@ graph LR
 | `src/database/*_schema.py` | Sub | PostgresHandler |
 | `src/transformers/*.py` | Sub | CSV input, feeds collectors |
 | `src/api/main.py` | Core | FastAPI + `api/routers/*` + `api/security.py` ; expose `/metrics` sur SON port HTTP, sans serveur latéral (ADR-026) |
-| `src/api/auth.py` | Sub | python-jose — encode/decode JWT, `API_SECRET_KEY` |
+| `src/api/auth.py` | Sub | PyJWT — encode/decode JWT (R267), `API_SECRET_KEY` |
 | `src/api/deps.py` | Sub | `api/auth.py`, `dashboard/utils/get_db_connection`, PostgresHandler |
 | `src/api/security.py` | Sub | middlewares starlette — `utils/request_throttle.py` (fenêtre glissante, table `rate_limit_hits`) + en-têtes de réponse |
 | `src/api/routers/*.py` | Feature | `api/deps.py` — 7 routeurs : artists, auth, kpis, ml, streams, stripe_webhook, youtube |

@@ -35,7 +35,8 @@ on:
 jobs:
   pip-audit:
     runs-on: ubuntu-latest
-    continue-on-error: true   # observational — never fail the workflow
+    # BLOCKING since R267 (2026-09-28): a NEW advisory fails the job. The known ones are
+    # named with their reason in security/pip-audit-accepted.txt (tools/dev/pip_audit_gate.py).
     # `|| true` rendait ce job TOUJOURS `success` : son compte ne pouvait atteindre personne.
     # Il le publie désormais en sortie, lue par `notify` (2026-09-25, R167).
     outputs:
@@ -80,9 +81,26 @@ jobs:
           n=$(python3 -c "import json;d=json.load(open('pip-audit.json'));print(sum(len(x.get('vulns',[])) for x in d.get('dependencies',[])))" 2>/dev/null || echo "?")
           echo "VULNS=$n"
           echo "vulns=$n" >> "$GITHUB_OUTPUT"
-          # Advisories exist every night and ride in the mail body; an audit that produced
-          # NO report is a broken audit, and that must reach the inbox.
+          # An audit that produced NO report is a broken audit, and that must reach the inbox.
           [ "$n" != "?" ] || { echo "❌ pip-audit produced no JSON report"; exit 1; }
+
+      - name: Block on an advisory nobody accepted (R267)
+        run: python3 tools/dev/pip_audit_gate.py pip-audit.json
+
+      - name: Audit the API image's own requirements — nothing accepted (R267)
+        # requirements-api.txt is what the API container installs; it carried no Airflow,
+        # so no advisory is accepted for it: 0 on 2026-09-28.
+        run: |
+          # The API image installs this file by itself: audit its RESOLUTION, pinned.
+          uv pip compile requirements-api.txt --python-version 3.11 -o audited-api.txt
+          pip-audit -r audited-api.txt --format json -o pip-audit-api.json || true
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("pip-audit-api.json"))
+          n = sum(len(x.get("vulns", [])) for x in d.get("dependencies", []))
+          print(f"requirements-api.txt: {n} advisory(ies)")
+          sys.exit(1 if n else 0)
+          PY
 
   error-class-audit:
     # Heuristic sweep of the catalogue's automatable signatures
@@ -181,7 +199,9 @@ jobs:
 
   gitleaks:
     runs-on: ubuntu-latest
-    continue-on-error: true   # historical leaks triaged pre-prod, not here
+    # BLOCKING since R267 (2026-09-28): the full history scans clean against
+    # .gitleaksignore (0 finding, measured locally and on the last nightly), so a finding
+    # now is a NEW secret — it must fail, not ride in a summary.
     # ⚠️ `continue-on-error` fait rapporter `success` à `needs.gitleaks.result` MÊME quand
     # le job échoue (mesuré le 2026-09-25 : job `failure`, needs `success`). L'issue réelle
     # de l'étape est donc publiée ici, et c'est elle que `notify` lit.
@@ -194,7 +214,6 @@ jobs:
 
       - name: Run gitleaks
         id: scan
-        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

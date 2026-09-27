@@ -21,7 +21,11 @@ import yaml
 
 _WORKFLOWS = Path(__file__).resolve().parents[1] / ".github" / "workflows"
 _AUDITED = re.compile(r"pip-audit\b[^\n]*?\s-r\s+(\S+)")
-_EXPORTED = re.compile(r"uv export\b[^\n]*?(?:\s-o\s+|--output-file[= ]|>\s*)(\S+)")
+# `uv pip compile` too (R267, 2026-09-28): the API image installs `requirements-api.txt`
+# by itself, not the lock — its installed set IS that file's resolution, pinned `==` by
+# compile exactly as `uv export` pins the lock. Auditing the floors themselves stays refused.
+_EXPORTED = re.compile(
+    r"uv (?:export|pip compile)\b[^\n]*?(?:\s-o\s+|--output-file[= ]|>\s*)(\S+)")
 
 
 def audits_of_constraints(workflow: dict) -> list[str]:

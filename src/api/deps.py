@@ -3,7 +3,7 @@ from typing import Generator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
+from jwt import InvalidTokenError
 
 from src.api.auth import decode_token
 from src.dashboard.utils import get_db_connection
@@ -62,7 +62,9 @@ def get_current_user(token: str = Depends(oauth2_scheme),
         payload = decode_token(token)
         if not payload.get("sub"):
             raise credentials_exc
-    except JWTError:
+    # R267 (critic b) — PyJWT's base error. Catching python-jose's `JWTError` after the
+    # switch would let every bad token escape as a 500 instead of a 401.
+    except InvalidTokenError:
         raise credentials_exc
 
     if db is None:

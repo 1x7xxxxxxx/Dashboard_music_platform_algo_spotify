@@ -18,7 +18,7 @@ import socket
 
 import pytest
 
-pytest.importorskip("jose", reason="dev extras not installed — run `make sync`")
+pytest.importorskip("jwt", reason="dev extras not installed — run `make sync`")
 pytest.importorskip("fastapi", reason="dev extras not installed — run `make sync`")
 
 # ── DB readiness gate (mirrors test_views_render_smoke) ──────────────────────

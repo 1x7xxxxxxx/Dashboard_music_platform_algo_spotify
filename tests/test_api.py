@@ -3,7 +3,7 @@
 Uses FastAPI TestClient — no real DB or Airflow required.
 The DB dependency is overridden with a mock ``PostgresHandler``-like object.
 
-Skipped gracefully when dev extras (fastapi, python-jose) aren't installed —
+Skipped gracefully when dev extras (fastapi, PyJWT) aren't installed —
 local devs can run `make test` without setting up the full API stack, while CI
 (which installs --extra dev) still runs these tests.
 """
@@ -15,8 +15,8 @@ import pandas as pd
 import pytest
 
 # Skip whole module if the API stack isn't installed locally. Must run BEFORE
-# the `src.api.*` imports below — those transitively pull jose + fastapi.
-pytest.importorskip("jose", reason="dev extras not installed — run `make sync`")
+# the `src.api.*` imports below — those transitively pull PyJWT + fastapi.
+pytest.importorskip("jwt", reason="dev extras not installed — run `make sync`")
 pytest.importorskip("fastapi", reason="dev extras not installed — run `make sync`")
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -117,7 +117,7 @@ def test_create_and_decode_token():
 
 def test_expired_token_raises():
     from datetime import timedelta
-    from jose import JWTError
+    from jwt import InvalidTokenError as JWTError
     from src.api.auth import decode_token
     token = create_access_token({"sub": "alice"}, expires_delta=timedelta(seconds=-1))
     with pytest.raises(JWTError):
@@ -148,6 +148,17 @@ def test_verify_password():
 def test_protected_endpoints_require_token(url, client_no_auth):
     r = client_no_auth.get(url)
     assert r.status_code == 401
+
+
+def test_a_bad_or_expired_token_is_a_401_not_a_500(client_no_auth):
+    """R267 (critic b) — after python-jose → PyJWT, `deps.py` must catch PyJWT's
+    `InvalidTokenError`: catching the old library's error let a bad token escape as a 500."""
+    from datetime import timedelta
+    expired = create_access_token({"sub": "alice", "role": "artist", "artist_id": 2},
+                                  expires_delta=timedelta(seconds=-10))
+    for token in ("not.a.jwt", expired, expired[:-4] + "abcd"):
+        r = client_no_auth.get("/artists/me", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 401, (token[:12], r.status_code)
 
 
 # ---------------------------------------------------------------------------

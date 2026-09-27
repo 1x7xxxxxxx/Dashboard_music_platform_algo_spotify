@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("jose", reason="dev extras not installed — run `make sync`")
+pytest.importorskip("jwt", reason="dev extras not installed — run `make sync`")
 pytest.importorskip("fastapi", reason="dev extras not installed — run `make sync`")
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -166,3 +166,21 @@ class TestSessionIdleTimeout:
     def test_past_timeout_is_expired(self):
         from src.dashboard.auth import _session_idle_expired
         assert _session_idle_expired(1000.0, now=1000.0 + 3601, timeout_secs=3600) is True
+
+
+def test_production_boots_strict_even_without_the_flag(monkeypatch):
+    """R267 (critic c) — production OR API_STRICT_BOOT, never both required."""
+    from src.api import main
+    monkeypatch.delenv("API_STRICT_BOOT", raising=False)
+    monkeypatch.setenv("STREAMLYTICS_ENV", "production")
+    assert main._strict()
+    monkeypatch.setenv("STREAMLYTICS_ENV", "local")
+    assert not main._strict()
+    monkeypatch.setenv("API_STRICT_BOOT", "1")
+    assert main._strict()
+    monkeypatch.delenv("API_STRICT_BOOT")
+    monkeypatch.setenv("STREAMLYTICS_ENV", "production")
+    monkeypatch.setenv("API_SECRET_KEY", "short")
+    import pytest
+    with pytest.raises(RuntimeError, match="refusing to start"):
+        main._preflight()

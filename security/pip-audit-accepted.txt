@@ -1,0 +1,45 @@
+# Advisories ACCEPTED by the nightly pip-audit (R267, 2026-09-28) — one line each:
+# <advisory id> <package> — the reason. Anything NOT listed fails the nightly job.
+#
+# All of them come with the Airflow 2.11 stack (apache-airflow, its FAB provider, and the
+# flask / flask-appbuilder it pins). Their fix is Airflow 3: a major upgrade that broke
+# the import of the 16 DAGs when tried (PR #100, 2026-08-24). Airflow runs on the private
+# Docker network, its UI behind Caddy with its own auth. Re-check: at each Airflow 3.x
+# release, and when this list grows — a new line here needs its own reason.
+
+PYSEC-2023-314 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-10 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-12 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-13 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-1378 flask-appbuilder — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-1379 flask-appbuilder — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-172 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-173 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-18 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-181 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-186 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-187 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2082 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2083 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2086 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2087 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2088 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2151 flask — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2343 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2344 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2345 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2346 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2351 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2353 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2354 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2356 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-2366 apache-airflow-providers-fab — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3705 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3706 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3709 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3710 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3711 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3712 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3806 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3988 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+PYSEC-2026-3989 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)

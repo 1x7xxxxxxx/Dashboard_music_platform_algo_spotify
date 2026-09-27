@@ -1,7 +1,7 @@
 """The one `url_fetcher` every WeasyPrint render in this repo passes.
 
 Type: Utility
-Uses: weasyprint.urls.default_url_fetcher
+Uses: weasyprint.urls.URLFetcher (≥ 70) or default_url_fetcher (< 70)
 Triggers: every `HTML(string=…).write_pdf()` in `src/`
 Depends on: weasyprint (optional at import time — the import is lazy)
 Persists in: nothing
@@ -33,13 +33,52 @@ rex: []
 from __future__ import annotations
 
 
-def no_remote_resources(url: str, timeout: int = 10, ssl_context=None):
-    """url_fetcher that serves nothing but inline `data:` URIs.
-
-    Anything else raises, and WeasyPrint drops the element rather than fetching it.
-    """
+def _legacy_fence(url: str, timeout: int = 10, ssl_context=None):
+    """WeasyPrint < 70: a plain function, `data:` served by `default_url_fetcher`."""
     if url.startswith("data:"):
         from weasyprint.urls import default_url_fetcher
 
         return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
     raise ValueError(f"blocked non-data resource in PDF render: {url[:60]}")
+
+
+def _build_fence():
+    """The fence for the INSTALLED WeasyPrint.
+
+    ⚠️ WeasyPrint 70 (R267, 2026-09-28, upgraded for PYSEC-2026-3940) removed
+    `default_url_fetcher` and calls `url_fetcher._fail_on_errors` when a fetch raises: a
+    plain function made EVERY blocked resource crash the render with an AttributeError
+    instead of dropping it. The requirement files pin `weasyprint>=62.0`, so the next image
+    build would have met it in production. From 70 on, the fence is a `URLFetcher` whose
+    only allowed protocol is `data` — the library's own gate, raising ValueError on the rest.
+    """
+    try:
+        from weasyprint.urls import URLFetcher
+    except ImportError:
+        return _legacy_fence
+
+    class _DataOnly(URLFetcher):
+        def __init__(self):
+            super().__init__(allowed_protocols={"data"}, fail_on_errors=False)
+
+    return _DataOnly()
+
+
+class _LazyFence:
+    """Built on first use: importing this module must not import WeasyPrint."""
+
+    _fence = None
+
+    def __call__(self, url, *args, **kwargs):
+        return self._get()(url, *args, **kwargs)
+
+    def __getattr__(self, name):          # `_fail_on_errors`, `fetch`… for WeasyPrint 70
+        return getattr(self._get(), name)
+
+    def _get(self):
+        if _LazyFence._fence is None:
+            _LazyFence._fence = _build_fence()
+        return _LazyFence._fence
+
+
+no_remote_resources = _LazyFence()

@@ -653,12 +653,10 @@ check-pipaudit: ## (internal) fail fast with the install command, rule #10
 	  exit 1; }
 
 audit-deps: check-pipaudit ## Known CVEs in requirements.txt (R22). Fails on anything not named below.
-	@# PYSEC-2026-1325 (ecdsa 0.19.2) is ignored NAMED, not by lowering the bar:
-	@# it is a Minerva timing attack on ECDSA *signing*, python-ecdsa has declared
-	@# side channels out of scope so no fix version exists, and ecdsa arrives here
-	@# only transitively via python-jose while our JWTs pin HS256 at both encode
-	@# and decode (src/api/auth.py). Re-check that pin before extending this list.
-	@$(PIP_AUDIT) -r requirements.txt --ignore-vuln PYSEC-2026-1325 \
+	@# No ignore left (R267, 2026-09-28): PYSEC-2026-1325 (ecdsa) came only through
+	@# python-jose, replaced by PyJWT — ecdsa and rsa left the lock with it. An ignore
+	@# added here names its advisory, its reason and the date it is re-checked.
+	@$(PIP_AUDIT) -r requirements.txt \
 	  && echo "✅ no actionable dependency vulnerability"
 
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock

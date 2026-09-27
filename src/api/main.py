@@ -33,6 +33,14 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
 from src.api.security import install as install_security  # noqa: E402
 
+def _strict() -> bool:
+    """R267 (critic c) — strict in production EVEN WITHOUT the flag: `API_STRICT_BOOT=1`
+    lives in one compose file, and a compose rebuilt without it booted production on an
+    ephemeral JWT key. Either signal is enough — never both required."""
+    from src.utils.instance_identity import PRODUCTION, instance_env
+    return bool(os.getenv("API_STRICT_BOOT")) or instance_env() == PRODUCTION
+
+
 def _preflight() -> None:
     """Fail loud in prod on weak/absent security-critical config — instead of silently
     degrading (API_SECRET_KEY falls back to an EPHEMERAL key in auth.py, so JWTs die on
@@ -49,8 +57,8 @@ def _preflight() -> None:
     if not problems:
         return
     msg = "API startup preflight: " + "; ".join(problems)
-    if os.getenv("API_STRICT_BOOT"):
-        raise RuntimeError(msg + " — refusing to start (API_STRICT_BOOT=1).")
+    if _strict():
+        raise RuntimeError(msg + " — refusing to start (production or API_STRICT_BOOT=1).")
     logging.getLogger("api.preflight").warning(
         "⚠️ %s — set API_STRICT_BOOT=1 in prod to make this fatal.", msg)
 

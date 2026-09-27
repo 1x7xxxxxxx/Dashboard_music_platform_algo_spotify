@@ -699,11 +699,75 @@ def _tasks_test_on_prod(command: str) -> str | None:
     return None
 
 
+# R267 (owner notes L138/L170, critic d) — no gesture of Claude Code READS a `.env`.
+# The permission deny in settings covers the Read tool; the shell was open: `cat .env`,
+# `grep KEY .env.local`, `source .env` printed or loaded the secrets into a transcript.
+# Read on STRUCTURE — the command of a segment is a reader and one of its arguments IS a
+# `.env` file — so a commit message or a heredoc that talks about `.env` never trips it.
+# `.env.example` is exempt: it is committed, public, and holds no value.
+_ENV_READERS = frozenset({
+    "cat", "less", "more", "head", "tail", "grep", "egrep", "fgrep", "rg", "sed", "awk",
+    "source", ".", "xxd", "od", "strings", "bat", "cut", "sort", "uniq", "diff", "base64",
+    "cp", "tac", "nl", "column", "jq", "envsubst", "dotenv"})
+_ENV_FILE = re.compile(r"^\.env(?:\.[\w.-]+)?$")
+
+
+def _is_env(arg: str) -> str | None:
+    name = arg.lstrip("<").rsplit("/", 1)[-1]
+    return arg.lstrip("<") if _ENV_FILE.match(name) and name != ".env.example" else None
+
+
+def _reads_an_env_file(command: str) -> str | None:
+    """The `.env` file a segment's command would read, or None.
+
+    Three shapes: a READER given the file (`cat .env`), ANY command fed it by an input
+    redirection (`python3 x.py < .env`), and either of those inside a command
+    substitution (`echo $(cat .env)`), which is read recursively.
+    """
+    body = _sans_heredocs(command)
+    for inner in re.findall(r"\$\(([^()]*)\)|`([^`]*)`", body):
+        found = _reads_an_env_file(inner[0] or inner[1])
+        if found:
+            return found
+    for segment in re.split(r"(?:&&|\|\||\||;|\n)", body):
+        try:
+            argv = shlex.split(segment.strip())
+        except ValueError:
+            argv = segment.split()
+        for k, tok in enumerate(argv):           # `< .env` / `<.env`, whatever the command
+            if tok == "<" and k + 1 < len(argv) and _is_env(argv[k + 1]):
+                return _is_env(argv[k + 1])
+            if tok.startswith("<") and tok != "<" and not tok.startswith("<<") and _is_env(tok):
+                return _is_env(tok)
+        i = 0
+        while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
+            i += 1
+        if i >= len(argv) or argv[i].rsplit("/", 1)[-1] not in _ENV_READERS:
+            continue
+        args = argv[i + 1:]
+        for k, arg in enumerate(args):
+            # The target of `>` / `>>` is WRITTEN, not read: `cat <<EOF > .env` creates it.
+            if arg.startswith(">") or (k and args[k - 1] in (">", ">>", "2>", "&>")):
+                continue
+            if _is_env(arg):
+                return _is_env(arg)
+    return None
+
+
 def check_command(cmd: str) -> tuple[str, str] | None:
     """
     Returns (level, message) if the command matches a dangerous pattern.
     level is 'block' or 'warn'. Returns None if safe.
     """
+    env_file = _reads_an_env_file(cmd)
+    if env_file:
+        return ("block",
+                f"cette commande LIT `{env_file}` : ses valeurs sont des secrets, et tout ce "
+                "qu'une commande affiche entre dans la transcription. Aucun geste de Claude "
+                "Code ne lit un `.env` (R267). Pour savoir si une clé est posée sans la "
+                "montrer : `grep -c '^CLE=' fichier` n'est pas mieux — demander au "
+                "propriétaire de lancer la commande avec `!`, ou tester l'EFFET (le service "
+                "démarre, l'appel répond).")
     # Le verdict avale par un tube d'abord : il ne detruit rien et il ne coute pas de
     # temps — il fait LIVRER un rouge en croyant livrer un vert, ce qui est pire.
     avale = _verdict_swallowed_by_a_pipe(cmd)

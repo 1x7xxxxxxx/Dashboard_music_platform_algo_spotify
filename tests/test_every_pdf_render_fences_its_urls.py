@@ -130,3 +130,25 @@ def test_the_fence_still_serves_the_data_uris_the_documents_need() -> None:
     pixel = base64.b64encode(b"\x89PNG\r\n\x1a\n").decode()
     out = no_remote_resources(f"data:image/png;base64,{pixel}")
     assert out, "une `data:` URI doit passer — sinon les captures du guide disparaissent"
+
+
+def test_a_real_render_drops_a_remote_image_and_keeps_a_data_one() -> None:
+    """R267 — the fence as WeasyPrint CALLS it, not as a function: WeasyPrint 70 reads
+    `url_fetcher._fail_on_errors` when a fetch raises, and a plain function crashed the
+    whole render on the first blocked image (found upgrading 69 → 70, 2026-09-28)."""
+    import base64
+    import sys
+
+    import pytest
+
+    weasyprint = pytest.importorskip("weasyprint")
+    sys.path.insert(0, str(_ROOT))
+    from src.dashboard.utils.pdf_url_fence import no_remote_resources
+
+    png = base64.b64encode(bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082")).decode()  # pragma: allowlist secret — a 1×1 PNG, not a secret
+    html = (f'<img src="data:image/png;base64,{png}">'
+            '<img src="http://169.254.169.254/x.png"><img src="file:///etc/passwd">')
+    pdf = weasyprint.HTML(string=html, url_fetcher=no_remote_resources).write_pdf()
+    assert pdf[:4] == b"%PDF"

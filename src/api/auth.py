@@ -14,7 +14,9 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import jwt
+# R267 (critic b) — PyJWT, not python-jose: python-jose is unmaintained and carried an
+# advisory ignored without a date in the nightly audit. Same HS256, same claims.
+import jwt
 from passlib.context import CryptContext
 
 _env_secret = os.getenv("API_SECRET_KEY", "")
@@ -50,7 +52,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_token(token: str) -> dict:
-    """Decode and validate a JWT.  Raises ``JWTError`` on failure."""
+    """Decode and validate a JWT.  Raises ``jwt.InvalidTokenError`` on failure."""
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
