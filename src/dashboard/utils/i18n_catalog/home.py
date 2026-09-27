@@ -25,6 +25,7 @@ EN = {
     "home.freshness_every_day": "every day at {h}",
     "home.freshness_on_upload": "on every upload",
     "home.streams_header": "🎧 Total streams",
+    "platform_chart.counter_arrival": "{p}: {v} lifetime at first reading — not a rise",
     "platform_chart.too_thin": (
         "{label} is not drawn: only **{measured} reading(s)**, and an area needs two. "
         "Its figures stay in the table below."),

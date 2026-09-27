@@ -58,6 +58,7 @@ from src.dashboard.utils.platform_absence import (          # noqa: F401
     _unmeasured_hover, known, unmeasured_spans,
 )
 from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
+    counter_arrivals, mark_counter_arrivals,
     _STEP_UNITS, _render_notes, _render_recap,
     render_collection_start_note, render_counter_history_note,
     t_coarsened, t_too_coarse, t_too_thin,
@@ -104,24 +105,11 @@ logger = logging.getLogger(__name__)
 # qu'une valeur change. Le pourquoi y est écrit, avec la mesure de META.
 from src.dashboard.utils.platform_colors import PALETTE_DARK as _PALETTE_DARK  # noqa: E402
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT as _PALETTE_LIGHT  # noqa: E402
+from src.dashboard.utils.platform_colors import is_dark as _is_dark  # noqa: E402
 
 # Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
 # de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.
 _DEFAULT_DAYS = None
-
-
-def _is_dark() -> bool:
-    """Le thème du VISITEUR, avec un repli clair — jamais une exception."""
-    try:
-        theme = getattr(st.context, "theme", None)
-        if theme is not None and getattr(theme, "type", None):
-            return str(theme.type).lower() == "dark"
-    except Exception:      # noqa: BLE001 — versions de Streamlit sans st.context
-        pass
-    try:
-        return str(st.get_option("theme.base") or "").lower() == "dark"
-    except Exception:      # noqa: BLE001
-        return False
 
 
 def _continuous(rows: list[tuple], days: list) -> list:
@@ -1086,6 +1074,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # franchi 1 200 lignes le 2026-09-13 et `test_a_file_only_gets_shorter` l'a dit.
     # Figer la dette dans sa liste était l'option paresseuse ; la découper la retire.
     annotate_series(fig, span, aligned, order, palette, surface, mode)
+    if since is None and mode == "cumulative":   # R241 — a counter's past is not a peak
+        mark_counter_arrivals(fig, counter_arrivals(
+            cumulative or {}, [k for k in order if k in served], span), PLATFORM_LABELS, muted)
 
     st.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:

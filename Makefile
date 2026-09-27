@@ -452,6 +452,7 @@ charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artis
 		echo "   docker exec -i postgres_spotify_airflow pg_restore -U postgres -d spotify_etl_review --no-owner --no-privileges < $(OUT)/prod.dump"; \
 		exit 1; }
 	@.venv/bin/python tools/dev/charts_dossier/capture.py "$(OUT)"
+	@.venv/bin/python tools/dev/charts_dossier/numbers_check.py "$(OUT)"
 	@.venv/bin/python tools/dev/charts_dossier/main.py "$(OUT)" $(PROM)
 
 charts-review: ## R204 — verse tes retours dictés (COMMENTS=<fichier yaml>, optionnel), refait le tri par cause (revue/tri.md) et le PDF numéroté, sans base

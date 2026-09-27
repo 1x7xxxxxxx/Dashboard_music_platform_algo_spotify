@@ -17,7 +17,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
-from src.dashboard.utils.creative_decisions import _a_couper  # R233: moved out, still importable from here
+from src.dashboard.utils.creative_decisions import _a_couper, by_creative  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
@@ -418,7 +418,7 @@ def _render_ranking(df: pd.DataFrame) -> None:
     """
     from plotly.subplots import make_subplots
 
-    d = _numerise(df)
+    d = _numerise(by_creative(df))   # R241 — one bar per creative, never per (creative, campaign)
     d = d[d['total_spend'].notna() & (d['total_spend'] > 0)]
     if d.empty:
         st.info(t("meta_creatives.no_ranking", "Aucune créative avec de la dépense."))
@@ -440,7 +440,7 @@ def _render_ranking(df: pd.DataFrame) -> None:
             x=vals, y=noms, orientation='h', marker={'color': couleur},
             name=lab, showlegend=False,
             text=[fmt.format(v) if pd.notna(v) else "—" for v in vals],
-            textposition='outside', cliponaxis=False,
+            textposition='auto', cliponaxis=False,   # inside a long bar: never spills
             hovertemplate=f"%{{y}}<br>{lab} : %{{x}}<extra></extra>",
         ), row=1, col=i)
         fig.update_xaxes(showticklabels=False, row=1, col=i)
@@ -830,7 +830,7 @@ def _render_efficiency(df: pd.DataFrame) -> None:
     """
     with secondary_analyses(t("meta_creatives.efficiency_expander",
                               "🔬 Efficacité par créative — détail")):
-        d = df.copy()
+        d = by_creative(df)   # R241 — one bar per creative (fiche 33)
         d['total_spend'] = pd.to_numeric(d['total_spend'], errors='coerce').fillna(0.0)
         d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
         d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)

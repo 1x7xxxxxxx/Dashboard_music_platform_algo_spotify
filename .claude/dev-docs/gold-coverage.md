@@ -35,7 +35,7 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 | `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 17 |
 | `identifiant-non-résolu` | un nom capté dans un FROM qui n'existe ni en migration ni dans init_db.sql (CTE, alias, sous-requête) — écarté plutôt que publié | 2 |
 | `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 4 |
-| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 37 |
+| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 38 |
 | `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 13 |
 | `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 18 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
@@ -96,17 +96,17 @@ Une métrique = une définition = une source. Écrit à la main dans `tools/dev/
 | **active_budget** | Budget quotidien des campagnes actives. | `v_meta_active_budget` | `v_meta_active_budget.daily_budget` | campagne | niveau | maintenant | 10 | **0** |
 | **ad_engagement** | Interactions sur les publicités (réactions, sauvegardes, partages). | `v_meta_engagement_daily` | `v_meta_engagement_daily` | jour × campagne | flux | période choisie | 4 | 2 — `test_a_join_never_multiplies_the_grain.py` … |
 | **ad_performance** | Les mêmes mesures par publicité, avec ses réglages. | `v_meta_ad_daily` | `v_meta_ad_daily` | jour × publicité | flux | période choisie | 2 | 2 — `test_a_join_never_multiplies_the_grain.py` … |
-| **ad_spend_daily** | Dépense Meta par jour et par artiste. | `v_meta_daily` | `v_meta_daily.spend` | jour | flux | période choisie | 25 | 8 — `test_a_campaign_figure_carries_its_date.py` … |
+| **ad_spend_daily** | Dépense Meta par jour et par artiste. | `v_meta_daily` | `v_meta_daily.spend` | jour | flux | période choisie | 25 | 9 — `test_a_campaign_figure_carries_its_date.py` … |
 | **ad_spend_total** | Dépense et résultats Meta totaux — la définition OR de « combien dépensé ». | `v_meta_spend_totals` | `v_meta_spend_totals.spend/results` | compte | flux | tout | 2 | 2 — `test_the_gold_layer_agrees_with_itself.py` … |
 | **adset_performance** | Les mêmes mesures par ensemble de publicités. | `v_meta_adset_daily` | `v_meta_adset_daily` | jour × adset | flux | période choisie | 2 | 1 — `test_an_account_filter_names_one_column.py` |
 | **apple_cumulative** | Cumul Apple par titre et par relevé (exports d'un jour exclus). | `v_apple_song_cumulative` | `v_apple_song_cumulative.plays/shazam_count` | relevé × titre | cumul | tout | 4 | 3 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` … |
 | **apple_daily** | Écoutes et Shazams Apple quotidiens : export d'un jour, ou écart de cumuls. | `v_apple_song_daily` | `v_apple_song_daily.daily_plays/daily_shazams` | jour × titre | flux | période choisie | 4 | 2 — `test_a_daily_apple_export_gives_daily_shazams.py` … |
 | **apple_lifetime** | Écoutes et Shazams Apple à vie par titre (dernier relevé). | `gold_apple_lifetime` | `gold_apple_lifetime(artist_id)` | titre | cumul | à vie | 8 | 4 — `test_a_gold_rule_is_declarative.py` … |
-| **campaign_funnel** | Impressions, clics, clics lien, vues de page, clics sortants, dépense par campagne. | `v_meta_campaign_daily` | `v_meta_campaign_daily.*` | jour × campagne | flux | fenêtre de campagne | 25 | 6 — `test_a_join_never_multiplies_the_grain.py` … |
+| **campaign_funnel** | Impressions, clics, clics lien, vues de page, clics sortants, dépense par campagne. | `v_meta_campaign_daily` | `v_meta_campaign_daily.*` | jour × campagne | flux | fenêtre de campagne | 25 | 7 — `test_a_chart_number_is_checked_after_its_gold_read.py` … |
 | **campaign_track** | Le titre lié à une campagne, par lien confirmé. | `v_meta_track_attribution` | `v_meta_track_attribution` | campagne | attribut | tout | 1 | **0** |
 | **cashflow** | Tout l'argent au mois : revenus nets (+1) et dépenses Meta + coûts (−1). | `v_artist_monthly_cashflow` | `v_artist_monthly_cashflow.amount_eur × direction` | mois × source | flux | tout | 18 | 5 — `test_a_break_even_is_a_date_not_a_crash.py` … |
 | **costs** | Coûts saisis par l'artiste, étalés au mois (annuel /12, ponctuel dans son mois). | `v_artist_monthly_costs` | `v_artist_monthly_costs.amount_eur` | mois × catégorie | flux | tout | 1 | **0** |
-| **creative_funnel** | Par créative : impressions, clics lien, clics sortants (mesurés ou non), dépense. | `v_meta_creative_daily` | `v_meta_creative_daily.total_link_clicks/total_outbound` | jour × créative | flux | période choisie | 16 | 5 — `test_a_creative_funnel_never_widens.py` … |
+| **creative_funnel** | Par créative : impressions, clics lien, clics sortants (mesurés ou non), dépense. | `v_meta_creative_daily` | `v_meta_creative_daily.total_link_clicks/total_outbound` | jour × créative | flux | période choisie | 16 | 6 — `test_a_chart_number_is_checked_after_its_gold_read.py` … |
 | **hypeddit_funnel** | Visites du smart link et clics vers les plateformes, par campagne. | `v_hypeddit_daily` | `v_hypeddit_daily.visits/clicks` | jour × campagne | flux | période choisie | 16 | 5 — `test_a_failed_read_is_not_an_absence.py` … |
 | **instagram_engagement** | Likes et commentaires acquis à ce jour par mois de publication. | `v_instagram_media_monthly` | `v_instagram_media_monthly.likes/comments` | mois de publication | cumul | 12 mois | 4 | 4 — `test_a_failed_read_is_not_an_absence.py` … |
 | **instagram_followers** | Abonnés, abonnements et publications Instagram. | `v_instagram_followers_daily` | `v_instagram_followers_daily.followers/follows/media` | jour | niveau | période choisie | 8 | 1 — `test_a_gold_view_is_blind_to_another_tenants_rows.py` |
@@ -171,8 +171,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | ⚠️ `views/meta_breakdowns.py:138` | `_render_performance` | plotly_chart | un clic | — | — | indéterminée | clé-à-l-exécution | — |
 | ⚠️ `views/trigger_algo/_common/_pi_gates.py:76` | `_show_pi_gate_section` | plotly_chart | à l'écran | — | — | indéterminée | profondeur · sans-appelant | — |
 | `utils/ml_widgets.py:301` | `render_lever_sensitivity` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | clé-à-l-exécution · profondeur | — |
-| `utils/platform_chart.py:1090` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sans-appelant | — |
-| `utils/platform_chart.py:1200` | `_render_facets` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
+| `utils/platform_chart.py:1081` | `render_platform_chart` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur · sans-appelant | — |
+| `utils/platform_chart.py:1191` | `_render_facets` | plotly_chart | à l'écran | `get()` · `apple_yearly_series()` · `cumulative_by_platform()` · `daily_streams_by_platform()` · `measured_days()` | or | plusieurs amonts | appelants-multiples · clé-à-l-exécution · profondeur | — |
 | `utils/s4a_entry_insight.py:279` | `render_prediction_vs_reality` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | clé-à-l-exécution · identifiant-non-résolu · profondeur | — |
 | `utils/s4a_entry_insight.py:338` | `render_playlist_history` | plotly_chart | à l'écran | `s4a_song_playlist_adds` | brut | plusieurs amonts | — | — |
 | `views/alerts.py:440` | `_section_plan_evolution` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plan_history` · `subscription_plans` | brut | plusieurs amonts | profondeur | — |
@@ -187,7 +187,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/meta_ads_overview.py:542` | `_show_meta_ads` | plotly_chart | à l'écran | `v_meta_campaign_daily` · `v_meta_daily` | or | plusieurs amonts | — | ?`v_meta_adset_daily` · ?`v_meta_engagement_daily` |
 | `views/meta_ads_overview.py:658` | `_show_meta_ads` | plotly_chart | à l'écran | `v_meta_adset_daily` | or | plusieurs amonts | clé-à-l-exécution | ?`v_meta_campaign_daily` · ?`v_meta_daily` · ?`v_meta_engagement_daily` |
 | `views/meta_cpr_optimizer.py:502` | `_render_age_panel` | plotly_chart | à l'écran | `meta_insights_performance_age` | brut | plusieurs amonts | — | — |
-| `views/meta_creatives.py:451` | `_render_ranking` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | — | — |
+| `views/meta_creatives.py:451` | `_render_ranking` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | profondeur | — |
 | `views/meta_creatives.py:496` | `_render_hooks` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/meta_creatives.py:775` | `_render_creative_timeline` | plotly_chart | à l'écran | `v_artist_monthly_revenue` · `v_meta_creative_daily` · `meta_insights_performance_day` | mixte | plusieurs amonts | — | — |
 | `views/meta_creatives.py:810` | `_render_scatter` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | — | — |
@@ -708,4 +708,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=e2ce35d2341a15f8ececd022b532fb548c3fac9b65421f4b4c18f4bb1055de7c -->
+<!-- gold-coverage: sha256=820422d752005b609936ec04cb11d697520d2e984b1318138dba06fded2a976b -->

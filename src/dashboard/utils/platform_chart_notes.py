@@ -374,3 +374,35 @@ def render_counter_history_note(levels: dict, labels: dict) -> None:
 # Elle n'a pas été RECYCLÉE pour porter la note ci-dessus, et c'est délibéré : son
 # contrat était « nomme ce qui n'a PAS de série ». YouTube et SoundCloud en ont une.
 # La remplir aurait produit une phrase qui dit le contraire du code juste à côté.
+
+
+def counter_arrivals(cumulative: dict, keys: list, span: list) -> list[tuple]:
+    """(day, platform key, lifetime level) for each COUNTER that starts inside the span. Pure.
+
+    R241 (owner, 2026-09-27 : « corrige le pic »). On « depuis le début », a platform
+    that only reports a lifetime counter (YouTube, SoundCloud — ADR-024) enters the stack
+    at its whole past on its first reading: +118 k on one day, read as an audience peak.
+    The figure marks that day instead of letting the step speak for itself."""
+    out = []
+    lo = span[0] if span else None
+    for k in keys:
+        rows = sorted(cumulative.get(k) or [])
+        if rows and lo is not None and rows[0][0] > lo:
+            out.append((rows[0][0], k, rows[0][1]))
+    return out
+
+
+def mark_counter_arrivals(fig, arrivals: list, labels: dict, muted: str) -> None:
+    """A dotted line and a label on each counter's first reading (see counter_arrivals)."""
+    from src.dashboard.utils.i18n import t
+    for i, (day, key, level) in enumerate(arrivals):
+        fig.add_vline(x=day, line_dash="dot", line_color=muted, line_width=1)
+        # Staggered: two counters arriving a fortnight apart printed their labels on top
+        # of each other (dossier render, 2026-09-27).
+        fig.add_annotation(
+            x=day, y=1 - 0.09 * i, yref="paper", xanchor="right", yanchor="top",
+            showarrow=False,
+            font=dict(size=10, color=muted),
+            text=t("platform_chart.counter_arrival",
+                   "{p} : {v} à vie au 1er relevé — pas une hausse").format(
+                p=labels.get(key, key), v=f"{level:,.0f}".replace(",", " ")))

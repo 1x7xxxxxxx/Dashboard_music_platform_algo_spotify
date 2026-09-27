@@ -132,6 +132,47 @@ def capture(views: list[str], out: Path, script: str) -> dict:
     return _write(records, errors, figs_dir, out)
 
 
+def _max_drop(vals: list) -> float:
+    """Largest fall from a running peak, as a share of that peak (0 = never falls). Pure."""
+    peak, worst = None, 0.0
+    for v in vals:
+        peak = v if peak is None or v > peak else peak
+        if peak and peak > 0:
+            worst = max(worst, (peak - v) / peak)
+    return round(worst, 4)
+
+
+def trace_shapes(fig: dict) -> list[dict]:
+    """What each trace DRAWS, in numbers — R241, so a figure's arithmetic can be checked
+    after its (correct) gold read. Pure: takes the figure's JSON dict.
+
+    For each trace: its name, type, the values it plots on its measure axis (y, or x for a
+    horizontal bar), their count, min, max, sum, and whether a line ever goes DOWN."""
+    out = []
+    for tr in fig.get("data", []):
+        horiz = tr.get("orientation") == "h"
+        raw = tr.get("x" if horiz else "y")
+        if isinstance(raw, dict):              # plotly's binary array encoding
+            continue
+        vals = [v for v in (raw or []) if isinstance(v, (int, float)) and v == v]
+        if not vals:
+            continue
+        ref = tr.get("xaxis", "x") if horiz else tr.get("yaxis", "y")    # "x2" → "xaxis2"
+        ax = ("xaxis" if horiz else "yaxis") + ref[1:]
+        axis = (fig.get("layout", {}).get(ax) or {})
+        title = axis.get("title")
+        unit = " ".join(str(v) for v in ((title or {}).get("text") if isinstance(title, dict)
+                                         else title, axis.get("ticksuffix")) if v)
+        cats = tr.get("y" if horiz else "x") if tr.get("type") == "bar" else None
+        cats = [c for c in cats if isinstance(c, str)] if isinstance(cats, list) else []
+        out.append({"name": str(tr.get("name") or ""), "type": tr.get("type", ""), "unit": unit,
+                    "dup_labels": len(cats) - len(set(cats)),
+                    "n": len(vals), "min": min(vals), "max": max(vals), "sum": sum(vals),
+                    "max_drop": _max_drop(vals),
+                    "decreases": any(b < a for a, b in zip(vals, vals[1:]))})
+    return out
+
+
 def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict:
     import plotly.io as pio
     manifest, failed = [], []
@@ -142,14 +183,16 @@ def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict
                 if r["spec"] is None:
                     raise ValueError("figure non sérialisable")
                 fig = pio.from_json(r["spec"])
+                shapes = trace_shapes(json.loads(r["spec"]))
                 h = fig.layout.height or 450
                 fig.write_image(figs_dir / name, width=1000, height=int(h), scale=1)
                 title = fig.layout.title.text if fig.layout.title else ""
             else:
                 (figs_dir / name).write_bytes(r["png"])
-                title = ""
+                title, shapes = "", []
             manifest.append({"id": i, "view": r["view"], "kind": r["kind"], "site": r["site"],
-                             "view_site": r["view_site"], "title": title or "", "png": name})
+                             "view_site": r["view_site"], "title": title or "", "png": name,
+                             "traces": shapes})
         except Exception as exc:  # noqa: BLE001 — listed as not rendered, never dropped
             failed.append({"view": r["view"], "site": r["site"], "reason": str(exc)[:200]})
     result = {"figures": manifest, "not_rendered": failed, "view_errors": errors}

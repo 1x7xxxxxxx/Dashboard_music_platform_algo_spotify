@@ -101,7 +101,7 @@ _TAIL_DAYS = 28
 def _palette() -> dict:
     """La palette du thème du VISITEUR, avec un repli clair — jamais une exception.
 
-    Même forme que `platform_chart._is_dark()`, et pour la même raison : un thème
+    Même forme que `platform_colors.is_dark()`, et pour la même raison : un thème
     illisible ne doit pas casser une page, il doit rendre la palette claire.
     """
     dark = False

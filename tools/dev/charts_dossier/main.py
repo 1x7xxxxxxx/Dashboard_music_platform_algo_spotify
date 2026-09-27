@@ -105,6 +105,15 @@ def esc(s) -> str:
     return html.escape(str(s or ""))
 
 
+def number_html(number: tuple | None) -> str:
+    """R241 — the chart's number, checked: vérifié / écart / non garanti / pas de rendu."""
+    if not number:
+        return ""
+    from numbers_check import VERDICTS as NV
+    key, why = number
+    return f'<p class="num num-{key}"><b>{NV[key]}</b> — {esc(why)}</p>'
+
+
 def actions_html(entry: dict | None, open_ids: set[str]) -> str:
     acts = (entry or {}).get("actions") or []
     if not acts:
@@ -122,7 +131,7 @@ def actions_html(entry: dict | None, open_ids: set[str]) -> str:
 
 def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
           no: int | None = None, entry: dict | None = None,
-          open_ids: set[str] | None = None) -> str:
+          open_ids: set[str] | None = None, number: tuple | None = None) -> str:
     v = r.get("v", "a-trancher")
     owner = ""
     if r.get("owner_v") or r.get("owner"):
@@ -135,7 +144,7 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
 {img_html}
-<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set())}
+{number_html(number)}<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set())}
 <p class="site"><code>{esc(key)}</code> · {esc(ROLES.get(r.get('role'), r.get('role')))} {meta_line}{extra}</p></div>"""
 
 
@@ -152,6 +161,83 @@ n'entre dans la roadmap avant ton arbitrage.</li>
 </ol>
 <p>Les fiches « à trancher » n'ont pas pu être rendues (onglet, sélecteur ou clic) : pour elles,
 un coup d'œil dans l'app vaut mieux que ce document.</p>"""
+
+
+METHOD = """<h2>Méthode — un chiffre juste, et comment il le reste</h2>
+<p><b>Bronze → argent → or.</b> Le <b>bronze</b> est la donnée telle que la plateforme la
+rend (tables de collecte, CSV importés). L'<b>argent</b> la nettoie : une ligne par jour et
+par titre, la ligne « Total » des exports retirée, un compteur à vie gardé comme compteur.
+L'<b>or</b> porte UNE définition par métrique — une vue par KPI, listée dans
+<code>tools/dev/metric_registry.py</code> avec son sens : un <i>flux</i> se somme, un
+<i>cumul</i> se différencie et ne se somme jamais, un <i>niveau</i> se lit à sa dernière valeur.</p>
+<p><b>Quatre règles font qu'un chiffre reste juste :</b></p>
+<ol>
+<li><b>Un graphique ne lit que l'or.</b> Le cliquet <code>make gold-coverage</code> refuse une
+nouvelle lecture du bronze par un écran.</li>
+<li><b>Deux définitions censées coïncider sont comparées chaque soir</b>
+(<code>gold_invariants</code>, {n_inv} égalités ; <code>metric_bounds</code> : une somme ne dépasse
+jamais son total à vie). Un écart part dans le mail du soir.</li>
+<li><b>Ce que la figure DESSINE est contrôlé</b>, pas seulement ce qu'elle lit : un taux au-delà
+de 100 %, un cumul qui redescend, deux barres sous une même étiquette. Lire l'or est
+nécessaire, pas suffisant : un CTR multiplié deux fois par 100 lisait une vue juste.</li>
+<li><b>Chaque correction vient avec un test qui rougit sur le défaut</b>, pour qu'il ne revienne pas.</li>
+</ol>
+<p>Chaque fiche porte ci-dessous le verdict de ces contrôles sur l'instantané de la production.</p>"""
+
+
+def numbers_section(out: Path, review: dict, cap: dict, key_of: dict, inv: dict,
+                    no_of: dict, views_of: dict) -> tuple[dict, str]:
+    """R241 — ({key: (verdict, why)}, the method + KPI table HTML)."""
+    import numbers_check
+    chk = out / "checks.json"
+    checks = json.loads(chk.read_text(encoding="utf-8")) if chk.exists() else None
+    findings = (checks or {}).get("findings", [])
+    traces: dict[str, list] = collections.defaultdict(list)
+    for f in cap["figures"]:
+        traces[key_of.get(f["site"], f["site"])] += f.get("traces") or []
+    number_of = {}
+    for k in review:
+        if k.startswith("grafana:"):
+            continue
+        s_ = inv.get(k, {})
+        number_of[k] = numbers_check.verdict(traces.get(k) if k in traces else None,
+                                             s_.get("layer", "?"), s_.get("sources", []), findings)
+    counts = collections.Counter(v for v, _ in number_of.values())
+    head = ("<p><b>Sur cet instantané :</b> "
+            + " · ".join(f"{numbers_check.VERDICTS[v]} : {counts.get(v, 0)}"
+                         for v in numbers_check.VERDICTS)
+            + (f" — contrôles du soir : {len(findings)} écart(s) sur {checks['pairs']} "
+               f"couples et {checks['bounds']} bornes.</p>" if checks
+               else " — contrôles du soir non rejoués (checks.json absent).</p>"))
+    sys.path.insert(0, str(ROOT))
+    from src.utils.gold_invariants import INVARIANTS     # counted, never typed (was « 34 »: 31)
+    return number_of, (METHOD.replace("{n_inv}", str(len(INVARIANTS))) + head
+                       + kpi_table(review, inv, no_of, views_of))
+
+
+def kpi_table(review: dict, inv: dict, no_of: dict, views_of: dict) -> str:
+    """Each KPI (gold object) → the fiches that read it; two on one page = a twin to judge."""
+    sys.path.insert(0, str(ROOT / "tools" / "dev"))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("metric_registry",
+                                                  ROOT / "tools/dev/metric_registry.py")
+    reg = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = reg
+    spec.loader.exec_module(reg)
+    rows = []
+    for obj, m in sorted(reg.REGISTRY.items(), key=lambda kv: kv[1].name):
+        readers = [k for k in review if obj in inv.get(k, {}).get("sources", [])]
+        pages = collections.Counter(views_of.get(k, ["?"])[0] for k in readers)
+        twin = any(n > 1 for n in pages.values())
+        rows.append(f"<tr><td><b>{esc(m.name)}</b></td><td>{esc(m.sense)}</td>"
+                    f"<td><code>{esc(obj)}</code></td>"
+                    f"<td>{', '.join(str(no_of[k]) for k in readers) or '—'}</td>"
+                    f"<td>{'⚠️ deux sur une page' if twin else ''}</td></tr>")
+    return ("<h3>Les KPI et les graphiques qui les lisent</h3><p>Une ligne par métrique de la "
+            "couche or. « deux sur une page » : deux graphiques d'une même page lisent la même "
+            "métrique — le doublon probable à trancher.</p><table class='idx'><tr><th>KPI</th>"
+            "<th>sens</th><th>vue or</th><th>fiches</th><th></th></tr>" + "".join(rows)
+            + "</table>")
 
 
 def page_phrase(cap: dict, view: str = "ml_performance") -> str:
@@ -215,6 +301,7 @@ def build(out: Path) -> Path:
     open_ids = open_roadmap_ids(
         (ROOT / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8"))
     st_of = {k: status(acts.get(k), open_ids) for k in review}
+    number_of, method = numbers_section(out, review, cap, key_of, inv, no_of, views_of)
     by_status = collections.Counter(st_of.values())
     total = len(review)
     suspects = [k for k, r in review.items() if r.get("v") == "corriger" and r.get("c", 5) <= 2
@@ -229,6 +316,7 @@ connectée au rendu. Réglages par défaut des pages.</p>
 """ + "".join(f"<tr><th>{STATUSES[s_]}</th><td>{by_status.get(s_, 0)}</td></tr>" for s_ in STATUSES)
              + "<tr><th>Rapport PDF de l'artiste</th><td>retiré de ce dossier jusqu'à validation de tous les KPI</td></tr></table>"]
     parts.append(GUIDE)
+    parts.append(method)
     if suspects:
         parts.append("<h3>À vérifier en premier — des chiffres probablement FAUX</h3><ul>"
                      + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(review[k].get('note'))}</li>"
@@ -262,7 +350,7 @@ connectée au rendu. Réglages par défaut des pages.</p>
         if len(views_of.get(k, [])) > 1:
             extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
         return fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
-                     no_of[k], entry=acts.get(k), open_ids=open_ids)
+                     no_of[k], entry=acts.get(k), open_ids=open_ids, number=number_of.get(k))
 
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     graf_keys = [k for k in review if k.startswith("grafana:")]
@@ -297,6 +385,8 @@ img.fig { width: 100%; max-height: 105mm; object-fit: contain; margin: 2mm 0; }
 .nr { color: #777; font-style: italic; padding: 3mm 0; }
 table.notes td { font-size: 8.5pt; padding: .5mm 3mm .5mm 0; }
 .no { font-weight: bold; font-size: 11pt; margin-right: 2mm; }
+.num { margin: 1mm 0; font-size: 9pt; } .num-ecart { color: #c0392b; }
+.num-verifie { color: #1f8a4c; } .num-non-garanti { color: #b7791f; }
 ul.acts { margin: 1mm 0 1mm 4mm; padding: 0; font-size: 9pt; }
 .owner { background: #eef4ff; border-left: 3px solid #2c5282; padding: 1.5mm 3mm; margin: 1mm 0; }
 .note { margin: 1mm 0; } .site { color: #888; font-size: 7.5pt; margin: 0; }

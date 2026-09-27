@@ -133,3 +133,21 @@ def platform_color(platform: str, *, dark: bool = False, default: str | None = N
         f"'{platform}' n'a pas de couleur mesurée. Les plateformes mesurées sont "
         f"{sorted(pal)}. Ajouter une teinte demande un balayage sous le plancher "
         f"(voir le docstring), pas un choix — passe `default=` en attendant.")
+
+
+def is_dark() -> bool:
+    """Le thème du VISITEUR, avec un repli clair — jamais une exception.
+
+    Déplacé de `platform_chart.py` le 2026-09-27 (R241) : c'est une question de couleur,
+    et le module de la pile était à son plafond de 1 200 lignes."""
+    import streamlit as st
+    try:
+        theme = getattr(st.context, "theme", None)
+        if theme is not None and getattr(theme, "type", None):
+            return str(theme.type).lower() == "dark"
+    except Exception:      # noqa: BLE001 — versions de Streamlit sans st.context
+        pass
+    try:
+        return str(st.get_option("theme.base") or "").lower() == "dark"
+    except Exception:      # noqa: BLE001
+        return False

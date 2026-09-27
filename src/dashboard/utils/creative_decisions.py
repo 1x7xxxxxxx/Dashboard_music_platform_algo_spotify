@@ -68,3 +68,38 @@ def _a_couper(d: pd.DataFrame) -> pd.Series | None:
     pire['surcout'] = float(surcout.max())
     pire['reference'] = reference
     return pire
+
+
+def by_creative(df: pd.DataFrame) -> pd.DataFrame:
+    """One row per creative NAME — the rows of each (creative, campaign) pair summed. Pure.
+
+    R241 (2026-09-27, fiches 29 and 33). The page's query is at (creative, campaign) grain;
+    a creative run in two campaigns (« Début » in JNPPTBFR and CATEDERPAS Remix) drew TWO
+    bars on ONE label, their values printed over each other. Rates are recomputed from the
+    summed counts, never averaged: CTR = 100·Σclicks/Σimpressions (`_CTR_SQL`), CPR =
+    Σspend/Σresults over the rows whose goal gives a CPR at all (the SQL leaves it NULL
+    otherwise — a video-view goal has no « result » to price)."""
+    if df is None or df.empty or "creative_name" not in df:
+        return df
+    d = df.copy()
+    # `reach` is people, not additive across campaigns: it is left out, never summed.
+    num = ["total_spend", "total_results", "total_impressions", "total_clicks"]
+    for c in [*num, "cpr"]:
+        if c in d:
+            d[c] = pd.to_numeric(d[c], errors="coerce")
+    priced = d["cpr"].notna() if "cpr" in d else pd.Series(False, index=d.index)
+    d["_ps"] = d["total_spend"].where(priced)
+    d["_pr"] = d["total_results"].where(priced)
+    g = d.groupby("creative_name", sort=False)
+    out = g[[c for c in num if c in d] + ["_ps", "_pr"]].sum(min_count=1).reset_index()
+    for c in ("total_link_clicks", "total_outbound"):
+        if c in d:     # a partial sum is not a measure: NULL as soon as one row is unmeasured
+            v = pd.to_numeric(d[c], errors="coerce")
+            out[c] = g[c].apply(lambda s, v=v: v.loc[s.index].sum() if v.loc[s.index].notna().all()
+                                else None).values
+    out["cpr"] = (out["_ps"] / out["_pr"].where(out["_pr"] > 0)).round(3)
+    if {"total_clicks", "total_impressions"} <= set(out):
+        out["avg_ctr"] = (100 * out["total_clicks"]
+                          / out["total_impressions"].where(out["total_impressions"] > 0)).round(2)
+    out["campaigns"] = g["campaign_name"].nunique().values if "campaign_name" in d else 1
+    return out.drop(columns=["_ps", "_pr"])
