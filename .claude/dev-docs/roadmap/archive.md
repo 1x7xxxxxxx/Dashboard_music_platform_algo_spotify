@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R225 — `make roadmap-close ID=Rnnn` ferme aussi l'unité de nuit ouverte de la même tâche — mes… (livrée 2026-09-27)
+
+- [x] **R225 — `make roadmap-close ID=Rnnn` ferme aussi l'unité de nuit ouverte de la même tâche — mesuré : 3 unités restées ouvertes (R213, R215, R218), `night-check` rouge en fin de nuit** (P3) ✅ (2026-09-27, da1a119a)
+  Mesuré par : `make night-check` après une fermeture
+  close_night_unit ecrit le done du journal ; teste sur journal temporaire, mute rouge
+  Commits : da1a119a R225 : make roadmap-close ferme aussi l'unite de nuit ouverte de la me
+
 ## ✅ R223 — Capitaliser la nuit du 2026-09-27 : garde contre un `\\c` dans un fichier SQL rejoué (i… (livrée 2026-09-27)
 
 - [x] **R223 — Capitaliser la nuit du 2026-09-27 : garde contre un `\\c` dans un fichier SQL rejoué (init_db.sql, 002, create_missing_tables écrivent dans la base de dev quand on les applique à une base jetable), mémoires, propositions d'optimisation** (P3) ✅ (2026-09-27, 9a4692d9)

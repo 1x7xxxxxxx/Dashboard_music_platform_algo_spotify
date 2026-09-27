@@ -554,3 +554,4 @@
 {"at": "2026-09-27T06:04:06+00:00", "head": "954b3ce4", "kind": "start", "task": "R223", "what": "capitaliser la nuit"}
 {"at": "2026-09-27T06:13:47+00:00", "head": "9a4692d9", "kind": "done", "task": "R223", "what": "capitalisation faite"}
 {"at": "2026-09-27T09:58:00+00:00", "head": "40d9c48e", "kind": "start", "task": "R225", "what": "roadmap-close ferme l'unite de nuit"}
+{"at": "2026-09-27T10:03:13+00:00", "kind": "done", "task": "R225", "what": "fermée par roadmap-close — close_night_unit ecrit le done du journal ; teste sur journal temporaire, mute rouge"}

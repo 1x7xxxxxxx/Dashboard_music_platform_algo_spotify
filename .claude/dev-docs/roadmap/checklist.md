@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R224 | Un commit qui ne touche que la roadmap ou un journal n'annule plus la CI d'un commit de code (groupe de concurrence) — mesuré nuit du 2026-09-27 : 6 runs annulées sur 27, chaque déploiement retardé d'une CI <!-- anchor: r224 --> <!-- critic: requis --> | P3 | runs `cancelled` sur main par nuit |
-| R225 | `make roadmap-close ID=Rnnn` ferme aussi l'unité de nuit ouverte de la même tâche — mesuré : 3 unités restées ouvertes (R213, R215, R218), `night-check` rouge en fin de nuit <!-- anchor: r225 --> <!-- critic: non — outillage de séance --> | P3 | `make night-check` après une fermeture |
 | R226 | Contrôle nocturne « total admin = somme des locataires humains » (trésorerie, ROI, MRR) dans `value_monitor`, et dossier des graphiques régénéré sur instantané frais après chaque lot visible — c'est le dossier, pas un test, qui a trouvé la trésorerie doublée (R220) <!-- anchor: r226 --> <!-- critic: requis --> | P2 | le récap du soir porte la réconciliation |
 | R227 | Une alerte Prometheus active depuis plus de 24 h remonte dans l'OBJET du récap du soir — `ConnectionPoolExhausted` a sonné 27 h sans être vue (R215) <!-- anchor: r227 --> <!-- critic: non — texte du récap --> | P3 | objet du récap avec une alerte longue |
 | R228 | `make test-changed` lance `schema-check-local` quand un test écrit en base — 2 fixtures vertes en local rouges en CI (R219) <!-- anchor: r228 --> <!-- critic: non — outillage de test --> | P3 | un écart de nullabilité refusé avant le push |
@@ -98,7 +97,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R224, R225, R226, R227, R228, R229, R230, R231, R232, R233, R234, R235, R236, R221, R222 -->
+<!-- reprise: open=R224, R226, R227, R228, R229, R230, R231, R232, R233, R234, R235, R236, R221, R222 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
