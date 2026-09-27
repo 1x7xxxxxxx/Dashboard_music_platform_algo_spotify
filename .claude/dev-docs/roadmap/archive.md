@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R237 — Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et… (livrée 2026-09-27)
+
+- [x] **R237 — Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et s'affiche (R233), mais 0 créa sur 61 est mesurée tant que le DAG Meta n'a pas tourné en `full_history` — un déclenchement de DAG en production** (P2) ✅ (2026-09-27, 3dfcafa7)
+  Mesuré par : déclencher `meta_ads_api_daily` avec `{"full_history": true}` — runbook §32
+  meta_ads_api_daily déclenché avec l'accord du propriétaire (full_history, artiste 1), run success ; 60 créas sur 61 ont leurs clics plateformes mesurés (0 avant)
+  Commits : 3dfcafa7 R233 : l'etape MESUREE par creative - clics vers les plateformes et co
+
+## ✅ R222 — Le compteur admin « inscriptions / comptes vérifiés » (`views/admin.py:397-401`) compte… (livrée 2026-09-27)
+
+- [x] **R222 — Le compteur admin « inscriptions / comptes vérifiés » (`views/admin.py:397-401`) compte le compte du bac à sable ; l'exclure change ce que « inscription » veut dire (un utilisateur sans artiste existe)** (P3) ✅ (2026-09-27, c149f0f7, bae107c6)
+  Mesuré par : TRANCHÉ 2026-09-27 : les UTILISATEURS humains — runbook §31
+  utilisateurs humains (décision du propriétaire) : prod 6 inscrits (7 avant, le compte du bac à sable ne compte plus) ; déployé c149f0f7
+  Commits : c149f0f7 R222 : le compteur admin des inscriptions compte les UTILISATEURS huma · bae107c6 Roadmap : R221 (mails ops dans la corbeille Gmail) et R222 (sens du co
+
 ## ✅ R221 — Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans… (livrée 2026-09-27)
 
 - [x] **R221 — Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans la corbeille**, non lus — un filtre Gmail les y envoie ; le récap du 26/09 signalait Benken (Meta) et GRiNCH (SoundCloud) qui ne collectent pas et 36 lignes contaminées** (P2) ✅ (2026-09-27, bae107c6)

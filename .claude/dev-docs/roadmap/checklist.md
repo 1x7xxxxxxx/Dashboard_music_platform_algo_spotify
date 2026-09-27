@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R222 | Le compteur admin « inscriptions / comptes vérifiés » (`views/admin.py:397-401`) compte le compte du bac à sable ; l'exclure change ce que « inscription » veut dire (un utilisateur sans artiste existe) <!-- anchor: r222 --> <!-- critic: requis — BUILD-MODIFIED 2026-09-27 : LEFT JOIN, garde avec une vraie ligne sans artiste --> | P3 | TRANCHÉ 2026-09-27 : les UTILISATEURS humains — runbook §31 |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R222, R237 -->
+<!-- reprise: open= -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -213,7 +212,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R237 | Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et s'affiche (R233), mais 0 créa sur 61 est mesurée tant que le DAG Meta n'a pas tourné en `full_history` — un déclenchement de DAG en production <!-- anchor: r237 --> <!-- critic: non — déclenchement de collecte, aucun code --> | P2 | déclencher `meta_ads_api_daily` avec `{"full_history": true}` — runbook §32 |
 
 ---
 
