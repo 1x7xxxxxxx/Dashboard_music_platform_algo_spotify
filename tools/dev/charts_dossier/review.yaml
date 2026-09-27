@@ -21,7 +21,7 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "D'accord, corrige."
+  owner: "Oui, corrige le pic d'auditeurs."
   cause: arrivee-historique-lue-comme-hausse
   note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
 src/dashboard/utils/platform_chart.py::_render_facets#1:
@@ -31,8 +31,8 @@ src/dashboard/utils/platform_chart.py::_render_facets#1:
   c: 3
   p: 3
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: a-trancher
+  owner: "Prends le plus pertinent."
   note: "Non atteint par le rendu par défaut (branche d'un autre réglage) — à regarder dans l'app."
 
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
@@ -43,6 +43,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
   c: 5
   p: 5
   v: garder
+  owner_v: garder
+  owner: "On garde."
   note: "Lecture immédiate, horloge alignée sur la sortie, cumuls étiquetés. Le meilleur graphique de décision de l'app."
 src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   q: "Quel titre bouge EN CE MOMENT, et avec quel indice de popularité ?"
@@ -52,7 +54,7 @@ src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "D'accord, corrige."
+  owner: "D'accord avec toi."
   cause: lisibilite
   note: "Les barres « 28 derniers jours » sont presque invisibles quand la fenêtre est calme ; noms de titres coupés à gauche dans l'export. Afficher la valeur récente en texte."
 src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
@@ -62,8 +64,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
   c: 4
   p: 5
   v: garder
-  owner_v: garder
-  owner: "À fusionner avec sauvegardes/playlists/abonnés — déjà fait (R194)."
+  owner_v: fusionner
+  owner: "On garde, mais fusionner les deux."
   note: "Nouvelle figure à deux panneaux (R194). Chaque unité sur son axe ; le PI plancher (< 10) se lit bien comme « loin des portes »."
 
 # ── Bilan annuel (Wrapped) ───────────────────────────────────────────────────
@@ -86,6 +88,8 @@ src/dashboard/views/apple_music.py::_render_song_series#1:
   c: 4
   p: 3
   v: garder
+  owner_v: garder
+  owner: "On garde."
   note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
 src/dashboard/views/soundcloud.py::show#1:
   q: "Mes écoutes SoundCloud croissent-elles ?"
@@ -95,7 +99,7 @@ src/dashboard/views/soundcloud.py::show#1:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "Le bump SoundCloud doit être une erreur : trouver la cause et mettre une error class dessus (R206)."
+  owner: "Il n'y a plus le bump, je pense que c'est corrigé — corrige si tu vois des trucs."
   cause: absence-ecrite-zero
   note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
 src/dashboard/views/soundcloud.py::show#2:
@@ -106,7 +110,7 @@ src/dashboard/views/soundcloud.py::show#2:
   p: 2
   v: retirer
   owner_v: garder
-  owner: "Ne retire rien pour l'instant."
+  owner: "On garde."
   cause: graphique-sans-decision
   note: "Base 100 sur des cumuls quasi plats (99,5–100,5) : rien à décider. Le top titres en dit plus."
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:
@@ -117,7 +121,7 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "Même bump SoundCloud : cause + error class (R206)."
+  owner: "Déjà corrigé je crois, plus de bump — à voir."
   cause: absence-ecrite-zero
   note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
 src/dashboard/views/soundcloud.py::_render_top_chart#1:
@@ -128,7 +132,7 @@ src/dashboard/views/soundcloud.py::_render_top_chart#1:
   p: 4
   v: garder
   owner_v: garder
-  owner: "Pas mal, à garder."
+  owner: "On garde."
   note: "Volume et taux d'engagement côte à côte, noms complets — lisible."
 src/dashboard/views/youtube.py::show#1:
   q: "Ma chaîne gagne-t-elle abonnés et vues ?"
@@ -137,6 +141,8 @@ src/dashboard/views/youtube.py::show#1:
   c: 3
   p: 4
   v: garder
+  owner_v: garder
+  owner: "On garde."
   note: "La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
 src/dashboard/views/youtube.py::show#2:
   q: "Quelles vidéos marchent ?"
@@ -146,7 +152,7 @@ src/dashboard/views/youtube.py::show#2:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "D'accord, corrige."
+  owner: "Oui, corrige."
   cause: lisibilite
   note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
 src/dashboard/views/instagram.py::_render_community#1:
@@ -156,8 +162,8 @@ src/dashboard/views/instagram.py::_render_community#1:
   c: 4
   p: 4
   v: garder
-  owner_v: corriger
-  owner: "Mettre abonnés, abonnements et publications sur un même graphique (R210)."
+  owner_v: garder
+  owner: "On garde."
   note: "Abonnés 1 605 → 1 520 en neuf mois : la baisse se voit d'un coup d'œil. Au niveau du COMPTE."
 src/dashboard/views/instagram.py::show#1:
   q: "Quels mois de publication ont le plus engagé ?"
@@ -166,8 +172,8 @@ src/dashboard/views/instagram.py::show#1:
   c: 3
   p: 2
   v: corriger
-  owner_v: corriger
-  owner: "D'accord, corrige."
+  owner_v: garder
+  owner: "On garde ; tu as déjà corrigé les couleurs je crois."
   cause: lisibilite
   note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
 src/dashboard/views/instagram.py::show#2:
@@ -177,6 +183,8 @@ src/dashboard/views/instagram.py::show#2:
   c: 3
   p: 3
   v: garder
+  owner_v: garder
+  owner: "On garde."
   note: "Marqué « indicatif », et c'est juste (quatre points)."
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   q: "Mes smart links Hypeddit convertissent-ils ?"
@@ -186,7 +194,7 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   p: 3
   v: garder
   owner_v: corriger
-  owner: "Au lieu des barres, des ronds pour la lisibilité (R211)."
+  owner: "On garde ; mettre mes campagnes Hypeddit depuis la sortie en ronds, avec la valeur totale de chaque en étiquette."
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée."
 src/dashboard/views/imusician.py::show#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
@@ -196,7 +204,7 @@ src/dashboard/views/imusician.py::show#1:
   p: 4
   v: garder
   owner_v: fusionner
-  owner: "Un seul graphique de trésorerie : toutes les charges et toutes les recettes (ventes, SACEM, pub), lisible comme une compta (R212)."
+  owner: "Tout regrouper sur un même graphique, avec des cumuls qui retracent l'évolution."
   note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
 src/dashboard/views/sacem.py::show#1:
   q: "Ma trésorerie, SACEM comprise (fusion R212 de l'ancien graphique REPARTITION par trimestre)"
@@ -206,7 +214,7 @@ src/dashboard/views/sacem.py::show#1:
   p: 3
   v: garder
   owner_v: fusionner
-  owner: "Un seul graphique de trésorerie : toutes les charges et toutes les recettes (ventes, SACEM, pub), lisible comme une compta (R212)."
+  owner: "Fusionner, mettre sur un même graphique."
   note: "Barres noires sans couleur de marque, mais lecture correcte (43 € cumulés)."
 
 # ── Meta Ads ─────────────────────────────────────────────────────────────────
@@ -217,6 +225,8 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   c: 4
   p: 4
   v: garder
+  owner_v: garder
+  owner: "On garde."
   note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   q: "Mes campagnes côte à côte — laquelle dépense le plus, pour quels clics ?"
@@ -226,7 +236,7 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   p: 4
   v: corriger
   owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner: "Changer le visuel : je ne comprends pas quoi lire ; étiquettes et agencement pour voir la différence entre budget, clics et CPR."
   cause: double-comptage
   note: "≈ 9 000 € de budget et 65 k clics pour la MÊME campagne que la figure voisine (756 €, 5 963 clics) — barres empilées de nombreux segments. Probable double comptage (lignes par jour ou par créa sommées). À vérifier en premier (P2)."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
@@ -236,6 +246,8 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
   c: 4
   p: 5
   v: garder
+  owner_v: corriger
+  owner: "Ajouter les streams Spotify obtenus ; « clic Spotify » → « clic Hypeddit » ; le CPR c'est très bien."
   note: "Dépense, clics et CPR sur la campagne : on voit les clics s'effondrer avec le budget le 20/09."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
   q: "Quel objectif d'optimisation coûte le moins cher par résultat ?"
@@ -244,6 +256,8 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
   c: 3
   p: 3
   v: garder
+  owner_v: corriger
+  owner: "Changer le graphe en rond pour la lisibilité."
   note: "Deux objectifs dont un quasi nul en dépense — la comparaison de CPR est fragile, à marquer."
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
@@ -253,7 +267,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   p: 3
   v: fusionner
   owner_v: fusionner
-  owner: "Fusionne tout ce que tu proposes ; et une méthode pour ne plus créer de doublons (R207)."
+  owner: "Fusion ; ajouter des légendes (le CPR n'est pas évident) ; des légendes sur tous les graphes, avec un refactor."
   cause: doublon
   note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
 src/dashboard/views/meta_breakdowns.py::_render_performance#2:
@@ -264,7 +278,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#2:
   p: 4
   v: garder
   owner_v: corriger
-  owner: "À mettre sur la même vue que placement, âge, plateforme (R208)."
+  owner: "On garde ; la géographie sur la même vue que placement, âge, plateforme."
   note: "Mexique ≈ 850 € à CPR 0,11 € ; les pays chers se repèrent. Plus utile que la carte."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   q: "Pays, placement, plateforme, âge côte à côte : où ma pub fait-elle réagir ? (R208)"
@@ -274,7 +288,7 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   p: 3
   v: a-trancher
   owner_v: corriger
-  owner: "Répartition par placement, âge et plateforme sur la MÊME vue : ce sont les paramètres de la campagne (R208)."
+  owner: "Non rendu : trouver pourquoi et comment voir toutes les vues ; refactor si pertinent."
   note: "Non rendu : n'apparaît qu'avec un autre choix du sélecteur de dimension."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   q: "Où ma pub fait-elle réagir, dans le monde ? (carte, repliée)"
@@ -284,7 +298,7 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   p: 3
   v: a-trancher
   owner_v: corriger
-  owner: "Idem : sur la même vue que placement/âge (R208). « Autre choix du sélecteur » n'était pas clair."
+  owner: "Pareil, pas de rendu."
   note: "Non rendu : autre choix du sélecteur."
 src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   q: "Quelle tranche d'âge coûte le moins cher par résultat ?"
@@ -293,6 +307,8 @@ src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   c: 3
   p: 4
   v: garder
+  owner_v: corriger
+  owner: "Tri Pareto : la valeur la plus haute à gauche."
   note: "35-44 à 0,088 € contre 25-34 à 0,147 € — décision directe de ciblage. Or 25-34 est la tranche la plus dépensée (1 398 €)."
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   q: "Quelle créa coûte le moins cher, et engage le plus ?"
@@ -302,7 +318,7 @@ src/dashboard/views/meta_creatives.py::_render_ranking#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner: "Très bien ; vérifier les chiffres ; ranger par Pareto selon le funnel (dépense, CTR, CPR, résultat) avec les streams si pas redondant ; quelle décision propre ?"
   cause: ctr-echelle
   note: "CTR à 233 %, 387 %, 1 111 % — un taux de clic ne dépasse pas 100 %. Probable pourcentage multiplié deux fois. Le classement CPR, lui, est lisible. À vérifier (P2)."
 src/dashboard/views/meta_creatives.py::_render_hooks#1:
@@ -312,6 +328,8 @@ src/dashboard/views/meta_creatives.py::_render_hooks#1:
   c: 4
   p: 4
   v: garder
+  owner_v: a-trancher
+  owner: "Pas mal ; notes /5 incomprises ; redondant avec 29 ?"
   note: "Sans hook 0,104 € < Hook 1 0,113 € < Hook 2 0,127 € — mais sur 69 € de dépense « sans hook » : à marquer comme fragile."
 src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
   q: "Une créa donne-t-elle des revenus dans le temps ?"
@@ -320,8 +338,8 @@ src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
   c: 2
   p: 3
   v: corriger
-  owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner_v: fusionner
+  owner: "Tout regrouper sur un même graphique au lieu de quatre ; vérifier les chiffres."
   cause: graphique-vide-ou-axe-casse
   note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
 src/dashboard/views/meta_creatives.py::_render_scatter#1:
@@ -331,6 +349,8 @@ src/dashboard/views/meta_creatives.py::_render_scatter#1:
   c: 3
   p: 3
   v: garder
+  owner_v: a-trancher
+  owner: "Je ne comprends pas quelle décision prendre : refais ton cheminement."
   note: "Nuage lisible : les grosses dépenses ont les CPR les plus bas. La couleur CTR hérite du même défaut d'échelle."
 src/dashboard/views/meta_creatives.py::_render_efficiency#1:
   q: "Quelle créa a le meilleur CTR ?"
@@ -339,8 +359,8 @@ src/dashboard/views/meta_creatives.py::_render_efficiency#1:
   c: 1
   p: 3
   v: retirer
-  owner_v: garder
-  owner: "Ne retire rien pour l'instant."
+  owner_v: corriger
+  owner: "Ranger en Pareto, et un refactor pour toujours tracer et filtrer en Pareto."
   cause: ctr-echelle
   note: "CTR jusqu'à 1 100 % (même défaut d'échelle) et doublon du classement en tête de page."
 src/dashboard/views/meta_creatives.py::_render_funnel#1:
@@ -351,7 +371,7 @@ src/dashboard/views/meta_creatives.py::_render_funnel#1:
   p: 4
   v: corriger
   owner_v: corriger
-  owner: "« Corriger » n'était pas assez clair : à reformuler et corriger (R209)."
+  owner: "Quelle décision ? Toutes les étapes du funnel, streams compris, si non redondant."
   cause: entonnoir-incoherent
   note: "60 clics SORTANTS pour 48 clics — un entonnoir qui s'élargit. Définitions Meta à vérifier (clic lien vs clic)."
 src/dashboard/views/meta_creatives.py::_render_fatigue#1:
@@ -361,8 +381,8 @@ src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   c: 2
   p: 4
   v: corriger
-  owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner_v: fusionner
+  owner: "Regrouper sur un même graphique, deux axes, légendes."
   cause: ctr-echelle
   note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
 src/dashboard/views/meta_creatives.py::_render_activity#1:
@@ -372,6 +392,8 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
   c: 4
   p: 3
   v: garder
+  owner_v: a-trancher
+  owner: "Je ne vois pas la plus-value ; garder seulement si unique."
   cause: libelles-tronques
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
 src/dashboard/views/meta_creatives.py::_render_activity#2:
@@ -381,8 +403,8 @@ src/dashboard/views/meta_creatives.py::_render_activity#2:
   c: 1
   p: 3
   v: corriger
-  owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner_v: a-trancher
+  owner: "Pas mal ; redondant ? filtre par créa ; notes /5 incomprises."
   cause: cumul-qui-decroit
   note: "Une « dépense cumulée » qui redescend à 0 — un cumul ne décroît jamais. Tracé non trié, ou cumul remis à zéro par période. Illisible en l'état."
 
@@ -394,8 +416,8 @@ src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
   c: 5
   p: 5
   v: garder
-  owner_v: garder
-  owner: "Toutes ces questions Meta sont pertinentes ; la page devient « Tout mon funnel », en tête du menu (R213)."
+  owner_v: corriger
+  owner: "Très bien ; ajouter streams, abonnés, ajouts en playlist, sauvegardes, streams cumulés pendant les jours de pub."
   note: "Refuse de conclure quand deux campagnes se chevauchent — c'est exactement ce que demande « corrélation n'est pas causalité » (Observability Engineering, p. 49)."
 src/dashboard/views/meta_x_spotify.py::_render_chart#1:
   q: "Pendant la campagne, qu'ont fait budget, clics, streams (base 100) ?"
@@ -404,8 +426,8 @@ src/dashboard/views/meta_x_spotify.py::_render_chart#1:
   c: 4
   p: 5
   v: garder
-  owner_v: garder
-  owner: "Toutes ces questions Meta sont pertinentes ; la page devient « Tout mon funnel », en tête du menu (R213)."
+  owner_v: corriger
+  owner: "Couleurs trop proches (vert, bleu, pointillés), fouillis ; voir la redondance."
   note: "Streams montent avec le budget puis retombent à ~150 (au-dessus de la base 100) — lisible, mais six séries en base 100."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"
@@ -414,8 +436,8 @@ src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   c: 3
   p: 5
   v: corriger
-  owner_v: garder
-  owner: "Toutes ces questions Meta sont pertinentes ; la page devient « Tout mon funnel », en tête du menu (R213)."
+  owner_v: corriger
+  owner: "Un graphe avec tout le funnel pour chaque titre, filtrable, comparable entre titres (jusqu'à 5)."
   cause: entonnoir-illisible
   note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
 src/dashboard/views/meta_x_spotify.py::_render_countries#1:
@@ -426,7 +448,7 @@ src/dashboard/views/meta_x_spotify.py::_render_countries#1:
   p: 5
   v: garder
   owner_v: garder
-  owner: "Toutes ces questions Meta sont pertinentes ; la page devient « Tout mon funnel », en tête du menu (R213)."
+  owner: "Pas mal ; redondant ? Méthode anti-redondance : un livrable des KPI bronze et des graphiques qui les lisent."
   note: "Dépense, écoutes et € par écoute par pays — la meilleure réponse géographique. Le Brésil sort à 0,17 €/écoute."
 
 # ── Road to Algo et modèle ───────────────────────────────────────────────────
@@ -437,6 +459,8 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1:
   c: 3
   p: 5
   v: garder
+  owner_v: corriger
+  owner: "Le plus simple et visuel : filtre auto sur les 5 dernières sorties, 5 indicateurs de % de trigger par algo, puis les valeurs de chaque paramètre et la cible pour 100 %."
   note: "Barres d'avancement avec le levier écrit — c'est l'aperçu gratuit en plus détaillé."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   q: "Combien de streams chaque algorithme m'apporte-t-il ?"
@@ -446,7 +470,7 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   p: 4
   v: corriger
   owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner: "Estimer les streams si trigger à 100 % : J+28, 6 mois, 1 an ; retirer les notes /5."
   cause: graphique-vide-ou-axe-casse
   note: "Graphique VIDE, axe du temps réduit à une seconde (23:59:59,9996 → 00:00:00,0004) — la série est vide et l'axe se replie. Afficher « aucune donnée » au lieu d'un axe cassé."
 src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
@@ -456,6 +480,8 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   c: 3
   p: 4
   v: garder
+  owner_v: a-trancher
+  owner: "Je ne comprends pas la cohorte ni la décision."
   note: "Médiane + P25–P75 ; « Ce titre » n'est pas tracé (seulement nommé) — à vérifier."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   q: "Mes revenus suivent-ils ma dépense Meta ?"
@@ -465,7 +491,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   p: 4
   v: corriger
   owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner: "Cool ; sans équation ni R² ; quelle décision ?"
   cause: ajustement-trompeur
   note: "Une régression « R² = 1,00 » tracée sur UN point (2024-04) — trompeur. Refuser la droite sous un minimum de points."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
@@ -476,7 +502,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "Vérifie tous les chiffres faux ; une méthode pour avoir les bonnes valeurs dans tous les dashboards, avec des error classes — l'archi bronze/argent/or devait l'empêcher (R205)."
+  owner: "Pas mal ; retirer la popularité 0 ; ajouter SACEM, tous les revenus, et le coût de distribution (10–30 €) en charge."
   cause: ajustement-trompeur
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
@@ -487,7 +513,7 @@ src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu."
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
   q: "(détail par algorithme — non atteint par défaut)"
@@ -497,7 +523,7 @@ src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu."
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
   q: "À quel indice de popularité chaque algorithme se déclenche-t-il ?"
@@ -507,7 +533,7 @@ src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu, voir pourquoi."
   note: "Non rendu à l'écran par défaut ; son jumeau du PDF (pdf:pi_gate) est clair."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   q: "(qualité du modèle — branche non atteinte)"
@@ -517,7 +543,7 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu, idem."
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
@@ -526,9 +552,9 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   c: 3
   p: 5
   v: a-trancher
+  owner_v: a-trancher
+  owner: "Je ne comprends pas la valeur ajoutée : refais."
   cause: modele-degenere
-  owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
   note: "Refait par R216 : les quatre nuages RR, Radio, DW… deviennent un seul, qui ne trace plus une prévision que la porte supprime (RR à 0 était la vraie sortie du modèle pour des titres de 2-3 ans, pas un défaut de scoring). À regarder au prochain dossier."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#1:
   q: "Qu'est-ce qui pousse la prédiction (SHAP) ?"
@@ -538,7 +564,7 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu ; le SHAP est intéressant pour savoir à quelle valeur je déclenche chaque algo."
   note: "Derrière un clic ; non rendu."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#2:
   q: "(SHAP — détail)"
@@ -548,7 +574,7 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   p: 3
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu."
   note: "Derrière un clic ; non rendu."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#3:
   q: "(SHAP — détail)"
@@ -558,7 +584,7 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   p: 3
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu."
   note: "Derrière un clic ; non rendu."
 src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   q: "Le modèle se trompe-t-il, et comment ?"
@@ -568,7 +594,7 @@ src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   p: 5
   v: garder
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "À garder en admin, pas sur Grafana : c'est du suivi de performance du modèle."
   note: "Matrice de confusion du jeu de test (VP 66, FN 38). Manque la même chose en PRODUCTION, dans le temps (dérive — ML Production Systems, p. 322)."
 src/dashboard/utils/ml_widgets.py::render_prerelease_rr_estimator#1:
   q: "(estimateur Release Radar avant sortie)"
@@ -578,7 +604,7 @@ src/dashboard/utils/ml_widgets.py::render_prerelease_rr_estimator#1:
   p: 4
   v: a-trancher
   owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner: "Non rendu."
   note: "Non rendu par défaut."
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
@@ -587,8 +613,8 @@ src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   c: 2
   p: 4
   v: corriger
-  owner_v: corriger
-  owner: "ML : intègre toutes tes modifs, on commence direct (R216)."
+  owner_v: a-trancher
+  owner: "Je ne comprends pas l'intérêt : modifie et explique."
   cause: modele-degenere
   note: "P(DW) plate à ~15 % de 0 à 200 k streams/7 j — le modèle ne réagit pas au levier qu'il prétend mesurer. Cohérent avec des probabilités au plancher ; à ne pas montrer tel quel."
 src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
@@ -598,6 +624,8 @@ src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   c: 4
   p: 5
   v: garder
+  owner_v: a-trancher
+  owner: "Je ne comprends pas la plus-value ni la décision."
   note: "11–12 % prédits, 0 streams algo constatés — la bonne confrontation prédiction/réalité, et elle dit que le modèle n'a encore rien prouvé."
 src/dashboard/utils/s4a_entry_insight.py::render_playlist_history#1:
   q: "Mes ajouts en playlist progressent-ils entre deux saisies ?"
@@ -606,8 +634,8 @@ src/dashboard/utils/s4a_entry_insight.py::render_playlist_history#1:
   c: 3
   p: 2
   v: retirer
-  owner_v: garder
-  owner: "Ne retire rien pour l'instant."
+  owner_v: retirer
+  owner: "Retire."
   cause: graphique-sans-decision
   note: "Trois points en deux jours, axe en heures — rien à lire ; les chiffres sont déjà en tuiles."
 
@@ -619,8 +647,8 @@ src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   c: 3
   p: 3
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "Non rendu."
   note: "Non rendu par défaut."
 src/dashboard/views/revenue_forecast.py::_tab_projection#1:
   q: "Quand atteindrai-je mon objectif de revenu mensuel ?"
@@ -629,6 +657,8 @@ src/dashboard/views/revenue_forecast.py::_tab_projection#1:
   c: 3
   p: 3
   v: garder
+  owner_v: retirer
+  owner: "À retirer."
   note: "MRR à 0 sur douze mois face à une cible de 500 € — juste (aucun abonné payant), mais une ligne plate ; une tuile le dirait."
 src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   q: "Combien vaut un abonné selon sa rétention ?"
@@ -637,8 +667,8 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   c: 2
   p: 2
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "En admin, avec un calcul de MRR ; et saisir le coût de distribution d'un titre (iMusician, DistroKid), sommé dans la comptabilité."
   note: "LTV par hypothèse de rétention — sans aucun abonné réel, c'est une table de multiplication."
 src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
   q: "Ce qui rentre et ce qui sort — quand serai-je à l'équilibre ?"
@@ -648,7 +678,7 @@ src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
   p: 5
   v: garder
   owner_v: fusionner
-  owner: "Un seul graphique de trésorerie : toutes les charges et toutes les recettes (ventes, SACEM, pub), lisible comme une compta (R212)."
+  owner: "Un peu redondant, déjà vu."
   note: "« Point mort dans 2 899 mois — 242 ans » : la réponse brutale et juste à « qu'apporte Meta » en argent. À mettre en avant."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
@@ -657,6 +687,8 @@ src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   c: 3
   p: 4
   v: garder
+  owner_v: a-trancher
+  owner: "Je ne comprends pas la valeur d'un déclenchement ni la décision : refais."
   note: "Valeur d'un déclenchement vs espérance catalogue — lisible, médiane marquée."
 
 # ── Administration et santé de l'app ─────────────────────────────────────────
@@ -667,6 +699,8 @@ src/dashboard/views/alerts.py::_section_plan_evolution#1:
   c: 4
   p: 3
   v: garder
+  owner_v: garder
+  owner: "Cool, à garder en admin."
   note: "8 artistes, 3 premium — lisible."
 src/dashboard/views/admin.py::_render_costs#1:
   q: "(tableau d'administration)"
@@ -675,8 +709,8 @@ src/dashboard/views/admin.py::_render_costs#1:
   c: 3
   p: 2
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "Pas de rendu."
   note: "Non rendu par défaut."
 src/dashboard/views/usage_analytics.py::show#1:
   q: "L'app est-elle utilisée, jour après jour ?"
@@ -685,6 +719,8 @@ src/dashboard/views/usage_analytics.py::show#1:
   c: 4
   p: 4
   v: garder
+  owner_v: fusionner
+  owner: "Cool ; fusionner sur un même graphique admin."
   note: "Pics d'usage lisibles (tests compris ?) — à filtrer du propriétaire."
 src/dashboard/views/usage_analytics.py::show#2:
   q: "Quelles pages sont vues ?"
@@ -693,6 +729,8 @@ src/dashboard/views/usage_analytics.py::show#2:
   c: 4
   p: 4
   v: garder
+  owner_v: fusionner
+  owner: "Cool ; ajouter quels évènements se produisent et quelles pages sont vues."
   note: "Onboarding, credentials, accueil en tête ; Road to Algo tout en bas — une donnée produit à regarder."
 src/dashboard/views/usage_analytics.py::show#3:
   q: "Quels évènements se produisent ?"
@@ -701,8 +739,8 @@ src/dashboard/views/usage_analytics.py::show#3:
   c: 4
   p: 2
   v: retirer
-  owner_v: garder
-  owner: "Ne retire rien pour l'instant."
+  owner_v: fusionner
+  owner: "À garder mais peut-être redondant : fusionner avec la 68, deux légendes."
   cause: graphique-sans-decision
   note: "Quatre barres dont deux nulles — une ligne de tuiles suffit."
 src/dashboard/views/db_health.py::_show_freshness_bar#1:
@@ -712,6 +750,8 @@ src/dashboard/views/db_health.py::_show_freshness_bar#1:
   c: 4
   p: 5
   v: garder
+  owner_v: retirer
+  owner: "On peut supprimer."
   note: "Seuils 14/30 j marqués ; fond noir forcé (thème sombre) à vérifier à l'impression."
 src/dashboard/views/db_health.py::_show_heatmap#1:
   q: "Quand les données arrivent-elles, table par table ?"
@@ -720,8 +760,8 @@ src/dashboard/views/db_health.py::_show_heatmap#1:
   c: 3
   p: 3
   v: corriger
-  owner_v: corriger
-  owner: "D'accord, corrige."
+  owner_v: retirer
+  owner: "Sert à rien, à supprimer."
   cause: libelles-tronques
   note: "Carte de chaleur sans libellés de lignes : on ne sait pas quelle table est quelle ligne."
 src/dashboard/views/db_health.py::_show_batch_sizes#1:
@@ -731,8 +771,8 @@ src/dashboard/views/db_health.py::_show_batch_sizes#1:
   c: 4
   p: 3
   v: fusionner
-  owner_v: fusionner
-  owner: "Fusionne tout ce que tu proposes ; et une méthode pour ne plus créer de doublons (R207)."
+  owner_v: corriger
+  owner: "Servir à détecter les anomalies d'ingestion : lignes attendues par artiste × artistes contre lignes reçues, alerte au-delà d'un seuil."
   cause: doublon
   note: "Doublon en flux de la figure cumulée ; garder l'un des deux."
 src/dashboard/views/etl_logs.py::_section_trend#1:
@@ -750,8 +790,8 @@ src/dashboard/views/airflow_kpi.py::show#1:
   c: 4
   p: 4
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "Non rendu, voir pourquoi."
   note: "Non rendu : lit l'API Airflow, absente de ce rendu."
 src/dashboard/views/airflow_kpi.py::show#2:
   q: "(durées des DAG)"
@@ -760,8 +800,8 @@ src/dashboard/views/airflow_kpi.py::show#2:
   c: 4
   p: 4
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "Non rendu."
   note: "Non rendu : lit l'API Airflow."
 src/dashboard/views/airflow_kpi.py::show#3:
   q: "(succès des DAG)"
@@ -770,8 +810,8 @@ src/dashboard/views/airflow_kpi.py::show#3:
   c: 4
   p: 4
   v: a-trancher
-  owner_v: garder
-  owner: "À trancher : prends le plus pertinent — garder tel quel."
+  owner_v: corriger
+  owner: "Non rendu."
   note: "Non rendu : lit l'API Airflow ; recoupe etl_logs:231."
 
 # ── Rapport PDF de l'artiste ─────────────────────────────────────────────────

@@ -67,12 +67,62 @@ def load() -> dict:
     return yaml.safe_load((HERE / "review.yaml").read_text(encoding="utf-8"))
 
 
+def load_actions() -> dict:
+    """R240 — {review key: {valide, actions}}, written by apply_comments.py."""
+    import yaml
+    path = HERE / "actions.yaml"
+    return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
+
+
+def open_roadmap_ids(checklist_text: str) -> set[str]:
+    """The ids of the rows still OPEN in the roadmap index — both tables. Pure."""
+    import re
+    return set(re.findall(r"^\| (R\d+) \|", checklist_text, re.M))
+
+
+STATUSES = {"a-faire": "À faire", "revalider": "Fait — à revalider",
+            "sans-avis": "Sans avis", "valide": "Validé"}
+
+
+def status(entry: dict | None, open_ids: set[str]) -> str:
+    """Where a fiche goes in the dossier. Pure.
+
+    `valide` — the owner kept it with nothing to do: the END of the dossier. An action of
+    mine is done when its roadmap row is no longer open; all done ⇒ « à revalider » (the
+    owner, not me, closes a KPI). A fiche the owner has not spoken about stays « sans avis »."""
+    if not entry:
+        return "sans-avis"
+    if entry.get("valide"):
+        return "valide"
+    acts = entry.get("actions") or []
+    if acts and all(a.get("qui") == "moi" and a.get("rid") and a["rid"] not in open_ids
+                    for a in acts):
+        return "revalider"
+    return "a-faire"
+
+
 def esc(s) -> str:
     return html.escape(str(s or ""))
 
 
+def actions_html(entry: dict | None, open_ids: set[str]) -> str:
+    acts = (entry or {}).get("actions") or []
+    if not acts:
+        return ""
+    rows = []
+    for a in acts:
+        who = "Toi" if a["qui"] == "toi" else "Moi"
+        rid = a.get("rid")
+        state = ("" if not rid else (" · <b>✅ fait</b>" if rid not in open_ids
+                                    else " · en cours"))
+        rows.append(f"<li><b>{who}</b> — {esc(a['texte'])}"
+                    f"{f' <code>{esc(rid)}</code>' if rid else ''}{state}</li>")
+    return f'<ul class="acts">{"".join(rows)}</ul>'
+
+
 def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
-          no: int | None = None) -> str:
+          no: int | None = None, entry: dict | None = None,
+          open_ids: set[str] | None = None) -> str:
     v = r.get("v", "a-trancher")
     owner = ""
     if r.get("owner_v") or r.get("owner"):
@@ -85,10 +135,8 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
 {img_html}
-<table class="notes"><tr><td>Décision <b>{r.get('d')}/5</b></td><td>Confiance <b>{r.get('c')}/5</b></td>
-<td>Pertinence <b>{r.get('p')}/5</b></td><td>{esc(ROLES.get(r.get('role'), r.get('role')))}</td></tr></table>
-<p class="note">{esc(r.get('note'))}</p>{owner}
-<p class="site"><code>{esc(key)}</code> {meta_line}{extra}</p></div>"""
+<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set())}
+<p class="site"><code>{esc(key)}</code> · {esc(ROLES.get(r.get('role'), r.get('role')))} {meta_line}{extra}</p></div>"""
 
 
 GUIDE = """<h2>Comment me faire tes retours</h2>
@@ -133,7 +181,6 @@ def build(out: Path) -> Path:
         json.dumps({str(n): k for k, n in no_of.items()}, ensure_ascii=False, indent=1),
         encoding="utf-8")
     cap = json.loads((out / "capture.json").read_text(encoding="utf-8"))
-    pdfj = json.loads((out / "pdf_figures.json").read_text(encoding="utf-8"))
     gra_path = out / "grafana.json"
     gra = json.loads(gra_path.read_text(encoding="utf-8")) if gra_path.exists() else None
     inv_rows = json.loads((out / "inventory.json").read_text(encoding="utf-8"))
@@ -161,77 +208,83 @@ def build(out: Path) -> Path:
         view = views_of[k][0] if views_of.get(k) else Path(k.split(":")[0]).stem
         by_view[view].append(k)
 
-    verdicts = collections.Counter(r.get("v") for r in review.values())
+    # R240 — the artist PDF report is out of this dossier until every KPI is validated
+    # (owner, 2026-09-27); its fiche numbers are kept, never reused.
+    review = {k: r for k, r in review.items() if not k.startswith("pdf:")}
+    acts = load_actions()
+    open_ids = open_roadmap_ids(
+        (ROOT / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8"))
+    st_of = {k: status(acts.get(k), open_ids) for k in review}
+    by_status = collections.Counter(st_of.values())
     total = len(review)
-    suspects = [k for k, r in review.items() if r.get("v") == "corriger" and r.get("c", 5) <= 2]
-    meta_keys = sorted((k for k, r in review.items() if r.get("role") == "meta"),
-                       key=lambda k: (-review[k].get("d", 0), k))
+    suspects = [k for k, r in review.items() if r.get("v") == "corriger" and r.get("c", 5) <= 2
+                and st_of[k] != "valide"]
 
-    parts = [f"""<h1>Tous les graphiques de streaMLytics — revue avant déploiement</h1>
-<p class="lead">R203 · {dt.date.today():%d/%m/%Y} · données : instantané de la production du
+    parts = [f"""<h1>Les KPI de streaMLytics — ce qu'il reste à faire, puis ce qui est validé</h1>
+<p class="lead">{dt.date.today():%d/%m/%Y} · données : instantané de la production du
 {dt.date.today():%d/%m/%Y}, artiste 1 (1x7xxxxxxx), restauré en local — la production n'a jamais été
 connectée au rendu. Réglages par défaut des pages.</p>
 <h2>Synthèse</h2>
-<table class="sum"><tr><th>Graphiques revus</th><td>{total}</td></tr>
-<tr><th>… de l'app (sites de code)</th><td>{len(app_keys)} — {len(cap['figures'])} images rendues</td></tr>
-<tr><th>… du rapport PDF artiste</th><td>{sum(1 for k in review if k.startswith('pdf:'))}</td></tr>
-<tr><th>… de Grafana</th><td>{sum(1 for k in review if k.startswith('grafana:'))}</td></tr>
-""" + "".join(f"<tr><th>{VERDICTS[v]}</th><td>{verdicts.get(v, 0)}</td></tr>" for v in VERDICTS)
-             + "</table>"]
+<table class="sum"><tr><th>Graphiques revus</th><td>{total} — {len(app_keys)} de l'app, {sum(1 for k in review if k.startswith('grafana:'))} de Grafana ({len(cap['figures'])} images rendues)</td></tr>
+""" + "".join(f"<tr><th>{STATUSES[s_]}</th><td>{by_status.get(s_, 0)}</td></tr>" for s_ in STATUSES)
+             + "<tr><th>Rapport PDF de l'artiste</th><td>retiré de ce dossier jusqu'à validation de tous les KPI</td></tr></table>"]
     parts.append(GUIDE)
-    parts.append("<h3>À vérifier en premier — des chiffres probablement FAUX (confiance ≤ 2)</h3><ul>"
-                 + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(review[k].get('note'))}</li>"
-                           for k in suspects) + "</ul>")
-    parts.append("<h2>Qu'apporte la campagne Meta Ads ? — les graphiques qui répondent</h2>"
-                 "<p>Classés par note de décision. Les réponses les plus sûres : l'argent (point mort "
-                 "à 242 ans, 261 € de revenus pour 3 088 € de pub) et le verdict d'auditeurs, qui "
-                 "refuse de conclure quand il ne le peut pas.</p><table class='idx'>"
-                 + "".join(f"<tr><td>Fiche {no_of[k]}</td><td>{review[k].get('d')}/5</td>"
-                           f"<td>{VERDICTS.get(review[k].get('v'))}</td><td>{esc(review[k].get('q'))}</td></tr>"
-                           for k in meta_keys) + "</table>")
+    if suspects:
+        parts.append("<h3>À vérifier en premier — des chiffres probablement FAUX</h3><ul>"
+                     + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(review[k].get('note'))}</li>"
+                               for k in suspects) + "</ul>")
     parts.append("<h2>Recommandations du corpus</h2>" + "".join(
         f"<h3>{t}</h3><p class='src'>{s}</p><p>{b.replace('{ml_page}', page_phrase(cap))}</p>"
         for t, s, b in RECOMMENDATIONS))
     parts.append("<h2>Méthode et limites</h2><ul>"
                  "<li>Chaque graphique a été REGARDÉ ; les notes sont un jugement écrit dans "
                  "<code>tools/dev/charts_dossier/review.yaml</code>, relisible et corrigeable.</li>"
+                 "<li>Chaque action porte son id de roadmap ; elle passe ✅ quand la ligne est "
+                 "archivée, c'est-à-dire livrée et tests verts. Une fiche dont toutes mes actions "
+                 "sont faites attend TA revalidation — je ne valide jamais un KPI à ta place.</li>"
                  "<li>Seul le choix par défaut des sélecteurs et des onglets est rendu ; un site non "
                  "atteint est listé « non rendu », jamais omis.</li>"
-                 "<li>« À vérifier » signale un chiffre suspect que je n'ai pas encore recalculé.</li>"
-                 "<li>Grafana : panneaux redessinés depuis Prometheus (7 derniers jours) ; un trou "
-                 "reste un trou.</li></ul>")
+                 "<li>Grafana : panneaux redessinés depuis Prometheus (7 derniers jours).</li></ul>")
 
-    for view in by_view:
-        parts.append(f"<h2 class='page'>Page « {esc(view)} »</h2>")
-        for k in by_view[view]:
-            f = first.get(k)
-            s = inv.get(k, {})
-            meta_line = (f"· couche {esc(s.get('layer', '—'))} · sources : "
-                         f"{esc(', '.join(s.get('sources', [])[:4]) or '—')}")
-            extra = ""
-            if count[k] > 1:
-                extra += f" · {count[k]} images (boucle)"
-            if len(views_of.get(k, [])) > 1:
-                extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
-            parts.append(fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
-                               no_of[k]))
+    def render_one(k: str) -> str:
+        if k.startswith("grafana:"):
+            png, pts = gpng.get(k, (None, None))
+            return fiche(k, review[k], png,
+                         f"· {pts if pts is not None else '?'} points mesurés en 7 jours",
+                         no=no_of[k], entry=acts.get(k), open_ids=open_ids)
+        f = first.get(k)
+        s_ = inv.get(k, {})
+        meta_line = (f"· couche {esc(s_.get('layer', '—'))} · sources : "
+                     f"{esc(', '.join(s_.get('sources', [])[:4]) or '—')}")
+        extra = ""
+        if count[k] > 1:
+            extra += f" · {count[k]} images (boucle)"
+        if len(views_of.get(k, [])) > 1:
+            extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
+        return fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
+                     no_of[k], entry=acts.get(k), open_ids=open_ids)
 
-    parts.append("<h2 class='page'>Rapport PDF de l'artiste</h2>")
-    pdf_png = {f["key"]: f["png"] for f in pdfj["figures"]}
-    for k in [k for k in review if k.startswith("pdf:")]:
-        parts.append(fiche(k, review[k], pdf_png.get(k[4:]), "· figure matplotlib du rapport",
-                           no=no_of[k]))
-
-    parts.append("<h2 class='page'>Grafana — robustesse de l'app</h2>")
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
-    for k in [k for k in review if k.startswith("grafana:")]:
-        png, pts = gpng.get(k, (None, None))
-        parts.append(fiche(k, review[k], png,
-                           f"· {pts if pts is not None else '?'} points mesurés en 7 jours",
-                           no=no_of[k]))
+    graf_keys = [k for k in review if k.startswith("grafana:")]
+    for st_key, title in (("a-faire", "À faire"), ("revalider", "Fait — à revalider"),
+                          ("sans-avis", "Sans avis"), ("valide", "KPI validés")):
+        keys = [k for k in [*[k for v_ in by_view for k in by_view[v_]], *graf_keys]
+                if st_of[k] == st_key]
+        if not keys:
+            continue
+        parts.append(f"<h1 class='page'>{title} — {len(keys)} fiche(s)</h1>")
+        current_view = None
+        for k in keys:
+            view = ("Grafana" if k.startswith("grafana:")
+                    else (views_of[k][0] if views_of.get(k) else Path(k.split(":")[0]).stem))
+            if view != current_view:
+                parts.append(f"<h2>Page « {esc(view)} »</h2>")
+                current_view = view
+            parts.append(render_one(k))
+
     parts.append("<h2 class='page'>Index des fiches</h2><table class='idx'>" + "".join(
-        f"<tr><td>{n}</td><td>{VERDICTS.get(review[k].get('v'))}</td><td>{esc(review[k].get('q'))}</td></tr>"
-        for k, n in no_of.items()) + "</table>")
+        f"<tr><td>{n}</td><td>{STATUSES[st_of[k]]}</td><td>{esc(review[k].get('q'))}</td></tr>"
+        for k, n in no_of.items() if k in review) + "</table>")
 
     from style import CSS
     css = CSS.replace("streaMLytics — architecture et qualité des données",
@@ -244,6 +297,7 @@ img.fig { width: 100%; max-height: 105mm; object-fit: contain; margin: 2mm 0; }
 .nr { color: #777; font-style: italic; padding: 3mm 0; }
 table.notes td { font-size: 8.5pt; padding: .5mm 3mm .5mm 0; }
 .no { font-weight: bold; font-size: 11pt; margin-right: 2mm; }
+ul.acts { margin: 1mm 0 1mm 4mm; padding: 0; font-size: 9pt; }
 .owner { background: #eef4ff; border-left: 3px solid #2c5282; padding: 1.5mm 3mm; margin: 1mm 0; }
 .note { margin: 1mm 0; } .site { color: #888; font-size: 7.5pt; margin: 0; }
 h2.page { page-break-before: always; } .src { color: #666; font-size: 8.5pt; margin: 0; }

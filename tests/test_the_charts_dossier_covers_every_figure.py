@@ -142,3 +142,46 @@ def test_the_triage_groups_by_cause_and_flags_disagreements() -> None:
     assert by["zero"]["disagreements"] == 1 and by["sans-cause"]["disagreements"] == 1
     assert groups[0]["cause"] == "zero", "a probably WRONG number must come first"
     assert "c'est juste" in tr.render(groups)
+
+
+# ── R240 : les actions de chaque fiche, et les validées en fin de dossier ─────────────
+
+def _main():
+    sys.path.insert(0, str(_DOSSIER))
+    import main
+    return main
+
+
+def test_a_fiche_goes_where_its_actions_say() -> None:
+    """Validated → end; all my actions archived → « à revalider » (never validated by me);
+    an open action, or one of the owner's, keeps it « à faire »."""
+    m = _main()
+    open_ids = {"R242"}
+    assert m.status({"valide": True, "actions": []}, open_ids) == "valide"
+    assert m.status(None, open_ids) == "sans-avis"
+    done = {"actions": [{"qui": "moi", "texte": "x", "rid": "R241"}]}
+    assert m.status(done, open_ids) == "revalider"
+    assert m.status({"actions": [{"qui": "moi", "texte": "x", "rid": "R242"}]}, open_ids) == "a-faire"
+    mine_and_yours = {"actions": [*done["actions"], {"qui": "toi", "texte": "saisir"}]}
+    assert m.status(mine_and_yours, open_ids) == "a-faire", "the owner's own action was ignored"
+
+
+def test_the_open_ids_are_read_from_the_index_rows() -> None:
+    m = _main()
+    text = "| R240 | a | P2 | m |\n| R241 | b | P2 | m |\ntexte R999 dans une phrase\n"
+    assert m.open_roadmap_ids(text) == {"R240", "R241"}
+
+
+def test_an_action_names_who_and_a_real_roadmap_id() -> None:
+    ac, _ = _tools()
+    fiches = {1: "a.py:1", 2: "b.py:2"}
+    ok, errors = ac.plan_actions({1: {"v": "garder", "valide": True},
+                                  2: {"v": "corriger", "actions": [
+                                      {"qui": "moi", "texte": "x", "rid": "R241"}]}}, fiches)
+    assert not errors and ok["a.py:1"]["valide"] and ok["b.py:2"]["actions"][0]["rid"] == "R241"
+    _, errors = ac.plan_actions({2: {"actions": [{"qui": "lui", "texte": "x"}]}}, fiches)
+    assert errors
+    _, errors = ac.plan_actions({2: {"actions": [{"qui": "moi", "texte": "x", "rid": "241"}]}}, fiches)
+    assert errors
+    _, errors = ac.plan_actions({1: {"valide": True, "actions": [{"qui": "moi", "texte": "x"}]}}, fiches)
+    assert errors, "a fiche both validated and carrying actions was accepted"
