@@ -385,19 +385,6 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
   owner: "Je ne vois pas la plus-value ; garder seulement si unique."
   cause: libelles-tronques
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
-src/dashboard/views/meta_creatives.py::_render_activity#2:
-  q: "Combien chaque créa a-t-elle dépensé au total ?"
-  role: meta
-  d: 1
-  c: 1
-  p: 3
-  v: corriger
-  owner_v: a-trancher
-  owner: "Pas mal ; redondant ? filtre par créa ; notes /5 incomprises."
-  cause: cumul-qui-decroit
-  note: "Une « dépense cumulée » qui redescend à 0 — un cumul ne décroît jamais. Tracé non trié, ou cumul remis à zéro par période. Illisible en l'état."
-
-# ── Impact de mes campagnes (toutes plateformes) ─────────────────────────────
 src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
   q: "Ma dernière pub m'a-t-elle amené des auditeurs ?"
   role: meta
@@ -1175,3 +1162,12 @@ grafana:15:
   owner: "Fusionne tout ce que tu proposes ; et une méthode pour ne plus créer de doublons (R207)."
   cause: doublon
   note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."
+
+src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
+  q: "Quel titre transforme le mieux, de la pub au clic vers les plateformes ?"
+  role: meta
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "Nouveau (R246, fiche 40) : jusqu'à 5 titres comparés, deux chaînes côte à côte — côté pub (impressions → clics) et côté smart link (visites → clics plateformes) —, échelle log. Une étape qui s'élargit ou n'est pas mesurée est retirée et nommée ; les écoutes gagnées sont écrites à part."

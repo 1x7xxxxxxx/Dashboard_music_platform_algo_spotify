@@ -103,3 +103,40 @@ def by_creative(df: pd.DataFrame) -> pd.DataFrame:
                           / out["total_impressions"].where(out["total_impressions"] > 0)).round(2)
     out["campaigns"] = g["campaign_name"].nunique().values if "campaign_name" in d else 1
     return out.drop(columns=["_ps", "_pr"])
+
+
+def add_quadrants(fig, d: pd.DataFrame) -> None:
+    """Median lines and the two quadrants that call for a decision (R246, fiche 32).
+
+    Owner, 2026-09-27: « je ne comprends pas quelle décision on peut prendre ». Above the
+    median spend, a creative is either CHEAP per result (push it) or EXPENSIVE (cut it);
+    below the median spend there is too little money behind it to judge either way."""
+    from src.dashboard.utils.i18n import t
+    ms, mc = float(d['total_spend'].median()), float(d['cpr'].median())
+    fig.add_vline(x=ms, line_dash="dot", line_color="rgba(120,120,120,0.6)")
+    fig.add_hline(y=mc, line_dash="dot", line_color="rgba(120,120,120,0.6)")
+    for text, y, colour in ((t("meta_creatives.q_push", "▶ À pousser : beaucoup dépensé, résultat pas cher"), 0.02, "#1e8b7a"),
+                            (t("meta_creatives.q_cut", "✂ À couper : beaucoup dépensé, résultat cher"), 0.98, "#ce0700")):
+        fig.add_annotation(xref="paper", yref="paper", x=0.99, y=y, xanchor="right",
+                           yanchor="bottom" if y < 0.5 else "top", showarrow=False,
+                           text=text, font=dict(size=11, color=colour))
+
+
+def render_creative_gain(creative: str, gains: dict) -> None:
+    """Streams gained by ONE creative, beside its funnel — or why it cannot be said (R246)."""
+    import streamlit as st
+
+    from src.dashboard.utils.i18n import t
+    g = gains.get(creative)
+    if not g or g.get("gained") is None or g["gained"] != g["gained"]:
+        st.caption(t("meta_creatives.gain_unknown",
+                     "Écoutes gagnées : non séparables — cette créa a tourné avec d'autres dans "
+                     "sa campagne, ou sans titre lié confirmé. Pour la mesurer, lance-la seule."))
+        return
+    gained, spend = float(g["gained"]), float(g.get("spend") or 0)
+    cost = f"{spend / gained:.3f} €".replace(".", ",") if gained > 0 else "—"
+    st.metric(t("meta_creatives.gain_metric", "Écoutes gagnées (créa seule dans sa campagne)"),
+              f"{gained:,.0f}".replace(",", " "),
+              help=t("meta_creatives.gain_help",
+                     "Écoutes du titre pendant la campagne au-dessus de son niveau des 28 jours "
+                     "d'avant. Coût par écoute gagnée : {c}.").format(c=cost))

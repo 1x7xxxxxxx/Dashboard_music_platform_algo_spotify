@@ -81,6 +81,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
+    add_audience_flows,
     BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury, engagement_lift,
     shazam_stream_lag, step_texts, streams_gained,
 )
@@ -720,6 +721,7 @@ def _render_listener_verdict(db, artist_id) -> None:
         x=[None], y=[None], mode="markers",
         marker=dict(symbol="square", size=12, color=_VERDICT_AD_INK, opacity=0.35),
         name=t("meta_x_spotify.ad_days", "Jours de pub Meta")))
+    add_audience_flows(fig, db, artist_id)   # R246 (fiche 38) : les autres effets, à un clic
     # Le VERDICT au-dessus de la figure, en texte qui passe à la ligne : en titre Plotly il
     # était coupé net sur une demi-largeur d'écran (vu à l'écran le 2026-09-26).
     st.markdown(f"**{v.text}**")

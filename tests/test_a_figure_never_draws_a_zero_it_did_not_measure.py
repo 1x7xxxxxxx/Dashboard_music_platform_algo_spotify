@@ -467,15 +467,6 @@ _WIDEN_AND_FILL: dict[str, int] = {
     # point mort plus lointain — c'est-à-dire la direction où une surprise est
     # bonne. Un point mort optimiste, lui, ferait dépenser sur une promesse.
     "src/dashboard/utils/artist_cashflow.py:monthly_net": 3,
-    # ── The zero is on the weekly SPEND, and it feeds a `cumsum` — 2026-09-26.
-    #
-    # The cumulative-spend area pivots the top creatives onto a dense weekly grid
-    # (`reindex(pd.date_range(...))`) and fills the absent weeks with 0 BEFORE the
-    # cumsum: a week without a row is a week that spent nothing, so the running
-    # level stays flat instead of being inferred to 0 by the stack. Filling the
-    # LEVEL instead would be the defect; see
-    # `test_a_cumulative_area_has_a_point_at_every_week_and_never_goes_down`.
-    "src/dashboard/views/meta_creatives.py:_cumulative_spend_frame": 1,
 }
 
 _SCANNED = ("src/dashboard/views", "src/dashboard/utils")
@@ -641,56 +632,8 @@ def test_the_fixed_sites_did_not_come_back() -> None:
 # stacked total going DOWN on 6 of 30 transitions ('Chorus - Kaiber Photo' at
 # 219.80 € on 2024-01-15, then 0 from the next x). Neither section above saw it:
 # no zero is written in pandas, Plotly adds it.
-
-def _sparse_weekly():
-    """3 creatives on 10 weeks: one stops after week 2, and nobody spends on week 6."""
-    import pandas as pd
-    weeks = list(pd.date_range("2024-01-01", periods=10, freq="W-MON"))
-    rows = []
-    for i, w in enumerate(weeks):
-        if i == 5:
-            continue                                   # a global week with no spend
-        if i < 2:
-            rows.append(("Stopped", w, 50.0))          # stops after week 2
-        rows.append(("Runner A", w, 10.0 + i))
-        if i % 2 == 0:
-            rows.append(("Runner B", w, 7.0))          # every other week only
-    return pd.DataFrame(rows, columns=["creative_name", "week", "spend"]), weeks
-
-
-def test_a_cumulative_area_has_a_point_at_every_week_and_never_goes_down():
-    """The REAL figure: every stacked trace covers the whole week grid, monotonic."""
-    import pandas as pd
-    from src.dashboard.views import meta_creatives as mc
-
-    weekly, weeks = _sparse_weekly()
-    fig = mc._cumulative_spend_figure(weekly)
-    stacked = [tr for tr in fig.data if getattr(tr, "stackgroup", None)]
-    assert len(stacked) == 3, (
-        f"{len(stacked)} stacked traces instead of 3 — the figure no longer stacks "
-        "the creatives, so this guard no longer reads the site it was written for.")
-    grid = [pd.Timestamp(w) for w in weeks]
-    problems = []
-    for tr in stacked:
-        xs = [pd.Timestamp(x) for x in tr.x]
-        missing = [w.date().isoformat() for w in grid if w not in set(xs)]
-        if missing:
-            problems.append(f"{tr.name}: no point at week(s) {missing} — the stack "
-                            "infers 0 there")
-        pts = sorted(zip(xs, tr.y))
-        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-            if y1 < y0:
-                problems.append(f"{tr.name}: cumulative spend goes DOWN at week "
-                                f"{x1.date().isoformat()} ({y0} -> {y1})")
-                break
-    assert not problems, (
-        "a cumulative level stacked by `px.area` is drawn at 0 where it has no row "
-        "(`stackgaps` = 'infer zero'). Densify on the weekly SPEND, then cumsum:\n"
-        + "\n".join(problems))
-    stopped = next(tr for tr in stacked if tr.name == "Stopped")
-    assert max(stopped.y) == 100.0 and list(stopped.y)[-1] == 100.0, (
-        f"'Stopped' spent 2 x 50 EUR and must hold 100 to the last week: {list(stopped.y)}")
-
+# That site (the cumulative spend per creative, fiche 37) was retired on 2026-09-27 at the
+# owner's request (R246); the ratchet below still reads every OTHER stacking site.
 
 # Every stacking site in src/, read one by one. `px.area` stacks implicitly, so a
 # `stackgroup=` grep does not see it — the ratchet counts both forms.
@@ -699,8 +642,6 @@ _STACKING_SITES: dict[str, str] = {
         "dense: one row per (bucket, plan) for every bucket, 0 is a real count",
     "src/dashboard/utils/platform_chart.py:render_platform_chart":
         "gaps hatched by `unmeasured_spans()` — section 1 of this file",
-    "src/dashboard/views/meta_creatives.py:_cumulative_spend_figure":
-        "dense weekly grid, zero on the SPEND before cumsum — section 3",
 }
 
 

@@ -17,7 +17,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
-from src.dashboard.utils.creative_decisions import _a_couper, by_creative  # R233: moved out, still importable from here
+from src.dashboard.utils.creative_decisions import _a_couper, add_quadrants, by_creative, render_creative_gain  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
@@ -451,8 +451,9 @@ def _render_ranking(df: pd.DataFrame) -> None:
     charts.plotly_chart(fig, width="stretch")
     st.caption(t(
         "meta_creatives.ranking_caption",
-        "Meilleur coût par résultat en haut. Une barre absente = pas de résultat "
-        "mesuré, donc pas de CPR — ce n'est pas un zéro.") + (
+        "Le meilleur en haut, selon l'étape choisie. Une barre absente = pas de résultat "
+        "mesuré, donc pas de CPR — ce n'est pas un zéro. **Décision** : en tri CPR, coupe "
+        "les créas du bas qui ont beaucoup dépensé, remets du budget sur celles du haut.") + (
         " " + t("meta_creatives.ranking_truncated",
                 "Seules les {n} créatives qui ont le plus dépensé sont tracées ; "
                 "le tableau replié plus bas les porte toutes.").format(n=_RANG_MAX)
@@ -501,7 +502,9 @@ def _render_hooks(df: pd.DataFrame) -> None:
         "Le hook est lu dans le NOM que tu donnes à ta créative — Meta ne le "
         "connaît pas. **{part:.0f} % de ta dépense** porte un hook nommé ; le "
         "reste n'est pas classé ici. Un coût plus bas sur une dépense minuscule "
-        "n'est pas un verdict : c'est pourquoi le second cadre existe."
+        "n'est pas un verdict : c'est pourquoi le second cadre existe. **Décision** : "
+        "ouvre ta prochaine créa avec l'accroche la moins chère — ce graphique compare des "
+        "FAMILLES d'accroche, le classement au-dessus compare des créas une à une."
     ).format(part=part))
 
 
@@ -792,7 +795,7 @@ def _render_scatter(df: pd.DataFrame) -> None:
     """#1 — bubble comparison: spend × CPR, size=impressions, color=CTR."""
     with secondary_analyses(t("meta_creatives.scatter_expander",
                               "🔬 Nuage CPR × dépense — détail")):
-        d = df.copy()
+        d = by_creative(df)   # R246 — one bubble per creative, like the ranking
         for c in ('total_spend', 'cpr', 'total_impressions', 'avg_ctr'):
             d[c] = pd.to_numeric(d[c], errors='coerce')
         d = d.dropna(subset=['total_spend', 'cpr'])
@@ -807,10 +810,13 @@ def _render_scatter(df: pd.DataFrame) -> None:
                     'total_impressions': t("meta_creatives.impressions", "Impressions")},
         )
         fig.update_layout(height=460)
+        add_quadrants(fig, d)   # R246 (fiche 32) : la décision écrite sur le nuage
         charts.plotly_chart(fig, width="stretch")
         st.caption(t("meta_creatives.scatter_caption",
                      "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
-                     "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
+                     "Les créatives sans résultat (CPR absent) ne sont pas tracées. Le CPR compte des "
+                     "CLICS vers les plateformes, pas des écoutes : « à couper » veut dire « cher par "
+                     "clic » — à confirmer dans 🔀 Tout mon funnel › Comparer mes campagnes."))
 
 
 @st.fragment
@@ -846,7 +852,7 @@ def _render_efficiency(df: pd.DataFrame) -> None:
 
 
 @st.fragment
-def _render_funnel(df: pd.DataFrame) -> None:
+def _render_funnel(df: pd.DataFrame, gains: dict | None = None) -> None:
     """L'entonnoir d'une créative — rejoué SEUL quand on en choisit une autre.
 
     @st.fragment (R118, 2026-09-16) : bouger ce filtre ne rejoue QUE ce corps. Avant, il
@@ -897,6 +903,7 @@ def _render_funnel(df: pd.DataFrame) -> None:
         charts.plotly_chart(fig, width="stretch")
         # R209 — the owner: « "corriger" n'était pas assez clair ». Say what each step
         # counts, and why the outbound step can be missing.
+        render_creative_gain(sel, gains or {})
         if not any(key == "meta_creatives.results" for key, _, _ in stages):
             st.caption(t("meta_creatives.funnel_no_outbound",
                          "Pas d'étape « clics sortants » pour cette créative : Meta ne les "
@@ -993,7 +1000,7 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
     # jamais pour décider quoi faire de la prochaine créative — les graphiques de
     # fatigue et de performance, plus haut, s'en chargent. Repliés ensemble.
     with secondary_analyses(t("meta_creatives.activity_expander",
-                              "🗓️ Activité des créatives (dépense par semaine, cumul) — détail")):
+                              "🗓️ Activité des créatives (dépense par semaine) — détail")):
         st.markdown(t("meta_creatives.heatmap_title", "**🗓️ Dépense par créative et par semaine**"))
         fig = px.density_heatmap(
             hm, x='week', y='creative_name', z='spend', histfunc='sum',
@@ -1002,52 +1009,13 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
         )
         fig.update_layout(height=520)
         charts.plotly_chart(fig, width="stretch")
-
-        st.markdown("---")
-        st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
-        charts.plotly_chart(_cumulative_spend_figure(weekly), width="stretch")
-
-
-def _cumulative_spend_frame(weekly: pd.DataFrame, top_n: int = 12) -> pd.DataFrame:
-    """Long frame (creative_name, week, cum) that is DENSE on a weekly grid.
-
-    `px.area` stacks every trace in one `stackgroup`, and Plotly's `stackgaps`
-    default is "infer zero": a creative with no row at a week is drawn at 0 there.
-    For a cumulative LEVEL that is false — a week without spend leaves the level
-    unchanged. So the absent week is filled on the SPEND (spent 0, which is true)
-    before the cumsum, which carries the level forward and gives every trace a
-    point at every x. Filling the LEVEL with 0 instead would be the defect again.
-
-    Order matters for width, not correctness: the top creatives are picked on the
-    sparse frame first, and only that subset is pivoted onto the dense grid.
-    """
-    if weekly is None or weekly.empty:
-        return pd.DataFrame(columns=['creative_name', 'week', 'cum'])
-    sparse = weekly.sort_values('week').copy()
-    sparse['cum'] = sparse.groupby('creative_name')['spend'].cumsum()
-    top = sparse.groupby('creative_name')['cum'].max().nlargest(top_n).index
-    sub = weekly[weekly['creative_name'].isin(top)]
-    grid = pd.date_range(sub['week'].min(), sub['week'].max(), freq='W-MON')
-    wide = (sub.pivot_table(index='week', columns='creative_name', values='spend',
-                            aggfunc='sum')
-            .reindex(grid)
-            # Zero on the weekly SPEND: an absent week is a week that spent nothing.
-            .fillna(0.0)
-            .cumsum())
-    wide.index.name = 'week'
-    long = wide.reset_index().melt(id_vars='week', var_name='creative_name',
-                                   value_name='cum')
-    return long[['creative_name', 'week', 'cum']]
-
-
-def _cumulative_spend_figure(weekly: pd.DataFrame) -> go.Figure:
-    """Stacked cumulative spend per creative, drawn from the dense frame."""
-    g = _cumulative_spend_frame(weekly)
-    fig = px.area(g, x='week', y='cum', color='creative_name',
-                  labels={'week': '', 'cum': t("meta_creatives.cumulative_spend_eur", "Dépense cumulée (€)"),
-                          'creative_name': t("meta_creatives.creative", "Créative")})
-    fig.update_layout(height=480)
-    return fig
+        # R246 (fiche 36) : la SEULE vue de quand chaque créa a tourné — lire les
+        # chevauchements avant de croire un chiffre par créa. Le cumul par créa (fiche 37)
+        # est retiré : le classement en tête de page porte déjà la dépense totale.
+        st.caption(t("meta_creatives.heatmap_decision",
+                     "À quoi ça sert : voir quelles créas ont tourné EN MÊME TEMPS. Deux "
+                     "créas qui se chevauchent se partagent les écoutes du titre — lis leurs "
+                     "chiffres ensemble, jamais l'une sans l'autre."))
 
 
 def show() -> None:
@@ -1148,7 +1116,8 @@ def show() -> None:
 
         st.markdown("---")
         st.subheader(t("meta_creatives.section_details", "🔬 Pour creuser"))
-        _render_funnel(df)
+        from src.dashboard.utils.campaign_compare import creative_gains
+        _render_funnel(df, creative_gains(db, artist_id, _acct_bare, _acct_params))   # R246 fiche 34
         _render_scatter(df)
         _render_efficiency(df)
         ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),

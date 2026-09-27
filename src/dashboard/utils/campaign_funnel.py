@@ -221,3 +221,48 @@ def campaign_treasury(db, artist_id, d0, d1, spend: float | None) -> str:
         a=format_date(roi['effective_from']), b=format_date(roi['effective_to']),
         rev=fmt_eur(roi['revenue_eur']), tot=fmt_eur(roi['total_spend']),
         sp=fmt_eur(spend))
+
+
+# ── R246 (fiche 38) — the other effects of the ad days, beside the listeners ──────────
+_AUDIENCE_FLOWS = (
+    # (column, FR label, is it a LEVEL whose daily gain is shown)
+    ("streams", "Streams / jour (moyenne 7 j)", False),
+    ("saves", "Sauvegardes / jour (moyenne 7 j)", False),
+    ("playlist_adds", "Ajouts en playlist / jour (moyenne 7 j)", False),
+    ("followers_level", "Abonnés gagnés / jour (moyenne 7 j)", True),
+)
+
+
+def audience_flows(daily: pd.DataFrame) -> dict[str, pd.Series]:
+    """{label: 7-day mean per day} — every one a FLOW, never a cumul (fiche 38). Pure.
+
+    The owner asked for streams, subscribers, playlist adds, saves and cumulative streams
+    next to the listeners. The cumul is left out on purpose: drawn beside daily flows on
+    one axis it reads as a quantity per day (MEMORY « jamais tracer un cumul comme un
+    quotidien »). Subscribers are a LEVEL: what moves per day is their gain."""
+    out = {}
+    if daily is None or daily.empty:
+        return out
+    d = daily.copy()
+    d["day"] = pd.to_datetime(d["day"])
+    d = d.set_index("day").sort_index()
+    full = pd.date_range(d.index.min(), d.index.max())
+    for col, label, level in _AUDIENCE_FLOWS:
+        if col not in d:
+            continue
+        s = pd.to_numeric(d[col], errors="coerce").reindex(full)
+        if level:
+            s = s.diff()
+        out[t(f"campaign_funnel.flow_{col}", label)] = s.rolling(7, min_periods=4).mean()
+    return out
+
+
+def add_audience_flows(fig, db, artist_id: int) -> None:
+    """The flows above, hidden by default (legend click), on the listeners' figure."""
+    import plotly.graph_objects as go
+    daily = db.fetch_df(
+        "SELECT day, streams, saves, playlist_adds, followers_level FROM v_s4a_audience_daily "
+        "WHERE artist_id = %s ORDER BY day", (artist_id,))
+    for label, serie in audience_flows(daily).items():
+        fig.add_trace(go.Scatter(x=serie.index, y=serie.values, mode="lines", name=label,
+                                 visible="legendonly", connectgaps=False, line=dict(width=1.5)))

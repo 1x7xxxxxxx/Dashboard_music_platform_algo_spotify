@@ -127,7 +127,9 @@ def _render_performance(df):
     geo['iso3'] = geo['k'].map(iso2_to_iso3)
     geo = geo.dropna(subset=['iso3'])
     if not geo.empty:
-        with st.expander(t("meta_breakdowns.map", "🗺️ Carte de la dépense par pays")):
+        # R246 (fiches 25-27) : sur la même vue que placement, âge, plateforme — dépliée.
+        st.markdown("**" + t("meta_breakdowns.map", "🗺️ Carte de la dépense par pays") + "**")
+        with st.container():
             fig = px.choropleth(
                 geo, locations='iso3', color='spend', hover_name='dim_label',
                 color_continuous_scale='YlOrRd',
@@ -175,7 +177,9 @@ def _render_engagement(df):
     geo['iso3'] = geo['k'].map(iso2_to_iso3)
     geo = geo.dropna(subset=['iso3'])
     if not geo.empty:
-        with st.expander(t("meta_breakdowns.map_engagement", "🗺️ Carte des interactions par pays")):
+        # R246 (fiches 25-27) : sur la même vue que placement, âge, plateforme — dépliée.
+        st.markdown("**" + t("meta_breakdowns.map_engagement", "🗺️ Carte des interactions par pays") + "**")
+        with st.container():
             fig = px.choropleth(geo, locations='iso3', color='total', hover_name='dim_label',
                                 color_continuous_scale='Blues',
                                 labels={'total': t("meta_breakdowns.interactions", "Interactions")})

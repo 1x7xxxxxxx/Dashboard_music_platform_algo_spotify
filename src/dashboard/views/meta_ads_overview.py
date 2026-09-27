@@ -233,7 +233,7 @@ def _summary_query(campaign_in: str) -> str:
     # ⚠️ %% in the CTR alias: psycopg2 reads a lone % as a placeholder.
     return (
         'SELECT p.campaign_name, p.spend AS "Dépenses",'
-        ' p.custom_conversions AS "Clics Spotify",'
+        ' p.custom_conversions AS "Clics Hypeddit",'
         ' p.lp_views AS "Vues LP", p.link_clicks AS "Clics pub",'
         ' CASE WHEN p.custom_conversions > 0'
         '      THEN p.spend / p.custom_conversions END AS "CPR (€/clic sortant)",'
@@ -271,6 +271,25 @@ def _campaign_frame(df_perf: pd.DataFrame) -> pd.DataFrame:
     df['cpc'] = df.apply(
         lambda x: x['spend'] / x['link_clicks'] if x['link_clicks'] > 0 else 0, axis=1)
     return df
+
+
+def _add_streams_row(fig, db, artist_id: int, days) -> None:
+    """Spotify streams per day of the whole artist, under the ad dynamics (R246, fiche 22).
+
+    `v_s4a_song_daily` without the CSV « Total » row; a day not exported stays a gap."""
+    if days is None or len(days) == 0:
+        return
+    rows = db.fetch_df(
+        "SELECT day, SUM(streams) AS streams FROM v_s4a_song_daily WHERE artist_id = %s "
+        "AND song NOT ILIKE '%%1x7xxxxxxx%%' AND day BETWEEN %s AND %s GROUP BY day ORDER BY day",
+        (artist_id, pd.Timestamp(min(days)).date(), pd.Timestamp(max(days)).date()))
+    if rows is None or rows.empty:
+        return
+    fig.add_trace(go.Scatter(
+        x=pd.to_datetime(rows['day']), y=pd.to_numeric(rows['streams'], errors='coerce'),
+        name=t("meta_ads_overview.streams_day", "Écoutes Spotify / jour"), mode='lines',
+        connectgaps=False, line=dict(color="#1DB954", width=2)), row=2, col=1)
+    fig.update_yaxes(title_text=t("meta_ads_overview.streams_axis", "Écoutes"), row=2, col=1)
 
 
 def _show_meta_ads(db, artist_id):
@@ -394,6 +413,12 @@ def _show_meta_ads(db, artist_id):
 
     if not df_perf.empty:
         df_chart = _campaign_frame(df_perf)
+        if len(df_chart) == 1:
+            # R246 (fiche 21 « je ne comprends pas quoi lire ») : une seule campagne sur la
+            # période, il n'y a RIEN à comparer — le dire au lieu de laisser chercher.
+            st.info(t("meta_ads_overview.one_campaign",
+                      "Une seule campagne a dépensé sur la période choisie : élargis la "
+                      "période pour comparer tes campagnes entre elles."))
 
         # UNE FIGURE, PAS DEUX — et des noms de campagne LISIBLES. 2026-09-21.
         #
@@ -512,30 +537,35 @@ def _show_meta_ads(db, artist_id):
         # comme un évènement.
         from plotly.subplots import make_subplots
         _INK_SPEND, _INK_CLICKS, _INK_CPR = "#2a78d6", "#1baf7a", "#eda100"
-        fig_time = make_subplots(specs=[[{"secondary_y": True}]])
+        # R246 (fiche 22) : les ÉCOUTES Spotify dans leur propre rangée, sur la même horloge
+        # — sur l'axe des clics elles écrasaient la série (même règle que le double axe).
+        fig_time = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28],
+                                 vertical_spacing=0.08,
+                                 specs=[[{"secondary_y": True}], [{}]])
         fig_time.add_trace(go.Bar(
             x=df_day['day_date'], y=df_day['spend'],
             name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-            marker_color=_INK_SPEND, opacity=0.55), secondary_y=False)
+            marker_color=_INK_SPEND, opacity=0.55), row=1, col=1, secondary_y=False)
         fig_time.add_trace(go.Scatter(
             x=df_day['day_date'], y=df_day['custom_conversions'],
-            name=t("meta_ads_overview.spotify_clicks", "Clics Spotify"),
+            name=t("meta_ads_overview.spotify_clicks", "Clics Hypeddit"),   # R246 fiche 22 : le clic sortant passe par le smart link
             mode='lines', connectgaps=False,
-            line=dict(color=_INK_CLICKS, width=2)), secondary_y=False)
+            line=dict(color=_INK_CLICKS, width=2)), row=1, col=1, secondary_y=False)
         fig_time.add_trace(go.Scatter(
             x=df_day['day_date'], y=df_day['cpr'],
             name=t("meta_ads_overview.cpr_series", "CPR (€/clic sortant)"),
             mode='lines+markers', connectgaps=False,
             line=dict(color=_INK_CPR, width=2, dash='dot'),
-            marker=dict(size=6)), secondary_y=True)
+            marker=dict(size=6)), row=1, col=1, secondary_y=True)
         fig_time.update_yaxes(
             title_text=t("meta_ads_overview.axis_volume", "Dépense (€) · clics"),
-            secondary_y=False)
+            row=1, col=1, secondary_y=False)
         fig_time.update_yaxes(
-            title_text="CPR (€)", showgrid=False, secondary_y=True,
+            title_text="CPR (€)", showgrid=False, row=1, col=1, secondary_y=True,
             title_font=dict(color=_INK_CPR), tickfont=dict(color=_INK_CPR))
+        _add_streams_row(fig_time, db, artist_id, df_day['day_date'])
         fig_time.update_layout(
-            height=460, hovermode="x unified", barmode='overlay',
+            height=560, hovermode="x unified", barmode='overlay',
             legend=dict(orientation="h", y=1.12),
             title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"))
         charts.plotly_chart(fig_time, width="stretch")
@@ -601,7 +631,7 @@ def _show_meta_ads(db, artist_id):
                     "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
                     "CTR (%)": "{:,.2f}",
                     "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
-                    "Clics Spotify": "{:,.0f}", "Clics pub": "{:,.0f}",
+                    "Clics Hypeddit": "{:,.0f}", "Clics pub": "{:,.0f}",
                 }, na_rep="—"),
                 width="stretch",
             )

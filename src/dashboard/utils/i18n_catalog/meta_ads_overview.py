@@ -1,6 +1,9 @@
 """EN strings for the Meta Ads overview view."""
 
 EN = {
+    "meta_ads_overview.one_campaign": "Only one campaign spent over the chosen period: widen the period to compare your campaigns.",
+    "meta_ads_overview.streams_day": "Spotify streams / day",
+    "meta_ads_overview.streams_axis": "Streams",
     "meta_ads_overview.scope_period": "**{spend} €** across **{campaigns}** "
                                       "campaign(s), from {start} to {end}.",
     "meta_ads_overview.scope_linked": " **{linked}** campaign(s) are linked to a track: "
@@ -44,7 +47,7 @@ EN = {
     "meta_ads_overview.perf.5": "CPR (€)",
     "meta_ads_overview.engagement": "##### ❤️ Engagement",
     "meta_ads_overview.total_interactions": "⚡ Total Interactions",
-    "meta_ads_overview.spotify_clicks": "Spotify Clicks",
+    "meta_ads_overview.spotify_clicks": "Hypeddit clicks",
     "meta_ads_overview.perf_by_campaign": "📊 Performance by Campaign",
     "meta_ads_overview.budget_eur": "Budget (€)",
     "meta_ads_overview.chart_360": "360° View: Budget vs Volumes vs Ratios",

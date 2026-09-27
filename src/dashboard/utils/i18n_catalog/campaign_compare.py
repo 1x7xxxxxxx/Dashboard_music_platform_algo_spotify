@@ -1,6 +1,18 @@
 """EN strings for « Comparer mes campagnes » (tab of `meta_x_spotify`, R234)."""
 
 EN = {
+    "campaign_compare.funnel_head": "**The whole journey, track by track** — from the ad impression to the click to the platforms, comparing up to {n} tracks.",
+    "campaign_compare.funnel_pick": "Tracks to compare",
+    "campaign_compare.funnel_chains": "Two tools, two chains: a smart-link visit does not always come from an ad click (bio link, shares), so the two sides do not follow each other — each reads top to bottom.",
+    "campaign_compare.funnel_dropped": "Step(s) removed: {s} — not measured for one of the tracks, or bigger than the step before.",
+    "campaign_compare.funnel_gained": "Streams gained during the track's campaigns (above the 28 days before, outside the journey since a stream does not always come from a click): {g}",
+    "campaign_compare.stage_impressions": "Ad impressions",
+    "campaign_compare.stage_link_clicks": "Ad clicks",
+    "campaign_compare.stage_visits": "Smart-link visits",
+    "campaign_compare.stage_store_clicks": "Clicks to the platforms",
+    "campaign_compare.chain_meta": "Ad side (Meta)",
+    "campaign_compare.chain_hypeddit": "Smart-link side (Hypeddit)",
+    "campaign_compare.log_axis": "Volume (log scale: each mark ×10)",
     "campaign_compare.empty": "No campaign to compare on this account.",
     "campaign_compare.head": "**Which campaign bought the cheapest stream?** — streams of "
                              "the linked track during the campaign, above its level over "

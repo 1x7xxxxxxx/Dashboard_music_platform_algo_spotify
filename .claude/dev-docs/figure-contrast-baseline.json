@@ -15,7 +15,7 @@
     "src/dashboard/utils/pdf_charts.py #ff0000 #ff7700": 1,
     "src/dashboard/views/airflow_kpi.py #00cc96 #ffa15a": 1,
     "src/dashboard/views/db_health.py #ff6b6b #ffa500": 1,
-    "src/dashboard/views/meta_ads_overview.py #58508d #bc5090": 1,
+    "src/dashboard/views/meta_ads_overview.py #1db954 #ff6361": 1,
     "src/dashboard/views/meta_creatives.py #2ca02c #ff6b35": 1,
     "src/dashboard/views/revenue_forecast.py #1db954 #ff6b35": 2,
     "src/dashboard/views/trigger_algo/_tab_budget_roi.py #1db954 #ff6b6b": 2,
@@ -38,6 +38,23 @@
       "paire": [
         "#e45756",
         "#54a24b"
+      ],
+      "attenue": true
+    },
+    {
+      "fichier": "src/dashboard/views/meta_ads_overview.py",
+      "ligne": 157,
+      "couleurs": [
+        "#1db954",
+        "#ff6361",
+        "#58508d",
+        "#bc5090"
+      ],
+      "delta_e": 2.4,
+      "sous": "deutan",
+      "paire": [
+        "#1db954",
+        "#ff6361"
       ],
       "attenue": true
     },
@@ -106,7 +123,7 @@
     },
     {
       "fichier": "src/dashboard/views/meta_creatives.py",
-      "ligne": 889,
+      "ligne": 895,
       "couleurs": [
         "#1f77b4",
         "#2ca02c",
@@ -119,23 +136,6 @@
         "#ff6b35"
       ],
       "attenue": false
-    },
-    {
-      "fichier": "src/dashboard/views/meta_ads_overview.py",
-      "ligne": 158,
-      "couleurs": [
-        "#1877f2",
-        "#ff6361",
-        "#58508d",
-        "#bc5090"
-      ],
-      "delta_e": 7.4,
-      "sous": "protan",
-      "paire": [
-        "#58508d",
-        "#bc5090"
-      ],
-      "attenue": true
     },
     {
       "fichier": "src/dashboard/utils/pdf_charts.py",
@@ -186,7 +186,7 @@
     },
     {
       "fichier": "src/dashboard/views/revenue_forecast.py",
-      "ligne": 679,
+      "ligne": 682,
       "couleurs": [
         "#9fd8b4",
         "#1db954",

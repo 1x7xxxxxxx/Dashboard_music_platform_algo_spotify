@@ -2,6 +2,9 @@
 
 EN = {
     # ── Page unique : décision en haut, puis classement, hooks, fatigue ──────
+    "meta_creatives.gain_unknown": "Streams gained: not separable — this creative ran with others in its campaign, or without a confirmed linked track. To measure it, run it alone.",
+    "meta_creatives.gain_metric": "Streams gained (creative alone in its campaign)",
+    "meta_creatives.gain_help": "The track's streams during the campaign above its level of the 28 days before. Cost per stream gained: {c}.",
     "meta_creatives.banner_intro": (
         "**{spend:,.0f} € spent across {n} creative(s).** Here are the three "
         "decisions those numbers carry."),
@@ -26,8 +29,9 @@ EN = {
     "meta_creatives.section_details": "🔬 Dig deeper",
     "meta_creatives.no_ranking": "No creative with any spend.",
     "meta_creatives.ranking_caption": (
-        "Best cost per result on top. A missing bar means no measured result, "
-        "hence no CPR — it is not a zero."),
+        "Best on top, by the chosen step. A missing bar = no measured result, so no CPR — "
+        "not a zero. **Decision**: sorted by CPR, cut the bottom creatives that spent a lot, "
+        "put budget back on the top ones."),
     "meta_creatives.ranking_truncated": (
         "Only the {n} highest-spending creatives are drawn; the collapsed table "
         "below holds them all."),
@@ -40,11 +44,13 @@ EN = {
         "\"Hook 2 — …\", \"Sans hook — …\": this chart will then compare the "
         "cost per result of each opening."),
     "meta_creatives.hooks_caption": (
-        "The hook is read from the NAME you give your creative — Meta does not "
-        "know it. **{part:.0f} % of your spend** carries a named hook; the rest "
-        "is not ranked here. A lower cost on a tiny spend is not a verdict: that "
-        "is what the second panel is for."),
+        "The hook is read from the NAME you give your creative — Meta does not know it. "
+        "**{part:.0f}% of your spend** carries a named hook; the rest is not classified here. "
+        "A lower cost on a tiny spend is not a verdict: that is why the second frame exists. "
+        "**Decision**: open your next creative with the cheapest hook — this chart compares "
+        "hook FAMILIES, the ranking above compares creatives one by one."),
     "meta_creatives.rank_sort": "Sort by",
+    "meta_creatives.heatmap_decision": "What it is for: see which creatives ran AT THE SAME TIME. Two overlapping creatives share the track's streams — read their numbers together, never one without the other.",
     "meta_creatives.rank.cpr": "CPR (€)",
     "meta_creatives.rank.total_spend": "Spend (€)",
     "meta_creatives.rank.total_results": "Outbound clicks",
@@ -115,8 +121,11 @@ EN = {
     "meta_creatives.impressions": "Impressions",
     "meta_creatives.scatter_caption": (
         "One bubble = one creative. Low = efficient CPR; size = impressions, colour = CTR. "
-        "Creatives with no result (missing CPR) are not plotted."
-    ),
+        "Creatives without a result (no CPR) are not drawn. CPR counts CLICKS to the "
+        "platforms, not streams: « cut » means « expensive per click » — confirm it in "
+        "🔀 My whole funnel › Compare my campaigns."),
+    "meta_creatives.q_push": "▶ Push: much spent, cheap result",
+    "meta_creatives.q_cut": "✂ Cut: much spent, expensive result",
     # Efficiency / funnel / fatigue / activity
     "meta_creatives.indicator": "Indicator",
     "meta_creatives.no_creative": "No creative.",
@@ -131,9 +140,7 @@ EN = {
     ),
     "meta_creatives.no_spend_series": "No per-creative spend series.",
     "meta_creatives.heatmap_title": "**🗓️ Spend per creative and per week**",
-    "meta_creatives.cumulative_title": "**💰 Cumulative spend per creative**",
-    "meta_creatives.cumulative_spend_eur": "Cumulative spend (€)",
-    "meta_creatives.activity_expander": "🗓️ Creative activity (weekly spend, cumulative) — detail",
+    "meta_creatives.activity_expander": "🗓️ Creative activity (weekly spend) — detail",
     "meta_creatives.scatter_expander": "🔬 CPR × spend scatter — detail",
     "meta_creatives.efficiency_expander": "🔬 Efficiency by creative — detail",
     "meta_creatives.unit_cpr": "Cost per result (€)",
