@@ -433,12 +433,15 @@ def _render_ledger(db, artist_id, cashflow: pd.DataFrame, mensuel: pd.DataFrame)
 
 def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                         pm: dict, horizon: int) -> None:
-    """The treasury (shared with iMusician and SACEM), plus the premium projection."""
-    from src.dashboard.utils.artist_cashflow import project
-    from src.dashboard.utils.treasury_chart import treasury_figure
+    """The break-even answer — the treasury itself is drawn ONCE, on the distributors page.
 
-    fig = treasury_figure(cashflow, mensuel, project(mensuel, horizon), _breakeven_text(pm))
-    charts.plotly_chart(fig, width='stretch')
+    R244 (owner, 2026-09-27, fiche 63 : « redondant, je l'ai déjà vu passer »). The same
+    treasury figure was drawn on three pages; it now lives on « Distributeurs », free, and
+    this premium page keeps what it adds: the break-even verdict at this pace."""
+    st.info(_breakeven_text(pm).replace("<br>", " — "))
+    st.caption(t("revenue_forecast.treasury_moved",
+                 "Le graphique de trésorerie (ventes, SACEM, dépenses, cumulés) est sur la "
+                 "page 💰 Distributeurs."))
 
 
 def _breakeven_short(pm: dict) -> str:

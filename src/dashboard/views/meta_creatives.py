@@ -772,7 +772,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.04,
                 "xanchor": "right", "x": 1},
         margin={"t": 70})
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(charts.to_base100(fig)[0], width="stretch")   # R244 fiche 31 : UN repère
     if partial_weeks:
         st.caption(t(
             "meta_creatives.partial_weeks",
@@ -971,7 +971,7 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
                              mode='lines+markers', line={'color': '#2a78d6'}),
                   row=2, col=1)
     fig.update_layout(hovermode="x unified", showlegend=False, height=420)
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(charts.to_base100(fig)[0], width="stretch")   # R244 fiche 35 : UN repère
     st.caption(t("meta_creatives.fatigue_caption",
                  "Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative."))
 

@@ -437,6 +437,10 @@ def test_the_share_mode_does_not_inflate_the_platforms_that_are_present(monkeypa
 #       un axe : un jour sans dépense n'ajoute rien, et `NaN` effacerait toute la
 #       suite de la courbe.
 _WIDEN_AND_FILL: dict[str, int] = {
+    # R244 — the treasury's running total per source: a month with no movement in the
+    # LEDGER moved 0 €, and the zero only feeds a `cumsum` that carries the total forward
+    # (a cumul never drops back). Never drawn as a monthly value.
+    "src/dashboard/utils/treasury_chart.py:source_cumuls": 1,
     "src/dashboard/views/meta_ads_overview.py:_show_meta_ads": 6,
     "src/dashboard/views/meta_creatives.py:_prepare_timeline": 1,
     # Moved out of the view on 2026-09-26 with the breakeven itself (the two zeros

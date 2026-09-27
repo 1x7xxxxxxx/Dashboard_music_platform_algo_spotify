@@ -2,6 +2,7 @@
 
 EN = {
     # ── Mon argent : flux, cumul, point mort (2026-09-21) ────────────────────
+    "revenue_forecast.treasury_moved": "The treasury chart (sales, SACEM, spend, cumulated) is on the 💰 Distributors page.",
     "revenue_forecast.artist_forecast_header":
         "My money: what comes in, what goes out, and when I break even",
     "revenue_forecast.artist_forecast_caption": (
@@ -13,7 +14,6 @@ EN = {
     "revenue_forecast.no_money_yet": (
         "No money movement on record. Import a sales report from **CSV import**, "
         "or connect Meta in **🔑 API Credentials**."),
-    "revenue_forecast.frame_flows": "What comes in and goes out, each month (€)",
     "revenue_forecast.frame_cumul":
         "Where I stand overall (€) — break-even is at zero",
     "revenue_forecast.line_cumul": "Net cumulative",
@@ -201,7 +201,6 @@ EN = {
     "revenue_forecast.col_streams_7d": "Streams 7d (actual)",
     "revenue_forecast.col_streams_28d": "Streams 28d (actual)",
     # Net margin
-    "revenue_forecast.net_month": "Month balance",
     "revenue_forecast.ledger_head": "| Revenue | Spend | of which ads | Financial result | Streams (all platforms) | Ads per stream |",
     "revenue_forecast.ledger_caption": "Since the start. « Ads per stream » divides ad spend by ALL streams, organic included: it is a ceiling, not what a gained stream cost — that one is in « My whole funnel », campaign by campaign.",
 }

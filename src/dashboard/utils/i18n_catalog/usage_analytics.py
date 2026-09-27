@@ -1,6 +1,9 @@
 """EN catalog for the usage_analytics view."""
 
 EN = {
+    "usage_analytics.other_pages": "other pages",
+    "usage_analytics.legend_pages": "Pages viewed",
+    "usage_analytics.legend_events": "Events",
     "usage_analytics.title": "📈 Usage Analytics",
     "usage_analytics.caption": (
         "First-party tracking of app usage (page_view + key actions). "
@@ -14,17 +17,10 @@ EN = {
     "usage_analytics.kpi_active_artists": "Active artists",
     "usage_analytics.no_events": "No events over the window — click around the app to generate some.",
     "usage_analytics.events_per_day": "📅 Events per day",
-    "usage_analytics.top_pages": "📄 Most viewed pages",
     "usage_analytics.dead_feature_hint": (
         "Pages that are missing or at the bottom of the list = « dead feature » candidates."
     ),
-    "usage_analytics.event_breakdown": "⚡ Breakdown by event type",
     "usage_analytics.activity_per_artist": "👤 Activity per artist",
     # Chart axis labels
-    "usage_analytics.axis_day": "day",
     "usage_analytics.axis_events": "events",
-    "usage_analytics.axis_views": "views",
-    "usage_analytics.axis_page": "page",
-    "usage_analytics.axis_event": "event",
-    "usage_analytics.axis_count": "count",
 }

@@ -7,7 +7,6 @@ Depends on: get_db_connection, is_admin
 import sys
 from pathlib import Path
 
-import plotly.express as px
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
@@ -48,42 +47,18 @@ def show():
             return
 
         st.markdown("---")
-        df_day = db.fetch_df(
-            f"SELECT ts::date AS jour, COUNT(*) AS events "
-            f"FROM usage_events WHERE ts >= {since} GROUP BY 1 ORDER BY 1")
-        if df_day is not None and not df_day.empty:
+        # R244 (fiches 67-69 « fusionner sur un même graphique admin, deux légendes ») : les
+        # évènements par jour, les pages vues et les types d'évènement étaient trois
+        # figures. Une seule : chaque jour empile ses pages vues (légende « Pages vues ») et
+        # ses autres évènements (légende « Évènements »).
+        df = db.fetch_df(
+            f"SELECT ts::date AS jour, event, COALESCE(page, '—') AS page, COUNT(*) AS n "
+            f"FROM usage_events WHERE ts >= {since} GROUP BY 1, 2, 3 ORDER BY 1")
+        if df is not None and not df.empty:
             st.subheader(t("usage_analytics.events_per_day", "📅 Événements par jour"))
-            charts.plotly_chart(px.line(df_day, x="jour", y="events", markers=True,
-                                    labels={"jour": t("usage_analytics.axis_day", "jour"),
-                                            "events": t("usage_analytics.axis_events", "événements")}),
-                            width="stretch")
-
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.subheader(t("usage_analytics.top_pages", "📄 Pages les plus vues"))
-            df_pages = db.fetch_df(
-                f"SELECT COALESCE(page, '—') AS page, COUNT(*) AS vues "
-                f"FROM usage_events WHERE event = 'page_view' AND ts >= {since} "
-                f"GROUP BY page ORDER BY vues DESC LIMIT 20")
-            if df_pages is not None and not df_pages.empty:
-                charts.plotly_chart(
-                    px.bar(df_pages.sort_values("vues"), x="vues", y="page",
-                           orientation="h",
-                           labels={"vues": t("usage_analytics.axis_views", "vues"),
-                                   "page": t("usage_analytics.axis_page", "page")}),
-                    width="stretch")
-                st.caption(t("usage_analytics.dead_feature_hint",
-                             "Les pages absentes ou en bas de liste = candidates « dead feature »."))
-        with col_b:
-            st.subheader(t("usage_analytics.event_breakdown", "⚡ Répartition par type d'événement"))
-            df_evt = db.fetch_df(
-                f"SELECT event, COUNT(*) AS n FROM usage_events WHERE ts >= {since} "
-                f"GROUP BY event ORDER BY n DESC")
-            if df_evt is not None and not df_evt.empty:
-                charts.plotly_chart(px.bar(df_evt, x="event", y="n",
-                                       labels={"event": t("usage_analytics.axis_event", "événement"),
-                                               "n": t("usage_analytics.axis_count", "nombre")}),
-                                width="stretch")
+            charts.plotly_chart(usage_figure(df), width="stretch")
+            st.caption(t("usage_analytics.dead_feature_hint",
+                         "Les pages absentes ou en bas de liste = candidates « dead feature »."))
 
         st.markdown("---")
         st.subheader(t("usage_analytics.activity_per_artist", "👤 Activité par artiste"))
@@ -93,3 +68,42 @@ def show():
             f"FROM usage_events WHERE ts >= {since} GROUP BY artist_id ORDER BY events DESC")
         if df_artist is not None and not df_artist.empty:
             st.dataframe(df_artist, hide_index=True, width="stretch")
+
+
+_TOP_PAGES = 8
+
+
+def usage_figure(df):
+    """One stacked bar per day: page views by page, then the other events by type. Pure.
+
+    Two legend groups (Plotly `legendgrouptitle`), because the owner reads two questions in
+    it: which PAGES are seen, and which EVENTS happen. Pages beyond the top eight by views
+    are summed as « autres pages » — named, never dropped."""
+    import plotly.graph_objects as go
+    views = df[df["event"] == "page_view"]
+    others = df[df["event"] != "page_view"]
+    top = views.groupby("page")["n"].sum().sort_values(ascending=False).head(_TOP_PAGES).index
+    views = views.assign(page=views["page"].where(views["page"].isin(top), t(
+        "usage_analytics.other_pages", "autres pages")))
+    from plotly.colors import sample_colorscale
+    fig = go.Figure()
+    # One colour FAMILY per legend group — blues for pages, oranges for events: twelve
+    # series cannot all get a distinct hue (the default palette repeated « login » and
+    # « credentials » in the same red), but the group reads at a glance, the page on hover.
+    groups = ((views, "page", "pages", t("usage_analytics.legend_pages", "Pages vues"), "Blues"),
+              (others, "event", "events", t("usage_analytics.legend_events", "Évènements"),
+               "Oranges"))
+    for part, col, group, title, scale in groups:
+        names = list(part.groupby(col, sort=False).groups)
+        shades = sample_colorscale(scale, [0.4 + 0.55 * i / max(1, len(names) - 1)
+                                           for i in range(len(names))])
+        for i, name in enumerate(names):
+            daily = part[part[col] == name].groupby("jour")["n"].sum()
+            fig.add_trace(go.Bar(x=daily.index, y=daily.values, name=str(name),
+                                 marker_color=shades[i], legendgroup=group,
+                                 legendgrouptitle_text=title if i == 0 else None))
+    fig.update_layout(barmode="stack", hovermode="x unified", height=460,
+                      yaxis_title=t("usage_analytics.axis_events", "événements"),
+                      legend=dict(orientation="v", x=1.02, y=1, groupclick="toggleitem"),
+                      margin=dict(t=20))
+    return fig

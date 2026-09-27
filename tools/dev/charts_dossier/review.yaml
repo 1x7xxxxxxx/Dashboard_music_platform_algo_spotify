@@ -207,18 +207,6 @@ src/dashboard/views/imusician.py::show#1:
   owner_v: fusionner
   owner: "Tout regrouper sur un même graphique, avec des cumuls qui retracent l'évolution."
   note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
-src/dashboard/views/sacem.py::show#1:
-  q: "Ma trésorerie, SACEM comprise (fusion R212 de l'ancien graphique REPARTITION par trimestre)"
-  role: business
-  d: 3
-  c: 4
-  p: 3
-  v: garder
-  owner_v: fusionner
-  owner: "Fusionner, mettre sur un même graphique."
-  note: "Barres noires sans couleur de marque, mais lecture correcte (43 € cumulés)."
-
-# ── Meta Ads ─────────────────────────────────────────────────────────────────
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"
   role: meta
@@ -677,16 +665,6 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   owner_v: corriger
   owner: "En admin, avec un calcul de MRR ; et saisir le coût de distribution d'un titre (iMusician, DistroKid), sommé dans la comptabilité."
   note: "LTV par hypothèse de rétention — sans aucun abonné réel, c'est une table de multiplication."
-src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
-  q: "Ce qui rentre et ce qui sort — quand serai-je à l'équilibre ?"
-  role: meta
-  d: 5
-  c: 4
-  p: 5
-  v: garder
-  owner_v: fusionner
-  owner: "Un peu redondant, déjà vu."
-  note: "« Point mort dans 2 899 mois — 242 ans » : la réponse brutale et juste à « qu'apporte Meta » en argent. À mettre en avant."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
   role: prediction
@@ -730,27 +708,6 @@ src/dashboard/views/usage_analytics.py::show#1:
   owner_v: fusionner
   owner: "Cool ; fusionner sur un même graphique admin."
   note: "Pics d'usage lisibles (tests compris ?) — à filtrer du propriétaire."
-src/dashboard/views/usage_analytics.py::show#2:
-  q: "Quelles pages sont vues ?"
-  role: business
-  d: 4
-  c: 4
-  p: 4
-  v: garder
-  owner_v: fusionner
-  owner: "Cool ; ajouter quels évènements se produisent et quelles pages sont vues."
-  note: "Onboarding, credentials, accueil en tête ; Road to Algo tout en bas — une donnée produit à regarder."
-src/dashboard/views/usage_analytics.py::show#3:
-  q: "Quels évènements se produisent ?"
-  role: business
-  d: 1
-  c: 4
-  p: 2
-  v: retirer
-  owner_v: fusionner
-  owner: "À garder mais peut-être redondant : fusionner avec la 68, deux légendes."
-  cause: graphique-sans-decision
-  note: "Quatre barres dont deux nulles — une ligne de tuiles suffit."
 src/dashboard/views/db_health.py::_show_freshness_bar#1:
   q: "Quelle source n'a pas été importée depuis longtemps ?"
   role: archi

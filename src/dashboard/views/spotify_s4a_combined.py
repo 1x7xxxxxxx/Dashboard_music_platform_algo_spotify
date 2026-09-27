@@ -445,12 +445,17 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
         note = _song_detail(db, spans, frag, params, song, window, fig, panel=1)
         drawn = _engagement_fig(db, frag, params, window, fig, panel=2)
         if note is not None or drawn:
-            fig.update_layout(height=_PAIR_HEIGHT, hovermode="x unified", barmode="group",
-                              margin=dict(t=40, b=40),
-                              legend=dict(orientation="h", yanchor="top", y=-0.06, x=0))
-            charts.plotly_chart(fig, width="stretch")
+            # R244 (fiche 5 « fusionner les deux ») : UN repère, chaque série en indice
+            # (100 = sa première valeur), la vraie valeur au survol.
+            one, skipped = charts.to_base100(fig)
+            one.update_layout(height=_PAIR_HEIGHT, margin=dict(t=20, b=40),
+                              legend=dict(orientation="h", yanchor="top", y=-0.1, x=0))
+            charts.plotly_chart(one, width="stretch")
             if note:
                 st.caption(note)
+            if skipped:
+                st.caption(t("spotify_s4a_combined.no_base", "Sans valeur positive sur la "
+                             "période, donc sans base : {s}.").format(s=", ".join(skipped)))
 
 
 def _common_filter(db, spans: pd.DataFrame):

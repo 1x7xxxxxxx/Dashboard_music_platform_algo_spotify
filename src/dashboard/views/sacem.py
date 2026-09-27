@@ -17,7 +17,7 @@ this file until 2026-09-14 while being wrong by 41 %.
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
 
@@ -136,13 +136,11 @@ def show():
         # The quarterly royalty chart merged into the ONE treasury figure the owner asked
         # for: SACEM (net) beside sales and every spend, from `v_artist_monthly_cashflow`.
         # The gross figures above and the full ledger below stay.
-        from src.dashboard.utils.artist_cashflow import monthly_net
-        from src.dashboard.utils.treasury_chart import load_cashflow, treasury_figure
-        cashflow = load_cashflow(db, artist_id)
-        mensuel = monthly_net(cashflow)
-        if not mensuel.empty:
-            st.subheader(t("sacem.treasury_header", "💶 Ma trésorerie — SACEM, ventes et dépenses"))
-            charts.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
+        # R244 (fiche 19 « fusionner ») : the treasury is drawn ONCE, on the distributors
+        # page, SACEM included — the same figure here was the owner's « déjà vu ».
+        st.caption(t("sacem.treasury_moved",
+                     "💶 Ta SACEM entre dans la trésorerie cumulée (ventes, SACEM, dépenses) de "
+                     "la page 💰 Distributeurs."))
 
         # ── Full ledger ──
         with st.expander(t("sacem.ledger", "▸ Relevé détaillé")):

@@ -150,3 +150,43 @@ def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: b
         if terms:
             target.caption(" · ".join(t(GLOSSARY[k][0], GLOSSARY[k][1]) for k in terms))
     return out
+
+
+def to_base100(fig, title: str = "") -> tuple:
+    """(one-frame figure, series left out): every trace re-expressed as an index — 100 at
+    its first POSITIVE value — with its real value in the hover. Pure.
+
+    R244 (fiche 5, « fusionner les deux ») : four measures of four units (streams per day,
+    a 0–100 index, saves per month, a subscriber level) cannot share an axis as values;
+    they can as a trend, which is the question the figure answers (« does it still move »).
+    A series with no positive value has no base: it is named, never drawn at 0."""
+    import plotly.graph_objects as go
+    out, skipped = go.Figure(), []
+    for tr in fig.data:
+        ys = list(tr.y) if tr.y is not None else []
+        base = next((float(v) for v in ys if v is not None and v == v and float(v) > 0), None)
+        if base is None:
+            skipped.append(tr.name or "")
+            continue
+        idx = [None if v is None or v != v else 100.0 * float(v) / base for v in ys]
+        colour = (tr.marker.color if tr.type == "bar" else tr.line.color) or None
+        out.add_trace(go.Scatter(
+            x=tr.x, y=idx, mode="lines", name=tr.name, customdata=ys, connectgaps=False,
+            visible=tr.visible,
+            line=dict(color=colour, width=2 if tr.type != "bar" else 1.5,
+                      dash=None if tr.type != "bar" else "dot"),
+            hovertemplate=f"{tr.name} : %{{customdata:,.0f}} (indice %{{y:.0f}})<extra></extra>"))
+    out.add_hline(y=100, line_dash="dot", line_color="rgba(128,128,128,0.4)")
+    out.update_layout(title=title or None, hovermode="x unified",
+                      yaxis_title="Indice (100 = première valeur)")
+    # A release peak (×10) flattened every other trend under it (render, 2026-09-27): the
+    # axis stops at the bulk of the data and the clipped peak is SAID, never hidden.
+    vals = sorted(v for tr in out.data for v in (tr.y or ()) if v is not None)
+    if vals:
+        top, cap = vals[-1], max(200.0, 1.3 * vals[int(0.95 * (len(vals) - 1))])
+        if top > cap:
+            out.update_yaxes(range=[0, cap])
+            out.add_annotation(xref="paper", yref="paper", x=0.01, y=1, showarrow=False,
+                               xanchor="left", yanchor="top", font=dict(size=10),
+                               text=f"▲ pic hors échelle : indice {top:,.0f}".replace(",", " "))
+    return out, skipped

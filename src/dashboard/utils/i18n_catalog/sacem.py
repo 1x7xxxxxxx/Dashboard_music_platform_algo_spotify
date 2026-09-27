@@ -1,6 +1,7 @@
 """EN strings for the SACEM royalties view."""
 
 EN = {
+    "sacem.treasury_moved": "💶 Your SACEM is part of the cumulative treasury (sales, SACEM, spend) on the 💰 Distributors page.",
     "sacem.title": "🎼 SACEM royalties",
     "sacem.caption": "SACEM account statement: gross royalties (REPARTITION), social "
                      "charges, the net actually paid and the bank transfers to "
@@ -32,5 +33,4 @@ EN = {
     "sacem.col_movement": "Movement (€)",
     "sacem.col_balance": "Balance (€)",
     "sacem.col_type": "Type",
-    "sacem.treasury_header": "💶 My treasury — SACEM, sales and spend",
 }

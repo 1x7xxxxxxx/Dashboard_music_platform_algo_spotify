@@ -6,6 +6,7 @@ EN = {
     # recouvrent sur 32 jours sans jamais s'ecarter de plus d'un abonne. Cette phrase
     # est la CONDITION de cette fusion : elle est muette tant qu'elles s'accordent, et
     # elle parle a l'artiste — seul a pouvoir relancer un import — quand elles derivent.
+    "spotify_s4a_combined.no_base": "No positive value over the period, so no base: {s}.",
     "spotify_s4a_combined.followers_diverge": (
         "\u26a0\ufe0f The two follower readings no longer agree: **{e}** apart on "
         "**{j}** (tolerated: {tol}). The curve below shows only one \u2014 check the "
