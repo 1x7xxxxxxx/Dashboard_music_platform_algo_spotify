@@ -16,6 +16,10 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
+# Valid for FEED and REELS media on every API version since 2025-04-21 (R273). `views`
+# replaces `impressions`, `total_interactions` replaces `engagement`.
+INSIGHT_METRICS = "views,reach,total_interactions,saved,shares"
+
 # Chemin racine
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
@@ -472,7 +476,8 @@ class InstagramCollector:
             if resp.status_code == 400 and err.get('code') == 100:
                 # Legitimate per-item skip (rule #6): only THIS media lacks insights;
                 # the caller filters None and keeps the others. Not a silent collection failure.
-                logger.warning(f"Insights unsupported for media {mid} (code 100) — skipped.")
+                logger.warning(f"Insights unsupported for media {mid} (code 100: "
+                               f"{err.get('message', '')[:120]}) — skipped.")
                 return None
             raise ValueError(
                 f"Instagram insights API {resp.status_code} "
@@ -482,10 +487,15 @@ class InstagramCollector:
         for item in resp.json().get('data', []):
             series = item.get('values', [])
             vals[item.get('name')] = series[0].get('value', 0) if series else 0
+        # R273 — Meta removed `impressions` on 2025-04-21 for EVERY API version and folded
+        # it into `views`; `engagement` became `total_interactions` (likes + comments +
+        # saves + shares). One removed metric in the list fails the WHOLE request with
+        # code 100: all 51 media were skipped, and the table never held a row. The two
+        # legacy columns now carry their replacements — no history to mix, it was empty.
         return {
             'artist_id': self.artist_id, 'media_id': mid, 'date': day,
-            'impressions': vals.get('impressions', 0), 'reach': vals.get('reach', 0),
-            'engagement': vals.get('engagement', 0), 'saved': vals.get('saved', 0),
+            'impressions': vals.get('views', 0), 'reach': vals.get('reach', 0),
+            'engagement': vals.get('total_interactions', 0), 'saved': vals.get('saved', 0),
             'shares': vals.get('shares', 0),
             'collected_at': datetime.now(timezone.utc),
         }
@@ -493,7 +503,7 @@ class InstagramCollector:
     @retry(max_attempts=3, backoff="exponential")
     def fetch_media_insights(self, media_ids: list) -> list:
         """Per-media insights; unsupported media are skipped, not fatal."""
-        metrics = "impressions,reach,engagement,saved,shares"
+        metrics = INSIGHT_METRICS
         day = datetime.now(timezone.utc).date()
         out = []
         try:
@@ -507,6 +517,13 @@ class InstagramCollector:
             raise
         except Exception as e:
             raise RuntimeError(f"Instagram insights fetch failed: {safe_error(e)}") from e
+        if media_ids and not out:
+            # Rule 6 — every media refused is not « nothing to read »: it is the request
+            # that is wrong (a removed metric fails every call the same way).
+            raise ValueError(
+                f"Instagram insights : les {len([m for m in media_ids if m])} publications "
+                f"ont été refusées (code 100) pour les métriques {INSIGHT_METRICS} — "
+                "une métrique retirée par Meta ? Voir le journal pour le message exact.")
         logger.info(f"Fetched insights for {len(out)} media item(s)")
         return out
 
@@ -541,7 +558,12 @@ class InstagramCollector:
         stats = self.fetch_stats()
         self.save_to_db(stats)
         media = self.fetch_media()
-        insights = self.fetch_media_insights([m['media_id'] for m in media])
+        try:
+            insights = self.fetch_media_insights([m['media_id'] for m in media])
+        except ValueError:
+            # The posts themselves were read: keep them, THEN fail the run loudly.
+            self.save_media_to_db(media, [])
+            raise
         self.save_media_to_db(media, insights)
         if self.db:
             self.db.close()

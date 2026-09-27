@@ -179,3 +179,18 @@ The `meta_token_refresh` Airflow DAG (runs every Monday 07:00 UTC) handles two c
 **Conclusion**: with a System User token, no periodic action is required. The token is valid indefinitely unless revoked manually in Business Manager.
 
 > See § "What is automated vs manual" at the top of this file for the full picture across all data sources (Spotify, YouTube, SoundCloud, Meta).
+
+## Instagram media insights — metrics removed by Meta (R273, 2026-09-27)
+
+- `impressions` was removed on **2025-04-21 for every Graph API version** and folded into
+  `views`; `engagement` is replaced by `total_interactions` (likes + comments + saves +
+  shares). Sources: [v22.0 changelog](https://developers.facebook.com/docs/graph-api/changelog/version22.0/),
+  [media insights reference](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/).
+- **One removed metric in `metric=` fails the whole request** with `400` / code `100`
+  (« Incompatible metric ») — no partial result. Our collector asked for `impressions`
+  and every media was skipped: `instagram_media_insights` held 0 rows, local and prod.
+- Media inside a carousel (album children) have no insights; stories only for 24 h.
+- Now requested: `views,reach,total_interactions,saved,shares`
+  (`INSIGHT_METRICS`, `src/collectors/instagram_api_collector.py`). `views` lands in the
+  `impressions` column, `total_interactions` in `engagement`. If every media is refused,
+  the run raises. Guard: `tests/test_instagram_insights_ask_for_live_metrics.py`.

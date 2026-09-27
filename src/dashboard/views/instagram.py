@@ -27,12 +27,12 @@ Conséquence : la figure « Évolution des Abonnés » seule disparaît aussi �
 
 CE QUE LA PAGE NE PEUT PAS MONTRER, ET POURQUOI
 -------------------------------------------------
-`instagram_media_insights` est **vide** (0 ligne, mesuré le 2026-09-21) : Meta ne
-sert impressions/reach/saved/partages que pour des posts de moins de 90 jours,
-avec le scope `instagram_manage_insights`. Le dernier post de ce compte date du
-**07/11/2025**. Aucune recollecte ne les fera apparaître tant qu'il n'y a pas de
-publication récente — et le dire ainsi vaut mieux que de renvoyer l'artiste vers
-un bouton qui ne changera rien.
+`instagram_media_insights` était **vide** (0 ligne, local et production) : la
+collecte demandait `impressions`, que Meta a retirée le 2025-04-21 pour toutes les
+versions de l'API, et une seule métrique retirée fait refuser toute la requête. La
+page disait « posts de plus de 90 jours, pas un défaut de collecte » — une cause
+écrite sans avoir lu la réponse de Meta. Corrigé par R273 : `views` et
+`total_interactions` remplissent les colonnes `impressions` et `engagement`.
 """
 import pandas as pd
 import plotly.express as px
@@ -328,30 +328,19 @@ def show():
             }
 
             if insights_empty:
-                # ⚠️ CE MESSAGE ENVOYAIT VERS UN GESTE INUTILE. Il disait
-                # « recollecte après une publication récente » — or une recollecte
-                # ne peut RIEN changer tant qu'aucun post n'a moins de 90 jours,
-                # et le dernier de ce compte date du 07/11/2025. Il nomme donc
-                # maintenant la seule chose qui débloque : publier.
-                _dp = db.fetch_df("SELECT MAX(timestamp) AS last FROM instagram_media "
-                                  "WHERE artist_id = %s", (artist_id,))
-                _dl = None if _dp.empty else _dp.iloc[0]["last"]
-                _age = None if _dl is None else (pd.Timestamp.now() - pd.to_datetime(_dl)).days
+                # R273 (2026-09-27) — ce message affirmait « Meta ne les sert que pour
+                # les posts de moins de 90 jours ; ce n'est pas un défaut de collecte ».
+                # C'en était un : la collecte demandait `impressions`, retirée par Meta
+                # le 2025-04-21, et une seule métrique retirée fait refuser TOUTE la
+                # requête — 51 publications sur 51, en local comme en production. La
+                # collecte demande désormais `views`/`total_interactions`, et lève si
+                # toutes les publications sont refusées : le silence ne dit plus rien.
                 st.info(t(
-                    "instagram.insights_unavailable",
-                    "**Impressions, portée, enregistrements et partages ne sont "
-                    "pas disponibles.** Meta ne les sert que pour les posts de "
-                    "moins de **90 jours**, et ta publication la plus récente date "
-                    "de **{j} jours**. Ce n'est pas un défaut de collecte : "
-                    "relancer une collecte ne les fera pas apparaître. Ils "
-                    "reviendront d'eux-mêmes après ta prochaine publication."
-                ).format(j="—" if _age is None else _age)
-                    if _age is not None and _age > 90 else t(
-                    "instagram.insights_unavailable_scope",
-                    "**Impressions, portée, enregistrements et partages ne sont "
-                    "pas disponibles.** Meta les réserve aux posts de moins de "
-                    "90 jours ET au scope `instagram_manage_insights` — vérifie "
-                    "l'autorisation dans **🔑 Credentials**."))
+                    "instagram.insights_pending",
+                    "**Vues, portée, interactions, enregistrements et partages par "
+                    "publication** ne sont pas encore collectés. Ils arrivent avec la "
+                    "prochaine collecte Instagram ; si Meta les refuse, la collecte "
+                    "échoue et l'administrateur est prévenu."))
                 q_media = f"""
                     SELECT media_url, caption, media_type, permalink,
                            timestamp, like_count, comments_count
@@ -376,7 +365,14 @@ def show():
                     WHERE m.artist_id = %s {frag_m}
                     ORDER BY m.timestamp DESC
                 """
-                cfg = base_cfg
+                # `impressions` carries Meta's `views`, `engagement` its
+                # `total_interactions` since R273 — the labels say what the numbers are.
+                cfg = {**base_cfg,
+                       "impressions": t("instagram.col_views", "👁️ Vues"),
+                       "reach": t("instagram.col_reach", "Portée"),
+                       "engagement": t("instagram.col_interactions", "Interactions"),
+                       "saved": t("instagram.col_saved", "Enregistrés"),
+                       "shares": t("instagram.col_shares", "Partages")}
 
             df_media = db.fetch_df(q_media, (artist_id, *params_m))
             if not show_empty_state(

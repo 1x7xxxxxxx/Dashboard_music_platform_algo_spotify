@@ -43,7 +43,7 @@ def test_the_copies_only_become_fewer():
         "`python3 tools/dev/duplicate_functions.py` les liste ; factoriser")
 
 
-def test_the_detector_sees_a_copy_that_changed_only_its_strings():
+def test_the_detector_sees_a_copy_that_changed_only_its_strings_not_vacuous():
     files = [("a.py", _COPY.format(name="f", table="t1")),
              ("b.py", _COPY.format(name="g", table="t2"))]
     assert dup.groups(files) == [["a.py:2 f", "b.py:2 g"]]

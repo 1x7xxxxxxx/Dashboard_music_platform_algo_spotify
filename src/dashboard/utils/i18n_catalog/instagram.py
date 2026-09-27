@@ -41,7 +41,6 @@ EN = {
     "instagram.col_caption": "Caption",
     "instagram.col_published": "Published on",
     "instagram.col_comments": "💬 Comments",
-    "instagram.insights_unavailable": "**Impressions, reach, saves and shares are unavailable.** Meta only serves them for posts under **90 days**, and your most recent publication is **{j} days** old. This is not a collection failure: running a collection again will not bring them back. They will return on their own after your next post.",
     "instagram.no_media": "No posts collected for this period.",
     "instagram.media_error": "Posts error: {err}",
     # La communauté en petits multiples, en VRAIES valeurs (2026-09-21).
@@ -55,10 +54,14 @@ EN = {
     "instagram.no_posts_in_window": "No publication in this window. The account has **{n}** "
                                     "in total, the latest from **{d}** — **{j} days** ago. "
                                     "Widen the period to see the history again.",
-    "instagram.insights_unavailable_scope": "**Impressions, reach, saves and shares are "
-                                            "unavailable.** Meta reserves them for posts "
-                                            "under 90 days AND the "
-                                            "`instagram_manage_insights` scope — check the "
-                                            "permission in **🔑 Credentials**.",
     "instagram.community_axis": "Gained since the first reading",
+    "instagram.col_views": "👁️ Views",
+    "instagram.col_reach": "Reach",
+    "instagram.col_interactions": "Interactions",
+    "instagram.col_saved": "Saved",
+    "instagram.col_shares": "Shares",
+    "instagram.insights_pending": "**Views, reach, interactions, saves and shares per post** "
+                                  "are not collected yet. They arrive with the next "
+                                  "Instagram collection; if Meta refuses them, the "
+                                  "collection fails and the administrator is told.",
 }
