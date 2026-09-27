@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R260 — **Porte de dessin et formats uniques** (notes L87, L242, L549) : couleurs de plateforme… (livrée 2026-09-27)
+
+- [x] **R260 — **Porte de dessin et formats uniques** (notes L87, L242, L549) : couleurs de plateforme en dur 42 → 0 (PDF compris) ; Pareto par défaut sur les barres par catégorie ; un formateur de nombres/monnaie/% pour tuiles et tableaux + cliquet (164 st.metric, 12 formateurs) ; un style commun pour les 71 tableaux ; actions en gras, informations en petit** (P3) ✅ (2026-09-27, 07803176, 9fadbf95)
+  Mesuré par : REQ-CHART-02/03, REQ-FORMAT-01 conformes
+  couleurs de plateforme en dur 42 a 0 PDF compris, palette unique des algorithmes, Pareto par defaut, formateur unique FR EN et cliquets ; deploye 07803176
+  Commits : 07803176 R260 (lot 2) : couleurs de plateforme en dur 13 -> 0 (PDF matplotlib,  · 9fadbf95 R260 (lot 1) : couleurs - les vues passent par platform_color, une pal
+
 ## ✅ R259 — **Filtres : une seule couche, défaut « dernière sortie »** (notes L90, L98, L103, L511,… (livrée 2026-09-27)
 
 - [x] **R259 — **Filtres : une seule couche, défaut « dernière sortie »** (notes L90, L98, L103, L511, L549) : `_default_preset` → dernière sortie quand elle existe ; smart_date_range et meta_accounts passent par filters.py ; SoundCloud semaine à un seul point ; filtre de période sur meta_ads_overview, meta_breakdowns, meta_cpr_optimizer ; mêmes libellés partout** (P2) ✅ (2026-09-27, 8337deec)

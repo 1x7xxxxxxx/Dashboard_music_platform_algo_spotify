@@ -2051,3 +2051,16 @@ personne d'autre ne peut l'envoyer.
 
 **Vérification** : deux retours collés, et au moins un nouveau compte artiste humain visible
 dans l'admin (hors bac à sable).
+
+## 36. R279 — Dire quels « livrables » alléger · P4
+
+**Pourquoi** : ta note L165 demande de « supprimer la gestion des livrables qui rajoute du
+poids pour rien » sans les nommer. Les candidats générés aujourd'hui : le dossier des KPI (PDF),
+`gold-coverage.md`, `error-class-health.md`, `error-class-families.md`, `benchmark.md`, le
+relevé de discipline, le journal de nuit.
+
+1. Réponds dans le fil : lesquels tu ne lis jamais.
+2. Je les retire de la génération (ou les passe en génération à la demande), sans perdre les
+   gardes qui s'appuient dessus.
+
+**Vérification** : ta réponse écrite dans le fil ; la ligne R279 fermée avec la liste.

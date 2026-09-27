@@ -639,13 +639,11 @@
   resume: Couleurs de plateforme cohérentes sur toute l'app (Meta bleu, Spotify vert…)
   type: exigence-architecture
   domaine: chart-door
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: palette unique src/dashboard/utils/platform_colors.py:87-108 ; mais cliquet toléré à 42 couleurs
-    en dur (tests/test_a_platform_colour_has_one_definition.py:63 _PLAFOND = 42)
+  preuve_statut: R260 (archivée) — 07803176
   preuve_ciblee: tests/test_a_platform_colour_has_one_definition.py::test_no_new_hardcoded_platform_colour — puis
     abaisser _PLAFOND à 0 (ligne 63)
-  roadmap: R260
 - ligne: 87
   resume: 'META x Spotify : tracer le maximum d''infos croisées Meta × S4A × Spotify (comme l''accueil)'
   type: exigence-architecture
@@ -1575,7 +1573,7 @@
   preuve_statut: Gouvernance durcie au contraire (R196-R201, R254 ; checklist.md l.11-15). « Gestion des livrables
     » à identifier (dossier KPI R240/R254 ?).
   preuve_ciblee: make roadmap-discipline
-  roadmap: R268
+  roadmap: R279
 - ligne: 166
   resume: Identifier les redondances intra/inter-scripts pour un refactor modulaire et scalable (avec graphify)
   type: exigence-architecture
@@ -3111,12 +3109,10 @@
   resume: KPI avec mêmes filtres modulaires, mêmes légendes, même format
   type: exigence-architecture
   domaine: chart-door
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: archive.md:93 R243 porte de dessin charts.py + R232 filters.py ; état de filtre partagé/URL non
-    livré
+  preuve_statut: R260 (archivée) — 07803176
   preuve_ciblee: tests/test_every_chart_goes_through_the_door.py::test_no_chart_walks_around_the_door
-  roadmap: R260
 - ligne: 549
   resume: Tests unitaires locaux et workers GitHub optimisés
   type: exigence-architecture
