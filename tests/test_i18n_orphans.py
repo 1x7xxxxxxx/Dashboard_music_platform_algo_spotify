@@ -65,6 +65,9 @@ _DYNAMIC_PREFIXES = (
     "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
+    # `t("meta_x_spotify.eng_" + col)` — one key per engagement measure, enumerated by
+    # `meta_x_spotify._ENGAGEMENT` (R213 lot d); the table falls back to its FR label.
+    "meta_x_spotify.eng_",
     "onboarding.caveat.", "onboarding.value.",
     # `t(f"spotify_s4a_combined.source.{src}")` — une clé par SOURCE d'abonnés, et
     # les sources sont énumérées par `v_spotify_followers_daily` (migration 120) :

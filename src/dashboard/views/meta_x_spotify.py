@@ -80,6 +80,9 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from plotly.subplots import make_subplots
 
+from src.dashboard.utils.campaign_funnel import (
+    BASELINE_DAYS, BASELINE_MIN_DAYS, engagement_lift, step_texts, streams_gained,
+)
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_date
 
@@ -463,6 +466,39 @@ def _last_spend_day(master: pd.DataFrame):
     return None if spent.empty else spent["date"].max()
 
 
+def _render_engagement(db, artist_id, d0, d1) -> None:
+    """R213 (lot d) — did the campaign move anything beyond streams? A TEXT table: the
+    file is at its figure ceiling, and five numbers against five numbers read better in
+    a table than in five more lines on the index chart."""
+    df = _df(db, """
+        SELECT COALESCE(a.day, i.day) AS date, a.listeners, a.saves, a.playlist_adds,
+               a.followers_level, i.followers AS ig_followers
+          FROM (SELECT * FROM v_s4a_audience_daily WHERE artist_id = %s
+                   AND day BETWEEN %s AND %s) a
+          FULL JOIN (SELECT * FROM v_instagram_followers_daily WHERE artist_id = %s
+                   AND day BETWEEN %s AND %s) i ON i.day = a.day
+    """, (artist_id, d0 - _dt.timedelta(days=BASELINE_DAYS), d1,
+          artist_id, d0 - _dt.timedelta(days=BASELINE_DAYS), d1))
+    rows = engagement_lift(df, d0, d1)
+    if not rows:
+        return
+    fmt = lambda v: "—" if v is None else f"{v:,.1f}".replace(",", " ").replace(".", ",")  # noqa: E731
+    lines = [t("meta_x_spotify.eng_header",
+               "| Engagement (artiste) | {n} jours avant, par jour | Pendant, par jour | "
+               "Variation |").format(n=BASELINE_DAYS), "|---|---|---|---|"]
+    for r in rows:
+        chg = "—" if r['change'] is None else f"{r['change']:+.0f} %"
+        lines.append(f"| {t('meta_x_spotify.eng_' + r['col'], r['label'])} | "
+                     f"{fmt(r['before'])} | {fmt(r['during'])} | {chg} |")
+    st.markdown(t("meta_x_spotify.eng_title",
+                  "**📣 Au-delà des écoutes — ce que la campagne a fait bouger**"))
+    st.markdown("\n".join(lines))
+    st.caption(t("meta_x_spotify.eng_caption",
+                 "« — » = non mesuré sur la période (au moins {n} jours relevés avant la "
+                 "campagne). Comparaison avant / pendant : une hausse qui aurait eu lieu "
+                 "sans la pub y est comptée aussi.").format(n=BASELINE_MIN_DAYS))
+
+
 # ── Ce qui n'a pas pu être tracé, et POURQUOI ──────────────────────────────────
 def _render_absences(absences: list, d0, d1) -> None:
     """Une ligne par source absente. Jamais « pas de données ».
@@ -778,6 +814,7 @@ def _show_body(db, artist_id) -> None:
     ])
     with tab_impact:
         _render_chart(master, campaign)
+        _render_engagement(db, artist_id, d0, d1)
         _render_absences(absences, d0, d1)
     with tab_funnel:
         _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
@@ -843,55 +880,6 @@ def _campaign_window(camp_start, camp_end, campaign: str) -> tuple:
 
 
 # ── Le funnel, rapatrié de « Publicité Meta Ads » et CORRIGÉ ───────────────────
-# R213 (lot b) — the minimum baseline before a « streams gained » step is drawn. Fewer
-# days before the campaign and the « normal » level is a guess, not a measure.
-_BASELINE_MIN_DAYS = 14
-_BASELINE_DAYS = 28
-
-
-def _streams_gained(daily: pd.DataFrame, d0, d1) -> dict | None:
-    """Streams of the linked track during [d0, d1] minus its pre-campaign level.
-
-    `daily` holds (date, streams) from `_BASELINE_DAYS` before d0 to d1. Returns
-    {gained, during, baseline_per_day, baseline_days, days} or None when the baseline has
-    fewer than `_BASELINE_MIN_DAYS` measured days — absent, never zero. Pure.
-    """
-    if daily is None or daily.empty:
-        return None
-    d = daily.copy()
-    d['date'] = pd.to_datetime(d['date']).dt.date
-    d['streams'] = pd.to_numeric(d['streams'], errors='coerce')
-    before = d[(d['date'] < d0)].dropna(subset=['streams'])
-    during = d[(d['date'] >= d0) & (d['date'] <= d1)].dropna(subset=['streams'])
-    if len(before) < _BASELINE_MIN_DAYS or during.empty:
-        return None
-    per_day = float(before['streams'].mean())
-    days = len(during)
-    total = float(during['streams'].sum())
-    return {'gained': total - per_day * days, 'during': total,
-            'baseline_per_day': per_day, 'baseline_days': len(before), 'days': days}
-
-
-def _step_texts(values: list[float], spend: float | None) -> list[str]:
-    """« 1 234 · 12 % de l'étape d'avant · 0,05 €/unité » for each funnel step. Pure.
-
-    The cost is spend ÷ the step's volume, i.e. what one unit of THAT step cost; the
-    first step (impressions) is priced per thousand, as Meta prices it."""
-    out = []
-    for i, v in enumerate(values):
-        parts = [f"{v:,.0f}".replace(",", " ")]
-        if i > 0 and values[i - 1]:
-            parts.append(t("meta_x_spotify.f_kept", "{p} % de l'étape d'avant").format(
-                p=f"{100 * v / values[i - 1]:.1f}".replace(".", ",")))
-        if spend and v > 0:
-            unit = spend / v * (1000 if i == 0 else 1)
-            label = (t("meta_x_spotify.f_cpm", "{c} € les 1 000") if i == 0
-                     else t("meta_x_spotify.f_cost", "{c} € l'unité"))
-            parts.append(label.format(c=f"{unit:,.3f}".replace(",", " ").replace(".", ",")))
-        out.append(" · ".join(parts))
-    return out
-
-
 def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                    s4a_song=None) -> None:
     """Meta × Spotify × Hypeddit — et l'incohérence que l'artiste a vue.
@@ -974,14 +962,14 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
 
     # THE LAST STEP, WHEN IT IS MEASURED (R213 lot b): streams of the linked track above
     # their pre-campaign level. Absent — and said — without a confirmed link or a
-    # baseline of `_BASELINE_MIN_DAYS` days; never a 0 step.
+    # baseline of `BASELINE_MIN_DAYS` days; never a 0 step.
     gain = None
     if s4a_song:
         daily = _df(db, """
             SELECT day AS date, streams FROM v_s4a_song_daily
              WHERE artist_id = %s AND song = %s AND day BETWEEN %s AND %s
-        """, (artist_id, s4a_song, d0 - _dt.timedelta(days=_BASELINE_DAYS), d1))
-        gain = _streams_gained(daily, d0, d1)
+        """, (artist_id, s4a_song, d0 - _dt.timedelta(days=BASELINE_DAYS), d1))
+        gain = streams_gained(daily, d0, d1)
     # ⚠️ NOT a funnel step, and the render proved it: 6 556 streams gained after 3 432
     # arrivals read « 191 % of the previous step ». One visitor streams many times and the
     # organic rise is in it too — the streams are not nested in the arrivals. They are said
@@ -997,7 +985,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
     couleurs = [pal["meta"], pal["meta"], pal["hypeddit"], pal["hypeddit"]]
     fig = go.Figure(go.Funnel(
         y=etapes, x=valeurs, textposition="inside",
-        text=_step_texts(valeurs, spend), textinfo="text",
+        text=step_texts(valeurs, spend), textinfo="text",
         marker=dict(color=couleurs[:len(etapes)]),
     ))
     fig.update_layout(height=420, margin=dict(l=10, r=10, t=30))
@@ -1039,7 +1027,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
         note += " " + t("meta_x_spotify.funnel_no_gain",
                         "Pas d'étape « écoutes gagnées » : il faut au moins {n} jours "
                         "d'écoutes relevés avant la campagne, et une hausse mesurable.").format(
-            n=_BASELINE_MIN_DAYS)
+            n=BASELINE_MIN_DAYS)
     st.caption(note)
 
 

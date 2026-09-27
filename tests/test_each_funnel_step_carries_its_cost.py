@@ -1,7 +1,7 @@
 """Each step of « Tout mon funnel » carries its cost, and « streams gained » needs a baseline.
 
 Type: Test
-Uses: src.dashboard.views.meta_x_spotify (_step_texts, _streams_gained)
+Uses: src.dashboard.utils.campaign_funnel, src.dashboard.views.meta_x_spotify (_collect_apple)
 Depends on: nothing — pure functions
 Persists in: nothing
 
@@ -16,8 +16,9 @@ import datetime as dt
 
 import pandas as pd
 
-from src.dashboard.views.meta_x_spotify import (
-    _BASELINE_MIN_DAYS, _step_texts, _streams_gained,
+from src.dashboard.utils.campaign_funnel import (
+    BASELINE_MIN_DAYS as _BASELINE_MIN_DAYS, engagement_lift as _engagement_lift_fn,
+    step_texts as _step_texts, streams_gained as _streams_gained,
 )
 
 
@@ -86,3 +87,26 @@ def test_sparse_readings_are_not_drawn_as_daily() -> None:
 
 def test_no_reading_at_all_is_said() -> None:
     assert _apple([])[1] == [("apple_none", None)]
+
+
+# ── Engagement beyond streams (R213 lot d) ────────────────────────────────────
+def test_a_flow_compares_means_and_a_level_compares_gains() -> None:
+    _engagement_lift = _engagement_lift_fn
+    d0 = dt.date(2024, 5, 1)
+    rows = [(d0 - dt.timedelta(days=i + 1), 10, 1000 - i) for i in range(20)]      # +1/day
+    rows += [(d0 + dt.timedelta(days=i), 20, 1000 + 3 * i) for i in range(5)]        # +3/day
+    df = pd.DataFrame(rows, columns=["date", "saves", "followers_level"])
+    got = {r["col"]: r for r in _engagement_lift(df, d0, d0 + dt.timedelta(days=4))}
+    assert got["saves"]["before"] == 10 and got["saves"]["during"] == 20
+    assert got["saves"]["change"] == 100
+    assert got["followers_level"]["before"] == 1 and got["followers_level"]["during"] == 3
+
+
+def test_an_unmeasured_baseline_is_absent_not_zero() -> None:
+    _engagement_lift = _engagement_lift_fn
+    d0 = dt.date(2024, 5, 1)
+    rows = [(d0 + dt.timedelta(days=i), 20, None) for i in range(5)]
+    got = _engagement_lift(pd.DataFrame(rows, columns=["date", "saves", "ig_followers"]),
+                           d0, d0 + dt.timedelta(days=4))
+    assert all(r["before"] is None and r["change"] is None for r in got), got
+    assert next(r for r in got if r["col"] == "ig_followers")["during"] is None

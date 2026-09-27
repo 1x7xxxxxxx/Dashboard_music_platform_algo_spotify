@@ -150,4 +150,12 @@ EN = {
     "meta_x_spotify.abs_apple_none": "🎎 **Apple Music / Shazam** — no Apple reading for this track (or no confirmed Apple link in **🔗 Cross-platform mapping**).",
     "meta_x_spotify.abs_apple_late": "🎎 **Apple Music / Shazam** — this track's Apple readings start on **{d}**, after this window.",
     "meta_x_spotify.abs_apple_sparse": "🎎 **Apple Music / Shazam** — readings exist over this window, but more than a day apart: a gap between two readings is not a daily quantity. Import the Apple export every campaign day for it to be drawn here.",
+    "meta_x_spotify.eng_header": "| Engagement (artist) | {n} days before, per day | During, per day | Change |",
+    "meta_x_spotify.eng_title": "**📣 Beyond streams — what the campaign moved**",
+    "meta_x_spotify.eng_caption": "« — » = not measured over the period (at least {n} days recorded before the campaign). Before / during comparison: a rise that would have happened without the ad is counted too.",
+    "meta_x_spotify.eng_listeners": "Listeners / day",
+    "meta_x_spotify.eng_saves": "Saves / day",
+    "meta_x_spotify.eng_playlist_adds": "Playlist adds / day",
+    "meta_x_spotify.eng_followers_level": "Spotify followers gained / day",
+    "meta_x_spotify.eng_ig_followers": "Instagram followers gained / day",
 }

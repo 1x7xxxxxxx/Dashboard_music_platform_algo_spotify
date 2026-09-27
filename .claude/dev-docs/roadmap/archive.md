@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R208 — Répartitions Meta sur une même vue : pays, placement, âge, plateforme côte à côte, sans… (livrée 2026-09-27)
+
+- [x] **R208 — Répartitions Meta sur une même vue : pays, placement, âge, plateforme côte à côte, sans sélecteur (fiches 33-36)** (P3) ✅ (2026-09-27, 073985b)
+  Mesuré par : capture navigateur
+  livre 073985b, deploye 2026-09-27 (652f71b) : pays, placement, plateforme et age cote a cote en grille, une requete UNION ALL, cartes repliees ; placement libelle avec sa plateforme (vu au rendu)
+  Commits : 073985b R208 : les repartitions Meta cote a cote - pays, placement, plateforme
+
 ## ✅ R212 — **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un g… (livrée 2026-09-27)
 
 - [x] **R212 — **Trésorerie unique** : ventes iMusician + SACEM + dépenses Meta + solde cumulé en un graphique lisible comme une compta ; remplace le « point d'équilibre » et la « régression R²=1 » trompeurs (fiches 26-28, 54, 55, 75, pdf roi)** (P2) ✅ (2026-09-27, 7af83d6)
