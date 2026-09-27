@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R252 | **Le dossier met en tête les écarts MESURÉS, pas une notation ancienne** : « chiffres probablement FAUX » listait des fiches notées à 03:44 (dont 8, 10, 29 corrigées ou vérifiées le jour même) ; la liste vient désormais du verdict `écart` de numbers_check sur l'instantané, avec sa raison <!-- anchor: r252 --> <!-- critic: non — changement de source d'une liste d'outillage --> | P3 | la section = les fiches au verdict écart |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R252 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
