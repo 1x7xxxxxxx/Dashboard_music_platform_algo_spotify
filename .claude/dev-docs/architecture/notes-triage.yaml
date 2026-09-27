@@ -102,16 +102,15 @@
     ces fichiers n''existe encore dans tools/dev/'
   preuve_ciblee: 'test to write (prevu par R257) : chaque exigence de requirements.yaml nomme une preuve collectable
     qui existe (noeud pytest resolu par grep)'
-  roadmap: R257
+  roadmap: R258
 - ligne: 13
   resume: Ameliorer le prompt et poser des questions au proprietaire
   type: question
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: Aucune trace de reformulation livree ; a traiter dans R257.
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: n/a (question)
-  roadmap: R257
 - ligne: 14
   resume: Livrables regeneres automatiquement, avec tests contre la derive
   type: exigence-architecture
@@ -224,12 +223,10 @@
   resume: CLAUDE.md est-il a jour sur l'evolution de l'architecture ?
   type: question
   domaine: claude-wsl
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: CLAUDE.md 'Data Flow' decrit API -> Airflow -> Postgres -> Streamlit sans couches bronze/argent/or
-    ; la couche or n'apparait qu'une fois (tableau dev-docs, l.256) ; pas d'observabilite dans la section Architecture.
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: n/a (question)
-  roadmap: R257
 - ligne: 66
   resume: Process de classe d'erreur generique pour les prochaines erreurs
   type: exigence-architecture
@@ -1172,7 +1169,7 @@
   preuve_statut: R146-R152 nées de dix livres du RAG (archive.md:474-486) ; R163 pixel/CAPI Hypeddit au backlog
     (product-backlog.md:17)
   preuve_ciblee: tests/test_roadmap_two_files.py (garde d'intégrité roadmap) — l'action elle-même n'a pas de test
-  roadmap: R257
+  roadmap: R148
 - ligne: 131
   resume: 'Saisie S4A : optimiser la lisibilité'
   type: action-produit
@@ -1655,21 +1652,18 @@
     + projet voisin
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: R257 ouverte (checklist.md l.33) couvre critères + benchmark actuel vs théorique.
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: make arch-benchmark (R257)
-  roadmap: R257
 - ligne: 172
   resume: Livrables d'architecture (data eng, monitoring…) mis à jour automatiquement, sans PDF associé
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'Documents générés avec garde de fraîcheur : gold-coverage.md (make gold-coverage-check), error-class-health.md,
-    error-inbox.md. Carte d''architecture globale non générée.'
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: make gold-coverage-check
-  roadmap: R257
 - ligne: 172
   resume: 'Workflow de dev (garde de commit, CI, pkill, push) : identifier les manques'
   type: question
@@ -3055,11 +3049,10 @@
   resume: Confirmer qu'aucune action n'est en attente
   type: question
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: checklist.md:89 reprise open=R257, R255, R256 — 3 lignes ouvertes
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: tests/test_roadmap_index_is_honest.py (index ouvert ↔ ancre de reprise)
-  roadmap: R257
 - ligne: 548
   resume: Confirmer que le nouveau PDF (dossier) est fini pour une nouvelle relecture
   type: question
@@ -3073,38 +3066,34 @@
     latence, error class…)
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: checklist.md R257 ouvert ; .claude/dev-docs/architecture/domains.yaml en cours (non commité)
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: 'test to write: chaque domaine de domains.yaml a ≥1 exigence dans requirements.yaml — R257'
-  roadmap: R257
 - ligne: 549
   resume: Catalogue exhaustif des exigences de scalabilité/modularité, avec livrables
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: checklist.md R257 (requirements.yaml non livré)
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: 'test to write: 0 exigence sans preuve déclarée dans requirements.yaml — R257'
-  roadmap: R257
 - ligne: 549
   resume: Benchmark de l'existant vs le théorique, rejouable
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: checklist.md R257 (make arch-benchmark à créer)
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: 'test to write: make arch-benchmark sort un tableau actuel/théorique par domaine — R257'
-  roadmap: R257
 - ligne: 549
   resume: Pour chaque livrable, une méthode de test ciblée sur une partie/ligne précise
   type: exigence-architecture
   domaine: tests-ci
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: checklist.md R257 (garde « toute exigence a une preuve collectable »)
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: 'test to write: chaque preuve_ciblee de requirements.yaml est un node id pytest collectable — R257'
-  roadmap: R257
 - ligne: 549
   resume: KPI uniquement sur la couche or
   type: exigence-architecture
@@ -3145,11 +3134,10 @@
   resume: Configuration Claude Code / WSL
   type: exigence-architecture
   domaine: claude-wsl
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: config existante (hooks, règles), pas de référentiel d'exigences dédié ; inclus au périmètre R257
+  preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
   preuve_ciblee: 'test to write: domains.yaml porte un domaine claude-wsl avec exigences prouvées — R257'
-  roadmap: R257
 - ligne: 549
   resume: Cybersécurité
   type: exigence-architecture

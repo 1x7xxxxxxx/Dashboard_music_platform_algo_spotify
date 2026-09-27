@@ -1,6 +1,6 @@
 """R257 — every note of the owner that is neither delivered nor obsolete points at a REAL
-roadmap line: an open row (index or « en attente de toi »), an archived one, or a row of the
-product backlog.
+OPEN roadmap line: a row of the index or of « en attente de toi », or of the product backlog.
+Closing a row while one of its notes is unfinished turns this red.
 
 Type: Test
 Uses: .claude/dev-docs/architecture/notes-triage.yaml, .claude/dev-docs/roadmap/{checklist,
@@ -37,11 +37,13 @@ def _text(rel: str) -> str:
 
 
 def known_ids() -> set[str]:
+    """The lines a note STILL TO DO may point at: open (index or « en attente de toi ») or
+    in the product backlog. Never an archived one — a note whose row was closed while it was
+    not finished would read « on the roadmap » and be lost (the R254 hole, for the notes)."""
     m = _main()
     checklist = _text(".claude/dev-docs/roadmap/checklist.md")
     backlog = set(re.findall(r"^\| (R\d+) \|", _text(".claude/dev-docs/product-backlog.md"), re.M))
-    return (m.open_roadmap_ids(checklist)
-            | m.archived_roadmap_ids(_text(".claude/dev-docs/roadmap/archive.md")) | backlog)
+    return m.open_roadmap_ids(checklist) | backlog
 
 
 def unrouted(items: list[dict], ids: set[str]) -> list[str]:
@@ -73,6 +75,8 @@ def test_the_detector_sees_a_note_without_a_line_or_with_a_ghost_one():
     ids = known_ids()
     assert unrouted([{"ligne": 1, "resume": "x", "statut": "ouvert"}], ids)
     assert unrouted([{"ligne": 1, "resume": "x", "statut": "partiel", "roadmap": "R9999"}], ids)
+    assert unrouted([{"ligne": 1, "resume": "x", "statut": "ouvert", "roadmap": "R257"}], ids), (
+        "a note still to do pointing at an ARCHIVED row was accepted")
     assert not unrouted([{"ligne": 1, "resume": "x", "statut": "livré"}], ids)
     assert not unrouted([{"ligne": 1, "resume": "x", "statut": "ouvert",
                           "roadmap": sorted(ids)[0]}], ids)
