@@ -2,6 +2,7 @@
 
 EN = {
     # ── Mon argent : flux, cumul, point mort (2026-09-21) ────────────────────
+    "revenue_forecast.cost_track": "Track concerned (optional)",
     "revenue_forecast.treasury_moved": "The treasury chart (sales, SACEM, spend, cumulated) is on the 💰 Distributors page.",
     "revenue_forecast.artist_forecast_header":
         "My money: what comes in, what goes out, and when I break even",

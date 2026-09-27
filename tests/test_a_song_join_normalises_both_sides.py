@@ -98,7 +98,8 @@ _SAME_SOURCE_BOTH_SIDES: dict[str, str] = {}
 # Les jointures connues, avec le fichier qui les porte. La liste grandit par
 # `test_no_new_song_join_escapes_this_guard`.
 _JOINS = {
-    "src/dashboard/views/trigger_algo/_tab_budget_roi.py": "track_popularity_history",
+    # `_tab_budget_roi.py` lost its `track_popularity_history` join on 2026-09-27 (R248):
+    # the popularity panel of the breakeven left at the owner's request.
     "src/dashboard/views/trigger_algo/_common/_budget_roi.py": "campaign_track_mapping",
     "src/dashboard/views/trigger_algo/router.py": "tracks",
 }

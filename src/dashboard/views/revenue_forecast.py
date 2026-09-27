@@ -486,6 +486,23 @@ def _breakeven_text(pm: dict) -> str:
 _CAT_COUTS = ["distribution", "mastering", "visuel", "promo", "materiel", "autre"]
 
 
+def _artist_tracks(db, artist_id: int) -> list[str]:
+    """The artist's titles, as S4A names them (the « Total » row excluded)."""
+    rows = db.fetch_query(
+        "SELECT DISTINCT song FROM v_s4a_song_daily WHERE artist_id = %s "
+        "AND song NOT ILIKE '%%1x7xxxxxxx%%' ORDER BY song", (artist_id,))
+    return [r[0] for r in rows or []]
+
+
+def cost_label(libelle: str, titre: str, categorie: str) -> str | None:
+    """The entry's label: what the artist typed, else « <type> — <titre> ». Pure (R248)."""
+    if libelle:
+        return libelle if not titre or titre == "—" else f"{libelle} — {titre}"
+    if titre and titre != "—":
+        return f"{_FLUX_NOMS.get(categorie, categorie)} — {titre}"
+    return None
+
+
 def _render_cost_entry(db, artist_id: int) -> None:
     """La saisie des coûts que PERSONNE d'autre ne connaît.
 
@@ -541,6 +558,10 @@ def _render_cost_entry(db, artist_id: int) -> None:
                              "Dépense unique : elle tombe sur son seul mois."))
             libelle = d3.text_input(t("revenue_forecast.cost_label", "Libellé (facultatif)"),
                                     placeholder="iMusician — sortie « Patte Velours »")
+            # R248 (fiche 62) : le coût d'un TITRE — iMusician, DistroKid facturent par
+            # sortie. Toujours présent : un formulaire ne se re-rend pas pendant la saisie.
+            titre = st.selectbox(t("revenue_forecast.cost_track", "Titre concerné (facultatif)"),
+                                 ["—", *_artist_tracks(db, artist_id)])
             if periode == "yearly":
                 st.caption(t("revenue_forecast.cost_yearly_warning",
                              "⚠️ **{m:.2f} € PAR AN**, pas au total : tant que "
@@ -562,7 +583,7 @@ def _render_cost_entry(db, artist_id: int) -> None:
                            (artist_id, category, label, amount_eur,
                             billing_period, start_month, end_month)
                            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                        (artist_id, categorie, libelle or None, float(montant),
+                        (artist_id, categorie, cost_label(libelle, titre, categorie), float(montant),
                          periode, debut.replace(day=1),
                          fin.replace(day=1) if fin else None))
                     # ⚠️ Le message est DÉPOSÉ avant le rerun : `st.rerun()` jette le

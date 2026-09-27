@@ -200,13 +200,19 @@ months = pd.date_range("2023-09-01", "2026-04-01", freq="MS")
 REV = pd.DataFrame({{"date": [pd.Timestamp("2023-01-01")] + list(months),
                     "revenue_eur": [3.75] + [13.0] * len(months)}})
 
+# R248 — the page reads every euro from the gold ledger (revenue side) and Meta per day
+# (spend side); the scenario is the same: revenue starts 7 months before the first ad euro.
+LEDGER = pd.DataFrame({{"year": REV["date"].dt.year, "month": REV["date"].dt.month,
+                       "flux": "revenu", "source": "imusician",
+                       "amount_eur": REV["revenue_eur"]}})
+
 class Db:
     def fetch_df(self, sql, params=None):
         if "v_meta_daily" in sql:
             return SPEND.copy()
-        if "revenue" in sql:
-            return REV.copy()
-        return pd.DataFrame(columns=["date", "popularity"])
+        if "v_artist_monthly_cashflow" in sql:
+            return LEDGER.copy()
+        return pd.DataFrame()
 
 _show_breakeven(Db(), "Some Track", 1, None)
 """

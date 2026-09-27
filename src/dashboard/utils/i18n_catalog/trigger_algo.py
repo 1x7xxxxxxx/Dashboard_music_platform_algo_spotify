@@ -2,6 +2,9 @@
 
 EN = {
     # router.py — page-level
+    "trigger_algo.roi.trace_cumul_costs": "Cumulative spend (ads + costs)",
+    "trigger_algo.roi.trace_cumul_income": "Cumulative income (sales + SACEM)",
+    "trigger_algo.roi.breakeven_chart_title_all": "Everything in against everything out, cumulated",
     "trigger_algo.title": "🚀 Road to Algorithms (J+28)",
     "trigger_algo.subtitle": "ML tracking, budget, ROI and explainability of algorithmic scores.",
     "trigger_algo.guide_expander": "📖 How to read this page (artist guide) — open once",
@@ -294,9 +297,6 @@ EN = {
     "trigger_algo.roi.scipy_unavailable": "scipy unavailable — regression disabled.",
     "trigger_algo.roi.regression_unavailable": "ROI chart unavailable: {err}",
     "trigger_algo.roi.breakeven_header": "⚖️ Breakeven — Cumulative spend vs Cumulative revenue",
-    "trigger_algo.roi.trace_cumul_spend": "Cumulative Meta Spend",
-    "trigger_algo.roi.trace_cumul_revenue": "Cumulative iMusician Revenue",
-    "trigger_algo.roi.trace_popularity": "Popularity (0-100)",
     "trigger_algo.roi.breakeven_annotation": "Breakeven: {date}",
     "trigger_algo.roi.breakeven_reached": "✅ Breakeven reached on **{date}**",
     "trigger_algo.roi.breakeven_not_reached": "⚠️ Breakeven not reached over the available period.",
@@ -304,7 +304,6 @@ EN = {
     "trigger_algo.roi.one_series_only": "only one series reported",
     "trigger_algo.roi.breakeven_start": "Both cumulative totals start from zero on {date}, the first day both spend and revenue are reported. What was earned or spent before ({days} days) is left out of the comparison: a lead taken before the first ad euro is not a return on that ad.",
     "trigger_algo.roi.breakeven_no_overlap": "No breakeven verdict: Meta spend and revenue cover no common period (spend from {spend_start} to {spend_end}, revenue from {rev_start} to {rev_end}). Comparing two cumulative totals that never overlap says nothing.",
-    "trigger_algo.roi.breakeven_chart_title": "Cumulative Meta spend vs Cumulative iMusician revenue",
     "trigger_algo.roi.axis_cumul_amount": "Cumulative amount (€)",
     "trigger_algo.roi.breakeven_missing_data": "Spend or revenue data missing for the breakeven chart.",
     "trigger_algo.roi.breakeven_unavailable": "Breakeven chart unavailable: {err}",

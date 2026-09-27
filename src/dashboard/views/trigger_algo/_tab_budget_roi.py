@@ -4,7 +4,6 @@ from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
-from src.utils.track_matching import canonical_song_sql
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -373,42 +372,50 @@ def _render_fit(fit: dict) -> None:
 
 
 def _load_breakeven_frames(db, track: str, artist_id):
+    """(spend per day, revenue per month) — EVERY euro in and out, not Meta vs iMusician.
+
+    R248 (fiche 46, owner 2026-09-27 : « ajouter la SACEM, tous nos revenus, et nos charges
+    comme le coût de distribution »). Revenue is the NET income of the gold ledger
+    (`v_artist_monthly_cashflow`: distributors + SACEM); spend is Meta per day plus the
+    costs the artist entered (distribution, mastering…), placed on their month.
+    « All artists » (admin) goes through the HUMAN tenants only — the sandbox mirrors
+    artist 1 and doubled this very sum once (R220); this branch had been missed.
+    The popularity panel is gone: « aucune valeur ajoutée » next to two cumuls in euros.
+    """
+    from src.utils.fleet_money import FLEET_CASHFLOW_SQL
+    from src.utils.tenant_kind import NON_HUMAN_TENANT
     if artist_id:
-        df_spend_d = db.fetch_df(
-            "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s GROUP BY day ORDER BY day",
-            (artist_id,)
-        )
-        df_rev = db.fetch_df(
-            "SELECT make_date(year, month, 1) AS date, revenue_eur FROM imusician_monthly_revenue WHERE artist_id = %s ORDER BY year, month",
-            (artist_id,)
-        )
-        df_pop_be = db.fetch_df(
-            # ⚠️ `canonical_song_sql` des DEUX côtés. `track` vient de
-            # `s4a_song_timeline.song`, dérivé d'un NOM DE FICHIER — S4A y
-            # remplace `< > : " / \\ | ? *` par `_`. `track_popularity_history`
-            # est écrite par l'API Spotify, donc avec les vrais caractères.
-            # L'égalité exacte rendait la courbe MUETTE pour tout titre
-            # ponctué : 5 titres concernés sur cette base, mesuré le
-            # 2026-09-17. Le routeur normalisait déjà pour SA jointure
-            # (`router.py:94`) — c'est ici que la convention se perdait.
-            f"SELECT date, popularity FROM track_popularity_history "
-            f"WHERE {canonical_song_sql('track_name')} = %s AND artist_id = %s "
-            f"ORDER BY date",
-            (track, artist_id)
-        )
+        cf = db.fetch_df("SELECT year, month, flux, source, amount_eur "
+                         "FROM v_artist_monthly_cashflow WHERE artist_id = %s", (artist_id,))
+        meta = db.fetch_df("SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily "
+                           "WHERE artist_id = %s GROUP BY day ORDER BY day", (artist_id,))
     else:
-        df_spend_d = db.fetch_df(
-            "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily GROUP BY day ORDER BY day"
-        )
-        df_rev = db.fetch_df(
-            "SELECT make_date(year, month, 1) AS date, SUM(revenue_eur) AS revenue_eur FROM v_artist_monthly_revenue GROUP BY year, month ORDER BY year, month"
-        )
-        df_pop_be = db.fetch_df(
-            f"SELECT date, popularity FROM track_popularity_history "
-            f"WHERE {canonical_song_sql('track_name')} = %s ORDER BY date",
-            (track,)
-        )
-    return df_spend_d, df_rev, df_pop_be
+        cf = db.fetch_df(FLEET_CASHFLOW_SQL)
+        meta = db.fetch_df(
+            "SELECT day AS date, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id IN "
+            f"(SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT}) GROUP BY day ORDER BY day")
+    return split_ledger(cf, meta)
+
+
+def split_ledger(cf: pd.DataFrame, meta: pd.DataFrame) -> tuple:
+    """(spend per day: Meta + entered costs, revenue per month: every source). Pure."""
+    if cf is None or cf.empty:
+        return (meta if meta is not None else pd.DataFrame(columns=["date", "spend"])), \
+            pd.DataFrame(columns=["date", "revenue_eur"])
+    d = cf.copy()
+    d["date"] = pd.to_datetime(d["year"].astype(int).astype(str) + "-"
+                               + d["month"].astype(int).astype(str).str.zfill(2) + "-01")
+    d["amount_eur"] = pd.to_numeric(d["amount_eur"], errors="coerce")
+    rev = (d[d["flux"] == "revenu"].groupby("date", as_index=False)["amount_eur"].sum()
+           .rename(columns={"amount_eur": "revenue_eur"}))
+    costs = (d[(d["flux"] == "depense") & (d["source"] != "meta_ads")]
+             .groupby("date", as_index=False)["amount_eur"].sum()
+             .rename(columns={"amount_eur": "spend"}))
+    parts = [x for x in (meta, costs) if x is not None and not x.empty]
+    spend = (pd.concat(parts).assign(date=lambda x: pd.to_datetime(x["date"]))
+             .groupby("date", as_index=False)["spend"].sum()) if parts \
+        else pd.DataFrame(columns=["date", "spend"])
+    return spend, rev
 
 
 def _show_breakeven(db, track: str, artist_id, ml_pred) -> None:
@@ -428,7 +435,7 @@ def _show_breakeven(db, track: str, artist_id, ml_pred) -> None:
     st.subheader(t("trigger_algo.roi.breakeven_header", "⚖️ Breakeven — Cumul spend vs Cumul revenue"))
     _show_pi_breakeven(ml_pred)
     try:
-        df_spend_d, df_rev, df_pop_be = _load_breakeven_frames(db, track, artist_id)
+        df_spend_d, df_rev = _load_breakeven_frames(db, track, artist_id)
         if df_spend_d.empty or df_rev.empty:
             st.info(t("trigger_algo.roi.breakeven_missing_data",
                       "Données spend ou revenue manquantes pour le graphique breakeven."))
@@ -446,7 +453,7 @@ def _show_breakeven(db, track: str, artist_id, ml_pred) -> None:
                      rev_start=format_date(pd.to_datetime(df_rev["date"]).min()),
                      rev_end=format_date(pd.to_datetime(df_rev["date"]).max())))
             return
-        _render_breakeven(be, df_spend_d, df_rev, df_pop_be)
+        _render_breakeven(be, df_spend_d, df_rev)
     except Exception as e:
         st.warning(t("trigger_algo.roi.breakeven_unavailable",
                      "Graphique breakeven indisponible : {err}").format(err=e))
@@ -462,7 +469,7 @@ def _shade(fig_be, x0, x1) -> None:
         annotation_position="top left", row="all", col=1)
 
 
-def _render_breakeven(be: dict, df_spend_d, df_rev, df_pop_be) -> None:
+def _render_breakeven(be: dict, df_spend_d, df_rev) -> None:
     df_tl = be["timeline"]
     covered_start, covered_end = be["covered_start"], be["covered_end"]
     _spend_end = pd.to_datetime(df_spend_d["date"]).max()
@@ -472,27 +479,19 @@ def _render_breakeven(be: dict, df_spend_d, df_rev, df_pop_be) -> None:
     _tail_side = ("le revenu" if _rev_end > _spend_end else "la dépense")
     _head_days = int((covered_start - _first).days)
 
-    # Les deux séries en euros PARTAGENT un axe — c'est précisément la
-    # comparaison qu'on demande au lecteur de faire, et l'unité est la même.
-    # La popularité, elle, n'est pas des euros : elle prend son panneau.
-    fig_be = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                           row_heights=[0.65, 0.35])
+    # Les deux séries en euros PARTAGENT un axe — c'est précisément la comparaison qu'on
+    # demande au lecteur de faire. R248 : plus de panneau de popularité.
+    fig_be = make_subplots(rows=1, cols=1)
     fig_be.add_trace(go.Scatter(
         x=df_tl["date"], y=df_tl["cumul_spend"],
-        name=t("trigger_algo.roi.trace_cumul_spend", "Cumul Spend Meta"),
+        name=t("trigger_algo.roi.trace_cumul_costs", "Cumul dépenses (pub + frais)"),
         mode="lines", line=dict(color="#FF6B6B", width=2),
         fill="tozeroy", fillcolor="rgba(255,107,107,0.08)"), row=1, col=1)
     fig_be.add_trace(go.Scatter(
         x=df_tl["date"], y=df_tl["cumul_revenue"],
-        name=t("trigger_algo.roi.trace_cumul_revenue", "Cumul Revenue iMusician"),
+        name=t("trigger_algo.roi.trace_cumul_income", "Cumul revenus (ventes + SACEM)"),
         mode="lines", line=dict(color="#1DB954", width=2),
         fill="tozeroy", fillcolor="rgba(29,185,84,0.08)"), row=1, col=1)
-    if not df_pop_be.empty:
-        df_pop_be["date"] = pd.to_datetime(df_pop_be["date"])
-        fig_be.add_trace(go.Scatter(
-            x=df_pop_be["date"], y=df_pop_be["popularity"],
-            name=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"), mode="lines",
-            line=dict(color="#FFE66D", width=1, dash="dot"), connectgaps=False), row=2, col=1)
     if _head_days > 0:
         _shade(fig_be, _first, covered_start)
     if _tail_days > 0:
@@ -512,13 +511,11 @@ def _render_breakeven(be: dict, df_spend_d, df_rev, df_pop_be) -> None:
     _caption_window(covered_start, covered_end, _head_days, _tail_days, _tail_side)
 
     fig_be.update_layout(
-        title=t("trigger_algo.roi.breakeven_chart_title",
-                "Cumul spend Meta vs Cumul revenue iMusician"),
+        title=t("trigger_algo.roi.breakeven_chart_title_all",
+                "Tout ce qui rentre contre tout ce qui sort, cumulé"),
         hovermode="x unified", height=460, legend=dict(orientation="h", y=1.12))
     fig_be.update_yaxes(title_text=t("trigger_algo.roi.axis_cumul_amount", "Montant cumulé (€)"),
                         row=1, col=1)
-    fig_be.update_yaxes(title_text=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"),
-                        range=[0, 100], row=2, col=1)
     charts.plotly_chart(fig_be, width='stretch')
 
 
