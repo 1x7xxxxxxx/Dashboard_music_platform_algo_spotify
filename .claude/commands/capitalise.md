@@ -58,6 +58,7 @@ exécution** avant de la livrer :
 | `long_term_fix` | le changement qui rend la classe *impossible*, ou `— (le garde EST le fix)` |
 | `guard` | le test ou le hook qui bloque, ou `—` |
 | `guard_scope` | `<famille> — <le geste> ; couvre: … ; **ne couvre pas: …**` |
+| `closest` | depuis le 2026-09-28 (R264) : `<id> — <en quoi ce n'est pas elle>`, l'id étant une AUTRE classe de la même famille, ou `first-in-family`. Refusé par `audit_runner.py --admission` sinon — c'est là que se cache un second nom pour un même défaut |
 | `siblings` | `swept:<date> — <fichier:ligne, …>` · `swept:<date> — aucun autre site` · `not-swept`. **Le défaut existe-t-il DÉJÀ ailleurs ?** |
 | `history` | daté, ce qui s'est passé — et **la ligne déclare sa nature** : `- AAAA-MM-JJ (récidive):` quand le défaut est réapparu sur un site neuf, `- AAAA-MM-JJ (garde):` quand c'est le GARDE qui a été pris en défaut (signature dérivée, prédicat aveugle, faux positif), **sans marque** pour une note de travail (garde ajouté, statut changé, verdict de balayage) |
 

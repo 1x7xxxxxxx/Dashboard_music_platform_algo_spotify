@@ -109,6 +109,7 @@ def parse_all_headers(text: str) -> list[dict]:
             else None,
             "admitted": _prose_field(body, "admitted"),
             "family": _prose_field(body, "family"),
+            "closest": _prose_field(body, "closest"),
             "severity": (re.search(r"^- severity:\s*(P\d)", body, flags=re.M) or [None, None])[1]
             if re.search(r"^- severity:\s*(P\d)", body, flags=re.M) else None,
             "guard": _prose_field(body, "guard"),
@@ -256,6 +257,16 @@ CLEAN, HIT, BROKEN = "clean", "hit", "broken"
 
 
 _SIGNATURE_WORKERS = 4   # the CI runner's vCPU count
+
+
+def slowest_report(durations: dict[str, float], n: int = 5) -> list[str]:
+    """The `n` slowest signatures and their share of the total. Pure."""
+    if not durations:
+        return []
+    total = sum(durations.values()) or 1.0
+    top = sorted(durations.items(), key=lambda kv: kv[1], reverse=True)[:n]
+    return ([f"⏱ {len(durations)} signature(s), {total:.0f} s cumulées — les plus lentes :"]
+            + [f"    {secs:6.1f} s  {secs / total:5.1%}  {cid}" for cid, secs in top])
 
 
 def run_signature(sig: str) -> tuple[str, str]:
@@ -727,6 +738,39 @@ def undeclared_families(headers: list[dict], slugs: frozenset) -> list[tuple[str
     return out
 
 
+# R264 (owner notes L60-65, critic verdict a) — the generic class of a family is not a
+# « family signature » (a FORM predicate over-counts ×3 to ×25, rule 20) but a DUPLICATE
+# check at admission: a new class names the closest class of its own family and says why
+# it is not that one. Before this date nothing asked, and 427 classes in 18 families is
+# where a second name for the same defect hides.
+_GENERIC_SINCE = "2026-09-28"
+_CLOSEST = re.compile(r"^\s*(?P<id>[a-z0-9][a-z0-9-]*)\s+—\s+\S.{9,}$")
+
+
+def duplicate_gap(h: dict, headers: list[dict]) -> str | None:
+    """None if `h` justifies not being a duplicate of its family, else the refusal. Pure.
+
+    Accepted: `- closest: <class-id> — <why this is not that class>` where the id is ANOTHER
+    class of the SAME family, or `- closest: first-in-family` when the family has no other.
+    """
+    fam = (h.get("family") or "").strip()
+    others = {o["id"] for o in headers
+              if (o.get("family") or "").strip() == fam and o["id"] != h["id"]}
+    raw = (h.get("closest") or "").strip()
+    if not raw:
+        return ("aucun champ `- closest:` — nommer la classe la plus proche de la famille "
+                f"`{fam}` et dire en quoi celle-ci n'en est pas un doublon")
+    if raw == "first-in-family":
+        return None if not others else (
+            f"`first-in-family` alors que `{fam}` compte déjà {len(others)} classe(s)")
+    m = _CLOSEST.match(raw)
+    if not m:
+        return f"`closest:` illisible : {raw[:60]!r} — forme `<id> — <raison, 10 car. min>`"
+    if m.group("id") not in others:
+        return f"`closest: {m.group('id')}` n'est pas une autre classe de la famille `{fam}`"
+    return None
+
+
 def _admission(headers: list[dict]) -> int:
     """Une classe NEUVE doit dire pourquoi elle mérite d'exister.
 
@@ -781,6 +825,10 @@ def _admission(headers: list[dict]) -> int:
     # R185 — the proofs a new class carries, refused per class, not through a ceiling.
     for h in neuves:
         gaps = proof_gaps(h)
+        if (h.get("first_seen") or "") >= _GENERIC_SINCE:
+            dup = duplicate_gap(h, headers)
+            if dup:
+                gaps = [*gaps, dup]
         if gaps:
             fautives.append((h["id"], " · ".join(gaps)))
 
@@ -1199,10 +1247,24 @@ def main() -> None:
     # 2026-09-25 — 20 s of `gold_coverage.py --check` waited behind ~55 s of
     # `check_guards_are_env_independent.py`, which has its own workers.
     from concurrent.futures import ThreadPoolExecutor
+    durations: dict[str, float] = {}
+
+    def _timed(cid: str, sig: str) -> tuple[str, str]:
+        import time
+        t0 = time.perf_counter()
+        try:
+            return run_signature(sig)
+        finally:
+            durations[cid] = time.perf_counter() - t0
+
     with ThreadPoolExecutor(max_workers=_SIGNATURE_WORKERS) as pool:
-        pending = {c["id"]: pool.submit(run_signature, c["signature"])
+        pending = {c["id"]: pool.submit(_timed, c["id"], c["signature"])
                    for c in selected if c["id"] not in batched}
         verdicts = {cid: f.result() for cid, f in pending.items()}
+    # R264 (critic c) — « mesurer d'abord » : which signatures cost the budget. Printed
+    # every run, so the next person who wants the sweep faster starts from a measure.
+    for line in slowest_report(durations):
+        print(line)
 
     hits, broken = [], []
     for c in selected:

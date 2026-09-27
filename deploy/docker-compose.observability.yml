@@ -99,6 +99,8 @@ services:
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      # R264 — the error-class catalogue health, written by tools/deploy.sh.
+      - '--collector.textfile.directory=/host/var/lib/node_exporter/textfile'
     volumes:
       - '/:/host:ro,rslave'
     networks:
