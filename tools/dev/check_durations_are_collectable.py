@@ -45,6 +45,25 @@ def collection_errors(stdout: str) -> list[str]:
                    if ligne.startswith("ERROR tests/")})
 
 
+def untracked_tests() -> set[str]:
+    """Test files git does not track — the only thing a commit hook may leave out.
+
+    R251 (2026-09-27). R250 scoped the hook to the STAGED files. Too narrow: a test's id
+    can be built from ANOTHER file's content — `test_a_comment_names_a_test_that_exists`
+    puts a line number of the file it reads into its id — so a comment added to one
+    staged file renamed a test in an unstaged one, and main went red (0dee1d41). At commit
+    time pre-commit has already stashed every unstaged change: the tree IS the commit,
+    plus the untracked files. Those, and only those, are not this commit's."""
+    r = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "tests/"],
+                       capture_output=True, text=True, cwd=str(_ROOT))
+    return {ligne.strip() for ligne in r.stdout.splitlines() if ligne.strip()}
+
+
+def outside(node_ids, excluded: set[str]) -> list[str]:
+    """The node-ids whose FILE is not excluded. Pure."""
+    return [k for k in node_ids if k.split("::")[0] not in excluded]
+
+
 def fix(fantomes: dict, sans: list[str]) -> int:
     """Repair `.test_durations` in place: drop the phantom entries, then run ONLY the
     uncollected-without-duration node-ids, in series, with `--store-durations` —
@@ -92,11 +111,11 @@ def main() -> int:
     # owns reads as a phantom. On 2026-09-25 that is how a missing FERNET_KEY in this
     # job was reported: 37 "tests that no longer exist" in two files that exist.
     erreurs = collection_errors(r.stdout)
-    # R250 — scoped to the staged files, an error in ANOTHER file is not this commit's:
-    # a test in progress beside it cannot import code the commit does not carry.
-    scope = {a for a in sys.argv[1:] if a.startswith("tests/")}
-    if scope:
-        erreurs = [f for f in erreurs if f in scope]
+    # R251 — in the commit hook (files passed), an error in an UNTRACKED file is not this
+    # commit's: a test in progress beside it cannot import code the commit does not carry.
+    hook = any(a.startswith("tests/") for a in sys.argv[1:])
+    hors = untracked_tests() if hook else set()
+    erreurs = outside(erreurs, hors)
     if erreurs:
         print(f"❌ la collecte a échoué sur {len(erreurs)} fichier(s) — leurs durées "
               "passeraient pour des fantômes. Ce n'est pas `.test_durations` qui est "
@@ -109,12 +128,11 @@ def main() -> int:
     durees = json.loads(_DUR.read_text(encoding="utf-8"))
     fantomes = {k: v for k, v in durees.items() if k not in collectes}
     sans = sorted(collectes - set(durees))
-    # R250 — the pre-commit hook passes the STAGED test files: judge those only. A test
-    # file still in progress next to the commit (untracked, or its durations unstaged)
-    # made the hook refuse a commit that did not contain it.
-    if scope:
-        fantomes = {k: v for k, v in fantomes.items() if k.split("::")[0] in scope}
-        sans = [k for k in sans if k.split("::")[0] in scope]
+    # R251 — every tracked test is judged, not only the staged files' own (see
+    # `untracked_tests`); the untracked ones are the work in progress beside the commit.
+    if hors:
+        fantomes = {k: fantomes[k] for k in outside(fantomes, hors)}
+        sans = outside(sans, hors)
 
     if not fantomes and not sans:
         print(f"▶ durations: {len(durees)} entrée(s), {len(collectes)} test(s) collecté(s)")

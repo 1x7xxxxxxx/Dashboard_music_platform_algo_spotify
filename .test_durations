@@ -1637,6 +1637,7 @@
     "tests/test_a_new_figure_can_be_attributed.py::test_the_detector_sees_two_confusable_colours_in_one_panel": 0.0014148150021355832,
     "tests/test_a_new_figure_can_be_attributed.py::test_the_measurement_still_finds_figures_at_all": 0.08502840400069545,
     "tests/test_a_new_test_brings_its_duration.py::test_the_commit_hook_checks_the_durations_of_staged_tests": 0.07690162298968062,
+    "tests/test_a_new_test_brings_its_duration.py::test_the_hook_judges_every_tracked_test_not_only_the_staged_files": 0.10981760098366067,
     "tests/test_a_note_describes_the_figure_that_is_shown.py::test_a_platform_served_by_the_gold_layer_is_not_hatched": 0.01513997899928654,
     "tests/test_a_note_describes_the_figure_that_is_shown.py::test_no_note_contradicts_what_the_figure_shows": 0.08882319499934965,
     "tests/test_a_note_describes_the_figure_that_is_shown.py::test_the_discarded_note_only_speaks_where_the_daily_deltas_are_drawn": 0.07476577199849999,

@@ -23,5 +23,21 @@ def test_the_commit_hook_checks_the_durations_of_staged_tests():
     assert pattern.search("tests/test_new_guard.py"), "a new test file would not trigger it"
     assert not pattern.search("src/dashboard/app.py")
     assert hook.get("pass_filenames", True), (
-        "the hook must judge the STAGED tests only — a test in progress beside the commit "
-        "made it refuse a commit that did not contain it")
+        "the staged file names tell the script it runs as the commit hook")
+
+
+def test_the_hook_judges_every_tracked_test_not_only_the_staged_files():
+    """R251 — the id that turned main red on 2026-09-27 lives in a file NOT staged: a
+    comment added to test_the_gold_coverage_only_improves.py shifted the line number that
+    test_a_comment_names_a_test_that_exists puts in its id."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "check_durations", ROOT / "tools/dev/check_durations_are_collectable.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    shifted = ("tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_"
+               "test_file_that_exists[tests/test_the_gold_coverage_only_improves.py-310-x]")
+    wip = "tests/test_in_progress.py::test_x"
+    assert mod.outside([shifted, wip], {"tests/test_in_progress.py"}) == [shifted], (
+        "only the UNTRACKED file is left out — a tracked file beside the staged one is "
+        "this commit's tree too")
