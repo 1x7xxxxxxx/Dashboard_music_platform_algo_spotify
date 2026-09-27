@@ -31,11 +31,8 @@ EN = {
     "db_health.no_activity_data": "No activity data available.",
     "db_health.no_activity_52w": "No activity over the last 52 weeks.",
     # Cumulative
-    "db_health.cumul_header": "📈 Cumulative dataset growth",
-    "db_health.cumul_caption": "A plateau = no more imports on this dataset.",
     "db_health.no_data": "No data available.",
     "db_health.datasets_to_show": "Datasets to display",
-    "db_health.cumul_yaxis": "Cumulative rows",
     # Batch sizes
     "db_health.batch_header": "📦 Import size per week",
     "db_health.batch_caption": "Very small or very large batches may indicate a collection anomaly.",

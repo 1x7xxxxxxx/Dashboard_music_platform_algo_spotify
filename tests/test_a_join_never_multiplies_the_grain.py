@@ -173,6 +173,10 @@ def test_every_meta_surface_keeps_one_row_per_campaign_and_the_gold_total() -> N
 
 # ── live, real data ───────────────────────────────────────────────────────
 
+# SAME xdist group as the fan-out fixture above, measured 2026-09-27: run on another worker,
+# this test read ALL tenants while the fixture's transient tenant held its deliberate ×3
+# (« tenant 1107197: summary 30.00 != gold 10.00 ») — a race, not a defect.
+@pytest.mark.xdist_group("meta-fanout")
 @requires_live_db()
 def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() -> None:
     from src.dashboard.views import meta_ads_overview as mao

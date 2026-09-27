@@ -484,7 +484,8 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
     Le défaut ne se voit pas à la lecture : le calcul et le rendu sont à cinquante
     lignes d'écart dans `show()`, et un renderer qui recharge ses propres données est
     exactement ce qu'on attend d'un renderer autonome. C'est la même forme que
-    `db_health._load_cumulative`, corrigée le même jour.
+    `db_health._load_cumulative`, corrigée le même jour (la courbe cumulée a été
+    fusionnée dans le graphique des lots le 2026-09-27, R207).
 
     Le défaut reste `None` : les trois autres appelants n'ont pas la matrice sous la
     main et ne changent pas.

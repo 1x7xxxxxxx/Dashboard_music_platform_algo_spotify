@@ -31,10 +31,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
-| R213 | **« Tout mon funnel » en tête du menu** : refonte d'« Impact de mes campagnes » — créas → Meta → landing Hypeddit → streams → Shazam/Apple → revenus, coût et perte à chaque étape, engagement pendant la campagne, Shazam/Apple, trésorerie de la campagne. Critic 2026-09-27 : a (nom + tête de menu), b (coût à chaque étape + écoutes gagnées, DANS la figure existante), e (Shazam/Apple, `v_apple_song_daily`) = BUILD ; d (engagement) = après une vue or saves/playlist adds ; f (trésorerie de campagne) = prorata R212 ; c (coût par écoute PAR CRÉA) = refusé — aucune donnée ne relie une écoute à une créa ; âge × placement = R208. Plafond de figures du fichier : 8 <!-- anchor: r213 --> <!-- critic: requis --> | P2 | `make charts-dossier` + capture navigateur |
 | R207 | **Plus de doublons** : empreinte (sources, mesure, grain) + question par figure, le garde rougit sur deux figures identiques d'une même page ; exécuter toutes les fusions proposées (fiches 7, 8, 11, 12, 33, 85, 133) <!-- anchor: r207 --> <!-- critic: requis --> | P3 | `tests/test_the_charts_dossier_covers_every_figure.py` |
 | R209 | Lisibilité : libellés tronqués ou superposés, légendes en bas, couleurs Instagram, top YouTube, carte de chaleur sans libellés, graphique vide → « aucune donnée », entonnoirs en % d'étape à étape (fiches 4, 14, 21, 23, 40, 43, 49, 52, 83, 96, 97, 99, 109) <!-- anchor: r209 --> <!-- critic: non — affichage seul --> | P3 | `tests/test_a_rendered_figure_is_laid_out.py` + dossier |
-| R210 | Instagram : abonnés, abonnements et publications sur un même graphique (fiches 22, 100) <!-- anchor: r210 --> <!-- critic: non — affichage seul --> | P3 | dossier |
 | R211 | Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102) <!-- anchor: r211 --> <!-- critic: non — affichage seul --> | P3 | dossier |
 | R214 | Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205) <!-- anchor: r214 --> <!-- critic: non — affichage seul --> | P4 | dossier |
 | R215 | Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre des milliers de replis directs (fiches 119, 121, 125) <!-- anchor: r215 --> <!-- critic: requis --> | P2 | `make charts-dossier` (Grafana) + règles d'alerte |
@@ -96,7 +94,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R213, R207, R209, R210, R211, R214, R215, R217, R218, R219 -->
+<!-- reprise: open=R202, R207, R209, R211, R214, R215, R217, R218, R219 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

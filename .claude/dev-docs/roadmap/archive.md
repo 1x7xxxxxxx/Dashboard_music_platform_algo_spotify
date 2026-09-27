@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R210 — Instagram : abonnés, abonnements et publications sur un même graphique (fiches 22, 100) (livrée 2026-09-27)
+
+- [x] **R210 — Instagram : abonnés, abonnements et publications sur un même graphique (fiches 22, 100)** (P3) ✅ (2026-09-27, f1bf116)
+  Mesuré par : dossier
+  livre f1bf116, deploye 2026-09-27 : abonnes, abonnements, publications sur un cadre en variation depuis le premier releve
+  Commits : f1bf116 R210 : Instagram - abonnes, abonnements et publications sur UN graphiq
+
+## ✅ R213 — **« Tout mon funnel » en tête du menu** : refonte d'« Impact de mes campagnes » — créas… (livrée 2026-09-27)
+
+- [x] **R213 — **« Tout mon funnel » en tête du menu** : refonte d'« Impact de mes campagnes » — créas → Meta → landing Hypeddit → streams → Shazam/Apple → revenus, coût et perte à chaque étape, engagement pendant la campagne, Shazam/Apple, trésorerie de la campagne. Critic 2026-09-27 : a (nom + tête de menu), b (coût à chaque étape + écoutes gagnées, DANS la figure existante), e (Shazam/Apple, `v_apple_song_daily`) = BUILD ; d (engagement) = après une vue or saves/playlist adds ; f (trésorerie de campagne) = prorata R212 ; c (coût par écoute PAR CRÉA) = refusé — aucune donnée ne relie une écoute à une créa ; âge × placement = R208. Plafond de figures du fichier : 8** (P2) ✅ (2026-09-27, 279fb69, d046ba0, 652f71b, 72baf8f, bbe0ab3)
+  Mesuré par : `make charts-dossier` + capture navigateur
+  livre bbe0ab3 (a) 72baf8f (b) 652f71b (e) d046ba0 (d) 279fb69 (f), deploye 2026-09-27 : Tout mon funnel sous l'accueil ; cout a chaque etape + ecoutes gagnees a cote ; Apple/Shazam quand quotidien sinon absence en 3 cas ; engagement avant/pendant ; tresorerie des mois couverts. Lot c (cout par ecoute PAR CREA) refuse par code-critic : aucune donnee ne relie une ecoute a une crea
+  Commits : 279fb69 R213 (lot f) : la tresorerie autour de la campagne - revenus nets et d · d046ba0 R213 (lot d) : au-dela des ecoutes - un tableau avant / pendant la cam · 652f71b R213 (lot e) : Apple et Shazam autour des campagnes - traces sur la fi · 72baf8f R213 (lot b) : chaque etape du parcours porte son cout (depense / volu · bbe0ab3 R213 (lot a) : « Tout mon funnel » monte sous l'accueil, en tete du me
+
 ## ✅ R208 — Répartitions Meta sur une même vue : pays, placement, âge, plateforme côte à côte, sans… (livrée 2026-09-27)
 
 - [x] **R208 — Répartitions Meta sur une même vue : pays, placement, âge, plateforme côte à côte, sans sélecteur (fiches 33-36)** (P3) ✅ (2026-09-27, 073985b)

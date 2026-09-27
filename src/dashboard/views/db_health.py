@@ -133,38 +133,6 @@ def _load_weekly_activity(db, artist_id) -> pd.DataFrame:
     )
 
 
-def _load_cumulative(df_weekly: pd.DataFrame) -> pd.DataFrame:
-    """Cumulative row count per week per dataset (for growth curve chart).
-
-    ⚠️ Prend la table hebdomadaire EN ARGUMENT depuis le 2026-09-17. Elle la
-    rechargeait elle-même, et `show()` appelait les DEUX — donc
-    `_load_weekly_activity` tournait **deux fois par rendu**, et avec elle ses **douze
-    requêtes SQL**, une par dataset. Mesuré au profileur : `2x`, **52,0 ms cumulées**
-    sur un `show()` de 190 ms.
-
-    Rien ne le signalait : les deux appels sont à deux lignes l'un de l'autre dans
-    `show()` — `df_weekly = _load_weekly_activity(...)` puis
-    `df_cumul = _load_cumulative(...)` — et la seconde ligne se lit comme un second
-    CALCUL, pas comme une seconde COLLECTE.
-
-    Ce n'était donc pas « une agrégation Python à passer en SQL », le poste que R121
-    désignait dans ce fichier : c'était un appel en double. Le `cumsum` lui-même ne
-    pèse rien.
-    """
-    if df_weekly.empty:
-        return df_weekly
-    df_weekly = df_weekly.copy()
-    df_weekly['week'] = pd.to_datetime(df_weekly['week'])
-    frames = []
-    for label, grp in df_weekly.groupby('dataset'):
-        grp = grp.sort_values('week').copy()
-        grp['cumul'] = grp['new_rows'].cumsum()
-        frames.append(grp)
-    return pd.concat(frames, ignore_index=True)
-
-
-# ── Section renderers ─────────────────────────────────────────────────────────
-
 def _show_health_table(df_health: pd.DataFrame):
     st.subheader(t("db_health.table_header", "🏥 État des datasets"))
 
@@ -295,65 +263,6 @@ def _show_heatmap(df_weekly: pd.DataFrame):
 
 
 @st.fragment
-def _show_cumulative(df_cumul: pd.DataFrame):
-    """La croissance cumulative — rejouée SEULE quand son filtre change.
-
-    @st.fragment (R118, 2026-09-16) : bouger le multiselect ne rejoue que ce corps.
-    Avant, il rejouait tout le script — les trois requêtes de `show()`, les quatre autres
-    sections, et toute la barre latérale.
-
-    ⚠️ La condition de sûreté, et elle n'est pas négociable : cette fonction ne reçoit
-    qu'un **DataFrame**, jamais la connexion. `show()` ferme `db` dans son `finally` dès
-    que le rendu complet est fini ; un fragment qui aurait capturé `db` s'exécuterait
-    plus tard sur une connexion FERMÉE, et échouerait sans que rien ne relie la panne au
-    filtre qu'on vient de bouger. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-    """
-    st.subheader(t("db_health.cumul_header", "📈 Croissance cumulative des datasets"))
-    st.caption(t("db_health.cumul_caption", "Un plateau = plus aucun import sur ce dataset."))
-
-    if show_empty_state(df_cumul, t("db_health.no_data", "Aucune donnée disponible.")):
-        return
-
-    # Dataset selector
-    all_datasets = sorted(df_cumul['dataset'].unique())
-    selected = st.multiselect(
-        t("db_health.datasets_to_show", "Datasets à afficher"),
-        options=all_datasets,
-        default=all_datasets,
-        key="db_health_cumul_select",
-    )
-    if not selected:
-        return
-
-    df_plot = df_cumul[df_cumul['dataset'].isin(selected)]
-
-    fig = go.Figure()
-    colors = px.colors.qualitative.Plotly
-    for i, (label, grp) in enumerate(df_plot.groupby('dataset')):
-        grp = grp.sort_values('week')
-        fig.add_trace(go.Scatter(
-            x=grp['week'], y=grp['cumul'],
-            name=label,
-            mode='lines+markers',
-            line=dict(color=colors[i % len(colors)], width=2),
-            marker=dict(size=5),
-            hovertemplate=f'<b>{label}</b><br>%{{x|%Y-%m-%d}}<br>%{{y:,}} lignes cumulées<extra></extra>',
-        ))
-    fig.update_layout(
-        height=420,
-        xaxis_title=None,
-        yaxis_title=t("db_health.cumul_yaxis", "Lignes cumulées"),
-        hovermode='x unified',
-        legend=dict(orientation='h', y=-0.2),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white',
-    )
-    st.plotly_chart(fig, width='stretch')
-
-
-@st.fragment
 def _show_batch_sizes(df_weekly: pd.DataFrame):
     """La taille des imports par semaine — rejouée SEULE quand son filtre change.
 
@@ -442,15 +351,12 @@ def show():
         with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)
             df_weekly  = _load_weekly_activity(db, artist_id)
-            df_cumul   = _load_cumulative(df_weekly)
 
         _show_health_table(df_health)
         st.markdown("---")
         _show_freshness_bar(df_health)
         st.markdown("---")
         _show_heatmap(df_weekly)
-        st.markdown("---")
-        _show_cumulative(df_cumul)
         st.markdown("---")
         _show_batch_sizes(df_weekly)
 

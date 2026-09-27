@@ -527,3 +527,5 @@
 {"at": "2026-09-26T23:34:34+00:00", "head": "073985b", "kind": "done", "task": "R208", "what": "livree 073985b, CI en cours puis deploiement"}
 {"at": "2026-09-26T23:34:34+00:00", "head": "073985b", "kind": "start", "task": "R213", "what": "lot a : Tout mon funnel en tete du menu"}
 {"at": "2026-09-27T00:11:11+00:00", "head": "279fb69", "kind": "start", "task": "R210", "what": "Instagram abonnes+abonnements+publications sur un graphique"}
+{"at": "2026-09-27T00:16:03+00:00", "head": "f1bf116", "kind": "done", "task": "R210", "what": "livree f1bf116"}
+{"at": "2026-09-27T00:16:04+00:00", "head": "f1bf116", "kind": "start", "task": "R207", "what": "methode anti-doublons (3 axes) + fusions db_health et grafana:15"}

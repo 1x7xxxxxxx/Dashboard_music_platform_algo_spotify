@@ -2,7 +2,7 @@
 """The arbitration table: every chart to act on, grouped by CAUSE, with both verdicts.
 
 Type: Utility
-Uses: review.yaml, <dossier>/fiches.json
+Uses: review.yaml, <dossier>/fiches.json, <dossier>/inventory.json (R207 twins)
 Triggers: `make charts-review`
 Persists in: <dossier>/tri.md — the page the owner arbitrates BEFORE anything enters the roadmap
 
@@ -54,7 +54,22 @@ def table(review: dict, fiche_of: dict[str, int]) -> list[dict]:
     return sorted(out, key=lambda g: (g["rank"], -len(g["rows"]), g["cause"]))
 
 
-def render(groups: list[dict]) -> str:
+def likely_twins(inventory: list[dict], fiche_of: dict[str, int]) -> list[list[str]]:
+    """Figures of one page with the same (sources, measure) fingerprint — R207. Pure.
+
+    The same fingerprint as `tests/test_no_two_figures_on_a_page_share_a_fingerprint.py`,
+    shown to the owner at review time: a declared twin passes the test and still deserves
+    a second look here."""
+    groups: dict = collections.defaultdict(list)
+    for e in inventory:
+        if e.get("kind") == "figure" and e.get("measure") and e.get("sources"):
+            groups[(e["site"].split(":")[0], tuple(e["sources"]),
+                    tuple(e["measure"]))].append(e["key"])
+    return [sorted(v, key=lambda k: fiche_of.get(k, 0)) for v in groups.values() if len(v) > 1]
+
+
+def render(groups: list[dict], twins: list[list[str]] | None = None,
+           fiche_of: dict[str, int] | None = None) -> str:
     lines = ["# Tri des retours — dossier des graphiques (R204)", "",
              "Une ligne de roadmap par CAUSE. Arbitre chaque cause : **retenir**, **reporter** "
              "ou **abandonner**. Rien n'entre dans la roadmap avant ton arbitrage.", ""]
@@ -67,6 +82,12 @@ def render(groups: list[dict]) -> str:
             lines.append(f"| {e['fiche'] or '?'} | {e.get('q', '')} | {e.get('v', '')} | "
                          f"{e.get('owner_v') or '—'} | {e.get('owner') or '—'} |")
         lines += ["", "Arbitrage : ☐ retenir · ☐ reporter · ☐ abandonner", ""]
+    if twins:
+        lines += ["## Doublons probables — même page, mêmes sources, même mesure (R207)", ""]
+        for pair in twins:
+            lines.append("- " + " ↔ ".join(
+                f"fiche {(fiche_of or {}).get(k, '?')} ({k})" for k in pair))
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -78,8 +99,12 @@ def main(argv: list[str]) -> int:
         return 2
     review = yaml.safe_load((HERE / "review.yaml").read_text(encoding="utf-8"))
     fiches = json.loads((out / "fiches.json").read_text(encoding="utf-8"))
-    groups = table(review, {v: int(k) for k, v in fiches.items()})
-    (out / "tri.md").write_text(render(groups), encoding="utf-8")
+    fiche_of = {v: int(k) for k, v in fiches.items()}
+    groups = table(review, fiche_of)
+    inv_path = out / "inventory.json"
+    inventory = json.loads(inv_path.read_text(encoding="utf-8")) if inv_path.exists() else []
+    twins = likely_twins(inventory, fiche_of)
+    (out / "tri.md").write_text(render(groups, twins, fiche_of), encoding="utf-8")
     print(f"✅ {out / 'tri.md'} : {len(groups)} cause(s), "
           f"{sum(len(g['rows']) for g in groups)} graphique(s)")
     return 0

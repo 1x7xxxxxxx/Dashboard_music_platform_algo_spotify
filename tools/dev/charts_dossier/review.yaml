@@ -812,14 +812,6 @@ src/dashboard/views/db_health.py::_show_heatmap#1:
   owner: "D'accord, corrige."
   cause: libelles-tronques
   note: "Carte de chaleur sans libellés de lignes : on ne sait pas quelle table est quelle ligne."
-src/dashboard/views/db_health.py::_show_cumulative#1:
-  q: "Mes tables grossissent-elles normalement ?"
-  role: archi
-  d: 3
-  c: 4
-  p: 4
-  v: garder
-  note: "Lignes cumulées par table — la cassure de S4A Timeline en juillet se voit."
 src/dashboard/views/db_health.py::_show_batch_sizes#1:
   q: "Combien de lignes neuves par jour ?"
   role: archi
