@@ -1723,6 +1723,32 @@ def render_registry(gold) -> list[str]:
     return L
 
 
+def render_quality() -> list[str]:
+    """R230 — « La qualité des données par catégorie » : each existing check filed under
+    the owner's category AND the pillar it measures (`tools/dev/dq_catalogue.py`)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "dq_catalogue", ROOT / "tools" / "dev" / "dq_catalogue.py")
+    dq = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = dq
+    spec.loader.exec_module(dq)
+    L = ["", "## La qualité des données par catégorie", "",
+         "Les sept familles de contrôles demandées, et les contrôles qui TOURNENT déjà, "
+         "rangés deux fois : par catégorie (où l'on cherche) et par pilier (comment ça "
+         "mesure — fraîcheur, volume, distribution, schéma, valeur calculée). Écrit dans "
+         "`tools/dev/dq_catalogue.py` ; chaque pointeur est résolu dans le code par un test.", ""]
+    rows = []
+    for cat in dq.CATEGORIES:
+        checks = [c for c in dq.CHECKS if c.category == cat]
+        for c in checks:
+            rows.append([f"**{cat}**", c.pillar, c.when, f"`{Path(c.pointer.split('::')[0]).stem}.{c.pointer.split('::')[1]}`", c.what])
+        if not checks:
+            rows.append([f"**{cat}**", "—", "—", "**aucun**", ""])
+    L += _table(rows, ["catégorie", "pilier", "quand", "contrôle", "ce qu'il attrape"])
+    L += [""] + [f"- **{cat}** — {why}" for cat, why in dq.GAPS.items()]
+    return L
+
+
 def render(gold, surfaces, files, reads) -> str:
     figs = [s for s in surfaces if s.kind == "figure"]
     tiles = [s for s in surfaces if s.kind == "tuile"]
@@ -1829,6 +1855,7 @@ def render(gold, surfaces, files, reads) -> str:
         ["objet", "genre", "définie par", "lit", "surfaces qui la lisent",
          "définitions supplantées"])
     L += render_registry(gold)
+    L += render_quality()
 
     for title, group, note in (
         ("Les figures d'écran", figs,

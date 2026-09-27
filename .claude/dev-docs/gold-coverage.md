@@ -131,6 +131,31 @@ Objets or lus par une surface et absents du registre : **0**
 
 - ⚠️ **mrr** hors couche or — `src/utils/mrr.py::mrr_by_plan_sql` (mrr_by_plan_sql() — une jointure, pas encore une vue or) : à conformer.
 
+## La qualité des données par catégorie
+
+Les sept familles de contrôles demandées, et les contrôles qui TOURNENT déjà, rangés deux fois : par catégorie (où l'on cherche) et par pilier (comment ça mesure — fraîcheur, volume, distribution, schéma, valeur calculée). Écrit dans `tools/dev/dq_catalogue.py` ; chaque pointeur est résolu dans le code par un test.
+
+| catégorie | pilier | quand | contrôle | ce qu'il attrape |
+|---|---|---|---|---|
+| **doublons** | schéma | soir | `data_quality_check.check_spotify_data_consistency` | un (titre, jour) S4A présent deux fois — et les titres absents du catalogue, les séries de moins de 7 jours |
+| **doublons** | volume | soir | `alert_monitor.check_row_anomalies` | un jour à plus de 10× la moyenne des 7 précédents : un double passage |
+| **valeurs impossibles** | distribution | soir | `alert_monitor.check_zero_resets` | un compteur CUMULÉ qui retombe à 0 (19 titres SoundCloud le 2026-06-01) |
+| **valeurs impossibles** | valeur calculée | soir | `alert_monitor.check_metric_bounds` | une somme de quotidiens qui dépasse le total à vie de la plateforme |
+| **ruptures temporelles** | fraîcheur | soir | `alert_monitor.check_data_freshness` | une source dont la dernière donnée a passé son seuil d'âge |
+| **ruptures temporelles** | fraîcheur | soir | `alert_monitor.check_collection_outcomes` | une collecte qui n'a pas tourné, ou a échoué, POUR CE locataire |
+| **variations anormales** | volume | soir | `alert_monitor.check_row_dips` | un jour à bien moins de lignes que d'habitude, sans être vide |
+| **variations anormales** | distribution | soir | `alert_monitor.check_drift_anomalies` | une entrée du modèle hors de sa distribution sur la plupart des titres |
+| **variations anormales** | distribution | soir | `alert_monitor.check_resurrection_sparks` | un vieux titre dont les sauvegardes bondissent — une opportunité, pas un défaut |
+| **divergences entre plateformes** | valeur calculée | soir | `alert_monitor.check_gold_invariants` | deux définitions or censées rendre le même nombre (dépense, écoutes, trésorerie de la flotte…) qui en rendent deux |
+| **divergences entre plateformes** | valeur calculée | soir | `metric_bounds.run` | deux portes Python (total contre série) pour Spotify, SoundCloud, YouTube |
+| **mapping** | schéma | soir | `alert_monitor.check_tenant_contamination` | des lignes rangées sous un locataire auquel elles ne peuvent pas appartenir |
+| **données manquantes** | fraîcheur | soir | `alert_monitor.check_csv_rejections` | un fichier déposé par un artiste que l'import n'a pas su lire |
+| **données manquantes** | fraîcheur | lecture | `quality_gate.source_is_fresh_enough` | une prévision qui s'abstient quand sa source est trop vieille |
+
+- **doublons** — couvert par CONSTRUCTION plus que par détection : 119 tables sur 131 ont une clé naturelle UNIQUE (un doublon y est impossible, le chercher chaque soir coûterait pour un verdict qui ne peut pas changer — code-critic R230) ; les 12 autres sont des journaux, sauf `artist_history`, dédoublonnée par sa vue or (migration 120).
+- **valeurs impossibles** — une borne par NATURE de mesure (un taux dans [0, 100], un indice de popularité 0-100) : le registre ne distingue pas encore un taux d'un niveau, il faudrait l'y ajouter avant d'écrire la borne une seule fois.
+- **mapping** — une campagne sans titre lié n'alerte pas : elle se voit dans la page de rattachement, et le coût par écoute de cette campagne reste « — ».
+
 ## Les figures d'écran
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
@@ -683,4 +708,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=0e23e79e91d8b869284c3fec106e03eb2b14440b9e21083fc4a1d5017d982a59 -->
+<!-- gold-coverage: sha256=0ac98f18f001416c110b0e9644140f0fb197661d24bd7c07b7ab0debd6177cc4 -->
