@@ -1970,7 +1970,7 @@ Les mails de nuit n'y sont donc jamais arrivés. Je ne modifie pas le `.env` de 
 - Le lendemain matin : un mail « 📋 Récap de la nuit » dans ta boîte. Je le consigne dans
   `ops-mail-journal.md` à la séance suivante ; R183 se ferme au premier reçu.
 
-## 30. R221 — Sortir les mails de streaMLytics de la corbeille
+## 30. ~~R221 — Sortir les mails de streaMLytics de la corbeille~~ · ✅ FAIT le 2026-09-27 — les mails de 08:49 et 12:04 arrivent en boîte de réception (`from:noreply@streamlytics.fr newer_than:2d` sans `in:anywhere`) ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Ce qui se passe** : tous les mails de `noreply@streamlytics.fr` (récap du soir, CI rouge,
 audit de nuit) arrivent avec le libellé **Corbeille**, non lus. Tu ne les vois pas, même en
@@ -1987,7 +1987,7 @@ depuis le 25/09 y sont.
 **Vérification** : dans Gmail, la recherche `from:noreply@streamlytics.fr newer_than:2d`
 (sans `in:anywhere`) rend le récap de la nuit.
 
-## 31. R222 — Ce que compte « inscriptions » dans l'admin
+## 31. ~~R222 — Ce que compte « inscriptions » dans l'admin~~ · ✅ FAIT le 2026-09-27 — tranché : les UTILISATEURS humains (réponse du propriétaire) — `signups_sql()`, garde `test_the_signup_counter_counts_human_users.py` ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **La question** : le compteur admin « inscriptions 7 j / 30 j · comptes vérifiés »
 (`views/admin.py:397-401`) compte les lignes de `saas_users`, dont celle du bac à sable,
@@ -1999,7 +1999,7 @@ recréée à chaque `--reset` (`tools/create_sandbox.py`). Deux lectures possibl
 
 **Vérification** : ta réponse écrite dans la ligne R222 ; le code suit.
 
-## 32. R237 — Recollecter l'historique Meta pour avoir les clics plateformes par créa
+## 32. ~~R237 — Recollecter l'historique Meta pour avoir les clics plateformes par créa~~ · ✅ FAIT le 2026-09-27 — déclenché avec l'accord du propriétaire (`full_history`, artiste 1) — 60 créas sur 61 mesurées, contre 0 ; détail dans `.claude/dev-docs/roadmap/archive.md`
 
 **Pourquoi** : depuis le 2026-09-27, la page Créatives affiche les « clics plateformes »
 (les clics qui quittent le smart link vers Spotify / Apple…) **par créative**, et leur

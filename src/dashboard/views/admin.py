@@ -394,12 +394,7 @@ def _render_supervision(db):
     with st.expander(t("admin.business_expander",
                        "📊 Business — inscriptions & abonnements"), expanded=False):
         st.subheader(t("admin.business_header", "📊 Business — inscriptions & abonnements"))
-        su = db.fetch_query(
-            "SELECT COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days'), "
-            "       COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days'), "
-            "       COUNT(*) FILTER (WHERE email_verified), COUNT(*) "
-            "FROM saas_users WHERE role <> 'admin'"
-        )
+        su = db.fetch_query(signups_sql())
         s7, s30, verified, total_u = (su[0] if su else (0, 0, 0, 0))
         # Même définition que le compteur public — et depuis le 2026-08-30, la MÊME
         # constante, pas une phrase qui dit qu'elles sont les mêmes. C'était une copie :
@@ -744,6 +739,24 @@ def _deleguer(module: str) -> None:
 from src.dashboard.views.admin_accounts import (  # noqa: E402
     _tab_gdpr, _tab_users)
 from src.dashboard.utils.date_format import format_serie
+
+
+def signups_sql() -> str:
+    """R222 — HUMAN users: no admin, no user of the canary or the sandbox tenant.
+
+    LEFT JOIN, never JOIN: a user not yet linked to an artist (`artist_id` NULL, legal
+    since migration 141) signed up all the same and counts — `non_human_tenant` reads
+    FALSE on the NULL side. Owner's decision, 2026-09-27.
+    """
+    # The unqualified constant, not `non_human_tenant("a")`: saas_users has no
+    # is_canary/is_sandbox column, so it is unambiguous here, and the public-counter
+    # guard resolves an imported CONSTANT (tests/test_public_counters_count_humans.py).
+    from src.utils.tenant_kind import NON_HUMAN_TENANT
+    return ("SELECT COUNT(*) FILTER (WHERE u.created_at >= now() - interval '7 days'), "
+            "       COUNT(*) FILTER (WHERE u.created_at >= now() - interval '30 days'), "
+            "       COUNT(*) FILTER (WHERE u.email_verified), COUNT(*) "
+            "FROM saas_users u LEFT JOIN saas_artists a ON a.id = u.artist_id "
+            f"WHERE u.role <> 'admin' AND NOT {NON_HUMAN_TENANT}")
 
 
 def show():

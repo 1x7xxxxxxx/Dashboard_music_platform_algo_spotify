@@ -262,9 +262,9 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/account.py:96` | `_section_profile` | account.plan | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | profondeur | — |
 | `views/admin.py:342` | `_render_costs` | admin.costs_metric_mrr | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | — |
 | `views/admin.py:343` | `_render_costs` | admin.costs_metric_margin | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | — |
-| `views/admin.py:427` | `_render_supervision` | admin.metric_mrr | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
-| `views/admin.py:428` | `_render_supervision` | admin.metric_paying | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
-| `views/admin.py:429` | `_render_supervision` | admin.metric_arpu | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
+| `views/admin.py:422` | `_render_supervision` | admin.metric_mrr | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
+| `views/admin.py:423` | `_render_supervision` | admin.metric_paying | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
+| `views/admin.py:424` | `_render_supervision` | admin.metric_arpu | un clic | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | ?`saas_users` |
 | `views/admin_activation.py:51` | `_render_activation` | admin.metric_activation | à l'écran | `saas_artists` | brut | plusieurs amonts | identifiant-non-résolu | — |
 | `views/airflow_kpi.py:601` | `show` | airflow_kpi.metric_avg_invalid | à l'écran | `etl_run_log` | brut | plusieurs amonts | — | — |
 | `views/billing.py:352` | `_show_admin_view` | billing.total_mrr | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | — |
@@ -314,10 +314,10 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/account.py:98` | `_section_profile` | account.email_verified | à l'écran | — | — | hors base | — | — |
 | `views/account.py:102` | `_section_profile` | account.twofa | à l'écran | — | — | hors base | — | — |
 | `views/admin.py:341` | `_render_costs` | admin.costs_metric_month | à l'écran | — | — | hors base | — | — |
-| `views/admin.py:411` | `_render_supervision` | admin.metric_signups_7d | un clic | `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
-| `views/admin.py:412` | `_render_supervision` | admin.metric_signups_30d | un clic | `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
-| `views/admin.py:413` | `_render_supervision` | admin.metric_verified | un clic | `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`saas_artists` · ?`subscription_plans` |
-| `views/admin.py:414` | `_render_supervision` | admin.metric_active_artists | un clic | `saas_artists` | brut | directe | — | ?`artist_subscriptions` · ?`saas_users` · ?`subscription_plans` |
+| `views/admin.py:406` | `_render_supervision` | admin.metric_signups_7d | un clic | `saas_artists` · `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`subscription_plans` |
+| `views/admin.py:407` | `_render_supervision` | admin.metric_signups_30d | un clic | `saas_artists` · `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`subscription_plans` |
+| `views/admin.py:408` | `_render_supervision` | admin.metric_verified | un clic | `saas_artists` · `saas_users` | brut | directe | — | ?`artist_subscriptions` · ?`subscription_plans` |
+| `views/admin.py:409` | `_render_supervision` | admin.metric_active_artists | un clic | `saas_artists` | brut | directe | — | ?`artist_subscriptions` · ?`saas_users` · ?`subscription_plans` |
 | `views/admin_accounts.py:409` | `_tab_users` | admin.metric_optin | à l'écran | — | — | hors base | — | ?`saas_artists` · ?`saas_users` |
 | `views/airflow_kpi.py:205` | `_section_run_logs` | airflow_kpi.metric_total_lines | à l'écran | — | — | hors base | — | — |
 | `views/airflow_kpi.py:206` | `_section_run_logs` | airflow_kpi.metric_errors | à l'écran | — | — | hors base | — | — |
@@ -646,7 +646,7 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:191 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:66 · dashboard/views/imusician.py:33 · dashboard/views/imusician.py:42 · dashboard/views/meta_x_spotify.py:745 · dashboard/views/meta_x_spotify.py:765 |
 | `s4a_song_timeline` | `v_s4a_song_daily` | 16 | 4 | 0 | api/routers/streams.py:92 · dashboard/utils/pdf_exporter/_report.py:79 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:260 |
-| `saas_artists` | `v_spotify_followers_daily` | 64 | 9 | 0 | dashboard/utils/live_pulse.py:118 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:409 · dashboard/views/meta_mapping/_campaigns.py:191 · dashboard/views/referral_admin.py:149 · dashboard/views/referral_admin.py:176 · utils/daily_ops_metrics.py:206 · utils/defect_gauge.py:108 |
+| `saas_artists` | `v_spotify_followers_daily` | 65 | 9 | 0 | dashboard/utils/live_pulse.py:118 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:404 · dashboard/views/meta_mapping/_campaigns.py:191 · dashboard/views/referral_admin.py:149 · dashboard/views/referral_admin.py:176 · utils/daily_ops_metrics.py:206 · utils/defect_gauge.py:108 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_daily` | 4 | 1 | 0 | dashboard/views/soundcloud.py:89 |
 | `track_platform_link` | `v_spotify_track_pi_daily` | 10 | 3 | 0 | dashboard/utils/campaign_compare.py:87 · dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 |
@@ -708,4 +708,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=d29904c65bdd9747231bb6f425abc90caeddc4eb3c8d0fe98ed111fe0c6a7ca5 -->
+<!-- gold-coverage: sha256=e2ce35d2341a15f8ececd022b532fb548c3fac9b65421f4b4c18f4bb1055de7c -->
