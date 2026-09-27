@@ -33,6 +33,20 @@ EN = {
         "outcomes (previous tab) so the comparison can exist."),
     "s4a_insight.panel_pred": "Predicted probability",
     "s4a_insight.panel_real": "Algorithmic streams recorded (28 d)",
+    "s4a_insight.bet_plain": (
+        "On the left, the chance the model gave each track; on the right, the streams the "
+        "algorithms actually brought it (your S4A entry). This is the only place where we "
+        "check whether its percentages are worth anything."),
+    "s4a_insight.bet_too_early": (
+        "⏳ **Too early to judge the model** ({n} track(s), {m} needed). Keep entering your "
+        "results every month: that is what will tell whether its percentages hold."),
+    "s4a_insight.bet_over": (
+        "🔻 **The model expected {a:.1f} trigger(s), none happened** — do not pick a track "
+        "on its percentage; pick it on its levers (Road to Algo, tab « 🎧 This track: what "
+        "is left to do »)."),
+    "s4a_insight.bet_consistent": (
+        "✅ **What happened stays within what the model announced** — its percentages can "
+        "guide your choice, without settling it alone."),
     "s4a_insight.bet_note": (
         "**{d} of {n} track(s)** actually triggered an algorithm. The model expected "
         "**{a:.1f}** across this selection (sum of probabilities). That gap is NOT an "

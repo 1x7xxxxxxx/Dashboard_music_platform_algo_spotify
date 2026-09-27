@@ -466,7 +466,7 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   v: garder
   owner_v: a-trancher
   owner: "Je ne comprends pas la cohorte ni la décision."
-  note: "Médiane + P25–P75 ; « Ce titre » n'est pas tracé (seulement nommé) — à vérifier."
+  note: "R247 : la cohorte expliquée en une ligne au-dessus des courbes, le trait « Ce titre » visible (il était blanc), et un verdict écrit sous la position : relancer sous la moitié d'un titre typique de son âge, surveiller sous la médiane, laisser tourner au-dessus."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   q: "Mes revenus suivent-ils ma dépense Meta ?"
   role: meta
@@ -477,7 +477,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   owner_v: corriger
   owner: "Cool ; sans équation ni R² ; quelle décision ?"
   cause: ajustement-trompeur
-  note: "Une régression « R² = 1,00 » tracée sur UN point (2024-04) — trompeur. Refuser la droite sous un minimum de points."
+  note: "R247 : équation, R² et p retirés de l'écran ; ils décident la phrase dessous — « tes revenus ne suivent pas ta pub » (p ≥ 0,05, le cas de l'artiste 1 sur 12 mois), « chaque euro revient à k € » sinon."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   q: "Quand la pub aura-t-elle été remboursée ?"
   role: meta
@@ -489,7 +489,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   owner: "Pas mal ; retirer la popularité 0 ; ajouter SACEM, tous les revenus, et le coût de distribution (10–30 €) en charge."
   cause: ajustement-trompeur
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
-src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
+src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
   role: prediction
   d: 3
@@ -499,7 +499,7 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   owner_v: a-trancher
   owner: "Je ne comprends pas la valeur ajoutée : refais."
   cause: modele-degenere
-  note: "Refait par R216 : les quatre nuages RR, Radio, DW… deviennent un seul, qui ne trace plus une prévision que la porte supprime (RR à 0 était la vraie sortie du modèle pour des titres de 2-3 ans, pas un défaut de scoring). À regarder au prochain dossier."
+  note: "R247 : refait — le volume prévu contre les streams d'algorithme SAISIS dans S4A (même grandeur, 28 j), par titre. Sur l'instantané : Radio prévoit 1 à 11 streams, S4A en constate 0 sur 11 titres → « le modèle surestime »."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#1:
   q: "Qu'est-ce qui pousse la prédiction (SHAP) ?"
   role: prediction
@@ -550,7 +550,7 @@ src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   owner_v: a-trancher
   owner: "Je ne comprends pas l'intérêt : modifie et explique."
   cause: modele-degenere
-  note: "P(DW) plate à ~15 % de 0 à 200 k streams/7 j — le modèle ne réagit pas au levier qu'il prétend mesurer. Cohérent avec des probabilités au plancher ; à ne pas montrer tel quel."
+  note: "R247 : la question écrite au-dessus (« si tu poussais ce seul levier… »), la valeur actuelle en tirets gris (elle était blanche), et un verdict : courbe plate (< 2 points sur toute la plage) ou levier qui compte."
 src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   q: "La prédiction d'hier s'est-elle vérifiée ?"
   role: prediction
@@ -560,7 +560,7 @@ src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   v: garder
   owner_v: a-trancher
   owner: "Je ne comprends pas la plus-value ni la décision."
-  note: "11–12 % prédits, 0 streams algo constatés — la bonne confrontation prédiction/réalité, et elle dit que le modèle n'a encore rien prouvé."
+  note: "R247 : ce que la figure vérifie, écrit au-dessus ; la décision dessous — trop tôt sous 10 titres, sinon « le modèle attendait n déclenchements, aucun n'est arrivé : choisis sur les leviers »."
 src/dashboard/utils/s4a_entry_insight.py::render_playlist_history#1:
   q: "Mes ajouts en playlist progressent-ils entre deux saisies ?"
   role: plateforme
@@ -614,7 +614,7 @@ src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   v: garder
   owner_v: a-trancher
   owner: "Je ne comprends pas la valeur d'un déclenchement ni la décision : refais."
-  note: "Valeur d'un déclenchement vs espérance catalogue — lisible, médiane marquée."
+  note: "R247 : « déclenchement » et ses deux barres expliqués avant la figure ; la décision après — combien de déclenchements combleraient le manque (≈ 121 sur l'artiste 1) : les algorithmes apportent des auditeurs, pas de quoi rembourser la pub."
 
 # ── Administration et santé de l'app ─────────────────────────────────────────
 src/dashboard/views/alerts.py::_section_plan_evolution#1:

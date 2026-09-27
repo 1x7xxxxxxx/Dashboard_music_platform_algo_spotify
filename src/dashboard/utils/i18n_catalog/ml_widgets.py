@@ -28,7 +28,17 @@ EN = {
     "ml_widgets.sens_gain": " Moving from **{cur:,.0f}** to the target **{target:,.0f}** {unit}: "
                             "P({algo}) **{cur_p:.0f}% → {tp:.0f}%** ({delta:+.0f} pts).",
     "ml_widgets.sens_curve_title": "P({algo}) by « {label} »",
-    "ml_widgets.sens_current": "White line = current value (~{cur:,.0f} {unit}).",
+    "ml_widgets.sens_current": "Grey dashes = current value (~{cur:,.0f} {unit}).",
+    "ml_widgets.sens_plain": (
+        "The question: if you pushed **this one lever**, the rest of the track unchanged, "
+        "would the chance the model gives {algo} go up? A flat curve means no — this "
+        "lever alone is not enough."),
+    "ml_widgets.sens_flat": (
+        "➖ **Flat curve**: pushing « {label} » alone does not change the model's view of "
+        "this track. Do not bet everything on this lever."),
+    "ml_widgets.sens_moves": (
+        "📈 **This lever matters**: across the whole range, the chance moves by {span:.0f} "
+        "points. It is a lever worth pushing."),
     "ml_widgets.sens_local_caveat": "⚠️ *Local* sensitivity to this track — not a general rule "
                                     "(the model is non-linear; the effect depends on the other "
                                     "variables).",

@@ -185,6 +185,11 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
         return
     st.markdown(t("ml_widgets.sens_title",
                   "**🎛️ Sensibilité locale — bouger un levier sur CE titre**"))
+    # R247 (fiche 57, owner : « je ne comprends pas l'intérêt : modifie et explique »).
+    st.caption(t("ml_widgets.sens_plain",
+                 "La question : si tu poussais **ce seul levier**, tout le reste du titre "
+                 "inchangé, la chance que le modèle donne à {algo} monterait-elle ? Une "
+                 "courbe plate veut dire non — ce levier seul ne suffit pas.").format(algo=algo))
     choice = st.selectbox(t("ml_widgets.sens_select", "Levier à simuler"),
                           list(levers), key=f"sens_sel_{algo}")
     fid, spec = levers[choice]
@@ -209,7 +214,7 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     fig.add_trace(go.Scatter(x=[to_ax(x) for x in xs], y=probs, customdata=xs, mode="lines",
                              line=dict(color="#1DB954", width=3),
                              hovertemplate="%{customdata:,.0f} → %{y:.1f} %<extra></extra>"))
-    fig.add_vline(x=to_ax(cur), line_color="#ffffff", line_dash="dash", line_width=2)
+    fig.add_vline(x=to_ax(cur), line_color="#666666", line_dash="dash", line_width=2)
     if res.get("log_scale"):
         ticks = [v for v in (0, 10, 100, 1_000, 10_000, 100_000, 1_000_000) if v <= xs[-1]]
         fig.update_xaxes(tickvals=[to_ax(v) for v in ticks],
@@ -231,11 +236,30 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
                       yaxis_range=[0, 100])
     charts.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
     st.caption(t("ml_widgets.sens_current",
-                 "Trait blanc = valeur actuelle (~{cur:,.0f} {unit})."
+                 "Tirets gris = valeur actuelle (~{cur:,.0f} {unit})."
                  ).format(cur=cur, unit=unit) + gain_msg)
+    st.markdown(sensitivity_verdict(probs, label_text(fid, spec)))
     st.caption(t("ml_widgets.sens_local_caveat",
                  "⚠️ Sensibilité *locale* à ce titre — pas une règle générale "
                  "(le modèle est non-linéaire ; l'effet dépend des autres variables)."))
+
+
+# Below this span (in points of probability) across the whole sweep, the curve is FLAT:
+# the model's opinion does not move with this lever. 2 points = about the width of the
+# line on a 0-100 axis; the note of 2026-09-27 measured P(DW) at ~15 % from 0 to 200 k.
+_FLAT_SPAN_PTS = 2.0
+
+
+def sensitivity_verdict(probs_pct, label: str) -> str:
+    """The decision a sensitivity curve supports, in words. Pure."""
+    span = max(probs_pct) - min(probs_pct) if probs_pct else 0.0
+    if span < _FLAT_SPAN_PTS:
+        return t("ml_widgets.sens_flat",
+                 "➖ **Courbe plate** : pousser « {label} » seul ne change pas l'avis du "
+                 "modèle sur ce titre. Ne mise pas tout sur ce levier.").format(label=label)
+    return t("ml_widgets.sens_moves",
+             "📈 **Ce levier compte** : sur toute la plage, la chance bouge de {span:.0f} "
+             "points. C'est un levier à pousser.").format(span=span)
 
 
 # ── Calibration badge ─────────────────────────────────────────────────────────

@@ -106,6 +106,18 @@ EN = {
         "\n\nYour catalogue of **{k} tracks** expects **{e} €** in total, that "
         "is **{u} € per track**. To close the **{c} €** between you and "
         "break-even, it would take about **{n}** more, at the same level."),
+    "revenue_forecast.trigger_plain": (
+        "A **trigger** is an algorithm (Discover Weekly, Release Radar, Radio) starting to "
+        "push your track. Pale bar: what a track that triggers usually earns (its median "
+        "streams × what one stream pays you). Green bar: what your tracks can expect from "
+        "it, given their real chance."),
+    "revenue_forecast.trigger_small": (
+        "**The decision**: it would take about **{n}** triggers at {v} € to cover your costs. "
+        "The algorithms bring you listeners, not enough to pay back your ads — judge your "
+        "ads on the streams they buy, and your costs on what they bring."),
+    "revenue_forecast.trigger_worth": (
+        "**The decision**: a trigger brings up to {v} €, on the scale of what you are "
+        "missing — push the track closest to a gate (Road to Algo)."),
     "revenue_forecast.trigger_caption": (
         "At **{tx} € per stream** — your real rate, measured over {s} streams "
         "paid {r} € by your distributor.\n\n"

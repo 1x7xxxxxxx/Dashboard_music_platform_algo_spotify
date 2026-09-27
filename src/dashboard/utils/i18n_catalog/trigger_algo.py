@@ -105,26 +105,11 @@ EN = {
         "accuracy per algo, and the forecast volume next to the observed streams. To judge "
         "how much you can trust the probabilities shown in the other tabs."
     ),
-    "trigger_algo.model.actual_vs_pred": "📊 Model volume forecast and observed streams",
-    "trigger_algo.model.insufficient_history": (
-        "Insufficient history (minimum 2 predictions with streams_7d filled in)."
-    ),
-    "trigger_algo.model.dw_forecast": "**DW forecast**",
-    "trigger_algo.model.rr_forecast": "**RR forecast**",
-    "trigger_algo.model.radio_forecast": "**Radio forecast**",
     "trigger_algo.model.volume_suppressed": (
         "Volume not predicted: the volume regressor is not reliable enough to be "
         "shown. Trust the probability, not the volume."
     ),
     "trigger_algo.model.no_volume_pred": "No {label} volume forecast for this track.",
-    "trigger_algo.model.x_floor": "Predicted {label} floor ({label}-sourced streams, 28 d)",
-    "trigger_algo.model.y_all_streams": "Observed streams, all sources (7 d)",
-    "trigger_algo.model.axes_differ": (
-        "The two axes do not measure the same thing: the model predicts a floor of "
-        "{label}-sourced streams over 28 days, the vertical axis counts every stream of "
-        "the track over 7 days. No data measures {label}-sourced streams alone: this view "
-        "shows a trend, not the model's error."
-    ),
     "trigger_algo.model.chart_unavailable": "Actual vs Predicted chart unavailable: {err}",
 
     # _tab_algos.py
@@ -231,21 +216,44 @@ EN = {
         "independently of the period chosen at the top: a monthly regression needs "
         "several months, which a J+28 window cannot provide."
     ),
+    "trigger_algo.roi.trace_trend": "Trend",
+    "trigger_algo.roi.decision_none": (
+        "**Over {n} months, your revenue does not follow your ads** — the months you spent "
+        "more did not bring more. Judge your ads on the streams they bring (Meta tabs), "
+        "not on your sales."),
+    "trigger_algo.roi.decision_pays": (
+        "**Over {n} months, each euro of ads brought back about {k} € of revenue** — ads pay "
+        "for themselves in sales: you can raise them carefully."),
+    "trigger_algo.roi.decision_short": (
+        "**Over {n} months, each euro of ads only brought back about {k} € of revenue** — "
+        "they do not pay for themselves in sales: keep them for the streams they bring, or "
+        "lower them."),
+    "trigger_algo.model.forecast_vs_recorded": (
+        "📊 Volume forecast by the model and algorithm streams recorded"),
+    "trigger_algo.model.no_recorded": (
+        "No S4A reading of DW / RR / Radio streams (📝 S4A entry, 28-day window) for this "
+        "artist: nothing to set against the model."),
+    "trigger_algo.model.bar_predicted": "Forecast",
+    "trigger_algo.model.bar_recorded": "Recorded (S4A)",
+    "trigger_algo.model.y_algo_streams": "Streams from {label}, 28 d",
+    "trigger_algo.model.verdict_over": (
+        "**The model overestimates**: it forecasts {p:.0f} streams (median), S4A recorded "
+        "{r:.0f} across {n} tracks. Do not show this volume as a promise."),
+    "trigger_algo.model.verdict_under": (
+        "**The model underestimates**: {p:.0f} forecast (median), {r:.0f} recorded across "
+        "{n} tracks — a cautious floor, not a forecast."),
+    "trigger_algo.model.verdict_close": (
+        "**Same order of magnitude**: {p:.0f} forecast (median), {r:.0f} recorded across "
+        "{n} tracks — the volume can be shown."),
     "trigger_algo.roi.trace_monthly": "Monthly",
-    "trigger_algo.roi.trace_regression": "Regression (R²={r2:.2f})",
     "trigger_algo.roi.regression_chart_title": "iMusician Revenue (€) vs Meta Ads Spend (€)",
     "trigger_algo.roi.axis_meta_spend": "Meta Ads spend (€)",
     "trigger_algo.roi.axis_imusician_revenue": "iMusician revenue (€)",
-    "trigger_algo.roi.r2_help": "1.0 = perfect spend↔revenue correlation",
-    "trigger_algo.roi.slope_metric": "Slope",
-    "trigger_algo.roi.slope_help": "Revenue generated per € invested in Meta Ads",
-    "trigger_algo.roi.pvalue_help": "< 0.05 = statistically significant correlation",
     "trigger_algo.roi.insufficient_data": (
         "Insufficient data: at least {n} months are needed where Meta Ads spend "
         "AND distributor revenue coexist. Below that, a line passes almost exactly "
         "through the points and R² measures nothing."
     ),
-    "trigger_algo.roi.n_months_caption": "Fitted on n = {n} months",
     "trigger_algo.roi.no_revenue_spend": (
         "No revenue/spend data to compute the ROI regression "
         "(no month with Meta Ads spend + iMusician revenue in the history)."
@@ -451,6 +459,19 @@ EN = {
     "trigger_algo.common.std_no_streams": "Track streams unavailable.",
     "trigger_algo.common.std_position_metric": "Position vs cohort (bracket {bin})",
     "trigger_algo.common.std_vs_median": "{pct:+.0f}% vs median",
+    "trigger_algo.common.verdict_relaunch": (
+        "🔻 **Less than half a typical track of its age** — it is dropping off: time to "
+        "relaunch it (ads, playlist pitch, content)."),
+    "trigger_algo.common.verdict_watch": (
+        "➖ **Below a typical track of its age, not dropping off** — keep an eye on it; "
+        "relaunch it if it falls under half."),
+    "trigger_algo.common.verdict_hold": (
+        "✅ **Above a typical track of its age** — let it run, put your effort on a track "
+        "that is dropping off."),
+    "trigger_algo.lifecycle.cohort_plain": (
+        "**The cohort** = the training-set tracks, sorted by age. Each curve says what a "
+        "typical track gets from the algorithm **at each age** (band = the middle half of "
+        "tracks). The dashed line = your track's age; the verdict is further down."),
     "trigger_algo.common.std_ratio_caption": (
         "Ratio based on the **total** streams (all sources, 28d). The "
         "per-algorithm breakdown comes from the global cohort and is NOT "
@@ -469,7 +490,7 @@ EN = {
         "- 🧗 **Cliff** (Release Radar, after wk 5-6): RR targets newness, exposure drops fast.\n"
         "- ♾️ **No expiry** (Discover Weekly): DW can re-expose a track durably.\n\n"
         "Curves = P25-P75 band + median of a **global** cohort (static). "
-        "White vertical line = your track's current age."
+        "Dashed vertical line = your track's current age."
     ),
 
     # ── Feature display labels (rendered via ml_widgets.label_text) ────────────

@@ -340,3 +340,14 @@ def trigger_expectation(db, artist_id: int, valeurs: pd.DataFrame) -> dict | Non
     date = pd.to_datetime(df['prediction_date']).max()
     return {'par_algo': pd.DataFrame(lignes), 'titres': int(df.shape[0]),
             'date': date.date() if pd.notna(date) else None, 'total': total}
+
+
+def trigger_decision(best_value: float, gap: float | None) -> tuple[str, float | None]:
+    """R247 (fiche 64, owner : « je ne comprends pas la valeur d'un déclenchement ni la
+    décision »). What a trigger is worth, set against what the artist is missing to break
+    even. ('small', n) when even `n` = gap ÷ best value triggers would be needed and n > 10
+    — the algorithms bring listeners, not the money; ('worth', None) otherwise. Pure."""
+    if gap is None or gap <= 0 or best_value <= 0:
+        return "worth", None
+    n = gap / best_value
+    return ("small", n) if n > 10 else ("worth", None)

@@ -63,6 +63,17 @@ def fit_spend_revenue(df: pd.DataFrame | None) -> dict | None:
             "p_value": float(res.pvalue), "x": x, "y": y, "labels": labels}
 
 
+def fit_decision(fit: dict) -> tuple[str, float | None]:
+    """R247 (fiche 45, owner 2026-09-27 : « sans équation ni R² ; quelle décision ? »).
+
+    ('none', None) when the link is not significant at 5 % — the only honest reading is
+    that the months do not show one; ('pays', slope) when a significant euro of ads brings
+    back at least one euro of revenue; ('short', slope) when it brings back less. Pure."""
+    if fit["p_value"] >= 0.05 or fit["slope"] <= 0:
+        return "none", None
+    return ("pays" if fit["slope"] >= 1 else "short"), fit["slope"]
+
+
 def _daily(df: pd.DataFrame | None, col: str) -> pd.Series:
     """A date-indexed series summed per day, empty when there is nothing measured."""
     if df is None or df.empty:

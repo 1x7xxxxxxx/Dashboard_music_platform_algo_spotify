@@ -67,9 +67,11 @@ def _script() -> None:
 
     class _FakeDB:
         def fetch_df(self, _query, _params=None):
+            # R247 (fiche 51): one row per title — the S4A reading of each algorithm's
+            # 28-day streams, and the latest forecast made before it.
             return pd.DataFrame({
-                "prediction_date": ["2026-09-01", "2026-09-08", "2026-09-15"],
-                "actual": ACTUAL,
+                "song": ["a", "b", "c"],
+                "dw_streams": ACTUAL, "rr_streams": ACTUAL, "radio_streams": ACTUAL,
                 "predicted_dw": FORECASTS["DW"],
                 "predicted_rr": FORECASTS["RR"],
                 "predicted_radio": FORECASTS["RADIO"],
@@ -94,17 +96,21 @@ def _traces(at: AppTest) -> list[dict]:
 
 
 def _drawn_x(at: AppTest) -> list[list[float]]:
-    """Numeric x-series of every drawn trace; date/category axes are skipped."""
+    """Numeric x- AND y-series of every drawn trace; date/category axes are skipped.
+
+    Both axes: since R247 (fiche 51) a forecast is a bar HEIGHT per title, no longer an x
+    position — reading x alone would have let a suppressed forecast through as a bar."""
     out = []
     for tr in _traces(at):
-        xs = tr.get("x", [])
-        assert isinstance(xs, list), (
-            f"x is not a plain list ({type(xs).__name__}): the serialization changed, "
-            f"this guard can no longer read what is drawn")
-        try:
-            out.append([float(v) for v in xs])
-        except (TypeError, ValueError):
-            continue
+        for axis in ("x", "y"):
+            vals = tr.get(axis, [])
+            assert isinstance(vals, list), (
+                f"{axis} is not a plain list ({type(vals).__name__}): the serialization "
+                f"changed, this guard can no longer read what is drawn")
+            try:
+                out.append([float(v) for v in vals])
+            except (TypeError, ValueError):
+                continue
     return out
 
 

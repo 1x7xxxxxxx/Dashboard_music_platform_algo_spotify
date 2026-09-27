@@ -293,7 +293,10 @@ _FLOOR: dict[str, int] = {
     #
     # Trois tuiles neuves les remplacent : cumul net, rythme actuel, point mort.
     # Le plancher baisse DANS LE MÊME commit, comme ce cliquet l'exige.
-    "tiles.total": 168,
+    # 2026-09-27 (R247) : 168 → 166 — fiche 45 (owner : « sans équation ni R² ») loses
+    # its three fit tiles (R², slope, p-value), which now decide the sentence under the
+    # chart; fiche 44 gains one (the written verdict under the cohort position).
+    "tiles.total": 166,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

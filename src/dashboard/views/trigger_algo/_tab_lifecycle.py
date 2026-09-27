@@ -40,6 +40,12 @@ def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
     c2.caption(t("trigger_algo.lifecycle.release_caption",
                  "Sortie : {release} · tranche {bin} · courbes = cohorte globale statique")
                .format(release=release_date or '—', bin=live_bin or '—'))
+    # R247 (fiche 44, « je ne comprends pas la cohorte ») : what the curves are, in one line.
+    st.markdown(t("trigger_algo.lifecycle.cohort_plain",
+                  "**La cohorte** = les titres du jeu d'entraînement, rangés par âge. Chaque "
+                  "courbe dit ce qu'un titre typique reçoit de l'algorithme **à chaque âge** "
+                  "(bande = la moitié des titres du milieu). Le trait en tirets = l'âge de "
+                  "ton titre ; le verdict est plus bas."))
     _lifecycle_legend()
 
     for algo in ("DW", "RR", "RADIO"):

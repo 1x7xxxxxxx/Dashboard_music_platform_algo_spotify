@@ -336,23 +336,21 @@ def _show_roi_regression(db, artist_id) -> None:
 
 
 def _render_fit(fit: dict) -> None:
+    """R247 (fiche 45) — the months and the trend, then the DECISION in words. The
+    equation, R² and p-value are gone from the page (owner : « sans équation ni R² ») :
+    they decide the verdict below, they are not what the artist acts on."""
+    from src.dashboard.utils.roi_verdicts import fit_decision
     x, y = fit["x"], fit["y"]
-    slope, intercept, r2 = fit["slope"], fit["intercept"], fit["r2"]
     x_line = np.linspace(x.min(), x.max(), 100)
-    y_line = slope * x_line + intercept
     fig_roi = go.Figure()
     fig_roi.add_trace(go.Scatter(
         x=x, y=y, mode="markers+text", text=fit["labels"], textposition="top center",
         name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
         marker=dict(color="#1DB954", size=10)))
     fig_roi.add_trace(go.Scatter(
-        x=x_line, y=y_line, mode="lines",
-        name=t("trigger_algo.roi.trace_regression", "Régression (R²={r2:.2f})").format(r2=r2),
+        x=x_line, y=fit["slope"] * x_line + fit["intercept"], mode="lines",
+        name=t("trigger_algo.roi.trace_trend", "Tendance"),
         line=dict(color="#FF6B6B", width=2, dash="dash")))
-    fig_roi.add_annotation(
-        x=x.max(), y=y_line[-1],
-        text=f"y = {slope:.2f}x + {intercept:.2f}<br>R² = {r2:.2f} · n = {fit['n']}",
-        showarrow=False, bgcolor="#222", font=dict(color="white"), bordercolor="#555")
     fig_roi.update_layout(
         title=t("trigger_algo.roi.regression_chart_title",
                 "Revenue iMusician (€) vs Spend Meta Ads (€)"),
@@ -360,15 +358,21 @@ def _render_fit(fit: dict) -> None:
         yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
         height=420, hovermode="closest")
     charts.plotly_chart(fig_roi, width='stretch')
-    rc1, rc2, rc3, rc4 = st.columns(4)
-    rc1.metric("R²", f"{r2:.3f}",
-               help=t("trigger_algo.roi.r2_help", "1.0 = corrélation parfaite spend↔revenue"))
-    rc2.metric(t("trigger_algo.roi.slope_metric", "Pente"), f"{slope:.2f} €/€",
-               help=t("trigger_algo.roi.slope_help", "Revenue généré par € investi en Meta Ads"))
-    rc3.metric("p-value", f"{fit['p_value']:.3f}",
-               help=t("trigger_algo.roi.pvalue_help",
-                      "< 0.05 = corrélation statistiquement significative"))
-    rc4.caption(t("trigger_algo.roi.n_months_caption", "Ajusté sur n = {n} mois").format(n=fit["n"]))
+    kind, slope = fit_decision(fit)
+    text = {
+        "none": t("trigger_algo.roi.decision_none",
+                  "**Sur {n} mois, tes revenus ne suivent pas ta pub** — les mois où tu as "
+                  "plus dépensé n'ont pas rapporté plus. Juge ta pub sur les écoutes qu'elle "
+                  "apporte (onglets Meta), pas sur tes ventes."),
+        "pays": t("trigger_algo.roi.decision_pays",
+                  "**Sur {n} mois, chaque euro de pub a ramené environ {k} € de revenus** — "
+                  "la pub se rembourse en ventes : tu peux l'augmenter prudemment."),
+        "short": t("trigger_algo.roi.decision_short",
+                   "**Sur {n} mois, chaque euro de pub n'a ramené qu'environ {k} € de "
+                   "revenus** — elle ne se rembourse pas en ventes : garde-la pour ce "
+                   "qu'elle apporte en écoutes, ou baisse-la."),
+    }[kind]
+    st.markdown(text.format(n=fit["n"], k=f"{slope:.2f}".replace(".", ",") if slope else ""))
 
 
 def _load_breakeven_frames(db, track: str, artist_id):

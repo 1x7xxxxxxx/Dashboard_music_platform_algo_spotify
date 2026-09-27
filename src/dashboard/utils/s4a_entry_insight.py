@@ -207,6 +207,12 @@ def _bar_label(dw, rr, radio) -> str:
 def render_prediction_vs_reality(db, artist_id: int) -> None:
     """Ce que le modèle pariait, et ce qui est arrivé — avec l'effectif en face."""
     st.subheader(t("s4a_insight.bet_header", "🎲 Le pari du modèle, et ce qui est arrivé"))
+    # R247 (fiche 58, owner : « je ne comprends pas la plus-value ni la décision »).
+    st.caption(t("s4a_insight.bet_plain",
+                 "À gauche, la chance que le modèle donnait à chaque titre ; à droite, les "
+                 "streams que les algorithmes lui ont vraiment apportés (ta saisie S4A). "
+                 "C'est le seul endroit où l'on vérifie si ses pourcentages valent quelque "
+                 "chose."))
     try:
         rows = db.fetch_query(
             """
@@ -289,6 +295,29 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
         "n'est PAS un taux d'erreur : sur un effectif de {n}, l'écart attendu par le "
         "seul hasard est du même ordre. La figure montre le pari, elle ne le juge pas."
     ).format(d=declenches, n=n, a=attendu))
+    st.markdown(bet_decision(declenches, attendu, n))
+
+
+# Below this many titles with both a prediction and a reading, no comparison can separate
+# a wrong model from chance (a binomial on 10 draws at p = 0.1 already spans 0 to 3).
+_MIN_BET_TITLES = 10
+
+
+def bet_decision(triggered: int, expected: float, n: int) -> str:
+    """What the confrontation lets the artist decide. Pure."""
+    if n < _MIN_BET_TITLES:
+        return t("s4a_insight.bet_too_early",
+                 "⏳ **Trop tôt pour juger le modèle** ({n} titre(s), il en faut {m}). "
+                 "Continue de saisir tes résultats chaque mois : c'est ce qui dira si ses "
+                 "pourcentages sont fiables.").format(n=n, m=_MIN_BET_TITLES)
+    if triggered == 0 and expected >= 1:
+        return t("s4a_insight.bet_over",
+                 "🔻 **Le modèle attendait {a:.1f} déclenchement(s), aucun n'est arrivé** — "
+                 "ne choisis pas un titre sur son pourcentage ; choisis-le sur ses leviers "
+                 "(Road to Algo, onglet « 🎧 Ce titre : ce qu'il reste à faire »).").format(a=expected)
+    return t("s4a_insight.bet_consistent",
+             "✅ **Ce qui est arrivé reste dans ce que le modèle annonçait** — ses "
+             "pourcentages peuvent guider ton choix, sans le trancher seuls.")
 
 
 def render_playlist_history(db, artist_id: int) -> None:

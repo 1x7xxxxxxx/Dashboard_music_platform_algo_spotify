@@ -48,7 +48,9 @@ def _lifecycle_band_fig(curve_df, algo_label, live_order, color):
     fig.add_hline(y=1.0, line_dash="dot", line_color="grey",
                   annotation_text=t("trigger_algo.common.band_category_avg", "Moyenne catégorie (1.0×)"))
     if live_order is not None:
-        fig.add_vline(x=live_order, line_dash="dash", line_color="#ffffff",
+        # R247 (fiche 44) : the marker was WHITE — invisible on a light page, the owner read
+        # the chart without « this track » on it.
+        fig.add_vline(x=live_order, line_dash="dash", line_color="#666666",
                       annotation_text=t("trigger_algo.common.band_this_track", "Ce titre"),
                       annotation_position="top")
     fig.update_layout(title=t("trigger_algo.common.band_chart_title",
@@ -101,12 +103,30 @@ def _standardization_block(db, track, artist_id, age_weeks, benchmark_df):
               .format(bin=bin_label), f"{ratio:.2f}×",
               delta=t("trigger_algo.common.std_vs_median", "{pct:+.0f}% vs médiane")
               .format(pct=(ratio - 1) * 100))
+    st.markdown(cohort_verdict(ratio))
     st.caption(t(
         "trigger_algo.common.std_ratio_caption",
         "Ratio basé sur le **total** des streams (toutes sources, 28j). La "
         "répartition par algorithme provient de la cohorte globale et n'est PAS "
         "mesurée sur ce titre."
     ))
+
+
+def cohort_verdict(ratio: float) -> str:
+    """R247 (fiche 44, « quelle décision ? ») — the ratio to the median of tracks of the
+    same age, turned into what to do. Only the MEDIAN is exported for total streams (no
+    P25), so the thresholds are fractions of it, and said. Pure."""
+    if ratio < 0.5:
+        return t("trigger_algo.common.verdict_relaunch",
+                 "🔻 **Moins de la moitié d'un titre typique de son âge** — il décroche : "
+                 "c'est le moment de le relancer (pub, pitch de playlist, contenu).")
+    if ratio < 1.0:
+        return t("trigger_algo.common.verdict_watch",
+                 "➖ **Sous un titre typique de son âge, sans décrocher** — à surveiller ; "
+                 "relance-le s'il passe sous la moitié.")
+    return t("trigger_algo.common.verdict_hold",
+             "✅ **Au-dessus d'un titre typique de son âge** — laisse-le tourner, mets ton "
+             "effort sur un titre qui décroche.")
 
 
 def _lifecycle_legend():
@@ -125,5 +145,5 @@ def _lifecycle_legend():
             "- 🧗 **Falaise** (Release Radar, après sem. 5-6) : RR cible la nouveauté, l'exposition chute vite.\n"
             "- ♾️ **Pas d'expiration** (Discover Weekly) : DW peut ré-exposer un titre durablement.\n\n"
             "Courbes = bande P25-P75 + médiane d'une cohorte **globale** (statique). "
-            "Ligne verticale blanche = âge actuel de votre titre."
+            "Ligne verticale en tirets = âge actuel de ton titre."
         ))

@@ -700,6 +700,13 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
     esp = ({r['algo']: r for _, r in espoir['par_algo'].iterrows()}
            if espoir else {})
 
+    # R247 (fiche 64) — what « a trigger » and its value are, before the bars.
+    st.caption(t("revenue_forecast.trigger_plain",
+                 "Un **déclenchement**, c'est un algorithme (Discover Weekly, Release Radar, "
+                 "Radio) qui se met à pousser ton titre. Barre pâle : ce que rapporte "
+                 "d'habitude un titre qui déclenche (ses écoutes médianes × ce qu'une écoute "
+                 "te paie). Barre verte : ce que tes titres peuvent en espérer, vu leur "
+                 "chance réelle."))
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=valeurs['valeur_eur'], y=valeurs['nom'], orientation='h',
@@ -784,6 +791,23 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
              d=(t("revenue_forecast.pred_dated", " (prédictions du {d})").format(
                  d=format_date(espoir["date"]))
                 if espoir and espoir.get('date') else "")) + manque)
+    st.markdown(_trigger_decision_text(float(valeurs['valeur_eur'].max()), pm))
+
+
+def _trigger_decision_text(best: float, gap: float | None) -> str:
+    from src.dashboard.utils.artist_cashflow import trigger_decision
+    kind, n = trigger_decision(best, gap)
+    if kind == "small":
+        return t("revenue_forecast.trigger_small",
+                 "**La décision** : il faudrait environ **{n}** déclenchements à {v} € pour "
+                 "rentrer dans tes frais. Les algorithmes t'apportent des auditeurs, pas de "
+                 "quoi rembourser ta pub — juge ta pub sur les écoutes qu'elle achète, et "
+                 "tes frais sur ce qu'ils rapportent.").format(
+                     n=f"{n:,.0f}".replace(",", " "), v=f"{best:,.2f}".replace(",", " "))
+    return t("revenue_forecast.trigger_worth",
+             "**La décision** : un déclenchement rapporte jusqu'à {v} €, à l'échelle de ce "
+             "qui te manque — pousse le titre le plus proche d'une porte (Road to Algo)."
+             ).format(v=f"{best:,.2f}".replace(",", " "))
 
 
 def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
