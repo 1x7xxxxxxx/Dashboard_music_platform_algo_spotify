@@ -11,6 +11,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
@@ -426,7 +427,7 @@ def _section_plan_evolution(db) -> None:
     fig = px.area(
         chart_df, x='Date', y='Artistes', color='Plan',
         category_orders={'Plan': ['Free', 'Basic', 'Premium']},
-        color_discrete_map={'Free': '#9E9E9E', 'Basic': '#2196F3', 'Premium': '#1DB954'},
+        color_discrete_map={'Free': NEUTRE, 'Basic': ATTENTION, 'Premium': BON},
         title=t("alerts.plan_chart_title", "Évolution du nombre d'artistes — total et par plan"),
     )
     # Explicit total-artists line on top of the per-plan stacked areas.

@@ -60,7 +60,10 @@ _MARQUES = {
 }
 
 # Gelé le 2026-09-21 par la mesure ci-dessus. CE NOMBRE NE PEUT QUE DESCENDRE.
-_PLAFOND = 42
+# 42 → 13 le 2026-09-27 (R260, lot 1) : les vues migrées vers `platform_color`,
+# `ALGO_COLORS` (une palette pour les trois algorithmes, au lieu de quatre) et les
+# couleurs sémantiques. Restent les modules PDF et la pastille de fraîcheur.
+_PLAFOND = 13
 
 # Le module qui PORTE la palette écrit forcément ces valeurs : c'est sa raison
 # d'être. L'exemption est nominative — un fichier ajouté à côté rougit.
@@ -129,11 +132,11 @@ def test_the_counter_is_not_vacuous() -> None:
     assert len(fichiers) >= 50, (
         f"{len(fichiers)} fichier(s) balayé(s) sous {_DASH.name}/ — il y en avait "
         "bien plus le 2026-09-21. Le parcours est devenu aveugle.")
-    total = sum(_compte().values())
-    assert total >= 20, (
-        f"{total} couleur(s) vues — il y en avait 42 le 2026-09-21. Une chute "
-        "brutale est soit une vraie migration (baisse alors le plafond dans le "
-        "même commit), soit un compteur cassé.")
+    # Le plancher de population (« >= 20 ») est retiré le 2026-09-27 (R260) : il
+    # interdisait d'atteindre 0, qui est le BUT du cliquet. Que le compteur voit une
+    # couleur réellement écrite est prouvé par la sonde synthétique de
+    # `test_the_detector_ignores_a_colour_named_in_prose` — une preuve qui ne dépend pas
+    # du nombre de sites restants.
 
 
 def test_the_detector_ignores_a_colour_named_in_prose(tmp_path) -> None:

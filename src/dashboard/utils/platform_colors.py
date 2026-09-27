@@ -161,3 +161,19 @@ def is_dark() -> bool:
 # visions, inside the light-theme lightness band, gave these five — worst pair ΔE 26.5.
 # Guard: tests/test_every_chart_goes_through_the_door.py re-measures them.
 DISTINCT: tuple[str, ...] = ("#065fd8", "#fead22", "#1e8b7a", "#ce0700", "#aebde9")
+
+# R260 — ONE palette for the three Spotify algorithms, drawn from DISTINCT. There were
+# four (the release gauges, the streams tab, the model tab, the lifecycle curves), each
+# with its own green for Discover Weekly — the same algorithm in three colours.
+ALGO_COLORS: dict[str, str] = {"DW": DISTINCT[0], "RR": DISTINCT[3], "RADIO": DISTINCT[1]}
+
+# Brand hues with NO measured position in the attributable palette (see the docstring
+# of `platform_color`). Used only where the platform is alone on its page, so the
+# attribution question does not arise — and defined HERE, once, not in each view.
+UNMEASURED_BRAND: dict[str, str] = {"instagram": "#E1306C"}
+
+
+def rgb_string(hex_colour: str) -> str:
+    """`#rrggbb` → `rgb(r,g,b)`, for figures that derive a translucent band from it."""
+    h = hex_colour.lstrip("#")
+    return "rgb({},{},{})".format(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))

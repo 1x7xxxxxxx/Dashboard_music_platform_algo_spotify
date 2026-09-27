@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.platform_colors import DISTINCT, platform_color
 from src.dashboard.utils import filters
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
@@ -164,7 +165,7 @@ def _render_global_perf(df_perf: pd.DataFrame) -> None:
         vals = [float(calc(r)) for _, r in d.iterrows()]
         fig.add_trace(go.Bar(
             x=vals, y=court, orientation='h', showlegend=False,
-            marker={'color': "#1877F2" if i < 3 else "#7f7f7f"},
+            marker={'color': platform_color("meta") if i < 3 else "#7f7f7f"},
             text=[fmt.format(v).replace(",", " ") if pd.notna(v) else "—" for v in vals],
             textposition='outside', cliponaxis=False,
             customdata=noms,
@@ -289,7 +290,7 @@ def _add_streams_row(fig, db, artist_id: int, days) -> None:
     fig.add_trace(go.Scatter(
         x=pd.to_datetime(rows['day']), y=pd.to_numeric(rows['streams'], errors='coerce'),
         name=t("meta_ads_overview.streams_day", "Écoutes Spotify / jour"), mode='lines',
-        connectgaps=False, line=dict(color="#1DB954", width=2)), row=2, col=1)
+        connectgaps=False, line=dict(color=platform_color("spotify"), width=2)), row=2, col=1)
     fig.update_yaxes(title_text=t("meta_ads_overview.streams_axis", "Écoutes"), row=2, col=1)
 
 
@@ -451,9 +452,9 @@ def _show_meta_ads(db, artist_id):
 
         _top = df_chart.sort_values('spend', ascending=False).head(12).iloc[::-1]
         _colonnes = [
-            ('spend', t("meta_ads_overview.budget_eur", "Budget (€)"), '#ff6361', ',.0f'),
-            ('link_clicks', t("meta_ads_overview.link_clicks", "Clics Lien"), '#58508d', ',.0f'),
-            ('cpr', 'CPR (€)', '#bc5090', '.3f'),
+            ('spend', t("meta_ads_overview.budget_eur", "Budget (€)"), DISTINCT[3], ',.0f'),
+            ('link_clicks', t("meta_ads_overview.link_clicks", "Clics Lien"), DISTINCT[0], ',.0f'),
+            ('cpr', 'CPR (€)', DISTINCT[1], '.3f'),   # R260 — the distinct palette
         ]
         fig = make_subplots(
             rows=1, cols=len(_colonnes), shared_yaxes=True, horizontal_spacing=0.05,

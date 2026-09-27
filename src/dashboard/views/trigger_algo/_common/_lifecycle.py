@@ -3,6 +3,7 @@ from datetime import date
 from src.dashboard.utils.i18n import t
 import plotly.graph_objects as go
 import streamlit as st
+from src.dashboard.utils.platform_colors import ALGO_COLORS, rgb_string
 
 
 _LIFECYCLE_AGE_BINS = [
@@ -11,7 +12,8 @@ _LIFECYCLE_AGE_BINS = [
 ]
 
 
-_LIFECYCLE_PALETTE = {"DW": "rgb(0,200,220)", "RR": "rgb(255,165,0)", "RADIO": "rgb(29,185,84)"}
+# R260 — the one algorithm palette, as rgb() because the band derives an rgba() from it.
+_LIFECYCLE_PALETTE = {k: rgb_string(v) for k, v in ALGO_COLORS.items()}
 
 
 _LIFECYCLE_LABELS = {"DW": "💎 Discover Weekly", "RR": "📡 Release Radar", "RADIO": "📻 Radio"}

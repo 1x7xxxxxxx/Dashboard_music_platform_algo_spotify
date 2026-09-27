@@ -12,6 +12,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from src.dashboard.utils import algo_knowledge as ak, charts
+from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.i18n import t
 
 _VERDICT_BADGE = {"malus": "🔴", "neutral": "⬜", "bonus": "🟢"}
@@ -212,7 +213,7 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
     to_ax = (lambda v: float(np.log1p(max(v, 0.0)))) if res.get("log_scale") else float
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=[to_ax(x) for x in xs], y=probs, customdata=xs, mode="lines",
-                             line=dict(color="#1DB954", width=3),
+                             line=dict(color=ALGO_COLORS.get(algo, ALGO_COLORS["DW"]), width=3),
                              hovertemplate="%{customdata:,.0f} → %{y:.1f} %<extra></extra>"))
     fig.add_vline(x=to_ax(cur), line_color="#666666", line_dash="dash", line_width=2)
     if res.get("log_scale"):

@@ -18,6 +18,7 @@ import streamlit as st
 
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.platform_colors import ALGO_COLORS
 
 from src.utils.artist_name_filter import (
     ARTIST_NAME_LIKE as _ARTIST_FILTER,
@@ -26,7 +27,8 @@ from src.dashboard.utils import charts
 from src.dashboard.utils.ui import secondary_analyses
 _WINDOWS = [("7d", "7 jours"), ("28d", "28 jours"), ("custom", "Période perso")]
 _SOURCE_LABELS = {"dw_streams": "Discover Weekly", "rr_streams": "Release Radar", "radio_streams": "Radio"}
-_SOURCE_COLORS = {"Discover Weekly": "#1DB954", "Release Radar": "#F037A5", "Radio": "#FFA726"}
+_SOURCE_COLORS = {"Discover Weekly": ALGO_COLORS["DW"], "Release Radar": ALGO_COLORS["RR"],
+                  "Radio": ALGO_COLORS["RADIO"]}   # R260 — the one algorithm palette
 
 
 def _show_tab_algo_streams(db, song, artist_id):

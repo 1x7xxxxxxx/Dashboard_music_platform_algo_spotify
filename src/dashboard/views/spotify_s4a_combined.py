@@ -60,6 +60,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
+from src.dashboard.utils.platform_colors import platform_color
 from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.followers_agreement import comparer
@@ -68,7 +69,7 @@ from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.filters import smart_period_filter
 from src.dashboard.utils.ui import secondary_analyses
 
-_SPOTIFY_GREEN = "#1DB954"
+_SPOTIFY_GREEN = platform_color("spotify")   # R260 — the measured Spotify green
 _LISTENER_INK = "#7C4DFF"
 _GHOST_INK = "#CFD8DC"
 # Le ratio (§2) et l'indice de popularité (§3, tiroir) vivent chacun sur un axe

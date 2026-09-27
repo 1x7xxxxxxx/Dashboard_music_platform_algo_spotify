@@ -28,12 +28,12 @@ import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES, decode_feature_value
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.labels import unique_short_labels as short_labels  # R209
 
 LEVERS = ("StreamsLast7Days", "NonAlgoStreams28Days", "SavesLast28Days", "PlaylistAddsLast28Days")
 ALGOS = ("DW", "RR", "RADIO")
 ALGO_NAMES = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
-ALGO_COLORS = {"DW": "#065fd8", "RR": "#ce0700", "RADIO": "#fead22"}
 P_TARGET = 0.80
 _OFFSET = (-0.3, 0.0, 0.3)   # one per algorithm, inside a track's slot
 MAX_TRACKS = 5

@@ -19,6 +19,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
@@ -110,7 +111,7 @@ def _tab_mrr(db) -> None:
             mrr_by_plan, x='plan', y='mrr',
             text='mrr', color='plan',
             labels={'plan': 'Plan', 'mrr': 'MRR (€)'},
-            color_discrete_sequence=['#1DB954', '#FF6B35', '#A855F7'],
+            color_discrete_sequence=list(DISTINCT[:3]),
         )
         fig.update_traces(texttemplate='%{text:.2f} €', textposition='outside')
         fig.update_layout(showlegend=False, yaxis_title='MRR (€)')
@@ -206,7 +207,7 @@ def _tab_ltv(db) -> None:
     fig = px.bar(
         ltv_df, x='LTV (€)', y='Durée (mois)', color='Plan',
         orientation='h', barmode='group',
-        color_discrete_sequence=['#1DB954', '#A855F7'],
+        color_discrete_sequence=list(DISTINCT[:2]),
         labels={'LTV (€)': 'LTV estimée (€)', 'Durée (mois)': 'Rétention'},
         text='LTV (€)',
     )
@@ -607,7 +608,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         probas = [esp.get(a, {}).get('proba_moyenne', 0.0) for a in valeurs['algo']]
         fig.add_trace(go.Bar(
             x=ordre, y=valeurs['nom'], orientation='h',
-            marker={'color': "#1DB954"},
+            marker={'color': DISTINCT[0]},
             name=t("revenue_forecast.bar_expect", "Espérance sur ton catalogue"),
             text=[f"{v:,.2f} €".replace(",", " ") for v in ordre],
             textposition='outside', cliponaxis=False,

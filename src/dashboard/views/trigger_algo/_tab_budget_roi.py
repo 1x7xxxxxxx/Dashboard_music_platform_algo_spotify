@@ -2,6 +2,7 @@
 from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak, charts
+from src.dashboard.utils.semantic_colors import BON
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 import numpy as np
@@ -346,7 +347,7 @@ def _render_fit(fit: dict) -> None:
     fig_roi.add_trace(go.Scatter(
         x=x, y=y, mode="markers+text", text=fit["labels"], textposition="top center",
         name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
-        marker=dict(color="#1DB954", size=10)))
+        marker=dict(color=BON, size=10)))
     fig_roi.add_trace(go.Scatter(
         x=x_line, y=fit["slope"] * x_line + fit["intercept"], mode="lines",
         name=t("trigger_algo.roi.trace_trend", "Tendance"),
@@ -494,7 +495,7 @@ def _render_breakeven(be: dict, df_spend_d, df_rev) -> None:
     fig_be.add_trace(go.Scatter(
         x=df_tl["date"], y=df_tl["cumul_revenue"],
         name=t("trigger_algo.roi.trace_cumul_income", "Cumul revenus (ventes + SACEM)"),
-        mode="lines", line=dict(color="#1DB954", width=2),
+        mode="lines", line=dict(color=BON, width=2),
         fill="tozeroy", fillcolor="rgba(29,185,84,0.08)"), row=1, col=1)
     if _head_days > 0:
         _shade(fig_be, _first, covered_start)

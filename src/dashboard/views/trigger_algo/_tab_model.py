@@ -2,6 +2,7 @@
 from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.platform_colors import ALGO_COLORS
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -64,7 +65,7 @@ _RECORDED_SQL = """
 _SCATTER_ALGOS = ("DW", "RR", "RADIO")
 _FORECAST_COL = {"DW": "predicted_dw", "RR": "predicted_rr", "RADIO": "predicted_radio"}
 _ALGO_LABEL = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
-_ALGO_COLOR = {"DW": "#1DB954", "RR": "#4ECDC4", "RADIO": "#FFA500"}
+_ALGO_COLOR = ALGO_COLORS   # R260 — the one algorithm palette
 
 
 _ACTUAL_COL = {"DW": "dw_streams", "RR": "rr_streams", "RADIO": "radio_streams"}

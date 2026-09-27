@@ -51,13 +51,14 @@ from src.dashboard.utils.ui import (
 )
 from src.dashboard.utils.tz import to_local_naive
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.platform_colors import UNMEASURED_BRAND, platform_color
 
 # Instagram n'a PAS de couleur mesurée : sept teintes attribuables sont impossibles
 # dans cette palette (recherche conjointe du 2026-09-21, ΔE 9,6 en clair contre un
 # plancher de 15 — la deutéranopie fait converger un cyan et un violet vers le même
 # bleu). Le détail est dans `platform_colors`. Sa page n'affiche qu'UNE plateforme :
 # la question de l'attribution ne s'y pose pas, et on garde donc sa teinte de marque.
-_IG = "#E1306C"
+_IG = platform_color("instagram", default=UNMEASURED_BRAND["instagram"])
 
 def show():
     # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que sur Apple,
@@ -293,7 +294,7 @@ def show():
                             dfr, x='mois', y='taux', markers=True,
                             title=t("instagram.engagement_rate_title",
                                     "Taux d'engagement ≈ (eng. moyen/post) ÷ abonnés — indicatif"),
-                            color_discrete_sequence=['#E1306C'],
+                            color_discrete_sequence=[_IG],
                             labels={'mois': t("common.month", "Mois")},
                         )
                         fig_r.update_layout(

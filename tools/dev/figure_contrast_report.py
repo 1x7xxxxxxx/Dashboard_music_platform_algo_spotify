@@ -83,8 +83,32 @@ def _normalise(h: str) -> str:
     return "#" + h.lower()
 
 
+# R260 — the colours a figure takes BY NAME. Migrating a literal `#1DB954` to
+# `platform_color("spotify")` made it invisible to this measure: the more the palette was
+# followed, the less the contrast was checked. The names resolve to the SAME source the
+# figure reads, so the measure follows the palette instead of losing it.
+_NAMED = (
+    (re.compile(r"platform_color\(\s*[\"'](\w+)"), "platform"),
+    (re.compile(r"ALGO_COLORS(?:\.get\(|\[)\s*[\"'](\w+)"), "algo"),
+    (re.compile(r"DISTINCT\[(\d)\]"), "distinct"),
+    (re.compile(r"\b(BON|MAUVAIS|ATTENTION|NEUTRE)\b"), "semantic"),
+)
+
+
+def _named(fragment: str) -> list[str]:
+    import sys as _sys
+    from pathlib import Path as _P
+    _sys.path.insert(0, str(_P(__file__).resolve().parents[2]))
+    from src.dashboard.utils import platform_colors as pc, semantic_colors as sc
+    table = {"platform": pc.PALETTE_LIGHT, "algo": pc.ALGO_COLORS,
+             "distinct": {str(i): c for i, c in enumerate(pc.DISTINCT)},
+             "semantic": {k: getattr(sc, k) for k in ("BON", "MAUVAIS", "ATTENTION", "NEUTRE")}}
+    return [_normalise(table[kind][m.group(1)]) for rx, kind in _NAMED
+            for m in rx.finditer(fragment) if m.group(1) in table[kind]]
+
+
 def _couleurs(fragment: str) -> list[str]:
-    out = []
+    out = list(_named(fragment))
     for m in _HEX.finditer(fragment):
         out.append(_normalise(m.group(0)))
     for m in _RGBA.finditer(fragment):
@@ -114,7 +138,9 @@ def _couleurs(fragment: str) -> list[str]:
 _TRACE = re.compile(r"\b(?:add_trace\(|go\.[A-Z]\w*\(|ax\d?\.(?:plot|bar|barh|fill_between|scatter|pie)\()")
 _PANNEAU = re.compile(r"\brow\s*=\s*(\d+)\s*,\s*col\s*=\s*(\d+)")
 # Ce qui FERME une figure : elle est rendue, renvoyée, ou écrite.
-_FERME = re.compile(r"\b(?:st\.plotly_chart\(|st\.pyplot\(|write_image\(|savefig\(|return fig\b)")
+# R260 — `charts.plotly_chart(` is the ONE door since R243 ; the pattern only knew
+# `st.plotly_chart(`, so a figure never closed and the next ones were merged into it.
+_FERME = re.compile(r"\b(?:(?:st|charts)\.plotly_chart\(|st\.pyplot\(|write_image\(|savefig\(|return fig\b)")
 
 
 def _panneaux(fragment: str) -> list[list[str]]:

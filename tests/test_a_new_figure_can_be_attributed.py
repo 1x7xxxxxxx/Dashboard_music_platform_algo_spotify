@@ -67,7 +67,11 @@ def test_the_baseline_names_something_real() -> None:
 def test_the_measurement_still_finds_figures_at_all() -> None:
     """Si le détecteur cesse de voir des figures, tout le reste devient vert pour rien."""
     toutes = figures()
-    assert len(toutes) >= 20, (
+    # 20 → 15 le 2026-09-27 (R260) : le plancher avait été calibré sur une segmentation
+    # FAUSSE — `_FERME` ne connaissait pas `charts.plotly_chart(` (la porte unique depuis
+    # R243), une figure ne se fermait pas et les suivantes s'y fondaient, gonflant le
+    # compte. Segmentée juste, la même base en rend 18.
+    assert len(toutes) >= 15, (
         f"seulement {len(toutes)} figure(s) à ≥2 couleurs de série trouvées. Le détecteur "
         "a cessé de voir le parc — un renommage de `go.Figure`, un déplacement des vues, "
         "ou un motif d'ouverture devenu faux. Toutes les assertions ci-dessous seraient "

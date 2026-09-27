@@ -23,11 +23,12 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.semantic_colors import BON
 
 # Revenue pulls green, spend pulls warm: the reader who cannot tell hues apart still
 # reads the sign from the side of the zero line the bar sits on.
 FLUX_COLOURS = {
-    "imusician":    "#1DB954",
+    "imusician":    BON,          # R260 — the semantic « good » green, not Spotify's
     "distrokid":    "#57C785",
     "sacem":        "#8E44AD",
     "meta_ads":     "#FF6B35",
@@ -144,9 +145,9 @@ def _add_balance(fig: go.Figure, mensuel: pd.DataFrame,
     fig.add_trace(go.Scatter(
         x=mensuel['date'], y=mensuel['cumul'], mode='lines',
         name=t("revenue_forecast.line_cumul", "Cumul net"),
-        line={'color': "#1DB954" if positive else "#C0392B", 'width': 3},
+        line={'color': BON if positive else "#C0392B", 'width': 3},
         fill='tozeroy',
-        fillcolor="rgba(29,185,84,0.12)" if positive else "rgba(192,57,43,0.10)",
+        fillcolor="rgba(39,117,26,0.12)" if positive else "rgba(192,57,43,0.10)",
         hovertemplate="%{x|%m/%Y}<br>cumul : %{y:.2f} €<extra></extra>",
     ))
     if projection is not None and not projection.empty:
