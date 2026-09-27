@@ -467,13 +467,19 @@ def _short(s, n=24) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def _unique_labels(names, n: int = 24) -> list[str]:
+    """Short labels that stay DISTINCT — `utils/labels.unique_short_labels` (R209)."""
+    from src.dashboard.utils.labels import unique_short_labels
+    return unique_short_labels(names, n)
+
+
 def _hbar(pairs, title, color=_GREEN, unit="") -> str | None:
     """Generic horizontal bar chart from [(label, value), …] (already sorted)."""
     pairs = [(lbl, float(v or 0)) for lbl, v in (pairs or []) if v]
     if not pairs:
         return None
     pairs = pairs[:8][::-1]  # top 8, smallest at bottom for readability
-    labels = [_short(p[0]) for p in pairs]
+    labels = _unique_labels([p[0] for p in pairs])
     vals = [p[1] for p in pairs]
     fig, ax = plt.subplots(figsize=(8.6, max(2.2, 0.42 * len(pairs) + 0.8)))
     bars = ax.barh(labels, vals, color=color, height=0.62)

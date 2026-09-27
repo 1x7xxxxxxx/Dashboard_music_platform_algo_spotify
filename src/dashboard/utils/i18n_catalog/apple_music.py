@@ -5,7 +5,7 @@ EN = {
     "apple_music.kpi_streams": "▶️ Total Streams (Cumulative)",
     "apple_music.kpi_shazams": "⚡ Total Shazams (Cumulative)",
     "apple_music.top_header": "🏆 Top Songs (Cumulative)",
-    "apple_music.top10_title": "Top 10 by Streams",
+    "apple_music.top10_title": "Top 10 — cumulative streams at the last reading",
     "apple_music.top_hover": '%{y}<br>Streams: %{x:,.0f}<br>⚡ Shazams: %{customdata[0]:,.0f}<extra></extra>',
     "apple_music.shazams_expander": "⚡ Shazams per song (Top 10)",
     "apple_music.daily_growth": "📈 Streams & Shazams over time",

@@ -140,7 +140,10 @@ def _show_tab_catalogue(db, artist_id) -> None:
     # ── La figure : l'avancement, titre par titre ───────────────────────────
     d = avec_porte.sort_values("avancement", ascending=True)
     if not d.empty:
-        court = [s if len(str(s)) <= 34 else str(s)[:33] + "…" for s in d["song"]]
+        # R209 — a cut label is a CATEGORY here: two names sharing 33 characters would
+        # be one row (class a-truncated-label-that-merges-two-categories).
+        from src.dashboard.utils.labels import unique_short_labels
+        court = unique_short_labels(d["song"], 34)
         fig = go.Figure(go.Bar(
             x=d["avancement"], y=court, orientation="h", showlegend=False,
             marker_color=[_teinte(v) for v in d["avancement"]],

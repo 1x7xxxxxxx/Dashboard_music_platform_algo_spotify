@@ -328,38 +328,50 @@ def show():
                     # produit — la figure de l'accueil porte la même décision, écrite le
                     # 2026-09-08. On perd la superposition, on gagne quatre séries
                     # réellement lisibles, chacune sur SON échelle.
-                    from plotly.subplots import make_subplots
+                    # R209 (2026-09-27) — ONE panel, horizontal bars. The four stacked
+                    # panels had a comments panel always at 0 and video titles slanted
+                    # into illegibility (dossier). A top is a RANKING: its names read
+                    # horizontally, its bars carry views, and likes / comments / the
+                    # views-per-like ratio are written on each bar — comments only when
+                    # there are any.
+                    # Sorted by views, the largest on top (Plotly draws the first row
+                    # at the bottom of a horizontal bar chart).
+                    _d = df_top.sort_values('view_count', ascending=True)
+                    # Numbered, and cut in the MIDDLE: this catalogue's titles share a
+                    # long prefix (« DJ Set multicamera Hardtechno… »), so a cut at the
+                    # end made them identical — ONE category, bars stacked (first render).
+                    def _cut(x: str, n: int = 44) -> str:
+                        x = str(x)
+                        return x if len(x) <= n else x[:n // 2 - 1] + "…" + x[-(n // 2 - 1):]
+                    _names = [f"{len(_d) - i}. {_cut(x)}" for i, x in enumerate(_d['title'])]
 
-                    _panels = [
-                        (t("youtube.views", "Vues"), "view_count", "#2a78d6", "bar"),
-                        ("Likes", "like_count", "#1baf7a", "line"),
-                        (t("youtube.comments", "Commentaires"), "comment_count",
-                         "#eb6834", "line"),
-                        (t("youtube.ratio_views_like", "Ratio Vues/Like"),
-                         "ratio_views_like", "#eda100", "line"),
-                    ]
-                    fig_top = make_subplots(
-                        rows=len(_panels), cols=1, shared_xaxes=True,
-                        vertical_spacing=0.05,
-                        subplot_titles=[lbl for lbl, _, _, _ in _panels],
-                    )
-                    for _row, (_lbl, _col, _colour, _kind) in enumerate(_panels, start=1):
-                        _trace = (go.Bar(x=df_top['title'], y=df_top[_col],
-                                         name=_lbl, marker_color=_colour)
-                                  if _kind == "bar" else
-                                  go.Scatter(x=df_top['title'], y=df_top[_col],
-                                             name=_lbl, mode='lines+markers',
-                                             line=dict(color=_colour, width=2)))
-                        fig_top.add_trace(_trace, row=_row, col=1)
+                    def _detail(r) -> str:
+                        parts = [f"{int(r['like_count']):,} likes".replace(",", " ")]
+                        if r['comment_count']:
+                            parts.append(t("youtube.n_comments", "{n} comm.").format(
+                                n=int(r['comment_count'])))
+                        if r['ratio_views_like']:
+                            parts.append(t("youtube.views_per_like", "{r:.0f} vues/like")
+                                         .format(r=r['ratio_views_like']))
+                        return " · ".join(parts)
 
+                    fig_top = go.Figure(go.Bar(
+                        y=_names, x=_d['view_count'], orientation='h',
+                        marker_color="#2a78d6",
+                        text=[_detail(r) for _, r in _d.iterrows()],
+                        textposition="auto",
+                        customdata=_d['view_count'],
+                        hovertemplate="%{y}<br>%{customdata:,.0f} vues<br>%{text}"
+                                      "<extra></extra>"))
                     fig_top.update_layout(
                         title=t("youtube.top_chart_title", "Top {n} {type}").format(
                             n=top_n, type=selected_type),
-                        showlegend=False,          # chaque cadre porte son propre titre
-                        hovermode='x unified',
-                        height=180 * len(_panels),
-                        margin=dict(b=90, r=20),
+                        xaxis_title=t("youtube.views", "Vues"),
+                        showlegend=False,
+                        height=max(320, 34 * len(_d) + 120),
+                        margin=dict(r=20, t=60, b=40),
                     )
+                    fig_top.update_yaxes(automargin=True)
 
                     st.plotly_chart(fig_top, width="stretch")
 

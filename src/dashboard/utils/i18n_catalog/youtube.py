@@ -13,8 +13,6 @@ EN = {
     "youtube.content_type": "Content type",
     "youtube.n_videos": "Number of videos",
     "youtube.views": "Views",
-    "youtube.comments": "Comments",
-    "youtube.ratio_views_like": "Views/Like Ratio",
     "youtube.top_chart_title": "Top {n} {type}",
     "youtube.no_video_category": "No video in this category.",
     "youtube.no_video_db": "No video found in the database.",
@@ -36,4 +34,6 @@ EN = {
                              "videos RELEASED in the period. The figures are the ones "
                              "**earned to date**, since publication — not the activity "
                              "of the period.",
+    "youtube.n_comments": "{n} comm.",
+    "youtube.views_per_like": "{r:.0f} views/like",
 }

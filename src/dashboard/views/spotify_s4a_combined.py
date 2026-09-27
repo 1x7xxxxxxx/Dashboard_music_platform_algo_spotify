@@ -316,10 +316,15 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     merged = merged.merge(pi, on="song", how="left") if not pi.empty else merged
     if "popularity" not in merged.columns:
         merged["popularity"] = pd.NA
+    # R209 — the RECENT value is written too: when the window is quiet the recent bar is
+    # a sliver beside the lifetime ghost, and the dossier read it as nothing.
     pi_labels = [
-        t("spotify_s4a_combined.pi_tag", "PI {v}").format(v=int(v))
-        if pd.notna(v) else ""
-        for v in merged["popularity"]
+        " · ".join(x for x in (
+            t("spotify_s4a_combined.recent_tag", "{r} récents").format(
+                r=f"{int(r):,}".replace(",", " ")),
+            t("spotify_s4a_combined.pi_tag", "PI {v}").format(v=int(v)) if pd.notna(v) else "",
+        ) if x)
+        for r, v in zip(merged["recent"], merged["popularity"])
     ]
     # ⚠️ `without_pi` a été RETIRÉ avec la même légende : il comptait les titres sans
     # indice de popularité pour l'annoncer sous la figure. Les barres concernées
@@ -345,11 +350,12 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
         hovertemplate="%{x:,.0f}<extra>fenêtre récente</extra>"))
     fig.update_layout(barmode="overlay", height=_PAIR_HEIGHT,
                       xaxis_title=t("common.streams", "Streams"),
-                      margin=dict(r=80, t=30, b=90),
+                      margin=dict(r=150, t=30, b=90),
                       # SOUS l'axe : dans le cadre elle recouvrait l'étiquette PI de la barre
                       # du haut, au-dessus elle recouvrait la barre d'outils (vu à l'écran le
                       # 2026-09-26, deux captures).
                       legend=dict(orientation="h", y=-0.28, x=0))
+    fig.update_yaxes(automargin=True)   # R209: titles were cut at the left edge
     st.plotly_chart(fig, width="stretch")
 
     # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle disait

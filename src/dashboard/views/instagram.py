@@ -240,6 +240,10 @@ def show():
                             "Likes et commentaires ACQUIS À CE JOUR, par mois de "
                             "publication ({label})").format(label=win_m.label),
                     hover_data=['posts'],
+                    # R209 — likes and comments were both drawn black: the legend told
+                    # nothing apart. Instagram's pink for likes, a darker tone for
+                    # comments — two inks of one brand, distinct in contrast too.
+                    color_discrete_map={'likes': _IG, 'comments': "#833AB4"},
                     labels={'mois': t("instagram.month_published",
                                       "Mois de publication"),
                             'Total': t("common.total", "Total")},

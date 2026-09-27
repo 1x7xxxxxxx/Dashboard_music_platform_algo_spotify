@@ -16,6 +16,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
@@ -47,7 +48,8 @@ _TIMELINE_METRICS = [
     ("Clics",       "clicks",      "sum",  "#2ca02c", False, False),
     ("Reach",       "reach",       "sum",  "#9467bd", False, False),
     ("Résultats",   "conversions", "sum",  "#d62728", False, False),
-    ("CTR (%)",     "ctr",         None,   "#e6b800", False, True),
+    # R209 — CTR visible by default: hidden, it left the « Taux (%) » panel EMPTY.
+    ("CTR (%)",     "ctr",         None,   "#e6b800", True,  True),
     ("CPR (€)",     "cpr",         None,   "#17becf", True,  True),
 ]
 
@@ -771,8 +773,11 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
     # basculement par la légende reste possible dans chaque panneau.
     from plotly.subplots import make_subplots
 
+    # R209 — the cost per result (~0.1 €) has its OWN panel: on the spend's euro axis
+    # (0-40 €) it lay flat on zero and read as « free » (dossier fiche 40).
     _UNIT_ROWS = [
-        (t("meta_creatives.unit_money", "Euros"), ("spend", "cpr")),
+        (t("meta_creatives.unit_money", "Euros"), ("spend",)),
+        (t("meta_creatives.unit_cpr", "Coût par résultat (€)"), ("cpr",)),
         (t("meta_creatives.unit_counts", "Volumes"),
          ("impressions", "clicks", "reach", "conversions")),
         (t("meta_creatives.unit_rate", "Taux (%)"), ("ctr",)),
@@ -875,53 +880,6 @@ def _render_efficiency(df: pd.DataFrame) -> None:
         st.plotly_chart(fig, width="stretch")
 
 
-def _measured_sum(rows: pd.DataFrame, col: str) -> int | None:
-    """The column's sum over `rows`, or None when ANY row did not measure it."""
-    if col not in rows or rows.empty:
-        return None
-    vals = pd.to_numeric(rows[col], errors='coerce')
-    if vals.isna().any():
-        return None
-    return int(vals.sum())
-
-
-def funnel_stages(rows: pd.DataFrame) -> list[tuple[str, str, int]]:
-    """(i18n key, default label, value) for each MEASURED stage of one creative's funnel.
-
-    `rows` = every (creative, campaign) row of ONE creative name; they are summed, so a
-    creative run in two campaigns shows both (the old `.iloc[0]` showed one campaign's
-    funnel under the bare creative name).
-
-    Measured 2026-09-26 on spotify_etl_review, artist 1: the funnel drew
-    impressions → `clicks` → `conversions` as « Clics sortants ». `clicks` is Meta
-    clicks (all) and `conversions` is the ad set goal's result — the Hypeddit outbound
-    event counted twice, or a VIDEO VIEW under THRUPLAY. 18 of 61 creative rows widened
-    (2 732 → 48 → 60 ; 2 028 → 7 → 1 670 under THRUPLAY).
-
-    The stages are now the three that nest by construction:
-      impressions → link clicks (`inline_link_clicks`) → outbound clicks
-      (`custom_conversions`, the offsite_conversion.custom family — whatever the goal).
-    The goal's `total_results` is never a stage. Until the ad grain is re-collected
-    (migration 138), link clicks are unmeasured; stage 2 then falls back to clicks (all)
-    UNDER THAT NAME. A zero or unmeasured stage is dropped, never drawn at 0.
-    """
-    imp = _measured_sum(rows, 'total_impressions')
-    link = _measured_sum(rows, 'total_link_clicks')
-    out = _measured_sum(rows, 'total_outbound')
-    stages: list[tuple[str, str, int]] = []
-    if imp:
-        stages.append(("meta_creatives.impressions", "Impressions", imp))
-    if link:
-        stages.append(("meta_creatives.link_clicks", "Clics sur le lien", link))
-    else:
-        clk = _measured_sum(rows, 'total_clicks')
-        if clk:
-            stages.append(("meta_creatives.clicks_all", "Clics (tous types)", clk))
-    if out:
-        stages.append(("meta_creatives.results", "Clics sortants", out))
-    return stages
-
-
 @st.fragment
 def _render_funnel(df: pd.DataFrame) -> None:
     """L'entonnoir d'une créative — rejoué SEUL quand on en choisit une autre.
@@ -970,7 +928,21 @@ def _render_funnel(df: pd.DataFrame) -> None:
             marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35'][:len(stages)]},
         ))
         fig.update_layout(height=400)
+        fig.update_yaxes(automargin=True)       # R209: « s (tous types) » was cut at left
         st.plotly_chart(fig, width="stretch")
+        # R209 — the owner: « "corriger" n'était pas assez clair ». Say what each step
+        # counts, and why the outbound step can be missing.
+        if not any(key == "meta_creatives.results" for key, _, _ in stages):
+            st.caption(t("meta_creatives.funnel_no_outbound",
+                         "Pas d'étape « clics sortants » pour cette créative : Meta ne les "
+                         "rendait qu'à la maille campagne ; la maille publicité les porte "
+                         "depuis le 2026-09-27 et se remplit à chaque collecte."))
+        st.caption(t("meta_creatives.funnel_steps_note",
+                     "**Impressions** : affichages de la pub. **Clics sur le lien** : clics "
+                     "vers le smart link (à défaut, **tous les clics**, likes et profil "
+                     "compris). **Clics sortants** : les clics qui quittent le smart link "
+                     "vers une plateforme, renvoyés par Hypeddit. Chaque étape est "
+                     "contenue dans la précédente."))
 
 
 @st.fragment

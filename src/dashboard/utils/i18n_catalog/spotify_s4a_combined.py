@@ -66,4 +66,5 @@ EN = {
                                           "publishes them once a year, in your Wrapped for "
                                           "Artists. Enter them here and the year-over-year "
                                           "curve builds itself.",
+    "spotify_s4a_combined.recent_tag": "{r} recent",
 }

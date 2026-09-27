@@ -51,7 +51,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FROZEN = {
     # 2026-09-26 (R205) : la frise empilée des créas refaite sans zéro inventé — la page
     # dépasse 1 200 lignes pour la première fois ; gelée, la découper est la suite.
-    "src/dashboard/views/meta_creatives.py": 1219,
+    "src/dashboard/views/meta_creatives.py": 1191,  # 1219 → 1191 le 2026-09-27 (R209) : funnel_stages sorti vers utils/campaign_funnel.py
     "airflow/dags/alert_monitor.py": 2724,
     # 1268 → 1203 le 2026-09-11 : le sujet « encodage et séparateur » est sorti
     # dans utils/csv_serialization.py, comme le message de ce cliquet le demande.

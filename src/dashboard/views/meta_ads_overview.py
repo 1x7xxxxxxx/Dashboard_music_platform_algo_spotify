@@ -150,7 +150,10 @@ def _render_global_perf(df_perf: pd.DataFrame) -> None:
         return
     d = d.sort_values('spend', ascending=True)          # plus gros budget EN HAUT
     noms = d['campaign_name'].tolist()
-    court = [n if len(n) <= 34 else n[:33] + "…" for n in noms]
+    # R209 — a cut label is a CATEGORY here: two names sharing 33 characters would
+    # be one row (class a-truncated-label-that-merges-two-categories).
+    from src.dashboard.utils.labels import unique_short_labels
+    court = unique_short_labels(noms, 34)
 
     fig = make_subplots(
         rows=2, cols=3, shared_yaxes=True,

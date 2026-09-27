@@ -9,9 +9,11 @@ answers "how many streams did each playlist actually generate?" — the realized
 not the prediction. Shows the cumulative total AND each playlist's contribution, over the
 chosen window (7d / 28d / custom).
 """
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 
 from src.utils.artist_name_filter import (
@@ -70,6 +72,11 @@ def _show_tab_algo_streams(db, song, artist_id):
                    value_vars=["dw_streams", "rr_streams", "radio_streams"],
                    var_name="source", value_name="streams")
     long["source"] = long["source"].map(_SOURCE_LABELS)
+    # R209 (2026-09-27) — the readings are SNAPSHOTS, often one or two: on a date axis a
+    # bar is one millisecond wide, invisible, and the axis collapsed to « 23:59:59,9996 →
+    # 00:00:00,0004 » (seen in the dossier). Each reading is a CATEGORY, labelled by its
+    # day: its bar has a width, and the order stays the time order.
+    long["recorded_at"] = [format_date(d) for d in pd.to_datetime(long["recorded_at"])]
     fig = px.bar(
         long, x="recorded_at", y="streams", color="source", barmode="stack",
         color_discrete_map=_SOURCE_COLORS,
@@ -77,6 +84,7 @@ def _show_tab_algo_streams(db, song, artist_id):
                 "source": t("trigger_algo.algostreams_source", "Playlist")},
     )
     fig.update_layout(hovermode="x unified", legend_title_text="")
+    fig.update_xaxes(type="category")
     st.plotly_chart(fig, width="stretch")
 
     with st.expander(t("trigger_algo.algostreams_table", "📋 Détail chiffré")):

@@ -245,7 +245,10 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     d["proba_max"] = d[["dw_p", "rr_p", "radio_p"]].max(axis=1)
     d["streams"] = d["dw_s"] + d["rr_s"] + d["radio_s"]
     d = d.sort_values("proba_max", ascending=True)
-    court = [s if len(s) <= 34 else s[:33] + "…" for s in d["song"]]
+    # R209 — a cut label is a CATEGORY here: two names sharing 33 characters would
+    # be one row (class a-truncated-label-that-merges-two-categories).
+    from src.dashboard.utils.labels import unique_short_labels
+    court = unique_short_labels(d["song"], 34)
 
     # DEUX PANNEAUX, PAS DEUX SÉRIES SUR UN AXE. Une probabilité et un nombre de
     # streams n'ont ni la même unité ni le même ordre de grandeur ; le cliquet

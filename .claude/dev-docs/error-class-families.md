@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**424 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**425 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -25,7 +25,7 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **2/16** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **0/11** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
-| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 7 | **1/7** · 14.3 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
+| [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 8 | **1/8** · 12.5 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 26 | **3/26** · 11.5 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
 | [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 43 | **4/43** · 9.3 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
@@ -478,13 +478,14 @@ Règle de rattachement : `threshold|seuil|min[_-]|floor|ceiling|limit|budget|quo
 
 **Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ?**
 
-Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delete|drop|purge|lost|data-loss|resurrect|rotation` sur l'identifiant et le symptôme. 7 classe(s).
+Règle de rattachement : `overwrit|écrase|clobber|upsert|conflict|restore|delete|drop|purge|lost|data-loss|resurrect|rotation` sur l'identifiant et le symptôme. 8 classe(s).
 
 | classe | symptôme |
 |---|---|
 | [`snapshot-fixture-hook-reflow`](error-classes.md#snapshot-fixture-hook-reflow) | a byte-exact golden/snapshot fixture under `tests/fixtures/` is silently reflowed by the `trailing-whitespace` / `end-of-file-fixer` pre-commit hooks  |
 | [`unguarded-drop-replayed-alone`](error-classes.md#unguarded-drop-replayed-alone) | a table silently loses its primary key. Nothing errors visibly at the application level; duplicate rows become possible and `ON CONFLICT` upserts star |
 | [`a-surgical-restore-erases-work-nothing-will-give-back`](error-classes.md#a-surgical-restore-erases-work-nothing-will-give-back) | du travail non commité disparaît sans trace ni message. Aucune erreur, aucun avertissement : la commande réussit, et ce qu'elle a écrasé n'est ni dans |
+| [`a-truncated-label-that-merges-two-categories`](error-classes.md#a-truncated-label-that-merges-two-categories) | deux barres sur UNE ligne, leurs nombres superposés (« 305 » dans la barre de 422, PDF Apple) ; ou dix barres empilées sur une seule ligne (top YouTub |
 | [`a-limiter-consumed-in-two-steps`](error-classes.md#a-limiter-consumed-in-two-steps) | un limiteur ATOMIQUE ne borne que les tentatives séquentielles. N requêtes simultanées obtiennent toutes l'autorisation, le budget affiché est respect |
 | [`prune-scoped-wider-than-what-it-refreshed`](error-classes.md#prune-scoped-wider-than-what-it-refreshed) | des données de production disparaissent, sans erreur, sans trace. Le nettoyage qui suit une collecte supprime plus large que ce que cette collecte vie |
 | [`a-document-slice-bounded-by-the-wrong-heading-level`](error-classes.md#a-document-slice-bounded-by-the-wrong-heading-level) | un découpage de document Markdown emporte **plus que ce qu'il visait**, et rien dans le résultat ne le dit. Le 2026-09-13 : la rotation de trois secti |
@@ -626,6 +627,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=424 families=18 orphans=0 -->
+<!-- error-class-families: total=425 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=edd6a5b5669856db8eb93bb92da2a58cb32e823136304f858c6aa742184d765d -->
+<!-- error-class-families: sha256=434a9d5c1841b2850231b78377ba3bd458dcc7e171fdd252a17048dc924f85e8 -->

@@ -135,4 +135,7 @@ EN = {
     "meta_creatives.activity_expander": "🗓️ Creative activity (weekly spend, cumulative) — detail",
     "meta_creatives.scatter_expander": "🔬 CPR × spend scatter — detail",
     "meta_creatives.efficiency_expander": "🔬 Efficiency by creative — detail",
+    "meta_creatives.unit_cpr": "Cost per result (€)",
+    "meta_creatives.funnel_no_outbound": "No « outbound clicks » step for this creative: Meta returned them only at campaign grain; the ad grain carries them since 2026-09-27 and fills in at each collection.",
+    "meta_creatives.funnel_steps_note": "**Impressions**: times the ad was shown. **Link clicks**: clicks to the smart link (failing that, **all clicks**, likes and profile included). **Outbound clicks**: clicks leaving the smart link for a platform, sent back by Hypeddit. Each step is contained in the previous one.",
 }

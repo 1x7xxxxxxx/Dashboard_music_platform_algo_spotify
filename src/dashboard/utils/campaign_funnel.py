@@ -2,7 +2,7 @@
 
 Type: Utility
 Uses: pandas, src.dashboard.utils.i18n (t)
-Triggers: views/meta_x_spotify.py
+Triggers: views/meta_x_spotify.py, views/meta_creatives.py (funnel_stages)
 Persists in: nothing
 
 R213 (2026-09-27). What one unit of each funnel step cost, the streams gained above the
@@ -106,3 +106,52 @@ def step_texts(values: list[float], spend: float | None) -> list[str]:
             parts.append(label.format(c=f"{unit:,.3f}".replace(",", " ").replace(".", ",")))
         out.append(" · ".join(parts))
     return out
+
+
+# ── One creative's funnel (moved from views/meta_creatives.py, R209 2026-09-27) ──
+
+def _measured_sum(rows: pd.DataFrame, col: str) -> int | None:
+    """The column's sum over `rows`, or None when ANY row did not measure it."""
+    if col not in rows or rows.empty:
+        return None
+    vals = pd.to_numeric(rows[col], errors='coerce')
+    if vals.isna().any():
+        return None
+    return int(vals.sum())
+
+
+def funnel_stages(rows: pd.DataFrame) -> list[tuple[str, str, int]]:
+    """(i18n key, default label, value) for each MEASURED stage of one creative's funnel.
+
+    `rows` = every (creative, campaign) row of ONE creative name; they are summed, so a
+    creative run in two campaigns shows both (the old `.iloc[0]` showed one campaign's
+    funnel under the bare creative name).
+
+    Measured 2026-09-26 on spotify_etl_review, artist 1: the funnel drew
+    impressions → `clicks` → `conversions` as « Clics sortants ». `clicks` is Meta
+    clicks (all) and `conversions` is the ad set goal's result — the Hypeddit outbound
+    event counted twice, or a VIDEO VIEW under THRUPLAY. 18 of 61 creative rows widened
+    (2 732 → 48 → 60 ; 2 028 → 7 → 1 670 under THRUPLAY).
+
+    The stages are now the three that nest by construction:
+      impressions → link clicks (`inline_link_clicks`) → outbound clicks
+      (`custom_conversions`, the offsite_conversion.custom family — whatever the goal).
+    The goal's `total_results` is never a stage. Until the ad grain is re-collected
+    (migration 138), link clicks are unmeasured; stage 2 then falls back to clicks (all)
+    UNDER THAT NAME. A zero or unmeasured stage is dropped, never drawn at 0.
+    """
+    imp = _measured_sum(rows, 'total_impressions')
+    link = _measured_sum(rows, 'total_link_clicks')
+    out = _measured_sum(rows, 'total_outbound')
+    stages: list[tuple[str, str, int]] = []
+    if imp:
+        stages.append(("meta_creatives.impressions", "Impressions", imp))
+    if link:
+        stages.append(("meta_creatives.link_clicks", "Clics sur le lien", link))
+    else:
+        clk = _measured_sum(rows, 'total_clicks')
+        if clk:
+            stages.append(("meta_creatives.clicks_all", "Clics (tous types)", clk))
+    if out:
+        stages.append(("meta_creatives.results", "Clics sortants", out))
+    return stages

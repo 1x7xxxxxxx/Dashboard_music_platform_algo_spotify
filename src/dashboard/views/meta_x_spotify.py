@@ -1009,12 +1009,23 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
     spend = float(m["spend"]) if pd.notna(m["spend"]) else None
     pal = _palette()
     couleurs = [pal["meta"], pal["meta"], pal["hypeddit"], pal["hypeddit"]]
+    texts = step_texts(valeurs, spend)
+    # R209 (2026-09-27) — impressions are ~100× the clicks: beside them every later step
+    # was a sliver, its label cut to « s », « b » (dossier fiche 49). They leave the bars
+    # for a sentence ABOVE, with their cost per thousand; the funnel starts at the click.
+    if len(etapes) > 2 and etapes[0] == t("meta_x_spotify.f_impressions", "Impressions"):
+        st.caption(t("meta_x_spotify.funnel_impressions",
+                     "📣 **{txt}** impressions — le point de départ, hors de l'entonnoir : "
+                     "à cette échelle les étapes suivantes seraient invisibles.").format(
+                         txt=texts[0]))
+        etapes, valeurs, texts, couleurs = etapes[1:], valeurs[1:], texts[1:], couleurs[1:]
     fig = go.Figure(go.Funnel(
         y=etapes, x=valeurs, textposition="inside",
-        text=step_texts(valeurs, spend), textinfo="text",
+        text=texts, textinfo="text",
         marker=dict(color=couleurs[:len(etapes)]),
     ))
-    fig.update_layout(height=420, margin=dict(l=10, r=10, t=30))
+    fig.update_layout(height=380, margin=dict(r=10, t=30))
+    fig.update_yaxes(automargin=True)
     st.plotly_chart(fig, width="stretch")
 
     note = t("meta_x_spotify.funnel_caption",

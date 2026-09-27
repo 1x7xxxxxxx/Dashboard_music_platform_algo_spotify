@@ -128,7 +128,9 @@ def show():
                     y='song_name',
                     orientation='h',
                     text='plays',
-                    title=t("apple_music.top10_title", "Top 10 par Streams"),
+                    # R209 — say what this is: a CUMULATIVE snapshot, not a period.
+                    title=t("apple_music.top10_title",
+                            "Top 10 — streams cumulés au dernier relevé"),
                     labels={'plays': t("common.streams", "Streams"), 'song_name': ''},
                     color='plays',
                     color_continuous_scale='Reds',
@@ -139,7 +141,9 @@ def show():
                     hovertemplate=t("apple_music.top_hover",
                                     '%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}<extra></extra>'),
                 )
-                fig.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
+                # automargin: the titles were cut at the left edge (« en le français »).
+                fig.update_layout(yaxis={'categoryorder': 'total ascending', 'automargin': True},
+                                  height=500, margin=dict(l=10, r=40))
                 st.plotly_chart(fig, width="stretch")
                 with st.expander(t("apple_music.shazams_expander", "⚡ Shazams par chanson (Top 10)")):
                     _df_sh = df_top[['song_name', 'shazam_count']].rename(

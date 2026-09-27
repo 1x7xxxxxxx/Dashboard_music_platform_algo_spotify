@@ -336,6 +336,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 | [an-unmeasured-platform-is-rendered-as-zero](#an-unmeasured-platform-is-rendered-as-zero) | P2 | deterministic | guarded | none |
 | [a-form-default-persisted-as-a-measurement](#a-form-default-persisted-as-a-measurement) | P2 | deterministic | guarded | none |
 | [a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts](#a-rate-rescaled-or-averaged-instead-of-recomputed-from-its-counts) | P2 | deterministic | guarded | none |
+| [a-truncated-label-that-merges-two-categories](#a-truncated-label-that-merges-two-categories) | P3 | deterministic | guarded | none |
 | [a-read-that-failed-is-rendered-as-a-number](#a-read-that-failed-is-rendered-as-a-number) | P2 | deterministic | guarded | none |
 | [a-quantity-mistaken-for-a-counter](#a-quantity-mistaken-for-a-counter) | P3 | deterministic | guarded | none |
 | [a-late-platform-has-no-tenant-guard](#a-late-platform-has-no-tenant-guard) | P2 | deterministic | guarded | none |
@@ -4549,6 +4550,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-26
 - History:
   - 2026-09-26: écrite au correctif. Le défaut avait été ÉCRIT comme valeur de référence dans deux commentaires (vue et migration 108) — « 163,41 % là où les lignes brutes donnent 168,68 % » — sans que personne lise un taux de clic au-dessus de 100 % comme impossible. Le garde neuf a lui-même rougi sur son propre commentaire au premier jet (`AVG(ctr)` cité dans la chaîne SQL de `_budget_roi`), reformulé.
+## a-truncated-label-that-merges-two-categories
+- status: guarded
+- severity: P3
+- family: une-écriture-qui-écrase
+- kind: deterministic
+- admitted: sites:5
+- admitted_detail: balayage sibling-sweeper du 2026-09-27 — `views/youtube.py` (top vidéos), `utils/pdf_charts.py::_hbar` (toutes les barres du PDF), `views/meta_ads_overview.py` (six panneaux campagnes), `views/trigger_algo/_tab_catalogue.py`, `utils/s4a_entry_insight.py`.
+- symptom: deux barres sur UNE ligne, leurs nombres superposés (« 305 » dans la barre de 422, PDF Apple) ; ou dix barres empilées sur une seule ligne (top YouTube). Rien ne lève, le graphique a l'air rempli.
+- signature: `.venv/bin/python -m pytest tests/test_a_shortened_label_never_merges_two_bars.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_a_shortened_label_never_merges_two_bars.py::test_the_structural_detector_sees_the_idiom) — et 2026-09-27, deux mutations du code réel : `_hbar` ramené à `_short` ⇒ rouge sur « two names were drawn on ONE row » ; `meta_ads_overview` ramené à `n[:33] + "…"` ⇒ rouge sur le compte structurel.
+- root_cause: un libellé coupé à longueur fixe (`s[:33] + "…"`, `_short(s, 24)`) sert de CATÉGORIE d'axe ; deux noms qui partagent leurs N premiers caractères (un titre et son remix, dix vidéos « DJ Set multicamera Hardtechno… ») deviennent une seule catégorie, et Plotly/matplotlib posent leurs barres au même endroit.
+- cause_evidence: measured (rendus du 2026-09-27 sur la base locale : top YouTube 10 barres sur une ligne ; `_short` des deux titres « Qui a sali mon slip avec de la gadoue? » et « … (Remix) » identiques à 24 caractères)
+- long_term_fix: `utils/labels.unique_short_labels(names, n)` — coupe simple quand elle reste unique, coupe au MILIEU pour les collisions (garde la fin, « … (Remix) »), rang en dernier recours ; tout libellé coupé d'un axe passe par elle.
+- guard: { type: pytest, ref: tests/test_a_shortened_label_never_merges_two_bars.py }
+- guard_scope: une-écriture-qui-écrase — un libellé coupé par l'idiome `x[:n] + "…"` dans `src/dashboard/` ; couvre: l'idiome littéral (AST), l'usage de `_hbar` (figure réelle, lignes comptées) ; ne couvre pas: une coupe écrite autrement (`textwrap.shorten`, `" ".join(mots[:k])` — `hypeddit._short` en est une, en `ticktext` seulement), une catégorie fusionnée par un autre chemin (deux noms normalisés identiques).
+- siblings: swept:2026-09-27 — 62 candidats bruts (`[:n]`, `_short`, `_trunc`, `…`) sous `src/dashboard/`. Écartés : titres de figure (`pdf_charts.py:224`), cellules de tableau (`meta_mapping/_campaigns._trunc`, `_renderers._trunc`, `billing` id Stripe), texte de point (`roi_verdicts.py:59`), une tuile seule (`_tab_catalogue.py:131`), `hypeddit._short` en `ticktext` (les catégories restent les noms entiers — à trancher). **5 sites vivants, corrigés** (voir admitted_detail).
+- rex_ref: src/dashboard/utils/labels.py
+- first_seen: 2026-09-27
+- History:
+  - 2026-09-27: trouvée par la revue du dossier (fiches 21 et 96) et en regardant les rendus de R209 ; le balayage a trouvé trois sites de plus que les deux vus.
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 238 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -4563,7 +4584,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 186 classes encore vivantes.
+> les 187 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
