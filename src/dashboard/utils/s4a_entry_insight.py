@@ -55,7 +55,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils import charts
 
@@ -298,74 +298,26 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     st.markdown(bet_decision(declenches, attendu, n))
 
 
-# Below this many titles with both a prediction and a reading, no comparison can separate
-# a wrong model from chance (a binomial on 10 draws at p = 0.1 already spans 0 to 3).
-_MIN_BET_TITLES = 10
+# Zero triggers is evidence against the model only when zero was UNLIKELY under it:
+# P(0) = Π(1 − pᵢ) ≈ exp(−Σpᵢ) < 5 % ⇔ Σpᵢ > 3. Below that, observing nothing is what
+# the model itself expected most of the time (11 titles at 7 % : Σ = 0.8, P(0) ≈ 45 %).
+_EXPECTED_FOR_A_VERDICT = 3.0
 
 
 def bet_decision(triggered: int, expected: float, n: int) -> str:
-    """What the confrontation lets the artist decide. Pure."""
-    if n < _MIN_BET_TITLES:
-        return t("s4a_insight.bet_too_early",
-                 "⏳ **Trop tôt pour juger le modèle** ({n} titre(s), il en faut {m}). "
-                 "Continue de saisir tes résultats chaque mois : c'est ce qui dira si ses "
-                 "pourcentages sont fiables.").format(n=n, m=_MIN_BET_TITLES)
-    if triggered == 0 and expected >= 1:
+    """What the confrontation lets the artist decide — never more than chance allows. Pure."""
+    if triggered == 0 and expected >= _EXPECTED_FOR_A_VERDICT:
         return t("s4a_insight.bet_over",
                  "🔻 **Le modèle attendait {a:.1f} déclenchement(s), aucun n'est arrivé** — "
-                 "ne choisis pas un titre sur son pourcentage ; choisis-le sur ses leviers "
-                 "(Road to Algo, onglet « 🎧 Ce titre : ce qu'il reste à faire »).").format(a=expected)
+                 "le hasard l'expliquerait moins d'une fois sur vingt. Ne choisis pas un "
+                 "titre sur son pourcentage ; choisis-le sur ses leviers (Road to Algo, "
+                 "onglet « 🎧 Ce titre : ce qu'il reste à faire »).").format(a=expected)
+    if triggered == 0:
+        return t("s4a_insight.bet_too_early",
+                 "⏳ **Trop tôt pour juger le modèle** : sur {n} titre(s) il attendait "
+                 "{a:.1f} déclenchement, et ne rien voir est ce qui arrive le plus souvent "
+                 "dans ce cas. Continue de saisir tes résultats chaque mois : c'est ce qui "
+                 "dira si ses pourcentages sont fiables.").format(n=n, a=expected)
     return t("s4a_insight.bet_consistent",
              "✅ **Ce qui est arrivé reste dans ce que le modèle annonçait** — ses "
              "pourcentages peuvent guider ton choix, sans le trancher seuls.")
-
-
-def render_playlist_history(db, artist_id: int) -> None:
-    """L'historique des ajouts en playlist — refusé s'il n'y a qu'un instantané."""
-    st.subheader(t("s4a_insight.hist_header", "📈 Ajouts en playlist dans le temps"))
-    try:
-        rows = db.fetch_query(
-            "SELECT recorded_at::date, time_window, SUM(count) "
-            "FROM s4a_song_playlist_adds WHERE artist_id = %s "
-            "AND time_window IN ('7d','28d','12m') "
-            "GROUP BY 1, 2 ORDER BY 1", (artist_id,))
-    except Exception:                                   # noqa: BLE001
-        st.info(t("s4a_insight.hist_unreadable",
-                  "Historique illisible — ce n'est pas « aucun historique »."))
-        return
-    if not rows:
-        st.info(t("s4a_insight.hist_none", "Aucune saisie d'ajouts en playlist pour l'instant."))
-        return
-
-    d = pd.DataFrame(rows, columns=["jour", "fenetre", "total"])
-    d["total"] = pd.to_numeric(d["total"], errors="coerce").fillna(0)
-    jours = d["jour"].nunique()
-    if jours < 2:
-        # UNE COURBE À UN POINT N'EST PAS UNE COURBE. La tracer suggérerait une
-        # tendance qu'un seul relevé ne peut pas porter — c'est la classe
-        # `a-daily-figure-that-needs-consecutive-days`, déjà gardée ici.
-        seul = d["jour"].iloc[0]
-        st.info(t(
-            "s4a_insight.hist_single",
-            "Une seule saisie à ce jour ({d}) — il en faut deux pour dessiner une "
-            "évolution. Les valeurs de cette saisie sont dans l'onglet **Signaux**."
-        ).format(d=format_date(seul)))
-        return
-
-    couleurs = {"7d": NEUTRE, "28d": ATTENTION, "12m": MAUVAIS}
-    noms = {"7d": "7 jours", "28d": "28 jours", "12m": "12 mois"}
-    fig = go.Figure()
-    for fen in ("7d", "28d", "12m"):
-        part = d[d["fenetre"] == fen]
-        if part.empty:
-            continue
-        fig.add_trace(go.Scatter(
-            x=part["jour"], y=part["total"], name=noms[fen], mode="lines+markers",
-            line={"color": couleurs[fen], "width": 2}, connectgaps=False))
-    fig.update_layout(height=360, hovermode="x unified",
-                      yaxis_title=t("s4a_insight.hist_axis", "Ajouts (tous titres)"),
-                      margin={"t": 30})
-    charts.plotly_chart(fig, width="stretch")
-    st.caption(t("s4a_insight.hist_note",
-                 "Somme sur tous les titres, par date de saisie. Les trois fenêtres se "
-                 "recouvrent — 28 jours CONTIENT 7 jours : elles ne s'additionnent pas."))

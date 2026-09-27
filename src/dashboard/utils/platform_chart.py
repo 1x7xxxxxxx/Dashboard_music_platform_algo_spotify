@@ -441,8 +441,11 @@ MODES = {
     "cumulative": "Cumulé",
     "absolute": "Par période",
     "share": "Part de chaque plateforme",
-    "facets": "Chacune à son échelle",
 }
+# R249 (fiche 2, 2026-09-27) : « chacune à son échelle » (petits multiples) est RETIRÉ.
+# L'accueil n'offre plus qu'un interrupteur, cumulé ou par période — décision du
+# propriétaire du 2026-09-13, « un seul interrupteur » — et aucun appelant ne passait
+# ce mode : du code que rien n'atteignait, qu'on continuait pourtant de tester.
 
 # `_UNSTACKED = {"share", "facets"}` vivait ici, déclarée pour piloter le sous-titre et
 # LUE NULLE PART — la logique a fini écrite en ligne (`mode == "share"`). Retirée le
@@ -901,17 +904,6 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # quelqu'un rebranche le sous-titre. Le retirer est le seul état où la classe est
     # close par CONSTRUCTION. Avec lui partent `title`, `step` et `surface`, morts de
     # la même façon — `_build_notes` porte déjà la leçon dans sa docstring.
-    if mode == "facets":
-        _render_facets(fig_span=span, aligned=aligned, order=order, segments=segments,
-                       palette=palette, ink=ink, muted=muted, grid=grid, key=key)
-        if recap is not None:
-            _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
-                          step, extra=recap_extra,
-                          metrics=_derive_metrics(recap_metrics, aligned,
-                                                  aligned_raw, span, mode, step))
-        _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
-                      discarded=discarded)
-        return True
 
     # LA LÉGENDE EST LE FILTRE DE SOURCES, et c'est ce qui retire un widget.
     #
@@ -1119,74 +1111,3 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 # Ce qui reste écrit sous la figure, ce sont les notes qui parlent de ce que la figure
 # NE PEUT PAS montrer : un seau élargi (`t_coarsened`), une plateforme trop mince
 # (`t_too_thin`), un pas trop grossier (`t_too_coarse`), des écoutes non traçables.
-
-
-def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict,
-                   palette: dict, ink: str, muted: str, grid: str, key: str) -> None:
-    """Petits multiples : une facette par plateforme, chacune sur SON échelle.
-
-    La seule forme qui rende visible une plateforme mille fois plus petite qu'une
-    autre, et la seule alternative admissible au double axe — que ce module n'utilisera
-    jamais. Mesuré sur l'artiste 1 : Spotify 99,74 %, YouTube 0,22 %, SoundCloud
-    0,04 %. Empilées ou en part, les deux dernières sont sous le pixel ; ici chacune
-    remplit sa propre facette.
-
-    Ce qu'on perd est dit franchement dans le sous-titre : il n'y a plus de total
-    lisible d'un coup d'œil, parce que les échelles ne sont pas comparables. C'est le
-    prix, et c'est pour cela que le mode est un CHOIX et pas le défaut.
-    """
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-
-    fig = make_subplots(rows=len(order), cols=1, shared_xaxes=True,
-                        vertical_spacing=0.06,
-                        subplot_titles=[PLATFORM_LABELS[k] for k in order])
-    for row, pkey in enumerate(order, start=1):
-        # LA HACHURE EST PAR FACETTE, et c'est la différence avec la pile.
-        #
-        # Ici chaque plateforme a son cadre, donc le trou de l'une ne concerne
-        # qu'elle : hachurer toute la colonne dirait que SoundCloud manque parce que
-        # YouTube manque. En petits multiples il n'y a pas non plus de total qui
-        # retombe — l'aire s'interrompt simplement — mais une interruption reste
-        # muette sur sa raison, et c'est ce que la hachure dit.
-        _gaps = unmeasured_spans({pkey: aligned[pkey]}, [pkey])
-        if _gaps:
-            _measured = [v for v in aligned[pkey] if v is not None]
-            _ceiling = (max(_measured) if _measured else 0) or 1
-            for _hatch in _hatch_traces(_gaps, fig_span, _ceiling * 1.02, muted,
-                                        legend=False):
-                fig.add_trace(_hatch, row=row, col=1)
-            fig.add_trace(_unmeasured_hover(_gaps, fig_span), row=row, col=1)
-        for seg in segments[pkey]:
-            fig.add_trace(go.Scatter(
-                x=[fig_span[i] for i in seg],
-                y=[aligned[pkey][i] for i in seg],   # ni `or 0` ici
-                name=PLATFORM_LABELS[pkey], mode="lines", fill="tozeroy",
-                line=dict(width=1.6, color=palette[pkey]),
-                fillcolor=palette[pkey], showlegend=False,
-                hovertemplate="%{y:,}<extra>" + PLATFORM_LABELS[pkey] + "</extra>",
-            ), row=row, col=1)
-        fig.update_yaxes(gridcolor=grid, zeroline=False, rangemode="tozero",
-                         row=row, col=1)
-        fig.update_xaxes(showgrid=False, linecolor=grid, row=row, col=1)
-    for note in fig.layout.annotations:
-        note.update(font=dict(color=ink, size=12), x=0, xanchor="left")
-    fig.update_layout(
-        # Le titre et le total sont partis avec ceux de la pile (2026-09-12) : le
-        # filtre porte la période, le récapitulatif porte les chiffres. Ce qui reste
-        # est propre aux facettes et ne se lit nulle part ailleurs — les échelles ne
-        # se comparent pas, et rien à l'écran ne le dirait sans cette ligne.
-        title=dict(text=f"<span style='font-size:12px;color:{muted}'>"
-                        "chaque plateforme a sa propre échelle, elles ne se "
-                        "comparent pas</span>",
-                   x=0, xanchor="left"),
-        height=140 * len(order) + 60,
-        # Le titre tient sur DEUX lignes, et le titre de la première facette est posé
-        # juste sous la marge : à 64 px, « Spotify » s'imprimait par-dessus le
-        # sous-titre. Vu au rendu le 2026-09-08.
-        margin=dict(l=56, r=24, t=34, b=32),
-        showlegend=False, hovermode="x unified",
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color=ink),
-    )
-    charts.plotly_chart(fig, width="stretch", key=key)

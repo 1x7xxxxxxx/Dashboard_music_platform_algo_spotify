@@ -24,18 +24,6 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   owner: "Oui, corrige le pic d'auditeurs."
   cause: arrivee-historique-lue-comme-hausse
   note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
-src/dashboard/utils/platform_chart.py::_render_facets#1:
-  q: "(variante par plateforme du graphique d'accueil)"
-  role: plateforme
-  d: 3
-  c: 3
-  p: 3
-  v: a-trancher
-  owner_v: a-trancher
-  owner: "Prends le plus pertinent."
-  absent: "code mort — le mode « chacune à son échelle » n'est plus atteignable depuis ta décision du 2026-09-13 (un seul interrupteur, le cumulé)"
-  note: "Non atteint par le rendu par défaut (branche d'un autre réglage) — à regarder dans l'app."
-
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
 src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
   q: "Ma dernière sortie fait-elle mieux que les précédentes au même âge ?"
@@ -539,7 +527,7 @@ src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   v: garder
   owner_v: corriger
   owner: "À garder en admin, pas sur Grafana : c'est du suivi de performance du modèle."
-  note: "Matrice de confusion du jeu de test (VP 66, FN 38). Manque la même chose en PRODUCTION, dans le temps (dérive — ML Production Systems, p. 322)."
+  note: "R249 : déjà en admin — rendue seulement dans « Performance des modèles ML » (onglets Scorecard et Fiabilité), jamais côté artiste."
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
   role: prediction
@@ -561,18 +549,6 @@ src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   owner_v: a-trancher
   owner: "Je ne comprends pas la plus-value ni la décision."
   note: "R247 : ce que la figure vérifie, écrit au-dessus ; la décision dessous — trop tôt sous 10 titres, sinon « le modèle attendait n déclenchements, aucun n'est arrivé : choisis sur les leviers »."
-src/dashboard/utils/s4a_entry_insight.py::render_playlist_history#1:
-  q: "Mes ajouts en playlist progressent-ils entre deux saisies ?"
-  role: plateforme
-  d: 1
-  c: 3
-  p: 2
-  v: retirer
-  owner_v: retirer
-  owner: "Retire."
-  cause: graphique-sans-decision
-  note: "Trois points en deux jours, axe en heures — rien à lire ; les chiffres sont déjà en tuiles."
-
 # ── Revenus et abonnement ────────────────────────────────────────────────────
 src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   q: "(MRR — onglet non atteint)"
@@ -585,16 +561,6 @@ src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   owner: "Non rendu."
   absent: "donnée absente — aucun abonnement payant actif dans la base : le MRR est nul, rien à tracer"
   note: "Non rendu par défaut."
-src/dashboard/views/revenue_forecast.py::_tab_projection#1:
-  q: "Quand atteindrai-je mon objectif de revenu mensuel ?"
-  role: business
-  d: 2
-  c: 3
-  p: 3
-  v: garder
-  owner_v: retirer
-  owner: "À retirer."
-  note: "MRR à 0 sur douze mois face à une cible de 500 € — juste (aucun abonné payant), mais une ligne plate ; une tuile le dirait."
 src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   q: "Combien vaut un abonné selon sa rétention ?"
   role: business
@@ -604,7 +570,7 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   v: a-trancher
   owner_v: corriger
   owner: "En admin, avec un calcul de MRR ; et saisir le coût de distribution d'un titre (iMusician, DistroKid), sommé dans la comptabilité."
-  note: "LTV par hypothèse de rétention — sans aucun abonné réel, c'est une table de multiplication."
+  note: "R249 : déjà en admin — onglet « LTV & Churn » de Prévisions revenus, visible des seuls administrateurs ; le MRR est calculé dans l'onglet voisin « MRR Actuel ». Le coût de distribution par titre se saisit dans Mes revenus (R248)."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
   role: prediction
@@ -648,28 +614,7 @@ src/dashboard/views/usage_analytics.py::show#1:
   owner_v: fusionner
   owner: "Cool ; fusionner sur un même graphique admin."
   note: "Pics d'usage lisibles (tests compris ?) — à filtrer du propriétaire."
-src/dashboard/views/db_health.py::_show_freshness_bar#1:
-  q: "Quelle source n'a pas été importée depuis longtemps ?"
-  role: archi
-  d: 4
-  c: 4
-  p: 5
-  v: garder
-  owner_v: retirer
-  owner: "On peut supprimer."
-  note: "Seuils 14/30 j marqués ; fond noir forcé (thème sombre) à vérifier à l'impression."
-src/dashboard/views/db_health.py::_show_heatmap#1:
-  q: "Quand les données arrivent-elles, table par table ?"
-  role: archi
-  d: 1
-  c: 3
-  p: 3
-  v: corriger
-  owner_v: retirer
-  owner: "Sert à rien, à supprimer."
-  cause: libelles-tronques
-  note: "Carte de chaleur sans libellés de lignes : on ne sait pas quelle table est quelle ligne."
-src/dashboard/views/db_health.py::_show_batch_sizes#1:
+src/dashboard/views/db_health.py::_show_ingestion_gaps#1:
   q: "Combien de lignes neuves par jour ?"
   role: archi
   d: 2
@@ -679,7 +624,7 @@ src/dashboard/views/db_health.py::_show_batch_sizes#1:
   owner_v: corriger
   owner: "Servir à détecter les anomalies d'ingestion : lignes attendues par artiste × artistes contre lignes reçues, alerte au-delà d'un seuil."
   cause: doublon
-  note: "Doublon en flux de la figure cumulée ; garder l'un des deux."
+  note: "R249 : refait — hier, lignes attendues (moyenne des 7 jours d'avant, zéros compris) contre reçues, par jeu de données ; alerte par artiste avec la règle du contrôle de nuit (moins d'un tiers) ou rien sur un flux quotidien. Sur l'instantané : 5 jeux, aucune anomalie."
 src/dashboard/views/etl_logs.py::_section_trend#1:
   q: "Quelles collectes échouent ?"
   role: archi

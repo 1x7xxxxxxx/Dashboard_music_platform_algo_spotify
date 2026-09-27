@@ -39,7 +39,6 @@ EN = {
     "home.mode_cumulative": "Cumulative",
     "home.mode_absolute": "Per period",
     "home.mode_share": "Share of each platform",
-    "home.mode_facets": "Each on its own scale",
     "home.trend_apple_hint": (
         "🎎 **Apple Music** only appears at the **Yearly** step: its exports are period "
         "totals, not daily figures. Spreading one over 365 days would invent a value "

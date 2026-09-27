@@ -141,7 +141,6 @@ EN = {
     # Entry point
     "revenue_forecast.title": "📈 Revenue forecast",
     "revenue_forecast.tab_mrr": "📊 Current MRR",
-    "revenue_forecast.tab_projection": "🔮 MRR projection",
     "revenue_forecast.tab_ltv": "💎 LTV & churn",
     "revenue_forecast.tab_artist": "🎵 Artist projection",
     # Tab 1 — Current MRR
@@ -156,21 +155,6 @@ EN = {
     "revenue_forecast.col_cancel": "Cancel at period end",
     "revenue_forecast.col_period_end": "Period end",
     # Tab 2 — MRR projection
-    "revenue_forecast.growth_header": "MRR growth simulation",
-    "revenue_forecast.mrr_start": "Starting MRR (actual): **{mrr:,.2f} €**",
-    "revenue_forecast.growth_rate": "Monthly growth rate (%)",
-    "revenue_forecast.months_to_project": "Months to project",
-    "revenue_forecast.premium_price": "Premium price (€/month)",
-    "revenue_forecast.enterprise_toggle": "Enable an Enterprise plan",
-    "revenue_forecast.enterprise_price": "Enterprise price (€/month)",
-    "revenue_forecast.enterprise_new_artists": "New Enterprise artists / month",
-    "revenue_forecast.mrr_target": "Target MRR (€) — reference line",
-    "revenue_forecast.mrr_final": "Final MRR",
-    "revenue_forecast.arr_final": "Final ARR",
-    "revenue_forecast.months_to_target": "Months to reach target",
-    "revenue_forecast.target_not_reached": "Target MRR {target:,.0f} € not reached within {months} months",
-    "revenue_forecast.projection_table": "Detailed projection table",
-    # Tab 3 — LTV & churn
     "revenue_forecast.ltv_header": "LTV & churn",
     "revenue_forecast.ltv_classic_header": "#### Classic LTV (ARPU ÷ monthly churn)",
     "revenue_forecast.churn_low": "Detected churn rate < 0.5% (few pending cancellations). Adjust manually:",

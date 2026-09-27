@@ -82,7 +82,7 @@ def test_a_removed_title_is_empty_not_none(monkeypatch) -> None:
     monkeypatch.setattr(st_mod, "plotly_chart",
                         lambda fig, **k: captured.setdefault("fig", fig))
     monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
-    for mode in ("cumulative", "absolute", "share", "facets"):
+    for mode in ("cumulative", "absolute", "share"):
         captured.clear()
         if not pc.render_platform_chart(series, key="t", step="day", mode=mode):
             continue
@@ -425,35 +425,9 @@ def test_absolute_mode_changes_nothing() -> None:
 
 def test_every_mode_is_offered_and_named() -> None:
     """Un mode sans libellé est un mode qu'on ne choisit pas."""
-    assert set(pc.MODES) == {"cumulative", "absolute", "share", "facets"}
+    assert set(pc.MODES) == {"cumulative", "absolute", "share"}
     for key, label in pc.MODES.items():
         assert label.strip(), key
-
-
-def test_the_smallest_platform_is_visible_in_at_least_one_mode() -> None:
-    """La plainte « je ne vois que Spotify » a une réponse mesurable, et une seule.
-
-    Sur l'artiste 1 : Spotify 99,74 %, YouTube 0,22 %, SoundCloud 0,04 %. Empilé ou en
-    part, 0,26 % occupe 0,26 % de la hauteur — le mode « part » a d'abord été présenté
-    comme la solution et il ne l'était pas ; il a fallu REGARDER la figure pour le
-    voir. Les petits multiples donnent à chaque plateforme son propre cadre.
-
-    Le garde suit la structure, pas le libellé : c'est `make_subplots` — une facette
-    par plateforme — qui est la promesse, pas le mot « échelle » dans un menu.
-    """
-    src = _CHART.read_text(encoding="utf-8")
-    tree = ast.parse(src)
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "_render_facets")
-    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
-              for n in ast.walk(fn) if isinstance(n, ast.Call)}
-    assert "make_subplots" in called, (
-        "le mode « chacune à son échelle » ne fait pas de petits multiples — une seule "
-        "figure ne peut pas porter trois ordres de grandeur")
-    rows = [n for n in ast.walk(fn)
-            if isinstance(n, ast.keyword) and n.arg == "rows"]
-    assert rows, "les facettes ne sont pas indexées par plateforme"
-    assert "facets" in pc.MODES, "le mode n'est pas proposé"
 
 
 def test_no_render_helper_receives_a_value_it_never_reads() -> None:

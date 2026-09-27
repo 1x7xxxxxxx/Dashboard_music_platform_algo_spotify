@@ -211,11 +211,11 @@ def test_a_hidden_branch_is_opened_by_its_widget() -> None:
             self.value = v
 
     class AT:
-        toggle = [W("home_trend_facets_1", "Chacune à son échelle")]
+        toggle = [W("home_trend_cumul_1", "Cumulé")]
         selectbox = [W(None, "Métrique")]
 
     at = AT()
-    assert capture.apply_variant(at, "toggle", "home_trend_facets_1", True)
+    assert capture.apply_variant(at, "toggle", "home_trend_cumul_1", True)
     assert at.toggle[0].value is True
     assert capture.apply_variant(at, "selectbox", "Métrique", "Engagement")
     assert not capture.apply_variant(at, "selectbox", "Absent", "x")

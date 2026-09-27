@@ -41,11 +41,12 @@ def test_fiche_57_a_flat_curve_is_said_flat():
     assert "compte" in sensitivity_verdict([15.0, 30.0], "Saves")
 
 
-def test_fiche_58_no_verdict_on_the_model_below_ten_titles():
-    assert "Trop tôt" in bet_decision(0, 1.2, 9)
-    assert "aucun n'est arrivé" in bet_decision(0, 1.2, 11)
-    assert "reste dans ce que" in bet_decision(1, 1.2, 11)
-    assert "reste dans ce que" in bet_decision(0, 0.6, 11)
+def test_fiche_58_zero_triggers_convicts_the_model_only_when_zero_was_unlikely():
+    # Snapshot 2026-09-22: 11 titles near 7 %, Σ ≈ 0.8, P(0) ≈ 45 % — no verdict.
+    assert "Trop tôt" in bet_decision(0, 0.8, 11)
+    assert "Trop tôt" in bet_decision(0, 2.9, 40)
+    assert "aucun n'est arrivé" in bet_decision(0, 3.0, 40)
+    assert "reste dans ce que" in bet_decision(1, 3.5, 40)
 
 
 def test_fiche_64_a_trigger_is_small_against_a_large_gap():

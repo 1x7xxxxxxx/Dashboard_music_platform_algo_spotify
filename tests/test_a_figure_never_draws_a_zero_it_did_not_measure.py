@@ -79,7 +79,7 @@ def _figure(monkeypatch, *, mode: str, step, only=None):
     return captured.get("fig") if drawn else None
 
 
-_MODES = ("cumulative", "absolute", "share", "facets")
+_MODES = ("cumulative", "absolute", "share")
 _STEPS = (None, "day", "week", "month", "year")
 
 
@@ -327,33 +327,6 @@ def test_the_window_never_starts_before_the_first_measurement():
     assert min(f for f in firsts if f is not None) == 0, (
         "aucune plateforme ne mesure au premier pas de la fenêtre — l'intersection "
         "« personne ne regardait » est redevenue non vide.")
-
-
-def test_the_facets_do_not_hatch_a_platform_own_prehistory(monkeypatch):
-    """En petits multiples, chaque facette vit sur SA plage.
-
-    Y hachurer « avant la première mesure » hachurerait du vide : la facette de
-    YouTube n'a pas à expliquer qu'elle ne montre rien là où elle n'a rien à
-    montrer. C'est le seul mode où `before_first=False`, et sans ce test la
-    distinction disparaîtrait au premier nettoyage.
-    """
-    import streamlit as st_mod
-    captured: dict = {}
-    monkeypatch.setattr(st_mod, "plotly_chart",
-                        lambda fig, **k: captured.setdefault("fig", fig))
-    monkeypatch.setattr(st_mod, "caption", lambda *a, **k: None)
-
-    days = [_d.date(2024, 1, 1) + _d.timedelta(days=i) for i in range(400)]
-    series = {"spotify": [(x, 10) for x in days],
-              "youtube": [(x, 3) for x in days if x >= days[300]]}
-    assert pc.render_platform_chart(series, since=days[0], until=days[-1], step="day",
-                                    mode="facets", key="late")
-    hatched = [tr for tr in captured["fig"].data
-               if getattr(tr, "legendgroup", None) == "__unmeasured__"
-               and getattr(tr, "fill", None) == "toself"]
-    assert not hatched, (
-        "les facettes hachurent la préhistoire d'une plateforme. Chacune a son "
-        "propre cadre : il n'y a rien à expliquer là où il n'y a rien à comparer.")
 
 
 def test_only_one_legend_entry_names_the_absence(monkeypatch):

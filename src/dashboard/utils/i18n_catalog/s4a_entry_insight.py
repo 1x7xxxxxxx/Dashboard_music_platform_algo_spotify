@@ -38,12 +38,13 @@ EN = {
         "algorithms actually brought it (your S4A entry). This is the only place where we "
         "check whether its percentages are worth anything."),
     "s4a_insight.bet_too_early": (
-        "⏳ **Too early to judge the model** ({n} track(s), {m} needed). Keep entering your "
-        "results every month: that is what will tell whether its percentages hold."),
+        "⏳ **Too early to judge the model**: across {n} track(s) it expected {a:.1f} "
+        "trigger, and seeing none is what happens most often in that case. Keep entering "
+        "your results every month: that is what will tell whether its percentages hold."),
     "s4a_insight.bet_over": (
-        "🔻 **The model expected {a:.1f} trigger(s), none happened** — do not pick a track "
-        "on its percentage; pick it on its levers (Road to Algo, tab « 🎧 This track: what "
-        "is left to do »)."),
+        "🔻 **The model expected {a:.1f} trigger(s), none happened** — chance would explain "
+        "that less than one time in twenty. Do not pick a track on its percentage; pick it "
+        "on its levers (Road to Algo, tab « 🎧 This track: what is left to do »)."),
     "s4a_insight.bet_consistent": (
         "✅ **What happened stays within what the model announced** — its percentages can "
         "guide your choice, without settling it alone."),
@@ -53,14 +54,4 @@ EN = {
         "error rate: on a population of {n}, the gap expected from chance alone is of "
         "the same order. The figure shows the bet; it does not judge it."),
     # ── Historique ───────────────────────────────────────────────────────────
-    "s4a_insight.hist_header": "📈 Playlist adds over time",
-    "s4a_insight.hist_unreadable": "History unreadable — that is not « no history ».",
-    "s4a_insight.hist_none": "No playlist-add entry yet.",
-    "s4a_insight.hist_single": (
-        "Only one entry so far ({d}) — two are needed to draw a trend. That entry's "
-        "values are in the **Signals** tab."),
-    "s4a_insight.hist_axis": "Adds (all tracks)",
-    "s4a_insight.hist_note": (
-        "Sum across all tracks, by entry date. The three windows OVERLAP — 28 days "
-        "CONTAINS 7 days: they do not add up."),
 }

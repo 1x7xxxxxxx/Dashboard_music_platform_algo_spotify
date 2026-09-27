@@ -223,7 +223,7 @@ _FLOOR: dict[str, int] = {
     # désormais UN appel dans `_show_volume_scatter`, en boucle sur les trois. Ce qui
     # s'affiche a baissé à dessein : un volume que `volume_forecast_reliable` masque
     # n'est plus dessiné (classe `a-surface-that-draws-a-forecast-its-gate-suppresses`).
-    "figures.total": 67,  # 72 → 67 le 2026-09-27 (R247) : cinq figures de code mort retirées — l'onglet « Algorithmes » que rien n'appelait (fiches 47/48), la section des portes PI (49), l'estimateur RR avant sortie (56), les résidus DW jamais rendus (50) ; 76 → 72 le 2026-09-27 (R244) : fusions demandées par le propriétaire — la trésorerie dessinée UNE fois (SACEM et « Prévisions revenus » y renvoient), l'usage admin en un graphique (3 → 1) ; 84 → 76 le 2026-09-27 (R214) : les 8 graphiques Wrapped deviennent des tuiles annuelles repliées (une valeur par an), rien de retiré ; 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
+    "figures.total": 64,  # 69 → 64 le 2026-09-27 (R249) : retirés à la demande du propriétaire — le mode « chacune à son échelle » (fiche 2, que rien n'atteignait), l'historique des ajouts en playlist (59), la projection MRR (61), la barre de fraîcheur (70) et la carte de chaleur (71) ; la taille des lots (72) devient la détection d'anomalie d'ingestion ; 72 → 67 le 2026-09-27 (R247) : cinq figures de code mort retirées — l'onglet « Algorithmes » que rien n'appelait (fiches 47/48), la section des portes PI (49), l'estimateur RR avant sortie (56), les résidus DW jamais rendus (50) ; 76 → 72 le 2026-09-27 (R244) : fusions demandées par le propriétaire — la trésorerie dessinée UNE fois (SACEM et « Prévisions revenus » y renvoient), l'usage admin en un graphique (3 → 1) ; 84 → 76 le 2026-09-27 (R214) : les 8 graphiques Wrapped deviennent des tuiles annuelles repliées (une valeur par an), rien de retiré ; 85 → 84 le 2026-09-27 (R207) : db_health, la courbe cumulée fusionnée dans les lots ; 86 → 85 le 2026-09-27 (R212) : imusician, ventes + ROI → une trésorerie ; 87 → 86 le 2026-09-26 (R216)
     # 207 → 204 le 2026-09-16, et la baisse est LEGITIME : `views/perf_monitor.py` a
     # ete supprime (R115 etape 6), avec ses tuiles « Dernier rendu », « DB ping »,
     # « RAM process » et « CPU process ». Grafana les porte desormais, apres une
@@ -296,7 +296,9 @@ _FLOOR: dict[str, int] = {
     # 2026-09-27 (R247) : 168 → 166 — fiche 45 (owner : « sans équation ni R² ») loses
     # its three fit tiles (R², slope, p-value), which now decide the sentence under the
     # chart; fiche 44 gains one (the written verdict under the cohort position).
-    "tiles.total": 166,
+    # 2026-09-27 (R249) : 166 → 162 — the MRR projection tab (fiche 61, « à retirer »)
+    # took its four tiles with it (MRR final, ARR final, months to target ×2).
+    "tiles.total": 162,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

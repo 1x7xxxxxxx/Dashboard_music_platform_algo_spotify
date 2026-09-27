@@ -20,22 +20,17 @@ EN = {
     "db_health.col_age_days": "Age (days)",
     "db_health.age_days_suffix": "{n}d",
     # Freshness bar
-    "db_health.freshness_header": "⏱️ Freshness per dataset",
-    "db_health.freshness_caption": "Days since last import — green ≤14d, orange ≤30d, red >30d",
-    "db_health.no_populated": "No populated dataset.",
-    "db_health.freshness_xaxis": "Days since last import",
-    "db_health.vline_label": "{n}d",
-    # Heatmap
-    "db_health.heatmap_header": "📅 Import activity — weekly heatmap",
-    "db_health.heatmap_caption": "Each cell = new rows ingested this week. White = no activity.",
-    "db_health.no_activity_data": "No activity data available.",
-    "db_health.no_activity_52w": "No activity over the last 52 weeks.",
-    # Cumulative
     "db_health.no_data": "No data available.",
-    "db_health.datasets_to_show": "Datasets to display",
-    # Batch sizes
-    "db_health.batch_header": "📦 Import size per week",
-    "db_health.batch_caption": "Very small or very large batches may indicate a collection anomaly.",
-    "db_health.no_activity_26w": "No activity over the last 26 weeks.",
-    "db_health.batch_yaxis": "New rows",
+    "db_health.gaps_header": "🚨 Ingestion anomalies — expected against received",
+    "db_health.gaps_caption": (
+        "Yesterday, for each dataset: the rows expected (mean of the 7 days before, summed "
+        "over artists) against the rows received. Alert when an artist receives less than "
+        "a third of usual, or nothing on a daily feed."),
+    "db_health.gaps_expected": "Expected",
+    "db_health.gaps_received": "Received",
+    "db_health.gaps_axis": "rows (yesterday)",
+    "db_health.gaps_none": (
+        "✅ No anomaly: every artist received at least a third of their usual rows yesterday."),
+    "db_health.gaps_alert": "⚠️ {n} ingestion anomaly(ies) yesterday:",
+    "db_health.gaps_verdict": "Finding",
 }

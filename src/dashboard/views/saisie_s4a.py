@@ -24,7 +24,6 @@ from src.dashboard.utils.entry_period import entry_period_selector
 from src.dashboard.utils.s4a_entry_insight import (
     render_completeness,
     render_freshness,
-    render_playlist_history,
     render_prediction_vs_reality,
 )
 from src.dashboard.utils.i18n import t
@@ -391,5 +390,5 @@ def show():
             render_prediction_vs_reality(db, artist_id)
             st.markdown("---")
             render_completeness(db, artist_id, tracks)
-            st.markdown("---")
-            render_playlist_history(db, artist_id)
+            # R249 (fiche 59, owner 2026-09-27 : « retire ») : l'historique des ajouts en
+            # playlist est parti — la complétude juste au-dessus dit déjà ce qui manque.

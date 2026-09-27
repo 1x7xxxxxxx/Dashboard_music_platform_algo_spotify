@@ -7,12 +7,10 @@ Depends on: get_db_connection, get_artist_id, is_admin
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from datetime import date
 
 from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.ui import show_empty_state
 from src.dashboard.auth import get_artist_id, is_admin
 from src.database.postgres_handler import validate_table, validate_columns
 
@@ -42,18 +40,7 @@ _DATASETS = [
      'ts_col': 'prediction_date'},  # override: no collected_at on this table
 ]
 
-_FRESHNESS_WARN_DAYS  = 14   # orange
 _FRESHNESS_ERROR_DAYS = 30   # red
-
-
-def _freshness_color(days: int | None) -> str:
-    if days is None:
-        return '#555555'
-    if days <= _FRESHNESS_WARN_DAYS:
-        return '#1DB954'
-    if days <= _FRESHNESS_ERROR_DAYS:
-        return '#FFA500'
-    return '#FF6B6B'
 
 
 def _load_health(db, artist_id) -> pd.DataFrame:
@@ -98,39 +85,39 @@ def _load_health(db, artist_id) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _load_weekly_activity(db, artist_id) -> pd.DataFrame:
-    """For each dataset, count new rows per ISO week (collected_at bucketed to Monday)."""
+def _load_daily_by_tenant(db, artist_id) -> pd.DataFrame:
+    """Rows written per (dataset, tenant, day) over the 8 last COMPLETE days.
+
+    R249 (fiche 72). The complete days only: today is still being collected, and a day
+    in progress compared with full days would read as a dip every morning — the same
+    reason `alert_monitor.check_row_dips` reads `day < CURRENT_DATE`."""
     frames = []
     for ds in _DATASETS:
-        table = ds['table']
-        ts = ds.get('ts_col', 'collected_at')
+        table, ts = ds['table'], ds.get('ts_col', 'collected_at')
         # CLAUDE.md rule #8 — explicit allowlist + identifier check before f-string SQL.
         validate_table(table)
         validate_columns([ts])
-        conds, params = [f"{ts} IS NOT NULL"], []
+        conds = [f"{ts}::date >= CURRENT_DATE - 8", f"{ts}::date < CURRENT_DATE",
+                 "artist_id IS NOT NULL"]
+        params = []
         if artist_id:
             conds.append("artist_id = %s")
             params.append(artist_id)
         if ds.get('song_filter'):
             conds.append("song NOT ILIKE %s")
             params.append(f"%{_ARTIST_NAME_FILTER}%")
-        where = " WHERE " + " AND ".join(conds)
         try:
             df = db.fetch_df(
-                f"""SELECT DATE_TRUNC('week', {ts})::date AS week,
-                           COUNT(*) AS new_rows
-                    FROM {table}{where}
-                    GROUP BY 1 ORDER BY 1""",
-                tuple(params),
-            )
-            if not df.empty:
-                df['dataset'] = ds['label']
-                frames.append(df)
-        except Exception:
-            pass
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
-        columns=['week', 'new_rows', 'dataset']
-    )
+                f"""SELECT artist_id AS tenant, {ts}::date AS day, COUNT(*) AS n_rows
+                    FROM {table} WHERE {" AND ".join(conds)} GROUP BY 1, 2""",
+                tuple(params))
+        except Exception:                                            # noqa: BLE001
+            continue
+        if df is not None and not df.empty:
+            frames.append(df.assign(dataset=ds['label']))
+    if not frames:
+        return pd.DataFrame(columns=["dataset", "tenant", "day", "n_rows"])
+    return pd.concat(frames, ignore_index=True)
 
 
 def _show_health_table(df_health: pd.DataFrame):
@@ -171,163 +158,77 @@ def _show_health_table(df_health: pd.DataFrame):
     st.dataframe(display, hide_index=True, width='stretch')
 
 
-def _show_freshness_bar(df_health: pd.DataFrame):
-    st.subheader(t("db_health.freshness_header", "⏱️ Fraîcheur par dataset"))
-    st.caption(t("db_health.freshness_caption",
-                 "Jours depuis le dernier import — vert ≤14j, orange ≤30j, rouge >30j"))
+# R249 (fiches 70-71, owner 2026-09-27 : « on peut supprimer », « sert à rien ») : the
+# freshness bar and the weekly heat-map are gone — the table above carries the same
+# dates. Fiche 72 (« détecter les anomalies d'ingestion ») replaces the batch-size chart.
 
-    df = df_health[df_health['total'] > 0].copy()
-    if show_empty_state(df, t("db_health.no_populated", "Aucun dataset peuplé.")):
+def ingestion_gaps(daily: pd.DataFrame, yesterday: date) -> pd.DataFrame:
+    """Per (dataset, tenant): rows EXPECTED yesterday (the mean of the 7 days before) and
+    rows RECEIVED, with a verdict. Pure.
+
+    « creux » reuses the nightly check's rule (`volume_monitor.is_partial_collection`:
+    fewer than a third of usual, zero excluded). « muet » is zero rows from a feed that
+    wrote on at least 5 of those 7 days — a DAILY feed; a weekly CSV import is silent
+    most days by nature and must not raise an alert every morning."""
+    from src.utils.volume_monitor import MIN_BASELINE_ROWS, is_partial_collection
+    cols = ["dataset", "tenant", "expected", "received", "verdict"]
+    if daily is None or daily.empty:
+        return pd.DataFrame(columns=cols)
+    d = daily.assign(day=pd.to_datetime(daily["day"]).dt.date)
+    before = [yesterday - pd.Timedelta(days=k).to_pytimedelta() for k in range(1, 8)]
+    out = []
+    for (ds, tenant), g in d.groupby(["dataset", "tenant"]):
+        per_day = g.groupby("day")["n_rows"].sum()
+        received = float(per_day.get(yesterday, 0))
+        past = [float(per_day.get(x, 0)) for x in before]
+        expected = sum(past) / 7
+        if is_partial_collection(received, expected):
+            verdict = "creux"
+        elif received == 0 and sum(v > 0 for v in past) >= 5 and expected >= MIN_BASELINE_ROWS:
+            verdict = "muet"
+        else:
+            verdict = "ok"
+        out.append((ds, tenant, expected, received, verdict))
+    return pd.DataFrame(out, columns=cols)
+
+
+def _show_ingestion_gaps(daily: pd.DataFrame) -> None:
+    st.subheader(t("db_health.gaps_header", "🚨 Anomalies d'ingestion — attendu contre reçu"))
+    st.caption(t("db_health.gaps_caption",
+                 "Hier, pour chaque jeu de données : les lignes attendues (moyenne des 7 jours "
+                 "d'avant, somme des artistes) contre les lignes reçues. Alerte quand un "
+                 "artiste reçoit moins d'un tiers de d'habitude, ou rien sur un flux quotidien."))
+    gaps = ingestion_gaps(daily, date.today() - pd.Timedelta(days=1).to_pytimedelta())
+    if gaps.empty:
+        st.info(t("db_health.no_data", "Aucune donnée disponible."))
         return
-
-    df = df.sort_values('age_days', ascending=True, na_position='last')
-    df['color'] = df['age_days'].apply(_freshness_color)
-    df['age_label'] = df['age_days'].apply(
-        lambda x: t("db_health.age_days_suffix", "{n}j").format(n=x) if x is not None else "—"
-    )
-
-    fig = go.Figure(go.Bar(
-        # UN ÂGE INCONNU N'EST PAS ZÉRO JOUR.
-        #
-        # `fillna(0)` plaçait la barre à l'extrémité la PLUS favorable de l'axe, c'est-à-
-        # dire « importé aujourd'hui », pour un jeu de données dont on ignore l'âge.
-        # L'étiquette disait bien « — », mais la position — la seule information que
-        # porte une barre — disait le contraire. NaN laisse la barre absente.
-        x=df['age_days'],
-        y=df['label'],
-        orientation='h',
-        marker_color=df['color'],
-        text=df['age_label'],
-        textposition='outside',
-        hovertemplate='<b>%{y}</b><br>%{x} '
-                      + t("db_health.freshness_xaxis", "Jours depuis le dernier import")
-                      + '<extra></extra>',
-    ))
-    _vline = t("db_health.vline_label", "{n}j")
-    fig.add_vline(x=_FRESHNESS_WARN_DAYS,  line_dash='dash', line_color='#FFA500',
-                  annotation_text=_vline.format(n=_FRESHNESS_WARN_DAYS), annotation_position='top right')
-    fig.add_vline(x=_FRESHNESS_ERROR_DAYS, line_dash='dash', line_color='#FF6B6B',
-                  annotation_text=_vline.format(n=_FRESHNESS_ERROR_DAYS), annotation_position='top right')
-    fig.update_layout(
-        height=max(300, len(df) * 42),
-        xaxis_title=t("db_health.freshness_xaxis", "Jours depuis le dernier import"),
-        yaxis_title=None,
-        margin=dict(l=0, r=60, t=20, b=40),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white',
-    )
-    charts.plotly_chart(fig, width='stretch')
-
-
-def _show_heatmap(df_weekly: pd.DataFrame):
-    st.subheader(t("db_health.heatmap_header", "📅 Activité d'import — heatmap par semaine"))
-    st.caption(t("db_health.heatmap_caption",
-                 "Chaque cellule = nouvelles lignes intégrées cette semaine. Blanc = aucune activité."))
-
-    if show_empty_state(df_weekly, t("db_health.no_activity_data", "Aucune donnée d'activité disponible.")):
+    tot = gaps.groupby("dataset")[["expected", "received"]].sum().sort_values("expected")
+    fig = go.Figure([
+        go.Bar(y=tot.index, x=tot["expected"], orientation="h", marker_color="#c8ced6",
+               name=t("db_health.gaps_expected", "Attendu")),
+        go.Bar(y=tot.index, x=tot["received"], orientation="h", marker_color="#1f77b4",
+               name=t("db_health.gaps_received", "Reçu"),
+               text=[f"{v:,.0f}".replace(",", " ") for v in tot["received"]],
+               textposition="outside", cliponaxis=False)])
+    fig.update_layout(barmode="group", height=max(300, 40 * len(tot) + 120),
+                      xaxis_title=t("db_health.gaps_axis", "lignes (hier)"),
+                      margin=dict(l=10, r=40, t=20, b=20))
+    fig.update_yaxes(automargin=True)   # the dataset names were cut (render, 2026-09-27)
+    charts.plotly_chart(fig, width="stretch")
+    alerts = gaps[gaps["verdict"] != "ok"]
+    if alerts.empty:
+        st.success(t("db_health.gaps_none", "✅ Aucune anomalie : chaque artiste a reçu hier "
+                                            "au moins un tiers de ses lignes habituelles."))
         return
-
-    df_weekly['week'] = pd.to_datetime(df_weekly['week'])
-    # Keep last 52 weeks for readability
-    cutoff = pd.Timestamp(date.today()) - pd.Timedelta(weeks=52)
-    df_weekly = df_weekly[df_weekly['week'] >= cutoff]
-
-    if show_empty_state(df_weekly, t("db_health.no_activity_52w", "Aucune activité sur les 52 dernières semaines.")):
-        return
-
-    pivot = df_weekly.pivot_table(
-        index='dataset', columns='week', values='new_rows', aggfunc='sum', fill_value=0
-    )
-    week_labels = [str(c.date()) for c in pivot.columns]
-
-    fig = go.Figure(go.Heatmap(
-        z=pivot.values,
-        x=week_labels,
-        y=pivot.index.tolist(),
-        colorscale='Greens',
-        hoverongaps=False,
-        hovertemplate='<b>%{y}</b><br>Semaine %{x}<br>%{z:,} lignes<extra></extra>',
-        colorbar=dict(title='Lignes', thickness=12),
-    ))
-    fig.update_layout(
-        height=max(300, len(pivot) * 44 + 80),
-        xaxis=dict(tickangle=-45, nticks=20),
-        yaxis_title=None,
-        margin=dict(l=0, r=20, t=20, b=80),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white',
-    )
-    charts.plotly_chart(fig, width='stretch')
-
-
-@st.fragment
-def _show_batch_sizes(df_weekly: pd.DataFrame):
-    """La taille des imports par semaine — rejouée SEULE quand son filtre change.
-
-    @st.fragment (R118, 2026-09-16) : bouger le multiselect ne rejoue que ce corps.
-    Avant, il rejouait tout le script — les trois requêtes de `show()`, les quatre autres
-    sections, et toute la barre latérale.
-
-    ⚠️ La condition de sûreté, et elle n'est pas négociable : cette fonction ne reçoit
-    qu'un **DataFrame**, jamais la connexion. `show()` ferme `db` dans son `finally` dès
-    que le rendu complet est fini ; un fragment qui aurait capturé `db` s'exécuterait
-    plus tard sur une connexion FERMÉE, et échouerait sans que rien ne relie la panne au
-    filtre qu'on vient de bouger. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-    """
-    st.subheader(t("db_health.batch_header", "📦 Taille des imports par semaine"))
-    st.caption(t("db_health.batch_caption",
-                 "Lots très petits ou très grands peuvent indiquer une anomalie de collecte."))
-
-    if show_empty_state(df_weekly, t("db_health.no_data", "Aucune donnée disponible.")):
-        return
-
-    df_weekly = df_weekly.copy()
-    df_weekly['week'] = pd.to_datetime(df_weekly['week'])
-    cutoff = pd.Timestamp(date.today()) - pd.Timedelta(weeks=26)
-    df_plot = df_weekly[df_weekly['week'] >= cutoff]
-
-    if df_plot.empty:
-        st.info(t("db_health.no_activity_26w", "Aucune activité sur les 26 dernières semaines."))
-        return
-
-    # Dataset filter
-    all_datasets = sorted(df_plot['dataset'].unique())
-    selected = st.multiselect(
-        t("db_health.datasets_to_show", "Datasets à afficher"),
-        options=all_datasets,
-        default=all_datasets[:5] if len(all_datasets) > 5 else all_datasets,
-        key="db_health_batch_select",
-    )
-    if not selected:
-        return
-
-    df_plot = df_plot[df_plot['dataset'].isin(selected)]
-    colors = px.colors.qualitative.Plotly
-
-    fig = go.Figure()
-    for i, (label, grp) in enumerate(df_plot.groupby('dataset')):
-        grp = grp.sort_values('week')
-        fig.add_trace(go.Bar(
-            x=grp['week'], y=grp['new_rows'],
-            name=label,
-            marker_color=colors[i % len(colors)],
-            hovertemplate=f'<b>{label}</b><br>%{{x|%Y-%m-%d}}<br>%{{y:,}} nouvelles lignes<extra></extra>',
-        ))
-    fig.update_layout(
-        height=380,
-        barmode='group',
-        xaxis_title=None,
-        yaxis_title=t("db_health.batch_yaxis", "Nouvelles lignes"),
-        hovermode='x unified',
-        legend=dict(orientation='h', y=-0.25),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white',
-    )
-    charts.plotly_chart(fig, width='stretch')
+    st.warning(t("db_health.gaps_alert", "⚠️ {n} anomalie(s) d'ingestion hier :").format(
+        n=len(alerts)))
+    st.dataframe(alerts.rename(columns={
+        "dataset": t("db_health.col_dataset", "Jeu de données"),
+        "tenant": t("common.artist", "Artiste"),
+        "expected": t("db_health.gaps_expected", "Attendu"),
+        "received": t("db_health.gaps_received", "Reçu"),
+        "verdict": t("db_health.gaps_verdict", "Constat")}).round(1),
+        hide_index=True, width="stretch")
 
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
@@ -350,15 +251,11 @@ def show():
     try:
         with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)
-            df_weekly  = _load_weekly_activity(db, artist_id)
+            df_daily   = _load_daily_by_tenant(db, artist_id)
 
         _show_health_table(df_health)
         st.markdown("---")
-        _show_freshness_bar(df_health)
-        st.markdown("---")
-        _show_heatmap(df_weekly)
-        st.markdown("---")
-        _show_batch_sizes(df_weekly)
+        _show_ingestion_gaps(df_daily)
 
     finally:
         db.close()

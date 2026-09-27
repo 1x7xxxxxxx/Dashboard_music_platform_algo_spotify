@@ -27,7 +27,6 @@ from src.dashboard.utils.revenue_forecast import (
     load_subscriptions as _load_subscriptions,
     load_artist_revenues as _load_artist_revenues,
     load_artists as _load_artists,
-    project_mrr,
     ltv_global,
     ltv_scenarios,
 )
@@ -135,121 +134,7 @@ def _tab_mrr(db) -> None:
     )
 
 
-# ─────────────────────────────────────────────
-# Tab 2 — Projection MRR
-# ─────────────────────────────────────────────
-
-@st.fragment
-def _frag_projection() -> None:
-    """La projection de MRR — rejoué SEUL quand ses curseurs bougent.
-
-    @st.fragment (R118, 2026-09-16). Ses widgets sont des CURSEURS : on les traîne, donc
-    ils déclenchent une rafale de reruns. Avant, chacun rejouait tout le script — les
-    quatre onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale. C'est
-    le pire profil d'usage pour un rerun complet, et le meilleur cas pour un fragment.
-
-    ⚠️ Il ouvre sa PROPRE connexion : ses curseurs pilotent des requêtes, et celle de
-    `show()` est refermée dès la fin du rendu complet. Un fragment qui la capturerait la
-    ré-emprunterait au pool sans jamais la rendre. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-    """
-    from src.dashboard.utils.fragment_db import fragment_db
-
-    with fragment_db() as (db, _artist_id):
-        _tab_projection(db)
-
-
-def _tab_projection(db) -> None:
-    st.subheader(t("revenue_forecast.growth_header", "Simulation de croissance MRR"))
-
-    df = _load_subscriptions(db)
-    active_paying = df[df['status'].isin(MRR_STATUSES) & (df['price'] > 0)]
-    mrr_0 = float(active_paying['price'].sum()) if not active_paying.empty else 0.0
-
-    st.caption(t("revenue_forecast.mrr_start",
-                 "MRR de départ (réel) : **{mrr:,.2f} €**").format(mrr=mrr_0))
-    st.markdown("---")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        growth_rate = st.slider(
-            t("revenue_forecast.growth_rate", "Taux de croissance mensuel (%)"), 0, 30, 5)
-        months      = st.select_slider(
-            t("revenue_forecast.months_to_project", "Mois à projeter"),
-            options=[6, 12, 24, 36], value=12)
-    with c2:
-        price_premium = st.number_input(
-            t("revenue_forecast.premium_price", "Prix Premium (€/mois)"),
-            value=float(_CAT['premium']['price_eur']), step=0.10, format="%.2f")
-
-    # Recalc MRR0 avec prix custom (un seul plan payant : Premium)
-    _p_premium = _CAT['premium']['price_eur']
-    if not active_paying.empty:
-        mrr_0_custom = float(
-            active_paying['price'].map(
-                lambda p: price_premium if abs(p - _p_premium) < 0.01 else p
-            ).sum()
-        )
-    else:
-        mrr_0_custom = mrr_0
-
-    enterprise_on = st.toggle(t("revenue_forecast.enterprise_toggle", "Activer un plan Enterprise"))
-    ent_price = ent_per_month = 0.0
-    if enterprise_on:
-        ec1, ec2 = st.columns(2)
-        ent_price     = ec1.number_input(
-            t("revenue_forecast.enterprise_price", "Prix Enterprise (€/mois)"),
-            value=99.0, step=1.0)
-        ent_per_month = ec2.number_input(
-            t("revenue_forecast.enterprise_new_artists", "Nouveaux artistes Enterprise / mois"),
-            value=1.0, step=0.5)
-
-    mrr_target = st.number_input(
-        t("revenue_forecast.mrr_target", "MRR cible (€) — ligne de référence"),
-        value=500.0, step=50.0)
-
-    # Build projection (pure math extracted to utils.revenue_forecast.project_mrr)
-    proj = project_mrr(
-        mrr_0_custom, growth_rate, months,
-        enterprise_on=enterprise_on, ent_price=ent_price,
-        ent_per_month=ent_per_month, mrr_target=mrr_target,
-    )
-    months_list, mrr_vals, arr_vals, target_month = (
-        proj['months'], proj['mrr'], proj['arr'], proj['target_month'])
-
-    proj_df = pd.DataFrame({'Mois': months_list, 'MRR (€)': mrr_vals, 'ARR (€)': arr_vals})
-
-    r1, r2, r3 = st.columns(3)
-    r1.metric(t("revenue_forecast.mrr_final", "MRR final"), f"{mrr_vals[-1]:,.2f} €")
-    r2.metric(t("revenue_forecast.arr_final", "ARR final"), f"{arr_vals[-1]:,.2f} €")
-    if target_month is not None:
-        r3.metric(t("revenue_forecast.months_to_target", "Mois pour atteindre la cible"), f"M+{target_month}")
-    else:
-        r3.metric(t("revenue_forecast.months_to_target", "Mois pour atteindre la cible"), "—",
-                  help=t("revenue_forecast.target_not_reached",
-                         "MRR cible {target:,.0f} € non atteint sur {months} mois").format(target=mrr_target, months=months))
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=months_list, y=mrr_vals, mode='lines+markers',
-        name='MRR projeté', line=dict(color='#1DB954', width=2),
-    ))
-    fig.add_hline(
-        y=mrr_target, line_dash='dot', line_color='orange',
-        annotation_text=f"Cible : {mrr_target:,.0f} €",
-        annotation_position='top left',
-    )
-    if target_month is not None:
-        fig.add_vline(
-            x=months_list[target_month], line_dash='dash', line_color='orange',
-            annotation_text=f"M+{target_month}",
-        )
-    fig.update_layout(xaxis_title='Mois', yaxis_title='MRR (€)', hovermode='x unified')
-    charts.plotly_chart(fig, width='stretch')
-
-    with st.expander(t("revenue_forecast.projection_table", "Tableau de projection détaillé")):
-        st.dataframe(proj_df, width='stretch', hide_index=True)
-
+# R249 (fiche 61, owner 2026-09-27 : « à retirer ») : the MRR growth simulation tab is gone.
 
 # ─────────────────────────────────────────────
 # Tab 3 — LTV & Churn
@@ -1100,16 +985,13 @@ def show() -> None:
     declare_page_db(db)
     try:
         if is_admin():
-            tab_mrr, tab_proj, tab_ltv, tab_artist = st.tabs([
+            tab_mrr, tab_ltv, tab_artist = st.tabs([
                 t("revenue_forecast.tab_mrr", "📊 MRR Actuel"),
-                t("revenue_forecast.tab_projection", "🔮 Projection MRR"),
                 t("revenue_forecast.tab_ltv", "💎 LTV & Churn"),
                 t("revenue_forecast.tab_artist", "🎵 Projection Artistique"),
             ])
             with tab_mrr:
                 _tab_mrr(db)
-            with tab_proj:
-                _frag_projection()
             with tab_ltv:
                 _frag_ltv()
             with tab_artist:
