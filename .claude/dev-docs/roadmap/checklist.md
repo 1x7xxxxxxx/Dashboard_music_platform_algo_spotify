@@ -47,7 +47,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R272 | **Multi-comptes et vue de campagne** (notes L129, L134, L144, L222) : multi-comptes simple sur toutes les plateformes (cas agence Meta), vue qui regroupe les paramètres de campagne et budgets de déclenchement, parrainage (décision sur la récompense) <!-- anchor: r272 --> <!-- critic: requis — plans et facturation --> | P2 | un second compte Meta configuré en un geste |
 | R273 | **Collecte : Instagram, YouTube, funnel par utilisateur** (notes L92, L107, L531) : engagement Instagram vide, granularité des abonnés YouTube (limite de l'API : répondre), suivi d'un même utilisateur dans le funnel autant que les données le permettent <!-- anchor: r273 --> <!-- critic: non — collecteurs --> | P3 | engagement Instagram rempli sur l'instantané |
 | R274 | **Poste de développement** (notes L15, L72, L73, L79) : leviers PC mesurés (WSL, processus Python, conteneurs — n8n le dimanche), ouverture VS Code Remote-WSL par défaut et alias `sl` (geste proposé dans le fil) <!-- anchor: r274 --> <!-- critic: non — hors produit --> | P4 | mesure avant/après |
-| R257 | **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domains.yaml`), catalogue exhaustif des exigences avec source et PREUVE ciblée sur une ligne (`requirements.yaml`), benchmark actuel vs théorique rejoué (`make arch-benchmark`), règle CLAUDE.md + garde « toute exigence a une preuve collectable ». Les refactors qui en sortent prennent chacun leur ligne <!-- anchor: r257 --> <!-- critic: non — référentiel et outillage de mesure, aucun code produit --> | P2 | benchmark rejoué, 0 exigence sans preuve déclarée ni omise |
 
 ---
 
@@ -103,7 +102,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R257, R258, R259, R260, R261, R262, R263, R264, R265, R266, R267, R268, R269, R270, R271, R272, R273, R274, R255, R256, R275 -->
+<!-- reprise: open=R258, R259, R260, R261, R262, R263, R264, R265, R266, R267, R268, R269, R270, R271, R272, R273, R274, R275, R255, R256 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R257 — **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domai… (livrée 2026-09-27)
+
+- [x] **R257 — **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domains.yaml`), catalogue exhaustif des exigences avec source et PREUVE ciblée sur une ligne (`requirements.yaml`), benchmark actuel vs théorique rejoué (`make arch-benchmark`), règle CLAUDE.md + garde « toute exigence a une preuve collectable ». Les refactors qui en sortent prennent chacun leur ligne** (P2) ✅ (2026-09-27, 8e8eb4f1, 7e467d99, 665d717d)
+  Mesuré par : benchmark rejoué, 0 exigence sans preuve déclarée ni omise
+  24 domaines, 52 exigences avec preuve rejouee, make arch-benchmark sans regression, 349 notes triees dont 106 reliees a R258-R277, regle 22 et carte injectee
+  Commits : 8e8eb4f1 R257 : le referentiel ne cite que des fichiers suivis par git - docker · 7e467d99 R257 : le benchmark s ecrit avec une seule fin de ligne - une regenera · 665d717d R257 : referentiel d architecture - 24 domaines micro (fichiers verifi
+
 ## ✅ R254 — **Un id du dossier KPI désigne une ligne de roadmap réelle** : une action passait « ✅ f… (livrée 2026-09-27)
 
 - [x] **R254 — **Un id du dossier KPI désigne une ligne de roadmap réelle** : une action passait « ✅ fait » dès que son id était ABSENT de l'index ouvert (un id mal tapé s'affichait fait) et une action « toi » n'avait aucun id — les deux gestes du propriétaire (fiches 62, 66) vivaient hors roadmap. ✅ = présent dans l'archive, ⏳ = ouvert, sinon la génération échoue ; `rid` obligatoire ; garde qui lit actions.yaml** (P3) ✅ (2026-09-27, 131e5efe, ebe10a1f)
