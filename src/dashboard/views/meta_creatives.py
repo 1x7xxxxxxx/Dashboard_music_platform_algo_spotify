@@ -17,6 +17,7 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
+from src.dashboard.utils.creative_decisions import _a_couper  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
@@ -318,62 +319,6 @@ def _le_plus_sur(d: pd.DataFrame, col_cpr: str = 'cpr') -> pd.Series | None:
     return d.loc[score.idxmax()]
 
 
-def _a_couper(d: pd.DataFrame) -> pd.Series | None:
-    """Celle qui a coûté le plus d'ARGENT EN TROP — mesuré contre le coût d'ensemble.
-
-    ⚠️ Deux jets corrigés le 2026-09-21, et les deux erreurs sont instructives.
-
-    **1. Le pire RATIO n'est pas le plus gros gaspillage.** La règle était « la
-    pire CPR parmi celles au-dessus de la dépense médiane ». Sur les données
-    réelles de l'artiste 1 — 61 créatives, dépense médiane **25 €** — elle
-    désignait une créative de 25 €. Techniquement juste, et sans intérêt : la
-    couper ne libère rien. La question devant cet écran n'est pas « laquelle a le
-    pire ratio » mais « où part l'argent que je perds ». Ça se mesure :
-
-        surcoût = dépense × (1 − CPR_référence / CPR)
-
-    soit les euros payés EN PLUS de ce qu'auraient coûté les mêmes résultats au
-    coût de référence.
-
-    **2. La référence n'est pas le CPR MÉDIAN.** Le médian se prend sur les
-    créatives, une voix chacune : une nuée de petits essais ratés le tire vers le
-    haut et fait passer les grosses dépenses pour bonnes. Mesuré le même jour :
-    médian **0,310 €** contre coût d'ensemble **0,130 €** — un facteur 2,4, qui
-    plafonnait tous les surcoûts sous 20 € et enterrait le vrai.
-
-    ⚠️ Correction du 2026-09-26 : ces **0,130 €** (reproduits : 0,1296 € =
-    3 006,77 € / 23 206 résultats, 55 couples créative × campagne à objectif de
-    conversion, artiste 1, spotify_etl_review) ont un dénominateur DOUBLÉ — le
-    collecteur comptait l'évènement sortant d'Hypeddit sous deux action_type. Le coût
-    par clic sortant à la maille campagne, mesuré le même jour, est **0,2627 €**
-    (Σdépense / Σcustom_conversions, 196 jours). Le chiffre à la maille créative
-    n'existe qu'après la re-collecte `full_history` (migration 138) ; les 220 € /
-    0,19 € / 70 € ci-dessous sont du même régime doublé et restent à re-mesurer.
-
-    La référence est donc le coût d'ENSEMBLE, `Σdépense / Σrésultats` : ce que
-    l'artiste paie réellement en moyenne, pondéré par l'argent. Avec elle, la
-    carte désigne « Chorus - Kaiber Photo » — 220 € dépensés à 0,19 €, soit **70 €
-    au-dessus** de son propre coût d'ensemble — et 462 € au total dépassent la
-    référence sur 3 088 €. C'est un constat qu'on peut aller vérifier.
-    """
-    d = d[d['cpr'].notna() & (d['cpr'] > 0) & (d['total_spend'] > 0)]
-    if len(d) < 2:
-        return None
-    resultats = float(d['total_results'].sum())
-    if resultats <= 0:
-        return None
-    reference = float(d['total_spend'].sum()) / resultats
-    if reference <= 0:
-        return None
-    surcout = d['total_spend'] * (1 - reference / d['cpr'])
-    if not (surcout > 0).any():
-        return None
-    pire = d.loc[surcout.idxmax()].copy()
-    pire['surcout'] = float(surcout.max())
-    pire['reference'] = reference
-    return pire
-
-
 def _render_decision_banner(df: pd.DataFrame) -> None:
     """Ce qu'il faut faire, nommé — avant toute figure.
 
@@ -576,10 +521,23 @@ def _render_table(df: pd.DataFrame) -> None:
         display['total_spend'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
         display['avg_ctr'] = display['avg_ctr'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "—")
         display['total_reach'] = display['total_reach'].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
+        # R233 — the step MEASURED per creative: outbound clicks to a platform, sent back
+        # by Hypeddit's CAPI with the ad id (ad grain, migration 139). « — » where Meta did
+        # not return it — never a 0, and never an estimate of streams per creative
+        # (refused twice: nothing links a stream to a creative).
+        out = pd.to_numeric(display.get('total_outbound'), errors='coerce') \
+            if 'total_outbound' in display else pd.Series(dtype=float)
+        spend = pd.to_numeric(df['total_spend'], errors='coerce')
+        display['outbound'] = [f"{int(v):,}".replace(",", " ") if pd.notna(v) else "—" for v in out]
+        display['cost_outbound'] = [f"{sp / v:.2f}€" if pd.notna(v) and v > 0 else "—"
+                                    for sp, v in zip(spend, out)]
 
         st.dataframe(
             display[['statut', 'creative_name', 'campaign_name', 'cpr',
-                     'total_spend', 'total_results', 'avg_ctr', 'total_reach']].rename(columns={
+                     'total_spend', 'total_results', 'outbound', 'cost_outbound',
+                     'avg_ctr', 'total_reach']].rename(columns={
+                'outbound': t("meta_creatives.col_outbound", "Clics plateformes"),
+                'cost_outbound': t("meta_creatives.col_cost_outbound", "€ / clic plateforme"),
                 'statut': t("meta_creatives.col_status", "Statut"),
                 'creative_name': t("meta_creatives.col_creative", "Créative"),
                 'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
@@ -592,6 +550,13 @@ def _render_table(df: pd.DataFrame) -> None:
             width="stretch",
             hide_index=True,
         )
+        measured = int(out.notna().sum()) if len(out) else 0
+        st.caption(t("meta_creatives.outbound_caption",
+                     "« Clics plateformes » : les clics qui quittent le smart link vers une "
+                     "plateforme, par créative ({m}/{n} mesurées). Une créative sans mesure "
+                     "affiche « — » : Meta ne renvoyait ce chiffre qu'à la campagne ; il se remplit "
+                     "créative par créative à la prochaine collecte complète de ton compte Meta.")
+                   .format(m=measured, n=len(display)))
         if pd.notna(median_cpr):
             st.caption(t(
                 "meta_creatives.badge_legend",

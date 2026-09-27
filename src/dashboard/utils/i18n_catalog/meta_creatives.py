@@ -138,4 +138,7 @@ EN = {
     "meta_creatives.unit_cpr": "Cost per result (€)",
     "meta_creatives.funnel_no_outbound": "No « outbound clicks » step for this creative: Meta returned them only at campaign grain; the ad grain carries them since 2026-09-27 and fills in at each collection.",
     "meta_creatives.funnel_steps_note": "**Impressions**: times the ad was shown. **Link clicks**: clicks to the smart link (failing that, **all clicks**, likes and profile included). **Outbound clicks**: clicks leaving the smart link for a platform, sent back by Hypeddit. Each step is contained in the previous one.",
+    "meta_creatives.col_outbound": "Platform clicks",
+    "meta_creatives.col_cost_outbound": "€ / platform click",
+    "meta_creatives.outbound_caption": "« Platform clicks »: clicks leaving the smart link for a platform, per creative ({m}/{n} measured). A creative without a measure shows « — »: Meta only returned this figure per campaign; it fills in creative by creative at the next full collection of your Meta account.",
 }

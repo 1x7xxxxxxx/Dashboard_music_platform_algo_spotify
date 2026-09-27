@@ -560,3 +560,5 @@
 {"at": "2026-09-27T10:03:50+00:00", "head": "e6a026c5", "kind": "start", "task": "R235", "what": "Shazam quotidien : releve date par l'export + correlation"}
 {"at": "2026-09-27T10:14:11+00:00", "head": "91055163", "kind": "start", "task": "R224", "what": "concurrence CI : main non annulee"}
 {"at": "2026-09-27T10:18:04+00:00", "head": "a5335b19", "kind": "start", "task": "R227", "what": "alerte longue dans l'objet du recap"}
+{"at": "2026-09-27T10:23:52+00:00", "head": "151f8c7f", "kind": "done", "task": "R227", "what": "livree 151f8c7, CI en cours"}
+{"at": "2026-09-27T10:23:53+00:00", "head": "151f8c7f", "kind": "start", "task": "R233", "what": "etape mesuree : clics plateformes par crea"}

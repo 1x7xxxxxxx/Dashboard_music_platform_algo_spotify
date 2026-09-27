@@ -97,7 +97,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R224, R226, R227, R228, R229, R230, R231, R232, R233, R234, R235, R236, R221, R222 -->
+<!-- reprise: open=R224, R226, R227, R228, R229, R230, R231, R232, R233, R234, R235, R236, R221, R222, R237 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -226,6 +226,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 |----|-------|------|--------------------------|
 | R221 | Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans la corbeille**, non lus — un filtre Gmail les y envoie ; le récap du 26/09 signalait Benken (Meta) et GRiNCH (SoundCloud) qui ne collectent pas et 36 lignes contaminées <!-- anchor: r221 --> <!-- critic: non — réglage Gmail, aucun code --> | P2 | supprimer ou corriger le filtre Gmail — runbook §30 |
 | R222 | Le compteur admin « inscriptions / comptes vérifiés » (`views/admin.py:397-401`) compte le compte du bac à sable ; l'exclure change ce que « inscription » veut dire (un utilisateur sans artiste existe) <!-- anchor: r222 --> <!-- critic: requis --> | P3 | trancher : compter les UTILISATEURS humains, ou les ARTISTES — runbook §31 |
+| R237 | Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et s'affiche (R233), mais 0 créa sur 61 est mesurée tant que le DAG Meta n'a pas tourné en `full_history` — un déclenchement de DAG en production <!-- anchor: r237 --> <!-- critic: non — déclenchement de collecte, aucun code --> | P2 | déclencher `meta_ads_api_daily` avec `{"full_history": true}` — runbook §32 |
 
 ---
 

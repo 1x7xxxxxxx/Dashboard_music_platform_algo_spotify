@@ -1998,3 +1998,18 @@ recréée à chaque `--reset` (`tools/create_sandbox.py`). Deux lectures possibl
 - **les ARTISTES** — ne compter que les comptes liés à un artiste humain.
 
 **Vérification** : ta réponse écrite dans la ligne R222 ; le code suit.
+
+## 32. R237 — Recollecter l'historique Meta pour avoir les clics plateformes par créa
+
+**Pourquoi** : depuis le 2026-09-27, la page Créatives affiche les « clics plateformes »
+(les clics qui quittent le smart link vers Spotify / Apple…) **par créative**, et leur
+coût. La colonne existe, mais elle ne se remplit qu'en recollectant l'historique : sur la
+base, **0 créative sur 61** est mesurée aujourd'hui.
+
+1. Ouvre Airflow (tunnel : `ssh -N -L 8080:127.0.0.1:8080 root@167.233.92.1`, puis
+   http://localhost:8080).
+2. DAG **`meta_ads_api_daily`** → ▶ **Trigger DAG w/ config**.
+3. Configuration : `{"full_history": true}` → **Trigger**. Compte ~5-10 min.
+
+**Vérification** : page **🎨 Visuels de campagne** → tableau replié « Le classement au
+chiffre près » → la légende dit « (N/61 mesurées) » avec N > 0.
