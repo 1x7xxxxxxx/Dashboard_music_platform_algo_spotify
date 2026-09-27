@@ -97,6 +97,30 @@ def _fired_names(window: str = "24h") -> dict[str, dict]:
     return out
 
 
+def _firing_hours() -> dict[str, float]:
+    """{alertname: hours it has been firing}, from `ALERTS_FOR_STATE` (its VALUE is the
+    unix time the alert became active). R227: a pool alert fired 27 h unseen, because
+    « firing now » and « firing for a day » read the same in the recap."""
+    import time
+    data = _get("/api/v1/query", {"query": "ALERTS_FOR_STATE"})
+    out: dict[str, float] = {}
+    for row in (data or {}).get("result") or []:
+        name = (row.get("metric") or {}).get("alertname")
+        try:
+            since = float((row.get("value") or [None, None])[1])
+        except (TypeError, ValueError):
+            continue
+        if name:
+            out[name] = max(out.get(name, 0.0), (time.time() - since) / 3600)
+    return out
+
+
+def long_firing(alerts: list[dict], hours: float = 24.0) -> list[dict]:
+    """The alerts still firing for at least `hours` — the ones the SUBJECT must name. Pure."""
+    return [a for a in alerts
+            if a.get("still_firing") and (a.get("firing_hours") or 0) >= hours]
+
+
 def _still_firing() -> set[str]:
     data = _get("/api/v1/query", {"query": 'ALERTS{alertstate="firing"}'})
     if not data:
@@ -131,6 +155,7 @@ def fired_since(window: str = "24h") -> list[dict]:
 
     fired = _fired_names(window)
     live = _still_firing()
+    hours = _firing_hours()
     out: list[dict] = []
     for name, labels in sorted(fired.items()):
         ann = annotations.get(name)
@@ -175,6 +200,7 @@ def fired_since(window: str = "24h") -> list[dict]:
             or f"⚠️ regle `{name}` sans `action` — hors contrat ADR-011. "
                "L'ecrire dans `deploy/prometheus/rules/streamlytics.yml`.",
             "panel": ann.get("panel", "—"),
+            "firing_hours": round(hours.get(name, 0.0), 1) if name in live else None,
         })
     return out
 

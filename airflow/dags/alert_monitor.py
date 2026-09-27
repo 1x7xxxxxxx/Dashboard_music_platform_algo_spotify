@@ -2441,6 +2441,11 @@ def send_consolidated_alert(**context):
             # Compté, jamais nommé : le décompte bouge quand un blocage se lève ou
             # s'ajoute, ce qui est la seule information neuve que porte cette moitié.
             subject_parts.append(f"⏳ {len(_stuck)} collecte(s) bloquée(s) de longue date")
+    # R227 — an alert firing for a day goes in the SUBJECT, by name and duration: the
+    # API pool alert fired 27 h and lived only in the body of a mail nobody opened.
+    from src.utils.ops_alerts import long_firing as _long_firing
+    for _a in _long_firing(ops_alerts)[:2]:
+        subject_parts.append(f"🔔 {_a['alertname']} DEPUIS {int(_a['firing_hours'])} h")
     if failing_dags:
         subject_parts.append(f"{len(failing_dags)} DAG(s) en échec")
     if stale_sources:
