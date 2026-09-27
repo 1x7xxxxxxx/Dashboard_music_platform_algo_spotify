@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R253 — **Chaque avis du propriétaire a son action dans le dossier** : 51 et 72 avaient perdu l… (livrée 2026-09-27)
+
+- [x] **R253 — **Chaque avis du propriétaire a son action dans le dossier** : 51 et 72 avaient perdu leur lien (fonctions renommées) ; les fiches Grafana 106/108/112/120, livrées par R205/R207 à la relecture précédente, n'affichaient aucune action** (P3) ✅ (2026-09-27, 55603ca3)
+  Mesuré par : 0 avis sans entrée d'action parmi les fiches du dossier
+  0 avis sans entree d action parmi les fiches du dossier ; 76 actions, toutes archivees
+  Commits : 55603ca3 R253 : chaque avis du proprietaire a son action dans le dossier - 51 e
+
 ## ✅ R252 — **Le dossier met en tête les écarts MESURÉS, pas une notation ancienne** : « chiffres p… (livrée 2026-09-27)
 
 - [x] **R252 — **Le dossier met en tête les écarts MESURÉS, pas une notation ancienne** : « chiffres probablement FAUX » listait des fiches notées à 03:44 (dont 8, 10, 29 corrigées ou vérifiées le jour même) ; la liste vient désormais du verdict `écart` de numbers_check sur l'instantané, avec sa raison** (P3) ✅ (2026-09-27, 3a8cbfa2)
