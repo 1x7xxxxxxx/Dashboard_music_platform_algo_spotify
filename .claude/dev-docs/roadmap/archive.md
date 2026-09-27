@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R217 — **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make d… (livrée 2026-09-27)
+
+- [x] **R217 — **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit** (P2) ✅ (2026-09-27, 269f8cca)
+  Mesuré par : `/health` + CI de main
+  nuit du 2026-09-27 : chaque lot deploye apres CI verte, /health verifie a chaque fois — R205/R206/R216 (migrations 138-140), R212, R208, R213, R210, R211, R207, R209, R214, R202, R215 (api), R219 (migration 141), R220 (api + dashboard) ; aucun tasks test en prod, aucun retour arriere necessaire
+  Commits : 269f8cca R205 · R206 : un chiffre juste partout - CTR recalcule depuis ses comp
+
+## ✅ R218 — Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corr… (livrée 2026-09-27)
+
+- [x] **R218 — Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corrigée, puis supprimer l'instantané `spotify_etl_review` et `revue/prod.dump` (données réelles d'artistes)** (P3) ✅ (2026-09-27, 269f8cca)
+  Mesuré par : `make charts-dossier OUT=revue`
+  2026-09-27 : dossier regenere 2x sur instantane frais de prod (68 figures, 0 erreur) — a revele la double comptabilite du bac a sable (R220) ; instantane spotify_etl_review supprime, revue/prod.dump efface, tunnel Prometheus ferme ; le PDF reste dans revue/ (ignore par git) pour la relecture du proprietaire
+  Commits : 269f8cca R205 · R206 : un chiffre juste partout - CTR recalcule depuis ses comp
+
+## ✅ R220 — **Totaux tous-locataires qui comptent le bac à sable** (mesuré 2026-09-27 sur instantan… (livrée 2026-09-27)
+
+- [x] **R220 — **Totaux tous-locataires qui comptent le bac à sable** (mesuré 2026-09-27 sur instantané : trésorerie admin −5 906 € au lieu de −2 833 €, le locataire 18 miroir de l'artiste 1 additionné) : `treasury_chart.load_cashflow(None)`, `kpi_helpers.get_roi_data/get_monthly_roi_series(None)`, `admin.py` inscriptions/comptes vérifiés, `live_pulse._pulse_counts`, `defect_gauge._fetch_sessions` (`streamlytics_active_artists`), API `kpis`/`streams/summary` sans `artist_id` — exclure `tenant_kind.NON_HUMAN_TENANT` ; balayage sibling-sweeper fait** (P2) ✅ (2026-09-27, c03940b8, 58e9f11c, c1568aca)
+  Mesuré par : `v_artist_monthly_cashflow` tous-locataires = somme des humains
+  livre 58e9f11 + c03940b, deploye 2026-09-27 (api + dashboard) : 7 totaux tous-locataires restreints aux humains ; verifie en prod : tresorerie admin -2 833,43 EUR = artiste 1 (etait -5 906), bac a sable toujours consultable seul ; reste a trancher : inscriptions admin sur saas_users
+  Commits : c03940b8 R220 : classe an-all-tenants-total-that-counts-the-sandbox (7 sites, g · 58e9f11c R220 : un total tous-locataires compte les humains seulement - tresore · c1568aca R215 : la sonde /health de l'API rend la connexion qu'elle emprunte (8
+
 ## ✅ R219 — Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en pro… (livrée 2026-09-27)
 
 - [x] **R219 — Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en prod et en local, NOT NULL dans `init_db.sql`, `meta_ads_schema.py` et donc en CI — aucune migration ne l'explique ; deux fixtures R205 passaient en local et rougissaient en CI (2026-09-27). Mesurer l'écart complet (toutes colonnes, prod vs init_db) et décider du sens** (P3) ✅ (2026-09-27, d4d0dc86, 34f2bf94)

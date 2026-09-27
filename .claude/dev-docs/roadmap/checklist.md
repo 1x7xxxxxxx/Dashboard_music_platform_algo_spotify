@@ -30,9 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R217 | **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit <!-- anchor: r217 --> <!-- critic: non — geste de déploiement, pas de code --> | P2 | `/health` + CI de main |
-| R218 | Régénérer le dossier des graphiques sur un instantané frais, vérifier chaque fiche corrigée, puis supprimer l'instantané `spotify_etl_review` et `revue/prod.dump` (données réelles d'artistes) <!-- anchor: r218 --> <!-- critic: non — outillage de revue --> | P3 | `make charts-dossier OUT=revue` |
-| R220 | **Totaux tous-locataires qui comptent le bac à sable** (mesuré 2026-09-27 sur instantané : trésorerie admin −5 906 € au lieu de −2 833 €, le locataire 18 miroir de l'artiste 1 additionné) : `treasury_chart.load_cashflow(None)`, `kpi_helpers.get_roi_data/get_monthly_roi_series(None)`, `admin.py` inscriptions/comptes vérifiés, `live_pulse._pulse_counts`, `defect_gauge._fetch_sessions` (`streamlytics_active_artists`), API `kpis`/`streams/summary` sans `artist_id` — exclure `tenant_kind.NON_HUMAN_TENANT` ; balayage sibling-sweeper fait <!-- anchor: r220 --> <!-- critic: requis --> | P2 | `v_artist_monthly_cashflow` tous-locataires = somme des humains |
 
 ---
 
@@ -88,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R217, R218, R220 -->
+<!-- reprise: open= -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
