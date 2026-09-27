@@ -66,7 +66,10 @@ def verdict(traces: list[dict] | None, layer: str, sources: list[str],
         if tr.get("dup_labels"):
             return "ecart", (f"« {tr['name'] or tr['unit'] or 'barres'} » : {tr['dup_labels']} "
                              "étiquette(s) portent deux barres — deux lignes lues sous un seul nom")
-        if tr.get("type") != "pie" and _is_rate(tr) and tr["max"] > 100:
+        # R252 — an INDEX axis (`charts.to_base100`, « Indice (100 = première valeur) »)
+        # keeps the series' own name, « CTR (%) » : 218 there is +118 %, not a 218 % rate.
+        if (tr.get("type") != "pie" and _is_rate(tr) and tr["max"] > 100
+                and not str(tr.get("unit", "")).lower().startswith("indice")):
             return "ecart", f"« {tr['name'] or tr['unit']} » atteint {tr['max']:,.0f} — un taux ne dépasse pas 100 %"
         if tr.get("type") == "scatter" and _is_cumul(tr) and tr.get("max_drop", 0) > MAX_CUMUL_DROP:
             return "ecart", (f"« {tr['name'] or tr['unit']} » perd {tr['max_drop']:.0%} de son "

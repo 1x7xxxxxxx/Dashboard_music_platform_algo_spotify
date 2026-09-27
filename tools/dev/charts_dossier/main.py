@@ -337,8 +337,9 @@ def build(out: Path) -> Path:
               + ", ".join(f"fiche {no_of[k]}" for k in missing), file=sys.stderr)
     by_status = collections.Counter(st_of.values())
     total = len(review)
-    suspects = [k for k, r in review.items() if r.get("v") == "corriger" and r.get("c", 5) <= 2
-                and st_of[k] != "valide"]
+    # R241 — the MEASURED discrepancies of this snapshot, not the grading of an older
+    # review: on 2026-09-27 the graded list still named fiches fixed that very day.
+    suspects = [k for k in review if number_of.get(k, ("", ""))[0] == "ecart"]
 
     parts = [f"""<h1>Les KPI de streaMLytics — ce qu'il reste à faire, puis ce qui est validé</h1>
 <p class="lead">{dt.date.today():%d/%m/%Y} · données : instantané de la production du
@@ -351,8 +352,8 @@ connectée au rendu. Réglages par défaut des pages.</p>
     parts.append(GUIDE)
     parts.append(method)
     if suspects:
-        parts.append("<h3>À vérifier en premier — des chiffres probablement FAUX</h3><ul>"
-                     + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(review[k].get('note'))}</li>"
+        parts.append("<h3>À vérifier en premier — les écarts mesurés sur cet instantané</h3><ul>"
+                     + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(number_of[k][1])}</li>"
                                for k in suspects) + "</ul>")
     parts.append("<h2>Recommandations du corpus</h2>" + "".join(
         f"<h3>{t}</h3><p class='src'>{s}</p><p>{b.replace('{ml_page}', page_phrase(cap))}</p>"

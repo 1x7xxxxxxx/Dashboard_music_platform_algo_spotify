@@ -114,6 +114,8 @@
     "tests/test_a_chart_is_bounded_by_the_period_it_announces.py::test_the_detector_sees_the_defect_it_is_written_for": 0.006942306019482203,
     "tests/test_a_chart_is_bounded_by_the_period_it_announces.py::test_the_predicate_still_sees_queries_under_a_window": 0.0008782149998296518,
     "tests/test_a_chart_is_bounded_by_the_period_it_announces.py::test_the_probe_predicate_sees_what_it_is_written_for": 0.002260313000078895,
+    "tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_a_gantt_row_holds_many_runs_without_a_duplicate": 0.08715102198766544,
+    "tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_an_index_axis_is_not_read_as_a_rate": 0.0007479590422008187,
     "tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_one_creative_in_two_campaigns_is_one_bar_with_recomputed_rates": 0.06066596301388927,
     "tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_the_capture_counts_two_bars_on_one_label": 0.0008525210432708263,
     "tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_the_capture_measures_the_fall_from_the_peak": 0.0006995050061959773,

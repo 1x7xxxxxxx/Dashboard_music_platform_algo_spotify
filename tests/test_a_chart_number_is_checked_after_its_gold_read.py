@@ -68,3 +68,22 @@ def test_one_creative_in_two_campaigns_is_one_bar_with_recomputed_rates():
     assert out.loc["Début", "total_spend"] == 430.0
     assert out.loc["Début", "cpr"] == 0.4, "CPR is priced on the rows whose goal HAS a result"
     assert out.loc["Début", "avg_ctr"] == 7.0, "CTR = 100·Σclicks/Σimpressions, not a mean"
+
+
+def test_an_index_axis_is_not_read_as_a_rate():
+    """R252 — fiches 31/35 on 2026-09-27: « CTR (%) » at 218 on an index axis is +118 %."""
+    base = {"name": "CTR (%)", "type": "scatter", "n": 3, "min": 80, "max": 218, "sum": 400,
+            "decreases": True, "dup_labels": 0, "max_drop": 0.0}
+    assert numbers.verdict([{**base, "unit": "Indice (100 = première valeur)"}],
+                           "or", ["v"], [])[0] == "verifie"
+    assert numbers.verdict([{**base, "unit": "%"}], "or", ["v"], [])[0] == "ecart"
+
+
+def test_a_gantt_row_holds_many_runs_without_a_duplicate():
+    """R252 — fiche 74: `px.timeline` draws each run of a DAG on the DAG's row."""
+    gantt = {"data": [{"type": "bar", "orientation": "h", "x": [60000, 120000],
+                       "y": ["dag_a", "dag_a"], "base": ["2026-09-27", "2026-09-26"]}],
+             "layout": {}}
+    assert capture.trace_shapes(gantt)[0]["dup_labels"] == 0
+    plain = {"data": [{**gantt["data"][0], "base": None}], "layout": {}}
+    assert capture.trace_shapes(plain)[0]["dup_labels"] == 1

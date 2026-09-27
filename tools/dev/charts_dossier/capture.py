@@ -193,6 +193,10 @@ def trace_shapes(fig: dict) -> list[dict]:
                                          else title, axis.get("ticksuffix")) if v)
         cats = tr.get("y" if horiz else "x") if tr.get("type") == "bar" else None
         cats = [c for c in cats if isinstance(c, str)] if isinstance(cats, list) else []
+        # R252 — a Gantt (`px.timeline`: bars with a `base`) puts every run of a DAG on
+        # the DAG's row by design; a repeated label there is not two readings under one name.
+        if tr.get("base") is not None:
+            cats = []
         out.append({"name": str(tr.get("name") or ""), "type": tr.get("type", ""), "unit": unit,
                     "dup_labels": len(cats) - len(set(cats)),
                     "n": len(vals), "min": min(vals), "max": max(vals), "sum": sum(vals),
