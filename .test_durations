@@ -648,6 +648,7 @@
     "tests/test_a_delivery_closes_on_a_green_ci.py::test_a_red_or_running_ci_refuses_the_closure": 0.0011773950245697051,
     "tests/test_a_delivery_closes_on_a_green_ci.py::test_claude_md_stays_under_its_budget_not_vacuous": 0.001127546012867242,
     "tests/test_a_delivery_closes_on_a_green_ci.py::test_closing_a_row_delivers_its_notes": 0.025387055007740855,
+    "tests/test_a_delivery_closes_on_a_green_ci.py::test_the_ci_is_asked_with_the_full_sha": 0.11251147402799688,
     "tests/test_a_delivery_closes_on_a_green_ci.py::test_the_suite_time_is_read_from_the_run_not_written_by_hand": 0.002953752991743386,
     "tests/test_a_dependency_comes_back_with_its_host.py::test_a_depended_on_service_declares_a_restart_policy[docker-compose.example.yml]": 0.026764212998386938,
     "tests/test_a_dependency_comes_back_with_its_host.py::test_a_depended_on_service_declares_a_restart_policy[docker-compose.yml]": 0.11004071199567989,

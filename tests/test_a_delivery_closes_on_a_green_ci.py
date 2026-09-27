@@ -11,7 +11,7 @@ unpushed. And CLAUDE.md, read at every session, weighed 52 935 bytes.
 
 Mutation record (2026-09-27) : `ci_verdict` answering « ok » on a failure → red ; the
 running case dropped → red ; the budget set below the file's size → the budget test
-went red.
+went red ; the gh query given the short sha again → red (2026-09-27).
 """
 import importlib.util
 from pathlib import Path
@@ -65,3 +65,26 @@ def test_the_suite_time_is_read_from_the_run_not_written_by_hand():
     with open(ROOT / "Makefile", encoding="utf-8") as fh:
         help_line = next(ln for ln in fh if ln.startswith("test:"))
     assert "test-suite-timing.json" in help_line, "make test's help states a figure by hand again"
+
+
+def test_the_ci_is_asked_with_the_full_sha(monkeypatch):
+    """`gh run list --commit <short>` answers [] — the gate read « inconnu » on every closure."""
+    import subprocess
+    real, asked = subprocess.run, []
+
+    def fake(cmd, *a, **kw):
+        if cmd[0] == "gh":
+            asked.append(cmd[cmd.index("--commit") + 1])
+            return subprocess.CompletedProcess(cmd, 0, '[{"status":"completed","conclusion":"success"}]', "")
+        return real(cmd, *a, **kw)
+    monkeypatch.delenv("ROADMAP_SKIP_CI", raising=False)
+    monkeypatch.setattr(subprocess, "run", fake)
+    monkeypatch.setattr(roadmap.shutil if hasattr(roadmap, "shutil") else __import__("shutil"),
+                        "which", lambda _: "/usr/bin/gh")
+    head = real(["git", "-C", str(ROOT), "rev-parse", "origin/main"], capture_output=True,
+                text=True).stdout.strip()
+    if not head:
+        import pytest
+        pytest.skip("no origin/main in this checkout")
+    verdict, _ = roadmap._delivery_ci([f"{head[:8]} x"])
+    assert asked == [head] and verdict == "ok"

@@ -216,7 +216,11 @@ def _delivery_ci(commits: list[str]) -> tuple[str, str]:
         return "non poussé", sha
     if not shutil.which("gh"):
         return "inconnu", sha
-    out = subprocess.run(["gh", "run", "list", "--commit", sha, "--json", "status,conclusion"],
+    # `gh run list --commit` matches the FULL sha only: a short one answers [] — « inconnu »
+    # on every closure, the gate open while looking shut (measured 2026-09-27).
+    full = subprocess.run(["git", "-C", str(ROOT), "rev-parse", sha], capture_output=True,
+                          text=True).stdout.strip() or sha
+    out = subprocess.run(["gh", "run", "list", "--commit", full, "--json", "status,conclusion"],
                          cwd=str(ROOT), capture_output=True, text=True)
     try:
         return ci_verdict(json.loads(out.stdout or "[]")), sha
