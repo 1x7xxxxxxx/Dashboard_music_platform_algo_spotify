@@ -6676,6 +6676,8 @@
     "tests/test_navigation_inside_the_app_opens_no_tab.py::test_the_labels_carry_no_link_syntax": 0.001864036001279601,
     "tests/test_navigation_inside_the_app_opens_no_tab.py::test_the_sweep_actually_reads_the_views": 0.004694062999988091,
     "tests/test_navigation_inside_the_app_opens_no_tab.py::test_the_two_signup_paths_are_buttons": 0.027631734001261066,
+    "tests/test_new_guards_are_mutated_every_night.py::test_a_self_proving_guard_is_credited_and_a_plain_one_is_not": 0.09971441098605283,
+    "tests/test_new_guards_are_mutated_every_night.py::test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation": 0.0008679470047354698,
     "tests/test_new_guards_are_mutated_every_night.py::test_the_detector_sees_the_defect_it_is_written_for": 0.09519572599674575,
     "tests/test_new_guards_are_mutated_every_night.py::test_the_nightly_runs_it_with_a_database_and_mails_it": 0.030317574994114693,
     "tests/test_no_detector_is_written_and_never_called.py::test_every_monitoring_check_has_a_production_caller": 0.12397257999691647,
