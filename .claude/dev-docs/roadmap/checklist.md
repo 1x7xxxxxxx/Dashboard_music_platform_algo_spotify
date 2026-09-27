@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R223 | Capitaliser la nuit du 2026-09-27 : garde contre un `\\c` dans un fichier SQL rejoué (init_db.sql, 002, create_missing_tables écrivent dans la base de dev quand on les applique à une base jetable), mémoires, propositions d'optimisation <!-- anchor: r223 --> <!-- critic: non — garde de dépôt et documentation --> | P3 | `tests/test_a_sql_file_never_switches_database.py` |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R221, R222 -->
+<!-- reprise: open=R223, R221, R222 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
