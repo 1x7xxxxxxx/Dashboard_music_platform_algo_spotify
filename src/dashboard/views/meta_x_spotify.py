@@ -880,6 +880,32 @@ def _campaign_window(camp_start, camp_end, campaign: str) -> tuple:
 
 
 # ── Le funnel, rapatrié de « Publicité Meta Ads » et CORRIGÉ ───────────────────
+def _campaign_treasury(db, artist_id, d0, d1, spend: float | None) -> str:
+    """R213 (lot f) — the money around this campaign, from the ONE money door.
+
+    Revenue is monthly and a campaign is counted in days, so the sentence speaks of the
+    WHOLE months the window touches — `get_roi_data` widens it and says so, and it is the
+    same definition the treasury (R212) draws. Revenue is never attributed to the
+    campaign: royalties of those months come from every track, and they arrive months
+    after the streams."""
+    from src.dashboard.utils.kpi_helpers import get_roi_data
+
+    def fmt_eur(v):
+        # The page writes euros the French way (« 1 463,61 € »), like its other captions.
+        return "—" if v is None else f"{v:,.2f} €".replace(",", " ").replace(".", ",")
+
+    roi = get_roi_data(db, artist_id, d0, d1)
+    if roi['revenue_eur'] is None and roi['total_spend'] is None:
+        return ""
+    return " " + t("meta_x_spotify.funnel_treasury",
+                   "💶 Sur les mois de cette campagne ({a} → {b}) : **{rev}** de revenus "
+                   "nets (tous titres, versés avec retard), **{tot}** de dépenses au total, "
+                   "dont **{sp}** pour cette campagne sur la fenêtre.").format(
+        a=format_date(roi['effective_from']), b=format_date(roi['effective_to']),
+        rev=fmt_eur(roi['revenue_eur']), tot=fmt_eur(roi['total_spend']),
+        sp=fmt_eur(spend))
+
+
 def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                    s4a_song=None) -> None:
     """Meta × Spotify × Hypeddit — et l'incohérence que l'artiste a vue.
@@ -1028,6 +1054,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                         "Pas d'étape « écoutes gagnées » : il faut au moins {n} jours "
                         "d'écoutes relevés avant la campagne, et une hausse mesurable.").format(
             n=BASELINE_MIN_DAYS)
+    note += _campaign_treasury(db, artist_id, d0, d1, spend)
     st.caption(note)
 
 

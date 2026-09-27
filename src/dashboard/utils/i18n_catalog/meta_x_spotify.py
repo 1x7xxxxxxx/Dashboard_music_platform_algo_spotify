@@ -158,4 +158,5 @@ EN = {
     "meta_x_spotify.eng_playlist_adds": "Playlist adds / day",
     "meta_x_spotify.eng_followers_level": "Spotify followers gained / day",
     "meta_x_spotify.eng_ig_followers": "Instagram followers gained / day",
+    "meta_x_spotify.funnel_treasury": "💶 Over this campaign's months ({a} → {b}): **{rev}** of net revenue (all tracks, paid with a delay), **{tot}** of spend in total, of which **{sp}** for this campaign over the window.",
 }

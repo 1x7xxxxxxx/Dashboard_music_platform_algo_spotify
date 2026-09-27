@@ -137,8 +137,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/meta_creatives.py:1071` | `_render_activity` | plotly_chart | à l'écran | `v_meta_creative_daily` | or | plusieurs amonts | clé-à-l-exécution · profondeur | — |
 | `views/meta_x_spotify.py:451` | `_render_chart` | plotly_chart | à l'écran | `meta_insights_performance_day` | brut | plusieurs amonts | profondeur | — |
 | `views/meta_x_spotify.py:711` | `_render_listener_verdict` | plotly_chart | à l'écran | `v_s4a_audience_daily` | or | plusieurs amonts | — | ?`v_meta_daily` |
-| `views/meta_x_spotify.py:992` | `_render_funnel` | plotly_chart | à l'écran | `v_hypeddit_daily` | or | plusieurs amonts | — | ?`v_meta_campaign_daily` · ?`v_s4a_song_daily` |
-| `views/meta_x_spotify.py:1124` | `_render_countries` | plotly_chart | à l'écran | `imusician_sales_detail` · `meta_insights_performance_country` | brut | plusieurs amonts | — | — |
+| `views/meta_x_spotify.py:1018` | `_render_funnel` | plotly_chart | à l'écran | `v_hypeddit_daily` | or | plusieurs amonts | — | ?`v_meta_campaign_daily` · ?`v_s4a_song_daily` |
+| `views/meta_x_spotify.py:1151` | `_render_countries` | plotly_chart | à l'écran | `imusician_sales_detail` · `meta_insights_performance_country` | brut | plusieurs amonts | — | — |
 | `views/revenue_forecast.py:248` | `_tab_projection` | plotly_chart | à l'écran | `artist_subscriptions` · `saas_artists` · `subscription_plans` | brut | plusieurs amonts | — | — |
 | `views/revenue_forecast.py:414` | `_render_money_chart` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_artist_monthly_revenue` · `meta_insights_performance_day` | mixte | plusieurs amonts | profondeur | — |
 | `views/revenue_forecast.py:690` | `_render_trigger_value` | plotly_chart | à l'écran | `algo_lifecycle_benchmark` · `ml_song_predictions` | brut | plusieurs amonts | — | ?`v_s4a_song_daily` |
@@ -647,4 +647,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=30 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=7d0ea59029d01c872fdf80c62e0ace5c00183409b9efad913ba0ae68be1f915a -->
+<!-- gold-coverage: sha256=ef30c3965a613a48f7fdf03034f888607e644ec2d2e18b0318be599de3342109 -->
