@@ -79,3 +79,33 @@ def test_the_detector_sees_the_defect_it_is_written_for(sandbox_spend) -> None:
         "WHERE flux = 'depense' AND year = %s AND month = %s AND artist_id = %s",
         (month.year, month.month, tenant))
     assert raw and float(raw[0][0] or 0) == 12345, "the fixture no longer reaches the view"
+
+
+def _fleet_invariant():
+    from src.utils.gold_invariants import INVARIANTS
+    return next(i for i in INVARIANTS if i.name == "fleet_cashflow_is_the_sum_of_humans")
+
+
+def test_the_nightly_fleet_invariant_holds_with_a_sandbox_present(sandbox_spend) -> None:
+    """R226: the admin door, replayed each night on prod, agrees with the human sum."""
+    from src.utils.gold_invariants import compare
+    db, tenant, month = sandbox_spend
+    inv = _fleet_invariant()
+
+    def side(sql: str) -> dict[int, float]:
+        return {int(t): float(v or 0) for t, v in db.fetch_query(sql)}
+    assert not compare(side(inv.left_sql), side(inv.right_sql))
+
+
+def test_the_nightly_fleet_invariant_sees_a_door_that_counts_the_sandbox(sandbox_spend) -> None:
+    """Non-vacuity: the door WITHOUT its human filter disagrees by the sandbox's 12 345 €."""
+    from src.utils.fleet_money import FLEET_CASHFLOW_SQL
+    from src.utils.gold_invariants import compare
+    db, tenant, month = sandbox_spend
+    inv = _fleet_invariant()
+    leaky = FLEET_CASHFLOW_SQL.split("WHERE artist_id IN")[0] + "GROUP BY year, month, flux, source, direction"
+    left = {0: float(db.fetch_query(
+        f"SELECT SUM(amount_eur * direction) FROM ({leaky}) f")[0][0] or 0)}
+    right = {int(t): float(v or 0) for t, v in db.fetch_query(inv.right_sql)}
+    gaps = compare(left, right)
+    assert gaps and abs(abs(gaps[0][1] - gaps[0][2]) - 12345) < 0.01, gaps

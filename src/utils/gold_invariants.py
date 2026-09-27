@@ -1,7 +1,8 @@
 """Les définitions de la couche or qui DOIVENT coïncider, et la preuve qu'elles coïncident.
 
 Type: Utility
-Uses: nothing (stdlib only — importable sans Airflow, comme value_monitor)
+Uses: src/utils/fleet_money.py, src/utils/tenant_kind.py (du SQL, rien d'autre —
+      importable sans Airflow ni Streamlit, comme value_monitor)
 Triggers: alert_monitor.check_gold_invariants, tests/test_the_gold_layer_agrees_with_itself.py
 Depends on: les vues or (migrations 097, 101-111)
 Persists in: nothing
@@ -49,6 +50,9 @@ nombre ?**
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from src.utils.fleet_money import FLEET_CASHFLOW_SQL
+from src.utils.tenant_kind import non_human_tenant
 
 # La représentation flottante, rien de plus. Un écart relatif masquerait le défaut :
 # le double, sur une base à un euro près, est un écart relatif de 100 % — mais sur un
@@ -559,6 +563,23 @@ INVARIANTS: tuple[Invariant, ...] = (
             "⚠️ Le premier jet de cet invariant comparait la trésorerie à la vue "
             "d'étalement — deux côtés qui DESCENDENT l'un de l'autre. Muté le "
             "2026-09-21 en retirant un mois à la série : zéro désaccord."),
+    Invariant(
+        # Clé 0 = la flotte : la question porte sur UN nombre, celui de la vue admin.
+        name="fleet_cashflow_is_the_sum_of_humans",
+        left_sql=f"SELECT 0, SUM(amount_eur * direction) FROM ({FLEET_CASHFLOW_SQL}) f",
+        right_sql=f"""
+            SELECT 0, SUM(solde) FROM (
+                SELECT c.artist_id, SUM(c.amount_eur * c.direction) AS solde
+                  FROM v_artist_monthly_cashflow c
+                  JOIN saas_artists a ON a.id = c.artist_id
+                 WHERE NOT {non_human_tenant("a")}
+                 GROUP BY c.artist_id) par_locataire""",
+        left_label="trésorerie admin « tous les artistes » (flotte)",
+        right_label="somme des soldes des locataires humains",
+        why="R220 : la trésorerie admin sommait le bac à sable, copie exacte de "
+            "l'artiste 1, et doublait (−5 906 € pour −2 833 €). Le test qui l'a "
+            "attrapé tourne sur des données de test ; ceci rejoue la PORTE admin "
+            "sur la production, chaque soir (R226)."),
 )
 
 
