@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R221 — Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans… (livrée 2026-09-27)
+
+- [x] **R221 — Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans la corbeille**, non lus — un filtre Gmail les y envoie ; le récap du 26/09 signalait Benken (Meta) et GRiNCH (SoundCloud) qui ne collectent pas et 36 lignes contaminées** (P2) ✅ (2026-09-27, bae107c6)
+  Mesuré par : supprimer ou corriger le filtre Gmail — runbook §30
+  vérifié le 2026-09-27 : from:noreply@streamlytics.fr newer_than:2d (sans in:anywhere) rend les mails de 08:49 et 12:04, libellé INBOX — ils n'arrivent plus en corbeille ; les anciens restent dans la corbeille (étape 4 du runbook, facultative)
+  Commits : bae107c6 Roadmap : R221 (mails ops dans la corbeille Gmail) et R222 (sens du co
+
 ## ✅ R239 — **Écoutes PAR CRÉA — la solution mesurée** : une campagne qui n'a diffusé qu'UNE créa d… (livrée 2026-09-27)
 
 - [x] **R239 — **Écoutes PAR CRÉA — la solution mesurée** : une campagne qui n'a diffusé qu'UNE créa donne à cette créa ses écoutes gagnées, sans hypothèse de répartition (9 campagnes sur 21 chez l'artiste 1). Les autres sont dites « non séparables » avec le geste qui les rend mesurables : une créa par campagne, ou un lien Hypeddit par créa. Dans « Comparer mes campagnes »** (P2) ✅ (2026-09-27, e0c9d2fb)
