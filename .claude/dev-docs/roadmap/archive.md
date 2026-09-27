@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R251 — **Le garde des durées juge toute la collecte, pas les seuls fichiers indexés** : le hoo… (livrée 2026-09-27)
+
+- [x] **R251 — **Le garde des durées juge toute la collecte, pas les seuls fichiers indexés** : le hook de R250 ne regardait que les tests DES fichiers indexés ; un id paramétré par le contenu d'un AUTRE fichier (numéro de ligne) a décalé et la CI de main est passée rouge (0dee1d41). Au commit, pre-commit a déjà remisé le non-indexé : seul le NON SUIVI est à exclure** (P3) ✅ (2026-09-27, 9c619fbf)
+  Mesuré par : l'id décalé de 0dee1d41 est refusé au commit
+  garde des durees sur toute la collecte suivie ; incident 0dee1d41 rejoue : R250 sortait 0, R251 sort 1
+  Commits : 9c619fbf R251 : le garde des durees juge toute la collecte suivie, pas les seul
+
+## ✅ R249 — **Admin** : 55 et 62 (LTV + MRR) déplacés en admin ; 59, 61, 70, 71 retirés, et le mode… (livrée 2026-09-27)
+
+- [x] **R249 — **Admin** : 55 et 62 (LTV + MRR) déplacés en admin ; 59, 61, 70, 71 retirés, et le mode mort « chacune à son échelle » (fiche 2) ; 72 → détection d'anomalie d'ingestion (lignes attendues × locataires contre lignes reçues, alerte au-delà d'un seuil)** (P3) ✅ (2026-09-27, 9b66de88)
+  Mesuré par : admin porte 55/62/72, 4 figures retirées
+  55 et 62 deja admin ; 2 59 61 70 71 retires ; 72 devenu detection d anomalie d ingestion (attendu contre recu par artiste) ; deploye 9c619fbf
+  Commits : 9b66de88 R249 : admin - 55 et 62 deja en admin (notes ecrites) ; retires a la d
+
+## ✅ R248 — **Argent** : 46 sans « popularité 0 », cumul avec SACEM et coût de distribution ; saisi… (livrée 2026-09-27)
+
+- [x] **R248 — **Argent** : 46 sans « popularité 0 », cumul avec SACEM et coût de distribution ; saisie du coût de distribution PAR TITRE dans « Mes revenus » (catégorie + titre), sommée dans la trésorerie** (P2) ✅ (2026-09-27, 6ef03d5b)
+  Mesuré par : coût saisi → visible dans la trésorerie
+  remboursement de la pub sur tous les revenus nets (ventes + SACEM) contre Meta + frais saisis ; cout de distribution par titre dans Mes revenus ; deploye 9c619fbf
+  Commits : 6ef03d5b R248 : argent - le « remboursement de la pub » compte TOUT : revenus n
+
+## ✅ R247 — **Trigger Algo refait, simple et visuel** : 42 (5 dernières sorties, 5 indicateurs, pui… (livrée 2026-09-27)
+
+- [x] **R247 — **Trigger Algo refait, simple et visuel** : 42 (5 dernières sorties, 5 indicateurs, puis valeurs vs cible 100 %, SHAP 52–54 intégré) ; 43 estimation J+28 / 6 mois / 1 an sur le jeu d'entraînement (P25–P75, « estimation ») ; 44 cohorte expliquée ; 45 sans équation ; 51/57/58/64 refaits ou expliqués** (P2) ✅ (2026-09-27, 9b66de88, 0dee1d41, b6c428b4, 9131996b, 543c484b)
+  Mesuré par : fiches 42–64 relues sur leur rendu
+  fiches 42 a 64 refaites et relues sur leur rendu - jauges des 5 dernieres sorties, estimation sur le jeu d entrainement, decision ecrite sous chaque graphique (44 45 51 57 58 64) ; deploye 9c619fbf
+  Commits : 9b66de88 R249 : admin - 55 et 62 deja en admin (notes ecrites) ; retires a la d · 0dee1d41 R247 (4/4) : fiches 44, 45, 51, 57, 58, 64 - chaque graphique finit su · b6c428b4 R247 (3/4) : fiche 42 - Trigger Algo onglet 1 refait : tes 5 dernieres · 9131996b R247 (2/4) : fiche 43 - ce qu'un algorithme rapporte une fois declench · 543c484b R247 (1/4) : code mort de Trigger Algo retire - l'onglet « Algorithmes
+
 ## ✅ R250 — Un test neuf commité sans durée a rougi main TROIS fois le 2026-09-27 (0b711193, R238,… (livrée 2026-09-27)
 
 - [x] **R250 — Un test neuf commité sans durée a rougi main TROIS fois le 2026-09-27 (0b711193, R238, R228 la veille) : le hook pre-commit refuse un commit qui ajoute un test de `tests/` sans durée dans `.test_durations`, avec le remède (`make test-durations-missing`)** (P3) ✅ (2026-09-27, 33b745bd, 54e3bd23)
