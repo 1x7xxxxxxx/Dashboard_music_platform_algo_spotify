@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R257 | **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domains.yaml`), catalogue exhaustif des exigences avec source et PREUVE ciblée sur une ligne (`requirements.yaml`), benchmark actuel vs théorique rejoué (`make arch-benchmark`), règle CLAUDE.md + garde « toute exigence a une preuve collectable ». Les refactors qui en sortent prennent chacun leur ligne <!-- anchor: r257 --> <!-- critic: non — référentiel et outillage de mesure, aucun code produit --> | P2 | benchmark rejoué, 0 exigence sans preuve déclarée ni omise |
 
 ---
 
