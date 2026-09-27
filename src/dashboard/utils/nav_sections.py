@@ -142,7 +142,10 @@ NAV_SECTIONS: list = [
     # choses : on regarde d'abord ce qu'on a, on décide ensuite si on paie pour
     # plus.
     ("analytics", "📊 Analytics plateformes",
-     [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
+     # R271 (note L8) — the ten charts that decide the most, one click from each; at the
+     # head of what one LOOKS at, not beside the home (which stands alone with the funnel).
+     [("📌 Récap", "recap"),
+      ("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
       ("📣 Publicité Meta Ads", "meta_ads_overview"),
       # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces
       # pages lisent tes données, elles ne prédisent rien. « Tout mon funnel »
@@ -216,3 +219,12 @@ NAV_SECTIONS: list = [
       ("🔧 Liens & Outils", "useful_links"),
       ("⚙️ Admin", "admin")]),
 ]
+
+
+def page_label(page_key: str) -> str:
+    """The menu label of a page — or its key, for a page the menu does not carry."""
+    for _sid, _header, items in NAV_SECTIONS:
+        for label, key in items:
+            if key == page_key:
+                return label
+    return page_key

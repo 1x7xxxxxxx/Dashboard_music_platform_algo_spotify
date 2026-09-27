@@ -93,6 +93,7 @@ class TestSecurityHeaders:
         r = client.get("/health")
         assert r.status_code == 200
         assert r.headers["X-Content-Type-Options"] == "nosniff"
+        assert r.headers["Cross-Origin-Resource-Policy"] == "same-origin"  # R267 pentest
         assert r.headers["X-Frame-Options"] == "DENY"
         assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
         assert "Strict-Transport-Security" in r.headers

@@ -292,6 +292,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
 | `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
+| `recap.py` | Récap | `src/dashboard/content/recap_charts.py` (generated from the graded chart review — no database read) | all |
 | `meta_mapping/` (package) | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |
 | `platform_status.py` | 📋 État de tes plateformes — la matrice complète des six sources. **Hors du menu depuis le 2026-09-05** (chaque onglet de Credentials porte les quatre pastilles de SA plateforme) mais toujours ROUTÉE : des messages y renvoient | lecture seule (artist_readiness) | all |

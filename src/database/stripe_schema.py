@@ -162,6 +162,9 @@ ALWAYS_ACCESSIBLE = {
     # qu'elle figure dans l'argumentaire d'abonnement, ce qu'elle n'est pas.
     'service',
     'account', 'billing', 'process_guide', 'onboarding', 'onboarding_health',
+    # R271 — a table of contents: it shows no number, and each button opens a page whose
+    # own gate still applies.
+    'recap',
 }
 
 def page_is_locked(plan: str, page_key: str) -> bool:

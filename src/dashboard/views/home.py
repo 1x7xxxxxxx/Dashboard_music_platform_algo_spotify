@@ -852,8 +852,8 @@ def _launch_collections() -> None:
         from src.dashboard.app import COLLECTION_DAGS      # noqa: PLC0415
     except Exception:      # noqa: BLE001 — hors app : le bouton ne doit pas casser la page
         st.warning(t("home.launch_unavailable",
-                     "⚠️ Le déclenchement n'est pas disponible ici. Utilise le bouton "
-                     "Elle démarre aussi d'elle-même dès que tu enregistres des identifiants."))
+                     "⚠️ Le déclenchement n'est pas disponible ici. La collecte démarre "
+                     "aussi d'elle-même dès que tu enregistres des identifiants."))
         return
 
     artist_id = tenant_scope()

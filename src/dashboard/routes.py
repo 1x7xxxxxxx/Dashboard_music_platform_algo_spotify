@@ -57,4 +57,5 @@ ROUTES: dict[str, str] = {
     "upgrade": "views.upgrade",
     "usage_analytics": "views.usage_analytics",
     "alerts": "views.alerts",
+    "recap": "views.recap",  # R271 — the ten charts that decide the most
 }

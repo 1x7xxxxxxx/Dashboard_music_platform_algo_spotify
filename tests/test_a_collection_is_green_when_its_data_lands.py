@@ -47,7 +47,9 @@ def test_the_automatic_start_is_remembered(monkeypatch):
     assert session[LAUNCHED_AT_KEY]
 
 
-_GONE = ("Launch ALL collections", "Lancer TOUTES les collectes")
+# Every phrasing the removed button went by — « Run ALL collections » in the home EN
+# catalog escaped the first version of this list (rule 20, a false negative, 2026-09-28).
+_GONE = ("all collections", "toutes les collectes")
 
 
 def _strings(tree: ast.AST) -> list[str]:
@@ -66,7 +68,7 @@ def _naming_the_removed_button(root: Path) -> list[str]:
     hits = []
     for p in root.rglob("*.py"):
         for s in _strings(ast.parse(p.read_text(encoding="utf-8"))):
-            if any(g in s for g in _GONE):
+            if any(g in s.lower() for g in _GONE):
                 hits.append(str(p.relative_to(ROOT)))
     return hits
 

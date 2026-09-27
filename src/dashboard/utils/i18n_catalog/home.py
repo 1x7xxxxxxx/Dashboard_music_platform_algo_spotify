@@ -4,10 +4,9 @@ EN = {
     # First day: four zeros say "nothing", not "not yet"
     "home.no_data_yet": (
         "🕐 **Your first numbers are not here yet — that is normal.**\n\n"
-        "Collection runs **every morning between 9 and 10 am** (Paris time) and fills "
-        "this page on its own. You have nothing to do.\n\n"
-        "Do not want to wait for tomorrow? The **🚀 Run ALL collections** button in the "
-        "sidebar brings your numbers back in ~2 minutes."
+        "Automatic collection runs **every morning between 5 and 11 am** (Paris time) "
+        "and fills this page on its own. You have nothing to do.\n\n"
+        "It also starts by itself as soon as you save credentials."
     ),
     "home.no_data_hint": (
         "If nothing arrives after a collection, the **🚦 Onboarding health** page says "
@@ -19,8 +18,8 @@ EN = {
     "home.launched": "🚀 Collection launched — your first numbers arrive in "
                      "~2 minutes. Reload the page to see them.",
     "home.launch_refused": "❌ {n} collection(s) refused: {why}",
-    "home.launch_unavailable": "⚠️ Launching is not available here. Use the "
-                               "**🚀 Run ALL collections** button in the sidebar.",
+    "home.launch_unavailable": "⚠️ Launching is not available here. Collection also "
+                               "starts by itself as soon as you save credentials.",
     "home.freshness_header": "📡 Data freshness",
     "home.freshness_api": "🔄 Collected automatically",
     "home.freshness_csv": "📂 You upload these",

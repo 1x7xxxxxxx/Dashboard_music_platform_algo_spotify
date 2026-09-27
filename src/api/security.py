@@ -14,6 +14,8 @@ The limiter and the X-Forwarded-For parser both live in
 same two things (R23 registration, R26 TOTP) and a second copy of a header parser
 is how the hop-0 bypass would have survived its own fix. This file keeps the API's
 budgets, its paths, and the middleware.
+
+Pentest (ZAP, local, 2026-09-28 — 0 failure, the action plan): .claude/dev-docs/pentest-2026-09-28.md
 """
 import os
 
@@ -125,6 +127,9 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    # R267 pentest (ZAP API scan, 2026-09-28, local) — the only header warning: no
+    # other origin has a reason to embed an API response.
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     # Browsers ignore HSTS over plain HTTP, so always setting it is harmless locally.
     response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     if request.url.path not in _DOCS_PATHS:

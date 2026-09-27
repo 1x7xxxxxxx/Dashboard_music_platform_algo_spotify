@@ -43,6 +43,7 @@ _NON_ANALYTICS = {
     "meta_mapping", "db_health",                   # mapping/management tools
     "account", "billing", "referral",              # account
     "data_wrapped",                                # is itself a recap/report
+    "recap",                                       # a table of contents: it draws nothing
 }
 
 # Analytics view → PDF section key (None = deliberately not a standalone section).
