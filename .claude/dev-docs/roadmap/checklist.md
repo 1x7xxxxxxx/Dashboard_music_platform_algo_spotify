@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R234 | **Les questions croisées du funnel** sur « Tout mon funnel » : classement des campagnes par coût par écoute gagnée, campagne engagement contre trafic, titre qui transforme le mieux les clics en streams, délai exposition → écoute (décalage dépense/écoutes), pays qui transforme le mieux. **« Suivre le même utilisateur » — SOLUTION** : aucune API ne donne d'identifiant de personne (Meta, S4A, Apple rendent des agrégats), donc on suit une COHORTE : campagne × titre × pays × fenêtre, du clic à l'écoute et aux abonnés, avec cette limite écrite dans la page <!-- anchor: r234 --> <!-- critic: requis --> | P2 | chaque question a sa figure ou sa phrase « non mesurable, parce que » |
-| R238 | Le mail nocturne du 2026-09-27 08:49 (`guard-mutation` rouge) : 6 gardes récents restés verts sur 6 mutations génériques. Trois sont auto-prouvants (un test fabrique le défaut) et le job ne le sait pas ; trois ne le sont pas (`test_a_creative_funnel_never_widens`, `test_a_roi_verdict_needs_a_crossing_and_enough_points`, `test_a_floor_probability_is_never_shown_as_a_measure`) — les muter à la main, et que le job crédite un garde auto-prouvant <!-- anchor: r238 --> <!-- critic: non — outillage de nuit, aucun code produit --> | P3 | nightly `guard-mutation` vert, chaque garde vu rouge |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R234, R221, R222, R237 -->
+<!-- reprise: open=R221, R222, R237 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

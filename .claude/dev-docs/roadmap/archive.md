@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R238 — Le mail nocturne du 2026-09-27 08:49 (`guard-mutation` rouge) : 6 gardes récents restés… (livrée 2026-09-27)
+
+- [x] **R238 — Le mail nocturne du 2026-09-27 08:49 (`guard-mutation` rouge) : 6 gardes récents restés verts sur 6 mutations génériques. Trois sont auto-prouvants (un test fabrique le défaut) et le job ne le sait pas ; trois ne le sont pas (`test_a_creative_funnel_never_widens`, `test_a_roi_verdict_needs_a_crossing_and_enough_points`, `test_a_floor_probability_is_never_shown_as_a_measure`) — les muter à la main, et que le job crédite un garde auto-prouvant** (P3) ✅ (2026-09-27, 6819775d)
+  Mesuré par : nightly `guard-mutation` vert, chaque garde vu rouge
+  guard-mutation crédite auto-prouvant + SEEN_RED ; 5 gardes mutés rouges à la main ; rejoué localement 0 à relire
+  Commits : 6819775d R238 : le job guard-mutation credite un garde auto-prouvant (AST : tes
+
+## ✅ R234 — **Les questions croisées du funnel** sur « Tout mon funnel » : classement des campagnes… (livrée 2026-09-27)
+
+- [x] **R234 — **Les questions croisées du funnel** sur « Tout mon funnel » : classement des campagnes par coût par écoute gagnée, campagne engagement contre trafic, titre qui transforme le mieux les clics en streams, délai exposition → écoute (décalage dépense/écoutes), pays qui transforme le mieux. **« Suivre le même utilisateur » — SOLUTION** : aucune API ne donne d'identifiant de personne (Meta, S4A, Apple rendent des agrégats), donc on suit une COHORTE : campagne × titre × pays × fenêtre, du clic à l'écoute et aux abonnés, avec cette limite écrite dans la page** (P2) ✅ (2026-09-27, b704b562)
+  Mesuré par : chaque question a sa figure ou sa phrase « non mesurable, parce que »
+  onglet 🏁 Comparer mes campagnes (src/dashboard/utils/campaign_compare.py, 5 requêtes) : € par écoute gagnée, phrase engagement/trafic, titre × clics Hypeddit, délai pub→écoute (corr ≥ 0,3), 2 biais écrits, pays renvoyé ; prod artiste 1 : 21 campagnes, 11 chiffrées, 6 titres ; déployé 6819775d. « Suivre le même utilisateur » : cohorte campagne×titre, aucune API ne rend une personne
+  Commits : b704b562 R234 : onglet « Comparer mes campagnes » - EUR par ecoute gagnee par c
+
 ## ✅ R232 — **Architecture des filtres** : une couche partagée pour période (déjà `smart_period_fil… (livrée 2026-09-27)
 
 - [x] **R232 — **Architecture des filtres** : une couche partagée pour période (déjà `smart_period_filter`, 8 vues ; 6 vues ont encore un `date_input` à elles), titre (clé canonique `match_key`), plateforme, compte, campagne — un état, une URL, les mêmes libellés partout ; garde qui refuse un filtre écrit à la main** (P3) ✅ (2026-09-27, 07886a0f)
