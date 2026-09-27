@@ -28,6 +28,16 @@ repos:
         stages: [commit-msg]
         always_run: true
 
+      # R250 — a new test committed without its duration turned main red three times on
+      # 2026-09-27 (pytest-split gives it an AVERAGE and the CI gate refuses it). ~8 s of
+      # collection, and only when a test file is staged.
+      - id: test-durations-known
+        name: tests — every staged test has a recorded duration (make test-durations-missing)
+        language: system
+        entry: .venv/bin/python tools/dev/check_durations_are_collectable.py
+        files: ^tests/test_[^/]*\.py$
+        pass_filenames: false
+
   # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.5      # keep in sync with pyproject.toml dev extras
