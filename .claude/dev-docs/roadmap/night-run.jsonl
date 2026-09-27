@@ -558,3 +558,4 @@
 {"at": "2026-09-27T10:03:25+00:00", "head": "e6a026c5", "kind": "start", "task": "R224", "what": "CI de code non annulee par un commit de doc"}
 {"at": "2026-09-27T10:03:50+00:00", "head": "e6a026c5", "kind": "park", "task": "R224", "what": "attente code-critic"}
 {"at": "2026-09-27T10:03:50+00:00", "head": "e6a026c5", "kind": "start", "task": "R235", "what": "Shazam quotidien : releve date par l'export + correlation"}
+{"at": "2026-09-27T10:14:11+00:00", "head": "91055163", "kind": "start", "task": "R224", "what": "concurrence CI : main non annulee"}

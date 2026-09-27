@@ -23,7 +23,12 @@ on:
 # the start — this repo did not.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # R224 (2026-09-27) — on a push to main a running check is NOT cancelled any more.
+  # Measured that night: 6 runs cancelled out of 27; each roadmap or journal commit
+  # pushed right after a code commit killed the code's run, and the deploy (gated on
+  # a green CI) waited one more full run. GitHub keeps at most ONE pending run per
+  # group, so the queue cannot grow. Pull requests and branches still cancel.
+  cancel-in-progress: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
 
 # ── Pourquoi DEUX jobs indépendants, et six shards (R109 2026-09-16, 6 le 2026-09-25) ─
 #
