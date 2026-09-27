@@ -77,7 +77,7 @@ import streamlit as st
 
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.meta_accounts import account_clause, account_scope
+from src.dashboard.utils.filters import account_clause, account_scope
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (

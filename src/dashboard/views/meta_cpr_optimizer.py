@@ -17,7 +17,7 @@ import streamlit as st
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
-from src.dashboard.utils.meta_accounts import account_clause, account_scope
+from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor

@@ -64,6 +64,8 @@ _ALLOWED_TABLES = frozenset({
     "v_s4a_audience_daily",
     "v_s4a_release_cohort",
     "v_apple_song_cumulative",
+    # R259 — the Meta overview draws time too ; its campaigns carry `day`.
+    "v_meta_campaign_daily",
 })
 
 # Les tables retirées de l'allowlist, avec la vue qui les remplace. Nommer le
@@ -117,6 +119,10 @@ _PRESETS = {
     "custom": "🎯 Plage personnalisée",
 }
 _GRAINS = {"week": "Semaine", "month": "Mois", "year": "Année"}
+# R259 (notes L103) — « Semaine » ici n'est PAS un pas d'agrégation : c'est la semaine EN
+# COURS comme fenêtre. Le libellé « Granularité » faisait lire « un seul point par semaine »
+# comme un défaut ; il nomme maintenant ce qu'il choisit.
+_CURRENT_LABELS = {"week": "Cette semaine", "month": "Ce mois", "year": "Cette année"}
 
 
 @dataclass(frozen=True)
@@ -247,16 +253,40 @@ def smart_period_filter(
     key: str,
     latest_release: Optional[_dt.date] = None,
     latest_release_resolver: Optional[Callable[[], Optional[_dt.date]]] = None,
-    default_override: Optional[str] = None,
+    default_override: Optional[str] = "last_release",
     artist_column: str = "artist_id",
 ) -> PeriodWindow:
-    """Render the shared period selector and return the resolved window."""
+    """Render the shared period selector over a table's data span and return the window."""
     _validate(table, date_column, artist_column)
+    span_min, span_max = _data_span(db, table, date_column, artist_column, artist_id)
+    return span_period_filter(
+        span_min, span_max, key=key, artist_id=artist_id, latest_release=latest_release,
+        latest_release_resolver=latest_release_resolver, default_override=default_override)
+
+
+def span_period_filter(
+    span_min: Optional[_dt.date],
+    span_max: Optional[_dt.date],
+    *,
+    key: str,
+    artist_id: Optional[int],
+    latest_release: Optional[_dt.date] = None,
+    latest_release_resolver: Optional[Callable[[], Optional[_dt.date]]] = None,
+    default_override: Optional[str] = "last_release",
+) -> PeriodWindow:
+    """The SAME selector over a span the caller already knows (several sources, a frame
+    in memory). R259 : `ui.smart_date_range` was a second selector with other labels and
+    another default (full span) ; it is gone, both paths now render this one.
+
+    The default is « depuis la dernière sortie » — the owner's rule for the whole app
+    (notes L89-L91, 2026-09-27) lives HERE, not repeated at every call site. With no
+    release known, the window starts at the beginning of the history and says so."""
+    span_min = span_min.date() if isinstance(span_min, _dt.datetime) else span_min
+    span_max = span_max.date() if isinstance(span_max, _dt.datetime) else span_max
     # Toutes les clés de CE sélecteur portent le locataire, pour la raison écrite dans
     # `_widget_key` : une plage de dates ou un grain choisis pour un artiste ne doivent
     # pas être réinjectés dans la page d'un autre.
     key = _widget_key(key, artist_id)
-    span_min, span_max = _data_span(db, table, date_column, artist_column, artist_id)
     span_days = (span_max - span_min).days if span_min and span_max else None
     init_preset, init_grain = _default_preset(span_days, default_override)
 
@@ -268,8 +298,8 @@ def smart_period_filter(
     grain = init_grain
     if preset == "current":
         grain = st.segmented_control(
-            "Granularité", list(_GRAINS), key=f"{key}_grain",
-            format_func=lambda g: _GRAINS[g], default=init_grain,
+            "Période en cours", list(_GRAINS), key=f"{key}_grain",
+            format_func=lambda g: _CURRENT_LABELS[g], default=init_grain,
         ) or init_grain
 
     custom = None

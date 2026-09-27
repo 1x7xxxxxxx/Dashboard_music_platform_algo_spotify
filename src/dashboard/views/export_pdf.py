@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection
-from src.dashboard.utils.meta_accounts import account_scope
+from src.dashboard.utils.filters import account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.pdf_exporter import (

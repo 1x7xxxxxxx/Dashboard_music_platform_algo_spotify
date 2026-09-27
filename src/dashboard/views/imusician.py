@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.ui import flash, smart_date_range
+from src.dashboard.utils import filters
+from src.dashboard.utils.ui import flash
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.auth import is_admin, tenant_scope
 from src.dashboard.utils.kpi_helpers import get_roi_data
@@ -388,10 +389,7 @@ def show():
             ))
 
             span_min, span_max = _roi_data_span(db, artist_id)
-            from_date, to_date = smart_date_range(
-                t("common.period", "Période"), span_min, span_max, key="imusician_roi")
-
-            if from_date is None:
+            if span_min is None or span_max is None:
                 st.info(t(
                     "imusician.roi_no_data",
                     "Aucune donnée de revenus distributeur ni de dépenses Meta Ads pour cet artiste. "
@@ -399,6 +397,12 @@ def show():
                     "l'onglet Données, ou lancez la collecte Meta depuis l'accueil."
                 ))
             else:
+                # R259 — the shared selector (same presets, « depuis la dernière sortie »).
+                window = filters.span(span_min, span_max, key="imusician_roi",
+                                      artist_id=artist_id,
+                                      latest_release_resolver=lambda: filters.latest_release_date(
+                                          db, artist_id))
+                from_date, to_date = window.start, window.end
                 roi = get_roi_data(db, artist_id, from_date, to_date)
 
                 c1, c2, c3 = st.columns(3)

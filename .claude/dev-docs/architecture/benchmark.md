@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**64 exigences** sur **20 domaines** (carte : 24). conforme : 28 · partiel : 23 · absent : 13 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 20
+**64 exigences** sur **20 domaines** (carte : 24). conforme : 31 · partiel : 20 · absent : 13 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 18
 
 ## Collecteurs API (`collect`)
 
@@ -55,10 +55,10 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-FILTER-01 | Une seule couche de filtres (période, titre, plateforme, compte, campagne) ; aucune vue n'écrit son propre filtre | partiel | `tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter` ✅ | — | 7 vues passent par filters.py ; smart_date_range (imusician, meta_creatives) et meta_accounts (5 vues Meta) la contournent → R259 |
-| REQ-FILTER-02 | Le filtre de période s'ouvre par défaut sur « depuis la dernière sortie », dans toute l'app | partiel | `—`  | — | chaque vue de plateforme passe last_release elle-même, mais le défaut de la couche partagée reste « current » (src/dashboard/utils/period_filter.py _default_preset) et aucun test ne l'exige → R259 |
+| REQ-FILTER-01 | Une seule couche de filtres (période, titre, plateforme, compte, campagne) ; aucune vue n'écrit son propre filtre | conforme | `tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter` ✅ | — | R259 : smart_date_range retiré (span_period_filter), les vues Meta importent le compte par filters.py → R259 |
+| REQ-FILTER-02 | Le filtre de période s'ouvre par défaut sur « depuis la dernière sortie », dans toute l'app | conforme | `tests/test_the_period_filter_defaults_to_the_last_release.py::test_the_layer_defaults_to_the_last_release` ✅ | — | chaque vue de plateforme passe last_release elle-même, mais le défaut de la couche partagée reste « current » (src/dashboard/utils/period_filter.py _default_preset) et aucun test ne l'exige → R259 |
 | REQ-FILTER-03 | Élargir n'importe quel filtre ne fait jamais planter la vue | conforme | `tests/test_a_widened_filter_still_renders.py::test_widening_every_filter_does_not_raise` ✅ | — | — |
-| REQ-FILTER-04 | Toute vue qui trace une série dans le temps offre le filtre de période commun | partiel | `—`  | — | meta_ads_overview, meta_breakdowns et meta_cpr_optimizer n'ont aucun filtre de période → R259 |
+| REQ-FILTER-04 | Toute vue qui trace une série dans le temps offre le filtre de période commun | conforme | `tests/test_the_period_filter_defaults_to_the_last_release.py::test_every_view_drawing_a_daily_series_goes_through_the_shared_filter` ✅ | — | R259 : meta_ads_overview filtré (ancré au lancement des campagnes) ; meta_breakdowns n'a pas de dimension date, meta_cpr_optimizer ne trace pas de série → R259 |
 
 ## Porte de dessin — légendes, palette, Pareto (`chart-door`)
 
@@ -174,7 +174,6 @@
 - REQ-SILVER-01
 - REQ-ORCH-01
 - REQ-ORCH-03
-- REQ-FILTER-02
 - REQ-FORMAT-01
 - REQ-RUN-03
 - REQ-SEC-02
@@ -187,7 +186,6 @@
 - REQ-RUN-06
 - REQ-API-02
 - REQ-ERR-04
-- REQ-FILTER-04
 - REQ-FORMAT-03
 - REQ-CLAUDE-03
 - REQ-ROAD-04

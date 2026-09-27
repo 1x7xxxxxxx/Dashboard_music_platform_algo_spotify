@@ -167,7 +167,6 @@ def show():
                 db, table="v_s4a_song_daily", date_column="day",
                 artist_id=artist_id, key=f"trigger_algo_{selected_track}",
                 latest_release=track_release_date,
-                default_override="last_release",
             )
         date_from, date_to = window.start, window.end
 

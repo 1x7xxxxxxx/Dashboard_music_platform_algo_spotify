@@ -88,7 +88,6 @@ def show():
                 db, table="youtube_channel_history", date_column="collected_at",
                 artist_id=artist_id, key="yt_channel",
                 latest_release_resolver=lambda: latest_release_date(db, artist_id),
-                default_override="last_release",
             )
             frag, frag_params = window.sql_between("collected_at")
             # Les ABONNÉS n'existent que sur la chaîne — cette table est leur seule
@@ -244,7 +243,6 @@ def show():
                     db, table="youtube_videos", date_column="published_at",
                     artist_id=artist_id, key="yt_videos",
                     latest_release_resolver=lambda: latest_release_date(db, artist_id),
-                    default_override="last_release",
                 )
             # Récupération des vidéos + stats, bornée par LA fenêtre partagée.
             #

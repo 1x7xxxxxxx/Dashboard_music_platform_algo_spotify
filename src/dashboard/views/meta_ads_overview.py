@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
-from src.dashboard.utils.meta_accounts import account_clause, account_scope
+from src.dashboard.utils import filters
+from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ui import secondary_analyses
@@ -338,11 +339,22 @@ def _show_meta_ads(db, artist_id):
     selected_campaigns = [c for c in selected_campaigns if c in set(all_campaigns)]
     # Le filtre de compte se colle AVANT celui des campagnes : ses paramètres se
     # placent donc juste après `artist_id`.
+    # R259 (notes L98, L511) — the shared period filter, like every other page that draws
+    # time. « Depuis la dernière sortie » means, here, since the selected campaigns were
+    # launched: the release a campaign analysis is about. Appended LAST to the clause, so
+    # its two dates follow the campaign parameters in every query that carries it.
+    _launch = df_list.loc[df_list['campaign_name'].isin(selected_campaigns), 'first_day'] \
+        if selected_campaigns else df_list['first_day']
+    _launch = pd.to_datetime(_launch).min() if not _launch.dropna().empty else None
+    window = filters.period(db, table="v_meta_campaign_daily", date_column="day",
+                            artist_id=artist_id, key="meta_overview_period",
+                            latest_release=_launch.date() if _launch is not None else None)
+    _win_sql, _win_params = window.sql_between("day")
     _campaign_in = _acct + (
         " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected_campaigns)))
         if selected_campaigns else ""
-    )
-    params = (artist_id, *_acct_params, *selected_campaigns)
+    ) + _win_sql
+    params = (artist_id, *_acct_params, *selected_campaigns, *_win_params)
 
     # ==============================================================================
     # 🟢 SECTION 1 : VUE MACRO (KPIS)
@@ -654,11 +666,11 @@ def _show_meta_ads(db, artist_id):
                SUM(spend) AS spend, SUM(conversions) AS results
         FROM v_meta_adset_daily
         WHERE artist_id = %s"""
-        f"{_acct}"
+        f"{_acct}{_win_sql}"
         """
         GROUP BY optimization_goal, gender, publisher_platforms, age_min, age_max
         """,
-        (artist_id, *_acct_params),
+        (artist_id, *_acct_params, *_win_params),
     )
     if df_tgt.empty:
         st.info(t("meta_ads_overview.no_targeting_data", "Aucune donnée de ciblage ad set disponible."))

@@ -61,7 +61,9 @@ import pytest
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 _VIEWS = _ROOT / "src" / "dashboard" / "views"
 
-_CANONIQUES = {"smart_period_filter", "entity_period_filter", "smart_date_range"}
+# R259 : `ui.smart_date_range` est retiré — `span_period_filter` rend le même sélecteur
+# sur une plage déjà connue.
+_CANONIQUES = {"smart_period_filter", "entity_period_filter", "span_period_filter"}
 
 # Hors du parcours artiste — chacune avec SA raison, jamais une liste nue.
 _HORS_PARCOURS = {
@@ -185,6 +187,6 @@ def test_the_canonical_selectors_still_exist() -> None:
     pf = ast.parse((_ROOT / "src" / "dashboard" / "utils" / "period_filter.py")
                    .read_text(encoding="utf-8"))
     definies = {n.name for n in ast.walk(pf) if isinstance(n, ast.FunctionDef)}
-    manquantes = _CANONIQUES - definies - {"smart_date_range"}
+    manquantes = _CANONIQUES - definies
     assert not manquantes, (
         f"{sorted(manquantes)} n'existe(nt) plus : ce garde n'a plus rien à proposer.")

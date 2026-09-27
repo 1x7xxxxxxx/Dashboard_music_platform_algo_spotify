@@ -13,8 +13,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session, charts
-from src.dashboard.utils.meta_accounts import account_clause, account_scope
-from src.dashboard.utils.ui import smart_date_range
+from src.dashboard.utils.filters import account_clause, account_scope
+from src.dashboard.utils import filters
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
 from src.dashboard.utils.creative_decisions import _a_couper, add_quadrants, by_creative, render_creative_gain  # R233: moved out, still importable from here
@@ -673,7 +673,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
     """Per-creative multi-metric timeline (one Y-axis per metric, legend toggle).
 
     The creative list honours the page's campaign filter. The period filter is
-    data-bounded (smart_date_range). Each metric has its own Y-axis; non-default
+    data-bounded (filters.span, R259). Each metric has its own Y-axis; non-default
     metrics start collapsed and are toggled via the legend.
     """
     st.markdown("---")
@@ -712,8 +712,9 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         return
     ts['date'] = pd.to_datetime(ts['date'])
 
-    d_from, d_to = smart_date_range(t("common.period", "Période"),
-                                    ts['date'].min(), ts['date'].max(), key="tl")
+    window = filters.span(ts['date'].min(), ts['date'].max(), key="tl", artist_id=artist_id,
+                          latest_release_resolver=lambda: filters.latest_release_date(db, artist_id))
+    d_from, d_to = window.start, window.end
     mask = (ts['date'] >= pd.Timestamp(d_from)) & (ts['date'] <= pd.Timestamp(d_to))
     tsf = ts.loc[mask].copy()
     if tsf.empty:

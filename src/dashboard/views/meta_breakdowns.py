@@ -19,7 +19,7 @@ import pandas as pd
 import plotly.express as px
 
 from src.dashboard.utils import view_session, charts
-from src.dashboard.utils.meta_accounts import (
+from src.dashboard.utils.filters import (
     account_clause,
     account_scope,
     table_carries_account,

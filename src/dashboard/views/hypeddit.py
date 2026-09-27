@@ -202,7 +202,6 @@ def _render_global_stats(db):
         artist_id=artist_id,
         key="hyp_stats",
         latest_release_resolver=lambda: latest_release_date(db, artist_id),
-        default_override="last_release",
     )
 
     df = get_global_stats(window.start, window.end, db=db)

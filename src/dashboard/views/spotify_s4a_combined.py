@@ -483,8 +483,7 @@ def _common_filter(db, spans: pd.DataFrame):
         window = smart_period_filter(
             db, table="v_s4a_song_daily", date_column="day",
             artist_id=None, key="s4a_common",
-            latest_release=start if isinstance(start, date) else None,
-            default_override="last_release")
+            latest_release=start if isinstance(start, date) else None)
     return song, window
 
 

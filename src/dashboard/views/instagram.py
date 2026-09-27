@@ -114,7 +114,6 @@ def show():
             db, table="instagram_daily_stats", date_column="collected_at",
             artist_id=artist_id, key="ig_community",
             latest_release_resolver=lambda: latest_release_date(db, artist_id),
-            default_override="last_release",
         )
 
         try:
@@ -167,7 +166,6 @@ def show():
             db, table="instagram_media", date_column="timestamp",
             artist_id=artist_id, key="ig_media",
             latest_release_resolver=lambda: latest_release_date(db, artist_id),
-            default_override="last_release",
         )
         try:
             frag_m, params_m = win_m.sql_between("timestamp")

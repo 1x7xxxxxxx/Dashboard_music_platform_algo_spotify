@@ -51,10 +51,6 @@ EN = {
     "app.view_error": ("❌ An error occurred on this page. Please try again; "
                        "the administrator has been notified if the problem persists."),
     # Shared ui helpers (utils/ui.py)
-    "ui.full_history": "Full history",
-    "ui.year_n": "Year {y}",
-    "ui.custom_range": "Custom range",
-    "ui.range": "Range",
     "app.fatal_error": "❌ An error occurred. The administrator has been notified; please try again shortly.",
 
     "nav.prev": "Previous page",

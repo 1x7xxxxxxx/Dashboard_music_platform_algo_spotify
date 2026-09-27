@@ -11,6 +11,7 @@ is its front door, and adds NO logic of its own (code-critic, R232): a second
 implementation next to `period_filter` would have to be kept in sync forever.
 
   period()   → smart_period_filter  — presets, grain, custom range, span-bounded
+  span()     → span_period_filter   — the same selector over a span already known (R259)
   entity()   → entity_period_filter — a track by its canonical key (`match_key`)
   account()  → account_scope / account_clause — the Meta ad account (ADR-013)
 
@@ -24,19 +25,21 @@ the URL. Views anchor differently (last release, data span, fixed window) — ca
 one page's window to another shows an empty page; `st.query_params` already routes
 auth and navigation. A separate, reviewed change.
 """
-from src.dashboard.utils.meta_accounts import account_clause, account_scope
+from src.dashboard.utils.meta_accounts import account_clause, account_scope, table_carries_account
 from src.dashboard.utils.period_filter import (
     EntitySpec,
     PeriodWindow,
     entity_period_filter,
     latest_release_date,
     smart_period_filter,
+    span_period_filter,
 )
 
 period = smart_period_filter
+span = span_period_filter
 entity = entity_period_filter
 account = account_scope
 
 __all__ = ["EntitySpec", "PeriodWindow", "account", "account_clause", "account_scope",
            "entity", "entity_period_filter", "latest_release_date", "period",
-           "smart_period_filter"]
+           "smart_period_filter", "span", "span_period_filter", "table_carries_account"]

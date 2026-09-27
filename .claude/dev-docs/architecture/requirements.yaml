@@ -170,9 +170,9 @@
   enonce: Une seule couche de filtres (période, titre, plateforme, compte, campagne) ; aucune vue n'écrit son propre filtre
   sources: [{notes: L511}, {notes: L98}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter}
-  ecart: 7 vues passent par filters.py ; smart_date_range (imusician, meta_creatives) et meta_accounts (5 vues Meta) la contournent
+  ecart: "R259 : smart_date_range retiré (span_period_filter), les vues Meta importent le compte par filters.py"
   mutation: "ajouter st.date_input dans une vue hors liste déclarée"
   roadmap: R259
 
@@ -181,9 +181,10 @@
   enonce: Le filtre de période s'ouvre par défaut sur « depuis la dernière sortie », dans toute l'app
   sources: [{notes: L89}, {notes: L91}, {kpi: fiche 42}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   ecart: "chaque vue de plateforme passe last_release elle-même, mais le défaut de la couche partagée reste « current » (src/dashboard/utils/period_filter.py _default_preset) et aucun test ne l'exige"
-  a_ecrire: "test qui appelle _default_preset sans override et exige « depuis la dernière sortie » quand une date de sortie existe, puis rend chaque vue à filtre de période"
+  preuve: {pytest: tests/test_the_period_filter_defaults_to_the_last_release.py::test_the_layer_defaults_to_the_last_release}
+  mutation: "remettre default_override=None dans span_period_filter"
   roadmap: R259
 
 - id: REQ-FILTER-03
@@ -582,9 +583,10 @@
   enonce: Toute vue qui trace une série dans le temps offre le filtre de période commun
   sources: [{notes: L98}, {notes: L511}]
   priorite: P3
-  statut: partiel
-  ecart: "meta_ads_overview, meta_breakdowns et meta_cpr_optimizer n'ont aucun filtre de période"
-  a_ecrire: "test qui liste les vues traçant une série temporelle et exige un appel à la couche filters"
+  statut: conforme
+  ecart: "R259 : meta_ads_overview filtré (ancré au lancement des campagnes) ; meta_breakdowns n'a pas de dimension date, meta_cpr_optimizer ne trace pas de série"
+  preuve: {pytest: tests/test_the_period_filter_defaults_to_the_last_release.py::test_every_view_drawing_a_daily_series_goes_through_the_shared_filter}
+  mutation: "importer le compte Meta hors de filters dans meta_ads_overview"
   roadmap: R259
 - id: REQ-FORMAT-03
   domaine: formats
