@@ -27,10 +27,7 @@ EN = {
     "hypeddit.campaign_name_required": "Campaign name required",
     # Les campagnes nommées + le taux de conversion (2026-09-21).
     "hypeddit.panel_volume": "Visits and clicks, per campaign",
-    "hypeddit.panel_conv": "Conversion rate — clicks ÷ visits",
     "hypeddit.clicks": "Clicks",
-    "hypeddit.conversion": "Conversion",
-    "hypeddit.conv_axis": "%",
     "hypeddit.conv_caption": "**{n} campaign(s)** over the period. The **conversion "
                              "rate** is what judges a smart link: its whole purpose is "
                              "to turn a visit into a click through to a platform. Here it "
@@ -45,4 +42,7 @@ EN = {
                           "is written to the database as a measurement and drags the "
                           "averages down — while what it means is « I did not read ». "
                           "Enter at least one value, or leave the day out.",
+    "hypeddit.ring_clicked": "Clicked through",
+    "hypeddit.ring_left": "Left",
+    "hypeddit.rings_capped": "Rings: the {k} most recent campaigns. {h} older one(s) keep their volume bars above.",
 }

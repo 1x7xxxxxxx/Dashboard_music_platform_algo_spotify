@@ -222,6 +222,22 @@ def _render_global_stats(db):
     _render_campaign_series(df, window)
 
 
+_MAX_RINGS = 6   # one row of rings; older campaigns keep their bars, and the caption says so
+
+
+def _short(name, lines: int = 2, width: int = 16) -> str:
+    """A campaign name cut to `lines` lines of `width` characters, with « … » if cut."""
+    words, out, cur = str(name).split(), [], ""
+    for w in words:
+        if len(cur) + len(w) + 1 > width and cur:
+            out.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    out.append(cur)
+    return "<br>".join(out[:lines]) + ("…" if len(out) > lines else "")
+
+
 def _render_campaign_series(df, window) -> None:
     """Visites, clics et taux de conversion — par CAMPAGNE, sur l'axe du temps.
 
@@ -259,13 +275,25 @@ def _render_campaign_series(df, window) -> None:
                        jour=('date', 'max'), releves=('date', 'count'))
                   .reset_index().sort_values('jour'))
 
+    # LE TAUX DE CONVERSION — la raison d'être d'un smart link. `where(visits != 0)` :
+    # un dénominateur nul rend NaN, pas l'infini ni zéro — « aucune visite » n'est pas
+    # « aucune conversion ».
+    _v = pd.to_numeric(par_camp['visits'], errors='coerce')
+    taux = (pd.to_numeric(par_camp['clicks'], errors='coerce')
+            / _v.where(_v != 0) * 100)
+
+    # R211 (2026-09-27) — le propriétaire : « des ronds au lieu de barres ». UN ANNEAU
+    # PAR CAMPAGNE : la part qui clique contre la part qui repart, le taux au centre. Une
+    # barre de taux se lisait contre un axe à 100 ; un anneau se lit seul. Les campagnes
+    # sans visite mesurée n'ont pas d'anneau (incalculable, pas nul) — la légende le dit.
+    ringed = par_camp[taux.notna()].tail(_MAX_RINGS)
+    n_rings = max(len(ringed), 1)
     from plotly.subplots import make_subplots
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=False, vertical_spacing=0.18,
-        row_heights=[0.58, 0.42],
-        subplot_titles=[
-            t("hypeddit.panel_volume", "Visites et clics, par campagne"),
-            t("hypeddit.panel_conv", "Taux de conversion — clics ÷ visites")])
+        rows=2, cols=n_rings, vertical_spacing=0.30, row_heights=[0.55, 0.45],
+        specs=[[{"type": "xy", "colspan": n_rings}] + [None] * (n_rings - 1),
+               [{"type": "domain"}] * n_rings],
+        subplot_titles=[t("hypeddit.panel_volume", "Visites et clics, par campagne")])
 
     # Le VOLUME, en barres nommées. L'axe des x porte les campagnes : cinq d'entre
     # elles n'ont qu'un relevé, une date ne les distingue donc pas.
@@ -278,29 +306,40 @@ def _render_campaign_series(df, window) -> None:
         name=t("hypeddit.clicks", "Clics"), marker_color=_HYP,
         hovertemplate="%{x}<br>%{y:,.0f} clic(s)<extra></extra>"), row=1, col=1)
 
-    # LE TAUX DE CONVERSION — la raison d'être d'un smart link, et il n'était
-    # calculé nulle part. `where(visits != 0)` : un dénominateur nul rend NaN, pas
-    # l'infini ni zéro — « aucune visite » n'est pas « aucune conversion ».
-    _v = pd.to_numeric(par_camp['visits'], errors='coerce')
-    taux = (pd.to_numeric(par_camp['clicks'], errors='coerce')
-            / _v.where(_v != 0) * 100)
-    fig.add_trace(go.Bar(
-        x=par_camp['campaign_name'], y=taux,
-        name=t("hypeddit.conversion", "Conversion"), marker_color=_HYP, opacity=0.8,
-        text=[("—" if pd.isna(x) else f"{x:.0f} %") for x in taux],
-        textposition="outside", cliponaxis=False,
-        hovertemplate="%{x}<br>%{y:.1f} %<extra></extra>"), row=2, col=1)
+    clicked, left = t("hypeddit.ring_clicked", "Ont cliqué"), t("hypeddit.ring_left", "Sont repartis")
+    for i, (_, row) in enumerate(ringed.iterrows(), start=1):
+        v, c = float(row['visits']), float(row['clicks'])
+        fig.add_trace(go.Pie(
+            values=[c, max(v - c, 0)], labels=[clicked, left], hole=0.62, sort=False,
+            marker=dict(colors=[_HYP, "rgba(150,150,150,0.25)"]), textinfo="none",
+            showlegend=(i == 1),
+            # The rate sits IN the hole: Plotly centres a pie's title there itself.
+            title=dict(text=f"<b>{taux.loc[row.name]:.0f} %</b>", position="middle center",
+                       font=dict(size=15)),
+            hovertemplate="%{label} : %{value:,.0f}<extra></extra>"), row=2, col=i)
+    # The campaign's name UNDER its ring, short and on two lines: full names overlapped
+    # each other and the bar labels on the first render.
+    for i, (_, row) in enumerate(ringed.iterrows()):
+        dom = fig.data[2 + i].domain
+        fig.add_annotation(x=(dom.x[0] + dom.x[1]) / 2, y=dom.y[0] - 0.02,
+                           xref="paper", yref="paper", showarrow=False, yanchor="top",
+                           xanchor="center", align="center",
+                           text=_short(row['campaign_name']), font=dict(size=11))
 
     fig.update_layout(
-        height=680, barmode='group', margin=dict(t=90, b=140),
-        legend=dict(orientation="h", y=1.10),
+        height=680, barmode='group', margin=dict(t=90, b=60),
+        legend=dict(orientation="h", y=-0.12),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
         .format(label=window.label))
-    fig.update_xaxes(tickangle=-30, row=1, col=1)
-    fig.update_xaxes(tickangle=-30, row=2, col=1)
+    fig.update_xaxes(tickangle=-20, tickvals=list(par_camp['campaign_name']),
+                     ticktext=[_short(c, 1) for c in par_camp['campaign_name']], row=1, col=1)
     fig.update_yaxes(title_text=t("hypeddit.volume_axis", "Volume"), row=1, col=1)
-    fig.update_yaxes(title_text=t("hypeddit.conv_axis", "%"), range=[0, 100], row=2, col=1)
     st.plotly_chart(fig, width="stretch")
+    hidden = int(taux.notna().sum()) - len(ringed)
+    if hidden > 0:
+        st.caption(t("hypeddit.rings_capped",
+                     "Anneaux : les {k} campagnes les plus récentes. {h} plus ancienne(s) "
+                     "gardent leurs barres de volume au-dessus.").format(k=len(ringed), h=hidden))
 
     # CE QUE LE TAUX DIT, et le nombre de relevés derrière chaque barre.
     _mesure = par_camp[taux.notna()]

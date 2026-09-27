@@ -529,3 +529,5 @@
 {"at": "2026-09-27T00:11:11+00:00", "head": "279fb69", "kind": "start", "task": "R210", "what": "Instagram abonnes+abonnements+publications sur un graphique"}
 {"at": "2026-09-27T00:16:03+00:00", "head": "f1bf116", "kind": "done", "task": "R210", "what": "livree f1bf116"}
 {"at": "2026-09-27T00:16:04+00:00", "head": "f1bf116", "kind": "start", "task": "R207", "what": "methode anti-doublons (3 axes) + fusions db_health et grafana:15"}
+{"at": "2026-09-27T00:28:42+00:00", "head": "66c4f21", "kind": "done", "task": "R207", "what": "livree 66c4f21, CI en cours"}
+{"at": "2026-09-27T00:28:42+00:00", "head": "66c4f21", "kind": "start", "task": "R211", "what": "Hypeddit anneaux de conversion"}
