@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R254 — **Un id du dossier KPI désigne une ligne de roadmap réelle** : une action passait « ✅ f… (livrée 2026-09-27)
+
+- [x] **R254 — **Un id du dossier KPI désigne une ligne de roadmap réelle** : une action passait « ✅ fait » dès que son id était ABSENT de l'index ouvert (un id mal tapé s'affichait fait) et une action « toi » n'avait aucun id — les deux gestes du propriétaire (fiches 62, 66) vivaient hors roadmap. ✅ = présent dans l'archive, ⏳ = ouvert, sinon la génération échoue ; `rid` obligatoire ; garde qui lit actions.yaml** (P3) ✅ (2026-09-27, 131e5efe, ebe10a1f)
+  Mesuré par : un id fabriqué fait échouer la génération et le garde
+  fait lu dans l archive, ouvert dans les deux tables, sinon generation refusee ; fiches 62 et 66 sur R255 et R256 en attente de toi ; garde mute rouge
+  Commits : 131e5efe R254 : une action du dossier KPI designe une ligne de roadmap reelle - · ebe10a1f Roadmap : R254 inscrite ; R255 et R256 (gestes du proprietaire, fiches
+
 ## ✅ R253 — **Chaque avis du propriétaire a son action dans le dossier** : 51 et 72 avaient perdu l… (livrée 2026-09-27)
 
 - [x] **R253 — **Chaque avis du propriétaire a son action dans le dossier** : 51 et 72 avaient perdu leur lien (fonctions renommées) ; les fiches Grafana 106/108/112/120, livrées par R205/R207 à la relecture précédente, n'affichaient aucune action** (P3) ✅ (2026-09-27, 55603ca3)
