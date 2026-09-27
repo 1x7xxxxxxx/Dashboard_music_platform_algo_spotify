@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R250 — Un test neuf commité sans durée a rougi main TROIS fois le 2026-09-27 (0b711193, R238,… (livrée 2026-09-27)
+
+- [x] **R250 — Un test neuf commité sans durée a rougi main TROIS fois le 2026-09-27 (0b711193, R238, R228 la veille) : le hook pre-commit refuse un commit qui ajoute un test de `tests/` sans durée dans `.test_durations`, avec le remède (`make test-durations-missing`)** (P3) ✅ (2026-09-27, 33b745bd, 54e3bd23)
+  Mesuré par : un commit de test sans durée refusé localement
+  R250|hook pre-commit : un test indexé sans durée est refusé, seuls les tests indexés sont jugés ; testé en réel (a refusé puis accepté)
+  Commits : 33b745bd R250 : le hook ne juge que les tests INDEXES (pass_filenames), erreurs · 54e3bd23 R250 : le hook pre-commit refuse un test neuf sans duree (check_durati
+
+## ✅ R246 — **Meta** : 21 étiquettes budget/clics/CPR ; 22 streams + « clic Hypeddit » ; 25–27 géog… (livrée 2026-09-27)
+
+- [x] **R246 — **Meta** : 21 étiquettes budget/clics/CPR ; 22 streams + « clic Hypeddit » ; 25–27 géographie avec placement/âge/plateforme ; 34 funnel complet avec streams ; 38 streams, abonnés, playlists, sauvegardes, cumul ; 40 funnel par titre comparable (≤ 5) ; 30/32/36/37/41 décision écrite ou retrait si doublon** (P2) ✅ (2026-09-27, 2a424383, 8c91bd46, 379310be, f1fad1c0, d1d56256, ccc2de2f, a275ece8, bd32ee4f, 5fdc65ac, 440369a2, 65a51a46, 33ecc4df, 44c1aeb3)
+  Mesuré par : chaque fiche Meta répond à une décision écrite
+  R246|Meta : 21 une campagne dite, 22 clics Hypeddit + écoutes, 25-27 cartes dépliées, 29/30 décisions, 32 quadrants, 34 écoutes gagnées par créa seule, 36 gardée, 37 retirée, 38 flux à un clic, 40 parcours par titre en deux chaînes ; déployé 2a424383
+  Commits : 2a424383 R246 : Meta - fiche 21 dit quand il n'y a qu'une campagne ; 22 « Clics · 8c91bd46 R140 (5/5) 16.10 + 16.9b/d + 16.8 + 16.17 — l'entonnoir trouve ce que  · 379310be R140 (3/4) — deux questions etiquetees, un scheduler 10x moins bavard, · f1fad1c0 R140 (2/4) 16.11 — « perime » veut dire la meme chose, la ou c'est un  · d1d56256 Un dictionnaire mort qui promettait un palier par plateforme, et une d · ccc2de2f Un interrupteur, et une bande qui pèse 0,18 % · a275ece8 Sept remarques de plus, et une palette qu'on ne choisit plus à l'œil ( · bd32ee4f Deploye, mesure : le rendu passe de 287 ms a 77-104 ms · 5fdc65ac Le rapport PDF devient payant, et les cinq optimisations du parcours · 440369a2 Voir ce qu'un artiste neuf voit, et le parcours complet pas à pas (#11 · 65a51a46 Le graphe de code, régénéré après 71 jours — et ce qu'il a sorti, y co · 33ecc4df Six correctifs mesurés, et une matrice de setup qui répond en une imag · 44c1aeb3 test(hardening): env-contract guard + boot preflights (Batch H1)
+
+## ✅ R245 — **Anneaux avec totaux étiquetés** : fiche 17 (campagnes Hypeddit depuis la sortie), fic… (livrée 2026-09-27)
+
+- [x] **R245 — **Anneaux avec totaux étiquetés** : fiche 17 (campagnes Hypeddit depuis la sortie), fiche 23 (objectifs)** (P3) ✅ (2026-09-27, 8401534e, 0dc7ecc2, 0b711193, c434470e, 4521ceee)
+  Mesuré par : anneaux rendus, totaux lisibles
+  R245|fiche 17 un anneau par campagne Hypeddit avec visites et clics sous l'anneau, fiche 23 anneau de dépense par objectif (€ et CPR) ; correctif de la porte (Pie) ; déployé 2a424383
+  Commits : 8401534e R245 : anneaux avec totaux - fiche 17 : une campagne Hypeddit = un ann · 0dc7ecc2 R245 : duree du test ajoute au correctif de la porte (main rouge sur c · 0b711193 R245 : correctif - la porte de dessin (R243) lisait marker.color, qu'u · c434470e Une fonctionnalité cesse de servir de trois façons, une seule alertait · 4521ceee Le rendu d'erreur testé dans un vrai navigateur — la frontière existai
+
+## ✅ R244 — **Fusions** : fiche 5 (un graphique), 18+19+63 (trésorerie cumulée unique), 31 (quatre… (livrée 2026-09-27)
+
+- [x] **R244 — **Fusions** : fiche 5 (un graphique), 18+19+63 (trésorerie cumulée unique), 31 (quatre panneaux → un), 35 (deux axes), 67+68+69 (usage admin, pages vues + évènements en légende)** (P3) ✅ (2026-09-27, a72b4004)
+  Mesuré par : fiches fusionnées rendues, doublons retirés
+  R244|trésorerie en un graphique de cumuls dessinée une fois (Distributeurs), fiches 5/31/35 en indice 100 avec pic hors échelle nommé, usage admin en un graphique à deux légendes ; 4 figures retirées ; déployé 2a424383
+  Commits : a72b4004 R244 : fusions demandees - tresorerie en UN graphique de cumuls par so
+
 ## ✅ R243 — **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR,… (livrée 2026-09-27)
 
 - [x] **R243 — **Une porte de dessin** `src/dashboard/utils/charts.py` : légende, glossaire (CPR, CTR, CPM…), palette distincte, tri Pareto des barres par catégorie, pour TOUS les graphiques ; garde AST refusant un graphique qui la contourne (fiches 24, 28, 29, 33, 39)** (P3) ✅ (2026-09-27, c9d915ae)
