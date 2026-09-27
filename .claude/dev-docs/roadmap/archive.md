@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R228 — `make test-changed` lance `schema-check-local` quand un test écrit en base — 2 fixtures… (livrée 2026-09-27)
+
+- [x] **R228 — `make test-changed` lance `schema-check-local` quand un test écrit en base — 2 fixtures vertes en local rouges en CI (R219)** (P3) ✅ (2026-09-27, 8c1dfae3)
+  Mesuré par : un écart de nullabilité refusé avant le push
+  test-changed lance schema-check-shared (~26 s) quand un test qui écrit en base ou une migration change ; drift limité aux tables communes, 2 tables locales orphelines (youtube_daily_views, probe_batch, vides, absentes de la prod) signalées — DROP refusé par le garde, laissé au propriétaire
+  Commits : 8c1dfae3 R228 : make test-changed compare le schema local au canonique (tables 
+
+## ✅ R236 — **Vue financière en une ligne** : la trésorerie (R212) + acquisition (dépense, écoutes… (livrée 2026-09-27)
+
+- [x] **R236 — **Vue financière en une ligne** : la trésorerie (R212) + acquisition (dépense, écoutes gagnées, coût par écoute) + résultat streams + résultat financier, en un graphique très simple en tête de « Mes revenus »** (P2) ✅ (2026-09-27, f5281e21)
+  Mesuré par : capture de la vue
+  ligne Revenus | Dépenses | dont pub | Résultat financier | Écoutes | Pub par écoute au-dessus de la trésorerie de « Mes revenus » ; ledger_summary testé, muté rouge ; déployé 8c1dfae3
+  Commits : f5281e21 R236 : la finance en une ligne - revenus, depenses (dont pub), resulta
+
 ## ✅ R231 — **Registre des métriques** : une entrée par KPI — `metric_name → définition → source(s)… (livrée 2026-09-27)
 
 - [x] **R231 — **Registre des métriques** : une entrée par KPI — `metric_name → définition → source(s) → formule → granularité → période → tests de qualité` — lié aux 40 vues or ; cliquet : toute figure et toute tuile citent une métrique du registre (prolonge gold-coverage)** (P2) ✅ (2026-09-27, b12c250e)
