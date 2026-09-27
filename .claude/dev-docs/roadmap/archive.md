@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R202 — R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R… (livrée 2026-09-27)
+
+- [x] **R202 — R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48** (P3) ✅ (2026-09-27, 8ea378d, f2af9a0)
+  Mesuré par : `make reopen-check`
+  R122 acquittee le 2026-09-27 : make error-debt rend 0 classe a traiter ; seuil 48 -> 53 avec sa raison, une seule constante lue par l'evaluateur et par le libelle (qui disait 47 quand l'evaluateur testait 48), reference d'archive par nom de section
+  Commits : 8ea378d Roadmap : R197 a R201 livrees et archivees par make roadmap-close (pre · f2af9a0 R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique 
+
 ## ✅ R211 — Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102) (livrée 2026-09-27)
 
 - [x] **R211 — Hypeddit : anneaux de conversion au lieu de barres (fiches 25, 102)** (P3) ✅ (2026-09-27, 2fdb3dc)

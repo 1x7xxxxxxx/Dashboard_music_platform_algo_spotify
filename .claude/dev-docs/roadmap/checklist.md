@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R202 | R122 à rouvrir : `ever_recurred_observed` = 49, au-dessus de son seuil (les récidives R190 et R191 du 2026-09-26) — et le libellé du déclencheur dit « au-dessus de 47 » quand l'évaluateur teste 48 <!-- anchor: r122-reopened --> <!-- critic: non — relecture de catalogue, pas de code produit --> | P3 | `make reopen-check` |
 | R209 | Lisibilité : libellés tronqués ou superposés, légendes en bas, couleurs Instagram, top YouTube, carte de chaleur sans libellés, graphique vide → « aucune donnée », entonnoirs en % d'étape à étape (fiches 4, 14, 21, 23, 40, 43, 49, 52, 83, 96, 97, 99, 109) <!-- anchor: r209 --> <!-- critic: non — affichage seul --> | P3 | `tests/test_a_rendered_figure_is_laid_out.py` + dossier |
 | R214 | Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205) <!-- anchor: r214 --> <!-- critic: non — affichage seul --> | P4 | dossier |
 | R215 | Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre des milliers de replis directs (fiches 119, 121, 125) <!-- anchor: r215 --> <!-- critic: requis --> | P2 | `make charts-dossier` (Grafana) + règles d'alerte |
@@ -92,7 +91,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R202, R209, R214, R215, R217, R218, R219 -->
+<!-- reprise: open=R209, R214, R215, R217, R218, R219 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

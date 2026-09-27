@@ -82,6 +82,14 @@ def _health() -> dict:
     return json.loads(HEALTH.read_text(encoding="utf-8"))["aggregate"]
 
 
+# 48 → 53 le 2026-09-27 (R202) : a tiré à 49 puis 53 (récidives R190, R191 et la nuit du
+# 2026-09-27) ; ACQUITTÉE — `make error-debt` rend 0 classe à traiter (chaque récidivée a
+# son garde auto-prouvant, 2 en revue manuelle par conception). UNE constante, lue par
+# l'évaluateur ET par le libellé : le libellé disait « au-dessus de 47 » quand
+# l'évaluateur testait 48 — deux surfaces, deux nombres, dans l'outil qui les compte.
+_R122_SEUIL = 53
+
+
 def _r122() -> tuple[str, str]:
     agg = _health()
     n = agg["population"]["ever_recurred_observed"]
@@ -91,7 +99,7 @@ def _r122() -> tuple[str, str]:
     # classes récidivées sans garde auto-prouvant d'abord). Le compteur ne fait que
     # monter : le seuil se relève à chaque acquittement, une nouvelle classe qui récidive
     # le refait tirer — c'est le signal voulu, pas du bruit.
-    seuil = 48
+    seuil = _R122_SEUIL
     verdict = MET if n > seuil else NOT_MET
     return verdict, f"ever_recurred_observed = {n} (seuil : > {seuil})"
 
@@ -261,8 +269,8 @@ def _dashboard_ram() -> tuple[str, str]:
 
 
 TRIGGERS = [
-    Trigger("R122", "rouvrir si `ever_recurred_observed` repasse au-dessus de 47",
-            "archive.md:170", _r122),
+    Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
+            "archive.md — 🩺 R122", _r122),
     Trigger("R116", "14 jours `complete` dans `daily_ops_metrics`",
             "checklist.md — ⏸️ R116", _r116),
     Trigger("R131", "30 jours de `daily_ops_metrics`",

@@ -535,3 +535,5 @@
 {"at": "2026-09-27T00:36:57+00:00", "head": "77476af", "kind": "start", "task": "R214", "what": "Wrapped tuiles annuelles repliees"}
 {"at": "2026-09-27T00:50:23+00:00", "head": "51fcf87", "kind": "done", "task": "R214", "what": "livree 51fcf87"}
 {"at": "2026-09-27T00:50:23+00:00", "head": "51fcf87", "kind": "start", "task": "R209", "what": "lisibilite des fiches"}
+{"at": "2026-09-27T01:08:34+00:00", "head": "3c0869a", "kind": "done", "task": "R209", "what": "livree 3c0869a"}
+{"at": "2026-09-27T01:08:35+00:00", "head": "3c0869a", "kind": "start", "task": "R202", "what": "R122 a rouvrir + libelle 47/48"}
