@@ -2064,3 +2064,24 @@ relevé de discipline, le journal de nuit.
    gardes qui s'appuient dessus.
 
 **Vérification** : ta réponse écrite dans le fil ; la ligne R279 fermée avec la liste.
+
+## 37. R274 — Trois réglages de ton poste · P4
+
+**Pourquoi** : tes notes L15, L72, L73, L79. Mesuré le 2026-09-27 : la WSL a 9 945 Mo, 6 777
+disponibles, n8n + Ollama tiennent 2,6 Go (normal : c'est dimanche), le serveur knowledge-rag
+260 Mo modèle déchargé. Rien d'autre à reprendre côté mémoire. Mais `~/.bashrc` (l. 130) lit
+`.env.local` dans `/mnt/c/Users/timot/Desktop/Dashboard_music_platform_algo_spotify/`, **un
+dossier qui n'existe plus** depuis le déménagement du dépôt sur ext4 : les variables
+`DB_PASSWORD`, `GITHUB_TOKEN`, `AIRFLOW_ADMIN_USERNAME`, `AIRFLOW_ADMIN_PASSWORD` ne sont plus
+exportées par ton shell. Je ne modifie pas ton `~/.bashrc` moi-même.
+
+1. Dans `~/.bashrc`, remplace la ligne 130 par :
+   `_streamlytics_env="$HOME/streamlytics/.env.local"`
+2. Ajoute l'alias en fin de `~/.bashrc` :
+   `alias sl='cd ~/streamlytics && code .'`
+3. `source ~/.bashrc`, puis tape `sl` : VS Code s'ouvre en Remote-WSL sur `~/streamlytics`.
+   Épingle cette entrée « streamlytics [WSL] » dans les récents de VS Code pour l'ouvrir
+   toujours par là, jamais par `/mnt/c`.
+
+**Vérification** : `echo ${DB_PASSWORD:+ok}` affiche `ok` dans un nouveau terminal ;
+`type sl` affiche l'alias ; la barre d'état de VS Code affiche « WSL ».

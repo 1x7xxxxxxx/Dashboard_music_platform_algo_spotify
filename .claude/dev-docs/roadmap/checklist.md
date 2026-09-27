@@ -44,7 +44,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R271 | **Pages : récap, graphiques et validation** (notes L8, L91, L142, L164, L168, L470) : page récap des graphiques à plus forte valeur, Data Wrapped intégré à la page Spotify & S4A sous la saisie (décidé le 2026-09-27), « Mes sorties à âge égal » avec dépense Meta et Shazams, idées de graphiques par page, validation de chaque vue et de chaque bouton, actions en gras et informations en petit (note L242) (dont meta_breakdowns : engagement par dimension, 7 séries noires hors thème et libellés coupés), adaptation mobile <!-- anchor: r271 --> <!-- critic: non — pages --> | P3 | dossier des KPI relu |
 | R272 | **Multi-comptes et vue de campagne** (notes L129, L134, L144, L222) : multi-comptes simple sur toutes les plateformes (cas agence Meta), vue qui regroupe les paramètres de campagne et budgets de déclenchement, parrainage : la récompense appliquée par coupon Stripe (décidé le 2026-09-27) <!-- anchor: r272 --> <!-- critic: requis — plans et facturation --> | P2 | un second compte Meta configuré en un geste |
 | R273 | **Collecte : Instagram, YouTube, funnel par utilisateur** (notes L92, L107, L531) : engagement Instagram vide, granularité des abonnés YouTube (limite de l'API : répondre), suivi d'un même utilisateur dans le funnel autant que les données le permettent <!-- anchor: r273 --> <!-- critic: non — collecteurs --> | P3 | engagement Instagram rempli sur l'instantané |
-| R274 | **Poste de développement** (notes L15, L72, L73, L79) : leviers PC mesurés (WSL, processus Python, conteneurs — n8n le dimanche), ouverture VS Code Remote-WSL par défaut et alias `sl`, ~/.bashrc qui charge encore .env.local depuis /mnt/c (gestes proposés dans le fil) <!-- anchor: r274 --> <!-- critic: non — hors produit --> | P4 | mesure avant/après |
 
 ---
 
@@ -228,6 +227,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R279 | Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des livrables qui rajoute du poids pour rien ») | P4 | ta réponse — runbook § 36 |
+| R274 | Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes sur TON shell et TON VS Code — chemin de `.env.local` dans `~/.bashrc` (l'ancien dossier `/mnt/c` n'existe plus, les 4 variables MCP ne sont plus exportées), alias `sl`, ouverture Remote-WSL | P4 | tes trois gestes — runbook § 37 |
 | R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
 | R255 | Saisir le **coût de distribution** de chaque titre (fiche 62) | P3 | ta saisie dans 📈 Prévisions revenus → 💳 Mes coûts, catégorie distribution, un titre par ligne — runbook § 33 |
 | R256 | Saisir les **coûts d'exploitation** de l'app (fiche 66) | P3 | ta saisie dans ⚙️ Admin → 💸 Coûts d'exploitation & marge — runbook § 34 |
