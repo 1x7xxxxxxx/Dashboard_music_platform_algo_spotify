@@ -76,20 +76,20 @@ CHECKS: tuple[Check, ...] = (
           "des lignes rangées sous un locataire auquel elles ne peuvent pas appartenir"),
     Check(f"{_AM}::check_csv_rejections", MANQUANTES, FRAICHEUR, "soir",
           "un fichier déposé par un artiste que l'import n'a pas su lire"),
+    Check("src/utils/gold_invariants.py::bounds_findings", IMPOSSIBLES, DISTRIBUTION, "soir",
+          "une valeur que sa NATURE interdit (popularité > 100, compte ou dépense < 0), "
+          "la borne déclarée une fois dans le registre des métriques (R258)"),
+    Check("src/utils/gold_invariants.py::duplicate_findings", DOUBLONS, VOLUME, "soir",
+          "un même jour écrit deux fois dans `artist_history`, la seule table sans clé "
+          "naturelle qui ne soit pas un journal (R258)"),
+    Check("src/utils/gold_invariants.py::unmapped_findings", MAPPING, SCHEMA, "soir",
+          "une campagne qui dépense sans titre rattaché ni rejet (R258)"),
     Check("src/utils/quality_gate.py::source_is_fresh_enough", MANQUANTES, FRAICHEUR,
           "lecture", "une prévision qui s'abstient quand sa source est trop vieille"),
 )
 
 # What the category lacks, and what would fill it — said, not hidden.
 GAPS: dict[str, str] = {
-    DOUBLONS: "couvert par CONSTRUCTION plus que par détection : 119 tables sur 131 ont "
-              "une clé naturelle UNIQUE (un doublon y est impossible, le chercher chaque "
-              "soir coûterait pour un verdict qui ne peut pas changer — code-critic R230) ; "
-              "les 12 autres sont des journaux, sauf `artist_history`, dédoublonnée par sa "
-              "vue or (migration 120).",
-    IMPOSSIBLES: "une borne par NATURE de mesure (un taux dans [0, 100], un indice de "
-                 "popularité 0-100) : le registre ne distingue pas encore un taux d'un "
-                 "niveau, il faudrait l'y ajouter avant d'écrire la borne une seule fois.",
-    MAPPING: "une campagne sans titre lié n'alerte pas : elle se voit dans la page de "
-             "rattachement, et le coût par écoute de cette campagne reste « — ».",
+    # Emptied by R258 (2026-09-28): the three gaps R230 declared are checks above — the
+    # bound by nature, the duplicate scan of `artist_history`, the unmapped campaign.
 }

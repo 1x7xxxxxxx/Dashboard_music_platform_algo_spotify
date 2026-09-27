@@ -46,6 +46,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from src.dashboard.utils.ratios import per
+
 #: Sous ces deux bornes, une ligne est affichée mais jamais présentée comme un
 #: enseignement. Elles ne sont pas des seuils du modèle : ce sont les bornes en
 #: dessous desquelles le classement de CE catalogue s'inverse d'une annonce à
@@ -81,8 +83,8 @@ def classer(lignes: list[dict], axe: str) -> pd.DataFrame:
             "valeur": r.get("valeur") or "(non renseigné)",
             "ads": ads,
             "depense": depense,
-            "cpc": (depense / clics) if clics > 0 else None,
-            "ctr": (clics / impressions * 100) if impressions > 0 else None,
+            "cpc": per(depense, clics),                    # R258 — one definition
+            "ctr": per(clics, impressions, 100),
             "fiable": ads >= MIN_ADS and depense >= MIN_DEPENSE,
         })
     if not out:

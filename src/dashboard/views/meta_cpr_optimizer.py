@@ -448,8 +448,9 @@ def _affinite_age(db, artist_id, acct: str, acct_p: tuple):
     #
     # Une tranche sans dépense mesurée n'a pas de CPR : elle sort du calcul plutôt
     # que d'être proclamée gratuite.
-    par_tranche['cpr'] = (par_tranche['spend'].where(par_tranche['spend'] > 0)
-                          / par_tranche['results'].where(par_tranche['results'] > 0))
+    from src.dashboard.utils.ratios import per_series      # R258 — one definition
+    par_tranche['cpr'] = per_series(par_tranche['spend'].where(par_tranche['spend'] > 0),
+                                    par_tranche['results'])
     # ⚠️ Une tranche sans CPR calculable sort du calcul : elle ne vaut ni 0 (« elle
     # convertit gratuitement ») ni 1 (« elle est moyenne »), elle est inconnue.
     mediane = par_tranche['cpr'].median()

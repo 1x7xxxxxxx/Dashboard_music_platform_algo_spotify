@@ -288,7 +288,8 @@ def _par_hook(df: pd.DataFrame) -> pd.DataFrame:
         total_spend=('total_spend', 'sum'),
         total_results=('total_results', 'sum'),
         creatives=('creative_name', 'nunique'))
-    g['cpr'] = g['total_spend'] / g['total_results'].where(g['total_results'] > 0)
+    from src.dashboard.utils.ratios import per_series      # R258 — one definition
+    g['cpr'] = per_series(g['total_spend'], g['total_results'])
     g['confiance'] = g['total_results'].apply(lambda n: confidence_factor(n, K_DEFAUT))
     return g.sort_values('cpr', na_position='last')
 
@@ -643,10 +644,10 @@ def _prepare_timeline(tsf: pd.DataFrame) -> tuple[pd.DataFrame, int, bool]:
     # this position: a partial-week case would only catch it if its fixture has one.
     # CPR derived from AGGREGATED spend/results (never an average of daily CPRs).
     # NaN where no result on the period → the line simply gaps there.
-    tsf['cpr'] = (tsf['spend'] / tsf['conversions'].where(tsf['conversions'] != 0)).astype(float)
+    from src.dashboard.utils.ratios import per_series      # R258 — one definition
+    tsf['cpr'] = per_series(tsf['spend'], tsf['conversions'])
     # CTR the same way: 100 * Σclicks / Σimpressions, never a mean of daily rates.
-    tsf['ctr'] = (100.0 * tsf['clicks']
-                  / tsf['impressions'].where(tsf['impressions'] != 0)).astype(float)
+    tsf['ctr'] = per_series(tsf['clicks'], tsf['impressions'], 100.0)
     return tsf, partial_weeks, weekly
 
 
@@ -843,8 +844,10 @@ def _render_efficiency(df: pd.DataFrame) -> None:
         d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
         d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)
         d['CTR (%)'] = pd.to_numeric(d['avg_ctr'], errors='coerce')
-        d['CPM (€)'] = (d['total_spend'] / d['total_impressions'].where(d['total_impressions'] != 0) * 1000).astype(float)
-        d['CPC (€)'] = (d['total_spend'] / d['total_clicks'].where(d['total_clicks'] != 0)).astype(float)
+        # R258 — one ratio definition for every view (`utils.ratios`).
+        from src.dashboard.utils.ratios import per_series
+        d['CPM (€)'] = per_series(d['total_spend'], d['total_impressions'], 1000)
+        d['CPC (€)'] = per_series(d['total_spend'], d['total_clicks'])
         d = d.sort_values('total_spend', ascending=False).head(15)
         metric = st.radio(t("meta_creatives.indicator", "Indicateur"), ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
         fig = px.bar(d, x='creative_name', y=metric, color=metric,

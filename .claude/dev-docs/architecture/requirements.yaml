@@ -41,7 +41,7 @@
   preuve: {pytest: tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens}
   ecart: 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md
   mutation: "ajouter une lecture de meta_insights_performance_day dans une vue → la frontière s'élargit"
-  roadmap: R258
+  roadmap: R280
 
 - id: REQ-GOLD-04
   domaine: gold
@@ -66,13 +66,13 @@
   enonce: La couche argent a une identité mécanique — on sait, par le nom ou un registre, quelle vue est argent et laquelle est or
   sources: [{notes: L499}, {adr: docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md}]
   priorite: P3
-  statut: absent
-  a_ecrire: "test qui classe chaque v_* créée par migrations/*.sql en argent ou or via le registre, et refuse une vue non classée"
-  ecart: argent et or partagent le préfixe v_* ; aucun test ni document ne les distingue
+  statut: conforme
+  ecart: "R258 : chaque vue créée par une migration est or (registre), l argent est déclaré par module Python (ADR-019)"
   roadmap: R258
 
 # ── Bronze et ingestion ───────────────────────────────────────────────────────
-
+  preuve: {pytest: tests/test_every_object_has_a_layer.py::test_every_view_is_gold_or_its_layer_is_declared_not_vacuous}
+  mutation: "retirer une vue du REGISTRY"
 - id: REQ-BRONZE-01
   domaine: bronze
   enonce: Tout upsert vise un index unique existant et nomme son locataire
@@ -139,9 +139,9 @@
   enonce: "Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes"
   sources: [{notes: L490}, {theorie: "Moses et al. p.135 et p.152"}]
   priorite: P2
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_every_quality_check_has_a_category.py}
-  ecart: "R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables)"
+  ecart: "R258 : les trois manques de R230 sont des contrôles du soir (borne par nature, doublons artist_history, campagne sans titre)"
   roadmap: R258
   mutation: "retirer la catégorie d'un contrôle dans tools/dev/dq_catalogue.py"
 - id: REQ-DQ-02
@@ -230,9 +230,9 @@
   enonce: Aucune redondance — une page ne dessine pas deux fois la même mesure
   sources: [{kpi: fiche 41}, {notes: L224}]
   priorite: P3
-  statut: partiel
-  preuve: {pytest: tests/test_no_two_figures_on_a_page_share_a_fingerprint.py::test_no_page_draws_the_same_measure_twice}
-  ecart: une tuile qui répète un graphique de la même page n'est pas vue ; le tableau KPI → fiches n'est lu par aucun test
+  statut: conforme
+  preuve: {pytest: tests/test_a_tile_does_not_repeat_a_chart.py::test_every_tile_sharing_a_charts_sources_was_reviewed}
+  ecart: "R258 : figures (empreinte mesure) et tuiles (empreinte page × sources, 5 groupes revus, 0 répétition)"
   mutation: "dessiner deux fois v_s4a_song_daily.streams sur une même page"
   roadmap: R258
 

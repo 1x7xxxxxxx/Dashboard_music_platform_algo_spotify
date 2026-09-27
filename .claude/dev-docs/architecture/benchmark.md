@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**65 exigences** sur **20 domaines** (carte : 24). conforme : 39 · partiel : 18 · absent : 8 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 13
+**65 exigences** sur **20 domaines** (carte : 24). conforme : 42 · partiel : 16 · absent : 7 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 12
 
 ## Collecteurs API (`collect`)
 
@@ -31,7 +31,7 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-SILVER-01 | La couche argent a une identité mécanique — on sait, par le nom ou un registre, quelle vue est argent et laquelle est or | absent | `—`  | — | argent et or partagent le préfixe v_* ; aucun test ni document ne les distingue → R258 |
+| REQ-SILVER-01 | La couche argent a une identité mécanique — on sait, par le nom ou un registre, quelle vue est argent et laquelle est or | conforme | `tests/test_every_object_has_a_layer.py::test_every_view_is_gold_or_its_layer_is_declared_not_vacuous` ✅ | — | R258 : chaque vue créée par une migration est or (registre), l argent est déclaré par module Python (ADR-019) → R258 |
 
 ## Or — une définition par KPI (`gold`)
 
@@ -39,7 +39,7 @@
 |---|---|---|---|---|---|
 | REQ-GOLD-01 | Une métrique = une définition canonique = une vue or, déclarée au registre avec son sens (flux, cumul, niveau) | conforme | `tests/test_every_metric_is_registered.py::test_every_read_gold_object_is_registered_and_no_entry_is_dead` ✅ | Reis & Housley, Fundamentals of Data Engineering p.482 (metrics layer) | — |
 | REQ-GOLD-02 | Chaque KPI porte définition, source(s), formule, granularité, fenêtre, et ses tests de qualité se lisent | conforme | `tests/test_every_metric_is_registered.py::test_the_untested_metrics_only_become_fewer` ✅ | Reis & Housley p.482 | corrigé le 2026-09-27 (critic R258) : formula, grain et window existent dans le registre ; les tests d'une métrique sont CALCULÉS par gold_coverage, sous cliquet |
-| REQ-GOLD-03 | Un graphique ou une tuile ne lit que l'or ; le nombre de lectures du brut ne fait que baisser | partiel | `tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens` ✅ | — | 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md → R258 |
+| REQ-GOLD-03 | Un graphique ou une tuile ne lit que l'or ; le nombre de lectures du brut ne fait que baisser | partiel | `tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens` ✅ | — | 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md → R280 |
 | REQ-GOLD-04 | Deux définitions censées coïncider sont comparées sur les vraies données, et l'écart alerte | conforme | `tests/test_the_gold_layer_agrees_with_itself.py::test_every_gold_invariant_holds_on_the_real_data` ✅ | Moses et al., Data Quality Fundamentals p.152 (piliers de l'observabilité) | — |
 | REQ-GOLD-05 | Ce que la figure DESSINE est contrôlé après sa lecture or (taux ≤ 100 %, cumul qui ne retombe pas, pas deux barres sous un nom) | conforme | `tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_the_detector_sees_the_defect_it_is_written_for` ✅ | — | — |
 
@@ -47,7 +47,7 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-DQ-01 | Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes | partiel | `tests/test_every_quality_check_has_a_category.py` ✅ | Moses et al. p.135 et p.152 | R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables) → R258 |
+| REQ-DQ-01 | Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes | conforme | `tests/test_every_quality_check_has_a_category.py` ✅ | Moses et al. p.135 et p.152 | R258 : les trois manques de R230 sont des contrôles du soir (borne par nature, doublons artist_history, campagne sans titre) → R258 |
 | REQ-DQ-02 | Une anomalie d'ingestion se mesure en lignes attendues × locataires contre lignes reçues, avec seuil | conforme | `tests/test_an_ingestion_gap_is_expected_against_received.py` ✅ | — | — |
 | REQ-DQ-03 | Un défaut de donnée est corrigé à sa cause, pas maquillé ; une absence n'est jamais dessinée comme un zéro | conforme | `tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py` ✅ | — | — → R206 |
 
@@ -67,7 +67,7 @@
 | REQ-CHART-01 | Tout graphique passe par une seule porte (légende, glossaire, palette) | conforme | `tests/test_every_chart_goes_through_the_door.py::test_no_chart_walks_around_the_door` ✅ | Few, Information Dashboard Design p.74 (attributs visuels constants) | — |
 | REQ-CHART-02 | Une plateforme a UNE couleur dans toute l'app (Meta bleu, Spotify vert, SoundCloud orange…) ; aucune couleur de plateforme en dur dans les vues | conforme | `tests/test_a_platform_colour_has_one_definition.py::test_no_new_hardcoded_platform_colour` ✅ | Few p.74 | R260 : 42 → 0 couleur de plateforme en dur, PDF compris ; une palette unique pour DW/RR/Radio → R260 |
 | REQ-CHART-03 | Tri Pareto par défaut sur les barres par catégorie | conforme | `tests/test_a_nominal_bar_chart_is_sorted_pareto.py::test_nominal_categories_are_sorted_by_total` ✅ | — | R260 : Pareto par défaut sur les catégories nominales ; dates, tranches, mois et entonnoirs jamais réordonnés → R260 |
-| REQ-CHART-04 | Aucune redondance — une page ne dessine pas deux fois la même mesure | partiel | `tests/test_no_two_figures_on_a_page_share_a_fingerprint.py::test_no_page_draws_the_same_measure_twice` ✅ | — | une tuile qui répète un graphique de la même page n'est pas vue ; le tableau KPI → fiches n'est lu par aucun test → R258 |
+| REQ-CHART-04 | Aucune redondance — une page ne dessine pas deux fois la même mesure | conforme | `tests/test_a_tile_does_not_repeat_a_chart.py::test_every_tile_sharing_a_charts_sources_was_reviewed` ✅ | — | R258 : figures (empreinte mesure) et tuiles (empreinte page × sources, 5 groupes revus, 0 répétition) → R258 |
 
 ## Formats — tuiles, tableaux, nombres, dates (`formats`)
 
@@ -172,7 +172,6 @@
 
 ## Trous — exigences sans preuve rejouable
 
-- REQ-SILVER-01
 - REQ-ORCH-01
 - REQ-ORCH-03
 - REQ-RUN-03

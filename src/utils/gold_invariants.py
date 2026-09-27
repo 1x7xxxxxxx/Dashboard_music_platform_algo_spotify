@@ -49,6 +49,8 @@ nombre ?**
 """
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 
 from src.utils.fleet_money import FLEET_CASHFLOW_SQL
@@ -610,6 +612,96 @@ def finding(inv: Invariant, tenant: int, left: float, right: float) -> str:
             f"{inv.right_label} = {right:,.2f}, écart {gap:,.2f}{ratio}. {inv.why}")
 
 
+_IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def bound_sql(obj: str, column: str, low, high, allowed: frozenset) -> str:
+    """The SQL counting, per tenant, the rows OUTSIDE a bound. Pure.
+
+    Rule 8: `obj` must be in `allowed` — the closed set of the registry's objects — and both
+    identifiers plain; the registry is data, and data is not trusted with SQL.
+    """
+    if obj not in allowed or not (_IDENT.match(obj) and _IDENT.match(column)):
+        raise ValueError(f"identifiant refusé : {obj}.{column}")
+    parts = ([f"{column} < {float(low)!r}"] if low is not None else []) + (
+        [f"{column} > {float(high)!r}"] if high is not None else [])
+    if not parts:
+        raise ValueError(f"{obj}.{column} : une borne sans côté ne borne rien")
+    return (f"SELECT artist_id, count(*) FROM {obj} WHERE {' OR '.join(parts)} "
+            "GROUP BY artist_id")
+
+
+def bounds_findings(db, registry) -> tuple[list[str], int]:
+    """R258 (critic e) — a value its NATURE forbids: a popularity above 100, a negative
+    count or spend. The bound is declared ONCE, in the metric registry; this reads it."""
+    findings, checked = [], 0
+    allowed = frozenset(registry)
+    for obj, metric in registry.items():
+        for column, low, high in getattr(metric, "bounds", ()) or ():
+            checked += 1
+            for tenant, n in db.fetch_query(bound_sql(obj, column, low, high, allowed)) or []:
+                findings.append(f"artiste {tenant} — {obj}.{column} : {n} ligne(s) hors de "
+                                f"[{low}, {'∞' if high is None else high}]")
+    return findings, checked
+
+
+# R258 (critic e) — the duplicate scan targets `artist_history` ONLY: 119 of 131 tables
+# carry a UNIQUE natural key (a duplicate is impossible there), the other 11 are journals.
+# It has none, and holds 127 historic duplicate rows its gold view (migration 120)
+# already dedupes — so the scan reads the last two days: a DOUBLE WRITE, not the past.
+DUPLICATE_SQL = (
+    "SELECT artist_id, count(*) FROM ("
+    "  SELECT artist_id, collected_at::date FROM artist_history"
+    "  WHERE collected_at >= now() - interval '2 days'"
+    "  GROUP BY 1, 2 HAVING count(*) > 1) d GROUP BY artist_id")
+
+
+def duplicate_findings(db) -> list[str]:
+    return [f"artist_history — l'artiste Spotify {sid} a {n} jour(s) écrit(s) deux fois "
+            "ces deux derniers jours (double passage de la collecte ?)"
+            for sid, n in db.fetch_query(DUPLICATE_SQL) or []]
+
+
+# R258 (the R230 MAPPING gap) — a campaign that SPENT in the last 14 days and is neither
+# tied to a track nor rejected: its cost per stream reads « — » and nothing said why.
+# Recent only: the past was triaged on the mapping page (0 open on 21 campaigns).
+UNMAPPED_SQL = (
+    "SELECT d.artist_id, count(DISTINCT d.campaign_name) FROM v_meta_daily d"
+    " LEFT JOIN campaign_track_mapping m"
+    "   ON m.artist_id = d.artist_id AND m.campaign_name = d.campaign_name"
+    " LEFT JOIN campaign_mapping_rejected r"
+    "   ON r.artist_id = d.artist_id AND r.campaign_name = d.campaign_name"
+    " WHERE d.spend > 0 AND d.day >= current_date - 14"
+    "   AND m.campaign_name IS NULL AND r.campaign_name IS NULL"
+    " GROUP BY d.artist_id")
+
+
+def unmapped_findings(db) -> list[str]:
+    return [f"artiste {tenant} — {n} campagne(s) Meta dépensant depuis 14 jours sans titre "
+            "rattaché : leur coût par écoute reste « — » (page 🔗 Mapping)"
+            for tenant, n in db.fetch_query(UNMAPPED_SQL) or []]
+
+
+def _registry():
+    """The metric registry — `tools/dev` is mounted beside `src` in the scheduler."""
+    return registry_module().REGISTRY
+
+
+def registry_module():
+    """The module itself (REGISTRY, SILVER_MODULES), loaded once from its file."""
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[2] / "tools" / "dev" / "metric_registry.py"
+    import sys
+    name = "_gold_invariants_metric_registry"
+    if name not in sys.modules:           # a dataclass module must be in sys.modules
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return sys.modules[name]
+
+
 def run(db) -> tuple[list[str], int]:
     """`(constats, couples comparés)` — le contrôle entier, hors d'Airflow.
 
@@ -634,7 +726,9 @@ def run(db) -> tuple[list[str], int]:
         left, right = side(inv.left_sql), side(inv.right_sql)
         compared += len(set(left) | set(right))
         findings += [finding(inv, t, a, b) for t, a, b in compare(left, right)]
-    return findings, compared
+    bounded, n_bounds = bounds_findings(db, _registry())
+    extra = duplicate_findings(db) + unmapped_findings(db)
+    return findings + bounded + extra, compared + n_bounds + 2
 
 
 def email_section(findings: list[str], escape) -> str:

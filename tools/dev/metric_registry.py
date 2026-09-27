@@ -36,6 +36,9 @@ class Metric:
     grain: str            # jour · mois · relevé · titre · campagne
     sense: str            # flux · cumul · niveau · attribut
     window: str           # the default period the product shows
+    # R258 (critic e) — the bound its NATURE imposes, declared once: ((column, low, high),)
+    # with None for an open side. Checked every evening by gold_invariants.bounds_findings.
+    bounds: tuple = ()
 
 
 FLUX, CUMUL, NIVEAU, ATTRIBUT = "flux", "cumul", "niveau", "attribut"
@@ -44,7 +47,8 @@ FLUX, CUMUL, NIVEAU, ATTRIBUT = "flux", "cumul", "niveau", "attribut"
 REGISTRY: dict[str, Metric] = {
     "v_s4a_song_daily": Metric(
         "streams_spotify", "Écoutes Spotify par titre et par jour (export S4A, ligne Total exclue).",
-        "v_s4a_song_daily.streams", "jour × titre", FLUX, "période choisie"),
+        "v_s4a_song_daily.streams", "jour × titre", FLUX, "période choisie",
+        bounds=(("streams", 0, None),)),
     "v_s4a_song_measured_span": Metric(
         "spotify_measured_span", "Premier et dernier jour mesurés par titre — borne toute fenêtre.",
         "v_s4a_song_measured_span.first_measured/last_measured", "titre", ATTRIBUT, "tout"),
@@ -63,13 +67,16 @@ REGISTRY: dict[str, Metric] = {
         "v_s4a_release_reach", "titre", CUMUL, "fenêtres fixes"),
     "v_spotify_followers_daily": Metric(
         "spotify_followers", "Abonnés Spotify de l'artiste (niveau), CSV S4A ou API selon la source.",
-        "v_spotify_followers_daily.followers", "jour", NIVEAU, "période choisie"),
+        "v_spotify_followers_daily.followers", "jour", NIVEAU, "période choisie",
+        bounds=(("followers", 0, None),)),
     "v_spotify_track_pi_daily": Metric(
         "spotify_popularity", "Indice de popularité Spotify (0-100) par titre.",
-        "v_spotify_track_pi_daily.popularity", "jour × titre", NIVEAU, "période choisie"),
+        "v_spotify_track_pi_daily.popularity", "jour × titre", NIVEAU, "période choisie",
+        bounds=(("popularity", 0, 100),)),
     "v_platform_totals": Metric(
         "streams_all_platforms", "Écoutes par plateforme sur une fenêtre — LA porte des totaux.",
-        "v_platform_totals.total", "plateforme", FLUX, "période choisie"),
+        "v_platform_totals.total", "plateforme", FLUX, "période choisie",
+        bounds=(("total", 0, None),)),
     "v_platform_levels": Metric(
         "platform_levels", "Dernier niveau mesuré par plateforme (collecte partielle ≠ niveau).",
         "v_platform_levels", "plateforme", NIVEAU, "dernier relevé"),
@@ -99,10 +106,12 @@ REGISTRY: dict[str, Metric] = {
         "v_instagram_media_monthly.likes/comments", "mois de publication", CUMUL, "12 mois"),
     "v_hypeddit_daily": Metric(
         "hypeddit_funnel", "Visites du smart link et clics vers les plateformes, par campagne.",
-        "v_hypeddit_daily.visits/clicks", "jour × campagne", FLUX, "période choisie"),
+        "v_hypeddit_daily.visits/clicks", "jour × campagne", FLUX, "période choisie",
+        bounds=(("visits", 0, None), ("clicks", 0, None))),
     "v_meta_daily": Metric(
         "ad_spend_daily", "Dépense Meta par jour et par artiste.",
-        "v_meta_daily.spend", "jour", FLUX, "période choisie"),
+        "v_meta_daily.spend", "jour", FLUX, "période choisie",
+        bounds=(("spend", 0, None), ("impressions", 0, None))),
     "v_meta_spend_totals": Metric(
         "ad_spend_total", "Dépense et résultats Meta totaux — la définition OR de « combien dépensé ».",
         "v_meta_spend_totals.spend/results", "compte", FLUX, "tout"),
@@ -138,7 +147,8 @@ REGISTRY: dict[str, Metric] = {
         "v_sacem_monthly.amount", "mois × nature", FLUX, "tout"),
     "v_artist_monthly_costs": Metric(
         "costs", "Coûts saisis par l'artiste, étalés au mois (annuel /12, ponctuel dans son mois).",
-        "v_artist_monthly_costs.amount_eur", "mois × catégorie", FLUX, "tout"),
+        "v_artist_monthly_costs.amount_eur", "mois × catégorie", FLUX, "tout",
+        bounds=(("amount_eur", 0, None),)),
     "v_artist_monthly_cashflow": Metric(
         "cashflow", "Tout l'argent au mois : revenus nets (+1) et dépenses Meta + coûts (−1).",
         "v_artist_monthly_cashflow.amount_eur × direction", "mois × source", FLUX, "tout"),
@@ -151,3 +161,11 @@ TO_CONFORM: dict[str, Metric] = {
         "mrr", "Revenu mensuel récurrent des abonnements, locataires humains seulement.",
         "mrr_by_plan_sql() — une jointure, pas encore une vue or", "plan", NIVEAU, "maintenant"),
 }
+
+
+# R258 / REQ-SILVER-01 — the LAYER of every object, mechanically. Every `v_*` view the
+# migrations create is GOLD and sits in REGISTRY above. The silver layer (conformed
+# series, not yet a KPI) is Python, not SQL (ADR-019) : it lives in these modules, and a
+# view that is neither registered nor declared here is refused by
+# tests/test_every_object_has_a_layer.py.
+SILVER_MODULES: tuple[str, ...] = ("src/dashboard/utils/platform_timeseries.py",)

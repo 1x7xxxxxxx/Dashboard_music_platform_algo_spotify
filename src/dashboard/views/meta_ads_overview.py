@@ -7,6 +7,7 @@ from src.dashboard.utils import filters
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
+from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
 
@@ -106,6 +107,11 @@ def show():
         render_extra_ad_accounts(db, artist_id)
 
 
+def _nan(v):
+    """The panels draw NaN as a gap; `per` says « undefined » with None."""
+    return float("nan") if v is None else v
+
+
 # Les six mesures de la performance globale. (libellé, colonne ou calcul, format)
 # `derive` reçoit la ligne agrégée d'une campagne et rend le ratio — jamais une
 # moyenne de ratios : un CPM est `Σdépense / Σimpressions × 1000`, pas la moyenne
@@ -114,15 +120,13 @@ _PERF_PANNEAUX = [
     ("Dépenses (€)",  lambda r: r['spend'],                                      "{:,.0f}"),
     ("Impressions",   lambda r: r['impressions'],                                "{:,.0f}"),
     ("Clics lien",    lambda r: r['link_clicks'],                                "{:,.0f}"),
-    ("CPM (€)",       lambda r: r['spend'] / r['impressions'] * 1000
-                                if r['impressions'] > 0 else float("nan"),       "{:,.2f}"),
-    ("CPC (€)",       lambda r: r['spend'] / r['link_clicks']
-                                if r['link_clicks'] > 0 else float("nan"),       "{:,.2f}"),
+    # R258 — the ratios come from ONE definition (`utils.ratios.per`), NaN when undefined.
+    ("CPM (€)",       lambda r: _nan(per(r['spend'], r['impressions'], 1000)),    "{:,.2f}"),
+    ("CPC (€)",       lambda r: _nan(per(r['spend'], r['link_clicks'])),          "{:,.2f}"),
     # R146 — « CPR » garde le mot de Meta (l'artiste le retrouve tel quel dans le
     # Gestionnaire de publicités) mais ne voyage plus jamais sans sa limite : la
     # légende sous la figure dit que le résultat est un clic sortant.
-    ("CPR (€)",       lambda r: r['spend'] / r['custom_conversions']
-                                if r['custom_conversions'] > 0 else float("nan"), "{:,.2f}"),
+    ("CPR (€)",       lambda r: _nan(per(r['spend'], r['custom_conversions'])),   "{:,.2f}"),
 ]
 
 
@@ -267,11 +271,12 @@ def _campaign_frame(df_perf: pd.DataFrame) -> pd.DataFrame:
     it is the merge that multiplied the rows.
     """
     df = df_perf.copy()
-    df['cpr'] = df.apply(lambda x: x['spend'] / x['results'] if x['results'] > 0 else 0, axis=1)
-    df['cpm'] = df.apply(
-        lambda x: x['spend'] / x['impressions'] * 1000 if x['impressions'] > 0 else 0, axis=1)
-    df['cpc'] = df.apply(
-        lambda x: x['spend'] / x['link_clicks'] if x['link_clicks'] > 0 else 0, axis=1)
+    # R258 — ONE ratio definition, and an undefined ratio is ABSENT: these three wrote 0
+    # for a campaign without results, clicks or impressions — a bar at « 0 € » that read
+    # as the cheapest campaign of the account.
+    df['cpr'] = per_series(df['spend'], df['results'])
+    df['cpm'] = per_series(df['spend'], df['impressions'], 1000)
+    df['cpc'] = per_series(df['spend'], df['link_clicks'])
     return df
 
 
@@ -527,8 +532,7 @@ def _show_meta_ads(db, artist_id):
         # déjà ce choix pour les objectifs sans conversion (CPR NULL), et
         # `meta_x_spotify` le documente : « No recompute — that would fabricate a
         # CPR Meta hid. »
-        df_day['cpr'] = (df_day['spend'] / df_day['custom_conversions']
-                         ).where(df_day['custom_conversions'] > 0)
+        df_day['cpr'] = per_series(df_day['spend'], df_day['custom_conversions'])
 
         # UN SEUL GRAPHIQUE — 2026-09-21, demandé : « essaye de tout mettre sur
         # un même graphique ». Les trois cadres empilés avaient une bonne raison
