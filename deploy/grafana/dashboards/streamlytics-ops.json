@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -19,7 +19,7 @@
       "id": 1,
       "title": "Latence de rendu — CHROME vs VUE (p95)",
       "type": "timeseries",
-      "description": "LE chiffre qui manquait. `chrome` = auth, navigation, barre laterale ; `view` = le corps de la page. Mesure avant Prometheus : 61 ms par vue contre 468-538 ms pour la page complete, un facteur 8 que rien n'affichait. Si `chrome` domine, optimiser une vue n'attaque pas le poste principal — c'est la raison pour laquelle R120 passe avant R118.",
+      "description": "R215 (2026-09-27) : fenêtre [1h], pas [5m]. Mesuré : 74 rendus en 7 jours (71 page_view) — sur 5 min, presque toute fenêtre est vide et le quantile n'a pas de point ; le panneau semblait aveugle alors que l'instrument comptait juste. L'ALERTE RenderLatencyDegraded garde [5m] : elle doit réagir vite quand il y a du trafic. Un vide ici = pas de rendu dans l'heure.\n\nLE chiffre qui manquait. `chrome` = auth, navigation, barre laterale ; `view` = le corps de la page. Mesure avant Prometheus : 61 ms par vue contre 468-538 ms pour la page complete, un facteur 8 que rien n'affichait. Si `chrome` domine, optimiser une vue n'attaque pas le poste principal — c'est la raison pour laquelle R120 passe avant R118.",
       "datasource": {
         "type": "prometheus",
         "uid": "PROM"
@@ -38,7 +38,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le,phase) (rate(streamlytics_rerun_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le,phase) (rate(streamlytics_rerun_duration_seconds_bucket[1h])))",
           "legendFormat": "{{phase}}",
           "refId": "A"
         }
@@ -205,7 +205,7 @@
       "id": 7,
       "title": "Latence de rendu — PAR PAGE (p95)",
       "type": "timeseries",
-      "description": "Le panneau qui remplace le tableau « Historique session » de la vue perf_monitor. La vue ne montrait que LA session de l'admin qui la regardait, et seulement la phase `view` — soit environ un huitieme du temps reel. Ici : toutes les sessions, chrome comprise, et le quantile plutot qu'une moyenne qu'une seule page lente deplace. VIDE tant qu'aucun rendu AUTHENTIFIE n'a eu lieu : les routes publiques (connexion, inscription, verification) font `st.stop()` avant la couture, et c'est delibere — elles ne rendent aucune vue.",
+      "description": "R215 (2026-09-27) : fenêtre [1h], pas [5m]. Mesuré : 74 rendus en 7 jours (71 page_view) — sur 5 min, presque toute fenêtre est vide et le quantile n'a pas de point ; le panneau semblait aveugle alors que l'instrument comptait juste. L'ALERTE RenderLatencyDegraded garde [5m] : elle doit réagir vite quand il y a du trafic. Un vide ici = pas de rendu dans l'heure.\n\nLe panneau qui remplace le tableau « Historique session » de la vue perf_monitor. La vue ne montrait que LA session de l'admin qui la regardait, et seulement la phase `view` — soit environ un huitieme du temps reel. Ici : toutes les sessions, chrome comprise, et le quantile plutot qu'une moyenne qu'une seule page lente deplace. VIDE tant qu'aucun rendu AUTHENTIFIE n'a eu lieu : les routes publiques (connexion, inscription, verification) font `st.stop()` avant la couture, et c'est delibere — elles ne rendent aucune vue.",
       "datasource": {
         "type": "prometheus",
         "uid": "PROM"
@@ -225,7 +225,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, page) (rate(streamlytics_rerun_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, page) (rate(streamlytics_rerun_duration_seconds_bucket[1h])))",
           "legendFormat": "{{page}}",
           "datasource": {
             "type": "prometheus",

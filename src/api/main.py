@@ -199,6 +199,7 @@ _sante_etat: dict[str, object] = {"quand": 0.0, "verdict": None}
 def _sonder_la_base() -> tuple[bool, str]:
     """Une connexion neuve, un `SELECT 1`, des bornes explicites. Ne lève jamais."""
     conn = None
+    h = None
     try:
         import psycopg2
 
@@ -224,6 +225,10 @@ def _sonder_la_base() -> tuple[bool, str]:
         # `/health` échoue faute d'avoir exercé le chemin RÉEL dans l'environnement réel.
         from src.database.postgres_handler import PostgresHandler
         h = PostgresHandler.from_env_or_config()
+        # ⚠️ `h` BORROWS a pooled connection in its constructor (R215, measured in prod
+        # 2026-09-27): read for its parameters and never closed, every 30 s healthcheck
+        # leaked one slot — the pool (maxconn 8) was empty four minutes after start and
+        # served nothing for 27 h (3 280 direct fallbacks). It is closed in `finally`.
         conn = psycopg2.connect(
             connect_timeout=2,
             options=f"-c statement_timeout={_SANTE_TIMEOUT_MS}",
@@ -245,6 +250,8 @@ def _sonder_la_base() -> tuple[bool, str]:
                 conn.close()
             except Exception:                 # noqa: BLE001 — fermeture best-effort
                 pass
+        if h is not None:
+            h.close()                         # gives the borrowed slot back to the pool
 
 
 def _base_repond() -> tuple[bool, str]:

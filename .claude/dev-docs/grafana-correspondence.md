@@ -114,3 +114,12 @@ vue n'affichait pas » — était **fausse et dans le mauvais sens**. Mesuré le
 
 La chrome est plate à 11-13 ms. Détail et cause racine — une soustraction jamais faite,
 le plancher de 352 ms d'`AppTest` — dans l'addendum d'ADR-026.
+
+## R215 — la fenêtre des panneaux de latence (2026-09-27)
+
+Les panneaux 1 et 7 passent de `rate(...[5m])` à `rate(...[1h])`. Mesuré sur 7 jours :
+**74 rendus comptés pour 71 `page_view`** — l'instrument compte juste, le trafic est
+faible, et un quantile sur 5 minutes est vide presque partout : le panneau n'avait qu'1-2
+points par semaine et se lisait « aveugle ». L'alerte `RenderLatencyDegraded` garde `[5m]`,
+**délibérément** : elle doit réagir vite quand il y a du trafic, le panneau doit montrer
+une tendance. Un vide dans le panneau veut désormais dire « aucun rendu dans l'heure ».

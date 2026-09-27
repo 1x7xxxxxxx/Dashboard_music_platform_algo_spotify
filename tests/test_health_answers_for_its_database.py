@@ -277,3 +277,51 @@ def test_the_verdict_is_written_before_its_timestamp() -> None:
     assert ordre and "verdict" in ordre[0], (
         f"ordre d'écriture du cache : {ordre}. Le VERDICT doit être posé avant son "
         "instant, sinon un lecteur concurrent lit un instant frais sur un verdict vieux.")
+
+
+# ── R215 (2026-09-27) — the probe gives back what it borrows ──────────────────────────
+def test_ten_probes_leave_the_pool_as_they_found_it() -> None:
+    """Measured in prod: the 30 s Docker healthcheck emptied the API pool (maxconn 8) in
+    four minutes and it served nothing for 27 h — 3 280 direct fallbacks, 8 idle
+    connections for ever. The probe built a `PostgresHandler` only to read its
+    parameters; the constructor BORROWS a pooled connection, and nothing closed it.
+    Every other test of this file ran WITHOUT a pool, so none could see it."""
+    if not _base_joignable():
+        pytest.skip("base injoignable — la mesure n'est pas possible")
+    from src.api import main
+    from src.database import postgres_handler as ph
+    # A FRESH pool: importing `src.api.main` enables the API's pool (maxconn 8), and
+    # other tests of the same xdist worker may have filled it — `enable_pool` does not
+    # rebuild an existing one (seen: « 8 pooled connection(s) never came back »).
+    ph.disable_pool()
+    ph.enable_pool(1, 2)
+    try:
+        before = ph._DIRECT_FALLBACKS[0]
+        for _ in range(10):
+            assert main._sonder_la_base()[0] is True
+        borrowed, _available = ph._pool_state()
+        assert borrowed == 0, f"{borrowed} pooled connection(s) never came back"
+        assert ph._DIRECT_FALLBACKS[0] == before, "the probes exhausted the pool"
+    finally:
+        ph.disable_pool()
+
+
+def test_a_session_setting_does_not_travel_to_the_next_borrower() -> None:
+    """`defect_gauge._fetch` sets `statement_timeout = 2000` on a pooled connection; the
+    next borrower inherited 2 s instead of 15 s until `_return_to_pool` reset it."""
+    if not _base_joignable():
+        pytest.skip("base injoignable — la mesure n'est pas possible")
+    from src.database import postgres_handler as ph
+    ph.disable_pool()
+    ph.enable_pool(1, 1)
+    try:
+        first = ph.PostgresHandler.from_env_or_config()
+        first.cursor.execute("SET statement_timeout = 2000")
+        first.close()
+        second = ph.PostgresHandler.from_env_or_config()
+        second.cursor.execute("SHOW statement_timeout")
+        got = second.cursor.fetchone()[0]
+        second.close()
+        assert got != "2s", "the previous borrower's statement_timeout came back with the slot"
+    finally:
+        ph.disable_pool()

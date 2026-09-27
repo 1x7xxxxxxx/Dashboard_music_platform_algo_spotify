@@ -218,6 +218,12 @@ def _return_to_pool(conn) -> bool:
         if not conn.closed:
             conn.rollback()
             conn.autocommit = True
+            # R215 — a session setting survives `putconn`: `defect_gauge._fetch` sets
+            # `statement_timeout = 2000` and the NEXT borrower inherited 2 s instead of
+            # the 15 s the pool connects with. RESET ALL returns every setting to its
+            # connection-start value (the startup options included), nothing more.
+            with conn.cursor() as cur:
+                cur.execute("RESET ALL")
         _POOL.putconn(conn)
         return True
     except Exception as exc:      # noqa: BLE001

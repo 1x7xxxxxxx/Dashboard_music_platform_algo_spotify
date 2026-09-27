@@ -542,3 +542,5 @@
 {"at": "2026-09-27T01:10:50+00:00", "head": "1510d69", "kind": "park", "task": "R215", "what": "diagnostic de la fuite du pool en cours (agent) ; reprise apres R219"}
 {"at": "2026-09-27T01:10:51+00:00", "head": "1510d69", "kind": "start", "task": "R219", "what": "derive de schema prod vs init_db"}
 {"at": "2026-09-27T01:14:15+00:00", "head": "1510d69", "kind": "park", "task": "R219", "what": "en attente d'un point"}
+{"at": "2026-09-27T01:15:09+00:00", "head": "daaedd6", "kind": "start", "task": "R218", "what": "dossier regenere sur instantane frais puis nettoyage"}
+{"at": "2026-09-27T01:17:18+00:00", "head": "daaedd6", "kind": "start", "task": "R215", "what": "fix fuite sonde /health + RESET au retour pool + panneau latence"}
