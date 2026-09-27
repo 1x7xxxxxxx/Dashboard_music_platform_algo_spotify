@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R229 — Les 5 lecteurs de test qui prennent « un » locataire actif (`test_the_home_period_selec… (livrée 2026-09-27)
+
+- [x] **R229 — Les 5 lecteurs de test qui prennent « un » locataire actif (`test_the_home_period_selector_drives_both_sections.py:112,255`, `test_the_setup_banner_folds_when_it_is_done.py:67`, `test_api_db_smoke.py:71`, `test_every_surface_gives_the_same_total.py:45`) ignorent les locataires créés pendant la session — laissés « à trancher » par le balayage du 2026-09-27** (P3) ✅ (2026-09-27, 0c083665, 9a4692d9)
+  Mesuré par : suite parallèle verte deux fois de suite
+  9 sites (5 annoncés + 4 trouvés par balayage : assistant, deux-locataires ×2, signup-links) passent par tests.conftest.pre_session_active_tenants / born_before_session ; garde tests/test_a_tenant_reader_ignores_tenants_born_in_the_session.py (AST, auto-prouvant, muté rouge)
+  Commits : 0c083665 R229 : les 9 lecteurs de test qui prennent ou comptent « les » locatai · 9a4692d9 R223 : capitaliser la nuit du 2026-09-27 - classe a-sql-file-that-swit
+
 ## ✅ R228 — `make test-changed` lance `schema-check-local` quand un test écrit en base — 2 fixtures… (livrée 2026-09-27)
 
 - [x] **R228 — `make test-changed` lance `schema-check-local` quand un test écrit en base — 2 fixtures vertes en local rouges en CI (R219)** (P3) ✅ (2026-09-27, 8c1dfae3)
