@@ -129,10 +129,20 @@ def apply_defaults(fig, *, pareto: bool | None = None):
 
 
 def _has_colour(tr) -> bool:
-    marker = getattr(tr, "marker", None)
-    line = getattr(tr, "line", None)
-    return bool((marker is not None and marker.color is not None)
-                or (line is not None and line.color is not None))
+    """Does the trace set its own colour? Read defensively: a Pie's marker has `colors`, not
+    `color`, and an Indicator has no marker at all — the first door read `marker.color` and
+    every page with a ring crashed (hypeddit, 2026-09-27, R245 render)."""
+    for part_name in ("marker", "line"):
+        part = getattr(tr, part_name, None)
+        if part is None:
+            continue
+        for attr in ("color", "colors"):
+            try:
+                if getattr(part, attr, None) is not None:
+                    return True
+            except (AttributeError, ValueError):
+                continue
+    return False
 
 
 def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: bool = True,

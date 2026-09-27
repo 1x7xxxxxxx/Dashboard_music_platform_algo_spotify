@@ -75,3 +75,18 @@ def test_the_default_palette_is_told_apart_in_every_vision():
                 for a, b in itertools.combinations(DISTINCT, 2))
     assert worst >= 15.0, f"worst pair ΔE {worst:.1f} under the floor of 15"
     assert all(0.43 <= lightness(c) <= 0.77 for c in DISTINCT)
+
+
+def test_the_door_survives_every_trace_type():
+    """R243 regression, found by the R245 render: the door read `marker.color`, a Pie has
+    `marker.colors` and an Indicator no marker — every page with a ring crashed in prod."""
+    traces = [go.Pie(values=[1, 2], marker=dict(colors=["red", "blue"])), go.Pie(values=[1]),
+              go.Indicator(value=3), go.Funnel(x=[3, 2]), go.Heatmap(z=[[1]]),
+              go.Scatterpolar(r=[1]), go.Histogram(x=[1]), go.Box(y=[1]),
+              go.Waterfall(y=[1]), go.Treemap(labels=["a"], parents=[""]), go.Choropleth()]
+    for tr in traces:
+        fig = go.Figure([tr])
+        charts.apply_defaults(fig, pareto=True)
+        charts.jargon(fig)
+    coloured = go.Figure([go.Pie(values=[1], marker=dict(colors=["#123456"]))])
+    assert not charts.apply_defaults(coloured).layout.colorway, "a Pie's own colours were overridden"
