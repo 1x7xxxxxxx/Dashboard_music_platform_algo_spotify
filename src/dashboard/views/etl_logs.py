@@ -11,7 +11,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import project_db
+from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 from src.dashboard.utils.ui import flash
@@ -228,7 +228,7 @@ def _section_trend(db):
         height=400,
     )
     fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
 
 # ── Circuit breakers ──────────────────────────────────────────────

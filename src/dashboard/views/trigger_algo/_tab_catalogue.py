@@ -35,6 +35,7 @@ from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 from src.dashboard.utils.algo_preview_data import format_proba
 
 from ._catalogue import construire, leviers_artiste
+from src.dashboard.utils import charts
 
 _Q_CATALOGUE = """
 SELECT song, days_since_release, streams_28d,
@@ -155,7 +156,7 @@ def _show_tab_catalogue(db, artist_id) -> None:
         fig.update_layout(height=max(300, 42 * len(d) + 120), bargap=0.3,
                           margin={"l": 10, "r": 60, "t": 30, "b": 20})
         fig.update_yaxes(automargin=True)
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
         st.caption(t(
             "trigger_algo.cat.fig_note",
             "Chaque barre montre **le levier le plus proche de sa cible** pour ce "

@@ -17,7 +17,7 @@ this file until 2026-09-14 while being wrong by 41 %.
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
 
 
@@ -142,7 +142,7 @@ def show():
         mensuel = monthly_net(cashflow)
         if not mensuel.empty:
             st.subheader(t("sacem.treasury_header", "💶 Ma trésorerie — SACEM, ventes et dépenses"))
-            st.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
+            charts.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
 
         # ── Full ledger ──
         with st.expander(t("sacem.ledger", "▸ Relevé détaillé")):

@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import date
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import show_empty_state
 from src.dashboard.auth import get_artist_id, is_admin
@@ -217,7 +217,7 @@ def _show_freshness_bar(df_health: pd.DataFrame):
         paper_bgcolor='rgba(0,0,0,0)',
         font_color='white',
     )
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
 
 def _show_heatmap(df_weekly: pd.DataFrame):
@@ -259,7 +259,7 @@ def _show_heatmap(df_weekly: pd.DataFrame):
         paper_bgcolor='rgba(0,0,0,0)',
         font_color='white',
     )
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
 
 @st.fragment
@@ -327,7 +327,7 @@ def _show_batch_sizes(df_weekly: pd.DataFrame):
         paper_bgcolor='rgba(0,0,0,0)',
         font_color='white',
     )
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────

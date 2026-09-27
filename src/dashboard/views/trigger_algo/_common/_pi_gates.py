@@ -5,6 +5,7 @@ from src.dashboard.utils.ui import show_empty_state
 import plotly.graph_objects as go
 import streamlit as st
 from ._loaders import _load_threshold_tables
+from src.dashboard.utils import charts
 
 
 _PI_BINS = [(0, 10, "0-10"), (11, 20, "11-20"), (21, 30, "21-30"),
@@ -73,7 +74,7 @@ def _show_pi_gate_section(ml_pred: dict | None) -> None:
         ), row=1, col=i)
         fig.update_yaxes(range=[0, 112], row=1, col=i)
     fig.update_layout(height=360, margin=dict(t=46, b=20))
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
     def _fmt(p):
         return f"{p:.0f}%" if p is not None else "n/a"

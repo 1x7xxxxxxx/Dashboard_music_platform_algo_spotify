@@ -151,3 +151,13 @@ def is_dark() -> bool:
         return str(st.get_option("theme.base") or "").lower() == "dark"
     except Exception:      # noqa: BLE001
         return False
+
+
+# R243 (fiche 39, owner 2026-09-27 : « couleurs trop proches, beaucoup de vert, de bleu »).
+# The default colorway of every chart that sets no colour of its own (charts.plotly_chart).
+# MEASURED, not chosen: Okabe–Ito, the usual colour-blind palette, fell to ΔE 12.3
+# (blue ↔ pink in protanopia) under this repository's floor of 15; Tableau's five fell to
+# 0.4 (green ↔ red in deuteranopia). A local search from Okabe–Ito, all pairs, all three
+# visions, inside the light-theme lightness band, gave these five — worst pair ΔE 26.5.
+# Guard: tests/test_every_chart_goes_through_the_door.py re-measures them.
+DISTINCT: tuple[str, ...] = ("#065fd8", "#fead22", "#1e8b7a", "#ce0700", "#aebde9")

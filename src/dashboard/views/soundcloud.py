@@ -43,7 +43,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
@@ -266,7 +266,7 @@ def show():
                         hovermode="x unified",
                         legend=dict(orientation="h", y=-0.2)  # Légende en bas pour ne pas cacher
                     )
-                    st.plotly_chart(fig, width="stretch")
+                    charts.plotly_chart(fig, width="stretch")
 
                     # Secondaire : compare des métriques entre elles — n'ouvre pas d'action.
                     # ⚠️ LE `st.plotly_chart` EST LEXICALEMENT DANS LE `with`.
@@ -289,7 +289,7 @@ def show():
                         _fig_b100, _note_b100 = _base100_figure(
                             db, artist_id, selected_tracks, window)
                         if _fig_b100 is not None:
-                            st.plotly_chart(_fig_b100, width="stretch")
+                            charts.plotly_chart(_fig_b100, width="stretch")
                             st.caption(_note_b100)
                         elif _note_b100:
                             st.info(_note_b100)
@@ -445,7 +445,7 @@ def _render_catalog_series(db, artist_id) -> None:
                       margin=dict(t=90))
     fig.update_yaxes(tickformat="~s", row=1, col=1)
     fig.update_yaxes(tickformat="~s", row=2, col=1)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     legende = t("soundcloud.catalog_caption",
                 "**{n} relevé(s)** sur {t} titre(s). Ces compteurs sont des CUMULS "
@@ -521,7 +521,7 @@ def _render_top_chart(df_top, sort_col: str, sort_by: str, plays_lbl: str) -> No
         height=max(380, 34 * n), showlegend=False, bargap=0.25,
         margin=dict(l=10, r=70, t=70),
         yaxis=dict(automargin=True))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     st.caption(t(
         "soundcloud.top_caption",

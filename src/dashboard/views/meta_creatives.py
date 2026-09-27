@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.ui import smart_date_range
 from src.dashboard.utils.i18n import t
@@ -425,9 +425,9 @@ def _render_ranking(df: pd.DataFrame) -> None:
         return
     tronque = len(d) > _RANG_MAX
     d = d.nlargest(_RANG_MAX, 'total_spend')
-    # Meilleur CPR EN HAUT : Plotly empile les catégories du bas vers le haut, donc
-    # on trie en décroissant pour que le meilleur finisse en tête de figure.
-    d = d.sort_values('cpr', ascending=False, na_position='first')
+    # R243 (fiche 29) : trié par l'étape choisie, le MEILLEUR EN HAUT (Plotly empile du bas).
+    tri = st.segmented_control(t("meta_creatives.rank_sort", "Trier par"), [c[1] for c in _RANG_PANNEAUX], format_func=dict((c[1], c[0]) for c in _RANG_PANNEAUX).get, default='cpr', key="rank_sort") or 'cpr'
+    d = d.sort_values(tri, ascending=not dict((c[1], c[4]) for c in _RANG_PANNEAUX)[tri], na_position='first')
     noms = d['creative_name'].tolist()
 
     fig = make_subplots(
@@ -448,7 +448,7 @@ def _render_ranking(df: pd.DataFrame) -> None:
                       margin={'l': 10, 'r': 40, 't': 60, 'b': 20},
                       bargap=0.25)
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     st.caption(t(
         "meta_creatives.ranking_caption",
         "Meilleur coût par résultat en haut. Une barre absente = pas de résultat "
@@ -493,7 +493,7 @@ def _render_hooks(df: pd.DataFrame) -> None:
     fig.update_layout(height=max(260, 46 * len(h) + 120),
                       margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
     st.caption(t(
@@ -772,7 +772,7 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.04,
                 "xanchor": "right", "x": 1},
         margin={"t": 70})
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     if partial_weeks:
         st.caption(t(
             "meta_creatives.partial_weeks",
@@ -807,7 +807,7 @@ def _render_scatter(df: pd.DataFrame) -> None:
                     'total_impressions': t("meta_creatives.impressions", "Impressions")},
         )
         fig.update_layout(height=460)
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
         st.caption(t("meta_creatives.scatter_caption",
                      "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
                      "Les créatives sans résultat (CPR absent) ne sont pas tracées."))
@@ -842,7 +842,7 @@ def _render_efficiency(df: pd.DataFrame) -> None:
         fig = px.bar(d, x='creative_name', y=metric, color=metric,
                      color_continuous_scale='Tealrose', labels={'creative_name': ''})
         fig.update_layout(height=420, coloraxis_showscale=False)
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch", pareto=True)   # R243 — fiche 33
 
 
 @st.fragment
@@ -894,7 +894,7 @@ def _render_funnel(df: pd.DataFrame) -> None:
         ))
         fig.update_layout(height=400)
         fig.update_yaxes(automargin=True)       # R209: « s (tous types) » was cut at left
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
         # R209 — the owner: « "corriger" n'était pas assez clair ». Say what each step
         # counts, and why the outbound step can be missing.
         if not any(key == "meta_creatives.results" for key, _, _ in stages):
@@ -971,7 +971,7 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
                              mode='lines+markers', line={'color': '#2a78d6'}),
                   row=2, col=1)
     fig.update_layout(hovermode="x unified", showlegend=False, height=420)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     st.caption(t("meta_creatives.fatigue_caption",
                  "Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative."))
 
@@ -1001,11 +1001,11 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
             labels={'week': '', 'creative_name': '', 'spend': t("meta_creatives.spend_eur", "Dépense (€)")},
         )
         fig.update_layout(height=520)
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
 
         st.markdown("---")
         st.markdown(t("meta_creatives.cumulative_title", "**💰 Dépense cumulée par créative**"))
-        st.plotly_chart(_cumulative_spend_figure(weekly), width="stretch")
+        charts.plotly_chart(_cumulative_spend_figure(weekly), width="stretch")
 
 
 def _cumulative_spend_frame(weekly: pd.DataFrame, top_n: int = 12) -> pd.DataFrame:

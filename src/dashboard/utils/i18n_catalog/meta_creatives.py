@@ -44,6 +44,7 @@ EN = {
         "know it. **{part:.0f} % of your spend** carries a named hook; the rest "
         "is not ranked here. A lower cost on a tiny spend is not a verdict: that "
         "is what the second panel is for."),
+    "meta_creatives.rank_sort": "Sort by",
     "meta_creatives.rank.cpr": "CPR (€)",
     "meta_creatives.rank.total_spend": "Spend (€)",
     "meta_creatives.rank.total_results": "Outbound clicks",

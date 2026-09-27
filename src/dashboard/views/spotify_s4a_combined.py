@@ -60,7 +60,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
-from src.dashboard.utils import project_db
+from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.followers_agreement import comparer
 from src.dashboard.utils.i18n import t
@@ -227,7 +227,7 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         xaxis_title=t("spotify_s4a_combined.days_since_release", "Jours depuis la sortie"),
         yaxis_title=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
         legend=dict(orientation="h", y=1.12))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # ⚠️ DEUX LÉGENDES RETIRÉES le 2026-09-22, demandé en regardant l'écran.
     #
@@ -356,7 +356,7 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
                       # 2026-09-26, deux captures).
                       legend=dict(orientation="h", y=-0.28, x=0))
     fig.update_yaxes(automargin=True)   # R209: titles were cut at the left edge
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle disait
     # ce que valent la barre pleine, la barre grise et le sigle PI, plus le nombre de
@@ -448,7 +448,7 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
             fig.update_layout(height=_PAIR_HEIGHT, hovermode="x unified", barmode="group",
                               margin=dict(t=40, b=40),
                               legend=dict(orientation="h", yanchor="top", y=-0.06, x=0))
-            st.plotly_chart(fig, width="stretch")
+            charts.plotly_chart(fig, width="stretch")
             if note:
                 st.caption(note)
 

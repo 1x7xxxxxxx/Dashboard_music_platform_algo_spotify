@@ -57,6 +57,7 @@ import streamlit as st
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils import charts
 
 # Au-delà, une valeur ne décrit plus la situation d'aujourd'hui. 35 jours = la fenêtre
 # de 28 jours de S4A plus une semaine de battement : on ne crie pas parce qu'une
@@ -276,7 +277,7 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     fig.update_layout(height=max(320, 42 * len(d) + 140), bargap=0.3,
                       margin={"l": 10, "r": 50, "t": 60, "b": 20})
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     n = len(d)
     declenches = int((d["streams"] > 0).sum())
@@ -335,7 +336,7 @@ def render_playlist_history(db, artist_id: int) -> None:
     fig.update_layout(height=360, hovermode="x unified",
                       yaxis_title=t("s4a_insight.hist_axis", "Ajouts (tous titres)"),
                       margin={"t": 30})
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     st.caption(t("s4a_insight.hist_note",
                  "Somme sur tous les titres, par date de saisie. Les trois fenêtres se "
                  "recouvrent — 28 jours CONTIENT 7 jours : elles ne s'additionnent pas."))

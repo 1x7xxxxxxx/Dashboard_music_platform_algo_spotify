@@ -18,7 +18,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
@@ -115,7 +115,7 @@ def _tab_mrr(db) -> None:
         )
         fig.update_traces(texttemplate='%{text:.2f} €', textposition='outside')
         fig.update_layout(showlegend=False, yaxis_title='MRR (€)')
-        st.plotly_chart(fig, width='stretch')
+        charts.plotly_chart(fig, width='stretch')
 
     st.markdown("---")
     st.subheader(t("revenue_forecast.subs_detail", "Détail des abonnements"))
@@ -245,7 +245,7 @@ def _tab_projection(db) -> None:
             annotation_text=f"M+{target_month}",
         )
     fig.update_layout(xaxis_title='Mois', yaxis_title='MRR (€)', hovermode='x unified')
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
     with st.expander(t("revenue_forecast.projection_table", "Tableau de projection détaillé")):
         st.dataframe(proj_df, width='stretch', hide_index=True)
@@ -327,7 +327,7 @@ def _tab_ltv(db) -> None:
     )
     fig.update_traces(texttemplate='%{text:.0f} €', textposition='outside')
     fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
     st.markdown("---")
     st.markdown(t("revenue_forecast.ltv_artistic_header", "#### LTV artistique (revenus musicaux × durée)"))
@@ -438,7 +438,7 @@ def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
     from src.dashboard.utils.treasury_chart import treasury_figure
 
     fig = treasury_figure(cashflow, mensuel, project(mensuel, horizon), _breakeven_text(pm))
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
 
 def _breakeven_short(pm: dict) -> str:
@@ -714,7 +714,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
                       legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.04,
                               'xanchor': 'right', 'x': 1})
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
 
     # ⚠️ LE MANQUE SE COMPARE À L'ESPÉRANCE, pas à la valeur.
     #

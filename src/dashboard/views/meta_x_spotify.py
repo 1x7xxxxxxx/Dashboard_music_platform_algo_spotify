@@ -75,7 +75,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from plotly.subplots import make_subplots
@@ -365,6 +365,7 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
 # conjointe du 2026-09-21, détail dans `platform_colors`). Le tiret porte donc la
 # distinction À L'INTÉRIEUR d'une plateforme — et il la porte MIEUX qu'une teinte,
 # parce qu'un tiret survit à la deutéranopie.
+_SHOWN_FIRST = {"results", "streams", "hypeddit_visits"}   # + the budget area (R243)
 _SERIES = [
     # R146 — résidu dans un fichier par ailleurs corrigé le 2026-09-21 : la page
     # porte la meilleure info-bulle du dépôt sur ce sujet (tuile « Coût par
@@ -420,6 +421,8 @@ def _render_chart(master: pd.DataFrame, campaign: str) -> None:
             x=master["date"], y=idx, mode="lines", connectgaps=False,
             name=label, customdata=raw,
             line=dict(color=pal[platform], width=2, dash=dash),
+            # R243 (fiche 39 « fouillis ») : le cœur du funnel visible, le reste à un clic.
+            visible=True if col in _SHOWN_FIRST else "legendonly",
             hovertemplate=f"{label} : %{{customdata:{fmt}}} (idx %{{y:.0f}})<extra></extra>"))
 
     # LE JOUR OÙ LA DÉPENSE S'ARRÊTE — la question « ça tient après ? » se lisait
@@ -449,7 +452,7 @@ def _render_chart(master: pd.DataFrame, campaign: str) -> None:
                            "Indice (base 100 = début de période)"), rangemode="tozero"))
     fig.add_hline(y=100, line_dash="dot", line_color="rgba(128,128,128,0.35)",
                   annotation_text="base 100", annotation_position="top left")
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     st.caption(t("meta_x_spotify.index_caption",
                  "Séries indexées (base 100 = 1ᵉʳ jour non nul de la période) : c'est "
@@ -728,7 +731,7 @@ def _render_listener_verdict(db, artist_id) -> None:
         # t=40 elle montait à ~9 px du bord, et « Meta » passait sous l'icône appareil
         # photo (vu à 1366 px le 2026-09-26, R189).
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=70))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     st.caption(t("meta_x_spotify.meta_impact_rule",
                  "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "
                  "pas des auditeurs : coupe ou change la créa. Elle la soulève ? Compare le € "
@@ -1025,7 +1028,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
     ))
     fig.update_layout(height=380, margin=dict(r=10, t=30))
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     note = t("meta_x_spotify.funnel_caption",
              "Les deux premières étapes viennent de **Meta**, les deux suivantes de "
@@ -1158,7 +1161,7 @@ def _render_countries(db, artist_id, acct, acct_p) -> None:
     fig.update_layout(height=500, barmode="group", hovermode="x unified",
                       legend=dict(orientation="h", y=1.12), margin=dict(b=110))
     fig.update_xaxes(tickangle=-35)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # LE MEILLEUR PAYS, avec son plancher de dépense écrit.
     _PLANCHER = 50.0

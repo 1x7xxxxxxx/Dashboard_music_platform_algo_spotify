@@ -1151,7 +1151,9 @@ def collect_surfaces(files, slicer) -> list[Surface]:
                     else "?")
                 if _enclosing(pf, node) is not fn:
                     continue
-                if attr in _FIGURE_CALLS and recv_txt == "st":
+                # R243 — every figure goes through the drawing door `charts.plotly_chart`;
+                # without `charts` here, all 74 sites vanished from this map.
+                if attr in _FIGURE_CALLS and recv_txt in ("st", "charts"):
                     seeds = [a for a in node.args[:1]]
                     sl = slicer.slice(rel, fn, seeds, node)
                     out.append(Surface("figure", rel, node.lineno, fn.name,

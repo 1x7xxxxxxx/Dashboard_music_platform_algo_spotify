@@ -4,7 +4,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from src.dashboard.utils import ml_widgets
+from src.dashboard.utils import ml_widgets, charts
 from src.dashboard.utils.algo_preview_data import proba_affichable
 from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song_sql
@@ -156,7 +156,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
             fig.update_yaxes(title_text=t("trigger_algo.algos.axis_proba_pi",
                                           "Proba algo (%) / Popularity Index"),
                              range=[0, 100], row=2, col=1)
-            st.plotly_chart(fig, width='stretch')
+            charts.plotly_chart(fig, width='stretch')
     except Exception as e:
         st.warning(t("trigger_algo.algos.chart_unavailable",
                      "Graphique streams/probas indisponible : {err}").format(err=e))
@@ -246,7 +246,7 @@ def _show_tab_algos(db, track: str, artist_id, date_from, date_to, ml_pred, rele
                               row=1, col=1)
             fig2.update_yaxes(title_text=t("trigger_algo.algos.axis_popularity", "Popularité (0-100)"),
                               range=[0, 100], row=2, col=1)
-            st.plotly_chart(fig2, width='stretch')
+            charts.plotly_chart(fig2, width='stretch')
             st.caption(t(
                 "trigger_algo.algos.j28_caption",
                 "Courbe = streams cumulés du titre sur ses 28 premiers jours. "

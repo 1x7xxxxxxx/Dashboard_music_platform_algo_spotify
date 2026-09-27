@@ -90,7 +90,8 @@ def _sites() -> tuple[str, str]:
     helper = view = ""
     for fr in inspect.stack()[2:]:
         p = fr.filename.replace("\\", "/")
-        if "/src/dashboard/" not in p or "/charts_dossier/" in p:
+        # The drawing door (R243) is transparent: the chart belongs to whoever called it.
+        if "/src/dashboard/" not in p or "/charts_dossier/" in p or p.endswith("utils/charts.py"):
             continue
         rel = p[p.index("src/dashboard/"):] + f":{fr.lineno}"
         helper = helper or rel

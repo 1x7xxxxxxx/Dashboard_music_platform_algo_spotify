@@ -38,7 +38,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
     latest_release_date,
@@ -252,7 +252,7 @@ def show():
                     barmode='stack', hovermode="x unified",
                     yaxis_title=t("instagram.likes_comments_axis", "Likes + commentaires"),
                 )
-                st.plotly_chart(fig_e, width="stretch")
+                charts.plotly_chart(fig_e, width="stretch")
                 st.caption(t(
                     "instagram.engagement_cohort_note",
                     "Chaque barre regroupe les posts **publiés** ce mois-là et montre "
@@ -301,7 +301,7 @@ def show():
                         fig_r.update_layout(
                             hovermode="x unified", yaxis_title=t("instagram.rate_axis", "Taux (%)"),
                         )
-                        st.plotly_chart(fig_r, width="stretch")
+                        charts.plotly_chart(fig_r, width="stretch")
                         st.caption(t(
                             "instagram.rate_caption",
                             "Indicatif : abonnés = dernier snapshot (historique "
@@ -431,7 +431,7 @@ def _render_community(df_hist, window, last_date: str) -> None:
         yaxis_title=t("instagram.community_axis", "Gagnés depuis le premier relevé"),
         title_text=t("instagram.community_title",
                      "Ma communauté dans le temps ({label})").format(label=window.label))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # LA DATE DE COLLECTE EST ICI, plus dans une tuile : c'est une note de bas de
     # figure, pas un indicateur.

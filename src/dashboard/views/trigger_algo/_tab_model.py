@@ -1,5 +1,5 @@
 """trigger_algo — _show_tab_model (move-only split)."""
-from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
@@ -97,7 +97,7 @@ def _show_tab_model(db, track: str, artist_id):
                     yaxis_title="Actuel − Forecast DW (streams)",
                     height=340, hovermode="x unified"
                 )
-                st.plotly_chart(fig_res, width='stretch')
+                charts.plotly_chart(fig_res, width='stretch')
 
                 mean_res = df_res["residual"].mean()
                 std_res = df_res["residual"].std()
@@ -177,7 +177,7 @@ def _show_volume_scatter(df_hist: pd.DataFrame, algo: str) -> None:
                       "Streams observés, toutes sources (7 j)"),
         height=340, showlegend=False,
     )
-    st.plotly_chart(fig, width='stretch')
+    charts.plotly_chart(fig, width='stretch')
     st.caption(t("trigger_algo.model.axes_differ",
                  "Les deux axes ne mesurent pas la même chose : le modèle prédit un plancher "
                  "de streams venus de {label} sur 28 jours, l'axe vertical compte tous les "

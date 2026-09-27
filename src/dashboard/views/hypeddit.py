@@ -45,7 +45,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
@@ -334,7 +334,7 @@ def _render_campaign_series(df, window) -> None:
     fig.update_xaxes(tickangle=-20, tickvals=list(par_camp['campaign_name']),
                      ticktext=[_short(c, 1) for c in par_camp['campaign_name']], row=1, col=1)
     fig.update_yaxes(title_text=t("hypeddit.volume_axis", "Volume"), row=1, col=1)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
     hidden = int(taux.notna().sum()) - len(ringed)
     if hidden > 0:
         st.caption(t("hypeddit.rings_capped",

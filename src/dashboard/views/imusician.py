@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import flash, smart_date_range
 from src.dashboard.utils.cache_invalidation import purge_after_write
@@ -448,7 +448,7 @@ def show():
                 cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
                 mensuel = monthly_net(cashflow)
                 if not mensuel.empty:
-                    st.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
+                    charts.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
                 else:
                     st.info(t("imusician.roi_empty_period",
                               "Aucune donnée de revenus ou dépenses sur cette période."))

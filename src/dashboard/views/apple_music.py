@@ -45,7 +45,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.ui import say_why_it_is_empty
@@ -144,7 +144,7 @@ def show():
                 # automargin: the titles were cut at the left edge (« en le français »).
                 fig.update_layout(yaxis={'categoryorder': 'total ascending', 'automargin': True},
                                   height=500, margin=dict(l=10, r=40))
-                st.plotly_chart(fig, width="stretch")
+                charts.plotly_chart(fig, width="stretch")
                 with st.expander(t("apple_music.shazams_expander", "⚡ Shazams par chanson (Top 10)")):
                     _df_sh = df_top[['song_name', 'shazam_count']].rename(
                         columns={'song_name': t("common.song", "Chanson"), 'shazam_count': 'Shazams'})
@@ -313,7 +313,7 @@ def _render_song_series(df, song: str, window) -> None:
         legend=dict(orientation="h", y=1.10),
         title_text=t("apple_music.series_title", "{song} · {label}")
         .format(song=song, label=window.label))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # CE QUE LA FIGURE NE DIT PAS, dit ici : sur quoi les gains sont étalés.
     if not gains.empty:

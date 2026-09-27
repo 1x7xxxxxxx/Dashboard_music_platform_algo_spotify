@@ -19,6 +19,7 @@ from src.dashboard.utils.i18n import t
 from src.utils.artist_name_filter import (
     ARTIST_NAME_LIKE as _ARTIST_FILTER,
 )
+from src.dashboard.utils import charts
 _WINDOWS = [("7d", "7 jours"), ("28d", "28 jours"), ("custom", "Période perso")]
 _SOURCE_LABELS = {"dw_streams": "Discover Weekly", "rr_streams": "Release Radar", "radio_streams": "Radio"}
 _SOURCE_COLORS = {"Discover Weekly": "#1DB954", "Release Radar": "#F037A5", "Radio": "#FFA726"}
@@ -85,7 +86,7 @@ def _show_tab_algo_streams(db, song, artist_id):
     )
     fig.update_layout(hovermode="x unified", legend_title_text="")
     fig.update_xaxes(type="category")
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     with st.expander(t("trigger_algo.algostreams_table", "📋 Détail chiffré")):
         show = df.rename(columns={"recorded_at": "Date", **_SOURCE_LABELS, "total": "Total"})

@@ -10,7 +10,7 @@ import html as _html
 import streamlit as st
 import pandas as pd
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.kpi_helpers import (
@@ -437,7 +437,7 @@ def _section_plan_evolution(db) -> None:
         line=dict(color='#FFFFFF', width=2, dash='dot'),
     )
     fig.update_layout(hovermode='x unified', height=400, legend_title_text='')
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     # Current snapshot KPIs (latest bucket).
     latest_date = chart_df['Date'].max()

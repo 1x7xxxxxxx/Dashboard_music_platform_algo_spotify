@@ -5,7 +5,7 @@ Accessible uniquement au rôle 'admin'.
 import streamlit as st
 import pandas as pd
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 from src.database.postgres_handler import validate_columns, validate_table
@@ -355,7 +355,7 @@ def _render_costs(db, mrr: float) -> None:
         if mrr > 0:
             fig.add_hline(y=mrr, line_dash="dash", line_color="green",
                           annotation_text=f"MRR {mrr:.0f} €")
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
 
     active_rows = [r for r in rows if r["active"]]
     if active_rows:

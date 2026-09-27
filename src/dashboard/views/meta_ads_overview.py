@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
@@ -174,7 +174,7 @@ def _render_global_perf(df_perf: pd.DataFrame) -> None:
     fig.update_layout(height=max(360, 46 * len(noms) + 220), bargap=0.3,
                       margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
     fig.update_yaxes(automargin=True)
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch")
 
     if not (d['custom_conversions'] > 0).any():
         st.caption(t("meta_ads_overview.capi_required",
@@ -436,7 +436,7 @@ def _show_meta_ads(db, artist_id):
             title=t("meta_ads_overview.chart_360",
                     "Mes campagnes, côte à côte — les 12 plus dépensières"))
         fig.update_yaxes(automargin=True)
-        st.plotly_chart(fig, width="stretch")
+        charts.plotly_chart(fig, width="stretch")
         st.caption(t(
             "meta_ads_overview.compare_caption",
             "Les campagnes sont en ORDONNÉE : un axe vertical lit un nom long sans "
@@ -539,7 +539,7 @@ def _show_meta_ads(db, artist_id):
             height=460, hovermode="x unified", barmode='overlay',
             legend=dict(orientation="h", y=1.12),
             title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"))
-        st.plotly_chart(fig_time, width="stretch")
+        charts.plotly_chart(fig_time, width="stretch")
     else:
         st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
 
@@ -655,4 +655,4 @@ def _show_meta_ads(db, artist_id):
             agg, dim_col,
             t("meta_ads_overview.pareto_by_dim", "Dépense & CPR par {dim}").format(dim=dim_disp.lower()))
         if fig_tgt is not None:
-            st.plotly_chart(fig_tgt, width="stretch")
+            charts.plotly_chart(fig_tgt, width="stretch")

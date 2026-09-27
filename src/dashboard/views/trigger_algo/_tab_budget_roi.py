@@ -1,7 +1,7 @@
 """trigger_algo — _show_tab_budget_roi (move-only split)."""
 from datetime import date
 from plotly.subplots import make_subplots
-from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 from src.utils.track_matching import canonical_song_sql
@@ -360,7 +360,7 @@ def _render_fit(fit: dict) -> None:
         xaxis_title=t("trigger_algo.roi.axis_meta_spend", "Dépenses Meta Ads (€)"),
         yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
         height=420, hovermode="closest")
-    st.plotly_chart(fig_roi, width='stretch')
+    charts.plotly_chart(fig_roi, width='stretch')
     rc1, rc2, rc3, rc4 = st.columns(4)
     rc1.metric("R²", f"{r2:.3f}",
                help=t("trigger_algo.roi.r2_help", "1.0 = corrélation parfaite spend↔revenue"))
@@ -519,7 +519,7 @@ def _render_breakeven(be: dict, df_spend_d, df_rev, df_pop_be) -> None:
                         row=1, col=1)
     fig_be.update_yaxes(title_text=t("trigger_algo.roi.trace_popularity", "Popularité (0-100)"),
                         range=[0, 100], row=2, col=1)
-    st.plotly_chart(fig_be, width='stretch')
+    charts.plotly_chart(fig_be, width='stretch')
 
 
 def _caption_window(covered_start, covered_end, head_days: int, tail_days: int,

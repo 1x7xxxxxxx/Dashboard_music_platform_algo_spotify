@@ -43,7 +43,7 @@ avance par paliers.
 import streamlit as st
 import plotly.graph_objects as go
 import isodate
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
     latest_release_date,
@@ -182,7 +182,7 @@ def show():
                             "Croissance : Abonnés vs Vues Totales"),
                     hovermode='x unified', showlegend=False, height=480,
                 )
-                st.plotly_chart(fig_channel, width="stretch")
+                charts.plotly_chart(fig_channel, width="stretch")
 
                 # ⚠️ LES TROIS TUILES SONT PARTIES le 2026-09-21, à la demande du
                 # propriétaire — « 👥 Abonnés Actuels / 👁️ Vues Totales / 📺 Vues de
@@ -373,7 +373,7 @@ def show():
                     )
                     fig_top.update_yaxes(automargin=True)
 
-                    st.plotly_chart(fig_top, width="stretch")
+                    charts.plotly_chart(fig_top, width="stretch")
 
                 else:
                     st.info(t("youtube.no_video_category", "Aucune vidéo dans cette catégorie."))

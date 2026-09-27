@@ -51,7 +51,7 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 
-import streamlit as st
+import streamlit as st  # noqa: F401 — tests patch `pc.st.plotly_chart`; the door (charts.py) calls that same module
 
 from src.dashboard.utils.platform_absence import (          # noqa: F401
     _hatch_traces, _late_starts, _measured_range, _not_yet_collected_hover,
@@ -106,6 +106,7 @@ logger = logging.getLogger(__name__)
 from src.dashboard.utils.platform_colors import PALETTE_DARK as _PALETTE_DARK  # noqa: E402
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT as _PALETTE_LIGHT  # noqa: E402
 from src.dashboard.utils.platform_colors import is_dark as _is_dark  # noqa: E402
+from src.dashboard.utils import charts
 
 # Aucune fenêtre par défaut : « depuis le début » est le choix par défaut du sélecteur
 # de l'accueil (`utils/date_range`), et la figure doit dire la même chose que lui.
@@ -1078,7 +1079,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         mark_counter_arrivals(fig, counter_arrivals(
             cumulative or {}, [k for k in order if k in served], span), PLATFORM_LABELS, muted)
 
-    st.plotly_chart(fig, width="stretch", key=key)
+    charts.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
                       step, extra=recap_extra,
@@ -1188,4 +1189,4 @@ def _render_facets(*, fig_span: list, aligned: dict, order: list, segments: dict
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
     )
-    st.plotly_chart(fig, width="stretch", key=key)
+    charts.plotly_chart(fig, width="stretch", key=key)

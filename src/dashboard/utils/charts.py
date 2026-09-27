@@ -47,3 +47,106 @@ def pareto_spend_cpr(df, dim_col: str, title: str, *, top_n: int = 15):
         showlegend=False, height=400, margin={'t': 50},
     )
     return fig
+
+
+# ── R243 — THE drawing door (owner, 2026-09-27) ──────────────────────────────────────
+#
+# « mettre des légendes sur tous les graphes » (he could not tell what CPR meant),
+# « toujours tracer en Pareto », « des couleurs qui permettent la distinction ». Every
+# figure of the app goes through `plotly_chart` below; `tests/test_every_chart_goes_
+# through_the_door.py` refuses a `.plotly_chart(` anywhere else in src/.
+#
+# What the door does, and deliberately does NOT do (code-critic, R243):
+#   • legend — only when ≥ 2 traces would show one, and never over a legend the figure
+#     already set (a per-trace `showlegend=False` counts: an empty legend band is chrome);
+#   • glossary — the jargon found in titles, axes and trace names is defined in one line
+#     under the chart, from ONE dictionary;
+#   • Pareto — OPT-IN per site (`pareto=True`): auto-detection would re-sort each panel of
+#     a shared-axis figure on its own and break the row alignment (meta_creatives
+#     ranking), or shuffle an ordinal axis (age ranges). Ordering is presentation, not a
+#     metric definition, so it does not belong in the gold layer either.
+
+GLOSSARY: dict[str, tuple[str, str]] = {
+    # term: (i18n key, French definition) — matched as a whole word, case-sensitive.
+    "CPR": ("charts.gloss.cpr", "CPR = coût par résultat : la dépense divisée par le nombre de résultats (ici, les clics vers les plateformes)"),
+    "CTR": ("charts.gloss.ctr", "CTR = taux de clic : clics ÷ impressions, en %"),
+    "CPM": ("charts.gloss.cpm", "CPM = coût pour 1 000 impressions"),
+    "CPC": ("charts.gloss.cpc", "CPC = coût par clic"),
+    "DW": ("charts.gloss.dw", "DW = Discover Weekly"),
+    "RR": ("charts.gloss.rr", "RR = Release Radar"),
+    "PI": ("charts.gloss.pi", "PI = indice de popularité Spotify (0 à 100)"),
+    "LTV": ("charts.gloss.ltv", "LTV = ce qu'un abonné rapporte sur toute sa durée d'abonnement"),
+    "MRR": ("charts.gloss.mrr", "MRR = revenu mensuel récurrent des abonnements"),
+    "SHAP": ("charts.gloss.shap", "SHAP = la part de chaque variable dans la prédiction du modèle"),
+}
+
+
+def _texts(fig) -> list[str]:
+    """Every string a reader sees on the figure: title, axis titles, trace names."""
+    lay = fig.layout
+    out = [str(getattr(lay.title, "text", "") or "")]
+    for name in dir(lay):
+        if name.startswith(("xaxis", "yaxis")):
+            ax = getattr(lay, name, None)
+            title = getattr(getattr(ax, "title", None), "text", None)
+            if title:
+                out.append(str(title))
+    for ann in lay.annotations or ():
+        out.append(str(ann.text or ""))
+    out += [str(tr.name or "") for tr in fig.data]
+    return out
+
+
+def jargon(fig) -> list[str]:
+    """The glossary terms the figure shows, in dictionary order. Pure."""
+    import re
+    text = " ".join(_texts(fig))
+    return [k for k in GLOSSARY if re.search(rf"(?<![A-Za-z]){k}(?![A-Za-z])", text)]
+
+
+def _legend_would_show(fig) -> int:
+    return sum(1 for tr in fig.data if tr.name and tr.showlegend is not False)
+
+
+def apply_defaults(fig, *, pareto: bool | None = None):
+    """The door's changes to the figure itself — legend, palette, Pareto. Pure on `fig`."""
+    from src.dashboard.utils.platform_colors import DISTINCT
+    lay = fig.layout
+    if lay.showlegend is None and lay.legend.orientation is None and _legend_would_show(fig) >= 2:
+        fig.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="top",
+                                                       y=-0.18, xanchor="left", x=0))
+    if not lay.colorway and not any(_has_colour(tr) for tr in fig.data):
+        fig.update_layout(colorway=list(DISTINCT))
+    if pareto:
+        for tr in fig.data:
+            if tr.type == "bar":
+                horiz = tr.orientation == "h"
+                axis = "yaxis" if horiz else "xaxis"
+                ref = (tr.yaxis if horiz else tr.xaxis) or axis[0]
+                key = axis + ref[1:]
+                fig.layout[key].categoryorder = "total ascending" if horiz else "total descending"
+    return fig
+
+
+def _has_colour(tr) -> bool:
+    marker = getattr(tr, "marker", None)
+    line = getattr(tr, "line", None)
+    return bool((marker is not None and marker.color is not None)
+                or (line is not None and line.color is not None))
+
+
+def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: bool = True,
+                 **kwargs):
+    """Draw `fig` — THE way every chart of the app reaches the screen (R243)."""
+    import streamlit as st
+
+    from src.dashboard.utils.i18n import t
+    target = container if container is not None else st
+    if fig is not None and hasattr(fig, "layout"):
+        apply_defaults(fig, pareto=pareto)
+    out = target.plotly_chart(fig, **kwargs)
+    if glossary and fig is not None and hasattr(fig, "layout"):
+        terms = jargon(fig)
+        if terms:
+            target.caption(" · ".join(t(GLOSSARY[k][0], GLOSSARY[k][1]) for k in terms))
+    return out

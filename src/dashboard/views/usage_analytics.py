@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import project_db
+from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -53,7 +53,7 @@ def show():
             f"FROM usage_events WHERE ts >= {since} GROUP BY 1 ORDER BY 1")
         if df_day is not None and not df_day.empty:
             st.subheader(t("usage_analytics.events_per_day", "📅 Événements par jour"))
-            st.plotly_chart(px.line(df_day, x="jour", y="events", markers=True,
+            charts.plotly_chart(px.line(df_day, x="jour", y="events", markers=True,
                                     labels={"jour": t("usage_analytics.axis_day", "jour"),
                                             "events": t("usage_analytics.axis_events", "événements")}),
                             width="stretch")
@@ -66,7 +66,7 @@ def show():
                 f"FROM usage_events WHERE event = 'page_view' AND ts >= {since} "
                 f"GROUP BY page ORDER BY vues DESC LIMIT 20")
             if df_pages is not None and not df_pages.empty:
-                st.plotly_chart(
+                charts.plotly_chart(
                     px.bar(df_pages.sort_values("vues"), x="vues", y="page",
                            orientation="h",
                            labels={"vues": t("usage_analytics.axis_views", "vues"),
@@ -80,7 +80,7 @@ def show():
                 f"SELECT event, COUNT(*) AS n FROM usage_events WHERE ts >= {since} "
                 f"GROUP BY event ORDER BY n DESC")
             if df_evt is not None and not df_evt.empty:
-                st.plotly_chart(px.bar(df_evt, x="event", y="n",
+                charts.plotly_chart(px.bar(df_evt, x="event", y="n",
                                        labels={"event": t("usage_analytics.axis_event", "événement"),
                                                "n": t("usage_analytics.axis_count", "nombre")}),
                                 width="stretch")

@@ -14,7 +14,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
 from src.dashboard.utils.meta_accounts import account_clause, account_scope
@@ -499,7 +499,7 @@ def _render_age_panel(par_tranche, k_conf: float) -> None:
                       "<extra></extra>"))
     fig.update_layout(height=360, margin=dict(t=40),
                       yaxis_title=t("meta_cpr_optimizer.age_axis", "CPR (€)"))
-    st.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch", pareto=True)   # R243 — fiche 28
     st.info(t(
         "meta_cpr_optimizer.age_finding",
         "**{best}** est ta tranche la plus efficace : **{cb:.4f} €** par résultat, "

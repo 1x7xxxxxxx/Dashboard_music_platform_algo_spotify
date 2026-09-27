@@ -11,7 +11,7 @@ algo_knowledge; this module is purely presentational.
 import streamlit as st
 import plotly.graph_objects as go
 
-from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils.i18n import t
 
 _VERDICT_BADGE = {"malus": "🔴", "neutral": "⬜", "bonus": "🟢"}
@@ -160,7 +160,7 @@ def render_classification_scorecard(algo: str, *, compact: bool = False) -> None
     fig.update_layout(height=320, title=t("ml_widgets.cm_title",
                                           "Matrice de confusion (jeu de test)"),
                       margin=dict(t=50))
-    st.plotly_chart(fig, width="stretch", key=f"cm_{algo}")
+    charts.plotly_chart(fig, width="stretch", key=f"cm_{algo}")
     st.info(model_interpretation_text(algo, m["interpretation"]))
 
 
@@ -216,7 +216,7 @@ def render_prerelease_rr_estimator() -> None:
                       xaxis_title=t("ml_widgets.pre_rr_xaxis", "jours après sortie"),
                       yaxis_title="P(RR) %",
                       yaxis_range=[0, 100], showlegend=False)
-    st.plotly_chart(fig, width="stretch", key="pre_rr_curve")
+    charts.plotly_chart(fig, width="stretch", key="pre_rr_curve")
     cv = probe.get("cv", {})
     band = cv.get("auc_ci")
     st.success(t("ml_widgets.pre_rr_peak",
@@ -298,7 +298,7 @@ def render_lever_sensitivity(algo: str, feats: dict) -> None:
                               ).format(algo=algo, label=label_text(fid, spec)),
                       xaxis_title=unit or label_text(fid, spec), yaxis_title="P %",
                       yaxis_range=[0, 100])
-    st.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
+    charts.plotly_chart(fig, width="stretch", key=f"sens_curve_{algo}_{fid}")
     st.caption(t("ml_widgets.sens_current",
                  "Trait blanc = valeur actuelle (~{cur:,.0f} {unit})."
                  ).format(cur=cur, unit=unit) + gain_msg)

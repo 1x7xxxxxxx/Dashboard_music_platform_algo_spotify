@@ -18,7 +18,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import view_session
+from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.meta_accounts import (
     account_clause,
     account_scope,
@@ -121,7 +121,7 @@ def _render_performance(df):
                                      dim=t(f"meta_breakdowns.dim.{panel}", label)))
                 else:
                     fig.update_layout(height=360, margin={'t': 40, 'l': 60, 'r': 60, 'b': 90})
-                    st.plotly_chart(fig, width="stretch")
+                    charts.plotly_chart(fig, width="stretch")
 
     geo = _panel(df, "country")
     geo['iso3'] = geo['k'].map(iso2_to_iso3)
@@ -135,7 +135,7 @@ def _render_performance(df):
             )
             fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0},
                               geo={'showframe': False})
-            st.plotly_chart(fig, width="stretch")
+            charts.plotly_chart(fig, width="stretch")
 
 
 def _render_engagement(df):
@@ -169,7 +169,7 @@ def _render_engagement(df):
                 fig.update_layout(barmode='stack', height=340,
                                   legend={'orientation': 'h', 'y': -0.2},
                                   margin={'t': 40, 'l': 10, 'r': 10})
-                st.plotly_chart(fig, width="stretch")
+                charts.plotly_chart(fig, width="stretch")
 
     geo = _panel(df, "country")
     geo['iso3'] = geo['k'].map(iso2_to_iso3)
@@ -180,7 +180,7 @@ def _render_engagement(df):
                                 color_continuous_scale='Blues',
                                 labels={'total': t("meta_breakdowns.interactions", "Interactions")})
             fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0}, geo={'showframe': False})
-            st.plotly_chart(fig, width="stretch")
+            charts.plotly_chart(fig, width="stretch")
 
 
 def show() -> None:

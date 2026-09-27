@@ -11,6 +11,7 @@ from ._common import (
     _lifecycle_legend,
     _standardization_block,
 )
+from src.dashboard.utils import charts
 
 
 def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
@@ -45,7 +46,7 @@ def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
         curve = benchmark_df[benchmark_df["algorithm"] == algo].sort_values("age_week_bin_order")
         if curve.empty:
             continue
-        st.plotly_chart(
+        charts.plotly_chart(
             _lifecycle_band_fig(curve, _LIFECYCLE_LABELS[algo], live_order, _LIFECYCLE_PALETTE[algo]),
             width="stretch",
         )
