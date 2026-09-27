@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R223 — Capitaliser la nuit du 2026-09-27 : garde contre un `\\c` dans un fichier SQL rejoué (i… (livrée 2026-09-27)
+
+- [x] **R223 — Capitaliser la nuit du 2026-09-27 : garde contre un `\\c` dans un fichier SQL rejoué (init_db.sql, 002, create_missing_tables écrivent dans la base de dev quand on les applique à une base jetable), mémoires, propositions d'optimisation** (P3) ✅ (2026-09-27, 9a4692d9)
+  Mesuré par : `tests/test_a_sql_file_never_switches_database.py`
+  9a4692d : classe a-sql-file-that-switches-its-own-database (sites:3, garde mute rouge) ; memoires mises a jour (mails ops en corbeille, bac a sable miroir, 8 defauts de figures vus au rendu) ; 6 optimisations mesurees inscrites R224-R229
+  Commits : 9a4692d9 R223 : capitaliser la nuit du 2026-09-27 - classe a-sql-file-that-swit
+
 ## ✅ R217 — **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make d… (livrée 2026-09-27)
 
 - [x] **R217 — **Déployer chaque lot livré** : `make migrate-prod` (138-140 puis suivantes) et `make deploy SERVICE=dashboard` après CI verte ; `/health` vérifié, retour arrière et mise de côté sinon ; jamais `tasks test` — autorisé par le propriétaire le 2026-09-27 pour la séance de nuit** (P2) ✅ (2026-09-27, 269f8cca)
