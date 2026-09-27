@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R239 | **Écoutes PAR CRÉA — la solution mesurée** : une campagne qui n'a diffusé qu'UNE créa donne à cette créa ses écoutes gagnées, sans hypothèse de répartition (9 campagnes sur 21 chez l'artiste 1). Les autres sont dites « non séparables » avec le geste qui les rend mesurables : une créa par campagne, ou un lien Hypeddit par créa. Dans « Comparer mes campagnes » <!-- anchor: r239 --> <!-- critic: non — mesure directe, aucune répartition supposée (le refus de R213 c portait sur la répartition) --> | P2 | tableau « écoutes gagnées par créa » non vide en prod |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R239, R221, R222, R237 -->
+<!-- reprise: open=R221, R222, R237 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

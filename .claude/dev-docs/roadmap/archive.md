@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R239 — **Écoutes PAR CRÉA — la solution mesurée** : une campagne qui n'a diffusé qu'UNE créa d… (livrée 2026-09-27)
+
+- [x] **R239 — **Écoutes PAR CRÉA — la solution mesurée** : une campagne qui n'a diffusé qu'UNE créa donne à cette créa ses écoutes gagnées, sans hypothèse de répartition (9 campagnes sur 21 chez l'artiste 1). Les autres sont dites « non séparables » avec le geste qui les rend mesurables : une créa par campagne, ou un lien Hypeddit par créa. Dans « Comparer mes campagnes »** (P2) ✅ (2026-09-27, e0c9d2fb)
+  Mesuré par : tableau « écoutes gagnées par créa » non vide en prod
+  créa seule dans sa campagne → ses écoutes gagnées, sans répartition ; prod artiste 1 : 9 créas mesurées, 12 campagnes non séparables avec le geste qui les rend mesurables ; déployé e0c9d2fb
+  Commits : e0c9d2fb R239 : ecoutes gagnees PAR CREA la ou elles se mesurent - une crea seu
+
 ## ✅ R238 — Le mail nocturne du 2026-09-27 08:49 (`guard-mutation` rouge) : 6 gardes récents restés… (livrée 2026-09-27)
 
 - [x] **R238 — Le mail nocturne du 2026-09-27 08:49 (`guard-mutation` rouge) : 6 gardes récents restés verts sur 6 mutations génériques. Trois sont auto-prouvants (un test fabrique le défaut) et le job ne le sait pas ; trois ne le sont pas (`test_a_creative_funnel_never_widens`, `test_a_roi_verdict_needs_a_crossing_and_enough_points`, `test_a_floor_probability_is_never_shown_as_a_measure`) — les muter à la main, et que le job crédite un garde auto-prouvant** (P3) ✅ (2026-09-27, 6819775d)
