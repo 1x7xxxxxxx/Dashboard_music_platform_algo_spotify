@@ -1969,3 +1969,32 @@ Les mails de nuit n'y sont donc jamais arrivés. Je ne modifie pas le `.env` de 
   affiche le début de la nouvelle adresse, masquée.
 - Le lendemain matin : un mail « 📋 Récap de la nuit » dans ta boîte. Je le consigne dans
   `ops-mail-journal.md` à la séance suivante ; R183 se ferme au premier reçu.
+
+## 30. R221 — Sortir les mails de streaMLytics de la corbeille
+
+**Ce qui se passe** : tous les mails de `noreply@streamlytics.fr` (récap du soir, CI rouge,
+audit de nuit) arrivent avec le libellé **Corbeille**, non lus. Tu ne les vois pas, même en
+cherchant — la recherche Gmail exclut la corbeille. Mesuré le 2026-09-27 : tous les mails
+depuis le 25/09 y sont.
+
+1. Gmail → ⚙️ **Voir tous les paramètres** → onglet **Filtres et adresses bloquées**.
+2. Cherche un filtre qui porte sur `streamlytics` ou `noreply` et dont l'action est
+   **Supprimer** (ou une adresse bloquée `noreply@streamlytics.fr`).
+3. Supprime-le (ou remplace « Supprimer » par **Appliquer le libellé : streaMLytics**).
+4. Dans la corbeille, sélectionne les mails de `noreply@streamlytics.fr` → **Déplacer vers
+   Boîte de réception**.
+
+**Vérification** : dans Gmail, la recherche `from:noreply@streamlytics.fr newer_than:2d`
+(sans `in:anywhere`) rend le récap de la nuit.
+
+## 31. R222 — Ce que compte « inscriptions » dans l'admin
+
+**La question** : le compteur admin « inscriptions 7 j / 30 j · comptes vérifiés »
+(`views/admin.py:397-401`) compte les lignes de `saas_users`, dont celle du bac à sable,
+recréée à chaque `--reset` (`tools/create_sandbox.py`). Deux lectures possibles :
+
+- **les UTILISATEURS humains** — exclure les comptes liés au canari ou au bac à sable,
+  garder un utilisateur pas encore lié à un artiste ;
+- **les ARTISTES** — ne compter que les comptes liés à un artiste humain.
+
+**Vérification** : ta réponse écrite dans la ligne R222 ; le code suit.

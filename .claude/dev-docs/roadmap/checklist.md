@@ -85,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R221, R222 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -212,6 +212,8 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
+| R221 | Les mails `noreply@streamlytics.fr` (récap du soir, CI, audit de nuit) arrivent **dans la corbeille**, non lus — un filtre Gmail les y envoie ; le récap du 26/09 signalait Benken (Meta) et GRiNCH (SoundCloud) qui ne collectent pas et 36 lignes contaminées <!-- anchor: r221 --> <!-- critic: non — réglage Gmail, aucun code --> | P2 | supprimer ou corriger le filtre Gmail — runbook §30 |
+| R222 | Le compteur admin « inscriptions / comptes vérifiés » (`views/admin.py:397-401`) compte le compte du bac à sable ; l'exclure change ce que « inscription » veut dire (un utilisateur sans artiste existe) <!-- anchor: r222 --> <!-- critic: requis --> | P3 | trancher : compter les UTILISATEURS humains, ou les ARTISTES — runbook §31 |
 
 ---
 
