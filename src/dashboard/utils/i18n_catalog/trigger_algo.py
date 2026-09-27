@@ -749,11 +749,18 @@ EN = {
     "trigger_algo.cat.tile_progress": "Its progress",
     "trigger_algo.cat.tile_progress_help": (
         "How far along it is on that one lever, not its overall chance."),
-    "trigger_algo.cat.fig_note": (
-        "Each bar shows **the lever closest to its target** for that track, and what "
-        "is missing. The ranking is NOT based on probability: between your best and "
-        "worst track it moves by a few hundredths of a point, because it sits on the "
-        "floor of the calibration."),
+    "trigger_algo.cat.gauges_head": (
+        "**Where each track stands, algorithm by algorithm** — the shortest route: the "
+        "lever closest to the value where the model reaches an 80 % chance."),
+    "trigger_algo.cat.values_head": (
+        "**The values that would trigger it** — your value (bar) and, for each "
+        "algorithm, the value to reach (line). Bright line: computed by the model for "
+        "THIS track; faded line: a general reference, where the model never reaches 80 %."),
+    "trigger_algo.cat.gauges_note": (
+        "Why not the chance percentage itself: on your catalogue it moves by a few "
+        "hundredths of a point from one track to the next (it sits on the floor of the "
+        "calibration) — it would say nothing. The distance covered does move when you act."),
+    "trigger_algo.rel.current": "Your value",
     "trigger_algo.cat.artist_levers": (
         "🎤 **True for your whole catalogue** (these levers are the same on every "
         "track): {levers}"),
@@ -821,11 +828,11 @@ EN = {
         "a Release Radar. « Cohort » is the number of tracks the value is measured on."),
     "trigger_algo.tab_realise": "📈 What actually happened",
     "trigger_algo.lifecycle_folded": "📉 Lifecycle & cohort benchmark",
-    "trigger_algo.cat.compare": "⚖️ Compare tracks (empty = whole catalogue)",
-    "trigger_algo.cat.compare_help": (
-        "Pick two or three to keep only them in the chart and table below."),
-    "trigger_algo.cat.compare_on": (
-        "Comparing **{n} track(s)**. Clear the selector to get the whole catalogue back."),
+    "trigger_algo.cat.releases": "🎵 Your latest releases (5 at most)",
+    "trigger_algo.cat.releases_cut": "The first {n} selected tracks are shown.",
+    "trigger_algo.cat.releases_help": (
+        "Your five most recent releases are picked by default; swap them for other "
+        "tracks to compare those."),
     "trigger_algo.titre.best_bet": (
         "🎯 **Best expected value: {algo}** — {val:.2f} €. That is not necessarily the "
         "closest gate nor the best paying one: it is the product of both. At equal "

@@ -75,5 +75,5 @@ if __name__ == "__main__":
     frame = pd.read_csv(DATA)
     res["rows"] = len(frame)
     res["estimates"] = estimates(frame)
-    OUT.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    OUT.write_text(json.dumps(res, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(json.dumps(res["estimates"], ensure_ascii=False))

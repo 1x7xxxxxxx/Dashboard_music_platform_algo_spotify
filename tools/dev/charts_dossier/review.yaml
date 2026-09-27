@@ -437,7 +437,15 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1:
   v: garder
   owner_v: corriger
   owner: "Le plus simple et visuel : filtre auto sur les 5 dernières sorties, 5 indicateurs de % de trigger par algo, puis les valeurs de chaque paramètre et la cible pour 100 %."
-  note: "Barres d'avancement avec le levier écrit — c'est l'aperçu gratuit en plus détaillé."
+  note: "R247 : jauges par algorithme × dernière sortie — le chemin le plus court vers la valeur où le modèle passe à 80 %, pas la probabilité (plancher de Platt)."
+src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
+  q: "Quelle valeur de chaque levier déclencherait l'algorithme ?"
+  role: prediction
+  d: 4
+  c: 3
+  p: 5
+  v: garder
+  note: "R247 (suite de la fiche 42) : ta valeur écrite sur sa barre, et par algorithme la cible — trait vif calculé par le modèle pour ce titre, trait pâle quand ce n'est qu'un repère."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   q: "Combien de streams chaque algorithme m'apporte-t-il ?"
   role: prediction

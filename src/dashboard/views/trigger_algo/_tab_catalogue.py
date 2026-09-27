@@ -26,7 +26,6 @@ par les lectures de sa tranche ; une figure fabriquée ailleurs devient
 from __future__ import annotations
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
@@ -34,7 +33,7 @@ from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 
 from src.dashboard.utils.algo_preview_data import format_proba
 
-from ._catalogue import construire, leviers_artiste
+from ._catalogue import _feats as _feats_json, construire, leviers_artiste
 from src.dashboard.utils import charts
 
 _Q_CATALOGUE = """
@@ -105,17 +104,28 @@ def _show_tab_catalogue(db, artist_id) -> None:
     # lieu d'ouvrir une seconde surface : deux vues du même chiffre finissent
     # toujours par diverger, et le cliquet de figures de premier écran ne laisse
     # pas la place à une figure de plus.
+    # R247 (fiche 42) : tes DERNIÈRES SORTIES d'office, cinq au plus — la question de
+    # l'artiste est « où en sont mes nouveautés », pas le classement de tout le catalogue.
+    from ._release_targets import (MAX_TRACKS, indicators_figure, last_releases,
+                                   track_levers, values_figure)
     choix = st.multiselect(
-        t("trigger_algo.cat.compare", "⚖️ Comparer des titres (vide = tout le catalogue)"),
-        options=list(df["song"]), default=[], key=f"cat_compare_{artist_id}",
-        help=t("trigger_algo.cat.compare_help",
-               "Choisis-en deux ou trois pour ne garder qu'eux dans la figure et le "
-               "tableau ci-dessous."))
+        t("trigger_algo.cat.releases", "🎵 Tes dernières sorties (5 au plus)"),
+        options=list(df["song"]), default=last_releases(df),
+        key=f"cat_compare_{artist_id}",
+        help=t("trigger_algo.cat.releases_help",
+               "Tes cinq sorties les plus récentes sont choisies d'office ; remplace-les "
+               "par d'autres titres pour les comparer."))
+    # The cap is applied HERE, not by `max_selections`: Streamlit RAISES when the session
+    # already holds more (this key served the uncapped selector before R247), and a
+    # widened filter crashed the tab (test_a_widened_filter_still_renders).
+    if len(choix) > MAX_TRACKS:
+        st.caption(t("trigger_algo.cat.releases_cut",
+                     "Les {n} premiers titres choisis sont montrés.").format(n=MAX_TRACKS))
+        choix = choix[:MAX_TRACKS]
     if choix:
         df = df[df["song"].isin(choix)].reset_index(drop=True)
-        st.caption(t("trigger_algo.cat.compare_on",
-                     "Comparaison sur **{n} titre(s)**. Vide le sélecteur pour "
-                     "retrouver tout le catalogue.").format(n=len(df)))
+    feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
+    levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}
 
     avec_porte = df[df["avancement"].notna()]
 
@@ -138,32 +148,24 @@ def _show_tab_catalogue(db, artist_id) -> None:
                   help=t("trigger_algo.cat.tile_progress_help",
                          "Où il en est sur ce levier précis, pas sa chance globale."))
 
-    # ── La figure : l'avancement, titre par titre ───────────────────────────
-    d = avec_porte.sort_values("avancement", ascending=True)
-    if not d.empty:
-        # R209 — a cut label is a CATEGORY here: two names sharing 33 characters would
-        # be one row (class a-truncated-label-that-merges-two-categories).
-        from src.dashboard.utils.labels import unique_short_labels
-        court = unique_short_labels(d["song"], 34)
-        fig = go.Figure(go.Bar(
-            x=d["avancement"], y=court, orientation="h", showlegend=False,
-            marker_color=[_teinte(v) for v in d["avancement"]],
-            text=[f"{lab} · {g:,.0f} {u}".replace(",", " ")
-                  for lab, g, u in zip(d["gate_label"], d["gate_gap"], d["gate_unit"])],
-            textposition="outside", cliponaxis=False,
-            hovertemplate="%{y}<br>%{x:.0%} · %{text}<extra></extra>"))
-        fig.update_xaxes(tickformat=".0%", range=[0, 1.15])
-        fig.update_layout(height=max(300, 42 * len(d) + 120), bargap=0.3,
-                          margin={"l": 10, "r": 60, "t": 30, "b": 20})
-        fig.update_yaxes(automargin=True)
-        charts.plotly_chart(fig, width="stretch")
-        st.caption(t(
-            "trigger_algo.cat.fig_note",
-            "Chaque barre montre **le levier le plus proche de sa cible** pour ce "
-            "titre, et ce qu'il lui manque. Le classement ne repose PAS sur la "
-            "probabilité : entre ton meilleur et ton pire titre, elle ne varie que "
-            "de quelques centièmes de point, parce qu'elle est posée sur le plancher "
-            "de la calibration."))
+    # ── R247 (fiche 42) — deux figures, dans l'ordre de la question ──────────
+    if choix:
+        st.markdown(t("trigger_algo.cat.gauges_head",
+                      "**Où chaque titre en est, algorithme par algorithme** — le chemin "
+                      "le plus court : le levier le plus proche de la valeur où le modèle "
+                      "passe à 80 % de chances."))
+        charts.plotly_chart(indicators_figure(choix, levers), width="stretch")
+        st.markdown(t("trigger_algo.cat.values_head",
+                      "**Les valeurs qui déclencheraient** — ta valeur (barre) et, pour "
+                      "chaque algorithme, la valeur visée (trait). Trait vif : calculée par "
+                      "le modèle pour CE titre ; trait pâle : un repère général, là où le "
+                      "modèle n'atteint jamais 80 %."))
+        charts.plotly_chart(values_figure(choix, levers), width="stretch")
+        st.caption(t("trigger_algo.cat.gauges_note",
+                     "Pourquoi pas le pourcentage de chances directement : sur ton catalogue, "
+                     "il ne varie que de quelques centièmes de point d'un titre à l'autre (il "
+                     "est posé sur le plancher de la calibration) — il ne dirait rien. Le "
+                     "chemin parcouru, lui, bouge quand tu agis."))
 
     # ── Les leviers d'artiste, UNE fois ─────────────────────────────────────
     artiste = leviers_artiste(df)
