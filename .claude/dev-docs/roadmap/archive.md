@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R219 — Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en pro… (livrée 2026-09-27)
+
+- [x] **R219 — Dérive de schéma : `meta_ads.ad_name` et `meta_adsets.adset_name` sont NULLables en prod et en local, NOT NULL dans `init_db.sql`, `meta_ads_schema.py` et donc en CI — aucune migration ne l'explique ; deux fixtures R205 passaient en local et rougissaient en CI (2026-09-27). Mesurer l'écart complet (toutes colonnes, prod vs init_db) et décider du sens** (P3) ✅ (2026-09-27, d4d0dc86, 34f2bf94)
+  Mesuré par : `information_schema.columns` prod vs CI
+  livre d4d0dc8, migration 141 appliquee en prod 2026-09-27 : nullabilite alignee CI/prod (11 NOT NULL, 2 NULLables legitimes), schema-check compare le NOT NULL ; verifie en prod colonne par colonne
+  Commits : d4d0dc86 R219 : la nullabilite est la meme en CI et en prod - migration 141 (11 · 34f2bf94 R205 : les fixtures des gardes de taux et de fan-out nomment leurs ann
+
+## ✅ R215 — Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre… (livrée 2026-09-27)
+
+- [x] **R215 — Grafana : la latence de rendu n'a que 1-2 points en 7 jours, et le pool Postgres montre des milliers de replis directs (fiches 119, 121, 125)** (P2) ✅ (2026-09-27, c1568aca)
+  Mesuré par : `make charts-dossier` (Grafana) + règles d'alerte
+  livre c1568ac, deploye 2026-09-27 (API) : la sonde /health rend sa connexion, RESET ALL au retour au pool, latence en [1h] ; verifie en prod 6 min apres (12 sondes) : pool 0 emprunte, 0 repli (etait 8/8 et 3 280 replis)
+  Commits : c1568aca R215 : la sonde /health de l'API rend la connexion qu'elle emprunte (8
+
 ## ✅ R214 — Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, a… (livrée 2026-09-27)
 
 - [x] **R214 — Wrapped : tuiles annuelles repliées au lieu des graphiques, rien retiré (fiches 6-13, après R205)** (P4) ✅ (2026-09-27, 51fcf87)
