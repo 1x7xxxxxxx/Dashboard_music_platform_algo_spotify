@@ -2038,3 +2038,16 @@ d'exploitation n'est saisi — hébergement Hetzner, nom de domaine, outils paya
 3. Recommence pour chaque poste (serveur, domaine, outils).
 
 **Vérification** : la section affiche la liste de tes coûts et la marge n'est plus vide.
+
+## 35. R275 — Faire tester l'app à deux artistes bêta · P2
+
+**Pourquoi** : tes notes demandent un retour d'artistes réels avant d'aller plus loin ;
+personne d'autre ne peut l'envoyer.
+
+1. Envoie à chacun le lien d'inscription de l'app et un message vocal de 1 minute : ce que
+   fait l'app, et la seule question « qu'est-ce qui t'a bloqué ou surpris ? ».
+2. Demande-leur de faire la mise en route jusqu'au premier graphique.
+3. Colle leurs réponses dans le fil (ou dans `revue/`), je les traduis en lignes de roadmap.
+
+**Vérification** : deux retours collés, et au moins un nouveau compte artiste humain visible
+dans l'admin (hors bac à sable).
