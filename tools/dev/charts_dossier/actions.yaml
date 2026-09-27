@@ -294,7 +294,7 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   - qui: moi
     texte: 'Donnée absente (régresseur DW désactivé) : l''écrire dans la page ou retirer la figure'
     rid: R247
-src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
+src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   valide: false
   actions:
   - qui: moi
@@ -425,7 +425,7 @@ src/dashboard/views/db_health.py::_show_heatmap#1:
   - qui: moi
     texte: Retirer
     rid: R249
-src/dashboard/views/db_health.py::_show_batch_sizes#1:
+src/dashboard/views/db_health.py::_show_ingestion_gaps#1:
   valide: false
   actions:
   - qui: moi
@@ -449,3 +449,27 @@ src/dashboard/views/airflow_kpi.py::show#3:
   - qui: moi
     texte: Rendre (API Airflow)
     rid: R242
+grafana:1:
+  valide: false
+  actions:
+  - qui: moi
+    texte: Chiffres vérifiés + méthode bronze/argent/or (relecture précédente)
+    rid: R205
+grafana:3:
+  valide: false
+  actions:
+  - qui: moi
+    texte: Chiffres vérifiés + méthode bronze/argent/or (relecture précédente)
+    rid: R205
+grafana:7:
+  valide: false
+  actions:
+  - qui: moi
+    texte: Chiffres vérifiés + méthode bronze/argent/or (relecture précédente)
+    rid: R205
+grafana:15:
+  valide: false
+  actions:
+  - qui: moi
+    texte: Fusions proposées + méthode anti-doublon (relecture précédente)
+    rid: R207
