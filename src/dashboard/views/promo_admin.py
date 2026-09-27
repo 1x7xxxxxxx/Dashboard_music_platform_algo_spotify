@@ -32,7 +32,7 @@ def _generate_code() -> str:
 
 def _create_code(db, code: str, plan: str, duration_days: int,
                  max_uses: int, expires_at, notes: str) -> None:
-    db.fetch_query(
+    db.execute_query(
         """
         INSERT INTO promo_codes (code, plan_target, duration_days, max_uses, expires_at, notes)
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -44,7 +44,7 @@ def _create_code(db, code: str, plan: str, duration_days: int,
 
 
 def _toggle_active(db, code_id: int, new_state: bool) -> None:
-    db.fetch_query(
+    db.execute_query(
         "UPDATE promo_codes SET active = %s WHERE id = %s",
         (new_state, code_id),
     )

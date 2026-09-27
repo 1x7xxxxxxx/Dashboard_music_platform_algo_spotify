@@ -51,6 +51,14 @@ graph TD
     F -.->|/metrics, port lateral| P[Prometheus<br/>127.0.0.1:9090]
     I -.->|/metrics, MEME port HTTP| P
     P -.->|datasource| GR[Grafana<br/>127.0.0.1:3000]
+
+    %% R265 (2026-09-28) — le registre des défauts a TROIS producteurs, plus un : le
+    %% dashboard le nourrissait seul, et une panne d'API ou de DAG ne laissait qu'un mail.
+    ERR[(app_error_log<br/>une ligne par empreinte)]
+    F -->|error_alert · record_error| ERR
+    I -->|api/error_capture.py| ERR
+    C -->|utils/dag_callbacks.py| ERR
+    ERR -.->|jauge des défauts ouverts, serve.py| P
 ```
 
 ---
@@ -60,18 +68,22 @@ graph TD
 ```mermaid
 graph LR
     SERVE[dashboard/serve.py<br/>entrée du conteneur] -->|exportateur puis streamlit run| app.py
-    app.py -->|routes to| V[views/]
+    app.py -->|"ROUTES.get(page)"| RT[dashboard/routes.py<br/>LA table de routage — R261]
+    RT -->|"importlib, show()"| V[views/]
+    app.py -->|menu| NAV[utils/nav_sections.py]
     app.py -->|uses| auth.py
     auth.py -->|depends on| PH[PostgresHandler]
     V -->|uses| GDB[get_db_connection]
     GDB -->|wraps| PH
     PH -->|psycopg2| DB[(spotify_etl)]
     API[src/api/routers/*<br/>FastAPI] -->|"Depends(get_db)"| DEPS[api/deps.py]
+    API -->|exception non gérée| ECAP[api/error_capture.py] -->|record_error, sa connexion| PH
     DEPS -->|wraps| GDB
     V -->|"@st.fragment"| FDB[utils/fragment_db.py]
     FDB -->|réutilise la connexion de la page| GDB
 
     DAG[airflow/dags/*.py] -->|calls| COL[src/collectors/*]
+    DAG -->|on_failure_callback| DCB[utils/dag_callbacks.py<br/>mail + app_error_log]
     DAG -->|calls| CL[credential_loader]
     CL -->|reads| DB
     COL -->|upsert_many via| PH
@@ -96,7 +108,13 @@ graph LR
 | Module | Type | Key Dependencies |
 |---|---|---|
 | `postgres_handler.py` | Core | psycopg2 |
-| `app.py` | Core | auth.py, all views, get_db_connection |
+| `app.py` | Core | auth.py, `routes.py` (ROUTES, import dynamique des vues), `utils/nav_sections.py` (menu), get_db_connection |
+| `dashboard/routes.py` | Core | rien — la table page → module (R261) ; lue par app.py, `tools/artist_first_look.py` et les gardes (`tests/nav_source.routed_pages`) |
+| `src/api/error_capture.py` | Utility | `error_registry.record_error`, `postgres_handler` — une exception non gérée de l'API devient un défaut de `app_error_log` (R265) |
+| `src/utils/dag_callbacks.py` | Utility | `email_alerts.dag_failure_callback`, `error_registry.record_error` — LE rappel d'échec des 13 DAG (R265) |
+| `dashboard/utils/ratios.py` | Utility | rien — CPC, CPM, CPR, CTR définis une fois (R258) ; `meta_ads_overview`, `meta_creatives`, `meta_cpr_optimizer`, `trigger_algo/_reglages` |
+| `dashboard/utils/onboarding_journey.py` | Utility | `saas_users`, `artist_credentials`, `etl_run_log` en une requête ; lu par `onboarding_health.py` (R270) |
+| `dashboard/content/recap_charts.py` | Utility | généré par `tools/dev/build_recap.py` depuis la revue notée ; lu par `views/recap.py` (R271) |
 | `init_db.sql` | Core | Docker entrypoint (runs once) |
 | `auth.py` | Core | PostgresHandler, saas_artists table |
 | `views/*.py` | Feature | get_db_connection, st.session_state |
@@ -249,7 +267,10 @@ flowchart TD
 
     ATT2 -->|429 still active| ATT3[attempt 3/3 +10min]
     ATT2 -->|rate limit cleared| SUCCESS
-    ATT3 -->|still failing| FINAL[❌ DAG FAILED\nemail alert\nManual retrigger next day]
+    ATT3 -->|still failing| FINAL[❌ DAG FAILED\nManual retrigger next day]
+    FINAL -->|on_failure_callback| DCB[utils/dag_callbacks.py\nle rappel UNIQUE des 13 DAG — R265]
+    DCB -->|dag_failure_callback| MAIL[mail au propriétaire]
+    DCB -->|record_error| ERRLOG[(app_error_log\nmake error-inbox)]
     ATT3 -->|OK| SUCCESS
 
     %% Ce que le flux ci-dessus NE montrait PAS jusqu'au 2026-09-18, et qui existe.

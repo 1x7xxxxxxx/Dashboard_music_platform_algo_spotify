@@ -178,7 +178,7 @@ def _apply_promo(db, promo: dict, artist_id: int, code: str) -> None:
             (promo['id'],),
         )
 
-    db.fetch_query(
+    db.execute_query(
         """
         UPDATE saas_artists
         SET promo_code_used = %s, promo_plan = %s, promo_plan_expires_at = %s
@@ -186,7 +186,7 @@ def _apply_promo(db, promo: dict, artist_id: int, code: str) -> None:
         """,
         (code, promo['plan_target'], expires_at, artist_id),
     )
-    db.fetch_query(
+    db.execute_query(
         "INSERT INTO promo_events (promo_code_id, artist_id) VALUES (%s, %s)",
         (promo['id'], artist_id),
     )
@@ -224,20 +224,20 @@ def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: 
     creation (R23): the insert no longer knows whether the code is real, and a code the
     insert cannot vouch for must not reach the row.
     """
-    db.fetch_query(
+    db.execute_query(
         "UPDATE saas_artists SET referred_by_code = %s, first_month_discount_pct = %s "
         "WHERE id = %s",
         (code, discount_pct, referred_artist_id),
     )
-    db.fetch_query(
+    db.execute_query(
         "INSERT INTO referral_events (referrer_artist_id, referred_artist_id, code_used) VALUES (%s, %s, %s)",
         (referrer_artist_id, referred_artist_id, code),
     )
-    db.fetch_query(
+    db.execute_query(
         "UPDATE saas_artists SET referral_free_months = referral_free_months + 1 WHERE id = %s",
         (referrer_artist_id,),
     )
-    db.fetch_query(
+    db.execute_query(
         "UPDATE referral_codes SET uses_count = uses_count + 1 WHERE code = %s",
         (code,),
     )
