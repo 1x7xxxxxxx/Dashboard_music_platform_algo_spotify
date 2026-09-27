@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**52 exigences** sur **20 domaines** (carte : 24). conforme : 27 · partiel : 19 · absent : 6 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 8
+**64 exigences** sur **20 domaines** (carte : 24). conforme : 28 · partiel : 23 · absent : 13 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 20
 
 ## Collecteurs API (`collect`)
 
@@ -47,7 +47,7 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-DQ-01 | Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes | partiel | `tests/test_every_quality_check_has_a_category.py` ✅ | Moses et al. p.135 et p.152 | R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables) → R230 |
+| REQ-DQ-01 | Sept familles de contrôles automatiques : doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes | partiel | `tests/test_every_quality_check_has_a_category.py` ✅ | Moses et al. p.135 et p.152 | R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables) → R258 |
 | REQ-DQ-02 | Une anomalie d'ingestion se mesure en lignes attendues × locataires contre lignes reçues, avec seuil | conforme | `tests/test_an_ingestion_gap_is_expected_against_received.py` ✅ | — | — |
 | REQ-DQ-03 | Un défaut de donnée est corrigé à sa cause, pas maquillé ; une absence n'est jamais dessinée comme un zéro | conforme | `tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py` ✅ | — | — → R206 |
 
@@ -58,6 +58,7 @@
 | REQ-FILTER-01 | Une seule couche de filtres (période, titre, plateforme, compte, campagne) ; aucune vue n'écrit son propre filtre | partiel | `tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter` ✅ | — | 7 vues passent par filters.py ; smart_date_range (imusician, meta_creatives) et meta_accounts (5 vues Meta) la contournent → R259 |
 | REQ-FILTER-02 | Le filtre de période s'ouvre par défaut sur « depuis la dernière sortie », dans toute l'app | partiel | `—`  | — | chaque vue de plateforme passe last_release elle-même, mais le défaut de la couche partagée reste « current » (src/dashboard/utils/period_filter.py _default_preset) et aucun test ne l'exige → R259 |
 | REQ-FILTER-03 | Élargir n'importe quel filtre ne fait jamais planter la vue | conforme | `tests/test_a_widened_filter_still_renders.py::test_widening_every_filter_does_not_raise` ✅ | — | — |
+| REQ-FILTER-04 | Toute vue qui trace une série dans le temps offre le filtre de période commun | partiel | `—`  | — | meta_ads_overview, meta_breakdowns et meta_cpr_optimizer n'ont aucun filtre de période → R259 |
 
 ## Porte de dessin — légendes, palette, Pareto (`chart-door`)
 
@@ -74,6 +75,7 @@
 |---|---|---|---|---|---|
 | REQ-FORMAT-01 | Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques | absent | `—`  | Few p.74 | 164 st.metric sans formateur commun, 12 formateurs concurrents, ~86 bricolages de séparateur → R260 |
 | REQ-FORMAT-02 | Une date affichée suit la langue du lecteur | conforme | `tests/test_a_date_shown_to_a_reader_follows_their_language.py::test_no_view_formats_a_date_day_first` ✅ | — | — |
+| REQ-FORMAT-03 | Les tableaux partagent un style et des formats de colonnes | absent | `—`  | Few p.74 | 71 appels st.dataframe / st.table sans style commun → R260 |
 
 ## Pages, navigation et premier écran (`pages-ux`)
 
@@ -97,12 +99,16 @@
 | REQ-RUN-01 | Un rendu ouvre au plus son plafond de connexions et les referme sur tous les chemins | conforme | `tests/test_a_render_opens_one_connection.py::test_rendering_a_view_opens_at_most_its_ceiling` ✅ | — | — |
 | REQ-RUN-02 | La latence de rendu est mesurée par page (p50/p95) et reste sous son seuil d'ADR à la charge visée | partiel | `tests/test_a_fragment_never_captures_a_connection.py` ✅ | Kleppmann p.44 (percentiles) | la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue → R266 |
 | REQ-RUN-03 | Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée | absent | `—`  | — | — → R266 |
+| REQ-RUN-04 | Des sessions concurrentes ne perdent aucun rerun | absent | `—`  | Kleppmann p.44 | R114 : 33 à 37 reruns perdus à 12-24 onglets, sur une ou deux instances ; le goulot n'est pas identifié → R266 |
+| REQ-RUN-05 | Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1) | absent | `—`  | Golding p.449 | onboarding_health boucle par artiste : 106 requêtes à 6 artistes, ~900 projetées à 50 → R266 |
+| REQ-RUN-06 | Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés | partiel | `—`  | — | pool de 8 par instance, ~4 connexions par rendu → ~2 rendus concurrents avant replis directs → R266 |
 
 ## API REST (`api`)
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-API-01 | L'API mesure sa latence par motif de route, sans libellés non bornés | conforme | `tests/test_the_api_measures_itself_without_unbounded_labels.py::test_the_route_label_is_the_pattern_not_the_url` ✅ | — | — |
+| REQ-API-02 | La latence de l'API a un chiffre publié (p95 par route) et un seuil d'alerte | absent | `—`  | — | l'API est instrumentée, mais aucun chiffre de latence n'est relevé ni alerté → R265 |
 
 ## Multi-locataire et plans (`tenancy-plans`)
 
@@ -118,6 +124,9 @@
 | REQ-SEC-01 | Aucun secret n'entre dans l'historique ; un secret indexé est refusé au commit et en CI | conforme | `tests/test_a_staged_secret_is_refused.py::test_the_detector_sees_the_defect_it_is_written_for` ✅ | Janca, Alice and Bob Learn Application Security (index p.210, user secrets) | — |
 | REQ-SEC-02 | Le contrôle de sécurité nocturne est bloquant (gitleaks et audit des dépendances, API comprise) | partiel | `—`  | — | gitleaks nocturne en continue-on-error, pip-audit en || true, requirements-api.txt non audité → R267 |
 | REQ-SEC-03 | Aucun fichier de secret ne voyage dans une couche d'image Docker | conforme | `tests/test_a_secret_never_rides_into_an_image_layer.py::test_every_secret_the_repo_hides_is_also_kept_out_of_the_build_context` ✅ | — | — |
+| REQ-SEC-04 | Aucun geste de Claude Code ne lit un fichier .env — le refus couvre Read ET le shell (cat, grep, source) | partiel | `—`  | Janca, Alice and Bob Learn Application Security (index p.210, user secrets) | Read(./.env*) est refusé, mais guard_destructive.py n'a aucune règle .env et settings.local.json autorise cat, grep, python3 — un secret peut atterrir dans le contexte → R267 |
+| REQ-SEC-05 | En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir | partiel | `—`  | — | API_STRICT_BOOT n'est posé que dans docker-compose.example.yml ; sinon un simple avertissement → R267 |
+| REQ-SEC-06 | Aucune dépendance ne porte une vulnérabilité ignorée par son nom sans date de fin | partiel | `—`  | — | l'avis ecdsa de python-jose est ignoré par son nom dans make audit-deps ; requirements-api.txt n'est pas audité → R267 |
 
 ## Tests locaux et CI (`tests-ci`)
 
@@ -132,7 +141,8 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-CLAUDE-01 | Un agent n'existe que s'il a un déclencheur qui peut se produire ; la liste de refus des permissions ne rétrécit pas | conforme | `tests/test_claude_config_floor.py::test_the_permission_deny_list_does_not_shrink` ✅ | — | — |
-| REQ-CLAUDE-02 | Claude Code lit la fiche d'un domaine avant d'y toucher ; toute exigence nouvelle entre au catalogue avec sa preuve | partiel | `tests/test_every_requirement_has_a_probe.py` ✅ | — | la règle CLAUDE.md et l'injection par mots-clés sont livrées par R257 → R257 |
+| REQ-CLAUDE-02 | Claude Code lit la fiche d'un domaine avant d'y toucher ; toute exigence nouvelle entre au catalogue avec sa preuve | conforme | `tests/test_every_requirement_has_a_probe.py` ✅ | — | — |
+| REQ-CLAUDE-03 | CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes | absent | `—`  | — | CLAUDE.md fait ~52 Ko → R268 |
 
 ## Gouvernance de la roadmap (`roadmap-gov`)
 
@@ -141,6 +151,7 @@
 | REQ-ROAD-01 | Toute action de code a sa ligne de roadmap AVANT, archivée seulement livrée et testée | conforme | `tests/test_an_action_is_on_the_roadmap_before_it_runs.py::test_the_detector_sees_the_defect_it_is_written_for` ✅ | — | — |
 | REQ-ROAD-02 | Chaque avis du propriétaire devient une action reliée à une ligne réelle de la roadmap | conforme | `tests/test_every_dossier_action_is_in_the_roadmap.py::test_every_dossier_action_names_a_real_roadmap_row` ✅ | — | — |
 | REQ-ROAD-03 | La discipline de roadmap est mesurée et son relevé n'est jamais périmé | partiel | `make roadmap-discipline` ✅ | — | .claude/dev-docs/roadmap-discipline.json date du 2026-09-26 et liste des lignes fermées depuis → R268 |
+| REQ-ROAD-04 | Une modification de code se rattache à LA ligne qu'elle cite, pas seulement à une ligne ouverte quelconque | absent | `—`  | — | le hook d'édition vérifie qu'une ligne est ouverte, pas que le diff est la tâche citée → R268 |
 
 ## Classes d'erreur et registre applicatif (`error-classes`)
 
@@ -149,6 +160,7 @@
 | REQ-ERR-01 | Une classe d'erreur n'entre qu'avec un billet d'admission chiffré, une signature vue rouge et un balayage | conforme | `tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected` ✅ | Beyer et al., The Site Reliability Workbook p.213 (actions préventives d'un postmortem) | — |
 | REQ-ERR-02 | Le registre des erreurs applicatives reçoit les erreurs de TOUTE l'infra (dashboard, API, DAG, collecteurs), par empreinte et par page | partiel | `tests/test_an_error_leaves_a_row.py` ✅ | — | app_error_log n'est alimenté que par le dashboard ; l'API et les DAG ne l'appellent pas ; « No data » sur les erreurs par page dans Grafana → R265 |
 | REQ-ERR-03 | Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille | partiel | `tests/test_the_error_class_families_only_improve.py` ✅ | — | 12 familles et 18 règles existent ; pas de table en base pour suivre pertinence et échecs des classes dans le temps → R264 |
+| REQ-ERR-04 | Le balayage de toutes les signatures tient dans le budget de la CI | absent | `—`  | — | audit_runner --deterministic dépasse 1 800 s → R264 |
 
 ## Infrastructure et observabilité (`infra-observability`)
 
@@ -167,6 +179,18 @@
 - REQ-RUN-03
 - REQ-SEC-02
 - REQ-TEST-03
+- REQ-SEC-04
+- REQ-SEC-05
+- REQ-SEC-06
+- REQ-RUN-04
+- REQ-RUN-05
+- REQ-RUN-06
+- REQ-API-02
+- REQ-ERR-04
+- REQ-FILTER-04
+- REQ-FORMAT-03
+- REQ-CLAUDE-03
+- REQ-ROAD-04
 
 ## Rejouer une preuve sur une ligne précise
 

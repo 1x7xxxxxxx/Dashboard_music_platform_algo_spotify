@@ -144,7 +144,7 @@
   statut: partiel
   preuve: {pytest: tests/test_every_quality_check_has_a_category.py}
   ecart: "R230 range 14 contrôles sous les 7 familles (tools/dev/dq_catalogue.py) ; manques déclarés : borne par nature de mesure, campagne sans titre, pas de scan de doublons (UNIQUE sur 119/131 tables)"
-  roadmap: R230
+  roadmap: R258
   mutation: "retirer la catégorie d'un contrôle dans tools/dev/dq_catalogue.py"
 - id: REQ-DQ-02
   domaine: data-quality
@@ -423,10 +423,9 @@
   enonce: Claude Code lit la fiche d'un domaine avant d'y toucher ; toute exigence nouvelle entre au catalogue avec sa preuve
   sources: [{notes: L549}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_every_requirement_has_a_probe.py}
-  ecart: la règle CLAUDE.md et l'injection par mots-clés sont livrées par R257
-  roadmap: R257
+  mutation: "renommer le test cité par une exigence → la preuve ne se résout plus"
 
 # ── Roadmap, classes d'erreur, observabilité ──────────────────────────────────
 
@@ -504,3 +503,113 @@
   preuve: {cmd: "test -f .claude/dev-docs/grafana-correspondence.md"}
   ecart: la correspondance est un document, pas un contrôle
   roadmap: R265
+
+# ── Écarts trouvés par l'exploration du 2026-09-27 (3 agents), chacun avec sa ligne ──
+- id: REQ-SEC-04
+  domaine: security
+  enonce: Aucun geste de Claude Code ne lit un fichier .env — le refus couvre Read ET le shell (cat, grep, source)
+  sources: [{doc: .claude/settings.json}, {theorie: "Janca, Alice and Bob Learn Application Security (index p.210, user secrets)"}]
+  priorite: P1
+  statut: partiel
+  ecart: "Read(./.env*) est refusé, mais guard_destructive.py n'a aucune règle .env et settings.local.json autorise cat, grep, python3 — un secret peut atterrir dans le contexte"
+  a_ecrire: "cas dans tests/test_a_bash_guard_reads_the_command_not_the_prose.py : `cat .env.local` refusé, `echo .env` en prose accepté"
+  roadmap: R267
+- id: REQ-SEC-05
+  domaine: security
+  enonce: En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir
+  sources: [{doc: src/api/main.py}]
+  priorite: P1
+  statut: partiel
+  ecart: "API_STRICT_BOOT n'est posé que dans docker-compose.example.yml ; sinon un simple avertissement"
+  a_ecrire: "test qui exige STREAMLYTICS_ENV=production ⇒ démarrage strict dans _preflight (src/api/main.py)"
+  roadmap: R267
+- id: REQ-SEC-06
+  domaine: security
+  enonce: Aucune dépendance ne porte une vulnérabilité ignorée par son nom sans date de fin
+  sources: [{doc: Makefile}]
+  priorite: P2
+  statut: partiel
+  ecart: "l'avis ecdsa de python-jose est ignoré par son nom dans make audit-deps ; requirements-api.txt n'est pas audité"
+  a_ecrire: "test qui refuse une exception d'audit sans date d'expiration dans le Makefile"
+  roadmap: R267
+- id: REQ-RUN-04
+  domaine: app-runtime
+  enonce: Des sessions concurrentes ne perdent aucun rerun
+  sources: [{notes: L72}, {theorie: "Kleppmann p.44"}]
+  priorite: P2
+  statut: absent
+  ecart: "R114 : 33 à 37 reruns perdus à 12-24 onglets, sur une ou deux instances ; le goulot n'est pas identifié"
+  a_ecrire: "make loadtest-concurrency avec un seuil de reruns perdus qui sort ≠ 0"
+  roadmap: R266
+- id: REQ-RUN-05
+  domaine: app-runtime
+  enonce: Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1)
+  sources: [{adr: docs/adr/ADR-007-performance-work-is-trigger-gated.md}, {theorie: "Golding p.449"}]
+  priorite: P2
+  statut: absent
+  ecart: "onboarding_health boucle par artiste : 106 requêtes à 6 artistes, ~900 projetées à 50"
+  a_ecrire: "test qui compte les requêtes du rendu admin avec 1 puis 10 locataires simulés et exige le même nombre"
+  roadmap: R266
+- id: REQ-RUN-06
+  domaine: app-runtime
+  enonce: Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés
+  sources: [{doc: src/database/postgres_handler.py}]
+  priorite: P3
+  statut: partiel
+  ecart: "pool de 8 par instance, ~4 connexions par rendu → ~2 rendus concurrents avant replis directs"
+  a_ecrire: "test qui lit la taille du pool et le nombre de connexions par rendu, et exige pool ≥ connexions × concurrence déclarée"
+  roadmap: R266
+- id: REQ-API-02
+  domaine: api
+  enonce: La latence de l'API a un chiffre publié (p95 par route) et un seuil d'alerte
+  sources: [{notes: L67}]
+  priorite: P3
+  statut: absent
+  ecart: "l'API est instrumentée, mais aucun chiffre de latence n'est relevé ni alerté"
+  a_ecrire: "règle d'alerte p95 par route dans deploy/prometheus/rules/streamlytics.yml, testée par un test qui lit le fichier de règles"
+  roadmap: R265
+- id: REQ-ERR-04
+  domaine: error-classes
+  enonce: Le balayage de toutes les signatures tient dans le budget de la CI
+  sources: [{doc: .claude/dev-docs/test-suite-performance.md}]
+  priorite: P3
+  statut: absent
+  ecart: "audit_runner --deterministic dépasse 1 800 s"
+  a_ecrire: "cible qui chronomètre --deterministic et sort ≠ 0 au-delà du budget"
+  roadmap: R264
+- id: REQ-FILTER-04
+  domaine: filters
+  enonce: Toute vue qui trace une série dans le temps offre le filtre de période commun
+  sources: [{notes: L98}, {notes: L511}]
+  priorite: P3
+  statut: partiel
+  ecart: "meta_ads_overview, meta_breakdowns et meta_cpr_optimizer n'ont aucun filtre de période"
+  a_ecrire: "test qui liste les vues traçant une série temporelle et exige un appel à la couche filters"
+  roadmap: R259
+- id: REQ-FORMAT-03
+  domaine: formats
+  enonce: Les tableaux partagent un style et des formats de colonnes
+  sources: [{notes: L549}, {theorie: "Few p.74"}]
+  priorite: P4
+  statut: absent
+  ecart: "71 appels st.dataframe / st.table sans style commun"
+  a_ecrire: "cliquet sur les st.dataframe sans column_config commun dans src/dashboard/views/"
+  roadmap: R260
+- id: REQ-CLAUDE-03
+  domaine: claude-wsl
+  enonce: CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes
+  sources: [{notes: L66}]
+  priorite: P4
+  statut: absent
+  ecart: "CLAUDE.md fait ~52 Ko"
+  a_ecrire: "test de budget de taille de CLAUDE.md, qui ne peut que baisser"
+  roadmap: R268
+- id: REQ-ROAD-04
+  domaine: roadmap-gov
+  enonce: Une modification de code se rattache à LA ligne qu'elle cite, pas seulement à une ligne ouverte quelconque
+  sources: [{notes: L71}]
+  priorite: P3
+  statut: absent
+  ecart: "le hook d'édition vérifie qu'une ligne est ouverte, pas que le diff est la tâche citée"
+  a_ecrire: "au commit : les fichiers touchés doivent apparaître dans le périmètre déclaré de la ligne citée"
+  roadmap: R268

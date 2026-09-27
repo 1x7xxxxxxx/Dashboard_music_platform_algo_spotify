@@ -71,3 +71,33 @@ def test_a_red_proof_is_never_printed_as_conforme():
     assert bench.verdict("conforme", "rouge") == "RÉGRESSION"
     assert bench.verdict("partiel", "rouge").startswith("partiel")
     assert bench.verdict("conforme", "vert") == "conforme"
+
+
+def _open_ids() -> set[str]:
+    import re
+    with open(ROOT / ".claude/dev-docs/roadmap/checklist.md", encoding="utf-8") as fh:
+        rows = set(re.findall(r"^\| (R\d+) \|", fh.read(), re.M))
+    with open(ROOT / ".claude/dev-docs/product-backlog.md", encoding="utf-8") as fh:
+        return rows | set(re.findall(r"^\| (R\d+) \|", fh.read(), re.M))
+
+
+def without_open_line(reqs: list[dict], open_ids: set[str]) -> list[str]:
+    """Requirements not yet met whose deliverable names no OPEN roadmap line. Pure."""
+    return [f"{r['id']} ({r['statut']}) → {r.get('roadmap') or 'aucune ligne'}"
+            for r in reqs if r.get("statut") != "conforme" and r.get("roadmap") not in open_ids]
+
+
+def test_every_requirement_not_yet_met_is_carried_by_an_open_roadmap_line():
+    """Owner, 2026-09-27 : « intègre tout ce qu'on a identifié dans la roadmap ». A gap of the
+    benchmark with no open line is identified and lost at once."""
+    _, reqs = bench.load()
+    bad = without_open_line(reqs, _open_ids())
+    assert not bad, "exigences sans ligne de roadmap ouverte :\n" + "\n".join(bad)
+
+
+def test_the_open_line_detector_sees_a_missing_and_an_archived_line():
+    ids = _open_ids()
+    assert without_open_line([{"id": "X", "statut": "absent"}], ids)
+    assert without_open_line([{"id": "X", "statut": "partiel", "roadmap": "R230"}], ids)
+    assert not without_open_line([{"id": "X", "statut": "conforme"}], ids)
+    assert not without_open_line([{"id": "X", "statut": "absent", "roadmap": sorted(ids)[0]}], ids)
