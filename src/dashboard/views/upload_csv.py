@@ -383,6 +383,12 @@ def _parse_file(platform_key: str, file, artist_id: int,
             row['artist_id'] = artist_id
             row['period_start'] = start
             row['period_end'] = end
+            # R235 — the reading describes the END of the exported period, not the day
+            # it was uploaded: « yesterday » exported this morning is yesterday. A
+            # one-day export (start = end) is then the day's own plays and Shazams
+            # (`v_apple_song_daily`, migration 142).
+            if end is not None:
+                row['snapshot_date'] = end
         return rows
 
     if platform_key == 'imusician_summary':

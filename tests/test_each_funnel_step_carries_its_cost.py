@@ -110,3 +110,25 @@ def test_an_unmeasured_baseline_is_absent_not_zero() -> None:
                            d0, d0 + dt.timedelta(days=4))
     assert all(r["before"] is None and r["change"] is None for r in got), got
     assert next(r for r in got if r["col"] == "ig_followers")["during"] is None
+
+
+# ── Shazam → streams, with its delay (R235) ──────────────────────────────────
+def test_the_shazam_lag_is_found_where_the_data_puts_it() -> None:
+    from src.dashboard.utils.campaign_funnel import shazam_stream_lag
+    import numpy as np
+    days = pd.date_range("2026-05-01", periods=30, freq="D")
+    rng = np.random.default_rng(7)
+    shazams = pd.Series(rng.integers(0, 50, 30), index=days, dtype=float)
+    streams = shazams.shift(2).fillna(0) * 10          # streams follow Shazams by 2 days
+    master = pd.DataFrame({"date": days, "apple_shazams": shazams.values,
+                           "streams": streams.values})
+    got = shazam_stream_lag(master)
+    assert got and got["lag"] == 2 and got["corr"] > 0.9, got
+
+
+def test_too_few_paired_days_give_no_number() -> None:
+    from src.dashboard.utils.campaign_funnel import MIN_PAIRED_DAYS, shazam_stream_lag
+    days = pd.date_range("2026-05-01", periods=MIN_PAIRED_DAYS - 1, freq="D")
+    master = pd.DataFrame({"date": days, "apple_shazams": range(len(days)),
+                           "streams": range(len(days))})
+    assert shazam_stream_lag(master) is None

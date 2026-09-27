@@ -81,7 +81,8 @@ from src.dashboard.utils.meta_accounts import account_clause, account_scope
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
-    BASELINE_DAYS, BASELINE_MIN_DAYS, engagement_lift, step_texts, streams_gained,
+    BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury, engagement_lift,
+    shazam_stream_lag, step_texts, streams_gained,
 )
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_date
@@ -466,6 +467,25 @@ def _last_spend_day(master: pd.DataFrame):
     return None if spent.empty else spent["date"].max()
 
 
+def _render_shazam_lag(master: pd.DataFrame) -> None:
+    """R235 — do Shazams turn into streams, and after how long? Said in one line."""
+    if "apple_shazams" not in master.columns:
+        return
+    got = shazam_stream_lag(master)
+    if got is None:
+        st.caption(t("meta_x_spotify.shazam_lag_thin",
+                     "🎎 Shazam → écoutes : pas assez de jours relevés en même temps (il en "
+                     "faut {n}). Exporte chaque jour « hier » depuis Apple Music for Artists "
+                     "pendant la campagne.").format(n=MIN_PAIRED_DAYS))
+        return
+    st.caption(t("meta_x_spotify.shazam_lag",
+                 "🎎 Shazam → écoutes : les Shazams d'un jour suivent le mieux les écoutes "
+                 "**{lag} jour(s) plus tard** (corrélation {c}, sur {n} jours). Une "
+                 "corrélation n'est pas une cause : une sortie ou une playlist fait monter "
+                 "les deux.").format(lag=got["lag"], c=f"{got['corr']:.2f}".replace(".", ","),
+                                     n=got["days"]))
+
+
 def _render_engagement(db, artist_id, d0, d1) -> None:
     """R213 (lot d) — did the campaign move anything beyond streams? A TEXT table: the
     file is at its figure ceiling, and five numbers against five numbers read better in
@@ -814,6 +834,7 @@ def _show_body(db, artist_id) -> None:
     ])
     with tab_impact:
         _render_chart(master, campaign)
+        _render_shazam_lag(master)
         _render_engagement(db, artist_id, d0, d1)
         _render_absences(absences, d0, d1)
     with tab_funnel:
@@ -880,32 +901,6 @@ def _campaign_window(camp_start, camp_end, campaign: str) -> tuple:
 
 
 # ── Le funnel, rapatrié de « Publicité Meta Ads » et CORRIGÉ ───────────────────
-def _campaign_treasury(db, artist_id, d0, d1, spend: float | None) -> str:
-    """R213 (lot f) — the money around this campaign, from the ONE money door.
-
-    Revenue is monthly and a campaign is counted in days, so the sentence speaks of the
-    WHOLE months the window touches — `get_roi_data` widens it and says so, and it is the
-    same definition the treasury (R212) draws. Revenue is never attributed to the
-    campaign: royalties of those months come from every track, and they arrive months
-    after the streams."""
-    from src.dashboard.utils.kpi_helpers import get_roi_data
-
-    def fmt_eur(v):
-        # The page writes euros the French way (« 1 463,61 € »), like its other captions.
-        return "—" if v is None else f"{v:,.2f} €".replace(",", " ").replace(".", ",")
-
-    roi = get_roi_data(db, artist_id, d0, d1)
-    if roi['revenue_eur'] is None and roi['total_spend'] is None:
-        return ""
-    return " " + t("meta_x_spotify.funnel_treasury",
-                   "💶 Sur les mois de cette campagne ({a} → {b}) : **{rev}** de revenus "
-                   "nets (tous titres, versés avec retard), **{tot}** de dépenses au total, "
-                   "dont **{sp}** pour cette campagne sur la fenêtre.").format(
-        a=format_date(roi['effective_from']), b=format_date(roi['effective_to']),
-        rev=fmt_eur(roi['revenue_eur']), tot=fmt_eur(roi['total_spend']),
-        sp=fmt_eur(spend))
-
-
 def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                    s4a_song=None) -> None:
     """Meta × Spotify × Hypeddit — et l'incohérence que l'artiste a vue.
@@ -1065,7 +1060,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                         "Pas d'étape « écoutes gagnées » : il faut au moins {n} jours "
                         "d'écoutes relevés avant la campagne, et une hausse mesurable.").format(
             n=BASELINE_MIN_DAYS)
-    note += _campaign_treasury(db, artist_id, d0, d1, spend)
+    note += campaign_treasury(db, artist_id, d0, d1, spend)
     st.caption(note)
 
 

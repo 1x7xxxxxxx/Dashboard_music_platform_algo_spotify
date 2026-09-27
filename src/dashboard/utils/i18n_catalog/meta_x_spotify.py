@@ -160,4 +160,6 @@ EN = {
     "meta_x_spotify.eng_ig_followers": "Instagram followers gained / day",
     "meta_x_spotify.funnel_treasury": "💶 Over this campaign's months ({a} → {b}): **{rev}** of net revenue (all tracks, paid with a delay), **{tot}** of spend in total, of which **{sp}** for this campaign over the window.",
     "meta_x_spotify.funnel_impressions": "📣 **{txt}** impressions — the starting point, outside the funnel: at that scale the next steps would be invisible.",
+    "meta_x_spotify.shazam_lag_thin": "🎎 Shazam → streams: not enough days measured together ({n} needed). Export « yesterday » from Apple Music for Artists every day of the campaign.",
+    "meta_x_spotify.shazam_lag": "🎎 Shazam → streams: a day's Shazams best match the streams **{lag} day(s) later** (correlation {c}, over {n} days). A correlation is not a cause: a release or a playlist lifts both.",
 }

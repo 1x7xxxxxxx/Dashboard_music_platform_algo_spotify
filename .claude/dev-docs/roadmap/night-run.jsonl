@@ -555,3 +555,6 @@
 {"at": "2026-09-27T06:13:47+00:00", "head": "9a4692d9", "kind": "done", "task": "R223", "what": "capitalisation faite"}
 {"at": "2026-09-27T09:58:00+00:00", "head": "40d9c48e", "kind": "start", "task": "R225", "what": "roadmap-close ferme l'unite de nuit"}
 {"at": "2026-09-27T10:03:13+00:00", "kind": "done", "task": "R225", "what": "fermée par roadmap-close — close_night_unit ecrit le done du journal ; teste sur journal temporaire, mute rouge"}
+{"at": "2026-09-27T10:03:25+00:00", "head": "e6a026c5", "kind": "start", "task": "R224", "what": "CI de code non annulee par un commit de doc"}
+{"at": "2026-09-27T10:03:50+00:00", "head": "e6a026c5", "kind": "park", "task": "R224", "what": "attente code-critic"}
+{"at": "2026-09-27T10:03:50+00:00", "head": "e6a026c5", "kind": "start", "task": "R235", "what": "Shazam quotidien : releve date par l'export + correlation"}

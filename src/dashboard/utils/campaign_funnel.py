@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 
 # R213 (lot b) — the minimum baseline before a « streams gained » step is drawn. Fewer
@@ -155,3 +156,58 @@ def funnel_stages(rows: pd.DataFrame) -> list[tuple[str, str, int]]:
     if out:
         stages.append(("meta_creatives.results", "Clics sortants", out))
     return stages
+
+
+# ── Shazam → streams, with its delay (R235, 2026-09-27) ─────────────────────────────
+MIN_PAIRED_DAYS = 14
+MAX_LAG_DAYS = 7
+
+
+def shazam_stream_lag(master: pd.DataFrame) -> dict | None:
+    """The lag (0-7 days) at which daily Shazams best precede daily streams. Pure.
+
+    Needs `MIN_PAIRED_DAYS` days where BOTH are measured — a daily Apple export during
+    the campaign (migration 142). Returns {lag, corr, days} or None; a correlation on a
+    handful of days is noise, so fewer days is « not enough », never a number."""
+    if master is None or not {"apple_shazams", "streams"} <= set(master.columns):
+        return None
+    d = master[["date", "apple_shazams", "streams"]].copy()
+    d["date"] = pd.to_datetime(d["date"])
+    d = d.set_index("date").sort_index()
+    best = None
+    for lag in range(MAX_LAG_DAYS + 1):
+        pair = pd.concat([d["apple_shazams"], d["streams"].shift(-lag, freq="D")],
+                         axis=1, keys=["s", "t"]).dropna()
+        if len(pair) < MIN_PAIRED_DAYS or pair["s"].std() == 0 or pair["t"].std() == 0:
+            continue
+        corr = float(pair["s"].corr(pair["t"]))
+        if best is None or corr > best["corr"]:
+            best = {"lag": lag, "corr": corr, "days": len(pair)}
+    return best
+
+
+# ── The money around a campaign (moved from views/meta_x_spotify.py, R235) ─────────
+def campaign_treasury(db, artist_id, d0, d1, spend: float | None) -> str:
+    """R213 (lot f) — the money around this campaign, from the ONE money door.
+
+    Revenue is monthly and a campaign is counted in days, so the sentence speaks of the
+    WHOLE months the window touches — `get_roi_data` widens it and says so, and it is the
+    same definition the treasury (R212) draws. Revenue is never attributed to the
+    campaign: royalties of those months come from every track, and they arrive months
+    after the streams."""
+    from src.dashboard.utils.kpi_helpers import get_roi_data
+
+    def fmt_eur(v):
+        # The page writes euros the French way (« 1 463,61 € »), like its other captions.
+        return "—" if v is None else f"{v:,.2f} €".replace(",", " ").replace(".", ",")
+
+    roi = get_roi_data(db, artist_id, d0, d1)
+    if roi['revenue_eur'] is None and roi['total_spend'] is None:
+        return ""
+    return " " + t("meta_x_spotify.funnel_treasury",
+                   "💶 Sur les mois de cette campagne ({a} → {b}) : **{rev}** de revenus "
+                   "nets (tous titres, versés avec retard), **{tot}** de dépenses au total, "
+                   "dont **{sp}** pour cette campagne sur la fenêtre.").format(
+        a=format_date(roi['effective_from']), b=format_date(roi['effective_to']),
+        rev=fmt_eur(roi['revenue_eur']), tot=fmt_eur(roi['total_spend']),
+        sp=fmt_eur(spend))
