@@ -15,7 +15,7 @@ Injecté quand la demande parle de modularité, de scalabilité ou d'une règle 
 | 2 | Lire ses exigences et leur verdict du jour | `requirements.yaml` + `make arch-benchmark` (ou `NO_RUN=1`) | commande |
 | 3 | La demande est-elle une exigence nouvelle ? | oui → entrée au catalogue : source (note `Lnnn`, ADR, livre + page), statut, UNE preuve ciblée ou `a_ecrire` | playbook |
 | 4 | Une note du propriétaire ? | `notes-triage.yaml` : statut vérifié dans le code, ligne de roadmap réelle | playbook |
-| 5 | Le livrable | ligne Rnnn AVANT le code (R196), critic si structure, test muté rouge | hook + pytest |
+| 5 | Le livrable | ligne Rnnn AVANT le code (R196), critic si structure (verdicts : `critic-2026-09-27.md`), test muté rouge | hook + pytest |
 | 6 | Relancer le benchmark | une preuve rouge sur un « conforme » s'imprime RÉGRESSION | commande |
 
 La preuve se rejoue sur une ligne précise : lancer le nœud pytest seul, appliquer la

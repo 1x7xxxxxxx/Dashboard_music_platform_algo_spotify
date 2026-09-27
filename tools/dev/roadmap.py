@@ -183,6 +183,68 @@ def close_night_unit(tid: str, note: str | None, journal: Path | None = None) ->
     return False
 
 
+def ci_verdict(runs: list[dict]) -> str:
+    """« ok » | « rouge » | « en cours » | « inconnu » from `gh run list --json`. Pure.
+
+    R268 (2026-09-27) — a closure used to go through while main was RED: R254 was closed on
+    a commit whose own CI failed, and « CI verte » was then announced to the owner without
+    being read. A delivery is closed on a green CI, never on a hope."""
+    if not runs:
+        return "inconnu"
+    if any(r.get("conclusion") in ("failure", "cancelled", "timed_out") for r in runs):
+        return "rouge"
+    if any(r.get("status") != "completed" for r in runs):
+        return "en cours"
+    return "ok"
+
+
+def _delivery_ci(commits: list[str]) -> tuple[str, str]:
+    """(verdict, sha) of the most recent delivering commit — pushed, and its CI read."""
+    import json
+    import shutil
+    import subprocess
+    if not commits:
+        return "inconnu", ""
+    sha = commits[0].split()[0]
+    if os.environ.get("ROADMAP_SKIP_CI") or subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--verify", "-q", "origin/main"],
+            capture_output=True).returncode != 0:
+        return "inconnu", sha                     # no remote to judge against (a scratch repo)
+    pushed = subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", sha,
+                             "origin/main"], capture_output=True).returncode == 0
+    if not pushed:
+        return "non poussé", sha
+    if not shutil.which("gh"):
+        return "inconnu", sha
+    out = subprocess.run(["gh", "run", "list", "--commit", sha, "--json", "status,conclusion"],
+                         cwd=str(ROOT), capture_output=True, text=True)
+    try:
+        return ci_verdict(json.loads(out.stdout or "[]")), sha
+    except ValueError:
+        return "inconnu", sha
+
+
+def _close_notes(tid: str, commit: str) -> int:
+    """The owner's notes carried by `tid` become « livré » when it closes (R268)."""
+    path = ROOT / ".claude" / "dev-docs" / "architecture" / "notes-triage.yaml"
+    if not path.is_file():
+        return 0
+    import yaml
+    raw = path.read_text(encoding="utf-8")
+    head = raw[:raw.index("- ligne")] if "- ligne" in raw else ""
+    items = yaml.safe_load(raw) or []
+    n = 0
+    for it in items:
+        if it.get("roadmap") == tid and it.get("statut") in ("partiel", "ouvert", "décision-requise"):
+            it["statut"], it["preuve_statut"] = "livré", f"{tid} (archivée) — {commit}"
+            it.pop("roadmap", None)
+            n += 1
+    if n:
+        path.write_text(head + yaml.safe_dump(items, allow_unicode=True, sort_keys=False,
+                                              width=110), encoding="utf-8")
+    return n
+
+
 def cmd_close(args) -> int:
     """Retire la ligne d'index, ÉCRIT l'entrée d'archive si elle manque, recale l'ancre."""
     tid = args.id.upper()
@@ -197,6 +259,16 @@ def cmd_close(args) -> int:
         print(f"❌ {len(rows)} lignes d'index pour {tid} — trancher à la main d'abord.",
               file=sys.stderr)
         return 1
+
+    commits_now = delivery_commits(tid)
+    verdict, sha = _delivery_ci(commits_now)
+    if verdict in ("rouge", "en cours", "non poussé") and not getattr(args, "force_ci", False):
+        print(f"❌ {tid} : le commit de livraison {sha} — CI {verdict}. On ne ferme pas une "
+              "livraison sur une CI qui n'est pas verte (R268). Attendre, corriger, ou "
+              "--force-ci avec la raison dans NOTE.", file=sys.stderr)
+        return 1
+    if verdict == "inconnu":
+        print(f"⚠️  {tid} : CI du commit de livraison non lue (gh absent ou aucun run).")
 
     archive = ARCHIVE.read_text(encoding="utf-8")
     # ⚠️ LA verification qui manquait a la prose. Le test de conservation ne reconnait
@@ -238,6 +310,13 @@ def cmd_close(args) -> int:
     print(f"✅ {tid} retirée de l'index · ancre → {', '.join(ids) or '(vide)'}")
     if close_night_unit(tid, args.note):
         print(f"   unité de nuit [{tid}] fermée avec la tâche")
+    notes = _close_notes(tid, sha or "?")
+    if notes:
+        print(f"   {notes} note(s) du propriétaire passée(s) « livré »")
+    import subprocess
+    subprocess.run([sys.executable, str(ROOT / "tools" / "dev" / "roadmap_discipline.py"),
+                    "--write"], cwd=str(ROOT), capture_output=True)
+    print("   relevé de discipline réécrit (.claude/dev-docs/roadmap-discipline.json)")
     print(f"   reste {len(ids)} tâche(s) ouverte(s)")
     print("   vérifier : python3 -m pytest tests/test_roadmap_two_files.py "
           "tests/test_the_resume_header_is_checked.py -q")
@@ -251,6 +330,8 @@ def main() -> int:
     c = sub.add_parser("close", help="retire une tâche de l'index et recale l'ancre")
     c.add_argument("id", help="identifiant, ex. R128")
     c.add_argument("--note", default="", help="une ligne ajoutée à l'entrée d'archive")
+    c.add_argument("--force-ci", action="store_true",
+                   help="fermer malgré une CI non verte — la raison va dans --note")
     c.set_defaults(func=cmd_close)
 
     s = sub.add_parser("sync", help="remet l'ancre d'accord avec les deux tables d'index")

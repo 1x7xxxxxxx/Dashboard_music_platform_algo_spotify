@@ -158,7 +158,7 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## [180 s mesuré le 2026-09-25 — 4 workers, pile Docker up] Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer
+test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer (son temps : .claude/dev-docs/test-suite-timing.json, écrit par elle)
 	@# La sortie va DANS UN FICHIER, et ce n'est pas du confort. Le 2026-09-16, j'ai
 	@# conclu QUATRE FOIS qu'une suite etait « morte en route » ; les quatre fois elle
 	@# tournait encore. Les executions passaient par `| tail -6`, qui ne rend rien avant
@@ -169,7 +169,8 @@ test:        ## [180 s mesuré le 2026-09-25 — 4 workers, pile Docker up] Suit
 	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
 	@# vert serait infiniment pire que lente.
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
-	  rc=$$?; echo "   journal complet : .pytest-last.log"; exit $$rc
+	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
+	  python3 tools/dev/suite_timing.py "$(PYTEST_WORKERS)"; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'

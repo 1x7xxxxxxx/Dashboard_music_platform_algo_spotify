@@ -25,15 +25,13 @@
   mutation: "supprimer une entrée de REGISTRY dans tools/dev/metric_registry.py → l'objet or lu n'est plus déclaré"
 - id: REQ-GOLD-02
   domaine: gold
-  enonce: Chaque KPI porte définition, source(s), formule, granularité, période et tests de qualité
+  enonce: Chaque KPI porte définition, source(s), formule, granularité, fenêtre, et ses tests de qualité se lisent
   sources: [{notes: L508}, {theorie: "Reis & Housley p.482"}]
   priorite: P2
-  statut: partiel
-  preuve: {pytest: tests/test_every_metric_is_registered.py::test_every_metric_says_its_sense}
-  ecart: le registre porte le sens et la vue, pas encore formule, granularité, période ni le test de qualité associé
-  mutation: "retirer `sense` d'une entrée du registre"
-  roadmap: R258
-
+  statut: conforme
+  preuve: {pytest: tests/test_every_metric_is_registered.py::test_the_untested_metrics_only_become_fewer}
+  ecart: "corrigé le 2026-09-27 (critic R258) : formula, grain et window existent dans le registre ; les tests d'une métrique sont CALCULÉS par gold_coverage, sous cliquet"
+  mutation: "retirer `formula` d'une entrée de REGISTRY"
 - id: REQ-GOLD-03
   domaine: gold
   enonce: Un graphique ou une tuile ne lit que l'or ; le nombre de lectures du brut ne fait que baisser
@@ -405,13 +403,13 @@
   mutation: "faire rendre la suite entière par select_tests.py pour tout diff"
 - id: REQ-TEST-03
   domaine: tests-ci
-  enonce: Les chiffres de temps de suite publiés sont UNE source générée, pas trois documents qui se contredisent
+  enonce: Le temps de suite publié est UNE mesure écrite par la suite elle-même
   sources: [{notes: L72}]
   priorite: P4
-  statut: absent
-  a_ecrire: "test qui refuse un temps de suite écrit à la main dans Makefile, CLAUDE.md et test-suite-performance.md s'il diffère du dernier .pytest-last.log"
-  roadmap: R268
-
+  statut: conforme
+  preuve: {pytest: tests/test_a_delivery_closes_on_a_green_ci.py::test_the_suite_time_is_read_from_the_run_not_written_by_hand}
+  ecart: "R268 : make test écrit .claude/dev-docs/test-suite-timing.json ; le Makefile et CLAUDE.md y renvoient (le « 180 s » recopié avait deux jours de retard, 372 s mesurés)"
+  mutation: "remettre un temps écrit à la main dans l'aide de make test"
 - id: REQ-CLAUDE-01
   domaine: claude-wsl
   enonce: Un agent n'existe que s'il a un déclencheur qui peut se produire ; la liste de refus des permissions ne rétrécit pas
@@ -449,14 +447,13 @@
   mutation: "remettre « fait = absent de l'index » dans action_state()"
 - id: REQ-ROAD-03
   domaine: roadmap-gov
-  enonce: La discipline de roadmap est mesurée et son relevé n'est jamais périmé
+  enonce: La discipline de roadmap est mesurée et son relevé n'est jamais périmé ; une livraison se ferme sur une CI verte
   sources: [{notes: L71}]
   priorite: P3
-  statut: partiel
-  preuve: {cmd: "make roadmap-discipline"}
-  ecart: .claude/dev-docs/roadmap-discipline.json date du 2026-09-26 et liste des lignes fermées depuis
-  roadmap: R268
-
+  statut: conforme
+  preuve: {pytest: tests/test_a_delivery_closes_on_a_green_ci.py::test_a_red_or_running_ci_refuses_the_closure}
+  ecart: "R268 : make roadmap-close lit la CI du commit de livraison (refuse rouge, en cours, non poussé), réécrit le relevé de discipline et passe les notes du propriétaire « livré »"
+  mutation: "faire rendre « ok » à ci_verdict sur un échec"
 - id: REQ-ERR-01
   domaine: error-classes
   enonce: Une classe d'erreur n'entre qu'avec un billet d'admission chiffré, une signature vue rouge et un balayage
@@ -603,16 +600,16 @@
   enonce: CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes
   sources: [{notes: L66}]
   priorite: P4
-  statut: absent
-  ecart: "CLAUDE.md fait ~52 Ko"
-  a_ecrire: "test de budget de taille de CLAUDE.md, qui ne peut que baisser"
-  roadmap: R268
+  statut: conforme
+  preuve: {pytest: tests/test_a_delivery_closes_on_a_green_ci.py::test_claude_md_stays_under_its_budget_not_vacuous}
+  ecart: "R268 : budget 52 933 octets, ne peut que baisser (il a attrapé la propre ligne de R268)"
+  mutation: "fixer le budget sous la taille du fichier"
 - id: REQ-ROAD-04
   domaine: roadmap-gov
   enonce: Une modification de code se rattache à LA ligne qu'elle cite, pas seulement à une ligne ouverte quelconque
   sources: [{notes: L71}]
   priorite: P3
-  statut: absent
-  ecart: "le hook d'édition vérifie qu'une ligne est ouverte, pas que le diff est la tâche citée"
-  a_ecrire: "au commit : les fichiers touchés doivent apparaître dans le périmètre déclaré de la ligne citée"
-  roadmap: R268
+  statut: conforme
+  preuve: {pytest: tests/test_a_commit_stays_in_its_rows_scope.py::test_a_file_outside_the_declared_scope_is_refused}
+  ecart: "R268 : une ligne déclare `<!-- scope: … -->`, le hook de commit refuse un fichier produit hors de ce périmètre ; toute ligne à partir de R279 doit le déclarer"
+  mutation: "faire rendre [] à out_of_scope"

@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**64 exigences** sur **20 domaines** (carte : 24). conforme : 33 · partiel : 20 · absent : 11 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 16 · *(preuves non rejouées : --no-run)*
+**64 exigences** sur **20 domaines** (carte : 24). conforme : 38 · partiel : 18 · absent : 8 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 13 · *(preuves non rejouées : --no-run)*
 
 ## Collecteurs API (`collect`)
 
@@ -38,7 +38,7 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-GOLD-01 | Une métrique = une définition canonique = une vue or, déclarée au registre avec son sens (flux, cumul, niveau) | conforme | `tests/test_every_metric_is_registered.py::test_every_read_gold_object_is_registered_and_no_entry_is_dead`  | Reis & Housley, Fundamentals of Data Engineering p.482 (metrics layer) | — |
-| REQ-GOLD-02 | Chaque KPI porte définition, source(s), formule, granularité, période et tests de qualité | partiel | `tests/test_every_metric_is_registered.py::test_every_metric_says_its_sense`  | Reis & Housley p.482 | le registre porte le sens et la vue, pas encore formule, granularité, période ni le test de qualité associé → R258 |
+| REQ-GOLD-02 | Chaque KPI porte définition, source(s), formule, granularité, fenêtre, et ses tests de qualité se lisent | conforme | `tests/test_every_metric_is_registered.py::test_the_untested_metrics_only_become_fewer`  | Reis & Housley p.482 | corrigé le 2026-09-27 (critic R258) : formula, grain et window existent dans le registre ; les tests d'une métrique sont CALCULÉS par gold_coverage, sous cliquet |
 | REQ-GOLD-03 | Un graphique ou une tuile ne lit que l'or ; le nombre de lectures du brut ne fait que baisser | partiel | `tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens`  | — | 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md → R258 |
 | REQ-GOLD-04 | Deux définitions censées coïncider sont comparées sur les vraies données, et l'écart alerte | conforme | `tests/test_the_gold_layer_agrees_with_itself.py::test_every_gold_invariant_holds_on_the_real_data`  | Moses et al., Data Quality Fundamentals p.152 (piliers de l'observabilité) | — |
 | REQ-GOLD-05 | Ce que la figure DESSINE est contrôlé après sa lecture or (taux ≤ 100 %, cumul qui ne retombe pas, pas deux barres sous un nom) | conforme | `tests/test_a_chart_number_is_checked_after_its_gold_read.py::test_the_detector_sees_the_defect_it_is_written_for`  | — | — |
@@ -73,9 +73,9 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-FORMAT-01 | Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques | partiel | `tests/test_a_number_is_written_one_way.py::test_the_hand_made_forms_only_become_fewer`  | Few p.74 | R260 : formats.num/eur/pct (FR et EN), fmt_eur y délègue, 46 sites migrés ; restent 28 séparateurs faits main et 153 formats {:,} sous cliquet → R278 |
+| REQ-FORMAT-01 | Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques | partiel | `tests/test_a_number_is_written_one_way.py::test_the_hand_made_forms_only_become_fewer`  | Few p.74 | R260 : formats.num/eur/pct (FR et EN), fmt_eur y délègue, 46 sites migrés ; restent 26 séparateurs faits main et 77 formats {:,} sous cliquet → R278 |
 | REQ-FORMAT-02 | Une date affichée suit la langue du lecteur | conforme | `tests/test_a_date_shown_to_a_reader_follows_their_language.py::test_no_view_formats_a_date_day_first`  | — | — |
-| REQ-FORMAT-03 | Les tableaux partagent un style et des formats de colonnes | partiel | `tests/test_a_number_is_written_one_way.py::test_the_unformatted_tables_only_become_fewer`  | Few p.74 | R260 : formats.table ; 45 tableaux sur 58 encore sans format, sous cliquet → R278 |
+| REQ-FORMAT-03 | Les tableaux partagent un style et des formats de colonnes | partiel | `tests/test_a_number_is_written_one_way.py::test_the_hand_made_forms_only_become_fewer`  | Few p.74 | R260 : formats.table ; 45 tableaux sur 58 encore sans format, sous cliquet → R278 |
 
 ## Pages, navigation et premier écran (`pages-ux`)
 
@@ -134,7 +134,7 @@
 |---|---|---|---|---|---|
 | REQ-TEST-01 | La CI répartit la suite en shards équilibrés par des durées réelles, chaque test neuf apporte sa durée | conforme | `tests/test_a_new_test_brings_its_duration.py::test_the_hook_judges_every_tracked_test_not_only_the_staged_files`  | Khorikov, Unit Testing p.113 (retour rapide) | — |
 | REQ-TEST-02 | La boucle de code ne lance que les tests atteignables depuis le diff | conforme | `tests/test_the_selector_selects_what_changed.py`  | — | — |
-| REQ-TEST-03 | Les chiffres de temps de suite publiés sont UNE source générée, pas trois documents qui se contredisent | absent | `—`  | — | — → R268 |
+| REQ-TEST-03 | Le temps de suite publié est UNE mesure écrite par la suite elle-même | conforme | `tests/test_a_delivery_closes_on_a_green_ci.py::test_the_suite_time_is_read_from_the_run_not_written_by_hand`  | — | R268 : make test écrit .claude/dev-docs/test-suite-timing.json ; le Makefile et CLAUDE.md y renvoient (le « 180 s » recopié avait deux jours de retard, 372 s mesurés) |
 
 ## Configuration Claude Code et poste WSL (`claude-wsl`)
 
@@ -142,7 +142,7 @@
 |---|---|---|---|---|---|
 | REQ-CLAUDE-01 | Un agent n'existe que s'il a un déclencheur qui peut se produire ; la liste de refus des permissions ne rétrécit pas | conforme | `tests/test_claude_config_floor.py::test_the_permission_deny_list_does_not_shrink`  | — | — |
 | REQ-CLAUDE-02 | Claude Code lit la fiche d'un domaine avant d'y toucher ; toute exigence nouvelle entre au catalogue avec sa preuve | conforme | `tests/test_every_requirement_has_a_probe.py`  | — | — |
-| REQ-CLAUDE-03 | CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes | absent | `—`  | — | CLAUDE.md fait ~52 Ko → R268 |
+| REQ-CLAUDE-03 | CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes | conforme | `tests/test_a_delivery_closes_on_a_green_ci.py::test_claude_md_stays_under_its_budget_not_vacuous`  | — | R268 : budget 52 933 octets, ne peut que baisser (il a attrapé la propre ligne de R268) |
 
 ## Gouvernance de la roadmap (`roadmap-gov`)
 
@@ -150,8 +150,8 @@
 |---|---|---|---|---|---|
 | REQ-ROAD-01 | Toute action de code a sa ligne de roadmap AVANT, archivée seulement livrée et testée | conforme | `tests/test_an_action_is_on_the_roadmap_before_it_runs.py::test_the_detector_sees_the_defect_it_is_written_for`  | — | — |
 | REQ-ROAD-02 | Chaque avis du propriétaire devient une action reliée à une ligne réelle de la roadmap | conforme | `tests/test_every_dossier_action_is_in_the_roadmap.py::test_every_dossier_action_names_a_real_roadmap_row`  | — | — |
-| REQ-ROAD-03 | La discipline de roadmap est mesurée et son relevé n'est jamais périmé | partiel | `make roadmap-discipline`  | — | .claude/dev-docs/roadmap-discipline.json date du 2026-09-26 et liste des lignes fermées depuis → R268 |
-| REQ-ROAD-04 | Une modification de code se rattache à LA ligne qu'elle cite, pas seulement à une ligne ouverte quelconque | absent | `—`  | — | le hook d'édition vérifie qu'une ligne est ouverte, pas que le diff est la tâche citée → R268 |
+| REQ-ROAD-03 | La discipline de roadmap est mesurée et son relevé n'est jamais périmé ; une livraison se ferme sur une CI verte | conforme | `tests/test_a_delivery_closes_on_a_green_ci.py::test_a_red_or_running_ci_refuses_the_closure`  | — | R268 : make roadmap-close lit la CI du commit de livraison (refuse rouge, en cours, non poussé), réécrit le relevé de discipline et passe les notes du propriétaire « livré » |
+| REQ-ROAD-04 | Une modification de code se rattache à LA ligne qu'elle cite, pas seulement à une ligne ouverte quelconque | conforme | `tests/test_a_commit_stays_in_its_rows_scope.py::test_a_file_outside_the_declared_scope_is_refused`  | — | R268 : une ligne déclare `<!-- scope: … -->`, le hook de commit refuse un fichier produit hors de ce périmètre ; toute ligne à partir de R279 doit le déclarer |
 
 ## Classes d'erreur et registre applicatif (`error-classes`)
 
@@ -176,7 +176,6 @@
 - REQ-ORCH-03
 - REQ-RUN-03
 - REQ-SEC-02
-- REQ-TEST-03
 - REQ-SEC-04
 - REQ-SEC-05
 - REQ-SEC-06
@@ -185,8 +184,6 @@
 - REQ-RUN-06
 - REQ-API-02
 - REQ-ERR-04
-- REQ-CLAUDE-03
-- REQ-ROAD-04
 
 ## Rejouer une preuve sur une ligne précise
 

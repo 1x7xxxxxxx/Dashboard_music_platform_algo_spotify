@@ -104,7 +104,7 @@ pour décorer :
 |---|---|---|
 | `make test-changed` | les tests atteignables depuis le diff — un `.md`/`.yml` ne force plus la suite entière (2026-09-25) | **secondes à ~2 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
-| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | **179–180 s** à 4 workers, pile Docker up (2026-09-25) ; 269 s à 2 |
+| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | `.claude/dev-docs/test-suite-timing.json` — écrit par `make test` |
 | `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été

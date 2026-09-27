@@ -74,6 +74,25 @@ def critic_decision(row: str) -> str | None:
     return m.group(1) if m else None
 
 
+_SCOPE = re.compile(r"<!--\s*scope:\s*([^>]*?)\s*-->")
+
+
+def scope_of(row: str) -> list[str] | None:
+    """The product paths a row declares it touches, or None when it declares none. R268:
+    with several rows open, nothing proved the diff WAS the cited task (REQ-ROAD-04)."""
+    m = _SCOPE.search(row)
+    return [p.strip() for p in m.group(1).split(",") if p.strip()] if m else None
+
+
+def out_of_scope(files: list[str], rows: list[str]) -> list[str]:
+    """Product files outside every scope declared by the cited rows. Pure; [] when no
+    cited row declares a scope (rows written before R268 are not judged)."""
+    scopes = [s for r in rows for s in (scope_of(r) or [])]
+    if not scopes:
+        return []
+    return [f for f in files if is_product(f) and not f.startswith(tuple(scopes))]
+
+
 def open_ids(checklist: str) -> set[str]:
     return set(open_rows(checklist))
 
@@ -133,6 +152,10 @@ def verdict(files: list[str], message: str, parent_checklist: str,
     if not any(critic_decision(rows[i]) for i in live):
         return (f"la ligne {', '.join(live)} ne décide pas du code-critic — ajoute "
                 "`<!-- critic: requis -->` ou `<!-- critic: non — <raison> -->` (R198)")
+    stray = out_of_scope(files, [rows[i] for i in live])
+    if stray:
+        return (f"{', '.join(stray[:3])} hors du périmètre déclaré par {', '.join(live)} "
+                "(`<!-- scope: … -->`) — citer la bonne ligne, ou élargir son périmètre")
     return None
 
 
