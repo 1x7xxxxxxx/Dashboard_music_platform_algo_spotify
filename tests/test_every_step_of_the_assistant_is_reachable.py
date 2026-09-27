@@ -67,12 +67,14 @@ def _configured_tenant() -> int:
     """
     from src.dashboard.utils import get_db_connection
     db = get_db_connection()
+    from tests.conftest import born_before_session
+    born, params = born_before_session("a")
     try:
         rows = db.fetch_query(
             "SELECT a.id FROM saas_artists a "
             " WHERE a.active AND EXISTS (SELECT 1 FROM artist_credentials c "
             "                             WHERE c.artist_id = a.id) "
-            " ORDER BY a.id LIMIT 1")
+            + born + " ORDER BY a.id LIMIT 1", params)
     finally:
         db.close()
     if not rows:

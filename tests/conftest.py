@@ -545,6 +545,32 @@ def _read_db_clock():
         return None
 
 
+# R229 (2026-09-27) — la seule façon de lister « les » locataires actifs dans un test.
+# Un lecteur qui prend « le premier locataire actif qui a X » peut tomber sur un
+# locataire FABRIQUÉ par un test voisin (canari, e2e à deux locataires) pendant sa vie
+# — un autre groupe xdist l'écrit et l'efface sous ses yeux. Seuls ceux qui
+# existaient AVANT la session sont stables. Garde :
+# tests/test_a_tenant_reader_ignores_tenants_born_in_the_session.py
+PRE_SESSION_ACTIVE_TENANTS_SQL = (
+    "SELECT id FROM saas_artists WHERE active "
+    "AND (%s::timestamp IS NULL OR created_at < %s::timestamp) ORDER BY id")
+
+
+def born_before_session(alias: str = "") -> tuple[str, tuple]:
+    """`AND <alias.>created_at < session start` and its params, for a richer query."""
+    col = f"{alias}.created_at" if alias else "created_at"
+    since = _DB_SESSION_START[0] if _DB_SESSION_START else None
+    return (f" AND (%s::timestamp IS NULL OR {col} < %s::timestamp) ", (since, since))
+
+
+def pre_session_active_tenants(db, limit: int | None = None) -> list[int]:
+    """Active tenants that existed before this test session started, by id."""
+    since = _DB_SESSION_START[0] if _DB_SESSION_START else None
+    rows = db.fetch_query(PRE_SESSION_ACTIVE_TENANTS_SQL, (since, since)) or []
+    ids = [int(r[0]) for r in rows]
+    return ids[:limit] if limit else ids
+
+
 def pytest_configure_node(node):  # noqa: ARG001 — signature imposée par xdist
     """CONTRÔLEUR : fixe l'instant UNE fois et le donne à chaque worker.
 

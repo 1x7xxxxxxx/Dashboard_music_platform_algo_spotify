@@ -109,8 +109,8 @@ def _tenant_with_history() -> int:
 
     db = get_db_connection()
     try:
-        rows = db.fetch_query("SELECT id FROM saas_artists WHERE active ORDER BY id")
-        for (aid,) in rows or []:
+        from tests.conftest import pre_session_active_tenants
+        for aid in pre_session_active_tenants(db):
             series = daily_streams_by_platform(db, int(aid))
             if sum(len(r) for r in series.values()) > 60:
                 return int(aid)
@@ -251,8 +251,8 @@ def test_a_platform_tile_never_shows_a_zero_it_did_not_measure() -> None:
     if db is None:
         pytest.skip("pas de base")
     try:
-        rows = db.fetch_query(
-            "SELECT id FROM saas_artists WHERE active ORDER BY id") or []
+        from tests.conftest import pre_session_active_tenants
+        rows = [(a,) for a in pre_session_active_tenants(db)]
         if not rows:
             pytest.skip("aucun locataire actif")
         # UN LOCATAIRE OÙ LE CAS EXISTE, sinon le garde ne juge rien. On cherche

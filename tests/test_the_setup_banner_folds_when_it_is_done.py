@@ -64,8 +64,8 @@ def _tenants_by_completion() -> tuple:
     db = get_db_connection()
     done = todo = None
     try:
-        rows = db.fetch_query("SELECT id FROM saas_artists WHERE active ORDER BY id")
-        for (aid,) in rows or []:
+        from tests.conftest import pre_session_active_tenants
+        for aid in pre_session_active_tenants(db):
             state = read_setup_state(db, int(aid), None)
             if not state.steps:
                 continue

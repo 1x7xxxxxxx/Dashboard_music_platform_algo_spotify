@@ -224,9 +224,12 @@ def test_a_connected_platform_is_marked_differently_in_the_tab_bar():
     from streamlit.testing.v1 import AppTest
 
     db = _db()
+    from tests.conftest import born_before_session
+    born, params = born_before_session()
     marked = db.fetch_query(
         "SELECT artist_id FROM artist_credentials "
-        "WHERE artist_id IN (SELECT id FROM saas_artists WHERE active) LIMIT 1")
+        "WHERE artist_id IN (SELECT id FROM saas_artists WHERE active" + born + ") "
+        "ORDER BY artist_id LIMIT 1", params)
     if not marked:
         pytest.skip("aucun locataire ne porte de credentials ici")
     artist_id = marked[0][0]

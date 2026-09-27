@@ -42,8 +42,8 @@ def db():
 
 def _tenant_with_data(db) -> int:
     from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
-    rows = db.fetch_query("SELECT id FROM saas_artists WHERE active ORDER BY id") or []
-    for (aid,) in rows:
+    from tests.conftest import pre_session_active_tenants
+    for aid in pre_session_active_tenants(db):
         if combined_total(platform_totals(db, int(aid))) > 0:
             return int(aid)
     pytest.skip("aucun locataire avec des chiffres dans la base locale")

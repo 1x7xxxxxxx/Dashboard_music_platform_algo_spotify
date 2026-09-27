@@ -67,13 +67,11 @@ def _active_artist_ids(limit: int = 3) -> list:
         from src.dashboard.utils import get_db_connection
         db = get_db_connection()
         try:
-            rows = db.fetch_query(
-                "SELECT id FROM saas_artists WHERE active = TRUE ORDER BY id LIMIT %s",
-                (limit,),
-            )
+            from tests.conftest import pre_session_active_tenants
+            ids = pre_session_active_tenants(db, limit)
         finally:
             db.close()
-        return [r[0] for r in rows] or [1]
+        return ids or [1]
     except Exception:
         return [1]
 

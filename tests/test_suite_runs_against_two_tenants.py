@@ -32,8 +32,10 @@ MINIMUM = 2
 
 
 def _tenants(db) -> list[tuple]:
+    from tests.conftest import born_before_session
+    born, params = born_before_session()
     return db.fetch_query(
-        "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY id")
+        "SELECT id, name FROM saas_artists WHERE active = TRUE" + born + "ORDER BY id", params)
 
 
 def isolation_is_testable(active: list, identities: list) -> list[str]:
@@ -75,10 +77,12 @@ def test_the_second_tenant_is_not_a_copy_of_the_first() -> None:
     load_project_env()
     db = PostgresHandler.from_env_or_config()
     try:
+        from tests.conftest import born_before_session
+        born, params = born_before_session()
         rows = db.fetch_query(
             "SELECT id, spotify_artist_id FROM saas_artists "
             "WHERE active = TRUE AND spotify_artist_id IS NOT NULL "
-            "AND spotify_artist_id <> ''")
+            "AND spotify_artist_id <> ''" + born, params)
     finally:
         db.close()
 
