@@ -172,3 +172,20 @@ def test_the_detector_sees_the_defect_it_is_written_for(monkeypatch, tmp_path) -
     cleaned = mod.find_drift(mod.parse_dump("\n".join(canon)), mod.parse_dump("\n".join(canon)))
     assert not cleaned["found"], cleaned
     assert _run(monkeypatch, tmp_path, canon, canon, "local")[0] == 0
+
+
+# ── R219 (2026-09-27) — nullability is part of the schema ─────────────────────────────
+def test_a_not_null_drift_is_found() -> None:
+    """Measured: 13 columns NOT NULL in canonical and NULLable in prod, reported as
+    « prod == canonical » — two fixtures green locally went red in CI."""
+    from tools.dev.schema_drift_check import find_drift, parse_dump
+    canon = parse_dump("col:meta_ads.ad_name\nnn:meta_ads.ad_name\n")
+    live = parse_dump("col:meta_ads.ad_name\n")
+    drift = find_drift(live, canon)
+    assert drift["found"] and drift["nn_canon_only"] == ["meta_ads.ad_name"]
+
+
+def test_the_same_nullability_is_no_drift() -> None:
+    from tools.dev.schema_drift_check import find_drift, parse_dump
+    both = parse_dump("col:meta_ads.ad_name\nnn:meta_ads.ad_name\n")
+    assert not find_drift(both, both)["found"]

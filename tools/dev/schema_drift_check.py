@@ -54,7 +54,7 @@ def _load(path: str) -> dict[str, set[str]]:
 
 def parse_dump(text: str) -> dict[str, set[str]]:
     """Split a dump's text into {columns, keys, unique indexes}. Pure."""
-    buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set()}
+    buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set(), "nn": set()}
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -63,6 +63,8 @@ def parse_dump(text: str) -> dict[str, set[str]]:
             buckets["key"].add(line[4:])
         elif line.startswith("uix:"):
             buckets["uix"].add(line[4:])
+        elif line.startswith("nn:"):
+            buckets["nn"].add(line[3:])
         elif line.startswith("col:"):
             buckets["col"].add(line[4:])
         elif "." in line:
@@ -83,7 +85,7 @@ def find_drift(live: dict[str, set[str]], canon: dict[str, set[str]]) -> dict:
         "canon_extra": sorted(canon["col"] - live["col"]),
         "tables_live_only": sorted(live_tables - canon_tables),
     }
-    for kind in ("key", "uix"):
+    for kind in ("key", "uix", "nn"):
         out[f"{kind}_live_only"] = sorted(live[kind] - canon[kind])
         out[f"{kind}_canon_only"] = sorted(canon[kind] - live[kind])
     out["found"] = any(out.values())
@@ -160,6 +162,22 @@ def main() -> None:
         print("  → a difference here changes which rows can coexist and which "
               "`ON CONFLICT` targets resolve. Reconcile before deploying code that "
               "upserts on them.\n")
+
+    # ── NOT NULL — R219 (2026-09-27): the fingerprint compared names, keys and unique
+    # indexes, never nullability, so 13 columns NOT NULL in canonical and NULLable in
+    # prod passed as « prod == canonical » — until two test fixtures, green locally,
+    # went red in CI. Only on columns BOTH sides have: a missing column is reported above.
+    both = prod & canon
+    nn_prod = [c for c in drift["nn_live_only"] if c in both]
+    nn_canon = [c for c in drift["nn_canon_only"] if c in both]
+    if nn_prod or nn_canon:
+        print("## NOT NULL — divergent:")
+        for c in nn_canon:
+            print(f"  [NOT NULL in canonical only] {c}  → CI refuses a NULL that {side} accepts")
+        for c in nn_prod:
+            print(f"  [NOT NULL in {side} only]{' ' * max(1, 8 - len(side))}{c}  → {side} refuses what CI accepts")
+        print("  → a test green on one side is red on the other. Reconcile by migration "
+              "(SET / DROP NOT NULL), never by editing a fixture to fit.\n")
 
     if drift["found"]:
         print("⚠ schema drift found — triage above (report-only; never auto-ALTER prod). "

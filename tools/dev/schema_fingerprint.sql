@@ -20,6 +20,14 @@ SELECT 'key:' || conrelid::regclass || ':' || pg_get_constraintdef(oid)
   FROM pg_constraint
  WHERE connamespace = 'public'::regnamespace AND contype IN ('p', 'u', 'f')
 UNION ALL
+-- R219 (2026-09-27): NOT NULL, on base tables — a nullability drift made two fixtures
+-- green locally and red in CI while this fingerprint said « prod == canonical ».
+SELECT 'nn:' || c.table_name || '.' || c.column_name
+  FROM information_schema.columns c
+  JOIN information_schema.tables t
+    ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+ WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE' AND c.is_nullable = 'NO'
+UNION ALL
 SELECT 'uix:' || tablename || ':' || substring(indexdef from 'USING .*')
   FROM pg_indexes
  WHERE schemaname = 'public' AND indexdef LIKE 'CREATE UNIQUE%'
