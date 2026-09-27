@@ -95,8 +95,31 @@ def load(db, artist_id: int, acct: str, acct_p: tuple) -> dict:
             ON s4a.artist_id = hl.artist_id AND s4a.match_key = hl.match_key
            AND s4a.platform = 's4a' AND s4a.status = 'confirmed'
          WHERE h.artist_id = %s GROUP BY s4a.platform_title""", (artist_id,))
+    creatives = _df(db, f"""
+        SELECT campaign_name, creative_name, SUM(spend) AS spend
+          FROM v_meta_creative_daily WHERE artist_id = %s{acct}
+         GROUP BY campaign_name, creative_name HAVING SUM(spend) > 0""", (artist_id, *acct_p))
     return {"daily": daily, "objective": objective, "tracks": tracks,
-            "streams": streams, "store": store}
+            "streams": streams, "store": store, "creatives": creatives}
+
+
+def creative_streams(df: pd.DataFrame, creatives: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """(one row per creative that ran ALONE in its campaign, campaigns not separable). Pure.
+
+    R239. A campaign that spent on ONE creative gives that creative its streams gained —
+    a measure, not a split. Sharing the gain between several creatives by their clicks
+    would assume every click converts alike: that assumption is what R213 c refused.
+    """
+    if df.empty or creatives is None or creatives.empty:
+        return pd.DataFrame(), 0
+    n = creatives.groupby("campaign_name")["creative_name"].nunique()
+    alone = creatives[creatives["campaign_name"].isin(n[n == 1].index)]
+    out = df.merge(alone[["campaign_name", "creative_name"]], on="campaign_name",
+                   validate="one_to_one")
+    split = int(df["campaign_name"].isin(n[n > 1].index).sum())
+    return out[["creative_name", "campaign_name", "song", "spend", "gained",
+                "cost_per_gained", "overlap"]].sort_values(
+        "cost_per_gained", na_position="last"), split
 
 
 def _overlaps(camps: pd.DataFrame) -> set:
@@ -233,6 +256,7 @@ def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
                  "écoutes ont varié sur au moins 14 jours : une campagne à budget constant "
                  "n'en a pas, et c'est normal.").format(n=BASELINE_DAYS))
     _render_tracks(df, data["store"])
+    _render_creatives(df, data.get("creatives"))
     st.caption(t("campaign_compare.countries",
                  "Le pays qui transforme le mieux : onglet **🌍 Par pays**, campagne par "
                  "campagne."))
@@ -255,3 +279,27 @@ def _render_tracks(df: pd.DataFrame, store: pd.DataFrame) -> None:
         t("campaign_compare.c_per_click", "Écoutes gagnées / clic"):
             tracks["per_click"].map(lambda v: _fmt(v, 2)),
     }), hide_index=True, width="stretch")
+
+
+def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
+    """R239 — streams gained PER CREATIVE, where it can be measured."""
+    alone, split = creative_streams(df, creatives)
+    st.markdown(t("campaign_compare.crea_head",
+                  "**Quelle créa a rapporté des écoutes ?** — mesuré quand la créa a "
+                  "tourné SEULE dans sa campagne : ses écoutes gagnées sont alors les "
+                  "siennes, sans répartition supposée."))
+    if not alone.empty:
+        st.dataframe(pd.DataFrame({
+            t("campaign_compare.c_crea", "Créa"): alone["creative_name"],
+            t("campaign_compare.c_campaign", "Campagne"): alone["campaign_name"],
+            t("campaign_compare.c_spend", "Dépense (€)"): alone["spend"].map(lambda v: _fmt(v, 2)),
+            t("campaign_compare.c_gained", "Écoutes gagnées"): alone["gained"].map(_fmt),
+            t("campaign_compare.c_cost", "€ / écoute gagnée"):
+                alone["cost_per_gained"].map(lambda v: _fmt(v, 3)),
+            t("campaign_compare.c_overlap", "Chevauche une autre"):
+                alone["overlap"].map(lambda b: "⚠️" if b else ""),
+        }), hide_index=True, width="stretch")
+    st.caption(t("campaign_compare.crea_split",
+                 "{n} campagne(s) ont fait tourner plusieurs créas ensemble : leurs écoutes "
+                 "ne se séparent pas par créa. Pour mesurer une créa, lance-la seule dans sa "
+                 "campagne, ou donne-lui son propre lien Hypeddit.").format(n=split))

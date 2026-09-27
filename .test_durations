@@ -3705,6 +3705,7 @@
     "tests/test_broken_probe_is_not_the_artists_fault.py::test_broken_ranks_below_every_answering_state": 0.0013518060004571453,
     "tests/test_broken_probe_is_not_the_artists_fault.py::test_no_error_still_means_no_data": 0.0012323680002737092,
     "tests/test_broken_probe_is_not_the_artists_fault.py::test_red_flags_include_broken": 0.00125338600082614,
+    "tests/test_campaigns_compare_on_one_scale.py::test_a_creative_alone_in_its_campaign_gets_its_streams_and_a_shared_one_does_not": 0.1007442369882483,
     "tests/test_campaigns_compare_on_one_scale.py::test_a_flat_budget_has_no_delay_and_a_weak_link_is_not_named": 0.01712483397568576,
     "tests/test_campaigns_compare_on_one_scale.py::test_a_track_converts_clicks_into_gained_streams": 0.004504895012360066,
     "tests/test_campaigns_compare_on_one_scale.py::test_no_gain_gives_no_cost_never_a_negative_or_infinite_one": 0.029348837008001283,

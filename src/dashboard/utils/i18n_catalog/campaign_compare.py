@@ -34,6 +34,14 @@ EN = {
     "campaign_compare.tracks_head": "**Which track turns clicks into streams best?** — "
                                     "clicks to platforms (Hypeddit) and streams gained "
                                     "during its campaigns.",
+    "campaign_compare.crea_head": "**Which creative brought streams?** — measured when the "
+                                  "creative ran ALONE in its campaign: its streams gained "
+                                  "are then its own, with no assumed split.",
+    "campaign_compare.c_crea": "Creative",
+    "campaign_compare.crea_split": "{n} campaign(s) ran several creatives together: their "
+                                   "streams cannot be separated by creative. To measure a "
+                                   "creative, run it alone in its campaign, or give it its "
+                                   "own Hypeddit link.",
     "campaign_compare.tracks_empty": "No Hypeddit link attached to a Spotify track: attach "
                                      "them in **🔗 Cross-platform mapping**.",
 }

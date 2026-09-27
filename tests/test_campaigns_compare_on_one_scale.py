@@ -86,3 +86,17 @@ def test_two_campaigns_at_the_same_time_on_different_tracks_do_not_overlap():
     streams = pd.concat([_streams("T", 100, 150), _streams("U", 10, 20)])
     df = cc.compare(_data(camps, streams)).set_index("campaign_name")
     assert not df.loc["A", "overlap"] and not df.loc["B", "overlap"]
+
+
+def test_a_creative_alone_in_its_campaign_gets_its_streams_and_a_shared_one_does_not():
+    """R239: measured where one creative ran alone; never split across creatives."""
+    camps = [("A", D0, 10, 100.0, "T"), ("B", D0 + dt.timedelta(days=200), 10, 80.0, "T")]
+    streams = pd.concat([_streams("T", 100, 150),
+                         _streams("T", 100, 150).assign(
+                             date=lambda d: d["date"] + dt.timedelta(days=200))])
+    df = cc.compare(_data(camps, streams))
+    creatives = pd.DataFrame([("A", "solo", 100.0), ("B", "x", 40.0), ("B", "y", 40.0)],
+                             columns=["campaign_name", "creative_name", "spend"])
+    alone, split = cc.creative_streams(df, creatives)
+    assert list(alone["creative_name"]) == ["solo"] and alone.iloc[0]["gained"] == 500
+    assert split == 1
