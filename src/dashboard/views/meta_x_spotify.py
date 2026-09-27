@@ -76,6 +76,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import account_clause, account_scope
 from plotly.subplots import make_subplots
@@ -310,13 +311,13 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
     # ce qui est de toute façon sa vraie nature.
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("meta_x_spotify.tile_spend", "💸 Dépense"),
-              f"{spend:,.2f} €".replace(",", " "))
+              eur(spend, 2))
     c2.metric(t("meta_x_spotify.tile_streams", "🎵 Streams sur la période"),
-              f"{streams:,.0f}".replace(",", " ") if streams else "—")
+              num(streams, 0) if streams else "—")
     # ⚠️ Un dénominateur nul rend « — », jamais 0 ni l'infini : « 0 € le stream »
     # se lirait comme une acquisition gratuite, ce qui est l'inverse du fait.
     c3.metric(t("meta_x_spotify.tile_cost_per_stream", "🎯 Coût par stream"),
-              f"{spend / streams_paid:,.3f} €".replace(",", " ") if streams_paid else "—",
+              eur(spend / streams_paid, 3) if streams_paid else "—",
               help=t("meta_x_spotify.tile_cps_help",
                      "Dépense ÷ écoutes des **jours où la campagne a payé** — pas "
                      "de la fenêtre affichée : diviser une dépense de 31 jours par "
@@ -325,7 +326,7 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
                      "prix d'un RÉSULTAT (clic, vue de page) et jamais celui d'une "
                      "écoute."))
     c4.metric(t("meta_x_spotify.tile_conversion", "🔁 Streams par résultat"),
-              f"{streams_paid / results:,.2f}".replace(",", " ")
+              num(streams_paid / results, 2)
               if results and streams_paid else "—",
               help=t("meta_x_spotify.tile_conv_help",
                      "Écoutes ÷ résultats, sur les jours payés. Combien d'écoutes "
@@ -350,7 +351,7 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
                      "📸 **Instagram** : {f} abonné(s) ({d} sur la fenêtre) — du "
                      "**compte entier**, pas de cette campagne : tout ce que tu "
                      "publies y contribue. Un contexte, pas un résultat.")
-                   .format(f=f"{int(row['f1']):,}".replace(",", " "),
+                   .format(f=num(int(row['f1']), 0),
                            d=f"{delta:+d}"))
     else:
         st.caption(t("meta_x_spotify.insta_none",
@@ -506,7 +507,7 @@ def _render_engagement(db, artist_id, d0, d1) -> None:
     rows = engagement_lift(df, d0, d1)
     if not rows:
         return
-    fmt = lambda v: "—" if v is None else f"{v:,.1f}".replace(",", " ").replace(".", ",")  # noqa: E731
+    fmt = lambda v: "—" if v is None else num(v, 1)  # noqa: E731
     lines = [t("meta_x_spotify.eng_header",
                "| Engagement (artiste) | {n} jours avant, par jour | Pendant, par jour | "
                "Variation |").format(n=BASELINE_DAYS), "|---|---|---|---|"]
@@ -1046,15 +1047,15 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
             "pixel doit se déclencher au chargement, l'évènement serveur non. Le "
             "pixel SOUS-COMPTE, il ne mesure pas une étape suivante — les empiler "
             "l'un sous l'autre affirmait un emboîtement faux **91 jours sur 91**."
-        ).format(lp=f"{lp:,}".replace(",", " "), capi=f"{capi:,}".replace(",", " "))
+        ).format(lp=num(lp, 0), capi=num(capi, 0))
     if spend:
         note += " " + t("meta_x_spotify.funnel_cost_note",
                         "Chaque étape porte son coût : les **{s} €** dépensés sur la "
                         "fenêtre, divisés par le volume de l'étape.").format(
-            s=f"{spend:,.2f}".replace(",", " ").replace(".", ","))
+            s=num(spend, 2))
     if gain and gain['gained'] >= 1:
         cost = (t("meta_x_spotify.funnel_gain_cost", ", soit **{c} €** l'écoute gagnée").format(
-                    c=f"{spend / gain['gained']:,.3f}".replace(",", " ").replace(".", ","))
+                    c=num(spend / gain['gained'], 3))
                 if spend else "")
         note += " " + t("meta_x_spotify.funnel_gain_note",
                         "🎧 **{g} écoutes gagnées** sur Spotify pendant la fenêtre{cost} — "
@@ -1062,7 +1063,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                         "Une hausse qui aurait eu lieu sans la pub y est comptée aussi, et "
                         "une écoute n'est pas une étape du parcours : un même visiteur "
                         "écoute plusieurs fois.").format(
-            g=f"{gain['gained']:,.0f}".replace(",", " "), cost=cost,
+            g=num(gain['gained'], 0), cost=cost,
             n=gain['baseline_days'], b=f"{gain['baseline_per_day']:.1f}".replace(".", ","))
     elif s4a_song:
         note += " " + t("meta_x_spotify.funnel_no_gain",

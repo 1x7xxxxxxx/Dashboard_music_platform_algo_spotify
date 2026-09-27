@@ -44,6 +44,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
@@ -504,7 +505,7 @@ def _render_top_chart(df_top, sort_col: str, sort_by: str, plays_lbl: str) -> No
     fig.add_trace(go.Bar(
         y=d["title"], x=_valeurs, orientation="h", name=sort_by,
         marker_color=_SC, opacity=0.9,
-        text=[f"{int(v):,}".replace(",", " ") for v in _valeurs],
+        text=[num(int(v), 0) for v in _valeurs],
         textposition="outside", cliponaxis=False,
         hovertemplate="%{y}<br>%{x:,.0f}<extra></extra>"), row=1, col=1)
 

@@ -46,6 +46,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
@@ -442,7 +443,7 @@ if __name__ == "__main__":
 
 def ring_label(name: str, visits: float, clicks: float) -> str:
     """The text under a ring: the campaign, then its TOTALS (fiche 17). Pure."""
-    fmt = lambda v: f"{v:,.0f}".replace(",", " ")   # noqa: E731
+    fmt = lambda v: num(v, 0)   # noqa: E731
     return (f"{_short(name)}<br>{fmt(visits)} " + t("hypeddit.ring_visits", "visites")
             + f" · {fmt(clicks)} " + t("hypeddit.ring_clicks", "clics"))
 

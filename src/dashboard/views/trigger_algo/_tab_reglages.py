@@ -38,6 +38,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
 
 from ._reglages import budget_pour_streams, classer, recommandation
@@ -104,9 +105,9 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
             v if f else f"{v} ⚠️" for v, f in zip(df["valeur"], df["fiable"])],
         t("trigger_algo.reg.col_ads", "Annonces"): df["ads"],
         t("trigger_algo.reg.col_spend", "Dépensé"): [
-            f"{v:,.0f} €".replace(",", " ") for v in df["depense"]],
+            eur(v, 0) for v in df["depense"]],
         t("trigger_algo.reg.col_cpc", "Coût / clic"): [
-            "—" if pd.isna(v) else f"{v:,.4f} €".replace(",", " ") for v in df["cpc"]],
+            "—" if pd.isna(v) else eur(v, 4) for v in df["cpc"]],
         t("trigger_algo.reg.col_ctr", "Taux de clic"): [
             "—" if pd.isna(v) else f"{v:.2f} %" for v in df["ctr"]],
     })
@@ -125,7 +126,7 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
         ).format(retenir=reco["retenir"], cpc_min=reco["cpc_min"],
                  cpc_max=reco["cpc_max"], eviter=reco["eviter"],
                  facteur=reco["facteur"], ads=reco["sur_ads"],
-                 dep=f"{reco['sur_depense']:,.0f}".replace(",", " ")))
+                 dep=num(reco['sur_depense'], 0)))
     else:
         st.caption(t(
             "trigger_algo.reg.no_reco",
@@ -196,9 +197,9 @@ def _budget_declenchement(ml_pred: dict | None, cout_par_stream: float | None) -
         lignes.append({
             t("trigger_algo.reg.col_algo", "Playlist"): nom,
             t("trigger_algo.reg.col_missing", "Écoutes qui manquent (7 j)"):
-                f"{streams['gap']:,.0f}".replace(",", " "),
+                num(streams['gap'], 0),
             t("trigger_algo.reg.col_budget", "Ordre de grandeur"):
-                "—" if cout is None else f"{cout:,.0f} €".replace(",", " "),
+                "—" if cout is None else eur(cout, 0),
         })
     if not lignes:
         st.caption(t("trigger_algo.reg.budget_none",

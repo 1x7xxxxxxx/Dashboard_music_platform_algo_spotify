@@ -3,6 +3,7 @@ import src.dashboard.utils.pdf_exporter as _pkg
 
 from ._config import _t
 from ..proxy_disclosure import pdf_disclosure
+from ..semantic_colors import ATTENTION, BON, MAUVAIS
 
 
 
@@ -38,7 +39,7 @@ def _esc(value) -> str:
 # police : le glyphe disparaissait, la pastille perdait son symbole, et la CLÉ de ce
 # dictionnaire était le seul endroit du dépôt où un émoji portait une décision.
 # La couleur, rendue par la même fonction, dit la même chose et se dessine.
-_BADGE_CSS = {"#1DB954": "green", "#FFA500": "orange", "#FF4444": "red"}
+_BADGE_CSS = {BON: "green", ATTENTION: "orange", MAUVAIS: "red"}   # R260 — freshness_status draws the semantic colours
 
 
 def _badge(color, label):
@@ -152,7 +153,7 @@ def _render_roi(roi, from_date, to_date):
     # (a recovery ratio), which mislabels a deficit as "+6.9%". Compute it right here.
     roi_true = (net / spend * 100) if spend > 0 else None
     roi_val = f"{roi_true:+.1f} %" if roi_true is not None else "—"
-    net_color = "#1DB954" if net >= 0 else "#FF4444"
+    net_color = BON if net >= 0 else MAUVAIS
     status = (_t("pdf.roi.profitable", "Rentable") if net >= 0
               else _t("pdf.roi.deficit", "Déficitaire"))
     since_start = _t("pdf.roi.since_start", "Depuis le début (tout l'historique)")
@@ -211,7 +212,7 @@ def _prob_bar(pct, algo=None):
                 f'{_floor_text() if pct is not None else "—"}</span>')
     pct = float(pct)
     w = int(min(max(pct * 100, 0), 100))
-    color = "#1DB954" if pct >= 0.5 else ("#FFA500" if pct >= 0.3 else "#FF4444")
+    color = BON if pct >= 0.5 else (ATTENTION if pct >= 0.3 else MAUVAIS)
     return (
         f'<div class="prob-bar-wrap">'
         f'<div class="prob-bar" style="width:{w}%;background:{color};"></div></div>'

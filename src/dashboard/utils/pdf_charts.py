@@ -20,8 +20,12 @@ import matplotlib.pyplot as plt  # noqa: E402
 # only i18n — so this top-level import introduces no cycle.
 from src.dashboard.utils.pdf_exporter._config import _t  # noqa: E402
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.platform_colors import DISTINCT, platform_color
+from src.dashboard.utils.semantic_colors import BON
 
-_GREEN = "#1DB954"
+# R260 — the PDF draws with the app's palette, not its own copy of the brand hues.
+_GREEN = platform_color("spotify")        # a Spotify series
+_YOUTUBE = platform_color("youtube")
 _DARK = "#1a1a2e"
 _RED = "#FF4444"
 _GREY = "#9aa0a6"
@@ -243,9 +247,9 @@ def youtube_channel_growth(rows) -> str | None:
     _subs = _t("pdf.chart.subscribers", "Abonnés")
     _cum_views = _t("pdf.chart.cumulative_views", "Vues cumulées")
     fig, (ax, ax2) = _stacked(2)
-    ax.plot(xs, [_measured(r[1]) for r in rows], color="#FF0000", linewidth=2,
+    ax.plot(xs, [_measured(r[1]) for r in rows], color=_YOUTUBE, linewidth=2,
             marker="o", markersize=3)
-    ax.set_ylabel(_subs, color="#FF0000", fontsize=8)
+    ax.set_ylabel(_subs, color=_YOUTUBE, fontsize=8)
     # Trait plein, pas pointillé : le pointillé disait « série secondaire », ce qui
     # avait un sens sur un axe de droite et n'en a plus sur son propre panneau — et
     # c'est la série que le total du produit annonce.
@@ -437,7 +441,7 @@ def _draw_ml_probabilities(pred) -> str:
     labels = ["Discover\nWeekly", "Release\nRadar", "Radio"]
     kept = [proba_affichable(a, pred[i]) for i, a in enumerate(("dw", "rr", "radio"))]
     vals = [p * 100 if p is not None else 0.0 for p in kept]
-    colors = [_GREEN if v >= 50 else ("#FFA500" if v >= 30 else _RED) for v in vals]
+    colors = [BON if v >= 50 else ("#FFA500" if v >= 30 else _RED) for v in vals]
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
     bars = ax.bar(labels, vals, color=colors, width=0.55)
     ax.set_ylim(0, 100)
@@ -445,7 +449,7 @@ def _draw_ml_probabilities(pred) -> str:
     if any(p is not None for p in kept):
         # Decision thresholds: <20 STOP, 20-50 OPTIMISER, >=50 SCALER.
         ax.axhline(20, color="#FFA500", linewidth=1, linestyle=":")
-        ax.axhline(50, color=_GREEN, linewidth=1, linestyle="--")
+        ax.axhline(50, color=BON, linewidth=1, linestyle="--")
         ax.text(2.55, 20, _t("pdf.chart.stop", "STOP"), fontsize=7, color="#FFA500",
                 va="center")
         ax.text(2.55, 50, _t("pdf.chart.scale", "SCALER"), fontsize=7, color=_GREEN,
@@ -505,7 +509,7 @@ def youtube_top_videos_bar(videos) -> str | None:
     """videos: [(title, date, views, likes, comments)] — bars on views."""
     return _hbar([(v[0], v[2]) for v in (videos or [])],
                  _t("pdf.chart.top_videos_youtube", "Top vidéos YouTube (vues)"),
-                 color="#FF0000")
+                 color=_YOUTUBE)
 
 
 def soundcloud_top_bar(tracks) -> str | None:
@@ -578,7 +582,7 @@ def playlist_adds_bars(windows) -> str | None:
         return None
     labels = [lbl for _, lbl in order]
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
-    bars = ax.bar(labels, vals, color=["#9aa0a6", "#1DB954", "#11261a"], width=0.55)
+    bars = ax.bar(labels, vals, color=["#9aa0a6", DISTINCT[0], "#11261a"], width=0.55)
     _style(ax)
     ax.set_title(_t("pdf.chart.playlist_adds", "Ajouts en playlist (S4A)"),
                  color=_DARK, fontsize=11, fontweight="bold", loc="left")
@@ -781,7 +785,7 @@ def sc_multiaxis(rows) -> str | None:
 def base100_lines(series, title) -> str | None:
     """series: {label: [(date, value)]} — each rebased to 100 at its first point."""
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    colors = ["#FF7700", "#1DB954", "#457b9d", "#9d4edd"]
+    colors = list(DISTINCT[:4])
     plotted = False
     for i, (label, pts) in enumerate(series.items()):
         pts = [(d, float(v)) for d, v in pts if v is not None]
@@ -815,16 +819,17 @@ def ig_engagement(months) -> str | None:
     rates = [float(m[3] or 0) for m in months]
     x = list(range(len(labels)))
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.bar(x, likes, color="#C13584", width=0.6, label=_t("pdf.chart.likes", "Likes"))
-    ax.bar(x, comments, bottom=likes, color="#F58529", width=0.6,
+    # R260 — three series, three DISTINCT colours (worst pair ΔE 26.5 in every vision).
+    ax.bar(x, likes, color=DISTINCT[0], width=0.6, label=_t("pdf.chart.likes", "Likes"))
+    ax.bar(x, comments, bottom=likes, color=DISTINCT[1], width=0.6,
            label=_t("pdf.chart.comments", "Commentaires"))
     _style(ax)
     ax.set_ylabel(_t("pdf.chart.engagement", "Engagement"), color="#666", fontsize=8)
     ax2 = ax.twinx()
-    ax2.plot(x, rates, color="#1DB954", linewidth=2, marker="o", markersize=3,
+    ax2.plot(x, rates, color=DISTINCT[3], linewidth=2, marker="o", markersize=3,
              label=_t("pdf.chart.rate_pct", "Taux %"))
     ax2.set_ylabel(_t("pdf.chart.engagement_rate_pct", "Taux d'engagement %"),
-                   color="#1DB954", fontsize=8)
+                   color=DISTINCT[3], fontsize=8)
     ax2.spines["top"].set_visible(False)
     step = max(1, len(labels) // 10)  # thin labels so the axis stays readable
     ax.set_xticks(x[::step])
@@ -844,7 +849,7 @@ def meta_funnel(stages) -> str | None:
     vals = [s[1] for s in stages]
     fig, ax = plt.subplots(figsize=(8.6, 3.0))
     y = list(range(len(stages)))[::-1]
-    ax.barh(y, vals, color=["#636efa", "#00cc96", "#EF553B", "#1DB954"][:len(stages)],
+    ax.barh(y, vals, color=list(DISTINCT[:4])[:len(stages)],
             height=0.62)
     _style(ax)
     ax.grid(axis="y", lw=0)

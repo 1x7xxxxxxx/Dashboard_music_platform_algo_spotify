@@ -27,6 +27,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES, decode_feature_value
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.labels import unique_short_labels as short_labels  # R209
@@ -137,7 +138,7 @@ def values_figure(tracks: list[str], levers_by_track: dict):
         # The current value is often a few dozen against a target in thousands: the bar
         # alone is a sliver (render, 2026-09-27), so its number is WRITTEN on it.
         fig.add_trace(go.Bar(x=pos, y=cur, width=0.85, hovertext=xs, marker_color="#c8ced6", cliponaxis=False,
-                             text=[None if v is None else f"{v:,.0f}".replace(",", " ")
+                             text=[None if v is None else num(v, 0)
                                    for v in cur], textposition="outside",
                              name=t("trigger_algo.rel.current", "Ta valeur"),
                              showlegend=c == 1, legendgroup="cur"), row=1, col=c)

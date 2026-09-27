@@ -10,6 +10,8 @@ never mis-type the columns.
 """
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -145,6 +147,8 @@ def apply_defaults(fig, *, pareto: bool | None = None):
                                                        y=-0.18, xanchor="left", x=0))
     if not lay.colorway and not any(_has_colour(tr) for tr in fig.data):
         fig.update_layout(colorway=list(DISTINCT))
+    if pareto is None:
+        pareto = pareto_by_default(fig)
     if pareto:
         for tr in fig.data:
             if tr.type == "bar":
@@ -154,6 +158,45 @@ def apply_defaults(fig, *, pareto: bool | None = None):
                 key = axis + ref[1:]
                 fig.layout[key].categoryorder = "total ascending" if horiz else "total descending"
     return fig
+
+
+# R260 (fiches 28, 29, 33 : « toujours tracer en Pareto ») — Pareto is the DEFAULT for bars
+# over NOMINAL categories (campaigns, countries, creatives, tracks). An order that carries a
+# meaning is never reordered: dates, numbers and ranges (« 7 jours », « 18-24 »), months and
+# weekdays, a funnel's stages, or an order the figure already set. `pareto=False` opts out.
+_ORDINAL = re.compile(
+    r"^\s*[<>≤≥~+-]?\s*\d|\b(?:semaines?|weeks?|mois|months?|jours?|days?|ans?|years?|"
+    r"q[1-4]|janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc|jan|feb|mar|apr|may|"
+    r"jun|jul|aug|sep|dec|lun|mar|mer|jeu|ven|sam|dim|mon|tue|wed|thu|fri|sat|sun)\b",
+    re.IGNORECASE)
+_FUNNEL = re.compile(r"funnel|entonnoir|étape|stage", re.IGNORECASE)
+
+
+def nominal_categories(values) -> bool:
+    """True when every category is a label with no order of its own. Pure."""
+    vals = [v for v in (values if values is not None else []) if v is not None]
+    if len(set(map(str, vals))) < 3 or not all(isinstance(v, str) for v in vals):
+        return False
+    return not any(_ORDINAL.search(v) for v in vals)
+
+
+def pareto_by_default(fig) -> bool:
+    """Should the door sort this figure's bars by total? Pure on `fig`."""
+    bars = [tr for tr in fig.data if tr.type == "bar"]
+    if not bars or len(bars) != len(fig.data):
+        return False
+    texts = " ".join(str(x) for x in [fig.layout.title.text, *(tr.name for tr in bars)] if x)
+    if _FUNNEL.search(texts):
+        return False
+    for tr in bars:
+        horiz = tr.orientation == "h"
+        axis = ("yaxis" if horiz else "xaxis") + (((tr.yaxis if horiz else tr.xaxis) or "x")[1:])
+        lay = fig.layout[axis]
+        if lay.categoryorder not in (None, "trace") or lay.categoryarray is not None:
+            return False
+        if not nominal_categories(tr.y if horiz else tr.x):
+            return False
+    return True
 
 
 def _has_colour(tr) -> bool:

@@ -70,6 +70,7 @@ _CSV_WARN_H = 24 * 30        # un mois sans dépôt — là, la donnée est vrai
 # Filtre ligne "Total" des CSV Spotify for Artists
 # Ré-EXPORTÉE, plus définie ici : `src/api/` ne peut pas importer ce module (il
 # tire `streamlit`), et c'est pour ça que la constante existait en cinq copies.
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS  # noqa: E402
 from src.utils.artist_name_filter import ARTIST_NAME_FILTER  # noqa: E402,F401
 from src.utils.source_registry import (
     PAR_CLE, colonne_de_mesure, table_et_colonne)  # noqa: E402
@@ -446,10 +447,10 @@ def freshness_status(last_dt, kind: str = "api"):
     age = (_t("freshness.hours_ago", "Il y a {n}h").format(n=int(age_h)) if age_h < 24
            else _t("freshness.days_ago", "Il y a {n}j").format(n=int(age_h / 24)))
     if etat == ETAT_FRAIS:
-        return "🟢", "#1DB954", age
+        return "🟢", BON, age
     if etat == ETAT_ATTENTION:
-        return "🟠", "#FFA500", age
-    return "🔴", "#FF4444", age
+        return "🟠", ATTENTION, age
+    return "🔴", MAUVAIS, age
 
 
 # ─── KPI Streams ────────────────────────────────────────────────────────────
@@ -727,10 +728,12 @@ _HUMAN_ONLY = _human_only()
 
 
 def fmt_eur(val, digits: int = 2) -> str:
-    """Un montant, ou « — ». Jamais « 0,00 € » pour une valeur qu'on n'a pas pu lire."""
-    if val is None:
-        return "—"
-    return f"{val:,.{digits}f} €"
+    """Un montant, ou « — ». Jamais « 0,00 € » pour une valeur qu'on n'a pas pu lire.
+
+    R260 — délègue au formateur unique (`formats.eur`) : il écrivait « 1,234.56 € » même
+    sur un écran français."""
+    from src.dashboard.utils.formats import eur
+    return eur(val, digits)
 
 
 @st.cache_data(ttl=_KPI_TTL)

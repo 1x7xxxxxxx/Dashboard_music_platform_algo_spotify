@@ -35,6 +35,7 @@ import html as _html
 import streamlit as st
 
 from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
 
@@ -364,7 +365,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             st.metric(
                 t("home.tile_shazam", "🎧 Shazam"), _n(_shz),
                 delta=(t("home.tile_shazam_release", "🆕 Dernière sortie · {n}")
-                       .format(n=f"{_shz_rel:,}".replace(",", " "))
+                       .format(n=num(_shz_rel, 0))
                        if _shz_rel is not None else None),
                 delta_color="off", help=_shz_help)
 

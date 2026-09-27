@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from datetime import date
 
 from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 from src.database.postgres_handler import validate_table, validate_columns
@@ -208,7 +209,7 @@ def _show_ingestion_gaps(daily: pd.DataFrame) -> None:
                name=t("db_health.gaps_expected", "Attendu")),
         go.Bar(y=tot.index, x=tot["received"], orientation="h", marker_color="#1f77b4",
                name=t("db_health.gaps_received", "Reçu"),
-               text=[f"{v:,.0f}".replace(",", " ") for v in tot["received"]],
+               text=[num(v, 0) for v in tot["received"]],
                textposition="outside", cliponaxis=False)])
     fig.update_layout(barmode="group", height=max(300, 40 * len(tot) + 120),
                       xaxis_title=t("db_health.gaps_axis", "lignes (hier)"),

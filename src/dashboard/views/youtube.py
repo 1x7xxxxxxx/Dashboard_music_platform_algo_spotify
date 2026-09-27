@@ -44,6 +44,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import isodate
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
     latest_release_date,
@@ -208,8 +209,8 @@ def show():
                     "Les voir diverger est une information, pas une erreur."
                 ).format(
                     n=_subs_paliers, j=len(df_hist),
-                    vues=f"{views_series[-1][1]:,}".replace(",", " ") if views_series else "—",
-                    chaine=f"{int(df_hist.iloc[-1]['channel_views']):,}".replace(",", " ")))
+                    vues=num(views_series[-1][1], 0) if views_series else "—",
+                    chaine=num(int(df_hist.iloc[-1]['channel_views']), 0)))
 
             else:
                 st.info(t("youtube.no_channel_history", "Pas encore d'historique pour la chaîne."))

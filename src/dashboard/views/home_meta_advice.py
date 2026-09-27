@@ -47,6 +47,7 @@ from datetime import date
 import streamlit as st
 
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.meta_confidence import confidence_factor
 from src.dashboard.utils.plan_gate import bouton_vers, note_de_plan
@@ -280,7 +281,7 @@ def _ligne_activite(side: dict) -> None:
             "active aujourd'hui**. La dernière dépense date du **{jour}**, il y a "
             "**{depuis} jours**. Les chiffres ci-dessus décrivent donc cette "
             "campagne-là, pas ce qui tourne en ce moment.").format(
-                jour=jour_txt, depuis=f"{depuis:,}".replace(",", " ")))
+                jour=jour_txt, depuis=num(depuis, 0)))
     else:
         # `meta_campaigns` vide : la dépense est là, le statut ne l'est pas.
         st.info(t(
@@ -289,7 +290,7 @@ def _ligne_activite(side: dict) -> None:
             "**{jour}**, il y a **{depuis} jours**. Nous n'avons pas encore la liste "
             "de tes campagnes, donc nous ne pouvons pas dire si l'une tourne "
             "encore.").format(jour=jour_txt,
-                              depuis=f"{depuis:,}".replace(",", " ")))
+                              depuis=num(depuis, 0)))
 
 
 def render_meta_advice(side: dict) -> None:

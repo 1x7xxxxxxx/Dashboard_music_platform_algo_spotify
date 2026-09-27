@@ -34,6 +34,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils.artist_cashflow import track_stream_rate, trigger_value
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 
@@ -89,11 +90,11 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
     c1.metric(t("trigger_algo.titre.tile_gate", "Porte la plus proche"), _NOMS.get(algo, algo))
     if valeur_algo:
         c2.metric(t("trigger_algo.titre.tile_value", "Ce que ça vaut si ça s'ouvre"),
-                  f"{valeur_algo:,.0f} €".replace(",", " "))
+                  eur(valeur_algo, 0))
         # REFUSE, not mark (2026-09-26): an expected value computed from a floor
         # probability is the calibration intercept times a price — not a forecast.
         c3.metric(t("trigger_algo.titre.tile_expect", "Espérance aujourd'hui"),
-                  (f"{proba * valeur_algo:,.2f} €".replace(",", " ")
+                  (eur(proba * valeur_algo, 2)
                    if proba is not None else texte_plancher()))
 
     if plan["smooth"]:
@@ -155,10 +156,10 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
             t("trigger_algo.titre.col_chance", "Ta chance"):
                 format_proba(algo.lower(), raw, decimals=1),
             t("trigger_algo.titre.col_worth", "Vaut si ça s'ouvre"):
-                f"{valeur:,.0f} €".replace(",", " "),
+                eur(valeur, 0),
             t("trigger_algo.titre.col_expect", "Espérance"): (
                 ("—" if raw is None else texte_plancher()) if proba is None
-                else f"{proba * valeur:,.2f} €".replace(",", " ")),
+                else eur(proba * valeur, 2)),
             t("trigger_algo.titre.col_next", "Prochain levier"): (
                 "—" if premier is None
                 else f"{premier['label']} · {premier['gap']:,.0f} {premier['unit']}"
@@ -217,11 +218,11 @@ def _render_pareto(leviers: list[dict], valeur_algo: float | None) -> None:
         "#": list(range(1, len(leviers) + 1)),
         t("trigger_algo.titre.col_lever", "Levier"): [a["label"] for a in leviers],
         t("trigger_algo.titre.col_now", "Aujourd'hui"): [
-            f"{a['current']:,.2f}".replace(",", " ") for a in leviers],
+            num(a['current'], 2) for a in leviers],
         t("trigger_algo.titre.col_target", "Objectif"): [
             f"{a['target']:,.0f} {a['unit']}".replace(",", " ") for a in leviers],
         t("trigger_algo.titre.col_gap", "Il me manque"): [
-            f"{a['gap']:,.0f}".replace(",", " ") for a in leviers],
+            num(a['gap'], 0) for a in leviers],
         t("trigger_algo.titre.col_progress", "Avancement"): [
             min(1.0, max(0.0, a["current"] / a["target"])) if a.get("target") else 0.0
             for a in leviers],

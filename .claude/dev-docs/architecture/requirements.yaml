@@ -210,9 +210,9 @@
   enonce: Une plateforme a UNE couleur dans toute l'app (Meta bleu, Spotify vert, SoundCloud orange…) ; aucune couleur de plateforme en dur dans les vues
   sources: [{notes: L87}, {notes: L99}, {kpi: fiche 39}, {theorie: "Few p.74"}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_a_platform_colour_has_one_definition.py::test_no_new_hardcoded_platform_colour}
-  ecart: "le cliquet tolère encore 42 couleurs de plateforme en dur (_PLAFOND = 42) ; les graphiques PDF (matplotlib) ont leur palette propre"
+  ecart: "R260 : 42 → 0 couleur de plateforme en dur, PDF compris ; une palette unique pour DW/RR/Radio"
   mutation: "ajouter '#1DB954' en dur dans une vue"
   roadmap: R260
 
@@ -221,9 +221,10 @@
   enonce: Tri Pareto par défaut sur les barres par catégorie
   sources: [{kpi: fiche 28}, {kpi: fiche 33}]
   priorite: P3
-  statut: partiel
-  preuve: {pytest: tests/test_every_chart_goes_through_the_door.py}
-  ecart: Pareto opt-in, 3 appelants seulement
+  statut: conforme
+  preuve: {pytest: tests/test_a_nominal_bar_chart_is_sorted_pareto.py::test_nominal_categories_are_sorted_by_total}
+  mutation: "retirer l'appel à pareto_by_default dans apply_defaults"
+  ecart: "R260 : Pareto par défaut sur les catégories nominales ; dates, tranches, mois et entonnoirs jamais réordonnés"
   roadmap: R260
 
 - id: REQ-CHART-04
@@ -242,10 +243,10 @@
   enonce: Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques
   sources: [{notes: L549}, {theorie: "Few p.74"}]
   priorite: P3
-  statut: absent
-  a_ecrire: "cliquet sur le nombre de .replace(',', ' ') et de f-strings {:,} dans src/dashboard/views/ ; module de formats unique testé en FR et EN"
-  ecart: 164 st.metric sans formateur commun, 12 formateurs concurrents, ~86 bricolages de séparateur
-  roadmap: R260
+  statut: partiel
+  preuve: {pytest: tests/test_a_number_is_written_one_way.py::test_the_hand_made_forms_only_become_fewer}
+  ecart: "R260 : formats.num/eur/pct (FR et EN), fmt_eur y délègue, 46 sites migrés ; restent 26 séparateurs faits main et 77 formats {:,} sous cliquet"
+  roadmap: R278
 
 - id: REQ-FORMAT-02
   domaine: formats
@@ -593,10 +594,10 @@
   enonce: Les tableaux partagent un style et des formats de colonnes
   sources: [{notes: L549}, {theorie: "Few p.74"}]
   priorite: P4
-  statut: absent
-  ecart: "71 appels st.dataframe / st.table sans style commun"
-  a_ecrire: "cliquet sur les st.dataframe sans column_config commun dans src/dashboard/views/"
-  roadmap: R260
+  statut: partiel
+  ecart: "R260 : formats.table ; 45 tableaux sur 58 encore sans format, sous cliquet"
+  preuve: {pytest: tests/test_a_number_is_written_one_way.py::test_the_hand_made_forms_only_become_fewer}
+  roadmap: R278
 - id: REQ-CLAUDE-03
   domaine: claude-wsl
   enonce: CLAUDE.md reste sous un budget de taille et ne porte que des règles vivantes

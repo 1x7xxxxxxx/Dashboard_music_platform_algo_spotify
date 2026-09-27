@@ -60,6 +60,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.platform_colors import platform_color
 from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.date_format import format_date
@@ -213,7 +214,7 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         # ce qu'on vient chercher.
         labels = [""] * len(grp)
         if len(labels):
-            labels[-1] = f"{int(grp['streams_cumulative'].iloc[-1]):,}".replace(",", " ")
+            labels[-1] = num(int(grp['streams_cumulative'].iloc[-1]), 0)
         fig.add_trace(go.Scatter(
             x=grp["day_index"], y=grp["streams_cumulative"],
             mode="lines+text", name=str(title), line=dict(width=2.5),
@@ -322,7 +323,7 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     pi_labels = [
         " · ".join(x for x in (
             t("spotify_s4a_combined.recent_tag", "{r} récents").format(
-                r=f"{int(r):,}".replace(",", " ")),
+                r=num(int(r), 0)),
             t("spotify_s4a_combined.pi_tag", "PI {v}").format(v=int(v)) if pd.notna(v) else "",
         ) if x)
         for r, v in zip(merged["recent"], merged["popularity"])

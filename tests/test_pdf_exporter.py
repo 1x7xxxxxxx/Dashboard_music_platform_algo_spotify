@@ -14,6 +14,8 @@ import pytest
 
 from src.dashboard.utils import pdf_exporter
 
+from src.dashboard.utils.semantic_colors import BON as _BON  # noqa: E402
+
 GOLDEN = os.path.join(os.path.dirname(__file__), "fixtures", "pdf_report_golden.html")
 
 
@@ -76,7 +78,7 @@ def _freeze_freshness(monkeypatch):
     # décision. Le stub rendait `None` ici : il aurait fait passer le test sur une
     # pastille grise, c'est-à-dire sur un chemin que la production n'emprunte pas.
     monkeypatch.setattr(pdf_exporter, "freshness_status",
-                        lambda _dt: ("🟢", "#1DB954", "à jour"))
+                        lambda _dt: ("🟢", _BON, "à jour"))
 
 
 def test_render_html_matches_golden():

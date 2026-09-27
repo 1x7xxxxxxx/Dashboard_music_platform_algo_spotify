@@ -62,8 +62,9 @@ _MARQUES = {
 # Gelé le 2026-09-21 par la mesure ci-dessus. CE NOMBRE NE PEUT QUE DESCENDRE.
 # 42 → 13 le 2026-09-27 (R260, lot 1) : les vues migrées vers `platform_color`,
 # `ALGO_COLORS` (une palette pour les trois algorithmes, au lieu de quatre) et les
-# couleurs sémantiques. Restent les modules PDF et la pastille de fraîcheur.
-_PLAFOND = 13
+# couleurs sémantiques. 13 → 0 le même jour (lot 2) : le PDF (matplotlib) et la
+# pastille de fraîcheur. Une couleur de plateforme n'a plus qu'UNE définition.
+_PLAFOND = 0
 
 # Le module qui PORTE la palette écrit forcément ces valeurs : c'est sa raison
 # d'être. L'exemption est nominative — un fichier ajouté à côté rougit.

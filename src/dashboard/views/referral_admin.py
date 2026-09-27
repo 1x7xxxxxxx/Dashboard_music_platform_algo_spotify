@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 
 from src.dashboard.utils import project_db
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import is_admin
 
@@ -100,7 +101,7 @@ def _render_creances(db) -> None:
         "{n} artiste(s) concerné(s) · **{v} €** à honorer au tarif de leur plan "
         "actuel."
     ).format(n=len(df),
-             v=f"{float(df['valeur_eur'].sum()):,.2f}".replace(",", " ")))
+             v=num(float(df['valeur_eur'].sum()), 2)))
 
     # ⚠️ « 0,00 € » à côté de « 3 mois offerts dus » se lit « rien à payer », et
     # c'est faux : un parrain resté en Free ne coûte rien AUJOURD'HUI, et coûtera

@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils import filters
 from src.dashboard.utils.i18n import t
@@ -531,7 +532,7 @@ def _render_table(df: pd.DataFrame) -> None:
         out = pd.to_numeric(display.get('total_outbound'), errors='coerce') \
             if 'total_outbound' in display else pd.Series(dtype=float)
         spend = pd.to_numeric(df['total_spend'], errors='coerce')
-        display['outbound'] = [f"{int(v):,}".replace(",", " ") if pd.notna(v) else "—" for v in out]
+        display['outbound'] = [num(int(v), 0) if pd.notna(v) else "—" for v in out]
         display['cost_outbound'] = [f"{sp / v:.2f}€" if pd.notna(v) and v > 0 else "—"
                                     for sp, v in zip(spend, out)]
 

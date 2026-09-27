@@ -65,7 +65,10 @@ _SURFACES = (
 
 #: Les couleurs que `freshness_status` rend. Comparer l'une d'elles pour DÉCIDER est le
 #: défaut ; les écrire pour DESSINER ne l'est pas.
-_COULEURS = ("#1DB954", "#FFA500", "#FF4444", "#888888", "#e74c3c", "#f39c12")
+# R260 : `freshness_status` rend désormais les couleurs sémantiques (BON, ATTENTION,
+# MAUVAIS) ; les anciennes restent listées — les comparer serait le même défaut.
+_COULEURS = ("#27751a", "#f8b10d", "#ec7979", "#1DB954", "#FFA500", "#FF4444", "#888888",
+             "#e74c3c", "#f39c12")
 
 
 def _arbre(rel: str) -> ast.AST:

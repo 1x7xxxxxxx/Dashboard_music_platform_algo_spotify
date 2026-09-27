@@ -572,3 +572,4 @@
 {"at": "2026-09-27T19:44:51+00:00", "head": "2818322b", "kind": "start", "task": "R259", "what": "filtres : defaut derniere sortie, couche unique, vues Meta"}
 {"at": "2026-09-27T19:59:56+00:00", "head": "8337deec", "kind": "done", "task": "R259", "what": "code pousse, CI et deploiement en attente"}
 {"at": "2026-09-27T19:59:56+00:00", "head": "8337deec", "kind": "start", "task": "R260", "what": "couleurs de plateforme, Pareto, formats"}
+{"at": "2026-09-27T20:15:42+00:00", "head": "9fadbf95", "kind": "note", "task": "R271", "what": "meta_breakdowns.py:168 engagement par dimension : 7 series px.bar noires au rendu du dossier (pas de theme), libelles pays coupes (automargin) - a traiter avec la validation des vues"}

@@ -19,6 +19,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
@@ -300,16 +301,13 @@ def _render_ledger(db, artist_id, cashflow: pd.DataFrame, mensuel: pd.DataFrame)
     measured = [v for v in totals.values() if v is not None]
     s = ledger_summary(cashflow, mensuel, float(sum(measured)) if measured else None)
 
-    def eur(v):
-        return "—" if v is None else f"{v:,.0f} €".replace(",", " ")
     head = t("revenue_forecast.ledger_head",
              "| Revenus | Dépenses | dont pub | Résultat financier | Écoutes (toutes plateformes) "
              "| Pub par écoute |")
-    streams = "—" if s['streams'] is None else f"{s['streams']:,.0f}".replace(",", " ")
-    per_stream = ("—" if s['cost_per_stream'] is None
-                  else f"{s['cost_per_stream']:.3f} €".replace(".", ","))
-    row = (f"| {eur(s['revenue'])} | {eur(s['spend'])} | {eur(s['ads'])} | "
-           f"**{eur(s['result'])}** | {streams} | {per_stream} |")
+    streams = "—" if s['streams'] is None else num(s['streams'], 0)
+    per_stream = eur(s['cost_per_stream'], 3)
+    row = (f"| {eur(s['revenue'], 0)} | {eur(s['spend'], 0)} | {eur(s['ads'], 0)} | "
+           f"**{eur(s['result'], 0)}** | {streams} | {per_stream} |")
     st.markdown(head + "\n|---|---|---|---|---|---|\n" + row)
     st.caption(t("revenue_forecast.ledger_caption",
                  "Depuis le début. « Pub par écoute » divise la dépense publicitaire par TOUTES "
@@ -598,7 +596,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         x=valeurs['valeur_eur'], y=valeurs['nom'], orientation='h',
         marker={'color': "#9FD8B4"},
         name=t("revenue_forecast.bar_value", "Valeur d'un déclenchement"),
-        text=[f"{v:,.2f} €".replace(",", " ") for v in valeurs['valeur_eur']],
+        text=[eur(v, 2) for v in valeurs['valeur_eur']],
         textposition='outside', cliponaxis=False,
         customdata=valeurs[['streams_med', 'n']].values,
         hovertemplate=("%{y}<br>%{customdata[0]:,.0f} écoutes médianes"
@@ -610,7 +608,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
             x=ordre, y=valeurs['nom'], orientation='h',
             marker={'color': DISTINCT[0]},
             name=t("revenue_forecast.bar_expect", "Espérance sur ton catalogue"),
-            text=[f"{v:,.2f} €".replace(",", " ") for v in ordre],
+            text=[eur(v, 2) for v in ordre],
             textposition='outside', cliponaxis=False,
             customdata=[[p * 100] for p in probas],
             hovertemplate=("%{y}<br>%{x:.2f} € espérés"
@@ -653,10 +651,10 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
                 "séparent du point mort, il en faudrait environ **{n}** de plus, "
                 "au même niveau."
             ).format(k=espoir['titres'],
-                     e=f"{espoir['total']:,.2f}".replace(",", " "),
-                     u=f"{par_titre:,.2f}".replace(",", " "),
-                     c=f"{pm:,.0f}".replace(",", " "),
-                     n=f"{pm / par_titre:,.0f}".replace(",", " "))
+                     e=num(espoir['total'], 2),
+                     u=num(par_titre, 2),
+                     c=num(pm, 0),
+                     n=num(pm / par_titre, 0))
 
     # ⚠️ `.replace(",", " ")` s'applique au NOMBRE FORMATÉ, jamais à la phrase.
     # Appliqué à la phrase entière, il mangeait la virgule de « ton taux réel,
@@ -689,11 +687,11 @@ def _trigger_decision_text(best: float, gap: float | None) -> str:
                  "rentrer dans tes frais. Les algorithmes t'apportent des auditeurs, pas de "
                  "quoi rembourser ta pub — juge ta pub sur les écoutes qu'elle achète, et "
                  "tes frais sur ce qu'ils rapportent.").format(
-                     n=f"{n:,.0f}".replace(",", " "), v=f"{best:,.2f}".replace(",", " "))
+                     n=num(n, 0), v=num(best, 2))
     return t("revenue_forecast.trigger_worth",
              "**La décision** : un déclenchement rapporte jusqu'à {v} €, à l'échelle de ce "
              "qui te manque — pousse le titre le plus proche d'une porte (Road to Algo)."
-             ).format(v=f"{best:,.2f}".replace(",", " "))
+             ).format(v=num(best, 2))
 
 
 def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:

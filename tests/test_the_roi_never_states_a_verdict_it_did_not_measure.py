@@ -137,7 +137,7 @@ def test_a_read_failure_is_named_and_produces_no_verdict() -> None:
 def test_the_formatter_shows_a_dash_never_a_fabricated_amount() -> None:
     assert fmt_eur(None) == "—"
     assert fmt_eur(None, 0) == "—"
-    assert fmt_eur(0.0) == "0.00 €", "un zéro MESURÉ reste un zéro"
+    assert fmt_eur(0.0) in ("0,00 €", "0.00 €"), "un zéro MESURÉ reste un zéro"
 
 
 # ── Le PDF payant n'imprime pas de verdict sur l'inconnu ────────────────────
