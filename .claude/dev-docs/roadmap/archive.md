@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R259 — **Filtres : une seule couche, défaut « dernière sortie »** (notes L90, L98, L103, L511,… (livrée 2026-09-27)
+
+- [x] **R259 — **Filtres : une seule couche, défaut « dernière sortie »** (notes L90, L98, L103, L511, L549) : `_default_preset` → dernière sortie quand elle existe ; smart_date_range et meta_accounts passent par filters.py ; SoundCloud semaine à un seul point ; filtre de période sur meta_ads_overview, meta_breakdowns, meta_cpr_optimizer ; mêmes libellés partout** (P2) ✅ (2026-09-27, 8337deec)
+  Mesuré par : REQ-FILTER-01/02 conformes
+  regle derniere sortie dans la couche, smart_date_range retire, compte Meta par filters.py, filtre de periode sur meta_ads_overview, garde mute rouge ; deploye 8337deec
+  Commits : 8337deec R259 : une seule couche de filtres, defaut depuis la derniere sortie p
+
 ## ✅ R257 — **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domai… (livrée 2026-09-27)
 
 - [x] **R257 — **Référentiel d'architecture modulaire et scalable** : carte des domaines micro (`domains.yaml`), catalogue exhaustif des exigences avec source et PREUVE ciblée sur une ligne (`requirements.yaml`), benchmark actuel vs théorique rejoué (`make arch-benchmark`), règle CLAUDE.md + garde « toute exigence a une preuve collectable ». Les refactors qui en sortent prennent chacun leur ligne** (P2) ✅ (2026-09-27, 8e8eb4f1, 7e467d99, 665d717d)

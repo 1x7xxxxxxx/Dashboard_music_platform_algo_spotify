@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R258 | **Or, une définition par KPI jusqu'au bout** (notes L10, L72, L500-510, L549) : registre étendu à formule, granularité, période et test de qualité par métrique ; identité mécanique argent/or ; plafond brut 66 → descendre (18 figures, 44 tuiles) ; CPC calculé deux fois dans meta_ads_overview → une lecture or ; qualité : borne par nature de mesure, campagne sans titre, scan de doublons (manques de R230) ; une tuile qui répète un graphique de la même page détectée <!-- anchor: r258 --> <!-- critic: requis — couche de définition partagée --> | P2 | REQ-GOLD-02/03, REQ-SILVER-01 conformes au benchmark |
-| R259 | **Filtres : une seule couche, défaut « dernière sortie »** (notes L90, L98, L103, L511, L549) : `_default_preset` → dernière sortie quand elle existe ; smart_date_range et meta_accounts passent par filters.py ; SoundCloud semaine à un seul point ; filtre de période sur meta_ads_overview, meta_breakdowns, meta_cpr_optimizer ; mêmes libellés partout <!-- anchor: r259 --> <!-- critic: non — resserrement d'une couche existante --> | P2 | REQ-FILTER-01/02 conformes |
 | R260 | **Porte de dessin et formats uniques** (notes L87, L242, L549) : couleurs de plateforme en dur 42 → 0 (PDF compris) ; Pareto par défaut sur les barres par catégorie ; un formateur de nombres/monnaie/% pour tuiles et tableaux + cliquet (164 st.metric, 12 formateurs) ; un style commun pour les 71 tableaux ; actions en gras, informations en petit <!-- anchor: r260 --> <!-- critic: non — porte existante étendue --> | P3 | REQ-CHART-02/03, REQ-FORMAT-01 conformes |
 | R261 | **Un contrat de routage unique** (notes L231, L243, L266, L270, L271, L277, L356) : page d'arrivée décidée à un endroit selon l'état de configuration, même parcours quel que soit l'onglet d'origine ; lien mort vers « Guide de démarrage » dans le mail de bienvenue ; en-tête « Ta mise en route », sélecteur d'OS, identité en haut du menu <!-- anchor: r261 --> <!-- critic: requis — navigation de toute l'app --> | P2 | REQ-UX-02 conforme ; parcours rejoué de bout en bout |
 | R262 | **Finance en une vue avec projection** (notes L128, L139, L538, L540) : charges, pub, SACEM, distributeurs, valeur d'un déclenchement sur un graphique, durée restante avant le point mort écrite dessus ; accueil : sources étendues (distributeur, SACEM, Hypeddit, meilleurs paramètres Meta) <!-- anchor: r262 --> <!-- critic: requis — chiffres d'argent --> | P2 | la durée avant point mort lisible sur la figure |
@@ -102,7 +101,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R258, R259, R260, R261, R262, R263, R264, R265, R266, R267, R268, R269, R270, R271, R272, R273, R274, R275, R255, R256 -->
+<!-- reprise: open=R258, R260, R261, R262, R263, R264, R265, R266, R267, R268, R269, R270, R271, R272, R273, R274, R275, R255, R256 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

@@ -570,3 +570,5 @@
 {"at": "2026-09-27T10:44:37+00:00", "head": "b12c250e", "kind": "start", "task": "R236", "what": "vue financiere en une ligne"}
 {"at": "2026-09-27T11:02:37+00:00", "kind": "done", "task": "R236", "what": "fermée par roadmap-close — ligne Revenus | Dépenses | dont pub | Résultat financier | Écoutes | Pub par écoute au-dessus de la trésorerie de « Mes revenus » ; ledger_summary testé, muté rouge ; déployé 8c1dfae3"}
 {"at": "2026-09-27T19:44:51+00:00", "head": "2818322b", "kind": "start", "task": "R259", "what": "filtres : defaut derniere sortie, couche unique, vues Meta"}
+{"at": "2026-09-27T19:59:56+00:00", "head": "8337deec", "kind": "done", "task": "R259", "what": "code pousse, CI et deploiement en attente"}
+{"at": "2026-09-27T19:59:56+00:00", "head": "8337deec", "kind": "start", "task": "R260", "what": "couleurs de plateforme, Pareto, formats"}

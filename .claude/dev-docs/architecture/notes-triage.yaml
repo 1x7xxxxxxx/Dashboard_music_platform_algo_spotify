@@ -694,15 +694,12 @@
   resume: « Dernière release en automatique » → règle pour toute l'app
   type: exigence-architecture
   domaine: filters
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: toutes les vues plateforme passent default_override='last_release' (youtube.py:91, instagram.py:117,
-    hypeddit.py:205, spotify_s4a_combined.py:487…), mais le défaut de smart_period_filter reste 'current' (utils/period_filter.py:205-213)
-    et aucun garde n'impose la règle
+  preuve_statut: R259 (archivée) — 8337deec
   preuve_ciblee: 'test à écrire : tests/test_a_view_filters_through_the_shared_layer.py — tout appel smart_period_filter/period()
     dans src/dashboard/views/ porte default_override=''last_release'' OU figure dans une allowlist motivée (ou changer
     le défaut de _default_preset, period_filter.py:205)'
-  roadmap: R259
 - ligne: 90
   resume: 'Apple Music : « aucune mesure depuis 2025-12-11 » malgré CSV récents — bug'
   type: action-produit
@@ -819,14 +816,12 @@
   resume: 'SoundCloud : granularité semaine = un seul point'
   type: action-produit
   domaine: filters
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: aucune trace dans soundcloud.py ni dans l'archive ; historique de 19 jours de collecte (soundcloud.py:36)
-    → 1-3 semaines selon la fenêtre last_release
+  preuve_statut: R259 (archivée) — 8337deec
   preuve_ciblee: 'test à écrire : sur v_soundcloud_catalog_daily, avec grain=''week'' et une fenêtre ≥ 21 jours,
     la figure a ≥ 3 points ; sinon le sélecteur refuse le grain semaine avec un message (utils/period_filter.py
     grain)'
-  roadmap: R259
 - ligne: 105
   resume: 'SoundCloud : « Évolution des métriques (base 100) : pas assez d''historique » — bug'
   type: action-produit
@@ -2864,12 +2859,10 @@
   resume: Architecture des filtres (temps, titre, plateforme, compte…) commune et modulaire
   type: exigence-architecture
   domaine: filters
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: archive.md:163 R232 — src/dashboard/utils/filters.py, 7 vues ; état partagé entre pages et URL
-    reportés par le critic (archive.md:165)
+  preuve_statut: R259 (archivée) — 8337deec
   preuve_ciblee: tests/test_a_view_filters_through_the_shared_layer.py::test_no_view_writes_its_own_period_filter
-  roadmap: R259
 - ligne: 513-515
   resume: Funnel principal Meta → créative → clic → landing → smart link → streaming → engagement (Shazam) → croissance
     → impact
