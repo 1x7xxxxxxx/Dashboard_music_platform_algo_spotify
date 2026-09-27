@@ -158,6 +158,13 @@ def _render_expected_table(guide: PlatformGuide) -> None:
     rows = [_expected_row(e) for e in guide.expected]
     st.caption(t("csv_guides.recognized_caption", "Fichiers reconnus automatiquement :"))
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    defined = [e for e in guide.expected if e.meanings]
+    if defined:
+        # Not an expander: the guide itself is one, and Streamlit refuses to nest them.
+        st.caption(t("csv_guides.meanings_title", "Ce que veut dire chaque colonne :"))
+        for e in defined:
+            st.markdown(f"**{e.label}**\n" + "\n".join(
+                f"- `{c}` — {m}" for c, m in zip(e.columns, e.meanings)))
 
 
 def _expected_row(e: ExpectedCsv) -> dict:

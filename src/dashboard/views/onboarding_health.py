@@ -13,6 +13,7 @@ exact next action. Admin sees every active artist; an artist sees their own row.
 import pandas as pd
 import streamlit as st
 
+from src.dashboard.utils.onboarding_journey import journey_line, read_journeys
 from src.dashboard.utils.status_matrix import render_status_matrix
 
 from src.dashboard.utils import get_db_connection
@@ -60,6 +61,12 @@ def show():
 
         total_red = 0
         echecs: list[str] = []
+        # R270 (note L5) — where each sign-up stands, stage by stage, in ONE query.
+        try:
+            journeys = read_journeys(db, [a for a, _ in artists])
+        except Exception as exc:      # noqa: BLE001 — informational line, said when missing
+            journeys = {}
+            echecs.append(f"parcours d'inscription : {type(exc).__name__}")
         for aid, name in artists:
             # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Sans ce `try`, un
             # artiste dont la lecture lève emportait TOUTE la page : pour l'admin, qui
@@ -97,6 +104,8 @@ def show():
                 # page. Le `try` d'origine couvrait l'appel que j'avais REGARDÉ, pas
                 # la frontière d'E/S — c'est la portée qui était le défaut, comme pour
                 # `pkill`/`pgrep`.
+                if aid in journeys:
+                    st.caption(journey_line(journeys[aid]))
                 try:
                     render_status_matrix(db, aid, key_suffix=f"health{aid}",
                                         rows=matrix)

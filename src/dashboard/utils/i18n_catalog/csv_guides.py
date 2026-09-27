@@ -12,4 +12,5 @@ EN = {
     "csv_guides.col_file": "File",
     "csv_guides.col_expected_name": "Expected name",
     "csv_guides.col_columns": "Columns",
+    "csv_guides.meanings_title": "What each column means:",
 }

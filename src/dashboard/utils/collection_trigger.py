@@ -185,4 +185,18 @@ def autostart_if_journey_complete(db, artist_id, session_state,
     if not should_autostart(state):
         return {}, {}
     session_state[_AUTOSTART_SESSION_KEY] = artist_id
-    return trigger_all_collections(artist_id, airflow_trigger, collection_dags)
+    launched, not_launched = trigger_all_collections(artist_id, airflow_trigger,
+                                                     collection_dags)
+    # R270 — the sidebar reports what it REMEMBERS. The button path remembered its runs,
+    # this automatic path did not: the collection an artist most often gets — the one
+    # that starts by itself — was the one nothing reported on.
+    from datetime import datetime, timezone
+
+    from src.dashboard.utils.collection_progress import (
+        LAUNCHED_AT_KEY, NOT_LAUNCHED_KEY, RUNS_KEY)
+    if launched:
+        session_state[RUNS_KEY] = launched
+        session_state[LAUNCHED_AT_KEY] = datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds")
+    session_state[NOT_LAUNCHED_KEY] = not_launched or {}
+    return launched, not_launched

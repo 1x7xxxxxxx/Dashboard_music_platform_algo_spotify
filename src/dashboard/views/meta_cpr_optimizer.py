@@ -359,8 +359,8 @@ def show() -> None:
         st.info(t(
             "meta_cpr_optimizer.no_mapping",
             "Aucun mapping campagne → titre. "
-            "Crée-les dans **🔗 Mapping cross-plateforme**, puis relance "
-            "La collecte tourne chaque matin, et redémarre dès que tu enregistres un identifiant."
+            "Crée-les dans **🔗 Mapping cross-plateforme** : la collecte tourne chaque "
+            "matin et redémarre dès que tu enregistres un identifiant."
         ))
         return
 

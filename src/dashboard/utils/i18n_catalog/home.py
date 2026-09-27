@@ -14,6 +14,8 @@ EN = {
         "which source is not answering, and why."
     ),
     "home.launching": "Launching collections…",
+    "home.collection_running": "🔄 {label} — collection running, each platform's state "
+                               "is in the sidebar.",
     "home.launched": "🚀 Collection launched — your first numbers arrive in "
                      "~2 minutes. Reload the page to see them.",
     "home.launch_refused": "❌ {n} collection(s) refused: {why}",

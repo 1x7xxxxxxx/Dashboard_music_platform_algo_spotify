@@ -536,8 +536,8 @@ def show():
             elif _ko:
                 st.warning(t(
                     "credentials.autostart_failed",
-                    "⚠️ La collecte automatique n'a pas pu démarrer. Lance-la depuis "
-                    "la barre latérale, ou réessaie plus tard."))
+                    "⚠️ La collecte automatique n'a pas pu démarrer — la raison est dans "
+                    "la barre latérale. Relance-la depuis la dernière étape de l'accueil."))
 
         # Ce que le verdict de sauvegarde annonce ensuite. Calculé UNE fois, ici,
         # sur l'état rechargé après le rerun : à ce moment la plateforme qui vient

@@ -11,8 +11,8 @@ EN = {
         "🚀 Your setup is complete — collection just started on its own ({n} "
         "sources). Your first figures arrive within minutes."),
     "upload_csv.autostart_failed": (
-        "⚠️ Automatic collection could not start. Launch it from the sidebar, or "
-        "try again later."),
+        "⚠️ Automatic collection could not start — the reason is in the sidebar. "
+        "Launch it again from the last step of the home page."),
     # Header / intro (pre-existing keys)
     "upload_csv.uploader_label": "CSV / TSV / TXT / XLSX files",
     "upload_csv.uploader_help": (

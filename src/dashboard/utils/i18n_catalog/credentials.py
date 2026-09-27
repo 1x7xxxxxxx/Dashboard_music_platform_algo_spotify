@@ -9,8 +9,8 @@ EN = {
         "🚀 Your setup is complete — collection just started on its own ({n} "
         "sources). Your first figures arrive within minutes."),
     "credentials.autostart_failed": (
-        "⚠️ Automatic collection could not start. Launch it from the sidebar, or "
-        "try again later."),
+        "⚠️ Automatic collection could not start — the reason is in the sidebar. "
+        "Launch it again from the last step of the home page."),
     # ── router.py ──────────────────────────────────────────────────────
     "credentials.title": "🔑 API Credentials + CSV imports",
     "credentials.tab_bar": "Platform",

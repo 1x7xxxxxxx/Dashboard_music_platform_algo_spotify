@@ -812,6 +812,15 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
         # endroits pour une action, c'est une consigne — et une consigne est ce qu'on
         # écrit quand le bouton est ailleurs. Elle le fait maintenant elle-même.
         if page_key == "onboarding" and idx == len(steps) - 1:
+            # R270 (note L258) — once a collection is running, the button folds into its
+            # STATE: pressing it again would only launch a duplicate, and the sidebar
+            # already reports each platform (green only when its data has landed).
+            from src.dashboard.utils.collection_progress import RUNS_KEY
+            if st.session_state.get(RUNS_KEY):
+                st.markdown(t("home.collection_running",
+                              "🔄 {label} — collecte en cours, l'état de chaque "
+                              "plateforme est dans la barre latérale.").format(label=label))
+                continue
             if st.button(f"⬜ {label}", key=f"home_step_{idx}",
                          width="stretch", type="primary"):
                 _launch_collections()

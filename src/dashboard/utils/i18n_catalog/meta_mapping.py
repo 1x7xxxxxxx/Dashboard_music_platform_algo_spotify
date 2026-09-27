@@ -38,8 +38,8 @@ EN = {
         "No campaigns: your Meta ad account is not set yet. Go to "
         "**🔑 Credentials API → Meta Ads** and paste your Ad Account ID."),
     "meta_mapping.empty_never_ran": (
-        "No campaigns: the Meta collection has never run for you yet. Start it with "
-        "**🚀 Launch ALL collections** in the sidebar."),
+        "No campaigns: the Meta collection has never run for you yet. It runs every "
+        "morning at 5 am, and starts again as soon as you save your ad account."),
     "meta_mapping.empty_run_failed": (
         "No campaigns: the last Meta collection failed. Nothing for you to do — "
         "we are looking into it."),

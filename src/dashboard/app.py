@@ -428,6 +428,26 @@ COLLECTION_DAGS = [
 ]
 
 
+def _landing_reader(artist_id):
+    """dag_id → this tenant's ledger row since the launch, read ONCE per rerun (R270)."""
+    from src.dashboard.utils.collection_progress import LAUNCHED_AT_KEY, read_landings
+
+    since = st.session_state.get(LAUNCHED_AT_KEY)
+    if artist_id is None or not since:
+        return None
+    cache: dict = {}
+
+    def read(dag_id):
+        if "rows" not in cache:
+            try:
+                cache["rows"] = read_landings(artist_id, since,
+                                              [d for d, _ in COLLECTION_DAGS])
+            except Exception:      # noqa: BLE001 — informational: ⏳, never a false ✅
+                cache["rows"] = {}
+        return cache["rows"].get(dag_id)
+    return read
+
+
 def show_data_collection_panel():
     """Sidebar button: collect MY data now.
 
@@ -464,7 +484,8 @@ def show_data_collection_panel():
     # Reported on every rerun, not only right after the click.
     try:
         from src.dashboard.utils.airflow_monitor import AirflowMonitor
-        render_progress(AirflowMonitor(), dict(COLLECTION_DAGS))
+        render_progress(AirflowMonitor(), dict(COLLECTION_DAGS),
+                        landings=_landing_reader(artist_id))
     except Exception:
         pass  # progress is informational — never block the sidebar on it
 

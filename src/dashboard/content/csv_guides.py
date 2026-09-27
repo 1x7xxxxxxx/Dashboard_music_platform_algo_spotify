@@ -29,6 +29,9 @@ class ExpectedCsv:
     label: str
     filename_hint: str
     columns: tuple[str, ...]
+    # R270 (note L7 « détailler la définition des CSV ») — what each column MEANS, in
+    # the order of `columns`. Guard: tests/test_every_csv_column_is_defined.py.
+    meanings: tuple[str, ...] = ()
 
 
 # Les deux familles de source, et pourquoi la distinction vit ICI et non dans le
@@ -138,11 +141,21 @@ _S4A = PlatformGuide(
         ),
     ),
     expected=(
-        ExpectedCsv("Timeline par titre", "<titre>-timeline.csv", ("date", "streams")),
+        ExpectedCsv("Timeline par titre", "<titre>-timeline.csv", ("date", "streams"),
+                    ("le jour", "écoutes de CE titre ce jour-là (Spotify compte une "
+                     "écoute à partir de 30 secondes)")),
         ExpectedCsv("Résumé titres (12 mois)", "…-songs-1year.csv",
-                    ("song", "listeners", "streams", "saves", "release_date")),
+                    ("song", "listeners", "streams", "saves", "release_date"),
+                    ("le titre", "auditeurs uniques du titre sur 12 mois",
+                     "écoutes du titre sur 12 mois", "ajouts du titre à une bibliothèque "
+                     "sur 12 mois", "date de sortie du titre")),
         ExpectedCsv("Audience", "…-audience-timeline.csv",
-                    ("date", "listeners", "streams", "followers", "playlist adds", "saves")),
+                    ("date", "listeners", "streams", "followers", "playlist adds", "saves"),
+                    ("le jour", "auditeurs uniques du jour, tous titres confondus",
+                     "écoutes du jour, tous titres confondus", "abonnés à ton profil "
+                     "artiste ce jour-là (un cumul, pas un gain)", "ajouts de tes titres "
+                     "à des playlists d'auditeurs ce jour-là", "ajouts de tes titres à une "
+                     "bibliothèque ce jour-là")),
     ),
 )
 
@@ -197,7 +210,10 @@ _APPLE = PlatformGuide(
     ),
     expected=(
         ExpectedCsv("Performance par morceau", "songs_….csv",
-                    ("Morceau / Song Title", "Écoutes / Plays", "Auditeurs / Listeners (opt.)")),
+                    ("Morceau / Song Title", "Écoutes / Plays", "Auditeurs / Listeners (opt.)"),
+                    ("le titre", "écoutes du titre sur la période couverte par l'export",
+                     "auditeurs uniques sur la période — absent de certains exports, "
+                     "d'où « opt. »")),
     ),
 )
 
@@ -238,9 +254,15 @@ _IMUSICIAN = PlatformGuide(
     ),
     expected=(
         ExpectedCsv("Résumé par sortie", "*.csv",
-                    ("Statement date", "Release title", "Track streams", "Total revenue")),
+                    ("Statement date", "Release title", "Track streams", "Total revenue"),
+                    ("le mois du relevé iMusician", "la sortie (single, EP, album)",
+                     "écoutes déclarées par les boutiques pour ce relevé",
+                     "revenu total de la sortie sur ce relevé, en euros")),
         ExpectedCsv("Rapport de vente", "*.csv",
-                    ("Sales date", "ISRC", "Shop", "Revenue EUR")),
+                    ("Sales date", "ISRC", "Shop", "Revenue EUR"),
+                    ("le mois de la vente ou de l'écoute", "le code unique du titre",
+                     "la boutique (Spotify, Apple Music, Deezer…)",
+                     "le revenu de la ligne, en euros")),
     ),
     family=FAMILY_DISTRIBUTOR,
 )
@@ -277,7 +299,11 @@ _DISTROKID = PlatformGuide(
     expected=(
         ExpectedCsv("Bank details (détail des revenus)", "*.tsv / *.csv",
                     ("Sale Month", "Store", "Title", "ISRC", "Quantity",
-                     "Earnings (USD)")),
+                     "Earnings (USD)"),
+                    ("le mois de la vente ou de l'écoute", "la boutique (Spotify, Apple "
+                     "Music…)", "le titre", "le code unique du titre",
+                     "nombre d'écoutes ou de ventes de la ligne",
+                     "le revenu de la ligne, en dollars US")),
     ),
     family=FAMILY_DISTRIBUTOR,
 )

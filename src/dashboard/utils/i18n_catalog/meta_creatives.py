@@ -68,7 +68,7 @@ EN = {
         "Your creatives ranked by CPR — based on Meta Ads API data (meta_ads × meta_insights)."
     ),
     "meta_creatives.no_data": (
-        'No creative data. Check that Meta Ads is connected in **🔑 Credentials API**, then run **🚀 Launch ALL collections** in the sidebar.'),
+        'No creative data. Check that Meta Ads is connected in **🔑 Credentials API** — the collection starts by itself when you save, and its state shows in the sidebar.'),
     "meta_creatives.filter_by_campaign": "Filter by campaign",
     "meta_creatives.all_campaigns": "All",
     "meta_creatives.no_creative_campaign": "No creative for this campaign.",

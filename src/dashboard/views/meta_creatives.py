@@ -1063,7 +1063,7 @@ def show() -> None:
                 "meta_creatives.no_data",
                 "Aucune donnée de créative. Vérifie que Meta Ads est connecté dans "
                 "**🔑 Credentials API** — la collecte démarre toute seule à l'enregistrement, "
-                "dans la barre latérale."
+                "et son état s'affiche dans la barre latérale."
             ))
             return
 

@@ -1070,8 +1070,8 @@ def render_uploader(db, target_artist_id: int) -> None:
             # l'artiste devant une quatrième étape ⬜ sans savoir qu'on a essayé.
             _notes.append(("warning", t(
                 "upload_csv.autostart_failed",
-                "⚠️ La collecte automatique n'a pas pu démarrer. Lance-la depuis la "
-                "barre latérale, ou réessaie plus tard.")))
+                "⚠️ La collecte automatique n'a pas pu démarrer — la raison est dans "
+                "la barre latérale. Relance-la depuis la dernière étape de l'accueil.")))
 
         # If S4A global summary was imported, rebuild the canonical
         # release-date reference (authoritative source for "latest release"

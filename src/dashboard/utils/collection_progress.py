@@ -21,6 +21,8 @@ RUNS_KEY = "_collection_runs"
 # interroger : un déclenchement refusé n'a pas d'identifiant de run, donc aucune
 # tâche à lire. C'était dit dans une `st.status` qui se referme, puis nulle part.
 NOT_LAUNCHED_KEY = "_collection_not_launched"
+# When the runs were launched (UTC ISO) — the landing is read from that instant on.
+LAUNCHED_AT_KEY = "_collection_launched_at"
 
 _TERMINAL_OK = {"success"}
 _TERMINAL_KO = {"failed", "upstream_failed"}
@@ -78,7 +80,47 @@ def remember_runs(runs: dict[str, str]) -> None:
     import streamlit as st
 
     if runs:
+        from datetime import datetime, timezone
         st.session_state[RUNS_KEY] = runs
+        st.session_state[LAUNCHED_AT_KEY] = datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds")
+
+
+def landing(log: dict | None) -> tuple[str, str | None]:
+    """(glyph, reason) for a run Airflow calls a success — green ONLY when rows landed.
+
+    R270 (owner, 2026-09-27 : « la croix verte quand la donnée arrive »). A DAG run is a
+    success when its tasks end well — including when the collector SKIPPED this tenant
+    (no identity declared) or wrote zero rows. The sidebar drew ✅ on both. `log` is this
+    tenant's `etl_run_log` row for the run: status, rows_inserted, error_message. Pure.
+    """
+    if not log:
+        return "⏳", None                       # finished, its ledger line not read yet
+    if log.get("status") == "success" and (log.get("rows_inserted") or 0) > 0:
+        return "✅", None
+    if log.get("status") == "skipped":
+        return "⚠️", log.get("error_message") or None
+    if log.get("status") == "failed":
+        return "❌", None
+    return "⚠️", "aucune donnée reçue"
+
+
+def read_landings(artist_id, since: str, dag_ids) -> dict[str, dict]:
+    """This tenant's latest `etl_run_log` row per DAG since `since` — one query."""
+    from src.dashboard.utils import get_db_connection
+    db = get_db_connection()
+    if db is None:
+        return {}
+    try:
+        rows = db.fetch_query(
+            "SELECT DISTINCT ON (dag_id) dag_id, status, rows_inserted, error_message "
+            "FROM etl_run_log WHERE artist_id = %s AND dag_id = ANY(%s) "
+            "AND started_at >= (%s::timestamptz AT TIME ZONE 'UTC') - interval '1 minute' "
+            "ORDER BY dag_id, started_at DESC", (artist_id, list(dag_ids), since))
+    finally:
+        db.close()
+    return {r[0]: {"status": r[1], "rows_inserted": r[2], "error_message": r[3]}
+            for r in rows or []}
 
 
 def remember_not_launched(failures: dict[str, str]) -> None:
@@ -92,7 +134,7 @@ def remember_not_launched(failures: dict[str, str]) -> None:
     st.session_state[NOT_LAUNCHED_KEY] = failures or {}
 
 
-def render_progress(monitor, labels: dict[str, str]) -> None:
+def render_progress(monitor, labels: dict[str, str], landings=None) -> None:
     """Show the state of the runs launched in this session. Safe to call every rerun."""
     import streamlit as st
 
@@ -117,7 +159,11 @@ def render_progress(monitor, labels: dict[str, str]) -> None:
         state = summarise([task.get("state") for task in tasks])
 
         if state == "success":
-            st.sidebar.write(f"✅ {label}")
+            if landings is None:
+                st.sidebar.write(f"✅ {label}")
+                continue
+            glyph, reason = landing(landings(dag_id))
+            st.sidebar.write(f"{glyph} {label}" + (f" — {reason}" if reason else ""))
         elif state == "running":
             st.sidebar.write(f"🔄 {label}")
         elif state == "unknown":
