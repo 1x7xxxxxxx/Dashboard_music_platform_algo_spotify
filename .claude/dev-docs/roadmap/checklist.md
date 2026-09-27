@@ -30,9 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R226 | Contrôle nocturne « total admin = somme des locataires humains » (trésorerie, ROI, MRR) dans `value_monitor`, et dossier des graphiques régénéré sur instantané frais après chaque lot visible — c'est le dossier, pas un test, qui a trouvé la trésorerie doublée (R220) <!-- anchor: r226 --> <!-- critic: requis --> | P2 | le récap du soir porte la réconciliation |
-| R230 | **Qualité des données par CATÉGORIE** (notes du propriétaire 2026-09-27) : ranger les contrôles existants (`gold_invariants` 30 égalités, `value_monitor`, `freshness_monitor`, `volume_monitor`, `quality_gate`, contamination, gardes R205) dans les 7 catégories — doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes — matrice GÉNÉRÉE métrique × catégorie, et combler les trous (variation anormale générique, doublon à l'ingestion, bornes par métrique) <!-- anchor: r230 --> <!-- critic: requis --> | P2 | matrice générée, 0 case vide sur les métriques affichées |
-| R232 | **Architecture des filtres** : une couche partagée pour période (déjà `smart_period_filter`, 8 vues ; 6 vues ont encore un `date_input` à elles), titre (clé canonique `match_key`), plateforme, compte, campagne — un état, une URL, les mêmes libellés partout ; garde qui refuse un filtre écrit à la main <!-- anchor: r232 --> <!-- critic: requis --> | P3 | nombre de filtres ad hoc → 0 |
 | R234 | **Les questions croisées du funnel** sur « Tout mon funnel » : classement des campagnes par coût par écoute gagnée, campagne engagement contre trafic, titre qui transforme le mieux les clics en streams, délai exposition → écoute (décalage dépense/écoutes), pays qui transforme le mieux. **« Suivre le même utilisateur » — SOLUTION** : aucune API ne donne d'identifiant de personne (Meta, S4A, Apple rendent des agrégats), donc on suit une COHORTE : campagne × titre × pays × fenêtre, du clic à l'écoute et aux abonnés, avec cette limite écrite dans la page <!-- anchor: r234 --> <!-- critic: requis --> | P2 | chaque question a sa figure ou sa phrase « non mesurable, parce que » |
 
 ---
@@ -89,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R226, R230, R232, R234, R221, R222, R237 -->
+<!-- reprise: open=R234, R221, R222, R237 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

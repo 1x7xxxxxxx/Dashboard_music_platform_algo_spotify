@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R232 — **Architecture des filtres** : une couche partagée pour période (déjà `smart_period_fil… (livrée 2026-09-27)
+
+- [x] **R232 — **Architecture des filtres** : une couche partagée pour période (déjà `smart_period_filter`, 8 vues ; 6 vues ont encore un `date_input` à elles), titre (clé canonique `match_key`), plateforme, compte, campagne — un état, une URL, les mêmes libellés partout ; garde qui refuse un filtre écrit à la main** (P3) ✅ (2026-09-27, 07886a0f)
+  Mesuré par : nombre de filtres ad hoc → 0
+  porte src/dashboard/utils/filters.py (period/entity/account, réexport), 7 vues la lisent ; garde AST des date_input (4 saisies déclarées + export_pdf gardé à part, raison écrite) ; état partagé entre pages et URL reportés par le critic
+  Commits : 07886a0f R232 : une porte d'entree des filtres (src/dashboard/utils/filters.py 
+
+## ✅ R230 — **Qualité des données par CATÉGORIE** (notes du propriétaire 2026-09-27) : ranger les c… (livrée 2026-09-27)
+
+- [x] **R230 — **Qualité des données par CATÉGORIE** (notes du propriétaire 2026-09-27) : ranger les contrôles existants (`gold_invariants` 30 égalités, `value_monitor`, `freshness_monitor`, `volume_monitor`, `quality_gate`, contamination, gardes R205) dans les 7 catégories — doublons, valeurs impossibles, ruptures temporelles, variations anormales, divergences entre plateformes, mapping, données manquantes — matrice GÉNÉRÉE métrique × catégorie, et combler les trous (variation anormale générique, doublon à l'ingestion, bornes par métrique)** (P2) ✅ (2026-09-27, 6c3867f8)
+  Mesuré par : matrice générée, 0 case vide sur les métriques affichées
+  tools/dev/dq_catalogue.py : 14 contrôles rangés sous 7 catégories × 5 piliers, rendus dans gold-coverage ; manques dits (borne par nature de mesure, campagne sans titre) ; aucun scan de doublons ajouté — UNIQUE sur 119/131 tables
+  Commits : 6c3867f8 R230 : la qualite des donnees par categorie - les 14 controles qui tou
+
+## ✅ R226 — Contrôle nocturne « total admin = somme des locataires humains » (trésorerie, ROI, MRR)… (livrée 2026-09-27)
+
+- [x] **R226 — Contrôle nocturne « total admin = somme des locataires humains » (trésorerie, ROI, MRR) dans `value_monitor`, et dossier des graphiques régénéré sur instantané frais après chaque lot visible — c'est le dossier, pas un test, qui a trouvé la trésorerie doublée (R220)** (P2) ✅ (2026-09-27, 0d4b337a)
+  Mesuré par : le récap du soir porte la réconciliation
+  invariant or fleet_cashflow_is_the_sum_of_humans (SQL de la porte admin partagé dans src/utils/fleet_money.py, sans Streamlit) ; prod 2026-09-27 : −2 833,43 € des deux côtés, 0 désaccord sur 59 couples ; MRR laissé hors invariant : UNIQUE(artist_id) le rend incapable d'échouer
+  Commits : 0d4b337a R226 : la porte admin « tous les artistes » de la tresorerie est rejou
+
 ## ✅ R229 — Les 5 lecteurs de test qui prennent « un » locataire actif (`test_the_home_period_selec… (livrée 2026-09-27)
 
 - [x] **R229 — Les 5 lecteurs de test qui prennent « un » locataire actif (`test_the_home_period_selector_drives_both_sections.py:112,255`, `test_the_setup_banner_folds_when_it_is_done.py:67`, `test_api_db_smoke.py:71`, `test_every_surface_gives_the_same_total.py:45`) ignorent les locataires créés pendant la session — laissés « à trancher » par le balayage du 2026-09-27** (P3) ✅ (2026-09-27, 0c083665, 9a4692d9)
