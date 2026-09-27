@@ -72,10 +72,18 @@ def db():
 
 
 def _tenants_with_youtube(db) -> list[int]:
+    # Tenants that existed BEFORE the session only (sweep 2026-09-27, class
+    # `a-shared-database-read-while-another-test-writes-it`): the canary and the e2e
+    # two-tenant tests create ACTIVE tenants and write youtube_video_stats from other
+    # xdist groups; a reader listing every tenant reads their rows mid-life.
+    from tests.conftest import _DB_SESSION_START
+    since = _DB_SESSION_START[0] if _DB_SESSION_START else None
     rows = db.fetch_query(
-        "SELECT artist_id, count(DISTINCT video_id) FROM youtube_video_stats "
-        "WHERE artist_id IS NOT NULL AND view_count IS NOT NULL "
-        "GROUP BY artist_id ORDER BY 2 DESC", ()
+        "SELECT s.artist_id, count(DISTINCT s.video_id) FROM youtube_video_stats s "
+        "JOIN saas_artists a ON a.id = s.artist_id "
+        "WHERE s.artist_id IS NOT NULL AND s.view_count IS NOT NULL "
+        "AND (%s::timestamptz IS NULL OR a.created_at < %s::timestamptz) "
+        "GROUP BY s.artist_id ORDER BY 2 DESC", (since, since)
     )
     return [int(r[0]) for r in (rows or [])]
 

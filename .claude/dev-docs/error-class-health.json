@@ -3477,7 +3477,8 @@
       "history_dates_declared": [
         "2026-09-16",
         "2026-09-18",
-        "2026-09-25"
+        "2026-09-25",
+        "2026-09-27"
       ],
       "kind": "deterministic",
       "seen_red": "self-proving",
@@ -3487,7 +3488,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -11671,7 +11672,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 567,
+      "catalogue_revisions": 568,
       "head_date": "2026-09-27"
     },
     "holes": {
