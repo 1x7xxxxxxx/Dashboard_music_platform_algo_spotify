@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R241 — **Chiffres justes, vérifiés un par un** : chaque figure rendue rapprochée de sa vue or… (livrée 2026-09-27)
+
+- [x] **R241 — **Chiffres justes, vérifiés un par un** : chaque figure rendue rapprochée de sa vue or sur l'instantané ; fiches 1, 4, 6, 8, 10, 13, 15, 29 vérifiées sur le rendu ; méthode « un chiffre juste » (bronze → argent → or) et livrable « KPI → graphiques qui le lisent » dans le PDF** (P2) ✅ (2026-09-27, d161515d)
+  Mesuré par : chaque fiche marquée chiffre vérifié ou écart nommé
+  verdict par fiche (or + contrôles du soir + forme dessinée), méthode bronze/argent/or et table KPI→fiches dans le PDF ; instantané : 0 écart sur 59 couples/4 bornes ; fiche 1 arrivée des compteurs marquée ; fiches 29/33 une barre par créa ; déployé d161515d
+  Commits : d161515d R241 : chiffres verifies un par un - chaque fiche porte un verdict (lu
+
+## ✅ R240 — **Le dossier des KPI porte les actions** (relecture du 2026-09-27, `revue/relecture-kpi… (livrée 2026-09-27)
+
+- [x] **R240 — **Le dossier des KPI porte les actions** (relecture du 2026-09-27, `revue/relecture-kpi.md`) : chaque fiche montre tes actions et les miennes avec leur Rnnn et leur état, les fiches à faire en tête et les VALIDÉES en fin, sans le rapport PDF artiste ni les notes /5** (P2) ✅ (2026-09-27, 726f08b7)
+  Mesuré par : PDF : validées en fin, 0 section rapport artiste
+  dossier : actions toi/moi par fiche avec Rnnn et état (fait quand la ligne est archivée), à faire en tête / à revalider / sans avis / validés en fin ; rapport PDF artiste et notes /5 retirés ; 75 avis versés
+  Commits : 726f08b7 R240 : le dossier des KPI porte les actions - chaque fiche montre tes 
+
 ## ✅ R237 — Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et… (livrée 2026-09-27)
 
 - [x] **R237 — Remplir les clics vers les plateformes PAR CRÉA : la colonne existe (migration 139) et s'affiche (R233), mais 0 créa sur 61 est mesurée tant que le DAG Meta n'a pas tourné en `full_history` — un déclenchement de DAG en production** (P2) ✅ (2026-09-27, 3dfcafa7)
