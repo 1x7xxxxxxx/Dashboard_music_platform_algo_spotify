@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 REVIEW_DB = "spotify_etl_review"
 _LOCAL = {"127.0.0.1", "localhost", "::1"}
 
@@ -64,6 +65,24 @@ def cut_egress() -> None:
         def __init__(self, *a, **k):
             raise ConnectionRefusedError("R203 : SMTP coupé pendant le rendu")
     smtplib.SMTP = smtplib.SMTP_SSL = _NoMail
+
+
+# R242 — the branches the DEFAULT render never reaches, and the widget that opens each one
+# (kind, key or label, value). Found 2026-09-27: 16 fiches were « non rendu » only because
+# nobody flipped a toggle or a selector. A chart that stays out of reach after this list
+# must carry its reason in review.yaml (`absent:`), never stay silent.
+VARIANTS: dict[str, list[tuple]] = {
+    "meta_breakdowns": [("selectbox", "Métrique", "Engagement")],
+}
+
+
+def apply_variant(at, kind: str, ident: str, value) -> bool:
+    """Set one widget, found by key or else by label; False when it is not on the page."""
+    for w in getattr(at, kind, []):
+        if getattr(w, "key", None) == ident or getattr(w, "label", None) == ident:
+            w.set_value(value)
+            return True
+    return False
 
 
 def _sites() -> tuple[str, str]:
@@ -113,6 +132,9 @@ def capture(views: list[str], out: Path, script: str) -> dict:
                         "view_site": view_site, "png": buf.getvalue()})
         return orig_pyplot(self, fig, *a, **k)
 
+    import airflow_replay                     # R242 — fiches 74–76, recorded in production
+    if airflow_replay.install(out / "airflow_replay.json"):
+        print("  API Airflow : rejouée depuis l'enregistrement de production", flush=True)
     DeltaGenerator.plotly_chart, DeltaGenerator.pyplot = rec_plotly, rec_pyplot
     st.plotly_chart = lambda *a, **k: rec_plotly(st._main, *a, **k)
     st.pyplot = lambda *a, **k: rec_pyplot(st._main, *a, **k)
@@ -122,6 +144,11 @@ def capture(views: list[str], out: Path, script: str) -> dict:
             current["view"] = v
             at = AppTest.from_string(script.format(root=str(ROOT), view=v))
             at.run(timeout=240)
+            for kind, ident, value in VARIANTS.get(v, []):
+                if not apply_variant(at, kind, ident, value):
+                    errors[f"{v}:{ident}"] = f"variante introuvable : {kind} « {ident} »"
+                    continue
+                at.run(timeout=240)
             if at.exception:
                 ex = at.exception[0]
                 errors[v] = str(getattr(ex, "value", ex))[:300]

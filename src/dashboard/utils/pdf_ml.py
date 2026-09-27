@@ -65,6 +65,7 @@ def shap_waterfalls(features_json):
         import numpy as np
         import pandas as pd
         import shap
+        from src.utils.shap_explain import explain
         from src.utils.ml_inference import FEATURE_COLUMNS
         from src.dashboard.views.trigger_algo._common import _FEATURE_LABELS
     except Exception:
@@ -75,7 +76,7 @@ def shap_waterfalls(features_json):
     for key, label in _ALGOS:
         try:
             model = _load_classifier(key)
-            sx = shap.TreeExplainer(model)(x_df)
+            sx = explain(model, x_df)   # R242 — never shap's loader
             plt.figure(figsize=(8.2, 4.2))
             shap.plots.waterfall(sx[0], max_display=13, show=False)
             buf = io.BytesIO()

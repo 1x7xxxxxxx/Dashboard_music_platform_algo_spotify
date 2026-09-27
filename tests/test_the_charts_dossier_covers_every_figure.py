@@ -64,6 +64,8 @@ def problems(review: dict, sites: set[str], pdf_keys: set[str], panels: set[str]
             out.append(f"{k} : question ou note vide")
         if "owner_v" in r and r["owner_v"] not in _VERDICTS:
             out.append(f"{k} : ton verdict {r['owner_v']!r} inconnu")
+        if "absent" in r and not str(r["absent"]).startswith(("code mort — ", "donnée absente — ")):
+            out.append(f"{k} : absent doit dire « code mort — » ou « donnée absente — »")
         if "cause" in r and not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", str(r["cause"])):
             out.append(f"{k} : cause {r['cause']!r} pas en kebab-case")
     return out
@@ -185,3 +187,57 @@ def test_an_action_names_who_and_a_real_roadmap_id() -> None:
     assert errors
     _, errors = ac.plan_actions({1: {"valide": True, "actions": [{"qui": "moi", "texte": "x"}]}}, fiches)
     assert errors, "a fiche both validated and carrying actions was accepted"
+
+
+def test_a_fiche_keeps_its_number_when_another_is_retired() -> None:
+    """R242 — retiring fiche 2 must not turn fiche 3 into fiche 2 (the owner dictates by number)."""
+    m = _main()
+    previous = {"a": 1, "b": 2, "c": 3}
+    assert m.numbering({"a": 0, "c": 0}, previous) == {"a": 1, "c": 3}
+    assert m.numbering({"a": 0, "c": 0, "d": 0}, previous)["d"] == 4, "a burnt number was reused"
+    assert m.numbering({"x": 0, "y": 0}) == {"x": 1, "y": 2}
+
+
+def test_a_hidden_branch_is_opened_by_its_widget() -> None:
+    """R242 — the capture flips the widget that hides a branch, by key or by label."""
+    sys.path.insert(0, str(_DOSSIER))
+    import capture
+
+    class W:
+        def __init__(self, key, label):
+            self.key, self.label, self.value = key, label, None
+
+        def set_value(self, v):
+            self.value = v
+
+    class AT:
+        toggle = [W("home_trend_facets_1", "Chacune à son échelle")]
+        selectbox = [W(None, "Métrique")]
+
+    at = AT()
+    assert capture.apply_variant(at, "toggle", "home_trend_facets_1", True)
+    assert at.toggle[0].value is True
+    assert capture.apply_variant(at, "selectbox", "Métrique", "Engagement")
+    assert not capture.apply_variant(at, "selectbox", "Absent", "x")
+    assert "meta_breakdowns" in capture.VARIANTS
+
+
+def test_a_chart_without_an_image_must_say_why() -> None:
+    m = _main()
+    review = {"a.py::f#1": {}, "b.py::g#1": {"absent": "code mort — rien ne l'appelle"},
+              "grafana:1": {}, "pdf:x": {}}
+    assert m.unexplained(review, rendered=set()) == ["a.py::f#1"]
+    assert m.unexplained(review, rendered={"a.py::f#1"}) == []
+
+
+def test_the_airflow_replay_answers_what_production_answered() -> None:
+    """R242 — fiches 74–76: the API is recorded in production and replayed by path+params."""
+    sys.path.insert(0, str(_DOSSIER))
+    import airflow_replay as ar
+    key = ar.request_key("GET", "http://airflow-webserver:8080/api/v1/dags", {"limit": 100})
+    s = ar.ReplaySession({key: [200, {"dags": [{"dag_id": "x"}]}]})
+    local = s.get("http://127.0.0.1:18080/api/v1/dags", params={"limit": 100})
+    assert local.status_code == 200 and local.json()["dags"][0]["dag_id"] == "x", "host must not matter"
+    assert s.get("http://h/api/v1/dags", params={"limit": 5}).status_code == 404
+    assert "key(\"GET\", url, params)" in ar.RECORDER and "/api/v1" in ar.RECORDER, (
+        "the recorder no longer keys requests the way the replay reads them")

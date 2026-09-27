@@ -63,6 +63,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
 
     try:
         import shap
+        from src.utils.shap_explain import explain
         import matplotlib
         try:
             matplotlib.use("Agg")
@@ -98,8 +99,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                                .format(key=model_key))
                     continue
                 try:
-                    explainer = shap.TreeExplainer(model)
-                    shap_exp = explainer(X_df)
+                    shap_exp = explain(model, X_df)   # R242 — never shap's loader
                     shap.plots.waterfall(shap_exp[0], max_display=13, show=False)
                     st.pyplot(plt.gcf(), clear_figure=True)
                     # ⚠️ Celle-ci est EXACTE, contrairement aux deux autres mentions
@@ -129,8 +129,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                              "Modèle `dw_regressor` introuvable dans machine_learning/mlruns/."))
             else:
                 try:
-                    reg_explainer = shap.TreeExplainer(reg)
-                    reg_exp = reg_explainer(X_df)
+                    reg_exp = explain(reg, X_df)
                     shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
                     st.pyplot(plt.gcf(), clear_figure=True)
                     baseline = float(np.ravel(reg_exp[0].base_values)[0])
@@ -163,8 +162,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                              "Modèle `radio_regressor` introuvable dans machine_learning/mlruns/."))
             else:
                 try:
-                    reg_explainer = shap.TreeExplainer(reg)
-                    reg_exp = reg_explainer(X_df)
+                    reg_exp = explain(reg, X_df)
                     shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
                     st.pyplot(plt.gcf(), clear_figure=True)
                     baseline = float(np.ravel(reg_exp[0].base_values)[0])

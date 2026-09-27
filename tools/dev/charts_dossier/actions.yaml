@@ -9,8 +9,9 @@ src/dashboard/utils/platform_chart.py::_render_facets#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre la variante, puis la garder si elle apporte, sinon la retirer
-    rid: R242
+    texte: 'Code mort (un seul interrupteur, ta décision du 2026-09-13) : retirer le mode « chacune à
+      son échelle »'
+    rid: R249
 src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
   valide: true
   actions: []
@@ -270,26 +271,29 @@ src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Code mort (aucune page ne l''appelle) : réutiliser dans la refonte Trigger Algo s''il sert,
+      sinon supprimer'
+    rid: R247
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Code mort (aucune page ne l''appelle) : réutiliser dans la refonte Trigger Algo s''il sert,
+      sinon supprimer'
+    rid: R247
 src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Code mort : les portes d''indice de popularité entrent dans la refonte de la fiche 42 (« à
+      quelle valeur je déclenche »)'
+    rid: R247
 src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Donnée absente (régresseur DW désactivé) : l''écrire dans la page ou retirer la figure'
+    rid: R247
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   valide: false
   actions:
@@ -300,7 +304,7 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
+    texte: 'Réparer les explications SHAP (cassées en production : shap 0.49 + xgboost 3) et les rendre'
     rid: R242
   - qui: moi
     texte: Intégrer à la refonte de la fiche 42
@@ -309,13 +313,13 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
+    texte: 'Réparer les explications SHAP (cassées en production : shap 0.49 + xgboost 3) et les rendre'
     rid: R242
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#3:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
+    texte: 'Réparer les explications SHAP (cassées en production : shap 0.49 + xgboost 3) et les rendre'
     rid: R242
 src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   valide: false
@@ -327,8 +331,9 @@ src/dashboard/utils/ml_widgets.py::render_prerelease_rr_estimator#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Code mort (aucune page ne l''appelle) : réutiliser dans la refonte Trigger Algo s''il sert,
+      sinon supprimer'
+    rid: R247
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   valide: false
   actions:
@@ -351,8 +356,8 @@ src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   valide: false
   actions:
   - qui: moi
-    texte: Rendre
-    rid: R242
+    texte: 'Donnée absente (aucun abonnement payant) : MRR déplacé en admin avec un état vide explicite'
+    rid: R249
 src/dashboard/views/revenue_forecast.py::_tab_projection#1:
   valide: false
   actions:
@@ -388,9 +393,8 @@ src/dashboard/views/alerts.py::_section_plan_evolution#1:
 src/dashboard/views/admin.py::_render_costs#1:
   valide: false
   actions:
-  - qui: moi
-    texte: Rendre
-    rid: R242
+  - qui: toi
+    texte: Saisir tes coûts d'exploitation (hébergement, domaine, outils) dans l'admin
 src/dashboard/views/usage_analytics.py::show#1:
   valide: false
   actions:

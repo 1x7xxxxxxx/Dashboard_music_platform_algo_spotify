@@ -442,7 +442,7 @@ night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, jour
 	@python3 tools/dev/night_run.py status
 	@python3 tools/dev/roadmap_discipline.py || true
 
-charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=revue (ignoré par git) ou un dossier hors dépôt [PROM=http://127.0.0.1:19090]
+charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=revue (ignoré par git) ou un dossier hors dépôt [PROM=http://127.0.0.1:19090] [AIRFLOW_REPLAY=1]
 	@test -n "$(OUT)" || { echo "❌ OUT= manquant — un dossier HORS du dépôt (le PDF contient des données d'artiste)"; exit 1; }
 	@.venv/bin/python -c "import kaleido" 2>/dev/null || { echo "❌ kaleido absent. Run: uv sync --frozen --extra dev"; exit 1; }
 	@docker exec postgres_spotify_airflow psql -U postgres -tAc "select 1 from pg_database where datname='spotify_etl_review'" 2>/dev/null | grep -q 1 || { \
@@ -451,6 +451,9 @@ charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artis
 		echo "   docker exec postgres_spotify_airflow createdb -U postgres spotify_etl_review"; \
 		echo "   docker exec -i postgres_spotify_airflow pg_restore -U postgres -d spotify_etl_review --no-owner --no-privileges < $(OUT)/prod.dump"; \
 		exit 1; }
+	@# R242 — AIRFLOW_REPLAY=1 : l'API Airflow est ENREGISTRÉE dans le conteneur dashboard de
+	@# la prod (sa propre session, lecture seule), puis rejouée pendant le rendu local.
+	@$(if $(AIRFLOW_REPLAY),.venv/bin/python tools/dev/charts_dossier/airflow_replay.py record "$(OUT)",true)
 	@.venv/bin/python tools/dev/charts_dossier/capture.py "$(OUT)"
 	@.venv/bin/python tools/dev/charts_dossier/numbers_check.py "$(OUT)"
 	@.venv/bin/python tools/dev/charts_dossier/main.py "$(OUT)" $(PROM)

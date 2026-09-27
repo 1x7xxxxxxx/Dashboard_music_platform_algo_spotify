@@ -110,8 +110,11 @@ def main(argv: list[str]) -> int:
         print(__doc__.split("\n\n")[-1], file=sys.stderr)
         return 2
     comments = yaml.safe_load(Path(argv[1]).read_text(encoding="utf-8")) or {}
+    live = set(yaml.safe_load(REVIEW.read_text(encoding="utf-8")) or {})
+    # A retired chart keeps its number in fiches.json; a comment on it lands nowhere.
     fiches = {int(k): v for k, v in
-              json.loads((Path(argv[2]) / "fiches.json").read_text(encoding="utf-8")).items()}
+              json.loads((Path(argv[2]) / "fiches.json").read_text(encoding="utf-8")).items()
+              if v in live}
     updates, errors = plan(comments, fiches)
     actions, act_errors = plan_actions(comments, fiches)
     errors += act_errors

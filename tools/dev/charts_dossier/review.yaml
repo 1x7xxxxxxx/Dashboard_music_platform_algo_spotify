@@ -33,6 +33,7 @@ src/dashboard/utils/platform_chart.py::_render_facets#1:
   v: a-trancher
   owner_v: a-trancher
   owner: "Prends le plus pertinent."
+  absent: "code mort — le mode « chacune à son échelle » n'est plus atteignable depuis ta décision du 2026-09-13 (un seul interrupteur, le cumulé)"
   note: "Non atteint par le rendu par défaut (branche d'un autre réglage) — à regarder dans l'app."
 
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
@@ -514,6 +515,7 @@ src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu."
+  absent: "code mort — `_show_tab_algos` n'est appelé par aucune page (le routeur Trigger Algo ne l'atteint pas)"
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
   q: "(détail par algorithme — non atteint par défaut)"
@@ -524,6 +526,7 @@ src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#2:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu."
+  absent: "code mort — même fonction que la fiche 47"
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
   q: "À quel indice de popularité chaque algorithme se déclenche-t-il ?"
@@ -534,6 +537,7 @@ src/dashboard/views/trigger_algo/_common/_pi_gates.py::_show_pi_gate_section#1:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu, voir pourquoi."
+  absent: "code mort — `_show_pi_gate_section` n'est appelé que par `_show_tab_algos`, que rien n'appelle"
   note: "Non rendu à l'écran par défaut ; son jumeau du PDF (pdf:pi_gate) est clair."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   q: "(qualité du modèle — branche non atteinte)"
@@ -544,6 +548,7 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model#1:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu, idem."
+  absent: "donnée absente — le régresseur de volume DW est désactivé (jugé non fiable) : aucune prévision à confronter"
   note: "Non rendu par défaut."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_scatter#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
@@ -605,6 +610,7 @@ src/dashboard/utils/ml_widgets.py::render_prerelease_rr_estimator#1:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu."
+  absent: "code mort — l'estimateur Release Radar avant sortie n'est appelé que par `_show_tab_algos`"
   note: "Non rendu par défaut."
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
@@ -649,6 +655,7 @@ src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   v: a-trancher
   owner_v: corriger
   owner: "Non rendu."
+  absent: "donnée absente — aucun abonnement payant actif dans la base : le MRR est nul, rien à tracer"
   note: "Non rendu par défaut."
 src/dashboard/views/revenue_forecast.py::_tab_projection#1:
   q: "Quand atteindrai-je mon objectif de revenu mensuel ?"
@@ -711,6 +718,7 @@ src/dashboard/views/admin.py::_render_costs#1:
   v: a-trancher
   owner_v: corriger
   owner: "Pas de rendu."
+  absent: "donnée absente — aucun coût d'exploitation saisi dans l'admin"
   note: "Non rendu par défaut."
 src/dashboard/views/usage_analytics.py::show#1:
   q: "L'app est-elle utilisée, jour après jour ?"

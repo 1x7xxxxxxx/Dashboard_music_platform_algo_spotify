@@ -139,7 +139,7 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
         owner = (f'<p class="owner"><b>Ton avis</b> — {VERDICTS.get(ov, ov)}'
                  f'{" : " + esc(r.get("owner")) if r.get("owner") else ""}</p>')
     img_html = (f'<img class="fig" src="{esc(img)}">' if img
-                else '<div class="nr">Non rendu — voir la note.</div>')
+                else f'<div class="nr">Non rendu — {esc(r.get("absent") or "cause à trouver (R242)")}.</div>')
     return f"""<div class="fiche">
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
@@ -255,16 +255,45 @@ def page_phrase(cap: dict, view: str = "ml_performance") -> str:
     return f"Les {n} figures de la page modèle"
 
 
-def numbering(review: dict) -> dict[str, int]:
-    """Fiche numbers: the ORDER of review.yaml — stable across rebuilds, written to fiches.json."""
-    return {k: i for i, k in enumerate(review, start=1)}
+def unexplained(review: dict, rendered: set[str]) -> list[str]:
+    """App charts with no image AND no declared cause (`absent:`) — R242. Pure.
+
+    « Non rendu — voir la note » hid sixteen charts for a day: three were one toggle away,
+    three behind an Airflow API the render never reached, three behind a SHAP crash in
+    production. A chart without an image must say WHY, or the build names it."""
+    return [k for k, r in review.items()
+            if not k.startswith(("pdf:", "grafana:")) and k not in rendered
+            and not (r or {}).get("absent")]
+
+
+def numbering(review: dict, previous: dict[str, int] | None = None) -> dict[str, int]:
+    """Fiche numbers, STABLE: a chart keeps its number for good, a new one takes the next free
+    number, a retired one's number is never reused. Pure.
+
+    R242: numbers were the order of review.yaml, so retiring a chart (fiches 59, 61, 70, 71
+    asked by the owner) would have renumbered every fiche after it — and his next review,
+    dictated « fiche 72 … », would have landed on the wrong chart."""
+    previous = previous or {}
+    out = {k: previous[k] for k in review if k in previous}
+    nxt = max([*previous.values(), 0]) + 1
+    for k in review:
+        if k not in out:
+            out[k] = nxt
+            nxt += 1
+    return dict(sorted(out.items(), key=lambda kv: kv[1]))
 
 
 def build(out: Path) -> Path:
     review = load()
-    no_of = numbering(review)
+    fj = out / "fiches.json"
+    previous = ({v: int(k) for k, v in json.loads(fj.read_text(encoding="utf-8")).items()}
+                if fj.exists() else {})
+    no_of = numbering(review, previous)
     (out / "fiches.json").write_text(
-        json.dumps({str(n): k for k, n in no_of.items()}, ensure_ascii=False, indent=1),
+        # Retired charts keep their line: their number is burnt, never handed out again.
+        json.dumps({str(n): k for k, n in sorted({**previous, **no_of}.items(),
+                                                   key=lambda kv: kv[1])},
+                   ensure_ascii=False, indent=1),
         encoding="utf-8")
     cap = json.loads((out / "capture.json").read_text(encoding="utf-8"))
     gra_path = out / "grafana.json"
@@ -302,6 +331,10 @@ def build(out: Path) -> Path:
         (ROOT / ".claude/dev-docs/roadmap/checklist.md").read_text(encoding="utf-8"))
     st_of = {k: status(acts.get(k), open_ids) for k in review}
     number_of, method = numbers_section(out, review, cap, key_of, inv, no_of, views_of)
+    missing = unexplained(review, set(first))
+    if missing:
+        print(f"⚠️ {len(missing)} graphique(s) sans image ni cause déclarée : "
+              + ", ".join(f"fiche {no_of[k]}" for k in missing), file=sys.stderr)
     by_status = collections.Counter(st_of.values())
     total = len(review)
     suspects = [k for k, r in review.items() if r.get("v") == "corriger" and r.get("c", 5) <= 2
