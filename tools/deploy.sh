@@ -235,6 +235,8 @@ echo "✅ deployed $after — $SERVICES healthy"
 
 # R264 — the catalogue health, for Grafana: node_exporter reads this directory
 # (`--collector.textfile.directory`, deploy/docker-compose.observability.yml). Never
-# fatal: a deploy that succeeded is not undone by a missing metric.
+# fatal: a deploy that succeeded is not undone by a missing metric. The directory is
+# created by the script — which assumes this deploy runs as root (`make deploy
+# PROD_SSH=root@…`); as another user, the warning below names the refusal.
 python3 tools/dev/error_class_metrics.py /var/lib/node_exporter/textfile \
     || echo "⚠️  métriques du catalogue non écrites (le déploiement, lui, a réussi)"

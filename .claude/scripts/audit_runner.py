@@ -834,6 +834,12 @@ def _admission(headers: list[dict]) -> int:
 
     print(f"▶ admission: bascule au {since} — {len(neuves)} classe(s) neuve(s), "
           f"{len(neuves) - len(fautives)} avec un billet valide")
+    # R264 (code-critic, 2026-09-28) — the reason after `closest:` is checked for FORM only:
+    # « a-tenant-join — asdfasdfasdf » passes. Its content cannot be judged by a regex, so
+    # every admitted one is PRINTED: the reviewer of the CI log is the real check.
+    for h in neuves:
+        if (h.get("first_seen") or "") >= _GENERIC_SINCE and h.get("closest"):
+            print(f"  ↔  {h['id']}  closest: {h['closest']}")
     if not fautives:
         print("✅ toute classe écrite depuis la bascule justifie son existence")
         return 0
@@ -1239,8 +1245,12 @@ def main() -> None:
 
     batched: dict[str, tuple[bool, str]] = {}
     individual = selected
+    batch_secs = None
     if not args.no_batch:
+        import time
+        t0 = time.perf_counter()
         batched, individual = run_batched(selected)
+        batch_secs = time.perf_counter() - t0
 
     # The signatures are independent read-only checks: run them concurrently, report
     # them in catalogue order. In series, `--static` was the CI's critical path on
@@ -1257,6 +1267,10 @@ def main() -> None:
         finally:
             durations[cid] = time.perf_counter() - t0
 
+    if batch_secs is not None:
+        # R264 (code-critic) — the batched pytest run is part of the cost; without it the
+        # shares below described a subset and hid where the budget goes.
+        durations["__lot pytest groupé__"] = batch_secs
     with ThreadPoolExecutor(max_workers=_SIGNATURE_WORKERS) as pool:
         pending = {c["id"]: pool.submit(_timed, c["id"], c["signature"])
                    for c in selected if c["id"] not in batched}
