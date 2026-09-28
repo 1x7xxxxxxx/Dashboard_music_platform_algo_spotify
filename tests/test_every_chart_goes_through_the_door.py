@@ -21,9 +21,11 @@ DOOR = "src/dashboard/utils/charts.py"
 
 def bypasses(tree: ast.AST) -> list[int]:
     """Lines where a chart is drawn by anything but the door. Pure."""
+    # R314 — `pyplot` too: the three SHAP charts drew with `st.pyplot` and would have been
+    # the only charts without the decision line the door writes under every figure.
     return [n.lineno for n in ast.walk(tree)
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-            and n.func.attr == "plotly_chart"
+            and n.func.attr in ("plotly_chart", "pyplot")
             and not (isinstance(n.func.value, ast.Name) and n.func.value.id == "charts")]
 
 
@@ -37,6 +39,8 @@ def test_no_chart_walks_around_the_door():
 def test_the_detector_sees_the_defect_it_is_written_for():
     assert bypasses(ast.parse("st.plotly_chart(fig)"))
     assert bypasses(ast.parse("c1.plotly_chart(fig)"))
+    assert bypasses(ast.parse("st.pyplot(plt.gcf())"))
+    assert not bypasses(ast.parse("charts.pyplot(plt.gcf())"))
     assert not bypasses(ast.parse("charts.plotly_chart(fig, container=c1)"))
     assert not bypasses(ast.parse("'''st.plotly_chart(fig)'''"))
 

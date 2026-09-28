@@ -602,6 +602,7 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # 2026-09-12.
     drawn = render_platform_chart(
         series, since=since, until=until, only=chosen, step=step, mode=mode,
+        decision_key="views/home.py::platform",
         cumulative=cumulative, discarded=_discarded,
         # `recap=True` ET NON UNE COLONNE : sans conteneur, les indicateurs
         # tombent là où la figure les rend — juste sous elle, dans l'ordre de

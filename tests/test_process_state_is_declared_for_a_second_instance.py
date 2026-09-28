@@ -86,6 +86,9 @@ _DECLARED: dict[str, str] = {
     "src/dashboard/utils/pdf_exporter/_config.py::_LANG":
         "INOFFENSIF. Posé et lu dans le même export, synchrone. Deux instances "
         "exportent deux PDF indépendants ; il n'y a rien à partager entre eux.",
+    "src/dashboard/utils/chart_key.py::_KEYS":
+        "INOFFENSIF. Parsed once per process from the source files on disk, immutable "
+        "within a run; at two instances each parses its own copy, same answer.",
     "src/dashboard/views/trigger_algo/_common/_loaders.py::_json_artifact_cache":
         "INOFFENSIF. Cache d'artefacts de MODÈLE, lus sur disque et immuables. Deux "
         "instances chargent le même fichier deux fois — c'est de la mémoire, pas une "

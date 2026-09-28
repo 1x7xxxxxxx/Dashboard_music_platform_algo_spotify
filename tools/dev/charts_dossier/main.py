@@ -235,7 +235,17 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
             head = (f'<div class="head"><span class="no">Fiche {no}</span><span class="verdict" '
                     f'style="background:{badge[1]}">{badge[0]}</span>'
                     f'<span class="q">{esc(r.get("q"))}</span></div>')
-        return f'<div class="fiche">{head}{img_html}</div>'
+        # R314 (owner, 2026-09-28) — « À valider » says WHAT: the changes I made, one line.
+        what = ""
+        if badge and badge[0] == "À valider":
+            mine = [a["texte"] for a in (entry or {}).get("actions") or [] if a.get("qui") == "moi"]
+            if mine:
+                what = f'<p class="what"><b>À valider :</b> {esc(" ; ".join(mine))}</p>'
+        # R314 — under the chart, what it lets you DECIDE in your campaigns (never the question).
+        dec = r.get("decision")
+        mq = f' <span class="mq">{esc(r["mq"])}</span>' if r.get("mq") else ""
+        decision = f'<p class="decide">🎯 {esc(dec)}{mq}</p>' if dec else ""
+        return f'<div class="fiche">{head}{what}{img_html}{decision}</div>'
     if mode == "detail":
         return (f'<div class="fiche det">{head}{number_html(number)}{what_to_do(r, entry)}'
                 f'<p class="note">{esc(r.get("note"))}</p>{owner}'
@@ -652,6 +662,7 @@ table.trace tr.dup td { background: #fff3a8; }
 table.dec { width: 100%; } table.dec td, table.dec th { font-size: 9pt; padding: .6mm 2mm; vertical-align: top; }
 ul.dec li, p.dec { font-size: 10pt; margin: .8mm 0; }
 h1.page { page-break-before: always; } p.site { margin-bottom: 3mm; }
+p.decide { font-size: 10.5pt; font-weight: bold; color: #1a4d8f; margin: 1mm 0 2mm; } p.what { font-size: 9.5pt; background: #eef4ff; padding: 1mm 2mm; margin: 1mm 0; } .mq { font-size: 8pt; background: #dde6f5; padding: 0 1.5mm; border-radius: 1mm; }
 .fiche.det { page-break-inside: auto; }
 table.trace { table-layout: fixed; width: 100%; } table.trace td { word-wrap: break-word; }
 .srcs { color: #888; font-size: 6pt; margin-top: .5mm; }

@@ -237,6 +237,17 @@
   mutation: "dessiner deux fois v_s4a_song_daily.streams sur une même page"
   roadmap: R258
 
+- id: REQ-CHART-05
+  domaine: chart-door
+  enonce: Tout graphique de l'app dit, sous la figure, ce qu'il permet de décider dans la gestion des campagnes marketing (une ligne FR/EN, une action, pas une question)
+  sources: [{kpi: "retour du propriétaire 2026-09-28, fiche 1"}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_every_chart_says_what_it_lets_you_decide.py::test_every_app_chart_has_its_decision_line}
+  ecart: "R314 : 64/64 sites de l'app ; la clé d'exécution est celle du dossier ; Grafana exclu (question DevOps)"
+  mutation: "retirer une ligne de src/dashboard/content/chart_decisions.py"
+  roadmap: R314
+
 - id: REQ-FORMAT-01
   domaine: formats
   enonce: Un formateur unique pour nombres, monnaie, pourcentages et dates, sur tuiles, tableaux et graphiques

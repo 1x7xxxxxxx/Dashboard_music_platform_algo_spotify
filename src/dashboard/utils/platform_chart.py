@@ -606,7 +606,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           discarded: dict | None = None,
                           recap=None, recap_extra=None,
                           recap_metrics=None,
-                          key: str = "platform_chart") -> bool:
+                          key: str = "platform_chart",
+                          decision_key: str | None = None) -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
     L'appelant décide quoi dire quand c'est False — cette fonction n'écrit ni
@@ -1077,7 +1078,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         mark_counter_arrivals(fig, first_plotted(_arrivals, aligned, span),
                               PLATFORM_LABELS, muted, palette)
 
-    charts.plotly_chart(fig, width="stretch", key=key)
+    # R314 — a helper drawn on several pages: each page names its own decision line.
+    charts.plotly_chart(fig, width="stretch", key=key, decision_key=decision_key)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
                       step, extra=recap_extra,

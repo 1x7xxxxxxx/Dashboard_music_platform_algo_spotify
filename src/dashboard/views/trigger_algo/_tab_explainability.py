@@ -1,5 +1,5 @@
 """trigger_algo — _show_tab_explainability (move-only split)."""
-from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 import json
@@ -101,7 +101,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                 try:
                     shap_exp = explain(model, X_df)   # R242 — never shap's loader
                     shap.plots.waterfall(shap_exp[0], max_display=13, show=False)
-                    st.pyplot(plt.gcf(), clear_figure=True)
+                    charts.pyplot(plt.gcf(), clear_figure=True)
                     # ⚠️ Celle-ci est EXACTE, contrairement aux deux autres mentions
                     # « non calibré » corrigées le 2026-09-22 : SHAP explique le
                     # classifieur BRUT, avant que Platt ne s'applique. Elle est
@@ -131,7 +131,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                 try:
                     reg_exp = explain(reg, X_df)
                     shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
-                    st.pyplot(plt.gcf(), clear_figure=True)
+                    charts.pyplot(plt.gcf(), clear_figure=True)
                     baseline = float(np.ravel(reg_exp[0].base_values)[0])
                     values = [float(v) for v in np.ravel(reg_exp[0].values)]
                     prediction = baseline + sum(values)
@@ -164,7 +164,7 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
                 try:
                     reg_exp = explain(reg, X_df)
                     shap.plots.waterfall(reg_exp[0], max_display=13, show=False)
-                    st.pyplot(plt.gcf(), clear_figure=True)
+                    charts.pyplot(plt.gcf(), clear_figure=True)
                     baseline = float(np.ravel(reg_exp[0].base_values)[0])
                     values = [float(v) for v in np.ravel(reg_exp[0].values)]
                     prediction = baseline + sum(values)

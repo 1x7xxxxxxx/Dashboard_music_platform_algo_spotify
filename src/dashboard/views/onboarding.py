@@ -272,7 +272,8 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
                 # Les deux sont maintenant réglés au même endroit que l'accueil.
                 from src.dashboard.utils.platform_chart import render_platform_chart
                 render_platform_chart(_mine[0], cumulative=_mine[1],
-                                      key="onb_trend")
+                                      key="onb_trend",
+                                      decision_key="views/onboarding.py::platform")
             else:
                 _example_chart(image)
             st.markdown(t(key, default))

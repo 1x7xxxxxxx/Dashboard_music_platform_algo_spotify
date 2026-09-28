@@ -216,9 +216,33 @@ def _has_colour(tr) -> bool:
     return False
 
 
+def decision_line(key: str | None) -> str | None:
+    """« 🎯 … » — what the chart at `key` lets the artist decide in managing marketing
+    campaigns, in the current language (R314). None when the key has no line. Pure but for
+    the language read from the session."""
+    if not key:
+        return None
+    from src.dashboard.content.chart_decisions import DECISIONS
+    from src.dashboard.utils.i18n import get_lang
+    pair = DECISIONS.get(key.removeprefix("src/dashboard/"))
+    if pair is None:
+        return None
+    return "🎯 " + (pair[1] if get_lang() == "en" else pair[0])
+
+
+def _say_the_decision(target, decision_key: str | None) -> None:
+    from src.dashboard.utils.chart_key import caller_key
+    line = decision_line(decision_key or caller_key(depth=3))
+    if line:
+        target.caption(line)
+
+
 def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: bool = True,
-                 **kwargs):
-    """Draw `fig` — THE way every chart of the app reaches the screen (R243)."""
+                 decision_key: str | None = None, **kwargs):
+    """Draw `fig` — THE way every chart of the app reaches the screen (R243).
+
+    R314 — and says, under it, what it lets you decide (`chart_decisions.py`), looked up by
+    the caller's site key, or by `decision_key` for a helper drawn on several pages."""
     import streamlit as st
 
     from src.dashboard.utils.i18n import t
@@ -226,10 +250,21 @@ def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: b
     if fig is not None and hasattr(fig, "layout"):
         apply_defaults(fig, pareto=pareto)
     out = target.plotly_chart(fig, **kwargs)
+    _say_the_decision(target, decision_key)
     if glossary and fig is not None and hasattr(fig, "layout"):
         terms = jargon(fig)
         if terms:
             target.caption(" · ".join(t(GLOSSARY[k][0], GLOSSARY[k][1]) for k in terms))
+    return out
+
+
+def pyplot(fig, *, container=None, decision_key: str | None = None, **kwargs):
+    """Draw a matplotlib `fig` through the same door (R314: the SHAP charts had bypassed it,
+    so they would have been the only charts without their decision line)."""
+    import streamlit as st
+    target = container if container is not None else st
+    out = target.pyplot(fig, **kwargs)
+    _say_the_decision(target, decision_key)
     return out
 
 

@@ -230,6 +230,8 @@ def test_t7_the_page_does_not_announce_a_head_start_as_breakeven() -> None:
         f"the page announced {[s.value for s in at.success]} on data where spend "
         "overtakes revenue a month after the first ad euro and never falls behind again.")
     assert len(at.warning) == 1, [w.value for w in at.warning]
-    assert len(at.caption) == 2, (
+    # R314: the chart's own « 🎯 » decision line is a caption too; it is not a bound.
+    bounds = [c.value for c in at.caption if not c.value.startswith("🎯")]
+    assert len(bounds) == 2, (
         "both bounds of the verdict (start and end of the overlap) must be stated: "
-        f"{[c.value for c in at.caption]}")
+        f"{bounds}")

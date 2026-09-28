@@ -15,6 +15,8 @@
 # ── Accueil ──────────────────────────────────────────────────────────────────
 src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   q: "Mes écoutes progressent-elles, toutes plateformes ?"
+  decision: "Voir si une sortie ou une campagne a fait monter tes écoutes sur toutes les plateformes, pour savoir où remettre du budget."
+  decision_en: "See whether a release or a campaign lifted your streams across platforms, to know where to put budget back."
   role: plateforme
   d: 3
   c: 3
@@ -27,6 +29,8 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
 src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
   q: "Ma dernière sortie fait-elle mieux que les précédentes au même âge ?"
+  decision: "Comparer ta dernière sortie aux précédentes au même âge, pour décider si elle mérite un coup de pub maintenant."
+  decision_en: "Compare your latest release with the previous ones at the same age, to decide whether it deserves an ad push now."
   role: plateforme
   d: 5
   c: 5
@@ -37,6 +41,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
   note: "Lecture immédiate, horloge alignée sur la sortie, cumuls étiquetés. Le meilleur graphique de décision de l'app."
 src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   q: "Quel titre bouge EN CE MOMENT, et avec quel indice de popularité ?"
+  decision: "Repérer le titre qui prend en ce moment, pour choisir lequel promouvoir en priorité."
+  decision_en: "Spot the track that is taking off right now, to choose which one to promote first."
   role: plateforme
   d: 4
   c: 4
@@ -48,6 +54,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   note: "Les barres « 28 derniers jours » sont presque invisibles quand la fenêtre est calme ; noms de titres coupés à gauche dans l'export. Afficher la valeur récente en texte."
 src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
   q: "Le titre choisi est-il encore écouté, encore vu par Spotify ; mon audience grandit-elle ?"
+  decision: "Savoir si un titre vit encore et si ton audience suit, pour décider de relancer sa promo ou de passer au suivant."
+  decision_en: "Know whether a track is still alive and your audience follows, to decide whether to relaunch its promo or move on."
   role: plateforme
   d: 4
   c: 4
@@ -61,6 +69,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
 # ── Plateformes ──────────────────────────────────────────────────────────────
 src/dashboard/views/apple_music.py::show#1:
   q: "Quels titres portent mon Apple Music ?"
+  decision: "Identifier les titres qui portent Apple Music, pour y orienter tes campagnes hors Spotify."
+  decision_en: "Identify the tracks carrying Apple Music, to aim your non-Spotify campaigns at them."
   role: plateforme
   d: 3
   c: 3
@@ -72,6 +82,8 @@ src/dashboard/views/apple_music.py::show#1:
   note: "Noms de titres coupés à gauche (« en le français »). Un instantané cumulé, pas une série."
 src/dashboard/views/apple_music.py::_render_song_series#1:
   q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
+  decision: "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter."
+  decision_en: "See whether a track still gains Apple and Shazam plays, a sign a campaign can still carry it."
   role: plateforme
   d: 3
   c: 4
@@ -82,6 +94,8 @@ src/dashboard/views/apple_music.py::_render_song_series#1:
   note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
 src/dashboard/views/soundcloud.py::show#1:
   q: "Mes écoutes SoundCloud croissent-elles ?"
+  decision: "Suivre ta croissance SoundCloud pour juger si une promo y a un effet."
+  decision_en: "Track your SoundCloud growth to judge whether a promo has an effect there."
   role: plateforme
   d: 2
   c: 1
@@ -93,6 +107,8 @@ src/dashboard/views/soundcloud.py::show#1:
   note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
 src/dashboard/views/soundcloud.py::show#2:
   q: "Quelle métrique SoundCloud bouge depuis la sortie ?"
+  decision: "Voir quelle métrique SoundCloud réagit après une sortie, pour savoir quoi pousser en campagne."
+  decision_en: "See which SoundCloud metric reacts after a release, to know what to push in a campaign."
   role: plateforme
   d: 2
   c: 3
@@ -104,6 +120,8 @@ src/dashboard/views/soundcloud.py::show#2:
   note: "Base 100 sur des cumuls quasi plats (99,5–100,5) : rien à décider. Le top titres en dit plus."
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   q: "Mes écoutes et mon engagement SoundCloud progressent-ils ?"
+  decision: "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo."
+  decision_en: "Know whether SoundCloud plays and engagement grow together, to decide whether to invest promo time there."
   role: plateforme
   d: 2
   c: 1
@@ -115,6 +133,8 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
 src/dashboard/views/soundcloud.py::_render_top_chart#1:
   q: "Quels titres SoundCloud marchent, et engagent ?"
+  decision: "Choisir les titres SoundCloud qui engagent le plus, à mettre en avant dans tes campagnes."
+  decision_en: "Pick the SoundCloud tracks that engage most, to feature in your campaigns."
   role: plateforme
   d: 4
   c: 4
@@ -125,6 +145,8 @@ src/dashboard/views/soundcloud.py::_render_top_chart#1:
   note: "Volume et taux d'engagement côte à côte, noms complets — lisible."
 src/dashboard/views/youtube.py::show#1:
   q: "Ma chaîne gagne-t-elle abonnés et vues ?"
+  decision: "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo."
+  decision_en: "Judge whether your YouTube channel gains views and subscribers, to decide whether to run a video campaign."
   role: plateforme
   d: 3
   c: 3
@@ -135,6 +157,8 @@ src/dashboard/views/youtube.py::show#1:
   note: "La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
 src/dashboard/views/youtube.py::show#2:
   q: "Quelles vidéos marchent ?"
+  decision: "Repérer les vidéos qui marchent, à réutiliser comme créas de pub."
+  decision_en: "Spot the videos that work, to reuse as ad creatives."
   role: plateforme
   d: 2
   c: 4
@@ -146,6 +170,8 @@ src/dashboard/views/youtube.py::show#2:
   note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
 src/dashboard/views/instagram.py::_render_community#1:
   q: "Ma communauté Instagram grandit-elle ?"
+  decision: "Suivre ta communauté Instagram pour savoir si tes campagnes la font grandir."
+  decision_en: "Track your Instagram community to know whether your campaigns grow it."
   role: plateforme
   d: 4
   c: 4
@@ -156,6 +182,8 @@ src/dashboard/views/instagram.py::_render_community#1:
   note: "Abonnés 1 605 → 1 520 en neuf mois : la baisse se voit d'un coup d'œil. Au niveau du COMPTE."
 src/dashboard/views/instagram.py::show#1:
   q: "Quels mois de publication ont le plus engagé ?"
+  decision: "Voir quels mois de publication ont le plus engagé, pour décider quoi publier et booster."
+  decision_en: "See which publishing months engaged most, to decide what to post and boost."
   role: plateforme
   d: 2
   c: 3
@@ -168,6 +196,8 @@ src/dashboard/views/instagram.py::show#1:
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   mq: M5
   q: "Mes smart links Hypeddit convertissent-ils ?"
+  decision: "Juger si ton smart link convertit les visites en clics vers les plateformes, et combien de pub l'a nourri."
+  decision_en: "Judge whether your smart link turns visits into platform clicks, and how much ad spend fed it."
   role: meta
   d: 3
   c: 4
@@ -178,6 +208,8 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée. R301 (ta R282, proposition D) : sous chaque anneau, la pub Meta dépensée à ±14 jours de la sortie — regardée le 2026-09-28 (« pub Meta ±14 j : 817 € » sous Ô Chiotte)."
 src/dashboard/views/imusician.py::show#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
+  decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
+  decision_en: "See where your cash stands, sales against spend, to set your next campaign's budget."
   role: business
   d: 4
   c: 4
@@ -189,6 +221,8 @@ src/dashboard/views/imusician.py::show#1:
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   mq: M2
   q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"
+  decision: "Comparer ce que chaque campagne a coûté et rapporté, pour choisir laquelle refaire."
+  decision_en: "Compare what each campaign cost and delivered, to choose which one to run again."
   role: meta
   d: 4
   c: 4
@@ -200,6 +234,8 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
 src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   mq: M1
   q: "Ce que chaque vague de campagnes a rapporté en écoutes, et le prix d'une écoute gagnée (P2) ?"
+  decision: "Savoir ce que chaque vague de pub a rapporté en écoutes et le prix d'une écoute, pour décider de relancer."
+  decision_en: "Know what each ad wave brought in streams and the price per stream, to decide whether to relaunch."
   role: meta
   d: 4
   c: 3
@@ -208,6 +244,8 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
 src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2:
   q: "Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?"
+  decision: "Voir combien de temps l'effet d'une vague dure, pour savoir quand juger une campagne et quand relancer."
+  decision_en: "See how long a wave's effect lasts, to know when to judge a campaign and when to relaunch."
   role: meta
   mq: M4
   d: 4
@@ -218,6 +256,8 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2:
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   mq: M4
   q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"
+  decision: "Suivre au jour le jour si la dépense produit des clics à bon prix, pour couper ou pousser une campagne."
+  decision_en: "Follow day by day whether spend buys clicks at a good price, to cut or push a campaign."
   role: meta
   d: 4
   c: 4
@@ -229,6 +269,8 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
   mq: M3
   q: "Quel objectif d'optimisation coûte le moins cher par résultat ?"
+  decision: "Choisir l'objectif d'optimisation Meta qui coûte le moins cher par résultat."
+  decision_en: "Choose the Meta optimisation goal with the lowest cost per result."
   role: meta
   d: 3
   c: 3
@@ -240,6 +282,8 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
+  decision: "Choisir les pays, placements et âges où l'euro rend le clic le moins cher, pour recibler."
+  decision_en: "Choose the countries, placements and ages where each euro buys the cheapest click, to retarget."
   role: meta
   d: 3
   c: 4
@@ -252,6 +296,8 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#1:
 src/dashboard/views/meta_breakdowns.py::_render_performance#2:
   mq: M7
   q: "Où ma pub a-t-elle dépensé, dans le monde ? (carte, repliée)"
+  decision: "Voir où ta pub a dépensé dans le monde, pour couper les pays qui coûtent sans rendre."
+  decision_en: "See where your ads spent worldwide, to cut countries that cost without returning."
   role: meta
   d: 4
   c: 4
@@ -263,6 +309,8 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#2:
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où ma pub fait-elle réagir ? (R208)"
+  decision: "Voir où ta pub fait réagir, pour cibler les audiences qui engagent."
+  decision_en: "See where your ads get reactions, to target the audiences that engage."
   role: meta
   d: 3
   c: 4
@@ -274,6 +322,8 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
 src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   mq: M7
   q: "Où ma pub fait-elle réagir, dans le monde ? (carte, repliée)"
+  decision: "Repérer sur la carte les pays qui réagissent, pour y concentrer le budget."
+  decision_en: "Spot on the map the countries that react, to concentrate budget there."
   role: meta
   d: 3
   c: 4
@@ -284,6 +334,8 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   note: "Non rendu : autre choix du sélecteur."
 src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   q: "Quelle tranche d'âge coûte le moins cher par résultat ?"
+  decision: "Choisir la tranche d'âge qui coûte le moins cher par résultat, pour ajuster le ciblage."
+  decision_en: "Choose the age band with the lowest cost per result, to adjust targeting."
   role: meta
   mq: M7
   d: 4
@@ -296,6 +348,8 @@ src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   mq: M2
   q: "Quelle créa coûte le moins cher, et engage le plus ?"
+  decision: "Classer tes créas par coût et engagement, pour couper les chères et remettre du budget sur les bonnes."
+  decision_en: "Rank your creatives by cost and engagement, to cut the expensive ones and fund the good ones."
   role: meta
   d: 3
   c: 1
@@ -308,6 +362,8 @@ src/dashboard/views/meta_creatives.py::_render_ranking#1:
 src/dashboard/views/meta_creatives.py::_render_hooks#1:
   mq: M2
   q: "Les créas avec « hook » coûtent-elles moins cher que sans ?"
+  decision: "Savoir si une accroche (hook) fait baisser le coût, pour décider comment monter tes prochaines vidéos."
+  decision_en: "Know whether a hook lowers cost, to decide how to cut your next videos."
   role: meta
   d: 4
   c: 4
@@ -319,6 +375,8 @@ src/dashboard/views/meta_creatives.py::_render_hooks#1:
 src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
   mq: M2
   q: "Une créa donne-t-elle des revenus dans le temps ?"
+  decision: "Voir combien de temps une créa reste rentable, pour savoir quand la remplacer."
+  decision_en: "See how long a creative stays profitable, to know when to replace it."
   role: meta
   d: 2
   c: 2
@@ -331,6 +389,8 @@ src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
 src/dashboard/views/meta_creatives.py::_render_scatter#1:
   mq: M2
   q: "Où sont mes créas en dépense × coût ?"
+  decision: "Repérer d'un coup d'œil les créas qui dépensent beaucoup pour un coût élevé, à couper."
+  decision_en: "Spot at a glance the creatives spending a lot at a high cost, to cut."
   role: meta
   d: 3
   c: 3
@@ -342,6 +402,8 @@ src/dashboard/views/meta_creatives.py::_render_scatter#1:
 src/dashboard/views/meta_creatives.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre l'impression et le clic sortant ?"
+  decision: "Voir à quelle étape les gens décrochent, pour corriger la créa ou la page d'arrivée."
+  decision_en: "See at which step people drop off, to fix the creative or the landing page."
   role: meta
   d: 3
   c: 2
@@ -354,6 +416,8 @@ src/dashboard/views/meta_creatives.py::_render_funnel#1:
 src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   mq: M4
   q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
+  decision: "Détecter la fatigue de l'audience (fréquence qui monte, CTR qui baisse), pour renouveler la créa."
+  decision_en: "Detect audience fatigue (rising frequency, falling CTR), to refresh the creative."
   role: meta
   d: 3
   c: 2
@@ -366,6 +430,8 @@ src/dashboard/views/meta_creatives.py::_render_fatigue#1:
 src/dashboard/views/meta_creatives.py::_render_activity#1:
   mq: M4
   q: "Quelle créa a tourné quand ?"
+  decision: "Voir quelle créa a tourné quand, pour relier tes résultats à la bonne créa."
+  decision_en: "See which creative ran when, to tie your results to the right creative."
   role: meta
   d: 3
   c: 4
@@ -378,6 +444,8 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
 src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
   mq: M1
   q: "Ma dernière pub m'a-t-elle amené des auditeurs ?"
+  decision: "Savoir si ta dernière pub a amené des auditeurs, pour décider de la reconduire."
+  decision_en: "Know whether your last ad brought listeners, to decide whether to renew it."
   role: meta
   d: 5
   c: 5
@@ -389,6 +457,8 @@ src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
 src/dashboard/views/meta_x_spotify.py::_render_chart#1:
   mq: M1
   q: "Pendant la campagne, qu'ont fait budget, clics, streams (base 100) ?"
+  decision: "Voir si budget, clics et écoutes bougent ensemble pendant la campagne, pour juger son effet."
+  decision_en: "See whether budget, clicks and streams move together during the campaign, to judge its effect."
   role: meta
   d: 3
   c: 4
@@ -400,6 +470,8 @@ src/dashboard/views/meta_x_spotify.py::_render_chart#1:
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"
+  decision: "Voir où les gens se perdent de la pub à l'écoute, pour corriger le maillon faible."
+  decision_en: "See where people get lost from ad to stream, to fix the weak link."
   role: meta
   d: 1
   c: 3
@@ -412,6 +484,8 @@ src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
 src/dashboard/views/meta_x_spotify.py::_render_countries#1:
   mq: M7
   q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
+  decision: "Choisir les pays où l'euro de pub rapporte le plus d'écoutes, pour y cibler."
+  decision_en: "Choose the countries where each ad euro brings the most streams, to target them."
   role: meta
   d: 4
   c: 3
@@ -424,6 +498,8 @@ src/dashboard/views/meta_x_spotify.py::_render_countries#1:
 # ── Road to Algo et modèle ───────────────────────────────────────────────────
 src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1:
   q: "Où chaque titre en est-il de ses portes d'algorithme ?"
+  decision: "Voir quel titre est le plus proche de déclencher un algorithme, pour y concentrer ta prochaine campagne."
+  decision_en: "See which track is closest to triggering an algorithm, to focus your next campaign on it."
   role: prediction
   d: 4
   c: 3
@@ -434,6 +510,8 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1:
   note: "R247 : jauges par algorithme × dernière sortie — le chemin le plus court vers la valeur où le modèle passe à 80 %, pas la probabilité (plancher de Platt)."
 src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
   q: "Quelle valeur de chaque levier déclencherait l'algorithme ?"
+  decision: "Savoir quelle valeur de chaque levier viser, pour fixer l'objectif de ta campagne."
+  decision_en: "Know which value of each lever to aim for, to set your campaign's goal."
   role: prediction
   d: 4
   c: 3
@@ -442,6 +520,8 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
   note: "R247 (suite de la fiche 42) : ta valeur écrite sur sa barre, et par algorithme la cible — trait vif calculé par le modèle pour ce titre, trait pâle quand ce n'est qu'un repère."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   q: "Combien de streams chaque algorithme m'apporte-t-il ?"
+  decision: "Voir combien d'écoutes chaque algorithme t'apporte, pour savoir lequel viser en campagne."
+  decision_en: "See how many streams each algorithm brings you, to know which one to aim for."
   role: prediction
   d: 1
   c: 1
@@ -453,6 +533,8 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   note: "Graphique VIDE, axe du temps réduit à une seconde (23:59:59,9996 → 00:00:00,0004) — la série est vide et l'axe se replie. Afficher « aucune donnée » au lieu d'un axe cassé."
 src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   q: "Mon titre suit-il la courbe de vie de la cohorte ?"
+  decision: "Voir si ton titre suit la courbe de vie habituelle, pour choisir le bon moment de promo."
+  decision_en: "See whether your track follows the usual life curve, to pick the right time to promote."
   role: prediction
   d: 3
   c: 3
@@ -464,6 +546,8 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   mq: M6
   q: "Mes revenus suivent-ils ma dépense Meta ?"
+  decision: "Savoir si tes revenus suivent ta dépense Meta, pour décider d'augmenter ou de baisser le budget."
+  decision_en: "Know whether your revenue follows your Meta spend, to decide whether to raise or cut the budget."
   role: meta
   d: 1
   c: 1
@@ -476,6 +560,8 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   mq: M6
   q: "Quand la pub aura-t-elle été remboursée ?"
+  decision: "Savoir quand la pub sera remboursée, pour décider combien investir sur un titre."
+  decision_en: "Know when the ads will have paid back, to decide how much to invest in a track."
   role: meta
   d: 2
   c: 2
@@ -487,6 +573,8 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
+  decision: "Vérifier si le volume prédit colle au réel, pour savoir si tu peux budgéter une campagne dessus."
+  decision_en: "Check whether the predicted volume matches reality, to know if you can budget a campaign on it."
   role: prediction
   d: 3
   c: 3
@@ -498,6 +586,8 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   note: "R247 : refait — le volume prévu contre les streams d'algorithme SAISIS dans S4A (même grandeur, 28 j), par titre. Sur l'instantané : Radio prévoit 1 à 11 streams, S4A en constate 0 sur 11 titres → « le modèle surestime »."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_error_by_prediction_week#1:
   q: "Le modèle se rapproche-t-il du réel d'une semaine de prédiction à l'autre ?"
+  decision: "Voir si le modèle s'améliore semaine après semaine, avant de lui confier une décision de campagne."
+  decision_en: "See whether the model improves week after week, before trusting it with a campaign decision."
   role: prediction
   d: 3
   c: 4
@@ -506,6 +596,8 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_error_by_prediction_week#1
   note: "R297 (R293 finie à ta demande) : regardée sur l'instantané le 2026-09-28 — Radio, 9 streams d'écart la semaine du 8 juin puis 7 chaque semaine, trou de juillet à septembre (aucune prédiction) laissé VIDE. Le modèle ne change presque pas d'avis. Un seul relevé S4A : chaque semaine jugée contre la même vérité, la légende le dit."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#1:
   q: "Qu'est-ce qui pousse la prédiction (SHAP) ?"
+  decision: "Voir quels leviers poussent la prédiction, pour savoir lequel ta campagne doit faire bouger."
+  decision_en: "See which levers drive the prediction, to know which one your campaign must move."
   role: prediction
   d: 3
   c: 3
@@ -516,6 +608,8 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   note: "Derrière un clic ; non rendu."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#2:
   q: "(SHAP — détail)"
+  decision: "Voir le détail de l'effet de chaque levier, pour prioriser celui que ta pub peut influencer."
+  decision_en: "See each lever's effect in detail, to prioritise the one your ads can influence."
   role: prediction
   d: 3
   c: 3
@@ -526,6 +620,8 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   note: "Derrière un clic ; non rendu."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#3:
   q: "(SHAP — détail)"
+  decision: "Voir comment un levier change la prédiction, pour fixer l'effort de campagne utile."
+  decision_en: "See how a lever changes the prediction, to set the useful campaign effort."
   role: prediction
   d: 3
   c: 3
@@ -536,6 +632,8 @@ src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainabilit
   note: "Derrière un clic ; non rendu."
 src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   q: "Le modèle se trompe-t-il, et comment ?"
+  decision: "Savoir à quel point te fier au modèle avant de lancer une campagne sur sa probabilité."
+  decision_en: "Know how far to trust the model before launching a campaign on its probability."
   role: prediction
   d: 4
   c: 4
@@ -546,6 +644,8 @@ src/dashboard/utils/ml_widgets.py::render_classification_scorecard#1:
   note: "R249 : déjà en admin — rendue seulement dans « Performance des modèles ML » (onglets Scorecard et Fiabilité), jamais côté artiste."
 src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   q: "Si j'augmente ce levier, ma probabilité monte-t-elle ?"
+  decision: "Voir si pousser ce levier fait monter ta probabilité, pour choisir ce que ta campagne doit viser."
+  decision_en: "See whether pushing this lever raises your probability, to choose what your campaign should target."
   role: prediction
   d: 1
   c: 2
@@ -557,6 +657,8 @@ src/dashboard/utils/ml_widgets.py::render_lever_sensitivity#1:
   note: "R247 : la question écrite au-dessus (« si tu poussais ce seul levier… »), la valeur actuelle en tirets gris (elle était blanche), et un verdict : courbe plate (< 2 points sur toute la plage) ou levier qui compte."
 src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   q: "La prédiction d'hier s'est-elle vérifiée ?"
+  decision: "Vérifier si la prédiction d'hier s'est confirmée, pour ajuster ta confiance avant la prochaine campagne."
+  decision_en: "Check whether yesterday's prediction came true, to adjust your trust before the next campaign."
   role: prediction
   d: 3
   c: 4
@@ -568,6 +670,8 @@ src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
 # ── Revenus et abonnement ────────────────────────────────────────────────────
 src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   q: "(MRR — onglet non atteint)"
+  decision: "Suivre le revenu récurrent des abonnements, pour dimensionner le budget d'acquisition d'artistes."
+  decision_en: "Follow recurring subscription revenue, to size the artist acquisition budget."
   role: business
   d: 3
   c: 3
@@ -579,6 +683,8 @@ src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
   note: "Non rendu par défaut."
 src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   q: "Combien vaut un abonné selon sa rétention ?"
+  decision: "Savoir combien vaut un abonné, pour fixer ce qu'une campagne d'acquisition peut coûter par artiste."
+  decision_en: "Know what a subscriber is worth, to set what an acquisition campaign may cost per artist."
   role: business
   d: 2
   c: 2
@@ -589,6 +695,8 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   note: "R249 : déjà en admin — onglet « LTV & Churn » de Prévisions revenus, visible des seuls administrateurs ; le MRR est calculé dans l'onglet voisin « MRR Actuel ». Le coût de distribution par titre se saisit dans Mes revenus (R248)."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
+  decision: "Chiffrer ce que vaut un déclenchement d'algorithme, pour savoir combien dépenser pour l'obtenir."
+  decision_en: "Put a value on an algorithm trigger, to know how much to spend to get it."
   role: prediction
   d: 4
   c: 3
@@ -601,6 +709,8 @@ src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
 # ── Administration et santé de l'app ─────────────────────────────────────────
 src/dashboard/views/alerts.py::_section_plan_evolution#1:
   q: "Combien d'artistes, et combien paient ?"
+  decision: "Suivre combien d'artistes s'inscrivent et paient, pour juger tes campagnes d'acquisition."
+  decision_en: "Follow how many artists sign up and pay, to judge your acquisition campaigns."
   role: business
   d: 3
   c: 4
@@ -611,6 +721,8 @@ src/dashboard/views/alerts.py::_section_plan_evolution#1:
   note: "8 artistes, 3 premium — lisible."
 src/dashboard/views/admin.py::_render_costs#1:
   q: "Combien coûte l'exploitation chaque mois, face à ce que rapportent les abonnements ?"
+  decision: "Comparer les coûts d'exploitation aux abonnements, pour savoir quel budget marketing l'app peut porter."
+  decision_en: "Compare running costs with subscriptions, to know which marketing budget the app can carry."
   role: business
   d: 3
   c: 3
@@ -621,6 +733,8 @@ src/dashboard/views/admin.py::_render_costs#1:
   note: "Rendue (R298) : elle était vide faute de coût saisi ; depuis R256, le VPS à 20 €/mois depuis mai. Ses barres sortaient NOIRES dans ce dossier (couleurs du thème Streamlit non résolues hors écran — corrigé, l'app n'était pas touchée). MRR à 0 : pas de ligne de revenu. Les 30 € par sortie sont des coûts PAR TITRE, sur le point mort (fiche 46), pas ici. Ma reco : garder en admin — c'est la seule vue de la marge, elle prendra son sens au premier abonné payant."
 src/dashboard/views/usage_analytics.py::show#1:
   q: "L'app est-elle utilisée, jour après jour ?"
+  decision: "Voir si l'app est utilisée jour après jour, pour mesurer l'effet d'une campagne d'acquisition."
+  decision_en: "See whether the app is used day after day, to measure the effect of an acquisition campaign."
   role: business
   d: 3
   c: 4
@@ -631,6 +745,8 @@ src/dashboard/views/usage_analytics.py::show#1:
   note: "Pics d'usage lisibles (tests compris ?) — à filtrer du propriétaire."
 src/dashboard/views/db_health.py::_show_ingestion_gaps#1:
   q: "Combien de lignes neuves par jour ?"
+  decision: "Vérifier que les données arrivent chaque jour, sinon ne pas juger une campagne sur des chiffres incomplets."
+  decision_en: "Check that data lands every day, otherwise do not judge a campaign on incomplete figures."
   role: archi
   d: 2
   c: 4
@@ -642,6 +758,8 @@ src/dashboard/views/db_health.py::_show_ingestion_gaps#1:
   note: "R249 : refait — hier, lignes attendues (moyenne des 7 jours d'avant, zéros compris) contre reçues, par jeu de données ; alerte par artiste avec la règle du contrôle de nuit (moins d'un tiers) ou rien sur un flux quotidien. Sur l'instantané : 5 jeux, aucune anomalie."
 src/dashboard/views/etl_logs.py::_section_trend#1:
   q: "Quelles collectes échouent ?"
+  decision: "Repérer une collecte en panne, avant de juger une campagne sur des chiffres qui manquent."
+  decision_en: "Spot a broken collection before judging a campaign on missing figures."
   role: archi
   d: 5
   c: 4
@@ -650,6 +768,8 @@ src/dashboard/views/etl_logs.py::_section_trend#1:
   note: "meta_ads_api_daily rouge chaque jour (R13, code 190) — la panne se voit en une seconde."
 src/dashboard/views/airflow_kpi.py::show#1:
   q: "(durées et succès des DAG)"
+  decision: "Vérifier que les collectes tournent, pour que les chiffres de tes campagnes soient frais."
+  decision_en: "Check that collections run, so your campaign figures are fresh."
   role: archi
   d: 4
   c: 4
@@ -660,6 +780,8 @@ src/dashboard/views/airflow_kpi.py::show#1:
   note: "Non rendu : lit l'API Airflow, absente de ce rendu."
 src/dashboard/views/airflow_kpi.py::show#2:
   q: "(durées des DAG)"
+  decision: "Repérer une collecte qui ralentit, avant qu'elle ne retarde les chiffres de tes campagnes."
+  decision_en: "Spot a slowing collection before it delays your campaign figures."
   role: archi
   d: 3
   c: 4
@@ -670,6 +792,8 @@ src/dashboard/views/airflow_kpi.py::show#2:
   note: "Non rendu : lit l'API Airflow."
 src/dashboard/views/airflow_kpi.py::show#3:
   q: "(succès des DAG)"
+  decision: "Voir quelles collectes échouent, pour savoir quels chiffres de campagne ne sont pas à jour."
+  decision_en: "See which collections fail, to know which campaign figures are out of date."
   role: archi
   d: 3
   c: 4
@@ -1144,6 +1268,8 @@ grafana:15:
 src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
   mq: M5
   q: "Quel titre transforme le mieux, de la pub au clic vers les plateformes ?"
+  decision: "Choisir le titre qui transforme le mieux de la pub au clic, pour y mettre le budget."
+  decision_en: "Choose the track that converts best from ad to click, to put the budget there."
   role: meta
   d: 4
   c: 4
@@ -1152,6 +1278,8 @@ src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
   note: "Nouveau (R246, fiche 40) : jusqu'à 5 titres comparés, deux chaînes côte à côte — côté pub (impressions → clics) et côté smart link (visites → clics plateformes) —, échelle log. Une étape qui s'élargit ou n'est pas mesurée est retirée et nommée ; les écoutes gagnées sont écrites à part."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_render_estimates#1:
   q: "Si un algorithme se déclenche, combien de streams rapporte-t-il d'habitude, au 1er mois, vers 6 mois, vers 1 an ?"
+  decision: "Estimer ce qu'un déclenchement d'algorithme rapporte, pour chiffrer le budget qui vaut la peine."
+  decision_en: "Estimate what an algorithm trigger brings, to size the budget worth spending."
   role: prediction
   d: 4
   c: 3
