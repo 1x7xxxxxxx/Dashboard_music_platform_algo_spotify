@@ -4862,7 +4862,7 @@
     "tests/test_every_chart_is_traced.py::test_two_charts_answering_one_question_on_one_page_are_flagged": 0.000666782958433032,
     "tests/test_every_chart_says_what_it_lets_you_decide.py::test_every_app_chart_has_its_decision_line": 5.85846118000336,
     "tests/test_every_chart_says_what_it_lets_you_decide.py::test_every_decision_key_a_page_passes_has_its_line": 0.9717407789430581,
-    "tests/test_every_chart_says_what_it_lets_you_decide.py::test_the_checks_see_the_defects_they_are_written_for": 0.0006652359152212739,
+    "tests/test_every_chart_says_what_it_lets_you_decide.py::test_the_checks_are_not_vacuous_they_see_the_defects_they_are_written_for": 0.10789734101854265,
     "tests/test_every_chart_says_what_it_lets_you_decide.py::test_the_door_writes_the_line_under_the_chart": 0.3331125680124387,
     "tests/test_every_chart_says_what_it_lets_you_decide.py::test_the_module_the_app_reads_is_the_review": 0.21491085999878123,
     "tests/test_every_chart_says_what_it_lets_you_decide.py::test_the_runtime_key_is_the_dossiers_key_for_every_site": 6.700630453997292,

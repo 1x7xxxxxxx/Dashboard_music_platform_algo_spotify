@@ -16,6 +16,9 @@ Four things must hold, and each can break without a sound:
    put the right line under the wrong chart;
 4. every `decision_key=` a page passes (a helper drawn on several pages) has its line.
 Grafana is excluded by the owner's choice (a DevOps question, not a campaign one).
+
+Mutation record (2026-09-28): seen red on three lines deleted from the generated module
+(check 1 and 2), and on the rank counted from 0 in chart_key.py (check 3).
 """
 from __future__ import annotations
 
@@ -127,7 +130,7 @@ def test_the_door_writes_the_line_under_the_chart(monkeypatch) -> None:
     assert all(c[0] == "chart" for c in t2.calls), "a key with no line must not print a blank"
 
 
-def test_the_checks_see_the_defects_they_are_written_for() -> None:
+def test_the_checks_are_not_vacuous_they_see_the_defects_they_are_written_for() -> None:
     assert line_problems("k", None) == ["k: no decision line"]
     assert any("question" in p for p in line_problems(
         "k", ("Quelle créa coûte le moins cher ?", "Which creative costs least here?")))

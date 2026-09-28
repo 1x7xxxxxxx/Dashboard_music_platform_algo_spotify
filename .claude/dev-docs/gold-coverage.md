@@ -459,13 +459,12 @@ Une ligne par plateforme. « Lectures brutes » compte les lectures de ses table
 
 **29 valeurs gelées** dans 23 fichiers. Un cliquet pose deux questions, et la seconde est celle qu'on oublie : le plafond est-il **serré** (égal à la mesure — un plafond au-dessus est du mou qui autorise en silence ce qu'il interdit), et la population est-elle **plancherée** ? « Zéro indéterminée » sur zéro figure est vrai et ne dit rien.
 
-**1 sans test de non-vacuité** et **1 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
+**0 sans test de non-vacuité** et **0 sans trace de mutation** dans leur fichier. Une trace de mutation est une phrase qui dit que le garde a été VU rouge sur le défaut qu'il vise ; sans elle, rien ne distingue un garde d'un test qui ne peut pas échouer.
 
 Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une phrase de mutation, un nom de test de non-vacuité) : un faux négatif est possible, il se corrige en écrivant la phrase.
 
 | fichier | constante | valeur gelée | non-vacuité | trace de mutation |
 |---|---|---|---|---|
-| `test_every_chart_says_what_it_lets_you_decide.py` | `MAX_LEN` | 140 | **absent** | **absente** |
 | `test_a_chart_is_bounded_by_the_period_it_announces.py` | `_MAX_UNBOUNDED_FIGURES` | 0 | — | — |
 | `test_a_failed_read_is_not_an_absence.py` | `_CEILING` | 0 | — | — |
 | `test_a_function_is_written_once.py` | `CEILING_SITES` | 2 | — | — |
@@ -479,6 +478,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_a_view_opens_on_one_decision.py` | `_PLAFOND_PAR_VUE` | 0 entrées | — | — |
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
 | `test_every_button_can_be_clicked.py` | `_MAX_PER_VIEW` | 20 | — | — |
+| `test_every_chart_says_what_it_lets_you_decide.py` | `MAX_LEN` | 140 | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 63 | — | — |
 | `test_the_declared_schema_matches_the_database.py` | `_PLAFOND` | 33 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 0 | — | — |
@@ -692,10 +692,10 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=34 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
-<!-- gold-coverage-ratchets: total=29 without_nonvacuity=1 without_mutation=1 -->
+<!-- gold-coverage-ratchets: total=29 without_nonvacuity=0 without_mutation=0 -->
 <!-- gold-coverage-error-classes: total=428 guard_missing=0 guard_unnamed=8 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=32 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=9fe76c8f43644b500ffbf60bc4376f99af7566c5b46a0c489062f91d377c17c5 -->
+<!-- gold-coverage: sha256=0554abbce2fffc8b045182f42f6ddc55d6980d2f8074aef85eaa487c2df14559 -->
