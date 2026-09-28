@@ -327,6 +327,33 @@ def numbering(review: dict, previous: dict[str, int] | None = None) -> dict[str,
     return dict(sorted(out.items(), key=lambda kv: kv[1]))
 
 
+PROPOSALS_INTRO = """<h1 class='page'>Propositions — ce que la pub Meta apporte à nos écoutes (R282)</h1>
+<p class="lead">Ta question (notes L167, L482) : « qu'est-ce que nous apporte la campagne Meta Ads
+sur nos streams ». Chaque graphique ci-dessous est une PROPOSITION dessinée sur l'instantané :
+il n'est pas dans l'app. Dis-moi lesquels garder — chacun deviendra une ligne de roadmap, avec
+sa vue or et son test. Un jour de pub est souvent aussi une semaine de sortie : ce qui est
+mesuré ici est une association, jamais la preuve d'un effet.</p>
+<p><b>Et une question restée ouverte (note L268)</b> : le seuil de déclenchement de
+l'algorithme et la prédiction en pointillés sur la courbe Meta × Spotify — maintenant, ou
+toujours après le réglage initial ?</p>"""
+
+
+def proposals_html(out: Path) -> str:
+    """The R282 section, from `proposals.json` — empty when the proposals were not drawn."""
+    path = out / "proposals.json"
+    if not path.exists():
+        return ""
+    parts = [PROPOSALS_INTRO]
+    for n, p in enumerate(json.loads(path.read_text(encoding="utf-8")), 1):
+        body = (f"<img class='fig' src='{esc(p['png'])}'>" if p.get("png")
+                else f"<p class='nr'>Non dessiné : {esc(p.get('reason'))}</p>")
+        parts.append(f"<div class='fiche'><p class='q'>P{n}. {esc(p['title'])}</p>"
+                     f"<p class='note'>La décision : {esc(p['decision'])}</p>{body}"
+                     + (f"<p class='num'>Mesuré : {esc(p['finding'])}</p>" if p.get("finding") else "")
+                     + f"<p class='site'>données : {esc(p['data'])}</p></div>")
+    return "".join(parts)
+
+
 def build(out: Path) -> Path:
     review = load()
     fj = out / "fiches.json"
@@ -404,6 +431,7 @@ connectée au rendu. Réglages par défaut des pages.</p>
 """ + "".join(f"<tr><th>{STATUSES[s_]}</th><td>{by_status.get(s_, 0)}</td></tr>" for s_ in STATUSES)
              + "<tr><th>Rapport PDF de l'artiste</th><td>retiré de ce dossier jusqu'à validation de tous les KPI</td></tr></table>"]
     parts.append(GUIDE)
+    parts.append(proposals_html(out))
     parts.append(method)
     if suspects:
         parts.append("<h3>À vérifier en premier — les écarts mesurés sur cet instantané</h3><ul>"
@@ -515,6 +543,8 @@ def main(argv: list[str]) -> int:
     (out / "inventory.json").write_text(json.dumps(inventory.sites(), ensure_ascii=False),
                                         encoding="utf-8")
     pdf_figures.render(out)
+    import proposals
+    proposals.render(out)
     if len(argv) > 2:
         import grafana
         grafana.render(out, argv[2])

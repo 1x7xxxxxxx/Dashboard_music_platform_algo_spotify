@@ -59,7 +59,12 @@ def _tracked() -> list[str]:
 
 
 def _docs() -> list[Path]:
-    return sorted(p for p in DOCS_DIR.rglob("*.md") if p.is_file())
+    # VERSIONED documents only (R279): a generated one kept out of git (`benchmark.md`)
+    # exists on one machine and not in CI — parametrizing on the disk made the two
+    # collections differ, and the CI refused the duration of a test it could not collect.
+    tracked = set(_tracked())
+    return sorted(p for p in DOCS_DIR.rglob("*.md")
+                  if p.is_file() and str(p.relative_to(REPO)) in tracked)
 
 
 @pytest.fixture(scope="module")
