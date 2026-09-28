@@ -58,4 +58,19 @@ else
     echo "       - ./tools:/opt/airflow/tools:ro"
     rc=1
 fi
+# R310 — the production crontab is the only caller of five repo scripts (backup, schema
+# drift, infra health, restore drill, Airflow cleanup). Versioned in deploy/host/crontab;
+# a line edited on the box and not in the repo — or the reverse — is drift. Comments and
+# blank lines are ignored on both sides: only the schedule lines run.
+live_cron="$(ssh -o ConnectTimeout=10 "$SSH_TARGET" 'crontab -l' 2>/dev/null | tr -d '\r' \
+    | grep -vE '^\s*(#|$)' | sort)"
+repo_cron="$(grep -vE '^\s*(#|$)' "$ROOT/deploy/host/crontab" | sort)"
+if [ "$live_cron" = "$repo_cron" ]; then
+    echo "  ✅ crontab: $(printf '%s\n' "$repo_cron" | sed '/^$/d' | wc -l) line(s), identical to deploy/host/crontab"
+else
+    echo "⚠ CRONTAB DRIFT — the box and deploy/host/crontab disagree:"
+    diff <(printf '%s\n' "$repo_cron") <(printf '%s\n' "$live_cron") | sed 's/^/     /'
+    echo "   repo (<) vs box (>). Fix the repo file, or reinstall it: crontab deploy/host/crontab"
+    rc=1
+fi
 exit $rc

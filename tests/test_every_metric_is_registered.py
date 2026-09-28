@@ -1,7 +1,7 @@
 """Every gold object a surface reads is a REGISTERED metric (R231, 2026-09-27).
 
 Type: Test
-Uses: tools/dev/metric_registry.py, tools/dev/gold_coverage.py (scan_sql, tests_naming)
+Uses: src/utils/metric_registry.py, tools/dev/gold_coverage.py (scan_sql, tests_naming)
 Depends on: migrations/*.sql, tests/
 Persists in: nothing
 
@@ -27,7 +27,7 @@ _UNTESTED_CEILING = 4
 
 def _registry():
     spec = importlib.util.spec_from_file_location("metric_registry_t",
-                                                  ROOT / "tools/dev/metric_registry.py")
+                                                  ROOT / "src/utils/metric_registry.py")
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)

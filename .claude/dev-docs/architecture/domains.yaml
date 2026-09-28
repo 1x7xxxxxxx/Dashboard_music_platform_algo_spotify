@@ -38,7 +38,7 @@ silver:
 gold:
   nom: Or — une définition par KPI
   perimetre: vues or v_*/gold_*, registre des métriques (sens flux/cumul/niveau), carte de couverture des figures et tuiles
-  fichiers: [tools/dev/metric_registry.py, tools/dev/gold_coverage.py, .claude/dev-docs/gold-coverage.md]
+  fichiers: [src/utils/metric_registry.py, tools/dev/gold_coverage.py, .claude/dev-docs/gold-coverage.md]
   gardes: [tests/test_every_metric_is_registered.py, tests/test_the_gold_coverage_only_improves.py, tests/test_the_gold_layer_agrees_with_itself.py, tests/test_a_gold_view_is_blind_to_another_tenants_rows.py, tests/test_a_gold_rule_is_declarative.py]
   mesures: [make gold-coverage, make gold-coverage-check]
 

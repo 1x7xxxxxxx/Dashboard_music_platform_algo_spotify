@@ -1,7 +1,7 @@
 """R258 (REQ-SILVER-01, critic b + e) — every view has a layer, and gold carries its bounds.
 
 Type: Test
-Uses: tools/dev/metric_registry.py (REGISTRY, SILVER_MODULES), migrations/*.sql,
+Uses: src/utils/metric_registry.py (REGISTRY, SILVER_MODULES), migrations/*.sql,
       src/utils/gold_invariants.py (bound_sql, bounds_findings, duplicate_findings)
 
 The silver/gold identity was a PREFIX shared by both (`v_*`). It is now mechanical: every

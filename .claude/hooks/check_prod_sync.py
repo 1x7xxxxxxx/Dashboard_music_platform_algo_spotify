@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse — prod-sync reminder after editing a prod-affecting file.
+Hook PostToolUse — prod-sync reminder after editing a file that reaches production.
 
-Fires after Write/Edit on an Alembic revision / DB layer / deploy-ops file. Prints a
-soft reminder (stderr) to confirm repo↔IPC stay in sync, so a schema change that never
-reaches the deployed Industrial PC (a drift class) is caught EARLY, not post-deployment.
-Always exits 0 (non-blocking).
+Type: Hook
+Triggers: PostToolUse Write/Edit (.claude/settings.json)
+Uses: nothing but the edited path
 
-The durable rule it nudges: apply schema changes via an ALEMBIC REVISION, never a manual
-ALTER on the IPC Postgres, and keep the deployed DB at the Alembic head.
+Fires after Write/Edit on a SQL migration, the database layer, a compose file, the deploy
+folder or the deploy script, and prints (stderr) the gesture THIS repo uses to keep the
+repository and production in step. Always exits 0 (non-blocking).
+
+R310 (2026-09-28): until then this hook was an unmodified copy from another project — it
+spoke of an Industrial PC and of Alembic revisions, neither of which exists here, and its
+triggers (`/database/migrations/versions/`, `alembic.ini`, `/infra/docker/`) could never fire
+on this layout. The gesture it now names is the one CLAUDE.md prescribes: an ADDITIVE file in
+`migrations/`, `make migrate` locally, `make migrate-prod` only after a green CI and a backup,
+then `make sync-check` (migration ledger, tools/ mount, crontab).
 
 ---
 rex: []
@@ -17,6 +24,19 @@ rex: []
 import json
 import os
 import sys
+
+
+def is_prod_affecting(path: str) -> bool:
+    """Does editing `path` change what production runs? Pure."""
+    norm = path.replace("\\", "/")
+    base = os.path.basename(norm)
+    return any([
+        "/migrations/" in norm and norm.endswith(".sql"),
+        "/src/database/" in norm and norm.endswith(".py"),
+        base.startswith("docker-compose"),
+        "/deploy/" in norm,
+        norm.endswith("/tools/deploy.sh") or norm.endswith("/tools/migrate.sh"),
+    ])
 
 
 def main():
@@ -28,33 +48,13 @@ def main():
     if data.get("tool_name") not in ("Write", "Edit"):
         sys.exit(0)
     fp = data.get("tool_input", {}).get("file_path", "")
-    if not fp:
+    if not fp or not is_prod_affecting(fp):
         sys.exit(0)
 
-    norm = fp.replace("\\", "/")
-    base = os.path.basename(norm)
-    is_revision = "/database/migrations/versions/" in norm and norm.endswith(".py")
-    hit = any([
-        is_revision,
-        base == "alembic.ini",
-        norm.endswith("/database/migrations/env.py"),
-        "/database/" in norm and norm.endswith(".py"),                  # DB layer / repos
-        # ^ was "/src/Application/database/" — a path from the repo this payload was
-        #   cut from, so this condition could never be true anywhere else. The six
-        #   other conditions are already layout-agnostic; this one was the odd one out.
-        base.startswith("docker-compose"),
-        "/infra/docker/" in norm,                                      # Dockerfiles
-        "/tools/ops/" in norm and ("deploy" in base or norm.endswith(".sh")),
-    ])
-    if not hit:
-        sys.exit(0)
-
-    msg = (f"⚠ prod-affecting file edited ({base}) — confirm repo↔IPC stay in sync "
-           "(schema + deploy). Apply schema changes via an ALEMBIC REVISION "
-           "(database/migrations/versions/), never a manual ALTER on the IPC Postgres.")
-    if is_revision:
-        msg += (" New revision → keep the deployed IPC DB at the Alembic head and update "
-                "architecture/database_schema.md + the CLAUDE.md head ref.")
+    msg = (f"⚠ fichier qui atteint la production modifié ({os.path.basename(fp)}) — "
+           "une migration est un fichier ADDITIF dans migrations/ ; `make migrate` en local, "
+           "`make migrate-prod` seulement après une CI verte et une sauvegarde ; puis "
+           "`make sync-check` (registre des migrations, montage tools/, crontab).")
     print(msg, file=sys.stderr)
     sys.exit(0)
 

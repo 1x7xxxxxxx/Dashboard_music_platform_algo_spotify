@@ -3,7 +3,7 @@
 
 Type: Utility
 Uses: <out>/capture.json (traces), <out>/inventory.json (layer, sources),
-      tools/dev/metric_registry.py (the SENSE of each gold object),
+      src/utils/metric_registry.py (the SENSE of each gold object),
       src/utils/gold_invariants.py + src/utils/metric_bounds.py (run on the snapshot)
 Triggers: `make charts-dossier` (writes <out>/checks.json), main.py (reads it)
 Persists in: <out>/checks.json — OUTSIDE the repository

@@ -90,7 +90,7 @@ Cinq mots de confiance, et rien d'autre :
 
 ## Le registre des métriques
 
-Une métrique = une définition = une source. Écrit à la main dans `tools/dev/metric_registry.py` : le nom, la définition, la mesure, la granularité, le **sens** (flux se somme ; cumul se différencie, jamais ne se somme ; niveau se lit à sa dernière valeur) et la période. Calculé ici depuis le code : la source, les surfaces, les tests qui la nomment. La formule est un POINTEUR vers la vue, jamais une copie de son SQL.
+Une métrique = une définition = une source. Écrit à la main dans `src/utils/metric_registry.py` : le nom, la définition, la mesure, la granularité, le **sens** (flux se somme ; cumul se différencie, jamais ne se somme ; niveau se lit à sa dernière valeur) et la période. Calculé ici depuis le code : la source, les surfaces, les tests qui la nomment. La formule est un POINTEUR vers la vue, jamais une copie de son SQL.
 
 | métrique | définition | source | formule | granularité | sens | période | surfaces | tests qui la nomment |
 |---|---|---|---|---|---|---|---|---|
@@ -697,4 +697,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=32 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=6cda5eccf63945bd605638cb09a3f49765b3dc65e5eae16bf13ebfe362eae506 -->
+<!-- gold-coverage: sha256=b596a9687930ab216c8057a512dd3086b405e8033a4b96362a1c1334151c16d4 -->

@@ -548,11 +548,12 @@ def check_central_apps(**context):
 
     broken = []
     try:
-        # `src.utils`, not `tools`: tools/ is NOT on the import path inside the
-        # Airflow containers. Measured in production on 2026-08-21 — this task's
-        # first real run reported "No module named 'tools'" instead of the broken
-        # Meta token it exists to find. The ImportError branch below did its job
-        # (it said so rather than reporting success), which is how we know.
+        # `src.utils`, a product module. History: on 2026-08-21 this task's first real
+        # run reported "No module named 'tools'" — tools/ was not mounted then. The mount
+        # (./tools:/opt/airflow/tools:ro) was added the same day and `make sync-check`
+        # verifies it; two tasks below import from `tools.` (R310, 2026-09-28: the old
+        # wording « tools/ is NOT on the import path » had become false). The ImportError
+        # branch below still says so rather than reporting success, if the mount is lost.
         from src.utils.central_apps import (check_meta, check_soundcloud,
                                             check_spotify, missing_central_env,
                                             check_youtube)

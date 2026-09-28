@@ -695,23 +695,16 @@ def unmapped_findings(db) -> list[str]:
 
 
 def _registry():
-    """The metric registry — `tools/dev` is mounted beside `src` in the scheduler."""
+    """The metric registry (`src/utils/metric_registry.py`)."""
     return registry_module().REGISTRY
 
 
 def registry_module():
-    """The module itself (REGISTRY, SILVER_MODULES), loaded once from its file."""
-    import importlib.util
-    from pathlib import Path
-    path = Path(__file__).resolve().parents[2] / "tools" / "dev" / "metric_registry.py"
-    import sys
-    name = "_gold_invariants_metric_registry"
-    if name not in sys.modules:           # a dataclass module must be in sys.modules
-        spec = importlib.util.spec_from_file_location(name, path)
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules[name] = mod
-        spec.loader.exec_module(mod)
-    return sys.modules[name]
+    """The module itself (REGISTRY, SILVER_MODULES). R310 (2026-09-28): the registry is pure
+    data the PRODUCT reads at runtime — it moved from `tools/dev/` into `src/utils/`, so a
+    plain import replaces the file-path loading that depended on a dev folder's mount."""
+    from src.utils import metric_registry
+    return metric_registry
 
 
 def run(db) -> tuple[list[str], int]:

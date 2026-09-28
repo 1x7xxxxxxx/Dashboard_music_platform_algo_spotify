@@ -1712,10 +1712,10 @@ def tests_naming(names: set[str]) -> dict[str, list[str]]:
 
 def render_registry(gold) -> list[str]:
     """R231 — « Le registre des métriques » : one row per gold object, the hand-written
-    definition (`tools/dev/metric_registry.py`) beside what the code computes."""
+    definition (`src/utils/metric_registry.py`) beside what the code computes."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        "metric_registry", ROOT / "tools" / "dev" / "metric_registry.py")
+        "metric_registry", ROOT / "src" / "utils" / "metric_registry.py")
     reg = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = reg          # a dataclass resolves its module by name
     spec.loader.exec_module(reg)
@@ -1730,7 +1730,7 @@ def render_registry(gold) -> list[str]:
     unregistered = sorted(n for n, g in gold.items() if g.consumers and n not in reg.REGISTRY)
     L = ["", "## Le registre des métriques", "",
          "Une métrique = une définition = une source. Écrit à la main dans "
-         "`tools/dev/metric_registry.py` : le nom, la définition, la mesure, la granularité, "
+         "`src/utils/metric_registry.py` : le nom, la définition, la mesure, la granularité, "
          "le **sens** (flux se somme ; cumul se différencie, jamais ne se somme ; niveau se lit "
          "à sa dernière valeur) et la période. Calculé ici depuis le code : la source, les "
          "surfaces, les tests qui la nomment. La formule est un POINTEUR vers la vue, jamais "

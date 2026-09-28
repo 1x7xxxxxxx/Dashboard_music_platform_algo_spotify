@@ -245,7 +245,7 @@ METHOD = """<h2>Méthode — un chiffre juste, et comment il le reste</h2>
 rend (tables de collecte, CSV importés). L'<b>argent</b> la nettoie : une ligne par jour et
 par titre, la ligne « Total » des exports retirée, un compteur à vie gardé comme compteur.
 L'<b>or</b> porte UNE définition par métrique — une vue par KPI, listée dans
-<code>tools/dev/metric_registry.py</code> avec son sens : un <i>flux</i> se somme, un
+<code>src/utils/metric_registry.py</code> avec son sens : un <i>flux</i> se somme, un
 <i>cumul</i> se différencie et ne se somme jamais, un <i>niveau</i> se lit à sa dernière valeur.</p>
 <p><b>Quatre règles font qu'un chiffre reste juste :</b></p>
 <ol>
@@ -298,7 +298,7 @@ def kpi_table(review: dict, inv: dict, no_of: dict, views_of: dict) -> str:
     sys.path.insert(0, str(ROOT / "tools" / "dev"))
     import importlib.util
     spec = importlib.util.spec_from_file_location("metric_registry",
-                                                  ROOT / "tools/dev/metric_registry.py")
+                                                  ROOT / "src/utils/metric_registry.py")
     reg = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = reg
     spec.loader.exec_module(reg)

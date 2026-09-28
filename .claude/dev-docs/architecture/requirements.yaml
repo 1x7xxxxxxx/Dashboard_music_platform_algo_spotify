@@ -22,7 +22,7 @@
   priorite: P2
   statut: conforme
   preuve: {pytest: tests/test_every_metric_is_registered.py::test_every_read_gold_object_is_registered_and_no_entry_is_dead}
-  mutation: "supprimer une entrée de REGISTRY dans tools/dev/metric_registry.py → l'objet or lu n'est plus déclaré"
+  mutation: "supprimer une entrée de REGISTRY dans src/utils/metric_registry.py → l'objet or lu n'est plus déclaré"
 - id: REQ-GOLD-02
   domaine: gold
   enonce: Chaque KPI porte définition, source(s), formule, granularité, fenêtre, et ses tests de qualité se lisent

@@ -1,0 +1,14 @@
+# R310 (2026-09-28) — la crontab root de PRODUCTION, versionnée : 5 scripts du dépôt n'ont
+# pas d'autre appelant, et avant ce fichier le dépôt ne pouvait pas le prouver.
+# Comparée à celle du serveur par `make sync-check` (tools/dev/check_prod_ledger.sh).
+# Installer : `crontab deploy/host/crontab` sur le serveur, après relecture.
+0 3 * * * bash /opt/streamlytics/tools/db_backup.sh >> /var/log/streamlytics-backup.log 2>&1
+0 4 * * * /opt/streamlytics/tools/schema_drift_cron.sh >> /var/log/streamlytics-schema-drift.log 2>&1
+0 5 * * * /opt/streamlytics/tools/infra_health_cron.sh >> /var/log/streamlytics-infra-health.log 2>&1
+# Repetition de restauration, hebdomadaire. Ajoutee le 2026-09-04 : le script
+# existait depuis juin sans aucun appelant planifie, et une sauvegarde jamais
+# restauree n est pas une sauvegarde prouvee (ADR-014).
+0 6 * * 1 bash /opt/streamlytics/tools/db_restore_test.sh >> /var/log/streamlytics-restore-drill.log 2>&1
+# Purge de l historique Airflow, hebdomadaire. Posee le 2026-09-04 : airflow db clean n avait jamais tourne, la base de metadonnees pesait 246 Mo pour 43 Mo de
+# donnees applicatives, dont 98 % produits par les 4 watchers (ADR-014).
+30 6 * * 1 bash /opt/streamlytics/tools/airflow_db_clean.sh >> /var/log/streamlytics-airflow-clean.log 2>&1
