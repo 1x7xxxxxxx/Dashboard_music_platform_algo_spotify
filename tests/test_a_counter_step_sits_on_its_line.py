@@ -3,8 +3,9 @@
 Owner, 2026-09-28 (fiche 1): « le deuxième pointillé, il est pas sur YouTube ». Two grey
 dotted lines, labels stacked at the top: the SoundCloud line was read as a misplaced YouTube
 one, and the YouTube area rose in a slope that started before its line (interpolated from the
-empty point before its first reading). Now the counter's area steps (`shape="hv"`) and its
-line sits on the first plotted x, in the platform's colour.
+empty point before its first reading). Now its line sits on the first plotted x, in the
+platform's colour. A `shape="hv"` step was tried and refused on the render: stacked on a
+linear trace, it painted wedges over the whole history.
 
 Does not cover: the other modes (share, per-period), where no arrival is marked.
 """
