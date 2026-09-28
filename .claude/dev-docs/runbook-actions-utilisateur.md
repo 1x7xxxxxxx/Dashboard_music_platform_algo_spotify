@@ -2109,15 +2109,33 @@ le serveur, et je ne les pose pas moi-même : un coupon, une variable, les évè
 webhook. Sans eux, les mois gagnés restent **en attente** (la page admin le dit) — rien
 n'est perdu, rien n'est appliqué.
 
-1. Dans Stripe (mode **test** d'abord) : Produits → Coupons → Nouveau : **100 %**, durée
-   **une fois**, nom « Parrainage — 1 mois offert ». Note son identifiant.
-2. Développeurs → Webhooks → ton point de terminaison : ajoute les évènements
-   `invoice.paid`, `charge.refunded`, `charge.dispute.created`.
-3. Sur le serveur, dans le `.env` de production : `STRIPE_REFERRAL_COUPON_ID=<identifiant>`,
-   puis `make deploy PROD_SSH=root@… SERVICE=api`.
-4. Rejoue un parrainage en mode test : un compte A partage son code, un compte B s'inscrit
-   avec, B paie son premier mois avec la carte de test `4242 4242 4242 4242`.
-5. Refais 1 à 3 en mode **live** avec un coupon live.
+⚠️ **Le mode test ne se joue PAS sur le serveur de production** (corrigé le 2026-09-28) :
+la prod porte tes clés **live**, qui ne voient pas un coupon créé en mode test — le coupon
+serait refusé et le mois resterait « en attente ». Le test se joue en LOCAL, avec tes clés
+de test ; seul le coupon live va en prod.
 
-**Vérification** : dans « 📊 Referral KPIs », la ligne du parrain A passe `pending` →
-`applied` ; sur la facture suivante de A dans Stripe, la remise de 100 % apparaît.
+**A. Mode test, en local**
+
+1. Dans Stripe, bascule en mode **test** : Produits → Coupons → Nouveau : **100 %**, durée
+   **une fois**, nom « Parrainage — 1 mois offert ». Note son identifiant.
+2. Dans ton `.env.local` : `STRIPE_SECRET_KEY` doit être une clé `sk_test_…`, et ajoute
+   `STRIPE_REFERRAL_COUPON_ID=<identifiant du coupon de test>`.
+3. Lance la pile locale (`make up`), puis dans un second terminal :
+   `stripe listen --forward-to localhost:8502/webhooks/stripe`. Il affiche un secret
+   `whsec_…` : mets-le dans `STRIPE_WEBHOOK_SECRET` de ton `.env.local`, puis redémarre
+   l'API (`docker compose up -d --force-recreate api`).
+4. Rejoue un parrainage : un compte A partage son code, un compte B s'inscrit avec, B paie
+   son premier mois avec la carte de test `4242 4242 4242 4242`.
+5. **Vérification test** : dans « 📊 Referral KPIs » (local), la ligne du parrain A passe
+   `pending` → `applied`.
+
+**B. Mode live, en production**
+
+6. Dans Stripe en mode **live** : même coupon (100 %, une fois). Note son identifiant.
+7. Développeurs → Webhooks → le point de terminaison de production : ajoute les évènements
+   `invoice.paid`, `charge.refunded`, `charge.dispute.created`.
+8. Sur le serveur, dans le `.env` de production : `STRIPE_REFERRAL_COUPON_ID=<identifiant
+   live>`, puis `make deploy PROD_SSH=root@… SERVICE=api`.
+
+**Vérification live** : au premier vrai parrainage, dans « 📊 Referral KPIs », la ligne du parrain passe `pending` →
+`applied` ; sur sa facture suivante dans Stripe, la remise de 100 % apparaît.
