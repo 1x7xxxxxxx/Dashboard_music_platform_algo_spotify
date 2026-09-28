@@ -36,9 +36,15 @@ _COLOR = {"garder": "#1f8a4c", "corriger": "#c0392b", "fusionner": "#b7791f",
 
 #: R286 — the owner's reading order (2026-09-28): what must CHANGE first, the validated last.
 #: A fiche's place is the owner's verdict when there is one, else mine.
+#: R313 — the badge a fiche wears in the BODY: the owner's next gesture, never my grading.
+_BADGE = {"revalider": ("À valider", "#2c5282"), "valide": ("Validé", "#1f8a4c"),
+          "a-trancher": ("À trancher", "#b7791f"), "corriger": ("Je corrige", "#c0392b"),
+          "fusionner": ("Je fusionne", "#c0392b"), "retirer": ("À retirer", "#6b6b6b"),
+          "garder": ("À valider", "#2c5282")}
+
 ORDER = [("corriger", "À corriger"), ("fusionner", "À fusionner"),
          ("a-trancher", "À trancher"), ("retirer", "À retirer"),
-         ("revalider", "Fait — à revalider"), ("garder", "À garder"), ("valide", "Validés")]
+         ("revalider", "À valider — mes corrections sont faites"), ("garder", "À valider"), ("valide", "Validés")]
 _TO_DO = ("corriger", "fusionner")
 
 RECOMMENDATIONS = [
@@ -208,7 +214,11 @@ def actions_html(entry: dict | None, open_ids: set[str],
 def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
           no: int | None = None, entry: dict | None = None,
           open_ids: set[str] | None = None, number: tuple | None = None,
-          done_ids: set[str] | None = None) -> str:
+          done_ids: set[str] | None = None, mode: str = "full",
+          badge: tuple[str, str] | None = None) -> str:
+    """One fiche. R313 (owner, 2026-09-28 : « uniquement la question et le graphique ») —
+    `mode="compact"` is the body of the dossier: number, verdict, question, image; nothing
+    else. `mode="detail"` is the annex: the same fiche WITHOUT its image, with every note."""
     v = r.get("v", "a-trancher")
     owner = ""
     if r.get("owner_v") or r.get("owner"):
@@ -217,6 +227,21 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
                  f'{" : " + esc(r.get("owner")) if r.get("owner") else ""}</p>')
     img_html = (f'<img class="fig" src="{esc(img)}">' if img
                 else f'<div class="nr">Non rendu — {esc(r.get("absent") or "cause à trouver (R242)")}.</div>')
+    head = (f'<div class="head"><span class="no">Fiche {no}</span><span class="verdict" '
+            f'style="background:{_COLOR.get(v, "#444")}">{VERDICTS.get(v, v)}</span>'
+            f'<span class="q">{esc(r.get("q"))}</span></div>')
+    if mode == "compact":
+        if badge:        # what the OWNER has to do with it, not my old grading
+            head = (f'<div class="head"><span class="no">Fiche {no}</span><span class="verdict" '
+                    f'style="background:{badge[1]}">{badge[0]}</span>'
+                    f'<span class="q">{esc(r.get("q"))}</span></div>')
+        return f'<div class="fiche">{head}{img_html}</div>'
+    if mode == "detail":
+        return (f'<div class="fiche det">{head}{number_html(number)}{what_to_do(r, entry)}'
+                f'<p class="note">{esc(r.get("note"))}</p>{owner}'
+                f'{actions_html(entry, open_ids or set(), done_ids)}<p class="site"><code>'
+                f'{esc(key)}</code> · {esc(ROLES.get(r.get("role"), r.get("role")))} '
+                f'{meta_line}{extra}</p></div>')
     return f"""<div class="fiche">
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
@@ -445,7 +470,7 @@ def decisions_html(review: dict, no_of: dict, place_of: dict, out: Path) -> str:
         blocks.append("<h2>Encore à faire de mon côté</h2><ul class='dec'>" + "".join(
             f"<li>{len(ks)} {t} : fiches {n(ks)}</li>" for t, ks in todo) + "</ul>")
     if by.get("revalider"):
-        blocks.append(f"<h2>À revalider — {len(by['revalider'])}</h2><p class='dec'>Mes actions "
+        blocks.append(f"<h2>À valider — {len(by['revalider'])}</h2><p class='dec'>Mes corrections "
                       f"sont faites ; dis « valider » ou corrige : fiches {n(by['revalider'])}.</p>")
     return "".join(blocks) + ("<p class='site'>Le détail de chaque fiche suit ; synthèse, guide des "
                               "retours, traçabilité et propositions sont en annexe, à la fin.</p>")
@@ -555,13 +580,13 @@ def build(out: Path) -> Path:
                  "atteint est listé « non rendu », jamais omis.</li>"
                  "<li>Grafana : panneaux redessinés depuis Prometheus (7 derniers jours).</li></ul>")
 
-    def render_one(k: str) -> str:
+    def render_one(k: str, mode: str = "compact") -> str:
         if k.startswith("grafana:"):
             png, pts = gpng.get(k, (None, None))
             return fiche(k, review[k], png,
                          f"· {pts if pts is not None else '?'} points mesurés en 7 jours",
                          no=no_of[k], entry=acts.get(k), open_ids=open_ids,
-                         done_ids=done_ids)
+                         done_ids=done_ids, mode=mode, badge=_BADGE.get(place_of[k]))
         f = first.get(k)
         s_ = inv.get(k, {})
         meta_line = (f"· couche {esc(s_.get('layer', '—'))} · sources : "
@@ -573,7 +598,7 @@ def build(out: Path) -> Path:
             extra += " · aussi sur : " + esc(", ".join(views_of[k][1:]))
         return fiche(k, review[k], f"figures/{f['png']}" if f else None, meta_line, extra,
                      no_of[k], entry=acts.get(k), open_ids=open_ids, number=number_of.get(k),
-                     done_ids=done_ids)
+                     done_ids=done_ids, mode=mode, badge=_BADGE.get(place_of[k]))
 
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     graf_keys = [k for k in review if k.startswith("grafana:")]
@@ -595,6 +620,10 @@ def build(out: Path) -> Path:
             parts.append(render_one(k))
 
     parts += tail
+    parts.append("<h1 class='page'>Détail de chaque fiche</h1><p class='site'>Mes notes, tes avis "
+                 "précédents, mes actions, la couche et les sources — pour la gestion ; les images "
+                 "sont dans le corps du dossier.</p>" + "".join(
+                     render_one(k, "detail") for k in sorted(review, key=lambda k: no_of[k])))
     parts.append("<h2 class='page'>Index des fiches</h2><table class='idx'>" + "".join(
         f"<tr><td>{n}</td><td>{STATUSES[st_of[k]]}</td><td>{esc(review[k].get('q'))}</td></tr>"
         for k, n in no_of.items() if k in review) + "</table>")
@@ -622,6 +651,8 @@ table.trace td, table.trace th { font-size: 7pt; padding: .4mm 1.2mm; vertical-a
 table.trace tr.dup td { background: #fff3a8; }
 table.dec { width: 100%; } table.dec td, table.dec th { font-size: 9pt; padding: .6mm 2mm; vertical-align: top; }
 ul.dec li, p.dec { font-size: 10pt; margin: .8mm 0; }
+h1.page { page-break-before: always; } p.site { margin-bottom: 3mm; }
+.fiche.det { page-break-inside: auto; }
 table.trace { table-layout: fixed; width: 100%; } table.trace td { word-wrap: break-word; }
 .srcs { color: #888; font-size: 6pt; margin-top: .5mm; }
 """
