@@ -11,6 +11,48 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R290 — **Cinq figures à redessiner** (tes remarques) : fiche 4 (28 derniers jours invisibles f… (livrée 2026-09-28)
+
+- [x] **R290 — **Cinq figures à redessiner** (tes remarques) : fiche 4 (28 derniers jours invisibles face au cumul), fiche 5 (sauvegardes et ajouts en aires sur un 2ᵉ axe, filtre par titre), fiche 10 (écoutes + likes + reposts + commentaires SoundCloud sur UN graphique, sans base 100), fiche 13 (vues, likes et vues par like sur un graphique, comportements séparés), fiche 15 (autre forme)** (P3) ✅ (2026-09-28, 7e74cda5, 29adb8e1)
+  Mesuré par : chaque figure rendue et regardée ; tes validations
+  cinq figures redessinees et regardees (fiches 4, 5, 10, 13, 15), deux axes declares au garde ; deploye 01fdd2a7 ; CI de 7e74cda5 rouge sur gold-coverage.md perime dans ce seul commit (mise de cote des fichiers R291), regenere au commit suivant 8547e632, CI verte depuis
+  Commits : 7e74cda5 R290 : cinq figures redessinees selon ta revue, chacune rendue et rega · 29adb8e1 Dossier des KPI : tes avis du 2026-09-28 verses (11 fiches, verbatim) 
+
+## ✅ R292 — **Les recommandations du corpus pas encore intégrées** (section du dossier) : les liste… (livrée 2026-09-28)
+
+- [x] **R292 — **Les recommandations du corpus pas encore intégrées** (section du dossier) : les lister, passer chacune au code-critic, une ligne de roadmap par recommandation retenue** (P3) ✅ (2026-09-28, 9a74960c)
+  Mesuré par : la liste avec le verdict critic de chacune
+  4 recommandations passees au code-critic : 1 et 4 deja integrees, 2 perimee et reecrite, 3 retenue -> R293
+  Commits : 9a74960c R282 R291 R292 : tes verdicts sur les propositions et les recommandati
+
+## ✅ R291 — **P2 dans l'app** : par campagne, les écoutes gagnées et le prix d'une écoute gagnée, f… (livrée 2026-09-28)
+
+- [x] **R291 — **P2 dans l'app** : par campagne, les écoutes gagnées et le prix d'une écoute gagnée, fusionnés avec les streams obtenus, le budget dépensé et les autres métriques de campagne, sur la page Meta × Spotify, via une vue or** (P2) ✅ (2026-09-28, 9a74960c, 8547e632)
+  Mesuré par : figure rendue ; calcul testé ; pas de doublon avec les fiches 20 et 39
+  P2 dans l app par vague de campagnes, memes refus que le verdict Meta x Spotify plus une base minimale (la premiere vague precedait la premiere sortie) ; deploye 01fdd2a7
+  Commits : 9a74960c R282 R291 R292 : tes verdicts sur les propositions et les recommandati · 8547e632 R291 : ta P2 dans l app - ce que chaque VAGUE de campagnes a rapporte 
+
+## ✅ R289 — **« Non garanti » sur les fiches 6, 8, 13, 62** : Apple Music (`apple_songs_performance… (livrée 2026-09-28)
+
+- [x] **R289 — **« Non garanti » sur les fiches 6, 8, 13, 62** : Apple Music (`apple_songs_performance`), SoundCloud (`soundcloud_tracks_daily`), YouTube (`youtube_video_stats`, `youtube_videos`) lus hors couche or, LTV admin sans couche déclarée — passer chacune par une vue or et baisser le cliquet de R280 (fiche 8 : vérifier sur l'instantané neuf qu'aucun retour à 0 ne subsiste)** (P2) ✅ (2026-09-28, 006d87a5)
+  Mesuré par : les 4 fiches « ✅ Chiffre vérifié »
+  Apple top = 10 titres les plus ecoutes (la requete brute prenait l ordre alphabetique), SoundCloud et YouTube par vues or (migration 144 appliquee en prod), LTV admin marquee etat de l application ; cliquet 66 -> 63 ; deploye 01fdd2a7
+  Commits : 006d87a5 R289 : les quatre fiches non garanties de ta revue - Apple Music (fich
+
+## ✅ R288 — **Fiche 1 : la marche d'une plateforme glisse avant son pointillé** — l'aire empilée mo… (livrée 2026-09-28)
+
+- [x] **R288 — **Fiche 1 : la marche d'une plateforme glisse avant son pointillé** — l'aire empilée monte en pente depuis le dernier point vide jusqu'au premier relevé, donc la hausse YouTube commence avant sa ligne ; la marche doit tomber sur le pointillé, chaque pointillé à la couleur de sa plateforme** (P3) ✅ (2026-09-28, ad741058, 048c89ec)
+  Mesuré par : figure regardée : chaque saut sur sa ligne
+  chaque pointille a la couleur de sa plateforme, sur le point ou l aire est dessinee ; forme en marche essayee et retiree (triangles sur le rendu) ; deploye 01fdd2a7
+  Commits : ad741058 R288 : forme en marche retiree - regardee sur le rendu, empilee sur un · 048c89ec R286 R287 R288 : ta revue du dossier des KPI - le dossier se lit dans 
+
+## ✅ R286 — **Dossier des KPI, tes règles de lecture** (revue du 2026-09-28) : ordre corriger → fus… (livrée 2026-09-28)
+
+- [x] **R286 — **Dossier des KPI, tes règles de lecture** (revue du 2026-09-28) : ordre corriger → fusionner → garder → validé (validé à la fin), un état « validé » distinct de « garder », et chaque fiche « corriger / fusionner / non garanti » dit QUOI faire ; instantané de prod rafraîchi (la fiche 66 n'avait aucun coût à dessiner avant R256) et PDF refait** (P3) ✅ (2026-09-28, 048c89ec, 29adb8e1)
+  Mesuré par : ton ordre respecté ; aucune fiche à corriger sans son action écrite
+  dossier dans ton ordre (corriger, fusionner, trancher, retirer, a revalider, garder, valides en dernier), verdict valider, chaque fiche a corriger dit quoi faire ; instantane neuf, fiche 66 rendue ; deploye 01fdd2a7
+  Commits : 048c89ec R286 R287 R288 : ta revue du dossier des KPI - le dossier se lit dans  · 29adb8e1 Dossier des KPI : tes avis du 2026-09-28 verses (11 fiches, verbatim) 
+
 ## ✅ R279 — Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des l… (livrée 2026-09-28)
 
 - [x] **R279 — Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des livrables qui rajoute du poids pour rien »)** (P4) ✅ (2026-09-28, 8d707ffd)
