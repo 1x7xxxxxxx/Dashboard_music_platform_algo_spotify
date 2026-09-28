@@ -176,6 +176,17 @@ def test_every_meta_surface_keeps_one_row_per_campaign_and_the_gold_total() -> N
 # SAME xdist group as the fan-out fixture above, measured 2026-09-27: run on another worker,
 # this test read ALL tenants while the fixture's transient tenant held its deliberate ×3
 # (« tenant 1107197: summary 30.00 != gold 10.00 ») — a race, not a defect.
+def _spend_snapshot(db) -> tuple[dict, dict]:
+    """({tenant: gold spend}, {tenant: own ads' spend}) — read twice to see who is moving."""
+    gold = dict(db.fetch_query("SELECT artist_id, SUM(spend) FROM v_meta_campaign_daily "
+                               "GROUP BY 1"))
+    own = dict(db.fetch_query(
+        "SELECT mi.artist_id, SUM(mi.spend) FROM meta_insights mi WHERE EXISTS "
+        "(SELECT 1 FROM meta_ads ma WHERE ma.ad_id = mi.ad_id "
+        "AND ma.artist_id = mi.artist_id) GROUP BY 1"))
+    return gold, own
+
+
 @pytest.mark.xdist_group("meta-fanout")
 @requires_live_db()
 def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() -> None:
@@ -184,12 +195,7 @@ def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() 
 
     db = _db()
     try:
-        gold = dict(db.fetch_query("SELECT artist_id, SUM(spend) FROM v_meta_campaign_daily "
-                                   "GROUP BY 1"))
-        own = dict(db.fetch_query(
-            "SELECT mi.artist_id, SUM(mi.spend) FROM meta_insights mi WHERE EXISTS "
-            "(SELECT 1 FROM meta_ads ma WHERE ma.ad_id = mi.ad_id "
-            "AND ma.artist_id = mi.artist_id) GROUP BY 1"))
+        gold, own = _spend_snapshot(db)
         if not gold and not own:
             pytest.skip("no Meta spend on this database — nothing to reconcile")
         wrong = []
@@ -203,6 +209,15 @@ def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() 
                 if abs(got - float(total)) > 1e-6:
                     wrong.append(f"tenant {tenant}: Réglages « {axe} » {got:.2f} != "
                                  f"own spend {float(total):.2f}")
+        # R312 (2026-09-28) — the same group is not enough: OTHER tests create transient
+        # tenants on other workers (« tenant 1079703: Réglages « cta » 0.00 != own spend
+        # 10.00 », the insights written, the ads config not yet). A tenant whose spend MOVED
+        # between the first and the second read is being written right now — judged on the
+        # property, not on a list of fixture names.
+        gold2, own2 = _spend_snapshot(db)
+        moving = {t for t in set(gold) | set(own) | set(gold2) | set(own2)
+                  if gold.get(t) != gold2.get(t) or own.get(t) != own2.get(t)}
+        wrong = [w for w in wrong if int(w.split(":")[0].split()[1]) not in moving]
         assert not wrong, "\n".join(wrong)
     finally:
         db.close()

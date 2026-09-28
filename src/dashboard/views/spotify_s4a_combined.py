@@ -97,7 +97,9 @@ _MOMENTUM_DAYS = 28
 _ROW_HEIGHT = 380
 # The detail/momentum pair (R194): two stacked panels need about two rows of height, and
 # « Ce qui bouge » takes the same so the row ends level.
-_PAIR_HEIGHT = 640
+# R312 (2026-09-28): 720, not 640 — R290 gave the right panel +80 px for its bottom legend and
+# left « Ce qui bouge » at 640: the row no longer ended level. ONE height for both columns.
+_PAIR_HEIGHT = 720
 
 
 def _df(db, sql: str, params: tuple) -> pd.DataFrame:
@@ -538,7 +540,7 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
             # R290 (owner, fiche 5, 2026-09-28) — each panel in its REAL units, no base
             # 100: indexed on a first-month spike, saves and playlist adds read as ~0 for
             # two years. The two panels stay ONE figure (R244, « fusionner les deux »).
-            fig.update_layout(height=_PAIR_HEIGHT + 80, margin=dict(t=30, b=40),
+            fig.update_layout(height=_PAIR_HEIGHT, margin=dict(t=30, b=40),
                               legend=dict(orientation="h", yanchor="top", y=-0.08, x=0))
             charts.plotly_chart(fig, width="stretch")
             if note:
