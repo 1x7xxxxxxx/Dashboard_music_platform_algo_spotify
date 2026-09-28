@@ -34,6 +34,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R306 | Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `tools/generate-dev-docs.py`, `tools/prod_introspect.sh`, trois one-shots faits, cinq outils de mesure ponctuels, `run_tests.sh` ; commandes de debug retirées de la page « liens utiles » ; code mort retiré <!-- critic: non — déplacements, la garde de R305 s'applique --> <!-- scope: airflow/, scripts/, tools/, src/dashboard/views/, src/dashboard/utils/, .claude/, tests/, archive/ --> | P3 | aucun appelant vivant vers archive/ ; tests verts |
 | R307 | Latence de l'outillage de dev : un dispatcher par évènement de hook (6 processus par édition, 3 par commande aujourd'hui), audit_runner sans doublons de signatures, gold_coverage en une passe avec cache des arbres, error_class_health mis en cache par commit, select_tests lit les tests une fois — mesuré avant/après en alternance <!-- critic: requis --> <!-- scope: .claude/hooks/, .claude/settings.json, .claude/scripts/, tools/dev/, tests/ --> | P3 | temps par édition et par commande, make test-changed, make gold-coverage, audit_runner --all |
 | R308 | engineering-loop.js nettoyé : vocabulaire du projet d'origine retiré (trading_bot, backtest), `main` au lieu de `master`, étapes de déploiement réelles ; test qui vérifie que chaque commande nommée existe <!-- critic: non — texte et commandes, comportement inchangé --> <!-- scope: .claude/workflows/, tests/ --> | P4 | test des commandes nommées muté rouge |
+| R309 | Scalabilité produit (ta demande du 2026-09-28, après l'outillage) : `tools/tenant_contamination_check.py` lance 2 requêtes par artiste × plateforme × table chaque nuit dans `alert_monitor` → une requête groupée par table pour tous les locataires ; même revue pour les autres contrôles nocturnes par locataire <!-- critic: requis --> <!-- scope: tools/, airflow/dags/, src/, tests/ --> | P3 | nombre de requêtes et durée de la tâche nocturne avant/après, même verdict |
+| R310 | Ce que l'inventaire a trouvé hors des scripts : (a) 3 scripts de prod (`infra_health_cron.sh`, `schema_drift_cron.sh`, `airflow_db_clean.sh`) dépendent d'une crontab du serveur que le dépôt ne versionne pas → la versionner et la vérifier au déploiement ; (b) le produit charge des outils de `tools/` à l'exécution (`gold_invariants.py` → `tools/dev/metric_registry.py`, `alert_monitor.py` → deux modules `tools/`) alors qu'un commentaire du même DAG dit l'inverse → le registre descend dans `src/`, le commentaire est corrigé ; (c) pointeurs périmés (`check_prod_sync.py:57` nomme un document retiré) <!-- critic: requis --> <!-- scope: tools/, src/, airflow/dags/, deploy/, .claude/hooks/, tests/ --> | P3 | crontab du serveur = crontab du dépôt ; aucun import de tools/ depuis src/ |
 
 ---
 
@@ -89,7 +91,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R305, R306, R307, R308, R283, R275 -->
+<!-- reprise: open=R305, R306, R307, R308, R309, R310, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
