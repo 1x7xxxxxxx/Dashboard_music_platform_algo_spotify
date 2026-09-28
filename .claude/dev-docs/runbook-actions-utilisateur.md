@@ -2103,6 +2103,11 @@ décision qu'elle sert et **ma reco** (R298, 2026-09-28) :
 
 Ma reco d'ensemble : faire tester l'app par deux artistes (R275) avant de trancher.
 
+Restent aussi, de l'ancienne version de cette section : les quinze idées écrites page par page
+(note L91), chacune avec la décision qu'elle sert et la donnée qu'elle lit —
+`.claude/dev-docs/chart-ideas-by-page.md` — et L276 (« s'inspirer de graphiques générés
+ailleurs ») : colle dans le fil ceux qui t'inspirent, avec la page où tu les verrais.
+
 1. Réponds dans le fil : « garder B, D ; écarter C », par exemple.
 
 **Vérification** : ta réponse dans le fil ; une ligne Rnnn par proposition retenue.
