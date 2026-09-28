@@ -654,6 +654,34 @@ def _recurrence_dates(body: str) -> list[str]:
     return sorted(d for d, kind in _HISTORY_MARKED.findall(body) if kind == "récidive")
 
 
+def _catalogue_at(shas: list[str]) -> dict[str, str]:
+    """{sha: the catalogue's text at that commit}, read through ONE `git cat-file --batch`.
+
+    R307 (2026-09-28) — measured: the replay spawned one `git show` per revision, 579 of
+    them, 25 of the tool's 31 s. Same bytes, one process. The text is normalised the way
+    `_git` (`text=True`) did, so every downstream comparison sees what it saw before."""
+    import tempfile
+    if not shas:
+        return {}
+    with tempfile.TemporaryFile() as queries:
+        queries.write("".join(f"{sha}:{CAT_REL}\n" for sha in shas).encode())
+        queries.seek(0)
+        proc = subprocess.run(["git", "cat-file", "--batch"], cwd=ROOT, stdin=queries,
+                              capture_output=True, timeout=300)
+    out, pos, texts = proc.stdout, 0, {}
+    for sha in shas:
+        nl = out.index(b"\n", pos)
+        header = out[pos:nl].split()
+        pos = nl + 1
+        if len(header) < 3 or header[1] != b"blob":
+            continue                                   # « <name> missing »: absent there
+        size = int(header[2])
+        raw = out[pos:pos + size].decode("utf-8", errors="replace")
+        texts[sha] = raw.replace("\r\n", "\n").replace("\r", "\n")
+        pos += size + 1                                # the blob, then its newline
+    return texts
+
+
 def _observed() -> dict:
     """Rejeu de toutes les révisions du catalogue : introduction et récidives.
 
@@ -666,9 +694,10 @@ def _observed() -> dict:
 
     per: dict[str, dict] = {}
     prev: dict[str, str] = {}
+    blobs = _catalogue_at([sha for sha, _ in revs if sha != WORKTREE])
     for sha, day in revs:
         text = (CATALOGUE.read_text(encoding="utf-8") if sha == WORKTREE
-                else _git("show", f"{sha}:{CAT_REL}"))
+                else blobs.get(sha, ""))
         if not text:
             continue
         cur = _blocks(text)

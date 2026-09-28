@@ -615,7 +615,23 @@ class Scope:
     paths: dict[int, tuple]
 
 
+#: R307 (2026-09-28) — measured: `build_scope` ran 6 804 times for ~2 000 distinct functions,
+#: re-walking each body at every slice that reached it (a third of the tool's time). A Scope
+#: is never modified once built, and the parsed trees live for the whole run: one per node.
+#: The node is kept next to its scope so a recycled `id()` can never hand back another's.
+_SCOPES: dict[int, tuple[ast.AST, "Scope"]] = {}
+
+
 def build_scope(fn: ast.AST) -> Scope:
+    hit = _SCOPES.get(id(fn))
+    if hit is not None and hit[0] is fn:
+        return hit[1]
+    scope = _build_scope(fn)
+    _SCOPES[id(fn)] = (fn, scope)
+    return scope
+
+
+def _build_scope(fn: ast.AST) -> Scope:
     defs: dict[str, list] = defaultdict(list)
     mut: dict[str, list] = defaultdict(list)
     params: set[str] = set()
