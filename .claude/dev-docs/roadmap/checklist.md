@@ -31,7 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R297 | Finir R293 à ta demande (2026-09-28) : sous la fiche 51, l'erreur du volume prévu par SEMAINE DE PRÉDICTION face au dernier constat S4A (ml_song_predictions × s4a_song_algo_outcomes), la série mince dite sur la figure ; R293 sort du backlog et son déclencheur de reopen_check <!-- critic: non — conception retenue par le code-critic en R292, seule la date change --> <!-- scope: src/dashboard/views/trigger_algo/, src/dashboard/utils/i18n --> | P3 | test de la série par semaine + rendu de la vue |
-| R298 | R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le dossier régénéré sur un instantané frais de la prod pour relire tes commentaires du 2026-09-28 <!-- critic: non — outil de revue hors produit --> | P4 | le PDF régénéré, chaque proposition porte sa reco |
+| R298 | R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le dossier régénéré sur un instantané frais de la prod pour relire tes commentaires du 2026-09-28 <!-- critic: non — outil de revue hors produit --> <!-- scope: tools/dev/charts_dossier/, tools/dev/, .claude/dev-docs/ --> | P4 | le PDF régénéré, chaque proposition porte sa reco |
 
 ---
 
