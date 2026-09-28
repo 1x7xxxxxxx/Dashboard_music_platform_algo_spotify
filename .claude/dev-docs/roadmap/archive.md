@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R317 — `make night-status` annonce « UNE SUITE TOURNE » sans aucun processus pytest (mesuré 20… (livrée 2026-09-29)
+
+- [x] **R317 — `make night-status` annonce « UNE SUITE TOURNE » sans aucun processus pytest (mesuré 2026-09-29 00:40) : trouver ce que la sonde prend pour une suite et la corriger** (P3) ✅ (2026-09-29, 6020c8fe)
+  Mesuré par : sonde rejouée sans suite ⇒ muette, avec une suite ⇒ la voit
+  la sonde ignore --collect-only et nomme le processus vu ; garde mutee rouge 2 fois. FORCE_CI : CI du commit en cours, la cloture ne touche pas au code
+  Commits : 6020c8fe R317 : night-status ne voit une suite que si des tests tournent (une c
+
 ## ✅ R315 — Traçabilité des défauts SANS classe (ton accord du 2026-09-29) : le hook Stop `session_… (livrée 2026-09-29)
 
 - [x] **R315 — Traçabilité des défauts SANS classe (ton accord du 2026-09-29) : le hook Stop `session_summary.py` relève, à chaque réponse et en lecture INCRÉMENTALE du transcript, les symptômes du tour — test rouge (id de nœud), traceback (type + fichier du dépôt), refus de hook ou de pre-commit ; PAS les sorties ≠ 0 de Bash (grep sans résultat = bruit) — dans `.claude/sessions/defects.jsonl` (gitignoré, extraits caviardés : chemins, e-mails, jetons) ; `make defect-log` réconcilie (même nœud revu vert ⇒ `green`, vert dans la même séance ⇒ `transient`) et PROPOSE le billet `recurrence:<d1>,<d2>` existant quand une empreinte revient un autre jour après un vert — proposition seulement, même cause à confirmer par un humain** (P3) ✅ (2026-09-29, aa997be8)
