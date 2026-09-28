@@ -2085,3 +2085,18 @@ exportées par ton shell. Je ne modifie pas ton `~/.bashrc` moi-même.
 
 **Vérification** : `echo ${DB_PASSWORD:+ok}` affiche `ok` dans un nouveau terminal ;
 `type sl` affiche l'alias ; la barre d'état de VS Code affiche « WSL ».
+
+## 38. R282 — Choisir les graphiques à ajouter · P4
+
+**Pourquoi** : trois notes attendent ton choix. L276 : « s'inspirer de graphiques générés
+ailleurs », mais lesquels ? L268 : le seuil de déclenchement de l'algorithme et la
+prédiction en pointillés sur la courbe Meta × Spotify, que tu as différés « après le set up
+initial ». L91 : quinze idées écrites page par page, chacune avec la décision qu'elle sert
+et la donnée qu'elle lit (`.claude/dev-docs/chart-ideas-by-page.md`).
+
+1. Colle dans le fil (ou dans `revue/`) les graphiques qui t'inspirent, avec la page où tu
+   les verrais.
+2. Dis si le seuil sur Meta × Spotify revient maintenant ou reste différé.
+3. Coche dans le document les idées à construire : chacune deviendra une ligne de roadmap.
+
+**Vérification** : ta réponse dans le fil ; une ligne Rnnn par idée retenue.
