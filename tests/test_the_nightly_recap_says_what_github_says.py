@@ -18,7 +18,7 @@ from src.utils import nightly_recap as nr
 
 
 def _run(conclusion: str, day: str) -> dict:
-    return {"conclusion": conclusion, "created_at": f"2026-09-{day}T02:00:00Z",
+    return {"conclusion": conclusion, "status": "completed", "created_at": f"2026-09-{day}T02:00:00Z",
             "html_url": f"https://github.com/x/runs/{day}"}
 
 
@@ -54,7 +54,8 @@ def test_an_unreachable_github_reads_as_unreadable_not_green() -> None:
 
 
 def test_the_fetch_parses_the_public_api_shape() -> None:
-    payload = {"workflow_runs": [_run("success", "26")]}
+    done, running = _run("success", "26"), dict(_run("failure", "27"), status="in_progress")
+    payload = {"workflow_runs": [running, done]}
 
     class _Resp(io.BytesIO):
         def __enter__(self):
@@ -64,10 +65,17 @@ def test_the_fetch_parses_the_public_api_shape() -> None:
             return False
 
     def fake(req, timeout):
-        assert "status=completed" in req.full_url and "branch=main" in req.full_url
-        return _Resp(json.dumps(payload).encode())
+        # R316: the completed filter runs on the runs, not in a lagging server-side index
+        assert "status=completed" not in req.full_url and "branch=main" in req.full_url
+        return _Resp(json.dumps(body).encode())
 
-    assert nr.fetch_runs("ci.yml", "main", opener=fake) == payload["workflow_runs"]
+    body = payload
+    assert nr.fetch_runs("ci.yml", "main", opener=fake) == [done], (
+        "a run still in progress is not a verdict")
+    body = {"message": "API rate limit exceeded"}
+    assert nr.fetch_runs("ci.yml", "main", opener=fake) is None, (
+        "an error body is « unreadable », not an empty list read as « unknown »")
+    assert "illisible" in nr.describe(None) and "success" in nr.describe([done])
 
 
 def test_a_quiet_recap_says_that_silence_would_mean_a_dead_monitor() -> None:

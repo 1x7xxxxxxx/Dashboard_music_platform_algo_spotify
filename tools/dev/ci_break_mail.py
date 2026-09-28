@@ -47,15 +47,18 @@ def previous_conclusion(env: dict) -> str | None:
     """Conclusion of the last completed CI run on main before this one, or None."""
     url = (f"{env.get('GITHUB_API_URL', 'https://api.github.com')}/repos/"
            f"{env['GITHUB_REPOSITORY']}/actions/workflows/ci.yml/runs"
-           "?branch=main&event=push&status=completed&per_page=10")
+           "?branch=main&event=push&per_page=15")   # R316: completed filtered below, not by an index
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {env['GITHUB_TOKEN']}",
                                                "Accept": "application/vnd.github+json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            runs = json.load(r).get("workflow_runs", [])
+            runs = json.load(r).get("workflow_runs")
     except (OSError, ValueError, KeyError):
         return None
-    return last_verdict(runs, str(env.get("GITHUB_RUN_ID", "")))
+    if not isinstance(runs, list):
+        return None
+    done = [run for run in runs if run.get("status") == "completed"]
+    return last_verdict(done, str(env.get("GITHUB_RUN_ID", "")))
 
 
 def last_verdict(runs: list[dict], me: str) -> str | None:

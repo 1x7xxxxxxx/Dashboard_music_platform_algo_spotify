@@ -36,16 +36,34 @@ _NO_VERDICT = {"cancelled", "skipped", None, ""}
 
 def fetch_runs(workflow: str, branch: "str | None", repo: str = REPO,
                opener=urllib.request.urlopen) -> "list[dict] | None":
-    """Completed runs of `workflow`, newest first, or None when GitHub cannot be read."""
+    """Completed runs of `workflow`, newest first, or None when GitHub cannot be read.
+
+    R316 (2026-09-29): the recap of 09-28 14:32 said « Santé prod : ROUGE » on a green
+    workflow and nothing it had read was kept. The completed filter now runs HERE, on the
+    runs themselves, not as `?status=completed` (served by a search index that can lag —
+    cause inferred, not proven), and an answer without `workflow_runs` (a rate-limit or
+    error body) is « unreadable », never an empty — hence « unknown » — list.
+    """
     url = (f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs"
-           f"?status=completed&per_page=15" + (f"&branch={branch}" if branch else ""))
+           f"?per_page=30" + (f"&branch={branch}" if branch else ""))
     req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
                                                "User-Agent": "streamlytics-recap"})
     try:
         with opener(req, timeout=20) as r:
-            return json.load(r).get("workflow_runs", [])
+            runs = json.load(r).get("workflow_runs")
     except Exception:  # noqa: BLE001 — any failure is « unreadable », said as such
         return None
+    if not isinstance(runs, list):
+        return None
+    return [run for run in runs if run.get("status") == "completed"]
+
+
+def describe(runs: "list[dict] | None", n: int = 3) -> str:
+    """What a verdict was judged on, for the run's log: the newest runs read. Pure."""
+    if runs is None:
+        return "illisible"
+    return " · ".join(f"{r.get('id')} {str(r.get('created_at'))[:16]} {r.get('event')} "
+                      f"{r.get('conclusion')}" for r in runs[:n]) or "aucun run terminé"
 
 
 def verdict(runs: "list[dict] | None") -> dict:
@@ -88,8 +106,12 @@ def github_section(verdicts: dict) -> "tuple[str, bool]":
 
 def github_verdicts(opener=urllib.request.urlopen) -> dict:
     """{label: verdict} for the three workflows — three unauthenticated requests."""
-    return {label: verdict(fetch_runs(wf, branch, opener=opener))
-            for wf, label, branch in WORKFLOWS}
+    out = {}
+    for wf, label, branch in WORKFLOWS:
+        runs = fetch_runs(wf, branch, opener=opener)
+        out[label] = verdict(runs)
+        print(f"   {label} → {out[label]['state']} — lu : {describe(runs)}")
+    return out
 
 
 def short_recap(now_str: str, headline: str, github_html: str) -> "tuple[str, str]":
