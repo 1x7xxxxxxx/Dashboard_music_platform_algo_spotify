@@ -29,13 +29,6 @@ EN = {
     "instagram.engagement_per_post": "Engagement per post",
     "instagram.posts_axis": "Posts",
     "instagram.per_post_axis": "Likes + comments per post",
-    "instagram.engagement_rate_title": "Engagement rate ≈ (avg. eng./post) ÷ followers — indicative",
-    "instagram.rate_axis": "Rate (%)",
-    "instagram.rate_expander": "📈 Engagement rate (indicative)",
-    "instagram.rate_caption": (
-        "Indicative: followers = latest snapshot (follower history "
-        "is sparse vs the posts' time span)."
-    ),
     "instagram.recent_posts": "#### Recent posts",
     "instagram.col_preview": "Preview",
     "instagram.col_link": "Link",

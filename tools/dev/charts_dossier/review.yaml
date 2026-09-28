@@ -165,17 +165,8 @@ src/dashboard/views/instagram.py::show#1:
   owner: "L'ergonomie du graphique est pas ouf, propose-moi un autre truc."
   cause: lisibilite
   note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
-src/dashboard/views/instagram.py::show#2:
-  q: "Mon taux d'engagement tient-il ?"
-  role: plateforme
-  d: 3
-  c: 3
-  p: 3
-  v: garder
-  owner_v: garder
-  owner: "On garde."
-  note: "Marqué « indicatif », et c'est juste (quatre points)."
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
+  mq: M5
   q: "Mes smart links Hypeddit convertissent-ils ?"
   role: meta
   d: 3
@@ -196,6 +187,7 @@ src/dashboard/views/imusician.py::show#1:
   owner: "Tout regrouper sur un même graphique, avec des cumuls qui retracent l'évolution."
   note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
+  mq: M2
   q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"
   role: meta
   d: 4
@@ -206,6 +198,7 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   owner: "On garde."
   note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
 src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
+  mq: M1
   q: "Ce que chaque vague de campagnes a rapporté en écoutes, et le prix d'une écoute gagnée (P2) ?"
   role: meta
   d: 4
@@ -214,17 +207,7 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   v: garder
   note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
-  q: "Mes campagnes côte à côte — laquelle dépense le plus, pour quels clics ?"
-  role: meta
-  d: 2
-  c: 1
-  p: 4
-  v: corriger
-  owner_v: corriger
-  owner: "Changer le visuel : je ne comprends pas quoi lire ; étiquettes et agencement pour voir la différence entre budget, clics et CPR."
-  cause: double-comptage
-  note: "≈ 9 000 € de budget et 65 k clics pour la MÊME campagne que la figure voisine (756 €, 5 963 clics) — barres empilées de nombreux segments. Probable double comptage (lignes par jour ou par créa sommées). À vérifier en premier (P2)."
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
+  mq: M4
   q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"
   role: meta
   d: 4
@@ -234,7 +217,8 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
   owner_v: corriger
   owner: "Ajouter les streams Spotify obtenus ; « clic Spotify » → « clic Hypeddit » ; le CPR c'est très bien."
   note: "Dépense, clics et CPR sur la campagne : on voit les clics s'effondrer avec le budget le 20/09."
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
+src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
+  mq: M3
   q: "Quel objectif d'optimisation coûte le moins cher par résultat ?"
   role: meta
   d: 3
@@ -245,6 +229,7 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
   owner: "Changer le graphe en rond pour la lisibilité."
   note: "Deux objectifs dont un quasi nul en dépense — la comparaison de CPR est fragile, à marquer."
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
+  mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
   role: meta
   d: 3
@@ -256,6 +241,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   cause: doublon
   note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
 src/dashboard/views/meta_breakdowns.py::_render_performance#2:
+  mq: M7
   q: "Où ma pub a-t-elle dépensé, dans le monde ? (carte, repliée)"
   role: meta
   d: 4
@@ -266,6 +252,7 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#2:
   owner: "On garde ; la géographie sur la même vue que placement, âge, plateforme."
   note: "Mexique ≈ 850 € à CPR 0,11 € ; les pays chers se repèrent. Plus utile que la carte."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
+  mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où ma pub fait-elle réagir ? (R208)"
   role: meta
   d: 3
@@ -276,6 +263,7 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   owner: "Non rendu : trouver pourquoi et comment voir toutes les vues ; refactor si pertinent."
   note: "Non rendu : n'apparaît qu'avec un autre choix du sélecteur de dimension."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
+  mq: M7
   q: "Où ma pub fait-elle réagir, dans le monde ? (carte, repliée)"
   role: meta
   d: 3
@@ -287,7 +275,8 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   note: "Non rendu : autre choix du sélecteur."
 src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   q: "Quelle tranche d'âge coûte le moins cher par résultat ?"
-  role: prediction
+  role: meta
+  mq: M7
   d: 4
   c: 3
   p: 4
@@ -296,6 +285,7 @@ src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   owner: "Tri Pareto : la valeur la plus haute à gauche."
   note: "35-44 à 0,088 € contre 25-34 à 0,147 € — décision directe de ciblage. Or 25-34 est la tranche la plus dépensée (1 398 €)."
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
+  mq: M2
   q: "Quelle créa coûte le moins cher, et engage le plus ?"
   role: meta
   d: 3
@@ -307,6 +297,7 @@ src/dashboard/views/meta_creatives.py::_render_ranking#1:
   cause: ctr-echelle
   note: "CTR à 233 %, 387 %, 1 111 % — un taux de clic ne dépasse pas 100 %. Probable pourcentage multiplié deux fois. Le classement CPR, lui, est lisible. À vérifier (P2)."
 src/dashboard/views/meta_creatives.py::_render_hooks#1:
+  mq: M2
   q: "Les créas avec « hook » coûtent-elles moins cher que sans ?"
   role: meta
   d: 4
@@ -317,6 +308,7 @@ src/dashboard/views/meta_creatives.py::_render_hooks#1:
   owner: "Pas mal ; notes /5 incomprises ; redondant avec 29 ?"
   note: "Sans hook 0,104 € < Hook 1 0,113 € < Hook 2 0,127 € — mais sur 69 € de dépense « sans hook » : à marquer comme fragile."
 src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
+  mq: M2
   q: "Une créa donne-t-elle des revenus dans le temps ?"
   role: meta
   d: 2
@@ -328,6 +320,7 @@ src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
   cause: graphique-vide-ou-axe-casse
   note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
 src/dashboard/views/meta_creatives.py::_render_scatter#1:
+  mq: M2
   q: "Où sont mes créas en dépense × coût ?"
   role: meta
   d: 3
@@ -337,18 +330,8 @@ src/dashboard/views/meta_creatives.py::_render_scatter#1:
   owner_v: a-trancher
   owner: "Je ne comprends pas quelle décision prendre : refais ton cheminement."
   note: "Nuage lisible : les grosses dépenses ont les CPR les plus bas. La couleur CTR hérite du même défaut d'échelle."
-src/dashboard/views/meta_creatives.py::_render_efficiency#1:
-  q: "Quelle créa a le meilleur CTR ?"
-  role: meta
-  d: 1
-  c: 1
-  p: 3
-  v: retirer
-  owner_v: corriger
-  owner: "Ranger en Pareto, et un refactor pour toujours tracer et filtrer en Pareto."
-  cause: ctr-echelle
-  note: "CTR jusqu'à 1 100 % (même défaut d'échelle) et doublon du classement en tête de page."
 src/dashboard/views/meta_creatives.py::_render_funnel#1:
+  mq: M5
   q: "Où se perdent les gens entre l'impression et le clic sortant ?"
   role: meta
   d: 3
@@ -360,6 +343,7 @@ src/dashboard/views/meta_creatives.py::_render_funnel#1:
   cause: entonnoir-incoherent
   note: "60 clics SORTANTS pour 48 clics — un entonnoir qui s'élargit. Définitions Meta à vérifier (clic lien vs clic)."
 src/dashboard/views/meta_creatives.py::_render_fatigue#1:
+  mq: M4
   q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
   role: meta
   d: 3
@@ -371,6 +355,7 @@ src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   cause: ctr-echelle
   note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
 src/dashboard/views/meta_creatives.py::_render_activity#1:
+  mq: M4
   q: "Quelle créa a tourné quand ?"
   role: meta
   d: 3
@@ -382,6 +367,7 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
   cause: libelles-tronques
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
 src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
+  mq: M1
   q: "Ma dernière pub m'a-t-elle amené des auditeurs ?"
   role: meta
   d: 5
@@ -392,6 +378,7 @@ src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
   owner: "Très bien ; ajouter streams, abonnés, ajouts en playlist, sauvegardes, streams cumulés pendant les jours de pub."
   note: "Refuse de conclure quand deux campagnes se chevauchent — c'est exactement ce que demande « corrélation n'est pas causalité » (Observability Engineering, p. 49)."
 src/dashboard/views/meta_x_spotify.py::_render_chart#1:
+  mq: M1
   q: "Pendant la campagne, qu'ont fait budget, clics, streams (base 100) ?"
   role: meta
   d: 3
@@ -402,6 +389,7 @@ src/dashboard/views/meta_x_spotify.py::_render_chart#1:
   owner: "Couleurs trop proches (vert, bleu, pointillés), fouillis ; voir la redondance."
   note: "Streams montent avec le budget puis retombent à ~150 (au-dessus de la base 100) — lisible, mais six séries en base 100."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
+  mq: M5
   q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"
   role: meta
   d: 1
@@ -413,6 +401,7 @@ src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   cause: entonnoir-illisible
   note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
 src/dashboard/views/meta_x_spotify.py::_render_countries#1:
+  mq: M7
   q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
   role: meta
   d: 4
@@ -464,6 +453,7 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   owner: "Je ne comprends pas la cohorte ni la décision."
   note: "R247 : la cohorte expliquée en une ligne au-dessus des courbes, le trait « Ce titre » visible (il était blanc), et un verdict écrit sous la position : relancer sous la moitié d'un titre typique de son âge, surveiller sous la médiane, laisser tourner au-dessus."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
+  mq: M6
   q: "Mes revenus suivent-ils ma dépense Meta ?"
   role: meta
   d: 1
@@ -475,6 +465,7 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   cause: ajustement-trompeur
   note: "R247 : équation, R² et p retirés de l'écran ; ils décident la phrase dessous — « tes revenus ne suivent pas ta pub » (p ≥ 0,05, le cas de l'artiste 1 sur 12 mois), « chaque euro revient à k € » sinon."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
+  mq: M6
   q: "Quand la pub aura-t-elle été remboursée ?"
   role: meta
   d: 2
@@ -730,6 +721,7 @@ pdf:j28:
   v: garder
   note: "Lisible ; sans repère de cohorte."
 pdf:roi:
+  mq: M6
   q: "Ma trésorerie — tout ce qui rentre et sort, et le cumul (fusion R212 des barres revenus vs Meta)"
   role: meta
   d: 5
@@ -791,6 +783,7 @@ pdf:instagram:
   owner: "Même demande : abonnés, abonnements, publications ensemble (R210)."
   note: "La baisse est lisible."
 pdf:meta:
+  mq: M2
   q: "Combien chaque campagne a-t-elle coûté ?"
   role: meta
   d: 4
@@ -799,6 +792,7 @@ pdf:meta:
   v: garder
   note: "Huit campagnes, 756 € pour la plus grosse — cohérent avec l'écran « overview », pas avec « côte à côte »."
 pdf:hypeddit:
+  mq: M5
   q: "Mes smart links, visites et clics"
   role: meta
   d: 3
@@ -809,6 +803,7 @@ pdf:hypeddit:
   owner: "Des ronds au lieu des barres (R211)."
   note: "Lisible."
 pdf:bd_country:
+  mq: M7
   q: "Où ma pub a-t-elle dépensé ?"
   role: meta
   d: 4
@@ -817,6 +812,7 @@ pdf:bd_country:
   v: garder
   note: "Mexique en tête."
 pdf:bd_placement:
+  mq: M7
   q: "Sur quel placement ?"
   role: meta
   d: 4
@@ -825,6 +821,7 @@ pdf:bd_placement:
   v: garder
   note: "Reels Instagram en tête."
 pdf:bd_age:
+  mq: M7
   q: "Sur quel âge ?"
   role: meta
   d: 4
@@ -841,6 +838,7 @@ pdf:revenue_fc:
   v: garder
   note: "Tendance décroissante lisible."
 pdf:mxs:
+  mq: M1
   q: "Meta × Spotify pendant la campagne (base 100)"
   role: meta
   d: 3
@@ -857,6 +855,7 @@ pdf:playlist_adds:
   v: garder
   note: "Trois fenêtres 7/28 j/12 mois — une tuile ferait aussi bien."
 pdf:meta_funnel:
+  mq: M5
   q: "L'entonnoir de ma pub"
   role: meta
   d: 2
@@ -868,6 +867,7 @@ pdf:meta_funnel:
   cause: entonnoir-illisible
   note: "Échelle linéaire : tout sous les impressions est invisible. Pourcentages d'étape à étape."
 pdf:meta_daily:
+  mq: M4
   q: "Budget, clics sortants, CPR au jour le jour"
   role: meta
   d: 3
@@ -1072,6 +1072,54 @@ grafana:16:
   p: 3
   v: garder
   note: "R265. Noté sur sa REQUÊTE, pas sur son rendu : les deux séries n'existent en prod qu'après le déploiement de la jauge. À regarder dans Grafana au premier jour ; s4a_song_timeline mène (34 078 lignes en local)."
+grafana:17:
+  q: "DISQUE — sera-t-il plein, et quand ?"
+  role: archi
+  d: 4
+  c: 4
+  p: 5
+  v: garder
+  note: "R300, regardé sur le Prometheus de prod le 2026-09-28 : 68 → 54 Go libres en 7 jours, par marches (rebuild de l'image Airflow, sauvegardes) ; la pente projette ~33 Go dans 30 jours. Le panneau 5 ne disait que le pourcentage du jour."
+grafana:18:
+  q: "MÉMOIRE — le noyau a-t-il tué un processus faute de RAM ?"
+  role: archi
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R300 : 0 processus tué sur 7 jours, exportateur lu en continu (la ligne à 1 empêche de lire un 0 aveugle). Pas de swap sur ce VPS."
+grafana:19:
+  q: "DISPONIBILITÉ — le VPS a-t-il redémarré ?"
+  role: archi
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R300 : 82 → 89 jours de fonctionnement, aucun redémarrage sur la semaine. La coupure du 2026-09-24 (impayé) n'a pas redémarré le noyau."
+grafana:20:
+  q: "SUPERVISION — chaque service surveillé répond-il ?"
+  role: archi
+  d: 4
+  c: 3
+  p: 5
+  v: garder
+  note: "R300 : les 5 cibles (caddy, prometheus, api, dashboard, node) à 1 toute la semaine — les lignes se superposent, c'est le cas sain. Premier panneau à lire quand un autre est vide."
+grafana:21:
+  q: "RÉSEAU — la bande passante sature-t-elle ?"
+  role: archi
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "R300 : ~730 octets/s émis, ~40 reçus, plats — très loin de toute saturation."
+grafana:22:
+  q: "CHARGE — le processeur fait-il attendre du travail ?"
+  role: archi
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R300 : charge par vCPU entre 0,07 et 0,28 (1 = saturé) — de la marge ; les pics coïncident avec les rebuilds."
 grafana:15:
   q: "ERREURS — volume de journaux par niveau"
   role: archi
@@ -1085,6 +1133,7 @@ grafana:15:
   note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."
 
 src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
+  mq: M5
   q: "Quel titre transforme le mieux, de la pub au clic vers les plateformes ?"
   role: meta
   d: 4

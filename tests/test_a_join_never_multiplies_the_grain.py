@@ -123,7 +123,7 @@ def _surfaces(db, tenant: int) -> dict:
 
     df_perf = db.fetch_df(mao._perf_query(""), (tenant,))
     return {
-        "chart": mao._campaign_frame(df_perf),
+        "chart": df_perf,   # R299: the six-frame figure draws df_perf itself
         "engagement": db.fetch_df(mao._engagement_query(""), (tenant,)),
         "summary": db.fetch_df(mao._summary_query(""), (tenant, tenant)),
         "axes": {axe: db.fetch_query(sql, (tenant,)) for axe, sql in _Q_AXE.items()},

@@ -35,7 +35,6 @@ page disait « posts de plus de 90 jours, pas un défaut de collecte » — une 
 `total_interactions` remplissent les colonnes `impressions` et `engagement`.
 """
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import view_session, charts
@@ -46,7 +45,6 @@ from src.dashboard.utils.filters import (
 )
 from src.dashboard.utils.ui import (
     say_why_it_is_empty,
-    secondary_analyses,
     show_empty_state,
 )
 from src.dashboard.utils.tz import to_local_naive
@@ -238,6 +236,9 @@ def show():
                 from plotly.subplots import make_subplots
 
                 from src.dashboard.utils.ratios import per_series
+                _pct_of_followers = 100 / followers if followers else float("nan")
+                _rate_hover = ("<br>≈ %{customdata[2]:.2f} % des abonnés actuels (indicatif)"
+                               if followers else "")
                 df_eng['per_post'] = per_series(df_eng['likes'] + df_eng['comments'],
                                                 df_eng['posts'])
                 fig_e = make_subplots(specs=[[{"secondary_y": True}]])
@@ -253,9 +254,11 @@ def show():
                     text=[f"{v:.0f}" if pd.notna(v) else "" for v in df_eng['per_post']],
                     textposition="top center", textfont=dict(color=_IG_DEEP),
                     name=t("instagram.engagement_per_post", "Engagement par publication"),
-                    customdata=df_eng[['likes', 'comments']].values,
+                    customdata=df_eng[['likes', 'comments']].assign(rate=df_eng['per_post']
+                                                                    * _pct_of_followers).values,
                     hovertemplate="%{y:.0f} par publication<br>%{customdata[0]:,.0f} likes · "
-                                  "%{customdata[1]:,.0f} commentaires<extra></extra>"),
+                                  "%{customdata[1]:,.0f} commentaires" + _rate_hover
+                                  + "<extra></extra>"),
                     secondary_y=True)
                 fig_e.update_layout(
                     title=t("instagram.engagement_by_cohort",
@@ -271,6 +274,9 @@ def show():
                                    title_font_color=_IG_DEEP, rangemode="tozero",
                                    secondary_y=True)
                 charts.plotly_chart(fig_e, width="stretch")
+                # R299 — the « taux d'engagement » chart that followed was the per-post line
+                # divided by ONE constant (the latest follower count): same shape, same
+                # measure. It lives in the hover above (`_rate_hover`), not in a second chart.
                 st.caption(t(
                     "instagram.engagement_cohort_note",
                     "Chaque barre regroupe les posts **publiés** ce mois-là et montre "
@@ -280,51 +286,6 @@ def show():
                     "engagement mensuel, et l'inventer serait pire que de ne pas le "
                     "montrer. Le filtre de période porte donc sur la date de "
                     "**publication**."))
-
-                # Secondaire : dérivé des mêmes chiffres, sur une base indicative.
-                with secondary_analyses(t("instagram.rate_expander",
-                                          "📈 Taux d'engagement (indicatif)")):
-                    # Taux d'engagement (indicatif — abonnés = snapshot actuel)
-                    if followers:
-                        # ⚠️ `pd.to_numeric` SUR LES TROIS COLONNES — vu au rendu
-                        # le 2026-09-21 : « unsupported operand type(s) for /:
-                        # 'decimal.Decimal' and 'float' ».
-                        #
-                        # `SUM(...)` en Postgres sur une colonne entière rend un
-                        # NUMERIC, que psycopg2 traduit en `decimal.Decimal`. Un
-                        # `Decimal` se divise par un `Decimal` sans broncher — et
-                        # lève dès qu'on le divise par un `float`. La section
-                        # entière tombait alors dans son `except` et l'artiste
-                        # lisait « Erreur publications » à la place de ses
-                        # publications.
-                        #
-                        # C'est la même classe que le `.round(1)` sur une colonne
-                        # `object` déjà corrigé dans `soundcloud.py` : une colonne
-                        # venue de SQL n'a pas le dtype qu'on croit, et on la
-                        # coerce AVANT d'arithmétiser.
-                        dfr = df_eng.copy()
-                        _l = pd.to_numeric(dfr['likes'], errors='coerce')
-                        _c = pd.to_numeric(dfr['comments'], errors='coerce')
-                        _p = pd.to_numeric(dfr['posts'], errors='coerce')
-                        dfr['taux'] = (
-                            (_l + _c) / _p.where(_p != 0) / float(followers) * 100
-                        ).round(2)
-                        fig_r = px.line(
-                            dfr, x='mois', y='taux', markers=True,
-                            title=t("instagram.engagement_rate_title",
-                                    "Taux d'engagement ≈ (eng. moyen/post) ÷ abonnés — indicatif"),
-                            color_discrete_sequence=[_IG],
-                            labels={'mois': t("common.month", "Mois")},
-                        )
-                        fig_r.update_layout(
-                            hovermode="x unified", yaxis_title=t("instagram.rate_axis", "Taux (%)"),
-                        )
-                        charts.plotly_chart(fig_r, width="stretch")
-                        st.caption(t(
-                            "instagram.rate_caption",
-                            "Indicatif : abonnés = dernier snapshot (historique "
-                            "d'abonnés peu dense vs étendue des posts)."
-                        ))
 
             # Publications récentes — insights indispo ⇒ note + colonnes masquées
             st.markdown(t("instagram.recent_posts", "#### Publications récentes"))

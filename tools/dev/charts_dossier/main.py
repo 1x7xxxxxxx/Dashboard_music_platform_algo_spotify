@@ -474,6 +474,14 @@ connectée au rendu. Réglages par défaut des pages.</p>
 """ + "".join(f"<tr><th>{STATUSES[s_]}</th><td>{by_status.get(s_, 0)}</td></tr>" for s_ in STATUSES)
              + "<tr><th>Rapport PDF de l'artiste</th><td>retiré de ce dossier jusqu'à validation de tous les KPI</td></tr></table>"]
     parts.append(GUIDE)
+    # R299 — the traceability table: every chart, its Meta question, its layer, its twins.
+    import questions
+    import triage
+    page_of = {k: (views_of[k][0] if views_of.get(k) else Path(k.split(":")[0]).stem)
+               for k in review}
+    parts.append(questions.section_html(questions.rows(
+        review, inv, no_of, page_of, questions.shared_source_groups(inv_rows),
+        triage.likely_twins(inv_rows, no_of))))
     parts.append(proposals_html(out))
     parts.append(method)
     if suspects:
@@ -554,6 +562,10 @@ ul.acts { margin: 1mm 0 1mm 4mm; padding: 0; font-size: 9pt; }
 .note { margin: 1mm 0; } .site { color: #888; font-size: 7.5pt; margin: 0; }
 h2.page { page-break-before: always; } .src { color: #666; font-size: 8.5pt; margin: 0; }
 table.idx td, table.sum td, table.sum th { font-size: 8.5pt; padding: .6mm 2mm; text-align: left; }
+table.trace td, table.trace th { font-size: 7pt; padding: .4mm 1.2mm; vertical-align: top; }
+table.trace tr.dup td { background: #fff3a8; }
+table.trace { table-layout: fixed; width: 100%; } table.trace td { word-wrap: break-word; }
+.srcs { color: #888; font-size: 6pt; margin-top: .5mm; }
 """
     doc = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <title>streaMLytics — revue des graphiques</title><style>{css}</style></head>

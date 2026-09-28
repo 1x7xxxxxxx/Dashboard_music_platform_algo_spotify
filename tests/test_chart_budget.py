@@ -186,11 +186,15 @@ def test_instagram_kept_its_charts_only_moved_them():
 
     Bilan : 4 figures → 3, dont une SUPPRIMÉE et deux FUSIONNÉES. Le compte de
     premier écran passe de 2 à 2 — la fusion ne coûte rien à l'écran d'ouverture.
+
+    ⚠️ 3 → 2 le 2026-09-28 (R299) : le « taux d'engagement », replié, était la courbe
+    « par publication » divisée par UN nombre d'abonnés — même forme, même mesure. Il
+    passe au survol de cette courbe ; le premier écran ne change pas (il était replié).
     """
     text = (_VIEWS / "instagram.py").read_text(encoding="utf-8")
     # Counted in the AST since R243 (every chart goes through `charts.plotly_chart`):
     # the textual `st.plotly_chart` count saw zero after the door, and a comment would
     # have counted as a chart before it.
     assert sum(1 for n in ast.walk(ast.parse(text)) if isinstance(n, ast.Call)
-               and getattr(n.func, "attr", None) == "plotly_chart") == 3
+               and getattr(n.func, "attr", None) == "plotly_chart") == 2
     assert _primary_chart_count(_VIEWS / "instagram.py") == 2

@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
-from src.dashboard.utils.platform_colors import DISTINCT, platform_color
+from src.dashboard.utils.platform_colors import platform_color
 from src.dashboard.utils import filters
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
@@ -342,22 +342,6 @@ def _summary_query(campaign_in: str) -> str:
     )
 
 
-def _campaign_frame(df_perf: pd.DataFrame) -> pd.DataFrame:
-    """The chart frame: one row per campaign, with its three cost ratios. Pure.
-
-    `df_perf` is already one row per campaign (GROUP BY in SQL). Nothing is merged
-    into it: the engagement column the old merge brought in was never plotted, and
-    it is the merge that multiplied the rows.
-    """
-    df = df_perf.copy()
-    # R258 — ONE ratio definition, and an undefined ratio is ABSENT: these three wrote 0
-    # for a campaign without results, clicks or impressions — a bar at « 0 € » that read
-    # as the cheapest campaign of the account.
-    df['cpr'] = per_series(df['spend'], df['results'])
-    df['cpm'] = per_series(df['spend'], df['impressions'], 1000)
-    df['cpc'] = per_series(df['spend'], df['link_clicks'])
-    return df
-
 
 def _add_streams_row(fig, db, artist_id: int, days) -> None:
     """Spotify streams per day of the whole artist, under the ad dynamics (R246, fiche 22).
@@ -463,6 +447,12 @@ def _show_meta_ads(db, artist_id):
             df_perf[c] = pd.to_numeric(df_perf[c], errors='coerce').fillna(0)
 
         st.markdown(t("meta_ads_overview.global_perf", "### 🚀 Performance Globale"))
+        if df_perf['campaign_name'].nunique() == 1:
+            # R246 (fiche 21 « je ne comprends pas quoi lire ») : une seule campagne sur la
+            # période, il n'y a RIEN à comparer — le dire au lieu de laisser chercher.
+            st.info(t("meta_ads_overview.one_campaign",
+                      "Une seule campagne a dépensé sur la période choisie : élargis la "
+                      "période pour comparer tes campagnes entre elles."))
         _render_global_perf(df_perf)
         _render_campaign_waves(db, artist_id)
 
@@ -504,71 +494,11 @@ def _show_meta_ads(db, artist_id):
     # link → clics vers les plateformes.
 
 
-    # ==============================================================================
-    # 📈 SECTION 2 : PERFORMANCE PAR CAMPAGNE (GRAPHIQUE PRINCIPAL)
-    # ==============================================================================
-    st.subheader(t("meta_ads_overview.perf_by_campaign", "📊 Performance par Campagne"))
-
-    if not df_perf.empty:
-        df_chart = _campaign_frame(df_perf)
-        if len(df_chart) == 1:
-            # R246 (fiche 21 « je ne comprends pas quoi lire ») : une seule campagne sur la
-            # période, il n'y a RIEN à comparer — le dire au lieu de laisser chercher.
-            st.info(t("meta_ads_overview.one_campaign",
-                      "Une seule campagne a dépensé sur la période choisie : élargis la "
-                      "période pour comparer tes campagnes entre elles."))
-
-        # UNE FIGURE, PAS DEUX — et des noms de campagne LISIBLES. 2026-09-21.
-        #
-        # Deux sections posaient la même question : « 📊 Performance par
-        # Campagne » (trois cadres, huit séries, légende masquée) et
-        # « 📊 Comparaison multi-métriques par campagne » (six métriques de
-        # plus). Quatorze séries pour une seule question, et sur 21 campagnes.
-        #
-        # Le défaut de lecture n'était pas le nombre de cadres, c'était l'AXE :
-        # les noms de campagne vivaient en x, pivotés, et ce compte en porte qui
-        # font 90 caractères (« KSD - Kaiber 1_Ready for a total immersion… »).
-        # Aucun n'était lisible.
-        #
-        # Les campagnes passent donc en Y — un axe vertical lit un nom long sans
-        # le pivoter — et chaque métrique prend sa colonne, sur son échelle. C'est
-        # la forme des petits multiples, appliquée à un classement.
-        from plotly.subplots import make_subplots
-
-        _top = df_chart.sort_values('spend', ascending=False).head(12).iloc[::-1]
-        _colonnes = [
-            ('spend', t("meta_ads_overview.budget_eur", "Budget (€)"), DISTINCT[3], ',.0f'),
-            ('link_clicks', t("meta_ads_overview.link_clicks", "Clics Lien"), DISTINCT[0], ',.0f'),
-            ('cpr', 'CPR (€)', DISTINCT[1], '.3f'),   # R260 — the distinct palette
-        ]
-        fig = make_subplots(
-            rows=1, cols=len(_colonnes), shared_yaxes=True, horizontal_spacing=0.05,
-            subplot_titles=[lbl for _c, lbl, _k, _f in _colonnes])
-        for i, (col, lbl, ink, fmt) in enumerate(_colonnes, start=1):
-            vals = pd.to_numeric(_top[col], errors='coerce')
-            fig.add_trace(go.Bar(
-                y=_top['campaign_name'], x=vals, orientation='h', name=lbl,
-                marker_color=ink, opacity=0.85,
-                text=[("—" if pd.isna(v) else format(v, fmt)) for v in vals],
-                textposition="outside", cliponaxis=False,
-                hovertemplate="%{y}<br>%{x:,.3f}<extra></extra>"), row=1, col=i)
-        fig.update_layout(
-            height=max(420, 34 * len(_top)), showlegend=False, bargap=0.28,
-            margin=dict(l=10, r=60, t=70),
-            title=t("meta_ads_overview.chart_360",
-                    "Mes campagnes, côte à côte — les 12 plus dépensières"))
-        fig.update_yaxes(automargin=True)
-        charts.plotly_chart(fig, width="stretch")
-        st.caption(t(
-            "meta_ads_overview.compare_caption",
-            "Les campagnes sont en ORDONNÉE : un axe vertical lit un nom long sans "
-            "le pivoter, et ce compte en porte qui font 90 caractères. Chaque "
-            "colonne a son échelle — un budget en euros et un CPR à trois "
-            "décimales ne se comparent pas sur le même repère. Trié par dépense : "
-            "**le CPR de la colonne de droite se lit en regard du budget de "
-            "gauche**, ce qui est la seule façon de voir si ce qu'on a le plus "
-            "financé est aussi ce qui coûte le moins cher."))
-
+    # R299 — « 📊 Performance par Campagne » is gone: its three columns (budget, link
+    # clicks, CPR) were already three of the six frames of « Performance Globale »
+    # above, for every campaign — and its CPR divided by `results` where the rest of
+    # the page divides by the outbound click (`custom_conversions`): one label, two
+    # definitions on one page. Merged into the six frames, which keep the page's CPR.
 
     # ==============================================================================
     # ⏳ SECTION 3 : ÉVOLUTION TEMPORELLE

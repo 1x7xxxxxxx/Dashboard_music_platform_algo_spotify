@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "refresh": "30s",
   "time": {
     "from": "now-6h",
@@ -579,6 +579,195 @@
           "expr": "streamlytics_postgres_database_bytes / 1e6",
           "legendFormat": "base (Mo)",
           "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "DISQUE — sera-t-il plein, et quand ?",
+      "type": "timeseries",
+      "description": "R300. Le panneau 5 dit le pourcentage d'AUJOURD'HUI ; celui-ci prolonge la pente des 7 derniers jours sur 30 jours. Une courbe « dans 30 j » qui touche 0 dit la date, pas seulement le niveau.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 70,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"} / 1e9",
+          "legendFormat": "Go libres aujourd'hui",
+          "refId": "A"
+        },
+        {
+          "expr": "predict_linear(node_filesystem_avail_bytes{mountpoint=\"/\"}[7d], 30*86400) / 1e9",
+          "legendFormat": "Go libres dans 30 j (pente 7 j)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "MÉMOIRE — le noyau a-t-il tué un processus faute de RAM ?",
+      "type": "timeseries",
+      "description": "R300. La RAM % du panneau 5 ne dit pas si un processus a été TUÉ (OOM). Le compteur du noyau n'émet rien si l'exportateur ne le lit plus : la ligne « exportateur lu » est sous les yeux, un 0 sans elle ne vaudrait rien. Pas de swap sur ce VPS (0 octet mesuré le 2026-09-28).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 70,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "increase(node_vmstat_oom_kill[1h])",
+          "legendFormat": "processus tués par manque de RAM (par heure)",
+          "refId": "A"
+        },
+        {
+          "expr": "up{job=\"node\"}",
+          "legendFormat": "exportateur lu (1 = oui)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "DISPONIBILITÉ — le VPS a-t-il redémarré ?",
+      "type": "timeseries",
+      "description": "R300. Jours écoulés depuis le démarrage du noyau : une chute à 0 est un redémarrage (panne, maintenance Hetzner, impayé — voir 2026-09-24).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(time() - node_boot_time_seconds) / 86400",
+          "legendFormat": "jours depuis le démarrage",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "SUPERVISION — chaque service surveillé répond-il ?",
+      "type": "timeseries",
+      "description": "R300. 1 = Prometheus lit le service, 0 = il ne le lit plus. Un 0 rend AVEUGLES tous les panneaux qui en dépendent : c'est le premier panneau à lire quand un autre est vide.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 78,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "up",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "RÉSEAU — la bande passante sature-t-elle ?",
+      "type": "timeseries",
+      "description": "R300. Octets reçus et émis par la carte publique du VPS. Un pic sans pic de requêtes (panneau 6) désigne un transfert (sauvegarde, dump), pas des visiteurs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 86,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{device=\"eth0\"}[5m])",
+          "legendFormat": "reçu",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])",
+          "legendFormat": "émis",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "CHARGE — le processeur fait-il attendre du travail ?",
+      "type": "timeseries",
+      "description": "R300. Charge moyenne 5 min divisée par le nombre de vCPU : au-dessus de 1, des tâches attendent un processeur. Le CPU % du panneau 5 plafonne à 100 et ne dit pas combien attendent.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 86,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "node_load5 / scalar(count(node_cpu_seconds_total{mode=\"idle\"}))",
+          "legendFormat": "charge par vCPU (1 = saturé)",
+          "refId": "A"
         }
       ]
     }

@@ -400,12 +400,16 @@ _RANG_PANNEAUX = [
     ("Dépense (€)",   'total_spend',   "{:.0f}", "#7f7f7f", False),
     ("Résultats",     'total_results', "{:.0f}", "#2ca02c", False),
     ("CTR (%)",       'avg_ctr',       "{:.2f}", "#e6b800", False),
+    # R299 — CPM and CPC came from « Efficacité par créative », a second chart of the same
+    # 15 creatives whose CTR repeated the frame above; merged here, lower is better.
+    ("CPM (€)",       'cpm',           "{:.2f}", "#9467bd", True),
+    ("CPC (€)",       'cpc',           "{:.2f}", "#17becf", True),
 ]
 _RANG_MAX = 15
 
 
 def _render_ranking(df: pd.DataFrame) -> None:
-    """Le classement des créatives — QUATRE cadres, un par unité, noms en Y.
+    """Le classement des créatives — SIX cadres (quatre, plus CPM et CPC depuis R299), un par unité, noms en Y.
 
     ⚠️ Remplace un `st.dataframe` de huit colonnes, à la demande du propriétaire
     le 2026-09-21 : « montre-moi le classement par comparaison graphique plutôt
@@ -422,6 +426,9 @@ def _render_ranking(df: pd.DataFrame) -> None:
 
     d = _numerise(by_creative(df))   # R241 — one bar per creative, never per (creative, campaign)
     d = d[d['total_spend'].notna() & (d['total_spend'] > 0)]
+    from src.dashboard.utils.ratios import per_series   # R258 — one ratio definition
+    d['cpm'] = per_series(d['total_spend'], d['total_impressions'], 1000)
+    d['cpc'] = per_series(d['total_spend'], d['total_clicks'])
     if d.empty:
         st.info(t("meta_creatives.no_ranking", "Aucune créative avec de la dépense."))
         return
@@ -822,38 +829,6 @@ def _render_scatter(df: pd.DataFrame) -> None:
                      "clic » — à confirmer dans 🔀 Tout mon funnel › Comparer mes campagnes."))
 
 
-@st.fragment
-def _render_efficiency(df: pd.DataFrame) -> None:
-    """Le comparateur d'indicateurs — rejoué SEUL quand on change de métrique.
-
-    @st.fragment (R118, 2026-09-16) : bouger ce filtre ne rejoue QUE ce corps. Avant, il
-    rejouait tout le script — les SIX onglets, dont `st.tabs` exécute tous les corps, plus
-    la barre latérale. La mesure serveur du 2026-09-16 a montré que c'est la VUE qui pèse
-    (11-13 ms de chrome contre 50 à 777 ms de vue), donc c'est bien ici que le levier agit.
-
-    ⚠️ Cette fonction ne reçoit qu'un **DataFrame**, jamais la connexion : `show()` ferme
-    la sienne dès la fin du rendu complet, et un fragment se rejoue après. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-
-    (Docstring d'origine : #4 — CTR / CPM / CPC per creative (top 15 by spend).)
-    """
-    with secondary_analyses(t("meta_creatives.efficiency_expander",
-                              "🔬 Efficacité par créative — détail")):
-        d = by_creative(df)   # R241 — one bar per creative (fiche 33)
-        d['total_spend'] = pd.to_numeric(d['total_spend'], errors='coerce').fillna(0.0)
-        d['total_impressions'] = pd.to_numeric(d['total_impressions'], errors='coerce').fillna(0)
-        d['total_clicks'] = pd.to_numeric(d['total_clicks'], errors='coerce').fillna(0)
-        d['CTR (%)'] = pd.to_numeric(d['avg_ctr'], errors='coerce')
-        # R258 — one ratio definition for every view (`utils.ratios`).
-        from src.dashboard.utils.ratios import per_series
-        d['CPM (€)'] = per_series(d['total_spend'], d['total_impressions'], 1000)
-        d['CPC (€)'] = per_series(d['total_spend'], d['total_clicks'])
-        d = d.sort_values('total_spend', ascending=False).head(15)
-        metric = st.radio(t("meta_creatives.indicator", "Indicateur"), ["CTR (%)", "CPM (€)", "CPC (€)"], horizontal=True, key="eff_metric")
-        fig = px.bar(d, x='creative_name', y=metric, color=metric,
-                     color_continuous_scale='Tealrose', labels={'creative_name': ''})
-        fig.update_layout(height=420, coloraxis_showscale=False)
-        charts.plotly_chart(fig, width="stretch", pareto=True)   # R243 — fiche 33
 
 
 @st.fragment
@@ -1124,7 +1099,6 @@ def show() -> None:
         from src.dashboard.utils.campaign_compare import creative_gains
         _render_funnel(df, creative_gains(db, artist_id, _acct_bare, _acct_params))   # R246 fiche 34
         _render_scatter(df)
-        _render_efficiency(df)
         ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
                              (artist_id, *_acct_params))
         _render_activity(ts_all)

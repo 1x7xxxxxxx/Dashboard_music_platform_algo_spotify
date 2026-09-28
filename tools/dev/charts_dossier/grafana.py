@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 DASHBOARD = ROOT / "deploy" / "grafana" / "dashboards" / "streamlytics-ops.json"
 _UNITS = {"s": "secondes", "percent": "%", "bytes": "octets", "reqps": "requêtes/s",
+          "decgbytes": "Go", "Bps": "octets/s", "none": "",
           "ops": "lignes/s"}
 
 

@@ -82,9 +82,6 @@ src/dashboard/views/instagram.py::show#1:
   - qui: moi
     texte: Autre forme pour l'engagement Instagram par mois
     rid: R290
-src/dashboard/views/instagram.py::show#2:
-  valide: true
-  actions: []
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   valide: false
   actions:
@@ -110,15 +107,9 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   valide: false
   actions:
   - qui: moi
-    texte: Budget, clics et CPR étiquetés, agencés côte à côte par campagne
-    rid: R246
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
-  valide: false
-  actions:
-  - qui: moi
     texte: Ajouter les streams, renommer en « clics Hypeddit »
     rid: R246
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#3:
+src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
   valide: false
   actions:
   - qui: moi
@@ -190,12 +181,6 @@ src/dashboard/views/meta_creatives.py::_render_scatter#1:
   - qui: moi
     texte: Écrire la décision ou retirer
     rid: R246
-src/dashboard/views/meta_creatives.py::_render_efficiency#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Tri Pareto par défaut pour tous les graphiques en barres par catégorie
-    rid: R243
 src/dashboard/views/meta_creatives.py::_render_funnel#1:
   valide: false
   actions:
