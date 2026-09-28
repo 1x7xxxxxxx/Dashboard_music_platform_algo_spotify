@@ -576,3 +576,4 @@
 {"at": "2026-09-27T20:37:50+00:00", "head": "07803176", "kind": "done", "task": "R260", "what": "lots 1 et 2 pousses, CI et deploiement en attente"}
 {"at": "2026-09-27T20:39:40+00:00", "head": "07803176", "kind": "start", "task": "R268", "what": "roadmap-close verifie la CI, releve de discipline a chaque livraison, budget CLAUDE.md, temps de suite"}
 {"at": "2026-09-27T21:28:17+00:00", "kind": "done", "task": "R268", "what": "fermée par roadmap-close — porte CI a la fermeture (rouge, en cours, non pousse refuses ; annulee jugee sur le run descendant ; sha complet), notes livrees a la fermeture, perimetre scope par ligne des R279, temps de suite ecrit par make test, budget CLAUDE.md 52 933 octets"}
+{"at": "2026-09-28T22:46:41+00:00", "head": "c1d08adc", "kind": "start", "task": "R317", "what": "sonde de suite qui voit une suite absente"}

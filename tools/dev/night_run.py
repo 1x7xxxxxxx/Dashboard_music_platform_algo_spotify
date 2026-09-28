@@ -203,7 +203,7 @@ def _ancestors() -> set[int]:
     return out
 
 
-def _suite_running() -> bool:
+def _suite_running(proc_root: Path = Path("/proc")) -> str | None:
     """Une suite complète tourne-t-elle ? Écrire pendant fausse son verdict.
 
     ⚠️ Deux pièges, et j'ai marché dans le second en écrivant ce fichier.
@@ -224,7 +224,7 @@ def _suite_running() -> bool:
     phrase — et on exclut sa propre lignée.
     """
     mine = _ancestors()
-    for proc in Path("/proc").iterdir():
+    for proc in proc_root.iterdir():
         if not proc.name.isdigit() or int(proc.name) in mine:
             continue
         try:
@@ -232,11 +232,22 @@ def _suite_running() -> bool:
         except OSError:
             continue
         tokens = [a.decode("utf-8", "replace") for a in argv]
-        is_pytest = any(tok == "pytest" or tok.endswith("/pytest") for tok in tokens)
-        targets_suite = any(tok == "tests" or tok.startswith("tests/") for tok in tokens)
-        if is_pytest and targets_suite:
-            return True
-    return False
+        if is_a_suite(tokens):
+            return f"pid {proc.name} : {' '.join(tokens)[:120]}"
+    return None
+
+
+def is_a_suite(tokens: list[str]) -> bool:
+    """Does this argv run tests whose verdict an edit would falsify? Pure.
+
+    R317 (2026-09-29): a `--collect-only` pass (the pre-commit duration check collects the
+    whole suite) runs nothing, so no verdict can be falsified — and the probe that counted
+    it said « UNE SUITE TOURNE » with no suite running, naming nothing to check it against.
+    """
+    is_pytest = any(tok == "pytest" or tok.endswith("/pytest") for tok in tokens)
+    targets_suite = any(tok == "tests" or tok.startswith("tests/") for tok in tokens)
+    collects_only = any(tok in ("--collect-only", "--co") for tok in tokens)
+    return is_pytest and targets_suite and not collects_only
 
 
 def open_questions(entries: list[dict]) -> list[dict]:
@@ -317,9 +328,10 @@ def cmd_status(_args) -> int:
         print(f"              … et {len(dirty) - 8} de plus")
     if unpushed and unpushed != "?":
         print(f"  ⚠️  {len(unpushed.splitlines())} commit(s) non poussé(s)")
-    if _suite_running():
+    suite = _suite_running()
+    if suite:
         print("  ⚠️  UNE SUITE TOURNE — ne pas écrire dans l'arbre : son verdict "
-              "décrirait un arbre qui n'existe plus.")
+              f"décrirait un arbre qui n'existe plus.\n      ({suite})")
 
     print(f"\n▶ ROADMAP   {len(tasks)} tâche(s) ouverte(s), dans l'ordre de l'index :")
     for tid, label, prio in tasks:
