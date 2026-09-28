@@ -347,10 +347,9 @@ def cmd_close(args) -> int:
     notes = _close_notes(tid, sha or "?")
     if notes:
         print(f"   {notes} note(s) du propriétaire passée(s) « livré »")
-    import subprocess
-    subprocess.run([sys.executable, str(ROOT / "tools" / "dev" / "roadmap_discipline.py"),
-                    "--write"], cwd=str(ROOT), capture_output=True)
-    print("   relevé de discipline réécrit (.claude/dev-docs/roadmap-discipline.json)")
+    # R279 (owner decision 2026-09-28): the discipline report is generated ON DEMAND
+    # (`make roadmap-discipline WRITE=1`), no longer rewritten by every closure — it put
+    # a generated file in every closing commit. The nightly still measures it live.
     print(f"   reste {len(ids)} tâche(s) ouverte(s)")
     print("   vérifier : python3 -m pytest tests/test_roadmap_two_files.py "
           "tests/test_the_resume_header_is_checked.py -q")

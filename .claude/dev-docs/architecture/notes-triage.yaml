@@ -1468,12 +1468,10 @@
   resume: Optimiser la roadmap et supprimer la gestion des livrables jugée trop lourde
   type: décision-requise
   domaine: roadmap-gov
-  statut: décision-requise
+  statut: livré
   priorite: P4
-  preuve_statut: Gouvernance durcie au contraire (R196-R201, R254 ; checklist.md l.11-15). « Gestion des livrables
-    » à identifier (dossier KPI R240/R254 ?).
+  preuve_statut: R279 (archivée) — 8d707ffd
   preuve_ciblee: make roadmap-discipline
-  roadmap: R279
 - ligne: 166
   resume: Identifier les redondances intra/inter-scripts pour un refactor modulaire et scalable (avec graphify)
   type: exigence-architecture

@@ -6,7 +6,8 @@ Uses: git history, tools/dev/require_roadmap_id.py (verdict, open_rows, critic_d
       tools/dev/claude_transcripts.py (critic calls, local only)
 Triggers: make roadmap-discipline (and make night-status), security-nightly job
           `dev-discipline`, the daily recap mail
-Persists in: .claude/dev-docs/roadmap-discipline.json (--write) — its git history IS the series
+Persists in: .claude/dev-docs/roadmap-discipline.json (--write, ON DEMAND since R279 —
+            no longer rewritten by roadmap-close) — its git history IS the series
 
 R197 (2026-09-26), owner: « tester et intégrer des sondes de mesures pour monitorer combien de
 tâches de dev se font sans inscription en roadmap ». Baseline, 14 days before the R196 gate:

@@ -2052,7 +2052,7 @@ personne d'autre ne peut l'envoyer.
 **Vérification** : deux retours collés, et au moins un nouveau compte artiste humain visible
 dans l'admin (hors bac à sable).
 
-## 36. R279 — Dire quels « livrables » alléger · P4
+## 36. ~~R279 — Dire quels « livrables » alléger~~ · ✅ FAIT le 2026-09-28
 
 **Pourquoi** : ta note L165 demande de « supprimer la gestion des livrables qui rajoute du
 poids pour rien » sans les nommer. Les candidats générés aujourd'hui : le dossier des KPI (PDF),

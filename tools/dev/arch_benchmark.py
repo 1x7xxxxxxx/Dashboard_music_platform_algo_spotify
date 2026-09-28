@@ -4,7 +4,8 @@
 Type: Utility
 Uses: yaml, subprocess, pathlib
 Reads: .claude/dev-docs/architecture/{domains,requirements}.yaml
-Writes: .claude/dev-docs/architecture/benchmark.md (generated — never edited by hand)
+Writes: .claude/dev-docs/architecture/benchmark.md (generated ON DEMAND and NOT versioned
+        since R279 — a committed copy went stale at every requirement edit)
 Triggers: make arch-benchmark ; tests/test_every_requirement_has_a_probe.py (structure only)
 
 Owner, 2026-09-27: « identifier les domaines micro, les exigences de façon exhaustive, les

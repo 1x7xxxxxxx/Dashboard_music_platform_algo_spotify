@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R279 — Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des l… (livrée 2026-09-28)
+
+- [x] **R279 — Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des livrables qui rajoute du poids pour rien »)** (P4) ✅ (2026-09-28, 8d707ffd)
+  Mesuré par : ta réponse — runbook § 36
+  passes a la demande (decision du proprietaire 2026-09-28) : releve de discipline (plus reecrit par roadmap-close, make roadmap-discipline WRITE=1), benchmark.md (non versionne, make arch-benchmark) ; dossier des KPI deja a la demande (make charts-dossier) ; gardes : carte couche or, error-class-health, error-class-families, journal de nuit
+  Commits : 8d707ffd Roadmap : R260 livree ; R279 en attente de toi (quels livrables allege
+
 ## ✅ R255 — Saisir le **coût de distribution** de chaque titre (fiche 62) (livrée 2026-09-28)
 
 - [x] **R255 — Saisir le **coût de distribution** de chaque titre (fiche 62)** (P3) ✅ (2026-09-28, 131e5efe, ebe10a1f)
