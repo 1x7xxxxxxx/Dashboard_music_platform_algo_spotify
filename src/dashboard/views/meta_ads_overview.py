@@ -130,6 +130,85 @@ _PERF_PANNEAUX = [
 ]
 
 
+def _waves_and_verdicts(db, artist_id) -> list:
+    """[(wave, names, verdict)] on daily Spotify STREAMS, oldest first — gold reads only."""
+    import datetime as _dt
+
+    from src.dashboard.utils import meta_impact
+    spend = db.fetch_df("SELECT ad_account_id, campaign_name, day, spend FROM v_meta_daily "
+                        "WHERE artist_id = %s", (artist_id,))
+    streams = db.fetch_df("SELECT day, SUM(streams) AS streams FROM v_s4a_song_daily "
+                          "WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY day",
+                          (artist_id, "%1x7xxxxxxx%"))
+    if spend.empty or streams.empty:
+        return []
+    series = streams.set_index(pd.to_datetime(streams["day"]))["streams"].astype(float)
+    grouped = meta_impact.waves(meta_impact.campaigns(spend))
+    everyone = [w for w, _ in grouped]
+    today = _dt.date.today()
+    return [(w, names, meta_impact.verdict_for(w, everyone, series, today, meta_impact.STREAMS))
+            for w, names in grouped]
+
+
+def _render_campaign_waves(db, artist_id) -> None:
+    """R291 — the owner's P2, kept (2026-09-28) : « ce que chaque campagne a rapporté en
+    écoutes, et le prix d'une écoute gagnée », merged with its budget.
+
+    Judged per WAVE, not per campaign: campaigns that overlap cannot be told apart, and one
+    by one all 21 of artist 1 were « non concluant ». A wave groups them (meta_impact.waves)
+    and gets the SAME refusals as the listener verdict of the Meta × Spotify page — running,
+    too few measured days, a lift inside the day-to-day noise (code-critic, 2026-09-28)."""
+    from plotly.subplots import make_subplots
+    rows = _waves_and_verdicts(db, artist_id)
+    if not rows:
+        return
+    # Folded (the page's first-screen ceiling, Few): it refines the decision the per-campaign
+    # figure above makes, it does not make one.
+    with secondary_analyses(t("meta_ads_overview.waves_header",
+                              "🌊 Ce que chaque vague de campagnes a rapporté en écoutes"),
+                            expanded=False):
+        labels = [f"{w.start:%d/%m/%y} → {w.end:%d/%m/%y} · {len(n)} camp." for w, n, _ in rows]
+        # A lift is written ONLY above the day-to-day noise (the verdict's own rule): below it,
+        # « +455 » next to « dans le bruit » would say two things about one wave.
+        real = [v.conclusive and v.eur_per_listener_day is not None for _, _, v in rows]
+        lift = [v.lift_per_day if ok else None for (_, _, v), ok in zip(rows, real)]
+        eur = [v.eur_per_listener_day if ok else None for (_, _, v), ok in zip(rows, real)]
+        blank = [t("meta_ads_overview.within_noise", "dans le bruit") if v.conclusive
+                 else t("meta_ads_overview.inconclusive", "non concluant") for _, _, v in rows]
+        frames = ((t("meta_ads_overview.wave_spend", "Budget (€)"), [w.spend for w, _, _ in rows],
+                   "{:,.0f}", platform_color("meta")),
+                  (t("meta_ads_overview.wave_lift", "Écoutes gagnées / jour"), lift, "{:+,.0f}",
+                   platform_color("spotify")),
+                  (t("meta_ads_overview.wave_eur", "€ par écoute gagnée"), eur, "{:,.3f}",
+                   "#7f7f7f"))
+        fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.06,
+                            subplot_titles=[f[0] for f in frames])
+        for i, (lab, vals, fmt, ink) in enumerate(frames):
+            fig.add_trace(go.Bar(
+                x=[v if v is not None else 0 for v in vals], y=labels, orientation="h",
+                showlegend=False, marker_color=ink,
+                text=[fmt.format(v).replace(",", " ") if v is not None else b
+                      for v, b in zip(vals, blank)], textposition="outside", cliponaxis=False,
+                customdata=[[" · ".join(n), v.text] for _, n, v in rows],
+                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<extra></extra>"),
+                row=1, col=i + 1)
+            fig.update_xaxes(showticklabels=False, row=1, col=i + 1)
+        fig.update_layout(height=max(260, 60 * len(rows) + 120),
+                          margin={"l": 10, "r": 60, "t": 50, "b": 20})
+        fig.update_yaxes(automargin=True)
+        charts.plotly_chart(fig, width="stretch")
+        judged = sum(1 for _, _, v in rows if v.conclusive)
+        st.caption(t("meta_ads_overview.waves_caption",
+                     "Une VAGUE regroupe les campagnes qui se chevauchent ou se suivent à moins "
+                     "de 28 jours : séparément, elles ne se distinguent pas. Écoutes gagnées = "
+                     "écoutes Spotify par jour PENDANT la vague moins les 28 jours avant. "
+                     "« Non concluant » : trop peu de jours mesurés, vague en cours, ou hausse "
+                     "dans la variation normale — la raison est au survol. Une vague coïncide "
+                     "souvent avec une sortie : c'est une association, pas la preuve que la pub "
+                     "a causé ces écoutes. {j} vague(s) sur {n} jugée(s).").format(
+                         j=judged, n=len(rows)))
+
+
 def _render_global_perf(df_perf: pd.DataFrame) -> None:
     """La performance globale, CAMPAGNE PAR CAMPAGNE — six cadres, une unité chacun.
 
@@ -385,6 +464,7 @@ def _show_meta_ads(db, artist_id):
 
         st.markdown(t("meta_ads_overview.global_perf", "### 🚀 Performance Globale"))
         _render_global_perf(df_perf)
+        _render_campaign_waves(db, artist_id)
 
         # Engagement
         if not df_eng.empty:

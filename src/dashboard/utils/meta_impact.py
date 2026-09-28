@@ -70,16 +70,29 @@ def verdict(listeners: pd.Series, camps: list[Campaign], today: dt.date) -> Verd
     MEASURED days only (a missing day is absent, never 0). Pure."""
     if not camps:
         return Verdict(False, "Aucune campagne Meta avec dépense : rien à juger.")
-    c = camps[-1]
+    return verdict_for(camps[-1], camps, listeners, today)
+
+
+#: The words of a lift, per series: listeners-per-day are LISTENER-DAYS (see module doc).
+LISTENERS = ("auditeurs-jour", "auditeur-jour")
+STREAMS = ("écoutes", "écoute")
+
+
+def verdict_for(c: Campaign, camps: list[Campaign], series: pd.Series, today: dt.date,
+                unit: tuple[str, str] = LISTENERS) -> Verdict:
+    """The verdict on campaign `c` among ALL `camps` — the same refusals for every campaign
+    (R291: the per-campaign « écoutes gagnées » of the Meta page reuse them, code-critic).
+    `series`: a daily measure indexed by date, MEASURED days only. Pure."""
+    many, one = unit
     if (today - c.end).days < ENDED_AFTER_DAYS:
         return Verdict(False, f"« {c.name} » tourne encore : le verdict viendra à la fin.")
     base_start = c.start - dt.timedelta(days=BASELINE_DAYS)
-    others = [o for o in camps[:-1] if o.end >= base_start and o.start <= c.end]
+    others = [o for o in camps if o is not c and o.end >= base_start and o.start <= c.end]
     if others:
         return Verdict(False, f"Non concluant : « {others[-1].name} » dépensait aussi pendant "
                               f"« {c.name} » ou juste avant — impossible de les séparer.")
-    idx = pd.to_datetime(pd.Series(listeners.index)).dt.date
-    s = pd.Series(listeners.values, index=idx).dropna()
+    idx = pd.to_datetime(pd.Series(series.index)).dt.date
+    s = pd.Series(series.values, index=idx).dropna()
     base = s[(s.index >= base_start) & (s.index < c.start)]
     during = s[(s.index >= c.start) & (s.index <= c.end)]
     if len(during) < MIN_CAMPAIGN_MEASURED:
@@ -92,10 +105,30 @@ def verdict(listeners: pd.Series, camps: list[Campaign], today: dt.date) -> Verd
     lift = float(during.mean() - base.mean())
     noise = float(base.std(ddof=1)) if len(base) > 1 else 0.0
     if lift <= noise:
-        return Verdict(True, f"« {c.name} » n'a pas soulevé tes auditeurs au-delà de leur "
+        return Verdict(True, f"« {c.name} » n'a pas soulevé tes {many} au-delà de leur "
                              f"variation normale (±{noise:.0f}/jour).", lift_per_day=lift)
     gained = lift * len(during)
     eur = c.spend / gained if gained > 0 else None
-    return Verdict(True, f"« {c.name} » : +{lift:.0f} auditeurs-jour par jour, "
-                         f"≈ {eur:.2f} € par auditeur-jour gagné.",
+    return Verdict(True, f"« {c.name} » : +{lift:.0f} {many} par jour, "
+                         f"≈ {eur:.2f} € par {one} gagné{'e' if unit == STREAMS else ''}.",
                    lift_per_day=lift, eur_per_listener_day=eur)
+
+
+def waves(camps: list[Campaign]) -> list[tuple[Campaign, list[str]]]:
+    """Campaigns that overlap — or follow within the 28-day baseline — merged into ONE wave,
+    with the names it groups. Pure.
+
+    R291 (measured 2026-09-28, artist 1): judged one by one, 21 of 21 campaigns were
+    « non concluant », almost all because another campaign spent at the same time. Two
+    campaigns that cannot be told apart CAN be judged together: a wave is the unit the data
+    can answer for, and the verdict's own overlap rule decides what goes in it — so no wave
+    can overlap another's window."""
+    out: list[tuple[Campaign, list[str]]] = []
+    for c in sorted(camps, key=lambda c: c.start):
+        if out and c.start <= out[-1][0].end + dt.timedelta(days=BASELINE_DAYS):
+            w, names = out[-1]
+            out[-1] = (Campaign(w.account, w.name, w.start, max(w.end, c.end),
+                                w.spend + c.spend), [*names, c.name])
+        else:
+            out.append((c, [c.name]))
+    return out

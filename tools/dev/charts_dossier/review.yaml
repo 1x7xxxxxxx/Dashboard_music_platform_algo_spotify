@@ -205,6 +205,14 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   owner_v: garder
   owner: "On garde."
   note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
+src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
+  q: "Ce que chaque vague de campagnes a rapporté en écoutes, et le prix d'une écoute gagnée (P2) ?"
+  role: meta
+  d: 4
+  c: 3
+  p: 4
+  v: garder
+  note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   q: "Mes campagnes côte à côte — laquelle dépense le plus, pour quels clics ?"
   role: meta
