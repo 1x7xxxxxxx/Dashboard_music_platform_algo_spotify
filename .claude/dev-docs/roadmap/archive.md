@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R313 — PDF des KPI réordonné (tes retours du 2026-09-28) : il s'ouvre sur TES DÉCISIONS, une l… (livrée 2026-09-28)
+
+- [x] **R313 — PDF des KPI réordonné (tes retours du 2026-09-28) : il s'ouvre sur TES DÉCISIONS, une ligne chacune (fiches à trancher avec ma reco, doublons D1/D2, proposition C, fiches à revalider en numéros), puis les fiches ; synthèse, guide des retours, traçabilité, propositions, méthode et recommandations passent À LA FIN ; beaucoup moins de texte dans la partie décision** (P3) ✅ (2026-09-28, 31a10bfd, 89c0a0e3)
+  Mesuré par : la page 1 du PDF est la liste des décisions
+  PDF des KPI : page 1 = tes decisions, corps = numero + ton geste + question + graphique, tout le reste en annexe ; 77 pages ; CI verte
+  Commits : 31a10bfd R313 : corps du PDF allege a l essentiel (ton retour) - chaque fiche = · 89c0a0e3 R313 : le PDF des KPI s ouvre sur tes decisions (ton retour du 2026-09
+
 ## ✅ R312 — Page S4A combinée : `test_a_rendered_figure_is_laid_out[spotify_s4a_combined]` rouge su… (livrée 2026-09-28)
 
 - [x] **R312 — Page S4A combinée : `test_a_rendered_figure_is_laid_out[spotify_s4a_combined]` rouge sur la base locale (deux rangées de figures de hauteurs inégales, 640 et 720 px) — antérieur à R305-R311 (rouge aussi sur un HEAD propre, 2026-09-28), invisible en CI qui saute les rendus sans base ; regarder la page, corriger la hauteur ou déclarer l'exception** (P3) ✅ (2026-09-28, 3b3de2be)
