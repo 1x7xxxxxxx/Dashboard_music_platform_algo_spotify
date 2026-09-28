@@ -38,6 +38,9 @@ from dateutil.relativedelta import relativedelta
 # +2,20 €. Les deux nombres sont vrais ; celui qui répond à « à ce stade » est le
 # second, parce que la question porte sur le rythme d'aujourd'hui.
 FENETRE_RYTHME = 12
+# R262 (code-critic b) — under this many months of history, a pace is noise and a
+# break-even DATE would be invented: `break_even` says « trop court » instead.
+MIN_MOIS_POUR_UNE_DATE = 6
 
 
 def monthly_net(cashflow: pd.DataFrame) -> pd.DataFrame:
@@ -89,6 +92,8 @@ def break_even(monthly: pd.DataFrame, window: int = FENETRE_RYTHME) -> dict:
       * `jamais`   — le net mensuel est nul ou négatif : aucune date n'existe, et
                      en inventer une lointaine serait un mensonge poli.
       * `inconnu`  — pas d'historique.
+      * `trop_court` — moins de `MIN_MOIS_POUR_UNE_DATE` mois : aucun rythme ne se lit
+                     encore, donc aucune date (R262, code-critic b).
 
     ⚠️ `mois` peut valoir plusieurs centaines, et on l'affiche tel quel. Sur
     l'artiste 1 le 2026-09-21 : −2 839,43 € de cumul, +2,20 €/mois sur douze mois,
@@ -106,6 +111,9 @@ def break_even(monthly: pd.DataFrame, window: int = FENETRE_RYTHME) -> dict:
     if cumul >= 0:
         return {**base, 'etat': 'deja', 'mois': 0,
                 'date': monthly['date'].iloc[-1].date()}
+    if len(monthly) < MIN_MOIS_POUR_UNE_DATE:
+        return {**base, 'etat': 'trop_court', 'mois': None, 'date': None,
+                'mois_connus': len(monthly)}
     if rythme <= 0:
         return {**base, 'etat': 'jamais', 'mois': None, 'date': None}
     import math

@@ -328,43 +328,8 @@ def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                  "page 💰 Distributeurs."))
 
 
-def _breakeven_short(pm: dict) -> str:
-    """La même vérité en trois mots, pour une tuile."""
-    if pm['etat'] == 'deja':
-        return t("revenue_forecast.be_short_done", "atteint")
-    if pm['etat'] == 'jamais':
-        return t("revenue_forecast.be_short_never", "jamais à ce rythme")
-    if pm['etat'] == 'inconnu' or pm.get('mois') is None:
-        return "—"
-    if pm['mois'] < 24:
-        return t("revenue_forecast.be_short_months", "{n} mois").format(n=pm['mois'])
-    return t("revenue_forecast.be_short_years", "{a:,.0f} ans").format(
-        a=pm['mois'] / 12.0).replace(",", " ")
-
-
-def _breakeven_text(pm: dict) -> str:
-    """La phrase du point mort — et les quatre états qu'elle doit savoir dire."""
-    if pm['etat'] == 'deja':
-        return t("revenue_forecast.be_done",
-                 "✅ Tu es rentré dans tes frais<br>cumul : {c:+,.0f} €"
-                 ).format(c=pm['cumul']).replace(",", " ")
-    if pm['etat'] == 'inconnu':
-        return t("revenue_forecast.be_unknown", "Pas encore d'historique")
-    if pm['etat'] == 'jamais':
-        return t("revenue_forecast.be_never",
-                 "⚠️ Point mort JAMAIS atteint à ce rythme<br>"
-                 "il manque {c:,.0f} € et le rythme est de {r:+.2f} €/mois"
-                 ).format(c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
-    ans = pm['mois'] / 12.0
-    duree = (t("revenue_forecast.be_months", "{n} mois").format(n=pm['mois'])
-             if pm['mois'] < 24
-             else t("revenue_forecast.be_years", "{n:,.0f} mois — {a:,.0f} ans"
-                    ).format(n=pm['mois'], a=ans).replace(",", " "))
-    date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
-    return t("revenue_forecast.be_reached",
-             "⏳ Point mort dans <b>{d}</b>{q}<br>"
-             "il manque {c:,.0f} € au rythme de {r:+.2f} €/mois"
-             ).format(d=duree, q=date, c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
+from src.dashboard.utils.treasury_chart import (  # noqa: E402 — R262, one definition
+    breakeven_short as _breakeven_short, breakeven_text as _breakeven_text)
 
 
 _CAT_COUTS = ["distribution", "mastering", "visuel", "promo", "materiel", "autre"]

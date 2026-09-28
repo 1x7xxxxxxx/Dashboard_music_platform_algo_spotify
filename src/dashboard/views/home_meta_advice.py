@@ -120,10 +120,14 @@ def _ligne_argent(side: dict) -> None:
             "dire ce que cette dépense t'a rapporté."))
         return
 
+    sacem = side.get("cash_sacem")
     st.markdown(t(
         "home.money_line",
         "Investi **{sorti} €** · Rentré **{rentre} €**").format(
-            sorti=_euros(sorti), rentre=_euros(rentre)))
+            sorti=_euros(sorti), rentre=_euros(rentre))
+        # R262 (note L540) — where the money came from: distributors and SACEM apart.
+        + (t("home.money_split", " — distributeurs {d} € · SACEM {s} €").format(
+            d=_euros(rentre - sacem), s=_euros(sacem)) if sacem else ""))
     # LA RÉSERVE EST OBLIGATOIRE : ce sont les revenus QU'IL A DÉPOSÉS, sur toute
     # sa carrière, face à une dépense qui peut s'être arrêtée il y a deux ans. Sans
     # elle, deux nombres côte à côte se lisent comme un bilan.

@@ -384,6 +384,11 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                  WHERE artist_id = %s AND flux = 'depense')  AS cash_sorti,
               (SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow
                  WHERE artist_id = %s AND flux = 'revenu')   AS cash_rentre,
+              -- R262 (note L540) -- the same revenue, SPLIT: SACEM apart from the
+              -- distributors. Same view, same rule, zero extra round trip.
+              (SELECT SUM(amount_eur) FROM v_artist_monthly_cashflow
+                 WHERE artist_id = %s AND flux = 'revenu'
+                   AND source = 'sacem')                     AS cash_sacem,
               -- ── LES TROIS AXES DE LA PUBLICITE, EN JSON ────────────────────
               --
               -- On remonte les LIGNES, pas un verdict : le classement vit dans
@@ -427,7 +432,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               artist_id,                                  # meta_last_day (non borné)
               artist_id, artist_id,                       # meta_active / _known
               artist_id, artist_id,                       # shazam
-              artist_id, artist_id,                       # cash sorti / rentré
+              artist_id, artist_id, artist_id,            # cash sorti / rentré / sacem
               artist_id, artist_id, artist_id))           # axes age / pays / placement
     except Exception as e:      # noqa: BLE001 — le récapitulatif se rend sans ces lignes
         logger.warning("side metrics unreadable: %s", type(e).__name__)
@@ -440,7 +445,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
      release_song, release_age, release_dw, release_rr, release_radio,
      shazam_total, shazam_release,
      hypeddit_ctr, hypeddit_visits, hypeddit_clicks, hypeddit_campaign,
-     cash_sorti, cash_rentre, axe_age, axe_pays, axe_placement) = rows[0]
+     cash_sorti, cash_rentre, cash_sacem, axe_age, axe_pays, axe_placement) = rows[0]
     return {
         "ig_followers": ig_last,
         "ig_delta": (None if ig_first is None or ig_last is None
@@ -513,6 +518,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         # l'euro — et l'appelant renvoie alors vers la carte d'absence.
         "cash_sorti": float(cash_sorti) if cash_sorti is not None else None,
         "cash_rentre": float(cash_rentre) if cash_rentre is not None else None,
+        "cash_sacem": float(cash_sacem) if cash_sacem is not None else None,
         # Les lignes BRUTES des trois axes. Le classement, le plancher de fiabilité
         # et le refus de conclure vivent dans `utils/meta_axes.py` — ici on ne fait
         # que transporter.

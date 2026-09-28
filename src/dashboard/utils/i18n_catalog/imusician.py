@@ -64,4 +64,5 @@ EN = {
         "Figures unavailable — the read failed. This is not \u201cno spend\u201d."),
     "imusician.roi_empty_period": "No revenue or spend data over this period.",
     "imusician.sales_in_treasury": "📊 The chart of these sales is in the ROI tab, with SACEM and spend on one treasury.",
+    "imusician.trigger_point": "One Discover Weekly trigger is worth",
 }

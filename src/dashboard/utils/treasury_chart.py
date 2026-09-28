@@ -188,3 +188,66 @@ def ledger_summary(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
         'result': cumul, 'streams': streams_total,
         'cost_per_stream': (ads_v / streams_total) if ads_v and streams_total else None,
     }
+
+
+# ── R262 — the break-even sentence, ONE definition for every page that draws the treasury
+# (it lived in revenue_forecast only; the Distributeurs page drew the same curve mute).
+def breakeven_short(pm: dict) -> str:
+    """La même vérité en trois mots, pour une tuile."""
+    if pm['etat'] == 'deja':
+        return t("revenue_forecast.be_short_done", "atteint")
+    if pm['etat'] == 'jamais':
+        return t("revenue_forecast.be_short_never", "jamais à ce rythme")
+    if pm['etat'] == 'trop_court':
+        return t("revenue_forecast.be_short_too_short", "trop tôt pour dater")
+    if pm['etat'] == 'inconnu' or pm.get('mois') is None:
+        return "—"
+    if pm['mois'] < 24:
+        return t("revenue_forecast.be_short_months", "{n} mois").format(n=pm['mois'])
+    return t("revenue_forecast.be_short_years", "{a:,.0f} ans").format(
+        a=pm['mois'] / 12.0).replace(",", " ")
+
+
+def breakeven_text(pm: dict) -> str:
+    """La phrase du point mort — et les quatre états qu'elle doit savoir dire."""
+    if pm['etat'] == 'deja':
+        return t("revenue_forecast.be_done",
+                 "✅ Tu es rentré dans tes frais<br>cumul : {c:+,.0f} €"
+                 ).format(c=pm['cumul']).replace(",", " ")
+    if pm['etat'] == 'inconnu':
+        return t("revenue_forecast.be_unknown", "Pas encore d'historique")
+    if pm['etat'] == 'trop_court':
+        return t("revenue_forecast.be_too_short",
+                 "⏳ Il manque {c:,.0f} € — {n} mois connus seulement :<br>"
+                 "trop tôt pour dater le point mort").format(
+                     c=-pm['cumul'], n=pm.get('mois_connus', 0)).replace(",", " ")
+    if pm['etat'] == 'jamais':
+        return t("revenue_forecast.be_never",
+                 "⚠️ Point mort JAMAIS atteint à ce rythme<br>"
+                 "il manque {c:,.0f} € et le rythme est de {r:+.2f} €/mois"
+                 ).format(c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
+    ans = pm['mois'] / 12.0
+    duree = (t("revenue_forecast.be_months", "{n} mois").format(n=pm['mois'])
+             if pm['mois'] < 24
+             else t("revenue_forecast.be_years", "{n:,.0f} mois — {a:,.0f} ans"
+                    ).format(n=pm['mois'], a=ans).replace(",", " "))
+    date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
+    return t("revenue_forecast.be_reached",
+             "⏳ Point mort dans <b>{d}</b>{q}<br>"
+             "il manque {c:,.0f} € au rythme de {r:+.2f} €/mois"
+             ).format(d=duree, q=date, c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
+
+
+def add_trigger_point(fig: go.Figure, mensuel: pd.DataFrame, label: str,
+                      value: float) -> None:
+    """R262 (code-critic a') — what ONE algorithm trigger is worth, as a POINT above the
+    balance's last month: the cumul it would reach. A point and not a line — no cadence
+    of triggers has been measured, and a line would extrapolate one."""
+    if mensuel is None or mensuel.empty or not value:
+        return
+    x, y = mensuel['date'].iloc[-1], float(mensuel['cumul'].iloc[-1]) + float(value)
+    fig.add_trace(go.Scatter(
+        x=[x], y=[y], mode='markers+text', name=label,
+        marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
+        text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
+        hovertemplate=f"{label}<br>cumul atteint : %{{y:.2f}} €<extra></extra>"))

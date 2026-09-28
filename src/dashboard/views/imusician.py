@@ -446,16 +446,48 @@ def show():
                 # R212 — the ONE treasury figure (shared with « Mes revenus » and SACEM):
                 # sales, SACEM, Meta and entered costs on one ledger, from the same door
                 # as the tiles above.
-                from src.dashboard.utils.artist_cashflow import monthly_net
+                from src.dashboard.utils.artist_cashflow import break_even, monthly_net
                 from src.dashboard.utils.treasury_chart import (
-                    load_cashflow, treasury_figure, within)
+                    add_trigger_point, breakeven_text, load_cashflow, treasury_figure,
+                    within)
                 cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
                 mensuel = monthly_net(cashflow)
                 if not mensuel.empty:
-                    charts.plotly_chart(treasury_figure(cashflow, mensuel), width="stretch")
+                    # R262 (notes L128, L538) — the break-even DURATION written on the
+                    # figure, and what one algorithm trigger is worth as a point above
+                    # the balance (code-critic a/a' : here, not on the forecast page).
+                    fig = treasury_figure(cashflow, mensuel,
+                                          verdict=breakeven_text(break_even(mensuel)))
+                    trigger = _trigger_point(db, artist_id)
+                    if trigger:
+                        add_trigger_point(fig, mensuel, *trigger)
+                    charts.plotly_chart(fig, width="stretch")
                 else:
                     st.info(t("imusician.roi_empty_period",
                               "Aucune donnée de revenus ou dépenses sur cette période."))
 
     finally:
         db.close()
+
+
+def _trigger_point(db, artist_id: int):
+    """(label, €) — what a Discover Weekly trigger is worth at THIS artist's rate, or None.
+
+    The value is an order of magnitude (the median of tracks that triggered, times the
+    artist's measured €/stream), never a promised gain — the label says « vaut ».
+    """
+    from src.dashboard.utils.artist_cashflow import stream_rate, trigger_value
+    try:
+        taux = stream_rate(db, artist_id)
+        if not taux:
+            return None
+        valeurs = trigger_value(db, taux['eur_par_stream'])
+    except Exception:      # noqa: BLE001 — the point is optional, the curve is not
+        return None
+    if valeurs is None or valeurs.empty or 'algo' not in valeurs.columns:
+        return None
+    dw = valeurs[valeurs['algo'] == 'DW']
+    if dw.empty or not float(dw['valeur_eur'].iloc[0] or 0):
+        return None
+    return (t("imusician.trigger_point", "Un déclenchement Discover Weekly vaut"),
+            float(dw['valeur_eur'].iloc[0]))

@@ -14,6 +14,7 @@ EN = {
     ),
     "home.launching": "Launching collections…",
     "home.next_step": "Your next step",
+    "home.money_split": " — distributors {d} € · SACEM {s} €",
     "home.collection_running": "🔄 {label} — collection running, each platform's state "
                                "is in the sidebar.",
     "home.launched": "🚀 Collection launched — your first numbers arrive in "
