@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R298 — R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le d… (livrée 2026-09-28)
+
+- [x] **R298 — R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le dossier régénéré sur un instantané frais de la prod pour relire tes commentaires du 2026-09-28** (P4) ✅ (2026-09-28, d5aa082f, 01049742)
+  Mesuré par : le PDF régénéré, chaque proposition porte sa reco
+  Recos R282 dans le dossier PDF (propositions A-D, L268 differe), dossier regenere sur instantane frais, fiche 66 rendue et couleurs du theme Streamlit resolues (73 figures) ; CI verte d5aa082f
+  Commits : d5aa082f R298 : le runbook 38 pointe de nouveau les quinze idees par page (char · 01049742 R298 : R282 - mes recos dans le dossier PDF (une par proposition, L268
+
+## ✅ R297 — Finir R293 à ta demande (2026-09-28) : sous la fiche 51, l'erreur du volume prévu par S… (livrée 2026-09-28)
+
+- [x] **R297 — Finir R293 à ta demande (2026-09-28) : sous la fiche 51, l'erreur du volume prévu par SEMAINE DE PRÉDICTION face au dernier constat S4A (ml_song_predictions × s4a_song_algo_outcomes), la série mince dite sur la figure ; R293 sort du backlog et son déclencheur de reopen_check** (P3) ✅ (2026-09-28, f2705941)
+  Mesuré par : test de la série par semaine + rendu de la vue
+  Figure erreur par semaine de prediction sous la fiche 51 (Radio seul, porte de fiabilite lue) ; 9 streams d ecart en juin puis 7 ; deployee d5aa082f, CI verte ; R293 sort du backlog
+  Commits : f2705941 R297 : R293 finie a ta demande - sous la fiche 51, l erreur du volume 
+
 ## ✅ R296 — **Reporter dans le baseline ce que l'adoption MSDR a trouvé** (rapport MSDR du 2026-09-… (livrée 2026-09-28)
 
 - [x] **R296 — **Reporter dans le baseline ce que l'adoption MSDR a trouvé** (rapport MSDR du 2026-09-28) : l'installeur ÉCRASE un fichier versionné du dépôt cible (`audit_runner.py` de MSDR remplacé par une copie plus ancienne, `cp -rf` dans `setup-claude-code.sh`) ; puis les correctifs faits sur les copies des outils de gouvernance (next_id qui comptait un id en prose, nœuds de classe de test dans le benchmark, `push:` nu du vérificateur de CI) dès que MSDR les liste dans `governance/BASELINE-PORT.md`** (P2) ✅ (2026-09-28, 485a63f7, 370c2346, 32084ae5)
