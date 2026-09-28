@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R293 | **La qualité du modèle, semaine par semaine** (recommandation du corpus retenue par le code-critic en R292 — Crowe et al., p. 322) : les fiches 51 et 58 comparent la dernière prédiction de chaque titre à son constat, jamais une TENDANCE ; une figure « erreur de prévision par semaine de prédiction » (ml_song_predictions × s4a_song_algo_outcomes) sous `_show_volume_vs_recorded`, avant de vendre davantage de prédictions (ADR-029). Densité mesurée le 2026-09-28 : 607 prédictions sur 9 semaines pour l'artiste 1 — une série mince, à dire sur la figure <!-- anchor: r293 --> <!-- critic: requis — forme et seuil de la série --> <!-- scope: src/dashboard/views/trigger_algo, src/dashboard/utils --> | P3 | une ligne par semaine présente ; test sur trois semaines synthétiques |
 | R286 | **Dossier des KPI, tes règles de lecture** (revue du 2026-09-28) : ordre corriger → fusionner → garder → validé (validé à la fin), un état « validé » distinct de « garder », et chaque fiche « corriger / fusionner / non garanti » dit QUOI faire ; instantané de prod rafraîchi (la fiche 66 n'avait aucun coût à dessiner avant R256) et PDF refait <!-- anchor: r286 --> <!-- critic: non — outil de revue interne --> <!-- scope: tools/dev/charts_dossier --> | P3 | ton ordre respecté ; aucune fiche à corriger sans son action écrite |
 | R287 | **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune police emoji ni sur le poste ni dans le conteneur de prod, donc 🎵 🎬 🚀 deviennent des carrés dans le dossier ET dans le PDF artiste (☁️ passe, elle existe dans les polices ordinaires) — police emoji dans les images, balayage de chaque emoji des figures <!-- anchor: r287 --> <!-- critic: non — police manquante --> <!-- scope: Dockerfile, Dockerfile.api, src/dashboard --> | P3 | aucun carré sur les figures du dossier ; `fc-list` voit une police emoji dans le conteneur |
 | R288 | **Fiche 1 : la marche d'une plateforme glisse avant son pointillé** — l'aire empilée monte en pente depuis le dernier point vide jusqu'au premier relevé, donc la hausse YouTube commence avant sa ligne ; la marche doit tomber sur le pointillé, chaque pointillé à la couleur de sa plateforme <!-- anchor: r288 --> <!-- critic: non — tracé --> <!-- scope: src/dashboard/utils/platform_chart.py --> | P3 | figure regardée : chaque saut sur sa ligne |
@@ -92,7 +93,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R286, R287, R288, R289, R290, R291, R292, R282, R283, R275 -->
+<!-- reprise: open=R293, R286, R287, R288, R289, R290, R291, R292, R282, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
