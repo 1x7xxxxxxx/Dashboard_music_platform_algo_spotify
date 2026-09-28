@@ -2100,3 +2100,24 @@ et la donnée qu'elle lit (`.claude/dev-docs/chart-ideas-by-page.md`).
 3. Coche dans le document les idées à construire : chacune deviendra une ligne de roadmap.
 
 **Vérification** : ta réponse dans le fil ; une ligne Rnnn par idée retenue.
+
+## 39. R283 — Vérifier le parrainage Stripe en mode test · P2
+
+**Pourquoi** : R272 applique le mois offert du parrain par un coupon Stripe, actif en
+production (ta décision du 2026-09-27). Trois réglages vivent dans TON compte Stripe et sur
+le serveur, et je ne les pose pas moi-même : un coupon, une variable, les évènements du
+webhook. Sans eux, les mois gagnés restent **en attente** (la page admin le dit) — rien
+n'est perdu, rien n'est appliqué.
+
+1. Dans Stripe (mode **test** d'abord) : Produits → Coupons → Nouveau : **100 %**, durée
+   **une fois**, nom « Parrainage — 1 mois offert ». Note son identifiant.
+2. Développeurs → Webhooks → ton point de terminaison : ajoute les évènements
+   `invoice.paid`, `charge.refunded`, `charge.dispute.created`.
+3. Sur le serveur, dans le `.env` de production : `STRIPE_REFERRAL_COUPON_ID=<identifiant>`,
+   puis `make deploy PROD_SSH=root@… SERVICE=api`.
+4. Rejoue un parrainage en mode test : un compte A partage son code, un compte B s'inscrit
+   avec, B paie son premier mois avec la carte de test `4242 4242 4242 4242`.
+5. Refais 1 à 3 en mode **live** avec un coupon live.
+
+**Vérification** : dans « 📊 Referral KPIs », la ligne du parrain A passe `pending` →
+`applied` ; sur la facture suivante de A dans Stripe, la remise de 100 % apparaît.
