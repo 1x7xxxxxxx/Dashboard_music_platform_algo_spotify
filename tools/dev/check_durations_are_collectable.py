@@ -157,15 +157,33 @@ def main() -> int:
     if "--fix" in sys.argv:
         print("\n→ --fix")
         return fix(fantomes, sans) or main_check_again()
+    if "--fix-once" in sys.argv:
+        return fix_once(fantomes, sans)
     print("\n   Remède : `make test-durations-missing` — retire les fantômes et mesure "
           "les SEULS tests sans durée, en série (pytest-split FUSIONNE) ; ou "
           "`make test-durations` pour tout régénérer.")
     return 1
 
 
+def fix_once(fantomes: dict, sans: list[str], fixer=None, recheck=None) -> int:
+    """The commit hook's remedy: measure, then REFUSE once. Always 1.
+
+    R319 (2026-09-29): the hook refused 13 commits in 3 days for a new test run by plain
+    pytest, each time naming a remedy to type by hand. It now measures them itself and
+    fails ONCE, like `ruff --fix`: the file changed, the human re-stages it knowingly
+    (code-critic R319 — never a silent `git add`, never a 0 after a rewrite).
+    """
+    print("\n→ mesure des tests sans durée (hook, --fix-once)")
+    if (fixer or fix)(fantomes, sans) or (recheck or main_check_again)():
+        return 1
+    print("\n✅ `.test_durations` complété — `git add .test_durations` puis recommite "
+          "(durées mesurées en série sur cette machine).")
+    return 1
+
+
 def main_check_again() -> int:
     """After a fix, the verdict comes from a fresh collection, not from the fix."""
-    sys.argv = [a for a in sys.argv if a != "--fix"]
+    sys.argv = [a for a in sys.argv if a not in ("--fix", "--fix-once")]
     return main()
 
 

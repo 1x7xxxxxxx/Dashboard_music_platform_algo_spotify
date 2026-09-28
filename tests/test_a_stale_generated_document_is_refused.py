@@ -53,3 +53,26 @@ def test_the_committed_document_describes_this_repository(monkeypatch, capsys) -
         "`.claude/dev-docs/gold-coverage.md` ne décrit plus le dépôt — "
         "remède : `make gold-coverage`, puis commiter le document.\n"
         + capsys.readouterr().out[-1500:])
+
+
+def test_the_commit_hook_rewrites_a_stale_map_and_refuses_once(tmp_path) -> None:
+    """R320 — absent or stale: rewritten AND refused (the human re-stages); fresh: 0.
+
+    Mutation record (2026-09-29): seen red with `fix_once` returning 0 after a rewrite, and
+    with the hook removed from `.pre-commit-config.yaml`.
+    """
+    import yaml
+
+    doc = tmp_path / "gold-coverage.md"
+    assert gc.fix_once("# carte\n", doc) == 1 and doc.read_text() == "# carte\n"
+    assert gc.fix_once("# carte\n", doc) == 0, "a fresh map must let the commit through"
+    doc.write_text("# ancienne carte\n")
+    assert gc.fix_once("# carte\n", doc) == 1 and doc.read_text() == "# carte\n"
+    root = Path(__file__).resolve().parents[1]
+    with open(root / ".pre-commit-config.yaml", encoding="utf-8") as fh:
+        hooks = {h["id"]: h for r in yaml.safe_load(fh)["repos"] for h in r.get("hooks", [])}
+    hook = hooks.get("gold-coverage-fresh")
+    assert hook and hook.get("args") == ["--fix-once"], "the commit no longer refreshes the map"
+    import re
+    assert re.search(hook["files"], "src/dashboard/views/home.py"), (
+        "a change under src/ must trigger it — that is the edit test-changed misses")
