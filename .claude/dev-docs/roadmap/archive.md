@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R274 — Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes… (livrée 2026-09-28)
+
+- [x] **R274 — Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes sur TON shell et TON VS Code — chemin de `.env.local` dans `~/.bashrc` (l'ancien dossier `/mnt/c` n'existe plus, les 4 variables MCP ne sont plus exportées), alias `sl`, ouverture Remote-WSL** (P4) ✅ (2026-09-28, 903548d6, 65f61128)
+  Mesuré par : tes trois gestes — runbook § 37
+  fait le 2026-09-28 a la demande du proprietaire - ligne 130 de ~/.bashrc pointe vers ~/streamlytics/.env.local (4 variables MCP exportees, verifiees sans valeur), alias sl ajoute, sauvegarde ~/.bashrc.bak-r274 ; il reste a epingler streamlytics [WSL] dans les recents de VS Code - aucun code produit, pas de CI a juger
+  Commits : 903548d6 Roadmap : R274 passe en attente de toi (bashrc lit un .env.local dispa · 65f61128 Roadmap : R258 a R274 inscrites (tes notes du 2026-09-27 traduites en 
+
 ## ✅ R285 — **Le contrôle de contamination répète et crie sur l'attendu** (mail ops du 2026-09-28 2… (livrée 2026-09-28)
 
 - [x] **R285 — **Le contrôle de contamination répète et crie sur l'attendu** (mail ops du 2026-09-28 23:00) : les deux jointures de flotte (`track_popularity_history`, `youtube_video_stats`) tournent DANS la boucle par locataire — la même ligne MISATTRIBUTED sort une fois par locataire (8 copies) et gonfle le compte ; et le bac à sable, miroir voulu de l'artiste 1 (mig. 080), fait crier « CONTAMINATION » chaque nuit. Jointures sorties de la boucle, constats du bac à sable rangés sous « attendu » (listés, jamais comptés dans l'objet)** (P3) ✅ (2026-09-28, 347fde01, bef1e613)

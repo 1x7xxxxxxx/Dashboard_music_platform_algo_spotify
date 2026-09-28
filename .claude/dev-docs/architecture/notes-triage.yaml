@@ -110,13 +110,10 @@
   resume: Que optimiser sur le PC pour la rapidite ?
   type: question
   domaine: pc-perf
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: R117 depot sur ext4, collecte x4,6, make test 418 s -> 193,5 s (A:3084-3088) ; workers pytest calcules
-    sur la RAM (tools/dev/pytest_workers.py) ; test-suite-performance.md. Aucune reponse consolidee 'leviers PC'
-    dans le depot.
+  preuve_statut: R274 (archivée) — 903548d6
   preuve_ciblee: n/a (question)
-  roadmap: R274
 - ligne: 16
   resume: Ouvrir le depot dans VS Code en Remote-WSL (code .) puis lancer claude dans le terminal integre
   type: action-produit
@@ -354,23 +351,19 @@
   resume: Les processus Python sont-ils un levier d'optimisation ?
   type: question
   domaine: pc-perf
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Memoire des workers pytest mesuree et bornee (tools/dev/pytest_workers.py, verrou heavy-memory)
-    ; pas d'analyse des autres processus Python (knowledge-rag, dashboard local).
+  preuve_statut: R274 (archivée) — 903548d6
   preuve_ciblee: n/a (question)
-  roadmap: R274
 - ligne: 72
   resume: 'Containers consommateurs de RAM : n8n le dimanche seulement, analyser la pertinence des autres'
   type: action-produit
   domaine: pc-perf
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: tools/dev/pytest_workers.py:13-23 tient compte de n8n (dimanche seulement) et d'Ollama ; aucune
-    analyse des autres containers trouvee dans l'archive
+  preuve_statut: R274 (archivée) — 903548d6
   preuve_ciblee: 'test to write: pytest_workers.py reserve 3 600 Mo quand un container n8n-ollama tourne (fixture
     docker ps simulee)'
-  roadmap: R274
 - ligne: 72
   resume: Mesurer, identifier les plus gros leviers, integrer les suggestions puis /capitalise
   type: question
@@ -383,22 +376,18 @@
   resume: Rendre automatique l'ouverture de VS Code en Remote-WSL (raccourci par defaut)
   type: action-produit
   domaine: claude-wsl
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Bascule Remote-WSL faite (R117, A:3092) ; le reste repose sur la reouverture du dernier workspace,
-    non verifiable dans le depot
+  preuve_statut: R274 (archivée) — 903548d6
   preuve_ciblee: 'controle : l''entree [WSL] ~/streamlytics est epinglee dans les recents VS Code'
-  roadmap: R274
 - ligne: 79
   resume: Alias shell 'sl' pour ouvrir le depot dans VS Code
   type: action-produit
   domaine: claude-wsl
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: Absent de ~/.bashrc (grep 'alias sl' vide) ; au passage ~/.bashrc:130 charge encore .env.local
-    depuis l'ancien chemin /mnt/c
+  preuve_statut: R274 (archivée) — 903548d6
   preuve_ciblee: 'controle : bash -ic ''type sl'' rend l''alias'
-  roadmap: R274
 - ligne: 80
   resume: Metriques pertinentes stockees en base pour tracabilite Grafana (sante VPS, echelle, vitesse, logs d'erreur
     infra et src)

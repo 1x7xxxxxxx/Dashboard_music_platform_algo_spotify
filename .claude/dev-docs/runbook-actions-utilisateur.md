@@ -2065,7 +2065,7 @@ relevé de discipline, le journal de nuit.
 
 **Vérification** : ta réponse écrite dans le fil ; la ligne R279 fermée avec la liste.
 
-## 37. R274 — Trois réglages de ton poste · P4
+## 37. ~~R274 — Trois réglages de ton poste~~ · ✅ FAIT le 2026-09-28
 
 **Pourquoi** : tes notes L15, L72, L73, L79. Mesuré le 2026-09-27 : la WSL a 9 945 Mo, 6 777
 disponibles, n8n + Ollama tiennent 2,6 Go (normal : c'est dimanche), le serveur knowledge-rag

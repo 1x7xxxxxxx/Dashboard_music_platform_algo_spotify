@@ -85,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R279, R282, R283, R274, R275, R255, R256 -->
+<!-- reprise: open=R279, R282, R283, R275, R255, R256 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -215,7 +215,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | R279 | Dire quels « livrables » alléger ou supprimer (note L165 : « supprimer la gestion des livrables qui rajoute du poids pour rien ») | P4 | ta réponse — runbook § 36 |
 | R282 | Graphiques : dire lesquels t'inspirent (note L276) et quand reprendre le seuil de déclenchement sur la courbe Meta × Spotify (note L268, différée par toi) ; les 15 idées page par page sont dans `.claude/dev-docs/chart-ideas-by-page.md` | P4 | ta réponse — runbook § 38 |
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39 |
-| R274 | Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes sur TON shell et TON VS Code — chemin de `.env.local` dans `~/.bashrc` (l'ancien dossier `/mnt/c` n'existe plus, les 4 variables MCP ne sont plus exportées), alias `sl`, ouverture Remote-WSL | P4 | tes trois gestes — runbook § 37 |
 | R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
 | R255 | Saisir le **coût de distribution** de chaque titre (fiche 62) | P3 | ta saisie dans 📈 Prévisions revenus → 💳 Mes coûts, catégorie distribution, un titre par ligne — runbook § 33 |
 | R256 | Saisir les **coûts d'exploitation** de l'app (fiche 66) | P3 | ta saisie dans ⚙️ Admin → 💸 Coûts d'exploitation & marge — runbook § 34 |
