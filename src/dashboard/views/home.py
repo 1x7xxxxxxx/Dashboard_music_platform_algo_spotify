@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
+from src.dashboard.utils.ui import action  # noqa: E402 — R271, the look of a gesture
 from src.dashboard.utils import project_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import tenant_scope
@@ -801,12 +802,18 @@ def _render_onboarding_body(db, artist_id: int, steps, completed: int,
     # Few (*Information Dashboard Design*) : un tableau de bord sert de rampe de
     # lancement, on clique la donnée elle-même. Une étape faite reste du texte : il n'y
     # a rien à y faire, et un bouton inutile est du bruit.
+    next_named = False
     for idx, (done, label, page_key, detail, key) in enumerate(steps):
         if done:
             st.markdown(f"✅ {label}")
             _render_step_hint(key)
             _render_step_detail(detail)
             continue
+        if not next_named:
+            # R271 (note L242) — the first step left IS the gesture of this page: it gets
+            # the look of an action, the rest of the list stays a list.
+            action(t("home.next_step", "Ta prochaine étape"))
+            next_named = True
         # L'étape « lancer ta première collecte » NOMMAIT le geste et envoyait vers une
         # autre page pour le faire ; le bouton, lui, est dans la barre latérale. Deux
         # endroits pour une action, c'est une consigne — et une consigne est ce qu'on

@@ -146,3 +146,22 @@ def secondary_analyses(label: str | None = None, *, expanded: bool = False):
         label or t("ui.secondary_analyses", "📊 Analyses détaillées"),
         expanded=expanded,
     )
+
+
+# ── R271 (owner note L242) — ONE look for « what to do », ONE for « what to know » ──
+#
+# « Les actions dans une section grosse, en gras et surlignée ; les informations en plus
+# petit. » Applied by hand on the credentials page only (`:orange-background[👉 …]`):
+# every other page wrote its next gesture in the same size as its commentary. The
+# contract lives here so that a page states WHICH of its lines is the gesture, and the
+# look follows. Guard: tests/test_an_action_looks_like_an_action.py.
+def action(text: str, *, icon: str = "👉", container=None) -> None:
+    """The page's gesture: a heading, bold, highlighted. One per page, where it is done."""
+    target = container if container is not None else st
+    target.markdown(f"### :orange-background[{icon} {text}]")
+
+
+def note(text: str, *, container=None) -> None:
+    """Information that supports the gesture: small, never competing with it."""
+    target = container if container is not None else st
+    target.caption(text)

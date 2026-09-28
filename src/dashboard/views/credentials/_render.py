@@ -9,6 +9,8 @@ import logging
 
 import streamlit as st
 
+from src.dashboard.utils.ui import action  # R271 — the one look of a gesture
+
 from src.dashboard.utils.i18n import t
 
 from src.utils.tenant_identity import (
@@ -503,8 +505,7 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
             # La consigne de la séance : l'ACTION en gros, en gras, en surbrillance ;
             # l'information en caption.
             if existing_row:
-                st.markdown("### :orange-background[✏️ "
-                            + t("credentials.form.update", "Mettre à jour") + "]")
+                action(t("credentials.form.update", "Mettre à jour"), icon="✏️")
                 # La légende ne s'affiche QUE si ce formulaire a réellement un champ
                 # secret. Mesuré le 2026-09-06 : `meta`, `soundcloud` et `instagram`
                 # n'en ont aucun — leurs formulaires portent un seul champ, un lien
@@ -527,9 +528,8 @@ def _render_platform_tab(db, platform_key, platform_info, artist_id,
                 # plateforme » (2026-09-05) : la barre de boutons dit laquelle est
                 # ouverte, mais elle est en haut, et c'est ici qu'on regarde en
                 # commençant à taper. Le libellé du registre porte déjà son icône.
-                st.markdown("### :orange-background[👉 "
-                            + t("credentials.form.enter", "Saisir tes identifiants")
-                            + f" — {platform_info.get('label', platform_key)}" + "]")
+                action(t("credentials.form.enter", "Saisir tes identifiants")
+                       + f" — {platform_info.get('label', platform_key)}")
                 # Rien sous le titre. « 🔒 Chiffrés à l'enregistrement. C'est la seule
                 # action à faire sur cette page. » disait deux choses justes et
                 # inutiles ici : le chiffrement, que personne ne vérifie au moment de
