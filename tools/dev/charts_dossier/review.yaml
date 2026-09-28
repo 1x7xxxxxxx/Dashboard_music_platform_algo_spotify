@@ -206,7 +206,7 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   p: 4
   v: garder
   note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
-src/dashboard/views/meta_ads_overview.py::_render_wave_curves#1:
+src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2:
   q: "Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?"
   role: meta
   mq: M4

@@ -198,7 +198,10 @@ def _render_campaign_waves(db, artist_id) -> None:
                           margin={"l": 10, "r": 60, "t": 50, "b": 20})
         fig.update_yaxes(automargin=True)
         charts.plotly_chart(fig, width="stretch")
-        _render_wave_curves(rows, series)
+        curve = _wave_curves_figure(rows, series)
+        if curve is not None:
+            charts.plotly_chart(curve[0], width="stretch")
+            _curve_caption(curve[1])
         judged = sum(1 for _, _, v in rows if v.conclusive)
         st.caption(t("meta_ads_overview.waves_caption",
                      "Une VAGUE regroupe les campagnes qui se chevauchent ou se suivent à moins "
@@ -211,21 +214,23 @@ def _render_campaign_waves(db, artist_id) -> None:
                          j=judged, n=len(rows)))
 
 
-def _render_wave_curves(rows: list, series: pd.Series | None) -> None:
+def _wave_curves_figure(rows: list, series: pd.Series | None):
     """R301 — the owner's R282, proposal B kept on my recommendation (2026-09-28): the
     streams AROUND each wave, as an index (100 = the 28 days before it). The only figure
     saying how long an effect lasts — hence when to judge a campaign and when to relaunch.
 
     Same waves and same baseline floor as the verdict above (`meta_impact.event_study`),
-    never a second definition. A curve that rises BEFORE day 0 is a release, not the ads."""
+    never a second definition. A curve that rises BEFORE day 0 is a release, not the ads.
+    Returns (figure, waves left out) or None; DRAWN by `_render_campaign_waves`, whose own
+    gold reads the layer scan can then follow (a figure fed an argument read as « — »)."""
     from src.dashboard.utils import meta_impact
     from src.dashboard.utils.platform_colors import DISTINCT
     if series is None:
-        return
+        return None
     es = meta_impact.event_study(
         series, [(f"{w.start:%d/%m/%y} · {len(n)} camp.", w.start) for w, n, _ in rows])
     if es.empty:
-        return
+        return None
     fig = go.Figure()
     for i, (lab, g) in enumerate(es.groupby("wave", sort=False)):
         fig.add_trace(go.Scatter(x=g["offset"], y=g["index"], mode="lines", name=lab,
@@ -239,8 +244,10 @@ def _render_wave_curves(rows: list, series: pd.Series | None) -> None:
         xaxis_title=t("meta_ads_overview.curve_x",
                       "jours depuis le début de la vague (0 = premier euro)"),
         yaxis_title=t("meta_ads_overview.curve_y", "écoutes / jour (100 = les 28 jours avant)"))
-    charts.plotly_chart(fig, width="stretch")
-    dropped = len(rows) - es["wave"].nunique()
+    return fig, len(rows) - es["wave"].nunique()
+
+
+def _curve_caption(dropped: int) -> None:
     st.caption(t(
         "meta_ads_overview.curve_caption",
         "100 = la moyenne des 28 jours avant la vague. Une courbe qui monte AVANT le jour 0 "

@@ -46,6 +46,10 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1",
+               "src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2"}):
+        ("faux doublon — un total par vague (budget, écoutes gagnées, € par écoute) vs la "
+         "courbe jour par jour autour de chaque vague (R301)", frozenset()),
     frozenset({"src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1",
                "src/dashboard/views/trigger_algo/_tab_model.py::_show_error_by_prediction_week#1"}):
         ("faux doublon — par titre (dernière prédiction) vs par semaine de prédiction",
