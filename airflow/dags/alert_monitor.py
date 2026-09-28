@@ -1651,6 +1651,10 @@ def send_consolidated_alert(**context):
 
     contamination = ti.xcom_pull(
         task_ids='check_tenant_contamination', key='contamination') or []
+    # R285 — the sandbox mirrors artist 1 BY DESIGN: its findings are listed, never an
+    # incident. Counting them made « CONTAMINATION » the subject of every night's mail.
+    contamination_expected = [c for c in contamination if c.get('expected')]
+    contamination = [c for c in contamination if not c.get('expected')]
 
     offsite = ti.xcom_pull(
         task_ids='check_offsite_backup', key='offsite_backup') or []
@@ -2219,6 +2223,13 @@ def send_consolidated_alert(**context):
           Le détail et les tracebacks : <code>make error-inbox</code>.
           Fermer : <code>make error-resolve FP=&lt;empreinte&gt; NOTE="..."</code>.
         </p>""")
+
+    if contamination_expected:
+        _tables = len({c['table'] for c in contamination_expected})
+        sections.append(f"""
+        <p style="color:#888;font-size:0.9em">⏸️ Contamination attendue, non comptée :
+          {len(contamination_expected)} constat(s) sur {_tables} table(s) —
+          {contamination_expected[0]['expected']}.</p>""")
 
     # Section: tenant contamination. Deliberately assembled before the others: a row
     # sitting under a tenant it cannot belong to is the only finding here that is a

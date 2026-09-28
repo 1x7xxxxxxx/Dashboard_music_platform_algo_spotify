@@ -251,6 +251,65 @@ def _table_exists(db, table: str) -> bool:
         "WHERE table_schema = 'public' AND table_name = %s", (table,)))
 
 
+def _fleet_misattributions(db, scoped) -> list[dict]:
+    """The two JOIN checks, over the whole fleet — ONCE per scan (R285).
+
+    They sat inside the per-tenant body, unfiltered by tenant: the same finding came out
+    once per tenant scanned (8 identical lines in the 2026-09-28 mail), and the count in
+    the subject was inflated by the fleet size.
+    """
+    findings: list[dict] = []
+    # track_popularity_history: the payload had no artist_id at all, so every row
+    # took the column DEFAULT (1). Compare against the real owner via tracks — a
+    # join, so it stays outside the per-table loop above.
+    if "track_popularity_history" in scoped and "tracks" in scoped:
+        rows = db.fetch_query(
+            "SELECT h.artist_id, t.saas_artist_id, COUNT(*) "
+            "FROM track_popularity_history h "
+            "JOIN tracks t ON t.track_id = h.track_id "
+            "WHERE t.saas_artist_id IS NOT NULL AND t.saas_artist_id <> h.artist_id "
+            "GROUP BY 1, 2 ORDER BY 3 DESC"
+        )
+        for holder, real_owner, count in rows:
+            findings.append({
+                "artist_id": holder, "artist": f"(holder {holder})",
+                "platform": "spotify", "table": "track_popularity_history",
+                "kind": "MISATTRIBUTED", "rows": count,
+                "detail": f"rows belong to tenant {real_owner} "
+                          f"(tracks.saas_artist_id) but are stored under {holder}",
+            })
+
+    # youtube_video_stats has no channel_id of its own; its owner is whatever
+    # youtube_videos says. Same join shape, same reason it cannot sit in the loop.
+    if "youtube_video_stats" in scoped and "youtube_videos" in scoped:
+        rows = db.fetch_query(
+            "SELECT s.artist_id, v.artist_id, COUNT(*) "
+            "FROM youtube_video_stats s "
+            "JOIN youtube_videos v ON v.video_id = s.video_id "
+            "WHERE v.artist_id <> s.artist_id GROUP BY 1, 2 ORDER BY 3 DESC"
+        )
+        for holder, real_owner, count in rows:
+            findings.append({
+                "artist_id": holder, "artist": f"(holder {holder})",
+                "platform": "youtube", "table": "youtube_video_stats",
+                "kind": "MISATTRIBUTED", "rows": count,
+                "detail": f"stats rows sit under {holder} while their video belongs "
+                          f"to tenant {real_owner} (youtube_videos.artist_id)",
+            })
+    return findings
+
+
+SANDBOX_EXPECTED = ("bac à sable : miroir voulu des données de l'artiste 1 (migration 080), "
+                    "attendu — jamais compté comme incident")
+
+
+def _mark_expected(findings: list[dict], sandbox: set) -> list[dict]:
+    """Tag the sandbox's findings `expected` — kept, listed, never an incident. Pure."""
+    for f in findings:
+        f["expected"] = SANDBOX_EXPECTED if f.get("artist_id") in sandbox else None
+    return findings
+
+
 def scan(db) -> list[dict]:
     """Return one finding per (artist, table, kind). Never writes."""
     identities = _declared_identities(db)
@@ -288,7 +347,10 @@ def scan(db) -> list[dict]:
                 "table": "—", "kind": "UNREADABLE", "rows": 0,
                 "detail": f"tenant could not be scanned: {type(exc).__name__}",
             })
-    return findings
+    findings.extend(_fleet_misattributions(db, scoped))
+    sandbox = {int(r[0]) for r in db.fetch_query(
+        "SELECT id FROM saas_artists WHERE COALESCE(is_sandbox, FALSE)") or []}
+    return _mark_expected(findings, sandbox)
 
 
 def _examiner_locataire(db, artist_id, name, identities, by_platform,
@@ -338,43 +400,6 @@ def _examiner_locataire(db, artist_id, name, identities, by_platform,
                                   f"tenant declared {identity!r}",
                     })
 
-    # track_popularity_history: the payload had no artist_id at all, so every row
-    # took the column DEFAULT (1). Compare against the real owner via tracks — a
-    # join, so it stays outside the per-table loop above.
-    if "track_popularity_history" in scoped and "tracks" in scoped:
-        rows = db.fetch_query(
-            "SELECT h.artist_id, t.saas_artist_id, COUNT(*) "
-            "FROM track_popularity_history h "
-            "JOIN tracks t ON t.track_id = h.track_id "
-            "WHERE t.saas_artist_id IS NOT NULL AND t.saas_artist_id <> h.artist_id "
-            "GROUP BY 1, 2 ORDER BY 3 DESC"
-        )
-        for holder, real_owner, count in rows:
-            findings.append({
-                "artist_id": holder, "artist": f"(holder {holder})",
-                "platform": "spotify", "table": "track_popularity_history",
-                "kind": "MISATTRIBUTED", "rows": count,
-                "detail": f"rows belong to tenant {real_owner} "
-                          f"(tracks.saas_artist_id) but are stored under {holder}",
-            })
-
-    # youtube_video_stats has no channel_id of its own; its owner is whatever
-    # youtube_videos says. Same join shape, same reason it cannot sit in the loop.
-    if "youtube_video_stats" in scoped and "youtube_videos" in scoped:
-        rows = db.fetch_query(
-            "SELECT s.artist_id, v.artist_id, COUNT(*) "
-            "FROM youtube_video_stats s "
-            "JOIN youtube_videos v ON v.video_id = s.video_id "
-            "WHERE v.artist_id <> s.artist_id GROUP BY 1, 2 ORDER BY 3 DESC"
-        )
-        for holder, real_owner, count in rows:
-            findings.append({
-                "artist_id": holder, "artist": f"(holder {holder})",
-                "platform": "youtube", "table": "youtube_video_stats",
-                "kind": "MISATTRIBUTED", "rows": count,
-                "detail": f"stats rows sit under {holder} while their video belongs "
-                          f"to tenant {real_owner} (youtube_videos.artist_id)",
-            })
     return findings
 
 
