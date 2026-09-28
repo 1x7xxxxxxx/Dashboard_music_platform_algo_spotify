@@ -128,7 +128,7 @@ des seuils écrits en seuils surveillés**.
 - `opentelemetry-api` et `opentelemetry-exporter-otlp` sont **déjà** dans `uv.lock`
   comme dépendances transitives d'`apache-airflow`, sans qu'aucun code du dépôt les
   utilise. Cet ADR ne les active pas.
-- Une skill `observability-engineer` a été **retirée** (`.claude/.retired/skills/`).
+- Une skill `observability-engineer` a été **retirée** (`archive/claude-config/skills/`).
   Rien ne la réactive ici.
 - ⚠️ **REX importé de msdr, et il a coûté une panne là-bas** : `GF_INSTALL_PLUGINS`
   fait appeler grafana.com **au démarrage**, donc Grafana ne boote pas hors ligne

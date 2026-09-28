@@ -194,6 +194,10 @@ def changed_files(root: Path, base: str | None) -> list[str] | None:
 
 
 def is_test(rel: str) -> bool:
+    # R305 — `archive/` holds tests of retired hooks; under `.claude/.retired/` the dot hid
+    # them from pytest, in `archive/` a move selected them and they failed to import.
+    if rel.startswith("archive/"):
+        return False
     name = Path(rel).name
     return name.startswith("test_") or name.endswith("_test.py")
 

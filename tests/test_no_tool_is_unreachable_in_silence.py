@@ -29,7 +29,7 @@ Trois issues pour un script injoignable, et le balayage les nomme
 -----------------------------------------------------------------
 1. **le câbler** — c'est ce qui a été fait de `mutate_guards.py`, nommé depuis dans la
    règle 15ter, et de cet audit lui-même, entré dans `make config-check` ;
-2. **le retirer** vers `.claude/.retired/` — geste réversible, `git mv` ;
+2. **le retirer** vers `archive/claude-config/` — geste réversible, `git mv` ;
 3. **poser le marqueur** « OUTIL DE MESURE À USAGE PONCTUEL » s'il s'agit d'un
    instrument : un instrument ne prétend rien couvrir, donc son silence ne ment sur
    rien.
@@ -59,7 +59,7 @@ def test_no_script_is_unreachable_without_saying_so(audit) -> None:
     assert not muets, (
         f"{len(muets)} script(s) qu'aucun exécutant n'atteint et qui ne le disent pas :\n  "
         + "\n  ".join(f"{rel} ({n} l.)" for rel, n in muets)
-        + "\n\nLe câbler, le retirer vers `.claude/.retired/`, ou poser le marqueur "
+        + "\n\nLe câbler, le retirer vers `archive/claude-config/`, ou poser le marqueur "
           "d'instrument avec sa raison.")
 
 

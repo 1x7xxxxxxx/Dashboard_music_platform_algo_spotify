@@ -413,7 +413,7 @@ def test_every_declared_agent_has_a_trigger_that_can_fire():
     assert not untriggered, (
         f"declared agents with no trigger that can fire: {untriggered}. Give each an arrow "
         "rule in CLAUDE.md (`… → \\`Spawn <name>\\``, CLAUDE.md rule-form note after rule 13) "
-        "or a subagent in .claude/workflows/*.js — or `git mv` it to .claude/.retired/agents/.")
+        "or a subagent in .claude/workflows/*.js — or `git mv` it to archive/claude-config/agents/.")
 
 
 # ---------------------------------------------------------------------------

@@ -266,7 +266,7 @@ Audit checklist:
 - Cross-check a grain against a known-good total (e.g. country-sum vs day-sum). A
   clean 2× (or N×) is the signature of an extra aggregate/duplicate writer.
 - The durable fix for a redundant legacy writer is to **archive it** (one canonical
-  source), not to keep patching both. Precedent: `archive/legacy_meta_csv/` —
+  source), not to keep patching both. Precedent: `archive/scripts/legacy_meta_csv/` —
   the whole legacy Meta CSV stack, superseded by `meta_ads_api_collector.py`.
 
 (Meta dual-writer 2× inflation, 2026-05-29.)

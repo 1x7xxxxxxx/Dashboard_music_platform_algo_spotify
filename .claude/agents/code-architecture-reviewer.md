@@ -6,7 +6,7 @@ model: opus
 rex:
   - date: 2026-08-21
     issue: "Pointed at `.claude/dev-docs/architecture/`, a directory of baseline stubs carrying 584 [TODO] markers and not one Mermaid diagram. The agent could only ever report that it found nothing to audit — and being named solely in a CLAUDE.md table, it was never invoked, so nobody found out."
-    fix: "Repointed at `.claude/dev-docs/architecture.md`, the populated surface (macro + micro Mermaid, classification map, per-platform data flow, Views Map). The stub directory was retired to `.claude/.retired/dev-docs/architecture/` under roadmap item R34."
+    fix: "Repointed at `.claude/dev-docs/architecture.md`, the populated surface (macro + micro Mermaid, classification map, per-platform data flow, Views Map). The stub directory was retired to `archive/claude-config/dev-docs/architecture/` under roadmap item R34."
     ref: "R34"
     severity: warn
 ---

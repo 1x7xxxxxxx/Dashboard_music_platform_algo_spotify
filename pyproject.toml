@@ -168,6 +168,9 @@ extend = "ruff.toml"
 # L'ordre aléatoire est un INSTRUMENT qu'on rallume (`-p randomly`), pas le régime
 # par défaut d'une suite dont on lit les temps.
 addopts = "--strict-markers -p no:randomly"
+# R305 — `archive/` carries tests of retired hooks: never collected. The list restates pytest's
+# defaults, which a `norecursedirs` REPLACES rather than extends.
+norecursedirs = [".*", "*.egg", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}", "archive"]
 
 # Le seul marqueur du dépôt, et il est délibérément unique.
 #

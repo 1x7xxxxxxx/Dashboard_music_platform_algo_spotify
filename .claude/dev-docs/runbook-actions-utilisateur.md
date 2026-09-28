@@ -1135,7 +1135,7 @@ règle pour la seconde.
 |---|---|
 | `requirements-api.txt:52` | `bcrypt>=4.0,<4.1` contre `<5.1` dans `requirements.txt` et `pyproject.toml`. `uv.lock` résout 4.0.1, qui satisfait les deux — mais les images Docker installent depuis les `requirements*.txt`, pas depuis le lock. bcrypt 4.1+ **refuse** un mot de passe de plus de 72 octets là où 4.0 le tronque : la même inscription peut passer d'un côté et échouer de l'autre. Un cliquet gèle la divergence (`test_the_two_images_pin_the_same_versions`) ; **relever une épingle change ce qu'une image de production installe** |
 | 3 PNG d'exemple | `a275ece` (2026-09-12) a changé la palette du générateur ; les images datent de `18b9de5` (2026-09-04). Ce sont les figures servies à tout artiste sans données. `make example-charts` les régénère — c'est un changement **visible par l'artiste** |
-| `.claude/dev-docs/api/endpoints.md` | annonce « 8 routes », l'API en sert **11** (10 au schéma OpenAPI + `/metrics`), et les chemins tabulés sont ceux d'avant les préfixes. Son générateur n'a aucun invocateur et ses seuls référents vivants sont dans `.claude/.retired/` — régénérer ou retirer `.claude/dev-docs/api/` est une décision |
+| `.claude/dev-docs/api/endpoints.md` | annonce « 8 routes », l'API en sert **11** (10 au schéma OpenAPI + `/metrics`), et les chemins tabulés sont ceux d'avant les préfixes. Son générateur n'a aucun invocateur et ses seuls référents vivants sont dans `archive/claude-config/` — régénérer ou retirer `.claude/dev-docs/api/` est une décision |
 | 7 PNG orphelins de `docs/guides/media/` | `_swap()` n'écrit que si absent et **ne supprime jamais** ; 17 des 24 commités sont référencés |
 
 **La décision** : pour chacun, régénérer, aligner, ou retirer.

@@ -9,7 +9,7 @@ import pytest
 from src.transformers.s4a_csv_parser import S4ACSVParser
 from src.transformers.apple_music_csv_parser import AppleMusicCSVParser
 # MetaCSVParser tests removed — the legacy Meta CSV stack was archived to
-# archive/legacy_meta_csv/ (superseded by src/collectors/meta_ads_api_collector.py).
+# archive/scripts/legacy_meta_csv/ (superseded by src/collectors/meta_ads_api_collector.py).
 
 
 # =============================================================================

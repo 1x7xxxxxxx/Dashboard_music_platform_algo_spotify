@@ -143,7 +143,7 @@ def check(data: dict) -> int:
         return 0
     for name in dead:
         print(f"🔴 {name}: DECLARED, NEVER INVOKED in {data['sessions']} sessions — "
-              "give it an arrow rule that fires, or retire it to .claude/.retired/agents/")
+              "give it an arrow rule that fires, or retire it to archive/claude-config/agents/")
     return 1
 
 

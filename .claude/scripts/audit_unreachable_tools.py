@@ -147,7 +147,7 @@ def main() -> int:
         print(f"  ⊘  {rel} ({n} l.)")
     print(f"\n⊘ {len(muets)} script(s) qu'aucun exécutant n'atteint et qui ne le disent "
           "pas.\n  Un outil que rien n'invoque est une AFFIRMATION qu'une chose est "
-          "couverte.\n  Trois issues : le câbler, le retirer vers `.claude/.retired/`, "
+          "couverte.\n  Trois issues : le câbler, le retirer vers `archive/claude-config/`, "
           f"ou poser le marqueur\n  « {MARQUEUR} » s'il s'agit d'un instrument de mesure "
           "qui ne couvre rien.")
     return 2

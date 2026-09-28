@@ -601,7 +601,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-25",
-      "revisions": 1,
+      "revisions": 2,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -5416,7 +5416,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-03",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6575,7 +6575,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-24",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -6791,7 +6791,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-28",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9214,7 +9214,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-23",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10064,7 +10064,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-03",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11784,7 +11784,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 572,
+      "catalogue_revisions": 573,
       "head_date": "2026-09-28"
     },
     "holes": {

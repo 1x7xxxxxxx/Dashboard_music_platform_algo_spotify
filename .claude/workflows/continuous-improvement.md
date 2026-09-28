@@ -23,7 +23,7 @@ agents, **26 were never invoked** — its own CLAUDE.md calls them "measured the
 place was a small live set (`code-critic`, `Explore`, `security-specialist`,
 `build-error-resolver`, `web-research-specialist`) plus **deterministic detectors**.
 (`strategic-plan-architect` stood in this list until 2026-09-25, when this repo measured it at
-0 calls in 51 sessions and retired it — see `.claude/.retired/agents/POURQUOI-STRATEGIC-PLAN-ARCHITECT.md`.)
+0 calls in 51 sessions and retired it — see `archive/claude-config/agents/POURQUOI-STRATEGIC-PLAN-ARCHITECT.md`.)
 
 Before adding an agent, ask what it does that a grep, a test, or a signature cannot. If the answer
 is "it interprets the output of a script", write the script and read it yourself: an agent that
