@@ -1960,10 +1960,10 @@
   domaine: chart-door
   statut: ouvert
   priorite: P4
-  preuve_statut: Owner deferred ('on devra y revenir après le set up initial'); no threshold/probability overlay
-    found in dashboard/utils/welcome_figures.py
+  preuve_statut: Deferred again at R282's close (2026-09-28) — the model barely changes its mind week to
+    week (fiche 126); no threshold/probability overlay in dashboard/utils/welcome_figures.py
   preuve_ciblee: 'test to write: welcome Meta×S4A figure carries a threshold trace (src/dashboard/utils/welcome_figures.py)'
-  roadmap: R282
+  roadmap: R302
 - ligne: 268
   resume: '''Configure my selection'' should go straight to connect section, not an intermediate page'
   type: exigence-architecture
@@ -2107,9 +2107,9 @@
   domaine: chart-door
   statut: ouvert
   priorite: P4
-  preuve_statut: No roadmap line in checklist.md/product-backlog.md; source charts not identified
+  preuve_statut: R282 proposed and settled its own charts; no external chart supplied yet
   preuve_ciblee: 'test to write: n/a until a chart is specified — add a roadmap line first'
-  roadmap: R282
+  roadmap: R303
 - ligne: 277
   resume: 'Welcome: remove ''collection runs tonight'' duplicate, ''Ta mise en route'' section, blue ''recommended''
     section; counter and app button only in step 2'
