@@ -50,6 +50,21 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.ui import say_why_it_is_empty
 
+
+# R289 — the latest level of each title, from the gold view, then the 10 MOST PLAYED. The
+# raw query put `LIMIT 10` after `ORDER BY song_name` (DISTINCT ON needs it as the prefix):
+# it showed the 10 alphabetically-first titles, not the top 10 (code-critic, 2026-09-28).
+TOP_QUERY = """
+                SELECT song_name, plays, shazam_count FROM (
+                    SELECT DISTINCT ON (song_name) song_name, plays, shazam_count
+                    FROM v_apple_song_cumulative
+                    WHERE artist_id = %s
+                    ORDER BY song_name, day DESC
+                ) latest
+                ORDER BY plays DESC NULLS LAST
+                LIMIT 10
+            """
+
 def show():
     """Affiche la vue Apple Music."""
     # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21 à la demande du
@@ -112,13 +127,7 @@ def show():
             # UN TITRE, UNE LIGNE. Sans le relevé le plus récent, le classement
             # listait le même titre une fois par dépôt de CSV, et plaçait son export
             # « depuis le début » au-dessus de l'année d'un autre titre.
-            top_query = """
-                SELECT DISTINCT ON (song_name) song_name, plays, shazam_count
-                FROM apple_songs_performance
-                WHERE artist_id = %s
-                ORDER BY song_name, snapshot_date DESC, plays DESC
-                LIMIT 10
-            """
+            top_query = TOP_QUERY
             df_top = db.fetch_df(top_query, (artist_id,))
 
             if not df_top.empty:

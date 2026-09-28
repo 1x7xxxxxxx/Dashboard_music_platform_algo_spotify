@@ -251,23 +251,15 @@ def show():
             # vidéos SORTIES dans la période, pas les vues qu'elles ont faites
             # pendant. C'est ce que « Top Contenus » veut dire, et le libellé le dit.
             pub_frag, pub_params = win_pub.sql_between("published_at")
+            # R289 — the latest reading of each video, from the gold view (migration 144).
             videos_query = f"""
-                SELECT
-                    v.title, v.duration, v.published_at, v.thumbnail_url,
-                    vs.view_count, vs.like_count, vs.comment_count
-                FROM youtube_videos v
-                JOIN (
-                    SELECT video_id, MAX(collected_at) as max_date
-                    FROM youtube_video_stats
-                    WHERE artist_id = %s
-                    GROUP BY video_id
-                ) latest ON v.video_id = latest.video_id
-                JOIN youtube_video_stats vs
-                    ON vs.video_id = latest.video_id AND vs.collected_at = latest.max_date
-                WHERE v.artist_id = %s {pub_frag.replace('published_at', 'v.published_at')}
-                ORDER BY v.published_at DESC
+                SELECT title, duration, published_at, thumbnail_url,
+                       view_count, like_count, comment_count
+                FROM v_youtube_video_latest
+                WHERE artist_id = %s {pub_frag}
+                ORDER BY published_at DESC
             """
-            df_videos = db.fetch_df(videos_query, (artist_id, artist_id, *pub_params))
+            df_videos = db.fetch_df(videos_query, (artist_id, *pub_params))
 
             # ⚠️ CETTE FENÊTRE EST UNE COHORTE, ET ÇA SE DIT À L'ARTISTE.
             #

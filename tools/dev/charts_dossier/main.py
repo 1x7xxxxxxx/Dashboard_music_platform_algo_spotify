@@ -274,7 +274,8 @@ def numbers_section(out: Path, review: dict, cap: dict, key_of: dict, inv: dict,
             continue
         s_ = inv.get(k, {})
         number_of[k] = numbers_check.verdict(traces.get(k) if k in traces else None,
-                                             s_.get("layer", "?"), s_.get("sources", []), findings)
+                                             s_.get("layer", "?"), s_.get("sources", []), findings,
+                                             review[k].get("role"))
     counts = collections.Counter(v for v, _ in number_of.values())
     head = ("<p><b>Sur cet instantané :</b> "
             + " · ".join(f"{numbers_check.VERDICTS[v]} : {counts.get(v, 0)}"
@@ -533,7 +534,7 @@ img.fig { width: 100%; max-height: 105mm; object-fit: contain; margin: 2mm 0; }
 table.notes td { font-size: 8.5pt; padding: .5mm 3mm .5mm 0; }
 .no { font-weight: bold; font-size: 11pt; margin-right: 2mm; }
 .num { margin: 1mm 0; font-size: 9pt; } .num-ecart { color: #c0392b; }
-.num-verifie { color: #1f8a4c; } .num-non-garanti { color: #b7791f; }
+.num-verifie { color: #1f8a4c; } .num-non-garanti { color: #b7791f; } .num-etat-app { color: #2c5282; }
 ul.acts { margin: 1mm 0 1mm 4mm; padding: 0; font-size: 9pt; }
 .todo { background: #fff4e5; border-left: 3px solid #c0392b; padding: 1.5mm 3mm; margin: 1mm 0; }
 .owner { background: #eef4ff; border-left: 3px solid #2c5282; padding: 1.5mm 3mm; margin: 1mm 0; }

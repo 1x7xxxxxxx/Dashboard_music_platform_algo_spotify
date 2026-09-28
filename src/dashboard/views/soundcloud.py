@@ -87,10 +87,9 @@ def show():
             if not df_latest.empty:
                 # Enrichir avec first_seen pour tri "dernière release en premier"
                 try:
-                    df_first = db.fetch_df(
-                        """SELECT track_id, MIN(collected_at) AS first_seen
-                           FROM soundcloud_tracks_daily WHERE artist_id = %s
-                           GROUP BY track_id""",
+                    df_first = db.fetch_df(      # R289 — gold (migration 144)
+                        """SELECT track_id, first_seen
+                           FROM v_soundcloud_track_latest WHERE artist_id = %s""",
                         (artist_id,),
                     )
                     df_latest = df_latest.merge(df_first, on="track_id", how="left")

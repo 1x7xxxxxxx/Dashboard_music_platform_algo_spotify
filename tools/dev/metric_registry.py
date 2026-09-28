@@ -98,6 +98,9 @@ REGISTRY: dict[str, Metric] = {
     "v_soundcloud_track_latest": Metric(
         "soundcloud_track_latest", "Dernier relevé par titre SoundCloud.",
         "v_soundcloud_track_latest", "titre", CUMUL, "dernier relevé"),
+    "v_youtube_video_latest": Metric(
+        "youtube_video_latest", "Dernier relevé par vidéo YouTube : vues, likes, commentaires (R289).",
+        "v_youtube_video_latest.view_count", "vidéo", CUMUL, "dernier relevé"),
     "v_instagram_followers_daily": Metric(
         "instagram_followers", "Abonnés, abonnements et publications Instagram.",
         "v_instagram_followers_daily.followers/follows/media", "jour", NIVEAU, "période choisie"),

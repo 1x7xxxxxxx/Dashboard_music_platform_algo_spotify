@@ -88,7 +88,7 @@ REPO = Path(__file__).resolve().parent.parent
 # `meta_ads_overview` × `meta_insights_engagement`, et `_tab_reglages` × `meta_ads`,
 # `meta_campaigns`, `meta_insights` (70 → 66) ; les onze autres étaient déjà de la marge
 # que ce test tolère (`_CEILING - 12`).
-_CEILING = 66
+_CEILING = 63   # R289 (2026-09-28) : Apple top, SoundCloud first_seen, YouTube vidéos → or
 
 # Les surfaces qui montrent des chiffres à quelqu'un.
 # ⚠️ LA PORTÉE ÉTAIT L'ANGLE MORT. Elle ne nommait que `pdf_exporter` sous

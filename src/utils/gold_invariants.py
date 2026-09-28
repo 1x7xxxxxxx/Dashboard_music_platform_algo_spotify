@@ -162,6 +162,18 @@ INVARIANTS: tuple[Invariant, ...] = (
             "et deux artistes partageant un titre n'en gardaient qu'un.",
     ),
     Invariant(
+        name="youtube_total_vs_video_grain",
+        left_sql="SELECT artist_id, SUM(total) FROM v_platform_totals "
+                 "WHERE platform = 'youtube' GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(view_count) FROM v_youtube_video_latest GROUP BY 1",
+        left_label="v_platform_totals[youtube]",
+        right_label="v_youtube_video_latest",
+        why="R289 : la page YouTube lit ses vidéos dans v_youtube_video_latest, jointe aux "
+            "attributs de chaque vidéo. Une vidéo sans ligne d'attributs disparaîtrait de la "
+            "page sans quitter le total : cette égalité le dit avant l'affichage "
+            "(mesurée juste le 2026-09-28 : 118 362 et 36 099 872 des deux côtés).",
+    ),
+    Invariant(
         name="sacem_revenue_vs_statement_grain",
         left_sql="SELECT artist_id, SUM(revenue_eur) FROM v_artist_monthly_revenue "
                  "WHERE source = 'sacem' GROUP BY 1",

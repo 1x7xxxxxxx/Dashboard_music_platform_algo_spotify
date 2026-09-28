@@ -31,7 +31,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 VERDICTS = {"verifie": "✅ Chiffre vérifié", "ecart": "❌ Écart trouvé",
-            "non-garanti": "⚠️ Non garanti", "non-rendu": "— Pas de rendu"}
+            "non-garanti": "⚠️ Non garanti", "non-rendu": "— Pas de rendu",
+            "etat-app": "ℹ️ État de l'application"}
 _RATE_HINTS = ("%", "ctr", "taux", "rate")
 
 
@@ -55,8 +56,13 @@ def _is_cumul(trace: dict) -> bool:
 
 
 def verdict(traces: list[dict] | None, layer: str, sources: list[str],
-            findings: list[str]) -> tuple[str, str]:
-    """(verdict key, the reason in words). Pure."""
+            findings: list[str], role: str | None = None) -> tuple[str, str]:
+    """(verdict key, the reason in words). Pure.
+
+    R289 (fiche 62): an ADMIN figure computed from the app's own state (subscriptions,
+    plans) is not a collected KPI — the gold layer does not apply to it. It is NOT painted
+    green either (code-critic): no nightly check covers billing tables, and the marker says so.
+    """
     if traces is None:
         return "non-rendu", "pas d'image : rien à vérifier tant qu'elle n'est pas rendue"
     hit = [f for f in findings if any(s and s in f for s in sources)]
@@ -74,6 +80,10 @@ def verdict(traces: list[dict] | None, layer: str, sources: list[str],
         if tr.get("type") == "scatter" and _is_cumul(tr) and tr.get("max_drop", 0) > MAX_CUMUL_DROP:
             return "ecart", (f"« {tr['name'] or tr['unit']} » perd {tr['max_drop']:.0%} de son "
                              "pic — un cumul qui retombe vers zéro est une absence écrite comme 0")
+    if layer == "—" and role == "business":
+        return "etat-app", ("calcul d'administration sur l'état de l'application (abonnements, "
+                            "plans) — pas une collecte, donc hors couche or, et non couvert "
+                            "par les contrôles du soir")
     if layer != "or":
         raw = [s for s in sources if not s.startswith(("v_", "gold_"))]
         return "non-garanti", ("lit hors de la couche or : " + ", ".join(raw[:4])
