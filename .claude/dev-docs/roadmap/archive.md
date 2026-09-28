@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R304 — La courbe autour de chaque vague (fiche 133, R301) garantie couche or : elle était dess… (livrée 2026-09-28)
+
+- [x] **R304 — La courbe autour de chaque vague (fiche 133, R301) garantie couche or : elle était dessinée depuis une série passée en argument, que l'analyse de couches ne suit pas (« non garanti — couche — ») ; dessinée désormais dans la fonction qui lit l'or, verdict « faux doublon » enregistré face aux barres par vague** (P3) ✅ (2026-09-28, 9c35a764)
+  Mesuré par : fiche 133 en couche or dans le PDF
+  Fiche 133 en couche or (chiffre verifie) ; deploye 9c35a764, CI verte
+  Commits : 9c35a764 R304 : la courbe autour de chaque vague (fiche 133) est dessinee dans 
+
 ## ✅ R282 — Graphiques marketing — tes retours du 2026-09-28 : P2 gardée (→ R291) ; P3, P4 et P5 re… (livrée 2026-09-28)
 
 - [x] **R282 — Graphiques marketing — tes retours du 2026-09-28 : P2 gardée (→ R291) ; P3, P4 et P5 refusées ; P1 à reproposer avec sa question et en disant si une figure existante y répond déjà ; P6 à redessiner PAR CAMPAGNE (Hypeddit ne porte qu'un total par campagne, 6 campagnes) ; de nouvelles propositions à la place des refusées ; puis ton choix** (P4) ✅ (2026-09-28, 37e2fb5e, 01049742, 9a74960c, 3651c1d8, 2a7310d4)
