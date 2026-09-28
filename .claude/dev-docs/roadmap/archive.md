@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R300 — Grafana DevOps / VPS (prod + PDF) : ~5 panneaux titrés par leur question (disque plein… (livrée 2026-09-28)
+
+- [x] **R300 — Grafana DevOps / VPS (prod + PDF) : ~5 panneaux titrés par leur question (disque plein quand, mémoire/OOM, redémarrages, services vivants, réseau), requêtes vérifiées sur le Prometheus de prod, fiche par panneau** (P3) ✅ (2026-09-28, e9e2e8fb)
+  Mesuré par : panneaux visibles dans Grafana prod et rendus dans le PDF
+  Six panneaux Grafana DevOps titres par leur question, requetes verifiees sur le Prometheus de prod ; Grafana prod version 8, 22 panneaux ; rendus dans le PDF ; e9e2e8fb
+  Commits : e9e2e8fb R299 R300 : tracabilite des KPI et Grafana DevOps - trois doublons fus
+
+## ✅ R299 — Traçabilité des KPI (ton objectif du 2026-09-28) : chaque graphique rattaché à une ques… (livrée 2026-09-28)
+
+- [x] **R299 — Traçabilité des KPI (ton objectif du 2026-09-28) : chaque graphique rattaché à une question marketing Meta Ads (liste fermée M1-M7, sinon P/D/B/ML), à sa couche bronze/argent/or et à tes exigences ; détecteur de doublons (même mesure / même question) avec verdict par groupe, fusion dans l'app des doublons sans perte ; tableau surligné en tête du PDF des KPI** (P3) ✅ (2026-09-28, e9e2e8fb)
+  Mesuré par : test du traçage muté rouge ; tableau présent et surligné dans le PDF
+  Tableau de tracabilite en tete du PDF des KPI (question Meta M1-M7, couche dont argent prouvee par sa source, exigences, doublons surlignes avec verdict) ; 3 doublons fusionnes sans perte (Instagram, Meta performance par campagne a deux CPR, comparateur des creas) ; deploye e9e2e8fb, CI verte
+  Commits : e9e2e8fb R299 R300 : tracabilite des KPI et Grafana DevOps - trois doublons fus
+
 ## ✅ R298 — R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le d… (livrée 2026-09-28)
 
 - [x] **R298 — R282 : mes recommandations dans le dossier PDF (une par proposition, plus L268) et le dossier régénéré sur un instantané frais de la prod pour relire tes commentaires du 2026-09-28** (P4) ✅ (2026-09-28, d5aa082f, 01049742)

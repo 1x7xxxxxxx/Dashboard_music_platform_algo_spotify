@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R299 | Traçabilité des KPI (ton objectif du 2026-09-28) : chaque graphique rattaché à une question marketing Meta Ads (liste fermée M1-M7, sinon P/D/B/ML), à sa couche bronze/argent/or et à tes exigences ; détecteur de doublons (même mesure / même question) avec verdict par groupe, fusion dans l'app des doublons sans perte ; tableau surligné en tête du PDF des KPI <!-- critic: requis --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tools/dev/, .claude/dev-docs/ --> | P3 | test du traçage muté rouge ; tableau présent et surligné dans le PDF |
-| R300 | Grafana DevOps / VPS (prod + PDF) : ~5 panneaux titrés par leur question (disque plein quand, mémoire/OOM, redémarrages, services vivants, réseau), requêtes vérifiées sur le Prometheus de prod, fiche par panneau <!-- critic: non — panneaux de supervision ajoutés à un tableau existant, requêtes en lecture --> <!-- scope: deploy/grafana/, tools/dev/, .claude/dev-docs/ --> | P3 | panneaux visibles dans Grafana prod et rendus dans le PDF |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R299, R300, R282, R283, R275 -->
+<!-- reprise: open=R282, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
