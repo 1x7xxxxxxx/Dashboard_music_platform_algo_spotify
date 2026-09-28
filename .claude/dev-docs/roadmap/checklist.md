@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R313 | PDF des KPI réordonné (tes retours du 2026-09-28) : il s'ouvre sur TES DÉCISIONS, une ligne chacune (fiches à trancher avec ma reco, doublons D1/D2, proposition C, fiches à revalider en numéros), puis les fiches ; synthèse, guide des retours, traçabilité, propositions, méthode et recommandations passent À LA FIN ; beaucoup moins de texte dans la partie décision <!-- critic: non — ordre et densité d'un document de revue hors produit --> <!-- scope: tools/dev/charts_dossier/, tests/ --> | P3 | la page 1 du PDF est la liste des décisions |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R283, R275 -->
+<!-- reprise: open=R313, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
