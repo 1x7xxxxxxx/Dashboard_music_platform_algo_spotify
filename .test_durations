@@ -9353,6 +9353,8 @@
     "tests/test_the_end_of_setup_buttons_actually_navigate.py::test_the_csv_mapping_cta_reaches_the_mapping_page": 1.0776810380011739,
     "tests/test_the_end_of_setup_buttons_actually_navigate.py::test_the_verdict_home_button_reaches_the_dashboard": 0.5660712610006158,
     "tests/test_the_engineering_loop_sends_real_prompts.py::test_each_impact_agent_is_told_its_finding": 0.08802550898690242,
+    "tests/test_the_engineering_loop_sends_real_prompts.py::test_every_command_the_loop_names_exists": 0.24050355498911813,
+    "tests/test_the_engineering_loop_sends_real_prompts.py::test_the_detector_sees_a_ghost_command_not_vacuous": 0.1234200419858098,
     "tests/test_the_engineering_loop_sends_real_prompts.py::test_the_detector_sees_the_defect_it_is_written_for": 0.03265277999889804,
     "tests/test_the_error_boundary_covers_everything.py::test_control_flow_still_propagates": 0.01424547999886272,
     "tests/test_the_error_boundary_covers_everything.py::test_main_is_nothing_but_the_boundary": 0.006524266000269563,

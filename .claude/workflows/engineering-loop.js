@@ -13,8 +13,8 @@ export const meta = {
 // ─────────────────────────────────────────────────────────────────────────────
 // WHY THIS FILE EXISTS AS A FILE.
 //
-// Measured 2026-07-27 over 49 sessions IN ONE PROJECT (trading_bot). The numbers below are
-// that project's; the mechanism they demonstrate is not project-specific: the `Workflow` tool has **6 calls all-time** against 190
+// Measured 2026-07-27 over 49 sessions of the project this loop was first written for; the
+// numbers are that project's, the mechanism they demonstrate is not project-specific: the `Workflow` tool has **6 calls all-time** against 190
 // `Agent` calls, and all 6 passed an INLINE script — one of them literally named
 // `engineering-loop-run` (13 KB, 2026-07-22), persisted only to an ephemeral session dir and then
 // lost. The tool was not unused because it was unhelpful; it was unused because every use cost
@@ -57,7 +57,7 @@ const IMPACT = {
                    description: 'every hit of the sweep, each CLEARED with a written reason or marked same_bug' },
     fix_scope:   { type: 'string', description: 'the files the fix must touch, and why each' },
     guard_plan:  { type: 'string', description: 'the durable guard: a signature for error-classes.md and/or a test, plus the MUTATION that must make it go red' },
-    decides_irreversible: { type: 'boolean', description: 'true if it touches a strategy signal, gate threshold, walk-forward split, cost model, or selection rule (binding rule 5)' },
+    decides_irreversible: { type: 'boolean', description: 'true if it touches a tenant boundary, a gate threshold, a KPI definition (gold view), money, credentials or a deployed schema' },
     confidence:  { type: 'string', enum: ['measured', 'read', 'inferred'] },
   },
 }
@@ -158,7 +158,7 @@ Follow .claude/skills/impact-analysis/SKILL.md steps 1-3 EXACTLY, in order:
     without a reason is a hit you did not clear.
 
     ⚠️ SWEEP WITH grep AND Read — NOT with the repo-wide runners. Do not run audit_runner.py, do not
-    run audit_invariants.py, do not run the test suite. All three are ALREADY in the deferred deploy
+    run \`make test\`, do not run the full test suite. Both are ALREADY in the deferred deploy
     batch, where they run ONCE; here they would run once PER FINDING for the same answer.
     MEASURED 2026-07-27 on this script's own first run: the phase-1 agent spent 25 minutes and never
     produced a fiche, because \`audit_runner.py --deterministic\` blew its 400 s tool timeout (exit
@@ -201,12 +201,12 @@ Audit it for, in this order:
      Is the stated mutation one that would ACTUALLY fire, or would a second constraint mask it?
      (Measured 2026-07-27: two mutation verdicts were both wrong — one went red through a
      pre-existing branch, one survived because another constraint masked it.)
-  4. If it touches anything deciding \`profitable\`: hidden coupling, a failure mode the guard cannot observe, a check that reuses the very
-  data that produced the finding,
-     in-sample contamination dressed as OOS, and whether a threshold is being tuned on the window
-     that measured it. Any of these unresolved is DO-NOT-BUILD, not BUILD-MODIFIED.
-  5. What does this change BREAK? Especially: does it re-mint a run_id (a catalogue event, ~2h20),
-     or move a number that other documents restate?
+  4. If it touches a tenant boundary, a KPI definition or a number an artist reads as a verdict:
+     hidden coupling, a failure mode the guard cannot observe, a check that reuses the very data
+     that produced the finding, a threshold tuned on the window that measured it. Any of these
+     unresolved is DO-NOT-BUILD, not BUILD-MODIFIED.
+  5. What does this change BREAK? Especially: does it change a gold view other surfaces read,
+     a migration already applied in production, or a number that other documents restate?
 
 Return exactly one verdict:
   BUILD ............ sound as designed
@@ -361,9 +361,9 @@ return {
   completeness: improve,
   deploy_order: [
     '1. ROADMAP first — every item above, each with the command that measured it and its OUTPUT (rule 4)',
-    '2. then the deferred batch, ONCE: pytest tests/ -q · audit_invariants.py · audit_runner --deterministic --coverage · validate_rex.py · make roadmap-discipline',
-    '3. then commit the approved fixes and push origin master (the VPS pulls — an unpushed commit is invisible to prod)',
-    '4. DEVLOG: Why / What changed / Backtest evidence',
+    '2. then the deferred batch, ONCE: make test-changed · python3 .claude/scripts/audit_runner.py --deterministic --coverage · python3 .claude/scripts/validate_rex.py · make roadmap-discipline',
+    '3. then commit the approved fixes citing their open Rnnn, push origin main, wait on THAT commit\'s CI run, deploy (make deploy) if product code changed',
+    '4. close each row: make roadmap-close ID=Rnnn NOTE="…" (the archive entry carries the commits and the measure)',
     '⚠️ never edit a tracked file while the suite runs — such a run is contaminated, not green',
   ],
 }

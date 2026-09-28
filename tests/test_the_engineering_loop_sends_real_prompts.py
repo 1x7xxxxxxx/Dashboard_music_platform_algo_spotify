@@ -72,3 +72,50 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
         "the mutation did not apply — the test would prove nothing"
     prompts = _impact_prompts(["premier défaut : X au fichier a.py:12"], broken)
     assert not any(isinstance(p, str) and "premier défaut" in p for p in prompts), prompts
+
+
+# R308 (2026-09-28) — the loop's own instructions name commands that EXIST. It told every run to
+# execute `audit_invariants.py` (a script of the project it was copied from, absent here) and to
+# `push origin master` (the branch is `main`): a step that cannot run is skipped in silence.
+_DEPLOY = __import__("re").compile(r"deploy_order:\s*\[(.*?)\]", __import__("re").S)
+
+
+def named_commands(src: str) -> tuple[set[str], set[str]]:
+    """(make targets, script paths) the loop tells an agent or the owner to run. Pure.
+
+    Read where an instruction lives — the deploy order and the ESCAPED backtick spans of a
+    prompt (a bare backtick closes the template literal) — never the prose, where « make it
+    stand alone » is English, not a target."""
+    import re
+    spans = re.findall(r"\\`([^`\\]+)\\`", src) + [m for m in _DEPLOY.findall(src)]
+    text = "\n".join(spans)
+    targets = set(re.findall(r"\bmake ([a-z][a-z0-9-]+)", text))
+    scripts = set(re.findall(r"([\w./-]+\.py)\b", text))
+    return targets, scripts
+
+
+def _missing(src: str, root: Path) -> list[str]:
+    import re
+    makefile = (root / "Makefile").read_text(encoding="utf-8")
+    declared = set(re.findall(r"^([a-z][a-z0-9-]+):", makefile, re.M))
+    targets, scripts = named_commands(src)
+    out = [f"make {t}" for t in sorted(targets - declared)]
+    for sc in sorted(scripts):
+        found = (root / sc).exists() if "/" in sc else any(root.rglob(sc))
+        if not found:
+            out.append(sc)
+    return out
+
+
+def test_every_command_the_loop_names_exists() -> None:
+    root = _SCRIPT.parents[2]
+    missing = _missing(_SCRIPT.read_text(encoding="utf-8"), root)
+    assert not missing, f"engineering-loop.js names commands that do not exist here: {missing}"
+
+
+def test_the_detector_sees_a_ghost_command_not_vacuous() -> None:
+    root = _SCRIPT.parents[2]
+    ghost = "deploy_order: [ 'run `audit_invariants.py` then make no-such-target' ]"
+    assert "audit_invariants.py" in _missing(ghost, root)
+    assert _missing("deploy_order: [ '`make test-changed`' ]", root) == []
+    assert _missing("prose: make it stand alone", root) == []
