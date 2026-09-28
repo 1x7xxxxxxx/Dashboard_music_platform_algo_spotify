@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R287 — **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune polic… (livrée 2026-09-28)
+
+- [x] **R287 — **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune police emoji ni sur le poste ni dans le conteneur de prod, donc 🎵 🎬 🚀 deviennent des carrés dans le dossier ET dans le PDF artiste (☁️ passe, elle existe dans les polices ordinaires) — police emoji dans les images, balayage de chaque emoji des figures — **reste** : rebâtir l'image Airflow (`Dockerfile.airflow`, PDF du DAG onboarding_report) quand aucune collecte ne tourne ; l'image du dashboard l'a au déploiement** (P3) ✅ (2026-09-28, 048c89ec)
+  Mesuré par : aucun carré sur les figures du dossier ; `fc-list` voit une police emoji dans le conteneur
+  police emoji dans les deux images qui exportent des figures : dashboard (deploye 01fdd2a7, fc-list 1) et Airflow (rebatie a la main le 2026-09-28 hors collecte, image precedente gardee sous streamlytics-airflow:pre-r287, scheduler et webserver sains, 0 erreur d import, NotoColorEmoji.ttf present)
+  Commits : 048c89ec R286 R287 R288 : ta revue du dossier des KPI - le dossier se lit dans 
+
+## ✅ R293 — **La qualité du modèle, semaine par semaine** (recommandation du corpus retenue par le… (livrée 2026-09-28)
+
+- [x] **R293 — **La qualité du modèle, semaine par semaine** (recommandation du corpus retenue par le code-critic en R292 — Crowe et al., p. 322) : les fiches 51 et 58 comparent la dernière prédiction de chaque titre à son constat, jamais une TENDANCE ; une figure « erreur de prévision par semaine de prédiction » (ml_song_predictions × s4a_song_algo_outcomes) sous `_show_volume_vs_recorded`, avant de vendre davantage de prédictions (ADR-029). Densité mesurée le 2026-09-28 : 607 prédictions sur 9 semaines pour l'artiste 1 — une série mince, à dire sur la figure** (P3) ✅ (2026-09-28, 077b46ac, 9a74960c)
+  Mesuré par : une ligne par semaine présente ; test sur trois semaines synthétiques
+  differee au backlog : les constats S4A par algorithme n ont qu une date de releve ; reopen_check la rouvre a 4 semaines (1 le 2026-09-28)
+  Commits : 077b46ac R293 : differee au backlog avec un declencheur mesure - la qualite du  · 9a74960c R282 R291 R292 : tes verdicts sur les propositions et les recommandati
+
+## ✅ R294 — **Fiche 46 non rendue sur l'instantané du 2026-09-28** (« Quand la pub aura-t-elle été… (livrée 2026-09-28)
+
+- [x] **R294 — **Fiche 46 non rendue sur l'instantané du 2026-09-28** (« Quand la pub aura-t-elle été remboursée ? », `_tab_budget_roi._render_breakeven`) : le dossier n'a ni image ni cause déclarée — trouver pourquoi la figure ne se dessine pas par défaut (donnée qui ne permet pas de point mort, ou branche non atteinte) et le dire sur la fiche** (P3) ✅ (2026-09-28, c6b8d0b3)
+  Mesuré par : fiche 46 rendue, ou sa cause écrite
+  cause : depense Meta en Decimal + couts saisis en float, somme levee des la premiere saisie (R255) - conversion avant jonction, test du melange exact mute rouge, 0 autre site (sibling-sweeper) ; deploye 077b46ac, recalcul verifie dans le conteneur de prod
+  Commits : c6b8d0b3 R294 : le graphique du point mort (fiche 46) avait disparu pour TOUS l
+
 ## ✅ R295 — **Exporter la gouvernance vers la flotte, pour MSDR d'abord** (demande du propriétaire,… (livrée 2026-09-28)
 
 - [x] **R295 — **Exporter la gouvernance vers la flotte, pour MSDR d'abord** (demande du propriétaire, 2026-09-28) : preset `governance` du dépôt baseline (roadmap avant le code, exigences sondées + méthode de garantie, couches bronze/argent/or), preset `error-classes` mis à jour (admission, prose, closest), export des classes génériques, fiche de passation écrite dans MSDR ; les chemins produit et l'en-tête d'index sortent du code vers `.claude/governance.toml`** (P3) ✅ (2026-09-28, d2dcd6df)
