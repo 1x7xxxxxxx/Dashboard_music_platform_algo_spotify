@@ -11,15 +11,12 @@
     Manager Meta) pour valider l'onboarding
   type: action-produit
   domaine: onboarding
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Parcours pas a pas documente (runbook-artist-test-session.md:53, etape mail l.113, Business Manager
-    l.150) ; locataire bac a sable (migrations/080_a_sandbox_tenant_may_hold_its_owners_identity.sql) ; vue admin
-    views/onboarding_health.py. Aucune vue qui trace le parcours d'UN inscrit de bout en bout, etapes tierces comprises.
+  preuve_statut: R270 (archivée) — e7fe4ea8
   preuve_ciblee: 'test to write: tests/test_a_new_signup_journey_is_traced.py - inscription via views/register.py
     puis verification, et chaque etape (mail verifie, identifiants, partage BM) apparait pour ce locataire dans
     views/onboarding_health.py'
-  roadmap: R270
 - ligne: 6
   resume: Lien cliquable 'Mise en route' sur la page d'accueil
   type: action-produit
@@ -34,45 +31,36 @@
   resume: Detailler la definition des CSV
   type: action-produit
   domaine: onboarding
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'R50 ''definitions CSV remontees'' (A:3714) ; guides src/dashboard/content/csv_guides.py. La demande
-    ''a detailler'' (quel niveau : colonne par colonne ?) n''a pas de ligne de roadmap.'
+  preuve_statut: R270 (archivée) — e7fe4ea8
   preuve_ciblee: 'test to write: chaque type CSV accepte par views/upload_csv.py a une definition non vide PAR COLONNE
     attendue dans content/csv_guides.py (voisin existant : tests/test_the_csv_types_are_laid_out_by_family.py::test_every_guide_declares_a_family)'
-  roadmap: R270
 - ligne: 8
   resume: Page recap qui regroupe les graphiques a plus forte valeur
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: R213 'Tout mon funnel' en tete du menu, sous l'accueil (A:328-333). Pas de page recap des graphiques
-    les plus importants ; le choix des graphiques reste a faire.
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: 'test to write: la page recap ne dessine que des figures du registre (tools/dev/metric_registry.py)
     via charts.plotly_chart, et chacune existe sur sa page source'
-  roadmap: R271
 - ligne: 9
   resume: Identifier toutes les regles sous forme de classes d'erreur (existantes et a ajouter) garantissant bronze/argent/or
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: 18 regles par famille (.claude/dev-docs/error-family-rules.md) ; familles declarees R180 (A:1062).
-    Pas d'inventaire des regles bronze/argent specifiquement ; porte par R257 (checklist.md:33, ouvert).
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: tests/test_every_family_rule_has_a_proven_detector.py::test_every_family_has_a_self_proving_guard_that_exists
-  roadmap: R264
 - ligne: 10
   resume: Chaque graphique lit correctement la couche or
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: 'R231 registre des metriques (A:203-207, 0 objet or hors registre) ; gold-coverage.md ''Ce qui
-    n''est atteint par rien'' : 0 agregat hors cliquet, mais 19 tables brutes encore lues dans src/ (dont agregeantes)
-    sous plafond, pas a zero.'
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_the_metrics_layer_only_grows.py::test_no_platform_gains_a_metric_computed_outside_the_gold_layer
-  roadmap: R258
 - ligne: 10
   resume: Livrable qui liste graphiques, plateformes, KPI, classes d'erreur, classes generiques, tests CI et autres
     axes
@@ -96,13 +84,11 @@
   resume: Architecture modulaire et scalable
   type: exigence-architecture
   domaine: roadmap-gov
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: 'R257 ouvert (checklist.md:33 : domains.yaml, requirements.yaml, make arch-benchmark) ; aucun de
-    ces fichiers n''existe encore dans tools/dev/'
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write (prevu par R257) : chaque exigence de requirements.yaml nomme une preuve collectable
     qui existe (noeud pytest resolu par grep)'
-  roadmap: R258
 - ligne: 13
   resume: Ameliorer le prompt et poser des questions au proprietaire
   type: question
@@ -145,13 +131,10 @@
   resume: Finaliser les classes d'erreur (code-critic), gardees, pour ne plus refaire les memes erreurs
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'Billet d''admission (CLAUDE.md regle 15) ; code-critic decide par tache R198 (A:406) ; mais recidives
-    encore observees (R202 : ever_recurred_observed=49, seuil releve 48->53, A:301-305) et CLAUDE.md dit qu''aucun
-    chiffre ne prouve l''effet des gardes (x1,1).'
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected
-  roadmap: R264
 - ligne: 62
   resume: Methode fiable et robuste de redaction des classes d'erreur a partir du REX
   type: exigence-architecture
@@ -165,23 +148,19 @@
   resume: Table de suivi des donnees des classes d'erreur pour evaluer leur pertinence
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Suivi par JSON versionne (error-class-health.md, historique git = serie temporelle, make error-health-history).
-    Pas de table en base ; le choix table vs JSON n'est pas tranche.
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: tests/test_the_error_class_health_only_improves.py::test_no_hole_counter_ever_grows
-  roadmap: R264
 - ligne: 63
   resume: Identifier les echecs des classes d'erreur (gardes aveugles, faux positifs)
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Lignes History typees (recidive)/(garde) et 26 defauts de garde classes (CLAUDE.md regle 15) ;
-    mutate_guards.py (regle 15ter). Pas de rapport d'echec par classe dans l'archive.
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: 'test to write: error_class_health.py compte separement les lignes ''(garde)'' et ''(recidive)''
     ; une classe fixture avec 1 ligne ''(garde)'' donne recidive=0'
-  roadmap: R264
 - ligne: 63
   resume: Exigences pour que toute nouvelle classe ait toujours la bonne forme
   type: exigence-architecture
@@ -203,22 +182,18 @@
   resume: Process classes d'erreur integre (CLAUDE.md, hooks, workflows, agents), teste, avec visualisation de l'evolution
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Regles 11/14/15/20/21, hook require_sweep_before_catalogue.py, make error-health-history. 'Visualiser
-    l'evolution' = historique git d'un JSON, pas un graphique.
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: tests/test_every_family_rule_has_a_proven_detector.py::test_every_family_has_a_self_proving_guard_that_exists
-  roadmap: R264
 - ligne: 65
   resume: Confirmer que la gestion des classes d'erreur est optimisee a long terme, sinon outiller
   type: question
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: 'Non confirmable : CLAUDE.md regle 15 dit que le jeu de donnees ne produit aucun chiffre de recidive
-    probant (x1,1 apres correction du biais) ; recidives encore vues (R202, A:303).'
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: n/a (question)
-  roadmap: R264
 - ligne: 66
   resume: CLAUDE.md est-il a jour sur l'evolution de l'architecture ?
   type: question
@@ -249,15 +224,12 @@
   resume: Panneau 'erreurs applicatives par page' affiche No data
   type: action-produit
   domaine: infra-observability
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Panneaux 'Erreurs applicatives par page' et 'Defauts OUVERTS par page' + alerte DefectGaugeBlind
-    (deploy/prometheus/rules/streamlytics.yml) ; aucune entree d'archive ne dit le No data resolu ; R215 (A:280)
-    ne traite que la latence et le pool.
+  preuve_statut: R265 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write: une exception dans une vue (frontiere d''erreur du dashboard) incremente la serie
     Prometheus que la requete du panneau ''Erreurs applicatives par page'' interroge (nom de metrique identique
     dans src/utils/metrics.py et streamlytics-ops.json)'
-  roadmap: R265
 - ligne: 69
   resume: 'Indicateurs de scaling : utilisateurs connectes, latence du dashboard'
   type: action-produit
@@ -271,13 +243,11 @@
   resume: Nombre de logs stocke et visualise dans Grafana via Prometheus
   type: action-produit
   domaine: infra-observability
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Panneau 'Journaux - erreurs par paquet (aveugle sous WARNING)' ; retention Prometheus 30 j (deploy/docker-compose.observability.yml:33).
-    Volume total de logs non compte.
+  preuve_statut: R265 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write: un log WARNING+ emis par un paquet src/ incremente le compteur de journaux lu par
     le panneau ''Journaux'''
-  roadmap: R265
 - ligne: 70
   resume: Seuils d'alerting a identifier et mettre en place
   type: action-produit
@@ -344,12 +314,10 @@
   resume: Architecture bronze/argent/or optimisee
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: Couche or cartographiee (gold-coverage.md) mais 19 tables brutes encore lues hors portes sous plafond
-    ; aucune carte bronze/argent explicite
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_the_metrics_layer_only_grows.py::test_no_platform_gains_a_metric_computed_outside_the_gold_layer
-  roadmap: R258
 - ligne: 72
   resume: Workflow RTK optimise et generique
   type: exigence-architecture
@@ -363,12 +331,10 @@
   resume: Gestion des codes d'erreur robuste avec exigences ecrites (CLAUDE.md)
   type: exigence-architecture
   domaine: error-classes
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: 'Doublon des lignes 60-66 : regles 11/14/15 et --admission ; efficacite non prouvee (voir ligne
-    65)'
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: python3 .claude/scripts/audit_runner.py --admission (sortie 0)
-  roadmap: R264
 - ligne: 72
   resume: Indicateurs de sante de la config web (reverse proxy) dans Grafana
   type: action-produit
@@ -440,34 +406,28 @@
     infra et src)
   type: exigence-architecture
   domaine: infra-observability
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Resume quotidien en base (src/utils/daily_ops_metrics.py) ; Prometheus retention 30 j seulement
-    (deploy/docker-compose.observability.yml:33) ; pas de journalisation des erreurs infra au-dela du paquet src
+  preuve_statut: R265 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write: daily_ops_metrics ecrit une ligne par jour contenant CPU, RAM, disque, p95 et erreurs,
     relue par un panneau Grafana'
-  roadmap: R265
 - ligne: 80
   resume: Transferer la surveillance de la vue admin vers Grafana
   type: décision-requise
   domaine: infra-observability
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: 'grafana-correspondence.md (condition bloquante R115 etape 6) : trois des quatre vues admin ne
-    font pas doublon avec Grafana ; transfert total contredit par ce document'
+  preuve_statut: R265 (archivée) — 7e4c3bf1
   preuve_ciblee: n/a (decision)
-  roadmap: R265
   decision: Grafana seul ; l'admin garde la gestion (2026-09-27)
 - ligne: 80
   resume: 'S''inspirer de msdr : CPU, RAM, stockage VPS, pool de connexions, goulots pour l''exigence de scalabilite'
   type: exigence-architecture
   domaine: infra-observability
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Panneaux 'VPS - CPU, RAM, disque', 'Pool Postgres', 'Processus RAM/CPU' (streamlytics-ops.json)
-    ; alertes Memory/Disk/Pool ; identification des goulots = R257 ouvert
+  preuve_statut: R265 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_an_alert_points_at_a_panel_that_exists.py::test_the_pointers_were_really_found
-  roadmap: R265
 - ligne: 81
   resume: 'Spotify/S4A : joindre l''indice de popularité (PI) aux figures'
   type: action-produit
@@ -725,14 +685,11 @@
   resume: 'YouTube : meilleure granularité des abonnés (10,6k → 10,7k)'
   type: décision-requise
   domaine: collect
-  statut: décision-requise
+  statut: livré
   priorite: P3
-  preuve_statut: youtube.py:9-30 — arrondi à 3 chiffres significatifs par la Data API v3 (clé) ; l'exact exige YouTube
-    Analytics API en OAuth propriétaire (brique credentials non ouverte). Les vues fines passent déjà par youtube_video_stats
-    (:32-45)
+  preuve_statut: R273 (archivée) — fc6dd117
   preuve_ciblee: 'test à écrire : youtube.py dessine les abonnés en marches (line_shape=''hv'') et affiche la réserve
     d''arrondi ; décision : ouvrir une brique OAuth YouTube Analytics (subscribersGained/Lost)'
-  roadmap: R273
 - ligne: 93
   resume: 'YouTube : supprimer les tuiles Abonnés actuels / Vues totales / Vues de la chaîne'
   type: action-produit
@@ -875,14 +832,11 @@
   resume: 'Instagram : « Engagement & publications » sans aucune donnée'
   type: action-produit
   domaine: collect
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'instagram.py:205-225 — le silence nomme sa cause (51 posts, dernier 07/11/2025) ; insights vides
-    tant qu''aucun post < 90 j (instagram.py:29-35). Geste propriétaire : publier ; la fenêtre last_release par
-    défaut reste vide'
+  preuve_statut: R273 (archivée) — fc6dd117
   preuve_ciblee: 'test à écrire : quand df_eng est vide et instagram_media non vide, la page ancre la fenêtre sur
     le dernier post plutôt que sur la dernière release (instagram.py:166-170)'
-  roadmap: R273
 - ligne: 125
   resume: 'Hypeddit : remonter juste après Saisie S4A dans le menu'
   type: action-produit
@@ -1114,13 +1068,10 @@
   resume: 'Compte : s''assurer que le programme de parrainage fonctionne'
   type: décision-requise
   domaine: tenancy-plans
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: 'le crédit est écrit (register.py:237) mais rien ne consomme referral_free_months (referral.py:120,
-    billing.py:182) ; la page ne le promet plus comme automatique. Décision : appliquer la récompense (coupon Stripe)
-    ou la garder manuelle'
+  preuve_statut: R272 (archivée) — a536a37d
   preuve_ciblee: tests/test_a_reward_is_not_promised_as_automatic.py::test_the_reward_still_has_no_consumer
-  roadmap: R272
 - ligne: 130
   resume: 'Ingérer des livres (≤ 10) : offre SaaS, agence marketing, facturation — me dire lesquels'
   type: décision-requise
@@ -1184,54 +1135,43 @@
     Meta Ads, Revenus, Compte, Saisie S4A
   type: question
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: demande ouverte par page ; les pages ont été refaites (2026-09-21/22, R206-R248) mais aucune liste
-    de propositions n'est tracée
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: 'test à écrire : n/a — produire une fiche d''idées par page dans revue/, chacune reliée à un Rnnn'
-  roadmap: R271
 - ligne: 132
   resume: 'Vue prédiction algo Spotify : simple et aérée, probabilité par titre en un coup d''oeil'
   type: action-produit
   domaine: ml
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: Paquet src/dashboard/views/trigger_algo/ (onglets titre/catalogue/pareto/budget_roi) ; budget de
-    graphiques plafonné (archive R51 l.5904+, R29 l.5486) ; relecture par fiche R240-R249 (archive l.23-117). Pas
-    de ligne dédiée « vue ML simplifiée ».
+  preuve_statut: R263 (archivée) — 485daee7
   preuve_ciblee: tests/test_chart_budget.py::test_view_opens_on_at_most_its_chart_budget (budget trigger_algo à
     abaisser)
-  roadmap: R263
 - ligne: 132
   resume: 'Vue ML : métriques restantes par ordre Pareto + équivalent en argent pour déclencher chaque algo'
   type: action-produit
   domaine: ml
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: src/dashboard/views/trigger_algo/_pareto.py et _tab_budget_roi.py existent ; tri Pareto de la porte
-    de dessin R243 (archive l.93). Lien Pareto → coût € par algo non vérifié sur une seule vue.
+  preuve_statut: R263 (archivée) — 485daee7
   preuve_ciblee: 'test to write: le tableau Pareto porte une colonne coût € par porte, on file src/dashboard/views/trigger_algo/_pareto.py:1'
-  roadmap: R263
 - ligne: 132
   resume: 'Vue ML : comparaison entre titres et regroupement des panneaux trop dispersés'
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: _catalogue.py/_tab_catalogue.py comparent les titres ; fusions de fiches R244 (archive l.84). Regroupement
-    des panneaux de la vue ML non tracé.
+  preuve_statut: R263 (archivée) — 485daee7
   preuve_ciblee: tests/test_chart_budget.py::test_view_opens_on_at_most_its_chart_budget
-  roadmap: R263
 - ligne: 132
   resume: Identifier tous les axes d'optimisation et décisions de la vue ML + nouvelles données/graphiques
   type: question
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: Aucune ligne ouverte dans checklist.md ni product-backlog.md ; seul R257 (référentiel d'architecture)
-    est ouvert.
+  preuve_statut: R263 (archivée) — 485daee7
   preuve_ciblee: 'test to write: chaque figure de trigger_algo porte sa question de décision, on file tests/test_the_charts_dossier_covers_every_figure.py:1'
-  roadmap: R263
 - ligne: 133
   resume: Finir la roadmap des classes d'erreur (la nuit)
   type: action-produit
@@ -1246,13 +1186,10 @@
     de trigger par playlist, budget total, délai de ROI'
   type: action-produit
   domaine: tenancy-plans
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: 'Morceaux épars : meta_cpr_optimizer.py, meta_creatives.py, trigger_algo/_tab_budget_roi.py (budget
-    par playlist, archive l.4128). Pas de vue unique ; et ADR-029 (archive l.934) a rendu la fusion gratuite, seules
-    les prédictions sont payantes.'
+  preuve_statut: R272 (archivée) — a536a37d
   preuve_ciblee: 'test to write: la vue premium agrège créas+paramètres+budget+délai ROI, on file src/dashboard/views/trigger_algo/_tab_budget_roi.py:1'
-  roadmap: R272
 - ligne: 135
   resume: Cadenas verrouillé/déverrouillé (vert si premium) sur les noms de pages selon le plan
   type: action-produit
@@ -1311,12 +1248,10 @@
   resume: 'Benchmark Google login : email toujours récupéré ? plus sécurisé ? autres features Google (Analytics…)'
   type: question
   domaine: security
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Scopes openid email profile (archive l.1327) donc l'email reste récupéré ; collecteur Google Analytics
-    écrit puis retiré sur arbitrage produit (archive l.8089). Benchmark sécurité écrit non trouvé.
+  preuve_statut: R267 (archivée) — a86b14d2
   preuve_ciblee: tests/test_google_sign_in_refuses_what_the_password_path_refuses.py
-  roadmap: R267
 - ligne: 139
   resume: 'Accueil : arbitrer les plateformes cœur (Insta, Meta Ads, Spotify, Hypeddit, S4A, Shazam, ML) vs SoundCloud/YouTube
     ; ajouter Shazam'
@@ -1378,12 +1313,10 @@
   resume: Valider toutes les vues (simplicité des graphiques, décisions, UX/UI) et cocher chaque point
   type: action-produit
   domaine: chart-door
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Dossier de 133 graphiques R203 (archive l.380) + relecture R240-R253 livrées (archive l.23-117).
-    Validation vue par vue de l'ergonomie globale non close.
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: tests/test_the_charts_dossier_covers_every_figure.py
-  roadmap: R271
 - ligne: 143
   resume: 'Engineering loop en JavaScript : faut-il migrer la config .md vers du JS ?'
   type: question
@@ -1396,12 +1329,10 @@
   resume: Multi-comptes pour toutes les plateformes, facile à configurer
   type: exigence-architecture
   domaine: tenancy-plans
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'Meta seulement : R53 / ADR-013 migration 077 (archive l.5670). SoundCloud « titres hébergés ailleurs
-    » (R52). Rien pour YouTube/Instagram multi-chaînes.'
+  preuve_statut: R272 (archivée) — a536a37d
   preuve_ciblee: tests/test_meta_ads_collector.py
-  roadmap: R272
 - ligne: 145
   resume: 'Guide : étapes en onglets/dépliants cliquables'
   type: action-produit
@@ -1483,12 +1414,10 @@
   resume: 'Notification de collecte : croix verte seulement quand la donnée est réellement reçue — à décider'
   type: décision-requise
   domaine: data-quality
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: « Lancé ! » conditionné au résultat du déclenchement (archive l.3742) ; mais succès = déclenchement,
-    pas réception de données. Décision « vert = donnée reçue » non tracée.
+  preuve_statut: R270 (archivée) — e7fe4ea8
   preuve_ciblee: tests/test_a_success_message_tests_success.py::test_the_launch_success_is_inside_a_condition
-  roadmap: R270
 - ligne: 158
   resume: Ajouter un bouton « Tester la connexion »
   type: action-produit
@@ -1543,23 +1472,19 @@
   resume: Valider tous les boutons de l'app
   type: action-produit
   domaine: tests-ci
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'R242 « tout rendre » : chaque branche (sélecteur, bouton, onglet) rendue dans le dossier (archive
-    l.98) ; smoke AppTest de toutes les vues. Pas de clic e2e systématique des boutons.'
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: tests/test_every_routed_view_is_rendered.py
-  roadmap: R271
 - ligne: 165
   resume: Optimiser les classes d'erreur, les rendre génériques pour un nouveau projet, mettre à jour la deployment
     baseline
   type: exigence-architecture
   domaine: error-classes
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: 'Aucune ligne ouverte (checklist index : R257 seulement). Familles générées (error-class-families.md)
-    mais pas d''export générique vers la baseline tracé.'
+  preuve_statut: R264 (archivée) — a1a94776
   preuve_ciblee: 'test to write: chaque famille de error-class-families.md existe dans la baseline, on file .claude/dev-docs/error-class-families.md:1'
-  roadmap: R264
 - ligne: 165
   resume: Optimiser la roadmap et supprimer la gestion des livrables jugée trop lourde
   type: décision-requise
@@ -1600,12 +1525,11 @@
   resume: Adaptation mobile / UX dynamique
   type: exigence-architecture
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: Aucune occurrence 'mobile|responsive' dans archive.md ou checklist.md.
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: 'test to write: rendu de l''accueil en viewport 390px sans défilement horizontal (chrome-devtools
     emulate), on file src/dashboard/views/home.py:1'
-  roadmap: R271
 - ligne: 169
   resume: Nettoyage graphify + optimisations en conséquence
   type: action-produit
@@ -1628,12 +1552,10 @@
   resume: Session de pentest (avec l'outil évoqué) et plan d'actions
   type: action-produit
   domaine: security
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: Dernier pentest 2026-06-13 (archive l.4538, 4700) + audit 18 points 2026-08-23 ; rien depuis les
-    endpoints OAuth Google (R153).
+  preuve_statut: R267 (archivée) — a86b14d2
   preuve_ciblee: 'test to write: rapport de pentest daté < 90 j référencé dans l''archive, on file .claude/dev-docs/roadmap/archive.md:4538'
-  roadmap: R267
 - ligne: 172
   resume: Passe d'optimisation d'architecture sur critères définis en amont ; intégrer les classes d'erreur streamlytics
     + projet voisin
@@ -1702,12 +1624,10 @@
   resume: 'Contact d''agence : plusieurs comptes Meta Ads et leur gestion'
   type: question
   domaine: tenancy-plans
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Multi-comptes Meta livrés R53/ADR-013 (archive l.5670) ; le cas agence (un opérateur, plusieurs
-    artistes) non tranché.
+  preuve_statut: R272 (archivée) — a536a37d
   preuve_ciblee: tests/test_meta_ads_collector.py
-  roadmap: R272
 - ligne: 223
   resume: 'Chaque étape de setup par plateforme : case verte/rouge = configuré ET réponse correcte reçue'
   type: exigence-architecture
@@ -1773,12 +1693,10 @@
   resume: 'Move artist identity / ''your plan: premium'' block (and artist selector) higher in the sidebar'
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: auth.py:944-952 plan badge now sits next to identity; the artist selector is admin-only and its
-    position was not checked against the request
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: sidebar order (plan badge before nav radios) via AppTest on src/dashboard/auth.py:944'
-  roadmap: R261
 - ligne: 233
   resume: Hide 'artist_id = N' line from artists (visual noise)
   type: action-produit
@@ -1877,13 +1795,11 @@
   resume: 'App-wide: ACTIONS in big bold highlighted section, info in smaller text'
   type: exigence-architecture
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Applied on credentials ('Saisir tes identifiants' orange-background header, _render.py:527-530);
-    no app-wide style contract
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: 'test to write: every view with a form uses a shared action-header helper (grep '':orange-background[👉''
     in src/dashboard/views)'
-  roadmap: R271
 - ligne: 242
   resume: Delete 'C'est le couple qui permet de décider…'; say Meta Ads × S4A CSV gives most value
   type: action-produit
@@ -1904,12 +1820,10 @@
   resume: Middle-click on buttons does not open a new tab — normal?
   type: question
   domaine: app-runtime
-  statut: décision-requise
+  statut: livré
   priorite: P4
-  preuve_statut: Streamlit st.button cannot be middle-clicked; in-app navigation deliberately uses buttons (test_navigation_inside_the_app_opens_no_tab);
-    no written answer to the owner found
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: tests/test_navigation_inside_the_app_opens_no_tab.py::test_no_markdown_link_navigates_between_screens
-  roadmap: R261
 - ligne: 243
   resume: '''Configure my selection'' lands in app but nav radio not ticked on Credentials'
   type: exigence-architecture
@@ -1973,12 +1887,10 @@
   resume: Remove manual 'launch collection' button; fold into 'collection in progress' state
   type: action-produit
   domaine: orchestration
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Auto-start on journey completion exists (_render.py:1198-1222); sidebar 'Collecte en cours' (collection_progress.py:106);
-    home.py:835 _launch_collections button still present
+  preuve_statut: R270 (archivée) — e7fe4ea8
   preuve_ciblee: tests/test_collection_progress.py
-  roadmap: R270
 - ligne: 259
   resume: Live activity panel tiny above the logo, add total
   type: action-produit
@@ -2052,12 +1964,10 @@
   resume: 'Welcome mail: only ''follow the getting-started guide (attachment + in app)'' + value proposition'
   type: action-produit
   domaine: onboarding
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Rewritten 2026-09-04 (src/utils/verification_email.py:172-228) BUT line 208-210 still tells users
-    to open '📋 Guide de démarrage' in the app, a page removed on 2026-09-06 (app.py:594) — dead reference
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: welcome mail text names only pages present in utils/nav_sections.NAV_SECTIONS (src/utils/verification_email.py:210)'
-  roadmap: R261
 - ligne: 268
   resume: High-value charts (global dashboard, stream prediction, Meta×S4A) small on one row in welcome step and
     mail, drawn from the app
@@ -2144,12 +2054,10 @@
   resume: 'OS selector: drop Linux label and the selector, auto-detect Windows, macOS logo toggle'
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Auto-detection exists (os_hints.py:100 detect_os_from_user_agent) but segmented selector still
-    rendered with label '💻 Windows / Linux' (os_hints.py:29,128-150)
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: OS_LABELS contains no ''Linux'' and os_selector renders a single macOS toggle (src/dashboard/utils/os_hints.py:29)'
-  roadmap: R261
 - ligne: 271
   resume: 'Status matrix: split Spotify API from Spotify for Artists; Meta Ads vs Instagram coherent; explain columns
     Répond/Données; add ''Saisi'' column; small legend'
@@ -2179,12 +2087,10 @@
   resume: Put Data Wrapped in Analytics section under Hypeddit
   type: décision-requise
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P4
-  preuve_statut: data_wrapped is out of NAV_SECTIONS, route-only (architecture.md:320; app.py:590); Hypeddit sits
-    in configuration section — request not applied, reason not recorded
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: data_wrapped key present in utils/nav_sections.NAV_SECTIONS analytics section'
-  roadmap: R261
   decision: Data Wrapped intégré à la page Spotify & S4A (2026-09-27)
 - ligne: 271
   resume: 'Renames: DW prediction → algo trigger prediction (DW, Radio, RR); Créatives → Visuels de campagne; Breakdowns
@@ -2199,12 +2105,10 @@
   resume: Tab name 'add my Spotify for Artists & Apple figures' for CSV import
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: CSV import merged into '🔑 Credentials API + imports CSV' (nav_sections.py) with its own tab; exact
-    wording not adopted
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: tests/test_the_route_table_can_import_its_views.py
-  roadmap: R261
 - ligne: 272
   resume: 'Credentials: ''Saisir tes identifiants'' in same section as ''how to get'', auto-expand Spotify, screenshot
     on the right, shorter step text'
@@ -2236,12 +2140,10 @@
     section; counter and app button only in step 2'
   type: action-produit
   domaine: onboarding
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: Phrases and blue section gone (grep empty); step1 has one button; but 'Ta mise en route' header
-    still rendered in step 2 checklist (onboarding.py:515)
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: onboarding step 2 renders no ''onboarding.checklist_title'' header (onboarding.py:515)'
-  roadmap: R261
 - ligne: 285
   resume: 'Email verification link: stay in same browser window; remove redundant dropdown'
   type: action-produit
@@ -2422,14 +2324,11 @@
   resume: Refactor pages / tabs / redirections with best software-engineering logic (single routing contract)
   type: exigence-architecture
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: Pieces exist (utils/navigation.goto, url_is_detoured single rule app.py:235, credentials/router.py
-    _resolve_active_tab, nav_sections declaration) but routing is still an elif chain in app.py:570-620 with _SETUP_PAGES/_LANDING_LINKS/_ADMIN_ONLY
-    spread across app.py; no written routing contract; R257 (open) is the vehicle
+  preuve_statut: R261 (archivée) — b4a79389
   preuve_ciblee: 'test to write: every NAV_SECTIONS key and every legacy route resolves through one route table
     (tests/test_the_route_table_can_import_its_views.py extended to landing/admin/setup rules)'
-  roadmap: R261
 - ligne: 357
   resume: 'Onboarding page: remove pasted block, live counter and ''full menu will appear'' sentence'
   type: action-produit
@@ -2724,13 +2623,11 @@
     depuis la sortie, pour benchmarker les sorties et l'impact des campagnes
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: src/dashboard/views/spotify_s4a_combined.py:154-200 _render_releases ne lit que v_s4a_release_cohort.streams_cumulative
-    ; aucune ligne archive/checklist/backlog (grep « âge égal », « Mes sorties »)
+  preuve_statut: R271 (archivée) — 60296b80
   preuve_ciblee: 'test to write: la figure de _render_releases porte une série spend Meta et une série Shazam alignées
     sur day_index — spotify_s4a_combined.py:154'
-  roadmap: R271
 - ligne: 471-480
   resume: Commentaires par vue (Apple Music, YouTube, Instagram, Hypeddit, Meta Ads, Revenus, Compte, Prédictions
     ML, Admin, Grafana) — gabarits laissés vides, aucun contenu
@@ -2807,42 +2704,35 @@
   resume: 'Chaîne en couches : raw → métriques normalisées → métriques métier → composants graphiques'
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: gold-coverage.md liste encore des tables brutes agrégées hors cliquet ; ratchet tests/test_the_gold_coverage_only_improves.py
-    (compteurs de trous non nuls)
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows
-  roadmap: R258
 - ligne: 502-504
   resume: Chaque métrique (followers, streams, ad_spend, clicks…) calculée à un seul endroit ; les dashboards ne
     font que consommer
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: 'CPC encore calculé en Python dans la vue, deux fois : src/dashboard/views/meta_ads_overview.py:117
-    et :271 (et meta_creatives.py, home_meta_advice.py)'
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write: aucun calcul spend/link_clicks hors de la vue or — meta_ads_overview.py:117,271'
-  roadmap: R258
 - ligne: 506-508
   resume: 'Fiche par KPI : metric_name → définition → source(s) → formule → granularité → période → tests de qualité'
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: archive.md:205 R231 livré, mais 4 métriques sans test nommé (plafond gardé)
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_every_metric_is_registered.py::test_the_untested_metrics_only_become_fewer
-  roadmap: R258
 - ligne: 510
   resume: Supprimer progressivement les doublons de calcul et incohérences
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: invariants or tenus (src/utils/gold_invariants.py) mais calculs dupliqués restants (cf. CPC) ;
-    aucune mesure de duplication
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_the_gold_layer_agrees_with_itself.py::test_every_gold_invariant_holds_on_the_real_data
-  roadmap: R258
 - ligne: 511
   resume: Architecture des filtres (temps, titre, plateforme, compte…) commune et modulaire
   type: exigence-architecture
@@ -2955,12 +2845,10 @@
   resume: Suivre le même utilisateur à travers le funnel autant que les données le permettent
   type: exigence-architecture
   domaine: collect
-  statut: partiel
+  statut: livré
   priorite: P4
-  preuve_statut: 'pas de clé utilisateur : APIs agrégées ; seul chaînage = CAPI Hypeddit par ad_id (archive.md:219
-    R233). Limite de source, pas de code'
+  preuve_statut: R273 (archivée) — fc6dd117
   preuve_ciblee: tests/test_the_meta_charts_answer_a_decision.py::test_ad_clicks_and_smart_link_visits_are_never_chained
-  roadmap: R273
 - ligne: 536
   resume: 'Finance : combien rapportent les ventes'
   type: action-produit
@@ -3081,20 +2969,18 @@
   resume: KPI uniquement sur la couche or
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: cliquet gold-coverage (trous restants) ; page Spotify seule gardée intégralement or
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: tests/test_the_spotify_page_reads_only_the_gold_layer.py::test_the_page_reads_no_bronze_table
-  roadmap: R258
 - ligne: 549
   resume: Aucune redondance de calcul
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: CPC calculé 2× dans meta_ads_overview.py:117,271
+  preuve_statut: R258 (archivée) — 7e4c3bf1
   preuve_ciblee: 'test to write: une seule définition de CPC dans src/ — meta_ads_overview.py:117'
-  roadmap: R258
 - ligne: 549
   resume: KPI avec mêmes filtres modulaires, mêmes légendes, même format
   type: exigence-architecture
@@ -3123,12 +3009,10 @@
   resume: Cybersécurité
   type: exigence-architecture
   domaine: security
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: tests/test_api_security.py, test_credentials_security.py, balayage nocturne sweep_public_surfaces.py
-    ; pas de catalogue d'exigences
+  preuve_statut: R267 (archivée) — a86b14d2
   preuve_ciblee: 'tests/test_api_security.py (classe rate-limit : test_blocks_over_max_with_retry_after)'
-  roadmap: R267
 - ligne: 549
   resume: 'Gestion roadmap : inscription avant toute tâche de code'
   type: exigence-architecture

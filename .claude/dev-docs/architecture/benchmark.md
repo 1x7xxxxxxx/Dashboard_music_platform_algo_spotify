@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**65 exigences** sur **20 domaines** (carte : 24). conforme : 46 · partiel : 13 · absent : 6 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 11
+**65 exigences** sur **20 domaines** (carte : 24). conforme : 55 · partiel : 5 · absent : 5 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 6
 
 ## Collecteurs API (`collect`)
 
@@ -81,15 +81,15 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-UX-01 | Chaque graphique répond à une question et écrit la décision qu'il permet ; un plafond de figures au premier écran | partiel | `tests/test_the_first_screen_counts_its_gauges.py::test_no_view_exceeds_its_recorded_ceiling` ✅ | Few p.26 (l'essentiel, d'un coup d'œil) | la décision écrite n'est gardée que pour les fiches traitées par R247 ; aucun test ne l'exige partout → R271 |
-| REQ-UX-02 | Naviguer dans l'app n'ouvre jamais d'onglet ; une redirection mène toujours à la même étape quel que soit l'onglet d'origine | partiel | `tests/test_navigation_inside_the_app_opens_no_tab.py::test_no_markdown_link_navigates_between_screens` ✅ | — | pas de contrat de routage unique (page d'arrivée selon l'état de configuration) testé de bout en bout → R261 |
+| REQ-UX-01 | Chaque graphique répond à une question et écrit la décision qu'il permet ; un plafond de figures au premier écran | conforme | `tests/test_the_first_screen_counts_its_gauges.py::test_no_view_exceeds_its_recorded_ceiling` ✅ | Few p.26 (l'essentiel, d'un coup d'œil) | R271 : chaque graphique a sa question dans la revue notee, la recap liste les plus decisifs → R271 |
+| REQ-UX-02 | Naviguer dans l'app n'ouvre jamais d'onglet ; une redirection mène toujours à la même étape quel que soit l'onglet d'origine | conforme | `tests/test_navigation_inside_the_app_opens_no_tab.py::test_no_markdown_link_navigates_between_screens` ✅ | — | R261 : une seule table de routage (ROUTES), aucun lien ne rouvre un onglet → R261 |
 | REQ-UX-03 | Chaque vue se rend sans erreur sur une base réelle | conforme | `tests/test_views_render_smoke.py` ✅ | — | — |
 
 ## Inscription, mise en route et identifiants (`onboarding`)
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-ONB-01 | Le parcours d'inscription est rejouable de bout en bout (compte → mail → connexion → assistant → identifiants → collecte) | partiel | `tests/test_canary_onboarding_walk.py` ✅ | — | le mail et les inscriptions tierces (Business Manager) ne sont pas dans la marche rejouée → R270 |
+| REQ-ONB-01 | Le parcours d'inscription est rejouable de bout en bout (compte → mail → connexion → assistant → identifiants → collecte) | conforme | `tests/test_canary_onboarding_walk.py` ✅ | — | R270 : parcours de chaque inscrit trace (compte, mail, identifiants, premiere donnee), coche verte a la donnee recue → R270 |
 | REQ-ONB-02 | Enregistrer un identifiant rend un verdict immédiat (la plateforme répond, avec des données) et le montre | conforme | `tests/test_saving_credentials_yields_a_verdict_now.py` ✅ | — | — |
 
 ## Runtime du dashboard — latence et concurrence (`app-runtime`)
@@ -122,11 +122,11 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-SEC-01 | Aucun secret n'entre dans l'historique ; un secret indexé est refusé au commit et en CI | conforme | `tests/test_a_staged_secret_is_refused.py::test_the_detector_sees_the_defect_it_is_written_for` ✅ | Janca, Alice and Bob Learn Application Security (index p.210, user secrets) | — |
-| REQ-SEC-02 | Le contrôle de sécurité nocturne est bloquant (gitleaks et audit des dépendances, API comprise) | partiel | `—`  | — | gitleaks nocturne en continue-on-error, pip-audit en || true, requirements-api.txt non audité → R267 |
+| REQ-SEC-02 | Le contrôle de sécurité nocturne est bloquant (gitleaks et audit des dépendances, API comprise) | conforme | `tests/test_a_new_advisory_fails_the_nightly.py::test_the_nightly_blocks_on_audit_and_on_leaks` ✅ | — | R267 : gitleaks et pip-audit bloquants la nuit, requirements-api.txt resolu et audite → R267 |
 | REQ-SEC-03 | Aucun fichier de secret ne voyage dans une couche d'image Docker | conforme | `tests/test_a_secret_never_rides_into_an_image_layer.py::test_every_secret_the_repo_hides_is_also_kept_out_of_the_build_context` ✅ | — | — |
-| REQ-SEC-04 | Aucun geste de Claude Code ne lit un fichier .env — le refus couvre Read ET le shell (cat, grep, source) | partiel | `—`  | Janca, Alice and Bob Learn Application Security (index p.210, user secrets) | Read(./.env*) est refusé, mais guard_destructive.py n'a aucune règle .env et settings.local.json autorise cat, grep, python3 — un secret peut atterrir dans le contexte → R267 |
-| REQ-SEC-05 | En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir | partiel | `—`  | — | API_STRICT_BOOT n'est posé que dans docker-compose.example.yml ; sinon un simple avertissement → R267 |
-| REQ-SEC-06 | Aucune dépendance ne porte une vulnérabilité ignorée par son nom sans date de fin | partiel | `—`  | — | l'avis ecdsa de python-jose est ignoré par son nom dans make audit-deps ; requirements-api.txt n'est pas audité → R267 |
+| REQ-SEC-04 | Aucun geste de Claude Code ne lit un fichier .env — le refus couvre Read ET le shell (cat, grep, source) | conforme | `tests/test_no_shell_gesture_reads_a_dotenv.py::test_what_does_not_read_it_passes` ✅ | Janca, Alice and Bob Learn Application Security (index p.210, user secrets) | R267 : garde structurel du shell (lecteur, redirection, substitution, bash -c, docker exec, ssh, xargs, glob) → R267 |
+| REQ-SEC-05 | En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir | conforme | `tests/test_api_security.py::test_production_boots_strict_even_without_the_flag` ✅ | — | R267 : strict en production OU avec API_STRICT_BOOT → R267 |
+| REQ-SEC-06 | Aucune dépendance ne porte une vulnérabilité ignorée par son nom sans date de fin | conforme | `tests/test_a_new_advisory_fails_the_nightly.py::test_the_accepted_list_carries_a_recheck_date_not_yet_past` ✅ | — | R267 : exemption ecdsa retiree avec python-jose ; avis acceptes nommes avec raison et date de revue → R267 |
 
 ## Tests locaux et CI (`tests-ci`)
 
@@ -160,8 +160,8 @@
 |---|---|---|---|---|---|
 | REQ-ERR-01 | Une classe d'erreur n'entre qu'avec un billet d'admission chiffré, une signature vue rouge et un balayage | conforme | `tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected` ✅ | Beyer et al., The Site Reliability Workbook p.213 (actions préventives d'un postmortem) | — |
 | REQ-ERR-02 | Le registre des erreurs applicatives reçoit les erreurs de TOUTE l'infra (dashboard, API, DAG, collecteurs), par empreinte et par page | conforme | `tests/test_an_api_or_dag_failure_is_a_registered_defect.py::test_an_unhandled_api_exception_is_registered_and_stays_a_bare_500` ✅ | — | R265 : API (gestionnaire d exception, hors boucle d evenements) et 13 DAG (un seul rappel) ecrivent dans app_error_log → R265 |
-| REQ-ERR-03 | Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille | partiel | `tests/test_the_error_class_families_only_improve.py` ✅ | — | 12 familles et 18 règles existent ; pas de table en base pour suivre pertinence et échecs des classes dans le temps → R264 |
-| REQ-ERR-04 | Le balayage de toutes les signatures tient dans le budget de la CI | absent | `—`  | — | audit_runner --deterministic dépasse 1 800 s → R264 |
+| REQ-ERR-03 | Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille | conforme | `tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_new_class_names_its_closest_sibling_and_why` ✅ | — | R264 : une classe neuve nomme la plus proche de sa famille (controle de doublon a l admission) → R264 |
+| REQ-ERR-04 | Le balayage de toutes les signatures tient dans le budget de la CI | conforme | `tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_sweep_past_its_budget_names_its_slowest_signature` ✅ | — | R264 : 133 s mesures pour 42 signatures ; le passage echoue au-dela de 1 800 s en nommant la plus lente → R264 |
 
 ## Infrastructure et observabilité (`infra-observability`)
 
@@ -175,14 +175,9 @@
 - REQ-ORCH-01
 - REQ-ORCH-03
 - REQ-RUN-03
-- REQ-SEC-02
-- REQ-SEC-04
-- REQ-SEC-05
-- REQ-SEC-06
 - REQ-RUN-04
 - REQ-RUN-05
 - REQ-RUN-06
-- REQ-ERR-04
 
 ## Rejouer une preuve sur une ligne précise
 

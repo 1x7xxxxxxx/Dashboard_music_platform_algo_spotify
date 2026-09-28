@@ -6,6 +6,7 @@
 # the import of the 16 DAGs when tried (PR #100, 2026-08-24). Airflow runs on the private
 # Docker network, its UI behind Caddy with its own auth. Re-check: at each Airflow 3.x
 # release, and when this list grows — a new line here needs its own reason.
+# recheck-by: 2026-12-31   (REQ-SEC-06 — past this date the nightly and the tests refuse the list)
 
 PYSEC-2023-314 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
 PYSEC-2026-10 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)

@@ -11,6 +11,76 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R271 — **Pages : récap, graphiques et validation** (notes L8, L91, L142, L164, L168, L470) : p… (livrée 2026-09-28)
+
+- [x] **R271 — **Pages : récap, graphiques et validation** (notes L8, L91, L142, L164, L168, L470) : page récap des graphiques à plus forte valeur, Data Wrapped intégré à la page Spotify & S4A sous la saisie (décidé le 2026-09-27), « Mes sorties à âge égal » avec dépense Meta et Shazams, idées de graphiques par page, validation de chaque vue et de chaque bouton, actions en gras et informations en petit (note L242) (dont meta_breakdowns : engagement par dimension, 7 séries noires hors thème et libellés coupés), adaptation mobile** (P3) ✅ (2026-09-28, 60296b80, 4bfb331d, d4a7ac35, 1f8bfcbb, 31c35c4c, b7f30919, bda9398e)
+  Mesuré par : dossier des KPI relu
+  recap, sorties a age egal avec Meta et Shazam, meta_breakdowns, chaque bouton clique (P1 inscription trouve et corrige), actions en gras, mobile, idees par page; R282 pour tes choix. CI forcee: 60296b80 rouge (ancre de reprise R282), corrige par a536a37d verte
+  Commits : 60296b80 R271 : la borne de boutons par vue passe a 20 - sur la base de la CI l · 4bfb331d R271 (lot 4) : une action a UN aspect (ui.action : titre, gras, surlig · d4a7ac35 R271 (lot 3) : chaque bouton de chaque vue est clique (43 vues, transp · 1f8bfcbb R271 (lot 2) : page Recap - les dix graphiques les mieux notes a la re · 31c35c4c R271 (lot 1) : Mes sorties a age egal porte la depense Meta par jour e · b7f30919 Roadmap : R278 au backlog (reste des formats sous cliquet), R271 porte · bda9398e Roadmap : tes quatre decisions du 2026-09-27 ecrites dans R265 (Grafan
+
+## ✅ R267 — **Sécurité : nocturne bloquant et pentest** (notes L138, L170, L549) : gitleaks et pip-… (livrée 2026-09-28)
+
+- [x] **R267 — **Sécurité : nocturne bloquant et pentest** (notes L138, L170, L549) : gitleaks et pip-audit bloquants la nuit, requirements-api.txt audité, session de pentest avec plan d'actions, bilan de la connexion Google ; aucun geste de Claude Code ne lit un .env (garde du shell), démarrage strict de l'API en production, plus d'avis ignoré sans date (python-jose)** (P2) ✅ (2026-09-28, a86b14d2, cf3cd92c, 7dd27f90)
+  Mesuré par : REQ-SEC-02 conforme ; rapport de pentest
+  PyJWT, demarrage strict, garde .env, nightly bloquant, WeasyPrint 70, bilan Google, pentest local (rapport dans le commit 1f8bfcbb). CI forcee: a86b14d2 rouge (duree manquante), corrige par 1f8bfcbb verte
+  Commits : a86b14d2 R267 : bilan de la connexion Google (note L138) - e-mail recupere (sco · cf3cd92c R267 : suite de la revue security-specialist - le service api du compo · 7dd27f90 R267 : securite - python-jose remplace par PyJWT (deps.py attrape Inva
+
+## ✅ R264 — **Classes d'erreur génériques, suivies, transposables** (notes L9, L60-65, L72, L165) :… (livrée 2026-09-28)
+
+- [x] **R264 — **Classes d'erreur génériques, suivies, transposables** (notes L9, L60-65, L72, L165) : une classe générique par famille avant les distinctes ; table en base pour la pertinence et les échecs de chaque classe dans le temps ; processus CLAUDE.md/hooks/agents vérifié ; baseline de déploiement mise à jour ; balayage --deterministic sous le budget CI (dépasse 1 800 s) ; passe de finalisation avec code-critic (la nuit)** (P3) ✅ (2026-09-28, a1a94776, 32db53cf)
+  Mesuré par : REQ-ERR-01/03 conformes ; série visible dans Grafana
+  controle de doublon a l admission, sante du catalogue en Prometheus, releve des signatures lentes, processus exporte dans la baseline. CI forcee: a1a94776 rouge (agregat de R258), corrige par 7e4c3bf1 verte
+  Commits : a1a94776 R264 : suite du code-critic - chaque closest admis est imprime (la rai · 32db53cf R264 : classes d erreur generiques et suivies - a l admission, une cla
+
+## ✅ R263 — **Vue ML simple et aérée** (notes L132) : probabilité par titre d'un coup d'œil, levier… (livrée 2026-09-28)
+
+- [x] **R263 — **Vue ML simple et aérée** (notes L132) : probabilité par titre d'un coup d'œil, leviers restants en Pareto avec leur équivalent en euros par algorithme, comparaison entre titres, panneaux regroupés, décisions listées** (P2) ✅ (2026-09-28, 485daee7)
+  Mesuré par : vue relue sur son rendu
+  prochain geste par titre en euros, jauges par proximite, un seul appel au modele. CI forcee: 485daee7 rouge (date du document de sante), corrige par b4a79389 verte
+  Commits : 485daee7 R263 : vue ML d un coup d oeil - sous les jauges, le prochain geste pa
+
+## ✅ R258 — **Or, une définition par KPI jusqu'au bout** (notes L10, L72, L500-510, L549) : registr… (livrée 2026-09-28)
+
+- [x] **R258 — **Or, une définition par KPI jusqu'au bout** (notes L10, L72, L500-510, L549) : registre étendu à formule, granularité, période et test de qualité par métrique ; identité mécanique argent/or ; plafond brut 66 → descendre (18 figures, 44 tuiles) ; CPC calculé deux fois dans meta_ads_overview → une lecture or ; qualité : borne par nature de mesure, campagne sans titre, scan de doublons (manques de R230) ; une tuile qui répète un graphique de la même page détectée** (P2) ✅ (2026-09-28, 7e4c3bf1, 63a29776, 2818322b, c22daa8f, 65f61128)
+  Mesuré par : REQ-GOLD-02/03, REQ-SILVER-01 conformes au benchmark
+  une fonction de ratio, bornes par nature au registre, doublons artist_history, campagne sans titre, identite des couches, tuiles revues; R280 au backlog. CI forcee: 63a29776 rouge (agregat non declare), corrige par 7e4c3bf1 verte
+  Commits : 7e4c3bf1 R265 : observabilite - un seul rappel d echec pour les 13 DAG (mail +  · 63a29776 R258 : or, une definition par KPI - CPC/CPM/CPR/CTR par une seule fonc · 2818322b R268 : toute exigence non tenue est portee par une ligne de roadmap OU · c22daa8f R268 : une note encore a faire doit pointer une ligne OUVERTE (index,  · 65f61128 Roadmap : R258 a R274 inscrites (tes notes du 2026-09-27 traduites en 
+
+## ✅ R272 — **Multi-comptes et vue de campagne** (notes L129, L134, L144, L222) : multi-comptes sim… (livrée 2026-09-28)
+
+- [x] **R272 — **Multi-comptes et vue de campagne** (notes L129, L134, L144, L222) : multi-comptes simple sur toutes les plateformes (cas agence Meta), vue qui regroupe les paramètres de campagne et budgets de déclenchement, parrainage : la récompense appliquée par coupon Stripe (décidé le 2026-09-27)** (P2) ✅ (2026-09-28, a536a37d, bda9398e)
+  Mesuré par : un second compte Meta configuré en un geste
+  parrainage par coupon Stripe actif en prod (migration 143 appliquee), revue securite appliquee, vue Parametres de mes campagnes; verification Stripe en attente R283
+  Commits : a536a37d R272 : parrainage applique par Stripe (decision du proprietaire, actif · bda9398e Roadmap : tes quatre decisions du 2026-09-27 ecrites dans R265 (Grafan
+
+## ✅ R265 — **Observabilité : santé et échelle dans Grafana** (notes L67-69, L80) : erreurs applica… (livrée 2026-09-28)
+
+- [x] **R265 — **Observabilité : santé et échelle dans Grafana** (notes L67-69, L80) : erreurs applicatives par page (« No data »), nombre de logs, CPU/RAM/disque VPS, pool, utilisateurs connectés, lignes et taille de base, API et DAG dans app_error_log, latence p95 de l'API par route relevée et alertée, seuils d'alerte ; ce que Grafana montre quitte la vue admin (décidé le 2026-09-27 : Grafana seul, l'admin garde la gestion)** (P3) ✅ (2026-09-28, 7e4c3bf1, fc462f53, bda9398e)
+  Mesuré par : REQ-OBS-01, REQ-ERR-02 conformes
+  rappel DAG unique vers app_error_log, exceptions API enregistrees, jauges taille de base et lignes, trois alertes calibrees sur 7 jours de prod, R281 au backlog
+  Commits : 7e4c3bf1 R265 : observabilite - un seul rappel d echec pour les 13 DAG (mail +  · fc462f53 R269 : doublons de fonctions mesures (detecteur AST, litteraux effaces · bda9398e Roadmap : tes quatre decisions du 2026-09-27 ecrites dans R265 (Grafan
+
+## ✅ R261 — **Un contrat de routage unique** (notes L231, L243, L266, L270, L271, L277, L356) : pag… (livrée 2026-09-28)
+
+- [x] **R261 — **Un contrat de routage unique** (notes L231, L243, L266, L270, L271, L277, L356) : page d'arrivée décidée à un endroit selon l'état de configuration, même parcours quel que soit l'onglet d'origine ; lien mort vers « Guide de démarrage » dans le mail de bienvenue ; en-tête « Ta mise en route », sélecteur d'OS, identité en haut du menu** (P2) ✅ (2026-09-28, b4a79389, bc971878)
+  Mesuré par : REQ-UX-02 conforme ; parcours rejoué de bout en bout
+  table de routage unique ROUTES, mail de bienvenue, libelle OS, en-tete retire, onglet CSV; date du document de sante par le catalogue
+  Commits : b4a79389 R261 : CI rouge sur bc971878 sans defaut de code - error-class-health  · bc971878 R261 : un contrat de routage unique - la chaine de 43 elif page == dev
+
+## ✅ R270 — **Onboarding rejouable et CSV expliqués** (notes L5, L7, L157, L258) : marche complète… (livrée 2026-09-28)
+
+- [x] **R270 — **Onboarding rejouable et CSV expliqués** (notes L5, L7, L157, L258) : marche complète compte → mail → identifiants → première donnée (tiers compris), définition de chaque CSV, verdict vert seulement quand la première donnée arrive (décidé le 2026-09-27), bouton de collecte manuel replié dans l'état** (P3) ✅ (2026-09-28, e7fe4ea8, bda9398e)
+  Mesuré par : REQ-ONB-01 conforme
+  coche verte a la donnee recue (etl_run_log), collecte automatique suivie, bouton replie en etat, definitions des colonnes CSV, parcours de chaque inscrit
+  Commits : e7fe4ea8 R270 : la coche verte d'une collecte attend la DONNEE (etl_run_log du  · bda9398e Roadmap : tes quatre decisions du 2026-09-27 ecrites dans R265 (Grafan
+
+## ✅ R273 — **Collecte : Instagram, YouTube, funnel par utilisateur** (notes L92, L107, L531) : eng… (livrée 2026-09-28)
+
+- [x] **R273 — **Collecte : Instagram, YouTube, funnel par utilisateur** (notes L92, L107, L531) : engagement Instagram vide, granularité des abonnés YouTube (limite de l'API : répondre), suivi d'un même utilisateur dans le funnel autant que les données le permettent** (P3) ✅ (2026-09-28, fc6dd117)
+  Mesuré par : engagement Instagram rempli sur l'instantané
+  insights Instagram: views et total_interactions (impressions retiree par Meta le 2025-04-21), la collecte leve si toutes les publications sont refusees; granularite YouTube deja expliquee; funnel utilisateur: limite de source (APIs agregees)
+  Commits : fc6dd117 R273 : insights Instagram vides (0 ligne en local ET en prod, 51 publi
+
 ## ✅ R269 — **Redondances de code et graphify** (notes L166, L169) : graphe régénéré et nettoyé des… (livrée 2026-09-27)
 
 - [x] **R269 — **Redondances de code et graphify** (notes L166, L169) : graphe régénéré et nettoyé des fichiers fantômes, doublons intra et inter-scripts listés et refactorés** (P3) ✅ (2026-09-27, fc462f53)

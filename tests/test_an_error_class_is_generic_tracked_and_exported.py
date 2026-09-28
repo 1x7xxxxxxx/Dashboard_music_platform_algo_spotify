@@ -72,3 +72,10 @@ def test_the_catalogue_health_renders_as_prometheus_text_not_vacuous():
     assert "streamlytics_error_class_recurrence_per_class_month 0.17" in text
     assert 'streamlytics_error_class_holes{hole="seen_red_unknown"} 10.0' in text
     assert text.count("# TYPE") == 3
+
+
+def test_a_sweep_past_its_budget_names_its_slowest_signature():
+    """REQ-ERR-04 — the sweep fits the CI budget, or the run fails naming the culprit."""
+    assert audit.over_budget({"a": 100.0, "b": 33.0}, budget=1800) is None
+    verdict = audit.over_budget({"a": 1700.0, "b": 200.0}, budget=1800)
+    assert verdict and "a" in verdict and "1900" in verdict

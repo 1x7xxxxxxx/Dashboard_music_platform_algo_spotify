@@ -47,3 +47,15 @@ def test_the_nightly_blocks_on_audit_and_on_leaks():
     assert any("requirements-api.txt" in (s.get("run") or "") for s in audit["steps"])
     scan = next(s for s in leaks["steps"] if s.get("id") == "scan")
     assert not scan.get("continue-on-error")
+
+
+def test_the_accepted_list_carries_a_recheck_date_not_yet_past():
+    """REQ-SEC-06 — no advisory is ignored by name without an end: the list says when it
+    is re-checked, and a date in the past fails."""
+    import datetime
+    import re
+    text = (ROOT / "security" / "pip-audit-accepted.txt").read_text(encoding="utf-8")
+    m = re.search(r"recheck-by:\s*(\d{4}-\d{2}-\d{2})", text)
+    assert m, "no `recheck-by:` date in the accepted list"
+    assert datetime.date.fromisoformat(m.group(1)) >= datetime.date.today(), (
+        "the accepted advisories are past their re-check date — re-audit them")

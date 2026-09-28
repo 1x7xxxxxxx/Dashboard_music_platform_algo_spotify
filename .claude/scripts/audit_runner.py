@@ -259,6 +259,22 @@ CLEAN, HIT, BROKEN = "clean", "hit", "broken"
 _SIGNATURE_WORKERS = 4   # the CI runner's vCPU count
 
 
+# REQ-ERR-04 — the sweep must fit the CI budget. Measured 2026-09-28: 133 s cumulative for
+# 42 static signatures, one of them 70 % of it. The gate fails the run past the budget, so
+# a slow signature is named the day it appears, not the day the CI times out.
+SWEEP_BUDGET_S = float(os.environ.get("AUDIT_SWEEP_BUDGET_S", "1800"))
+
+
+def over_budget(durations: dict[str, float], budget: float = SWEEP_BUDGET_S) -> str | None:
+    """None if the sweep fits, else the verdict naming the slowest signature. Pure."""
+    total = sum(durations.values())
+    if total <= budget:
+        return None
+    worst = max(durations.items(), key=lambda kv: kv[1])
+    return (f"⊘ balayage {total:.0f} s > budget {budget:.0f} s — la plus lente : "
+            f"{worst[0]} ({worst[1]:.0f} s)")
+
+
 def slowest_report(durations: dict[str, float], n: int = 5) -> list[str]:
     """The `n` slowest signatures and their share of the total. Pure."""
     if not durations:
@@ -1279,6 +1295,10 @@ def main() -> None:
     # every run, so the next person who wants the sweep faster starts from a measure.
     for line in slowest_report(durations):
         print(line)
+    verdict = over_budget(durations)
+    if verdict:
+        print(verdict)
+        sys.exit(3)
 
     hits, broken = [], []
     for c in selected:

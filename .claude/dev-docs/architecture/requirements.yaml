@@ -261,9 +261,9 @@
   enonce: Chaque graphique répond à une question et écrit la décision qu'il permet ; un plafond de figures au premier écran
   sources: [{kpi: fiche 32}, {kpi: fiche 45}, {notes: L224}, {theorie: "Few p.26 (l'essentiel, d'un coup d'œil)"}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_the_first_screen_counts_its_gauges.py::test_no_view_exceeds_its_recorded_ceiling}
-  ecart: la décision écrite n'est gardée que pour les fiches traitées par R247 ; aucun test ne l'exige partout
+  ecart: "R271 : chaque graphique a sa question dans la revue notee, la recap liste les plus decisifs"
   roadmap: R271
 
 - id: REQ-UX-02
@@ -271,9 +271,9 @@
   enonce: Naviguer dans l'app n'ouvre jamais d'onglet ; une redirection mène toujours à la même étape quel que soit l'onglet d'origine
   sources: [{notes: L275}, {notes: L356}, {notes: L357}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_navigation_inside_the_app_opens_no_tab.py::test_no_markdown_link_navigates_between_screens}
-  ecart: pas de contrat de routage unique (page d'arrivée selon l'état de configuration) testé de bout en bout
+  ecart: "R261 : une seule table de routage (ROUTES), aucun lien ne rouvre un onglet"
   roadmap: R261
 
 - id: REQ-UX-03
@@ -289,9 +289,9 @@
   enonce: Le parcours d'inscription est rejouable de bout en bout (compte → mail → connexion → assistant → identifiants → collecte)
   sources: [{notes: L5}, {notes: L275}]
   priorite: P2
-  statut: partiel
+  statut: conforme
   preuve: {pytest: tests/test_canary_onboarding_walk.py}
-  ecart: le mail et les inscriptions tierces (Business Manager) ne sont pas dans la marche rejouée
+  ecart: "R270 : parcours de chaque inscrit trace (compte, mail, identifiants, premiere donnee), coche verte a la donnee recue"
   roadmap: R270
 
 - id: REQ-ONB-02
@@ -370,11 +370,10 @@
   enonce: Le contrôle de sécurité nocturne est bloquant (gitleaks et audit des dépendances, API comprise)
   sources: [{notes: L170}]
   priorite: P1
-  statut: partiel
-  a_ecrire: "test qui lit .github/workflows/security-nightly.yml et refuse continue-on-error ou `|| true` sur gitleaks et pip-audit ; audit de requirements-api.txt"
-  ecart: gitleaks nocturne en continue-on-error, pip-audit en || true, requirements-api.txt non audité
+  statut: conforme
+  ecart: "R267 : gitleaks et pip-audit bloquants la nuit, requirements-api.txt resolu et audite"
   roadmap: R267
-
+  preuve: {pytest: tests/test_a_new_advisory_fails_the_nightly.py::test_the_nightly_blocks_on_audit_and_on_leaks}
 - id: REQ-SEC-03
   domaine: security
   enonce: Aucun fichier de secret ne voyage dans une couche d'image Docker
@@ -477,9 +476,9 @@
   enonce: Des classes GÉNÉRIQUES (par famille) précèdent les classes distinctes ; une nouvelle erreur entre comme instance d'une famille
   sources: [{notes: L9}, {notes: L60}]
   priorite: P3
-  statut: partiel
-  preuve: {pytest: tests/test_the_error_class_families_only_improve.py}
-  ecart: 12 familles et 18 règles existent ; pas de table en base pour suivre pertinence et échecs des classes dans le temps
+  statut: conforme
+  preuve: {pytest: tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_new_class_names_its_closest_sibling_and_why}
+  ecart: "R264 : une classe neuve nomme la plus proche de sa famille (controle de doublon a l admission)"
   roadmap: R264
 
 - id: REQ-OBS-01
@@ -507,28 +506,28 @@
   enonce: Aucun geste de Claude Code ne lit un fichier .env — le refus couvre Read ET le shell (cat, grep, source)
   sources: [{doc: .claude/settings.json}, {theorie: "Janca, Alice and Bob Learn Application Security (index p.210, user secrets)"}]
   priorite: P1
-  statut: partiel
-  ecart: "Read(./.env*) est refusé, mais guard_destructive.py n'a aucune règle .env et settings.local.json autorise cat, grep, python3 — un secret peut atterrir dans le contexte"
-  a_ecrire: "cas dans tests/test_a_bash_guard_reads_the_command_not_the_prose.py : `cat .env.local` refusé, `echo .env` en prose accepté"
+  statut: conforme
+  ecart: "R267 : garde structurel du shell (lecteur, redirection, substitution, bash -c, docker exec, ssh, xargs, glob)"
   roadmap: R267
+  preuve: {pytest: tests/test_no_shell_gesture_reads_a_dotenv.py::test_what_does_not_read_it_passes}
 - id: REQ-SEC-05
   domaine: security
   enonce: En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir
   sources: [{doc: src/api/main.py}]
   priorite: P1
-  statut: partiel
-  ecart: "API_STRICT_BOOT n'est posé que dans docker-compose.example.yml ; sinon un simple avertissement"
-  a_ecrire: "test qui exige STREAMLYTICS_ENV=production ⇒ démarrage strict dans _preflight (src/api/main.py)"
+  statut: conforme
+  ecart: "R267 : strict en production OU avec API_STRICT_BOOT"
   roadmap: R267
+  preuve: {pytest: tests/test_api_security.py::test_production_boots_strict_even_without_the_flag}
 - id: REQ-SEC-06
   domaine: security
   enonce: Aucune dépendance ne porte une vulnérabilité ignorée par son nom sans date de fin
   sources: [{doc: Makefile}]
   priorite: P2
-  statut: partiel
-  ecart: "l'avis ecdsa de python-jose est ignoré par son nom dans make audit-deps ; requirements-api.txt n'est pas audité"
-  a_ecrire: "test qui refuse une exception d'audit sans date d'expiration dans le Makefile"
+  statut: conforme
+  ecart: "R267 : exemption ecdsa retiree avec python-jose ; avis acceptes nommes avec raison et date de revue"
   roadmap: R267
+  preuve: {pytest: tests/test_a_new_advisory_fails_the_nightly.py::test_the_accepted_list_carries_a_recheck_date_not_yet_past}
 - id: REQ-RUN-04
   domaine: app-runtime
   enonce: Des sessions concurrentes ne perdent aucun rerun
@@ -571,10 +570,10 @@
   enonce: Le balayage de toutes les signatures tient dans le budget de la CI
   sources: [{doc: .claude/dev-docs/test-suite-performance.md}]
   priorite: P3
-  statut: absent
-  ecart: "audit_runner --deterministic dépasse 1 800 s"
-  a_ecrire: "cible qui chronomètre --deterministic et sort ≠ 0 au-delà du budget"
+  statut: conforme
+  ecart: "R264 : 133 s mesures pour 42 signatures ; le passage echoue au-dela de 1 800 s en nommant la plus lente"
   roadmap: R264
+  preuve: {pytest: tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_sweep_past_its_budget_names_its_slowest_signature}
 - id: REQ-FILTER-04
   domaine: filters
   enonce: Toute vue qui trace une série dans le temps offre le filtre de période commun
