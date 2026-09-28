@@ -213,6 +213,14 @@ def _fact_table_rows() -> tuple[str, str]:
     return (MET if n > 1_000_000 else NOT_MET), f"{n:,} lignes (seuil : 1 000 000)"
 
 
+def _tenant_fleet() -> tuple[str, str]:
+    """R309 — « une requête groupée par table dans le contrôle de contamination » : rouvre à
+    100 locataires. Mesuré le 2026-09-28 : 13 locataires, ~500 requêtes sur colonne indexée,
+    0,3 à 0,5 s — rien à gagner aujourd'hui (ADR-007, ADR-030 : un seuil mesuré d'abord)."""
+    n = _scalar("SELECT COUNT(*) FROM saas_artists")
+    return (MET if n >= 100 else NOT_MET), f"{n} locataire(s) (seuil : 100)"
+
+
 def _gold_layer() -> tuple[str, str]:
     """« Construire la couche or » — rouvre si un locataire depasse 100 000 lignes."""
     n = _scalar("SELECT COALESCE(max(c), 0) FROM ("
@@ -328,6 +336,8 @@ TRIGGERS = [
             "checklist.md — Conditions d'attente", _dashboard_ram),
     Trigger("fan-out par locataire", "un DAG de prod passe, au p95 sur 30 jours, la "
             "moitié de son `dagrun_timeout`", "ADR-030 — product-backlog.md", _fan_out),
+    Trigger("R309 contamination groupée", "100 locataires dans saas_artists",
+            "product-backlog.md — R309", _tenant_fleet),
     Trigger("R87", "`loadtest_dashboard.py -n 12` rend un p50 > 200 ms",
             "archive.md:5146", None),
     Trigger("« DB ping »",
