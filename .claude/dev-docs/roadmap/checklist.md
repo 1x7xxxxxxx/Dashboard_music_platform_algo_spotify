@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R314 | Ton exigence clé du 2026-09-28 : TOUT graphique de l'app dit, SOUS la figure, ce qu'il permet de décider dans la gestion des campagnes marketing (une ligne ≤ 140 car., FR/EN, source unique review.yaml → module généré dans src/) ; le PDF l'affiche sous chaque image et chaque « À valider » dit QUOI valider ; garde bloquante (chaque graphique a sa ligne, formulée en action) et exigence REQ-CHART-05 ; Grafana exclu <!-- critic: requis --> <!-- scope: src/dashboard/utils/, src/dashboard/views/, src/dashboard/content/, tools/dev/, tests/, .claude/dev-docs/, Makefile --> | P2 | garde mutée rouge ; ligne visible sous chaque graphique du PDF et de l'app |
-| R315 | Traçabilité des défauts SANS classe (ton accord du 2026-09-29) : le hook Stop `session_summary.py` relève, à chaque réponse et en lecture INCRÉMENTALE du transcript, les symptômes du tour — test rouge (id de nœud), traceback (type + fichier du dépôt), refus de hook ou de pre-commit ; PAS les sorties ≠ 0 de Bash (grep sans résultat = bruit) — dans `.claude/sessions/defects.jsonl` (gitignoré, extraits caviardés : chemins, e-mails, jetons) ; `make defect-log` réconcilie (même nœud revu vert ⇒ `green`, vert dans la même séance ⇒ `transient`) et PROPOSE le billet `recurrence:<d1>,<d2>` existant quand une empreinte revient un autre jour après un vert — proposition seulement, même cause à confirmer par un humain <!-- critic: requis — BUILD-MODIFIED appliqué (gitignore + caviardage, lecture par offset, exits Bash retirés, récidive = proposition au billet existant, vert = même nœud) --> <!-- scope: .claude/hooks/, .claude/scripts/, tools/dev/, tests/, .claude/dev-docs/, Makefile, .gitignore --> | P3 | rejoué sur le transcript de cette séance ; hook ≤ 100 ms mesuré ; garde muté rouge |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R314, R315, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

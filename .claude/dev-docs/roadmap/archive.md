@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R315 — Traçabilité des défauts SANS classe (ton accord du 2026-09-29) : le hook Stop `session_… (livrée 2026-09-29)
+
+- [x] **R315 — Traçabilité des défauts SANS classe (ton accord du 2026-09-29) : le hook Stop `session_summary.py` relève, à chaque réponse et en lecture INCRÉMENTALE du transcript, les symptômes du tour — test rouge (id de nœud), traceback (type + fichier du dépôt), refus de hook ou de pre-commit ; PAS les sorties ≠ 0 de Bash (grep sans résultat = bruit) — dans `.claude/sessions/defects.jsonl` (gitignoré, extraits caviardés : chemins, e-mails, jetons) ; `make defect-log` réconcilie (même nœud revu vert ⇒ `green`, vert dans la même séance ⇒ `transient`) et PROPOSE le billet `recurrence:<d1>,<d2>` existant quand une empreinte revient un autre jour après un vert — proposition seulement, même cause à confirmer par un humain** (P3) ✅ (2026-09-29, aa997be8)
+  Mesuré par : rejoué sur le transcript de cette séance ; hook ≤ 100 ms mesuré ; garde muté rouge
+  symptomes releves a chaque reponse dans .claude/sessions/defects.jsonl (gitignore, caviarde, moins de 1 ms par tour) ; make defect-log sur cette seance : 234 defauts dont 177 passagers, 30 verts, 27 sans vert prouve, 28 propositions recurrence ; garde mutee rouge 5 fois ; CI verte aa997be8
+  Commits : aa997be8 R315 : chaque reponse releve ses symptomes de defaut (test rouge, trac
+
+## ✅ R314 — Ton exigence clé du 2026-09-28 : TOUT graphique de l'app dit, SOUS la figure, ce qu'il… (livrée 2026-09-29)
+
+- [x] **R314 — Ton exigence clé du 2026-09-28 : TOUT graphique de l'app dit, SOUS la figure, ce qu'il permet de décider dans la gestion des campagnes marketing (une ligne ≤ 140 car., FR/EN, source unique review.yaml → module généré dans src/) ; le PDF l'affiche sous chaque image et chaque « À valider » dit QUOI valider ; garde bloquante (chaque graphique a sa ligne, formulée en action) et exigence REQ-CHART-05 ; Grafana exclu** (P2) ✅ (2026-09-29, a32f8233, ccc5592d)
+  Mesuré par : garde mutée rouge ; ligne visible sous chaque graphique du PDF et de l'app
+  64/64 graphiques de l app portent leur ligne de decision FR/EN sous la figure, le PDF aussi et chaque A valider dit quoi valider ; garde mutee rouge ; deploye aa997be8. FORCE_CI : a32f8233 rouge a cause de la ligne R315 qui nommait make defect-log avant sa creation, CI verte sur aa997be8 qui contient tout R314
+  Commits : a32f8233 R314 : le garde des lignes de decision ecrit sa trace de mutation et s · ccc5592d R314 : chaque graphique dit ce qu il permet de decider dans tes campag
+
 ## ✅ R313 — PDF des KPI réordonné (tes retours du 2026-09-28) : il s'ouvre sur TES DÉCISIONS, une l… (livrée 2026-09-28)
 
 - [x] **R313 — PDF des KPI réordonné (tes retours du 2026-09-28) : il s'ouvre sur TES DÉCISIONS, une ligne chacune (fiches à trancher avec ma reco, doublons D1/D2, proposition C, fiches à revalider en numéros), puis les fiches ; synthèse, guide des retours, traçabilité, propositions, méthode et recommandations passent À LA FIN ; beaucoup moins de texte dans la partie décision** (P3) ✅ (2026-09-28, 31a10bfd, 89c0a0e3)
