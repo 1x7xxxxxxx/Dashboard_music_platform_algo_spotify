@@ -7,7 +7,8 @@
 
 FROM python:3.11-slim
 
-# System deps for WeasyPrint (PDF export) + psycopg2.
+# System deps for WeasyPrint (PDF export) + psycopg2. fonts-noto-color-emoji (R287):
+# without it every emoji of a chart (🎵 🎬 🚀) exports as a square in the PDF.
 # Official WeasyPrint requirements: libpango-1.0-0 + libpangoft2-1.0-0 (FT API
 # used since v60+). libcairo2 + libgdk-pixbuf2 + libffi-dev + shared-mime-info
 # round out the rendering stack. libpangocairo is pulled transitively.
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgdk-pixbuf-2.0-0 \
         libffi-dev \
         shared-mime-info \
+        fonts-noto-color-emoji \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

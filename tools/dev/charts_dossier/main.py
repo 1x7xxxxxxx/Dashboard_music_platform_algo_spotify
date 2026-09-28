@@ -28,11 +28,18 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "dev" / "architecture_dossier"))
 
 VERDICTS = {"garder": "Garder", "corriger": "Corriger", "fusionner": "Fusionner",
-            "retirer": "Retirer", "a-trancher": "À trancher"}
+            "retirer": "Retirer", "a-trancher": "À trancher", "valider": "Validé"}
 ROLES = {"meta": "Meta Ads", "plateforme": "KPI plateforme", "prediction": "Prédiction",
          "archi": "Robustesse de l'app", "business": "Business / admin"}
 _COLOR = {"garder": "#1f8a4c", "corriger": "#c0392b", "fusionner": "#b7791f",
-          "retirer": "#6b6b6b", "a-trancher": "#2c5282"}
+          "retirer": "#6b6b6b", "a-trancher": "#2c5282", "valider": "#1f8a4c"}
+
+#: R286 — the owner's reading order (2026-09-28): what must CHANGE first, the validated last.
+#: A fiche's place is the owner's verdict when there is one, else mine.
+ORDER = [("corriger", "À corriger"), ("fusionner", "À fusionner"),
+         ("a-trancher", "À trancher"), ("retirer", "À retirer"),
+         ("revalider", "Fait — à revalider"), ("garder", "À garder"), ("valide", "Validés")]
+_TO_DO = ("corriger", "fusionner")
 
 RECOMMENDATIONS = [
     ("Une figure, une décision, lue d'un coup d'œil",
@@ -125,6 +132,28 @@ STATUSES = {"a-faire": "À faire", "revalider": "Fait — à revalider",
             "sans-avis": "Sans avis", "valide": "Validé"}
 
 
+def place(r: dict, st_: str) -> str:
+    """The section of a fiche in the owner's order (R286). Pure.
+
+    Validated or all-done first decide; otherwise the owner's verdict, else mine."""
+    if st_ in ("valide", "revalider"):
+        return st_
+    v = r.get("owner_v") or r.get("v") or "a-trancher"
+    return "valide" if v == "valider" else (v if v in dict(ORDER) else "a-trancher")
+
+
+def what_to_do(r: dict, entry: dict | None) -> str:
+    """R286 — « corriger quoi ? » : a fiche to correct or merge SAYS what, never a bare verdict.
+    My actions when there are some, else my note, flagged as not yet a roadmap action. Pure."""
+    v = r.get("owner_v") or r.get("v")
+    if v not in _TO_DO:
+        return ""
+    mine = [a["texte"] for a in (entry or {}).get("actions") or [] if a.get("qui") == "moi"]
+    body = (" ; ".join(esc(t) for t in mine) if mine
+            else f"{esc(r.get('note') or 'à préciser')} <i>(pas encore d'action inscrite)</i>")
+    return f'<p class="todo"><b>Ce qu\'il faut faire</b> — {body}</p>'
+
+
 def status(entry: dict | None, open_ids: set[str], done_ids: set[str] | None = None) -> str:
     """Where a fiche goes in the dossier. Pure.
 
@@ -188,7 +217,7 @@ def fiche(key: str, r: dict, img: str | None, meta_line: str, extra: str = "",
 <div class="head"><span class="no">Fiche {no}</span><span class="verdict" style="background:{_COLOR.get(v, '#444')}">{VERDICTS.get(v, v)}</span>
 <span class="q">{esc(r.get('q'))}</span></div>
 {img_html}
-{number_html(number)}<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set(), done_ids)}
+{number_html(number)}{what_to_do(r, entry)}<p class="note">{esc(r.get('note'))}</p>{owner}{actions_html(entry, open_ids or set(), done_ids)}
 <p class="site"><code>{esc(key)}</code> · {esc(ROLES.get(r.get('role'), r.get('role')))} {meta_line}{extra}</p></div>"""
 
 
@@ -472,10 +501,10 @@ connectée au rendu. Réglages par défaut des pages.</p>
 
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     graf_keys = [k for k in review if k.startswith("grafana:")]
-    for st_key, title in (("a-faire", "À faire"), ("revalider", "Fait — à revalider"),
-                          ("sans-avis", "Sans avis"), ("valide", "KPI validés")):
+    place_of = {k: place(review[k], st_of[k]) for k in review}
+    for st_key, title in ORDER:
         keys = [k for k in [*[k for v_ in by_view for k in by_view[v_]], *graf_keys]
-                if st_of[k] == st_key]
+                if place_of[k] == st_key]
         if not keys:
             continue
         parts.append(f"<h1 class='page'>{title} — {len(keys)} fiche(s)</h1>")
@@ -506,6 +535,7 @@ table.notes td { font-size: 8.5pt; padding: .5mm 3mm .5mm 0; }
 .num { margin: 1mm 0; font-size: 9pt; } .num-ecart { color: #c0392b; }
 .num-verifie { color: #1f8a4c; } .num-non-garanti { color: #b7791f; }
 ul.acts { margin: 1mm 0 1mm 4mm; padding: 0; font-size: 9pt; }
+.todo { background: #fff4e5; border-left: 3px solid #c0392b; padding: 1.5mm 3mm; margin: 1mm 0; }
 .owner { background: #eef4ff; border-left: 3px solid #2c5282; padding: 1.5mm 3mm; margin: 1mm 0; }
 .note { margin: 1mm 0; } .site { color: #888; font-size: 7.5pt; margin: 0; }
 h2.page { page-break-before: always; } .src { color: #666; font-size: 8.5pt; margin: 0; }

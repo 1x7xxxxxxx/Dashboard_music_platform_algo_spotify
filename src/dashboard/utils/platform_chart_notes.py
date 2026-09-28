@@ -392,17 +392,32 @@ def counter_arrivals(cumulative: dict, keys: list, span: list) -> list[tuple]:
     return out
 
 
-def mark_counter_arrivals(fig, arrivals: list, labels: dict, muted: str) -> None:
-    """A dotted line and a label on each counter's first reading (see counter_arrivals)."""
+def first_plotted(arrivals: list, aligned: dict, span: list) -> list[tuple]:
+    """Each arrival moved to the x where its step is DRAWN (R288). Pure.
+
+    The first reading is a day; the chart may be bucketed by week or month, and a line on
+    the day sat between two buckets, away from the step it explains."""
+    out = []
+    for day, key, level in arrivals:
+        xs = [span[i] for i, v in enumerate(aligned.get(key) or []) if v is not None]
+        out.append((xs[0] if xs else day, key, level))
+    return out
+
+
+def mark_counter_arrivals(fig, arrivals: list, labels: dict, muted: str,
+                          palette: dict | None = None) -> None:
+    """A dotted line and a label on each counter's first reading (see counter_arrivals),
+    in the PLATFORM's colour (R288): two grey lines were read as belonging to nobody."""
     from src.dashboard.utils.i18n import t
     for i, (day, key, level) in enumerate(arrivals):
-        fig.add_vline(x=day, line_dash="dot", line_color=muted, line_width=1)
+        colour = (palette or {}).get(key, muted)
+        fig.add_vline(x=day, line_dash="dot", line_color=colour, line_width=1.4)
         # Staggered: two counters arriving a fortnight apart printed their labels on top
         # of each other (dossier render, 2026-09-27).
         fig.add_annotation(
             x=day, y=1 - 0.09 * i, yref="paper", xanchor="right", yanchor="top",
             showarrow=False,
-            font=dict(size=10, color=muted),
+            font=dict(size=10, color=colour),
             text=t("platform_chart.counter_arrival",
                    "{p} : {v} à vie au 1er relevé — pas une hausse").format(
                 p=labels.get(key, key), v=f"{level:,.0f}".replace(",", " ")))

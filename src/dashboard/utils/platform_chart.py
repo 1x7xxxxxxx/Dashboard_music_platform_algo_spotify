@@ -58,7 +58,7 @@ from src.dashboard.utils.platform_absence import (          # noqa: F401
     _unmeasured_hover, known, unmeasured_spans,
 )
 from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
-    counter_arrivals, mark_counter_arrivals,
+    counter_arrivals, first_plotted, mark_counter_arrivals,
     _STEP_UNITS, _render_notes, _render_recap,
     render_collection_start_note, render_counter_history_note,
     t_coarsened, t_too_coarse, t_too_thin,
@@ -949,6 +949,12 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # n'a bougé », pas « personne n'a écouté ». `served` les nomme déjà quand la
     # couche or les sert ; sinon on retombe sur celles qui ont une série cumulée.
     _COUNTERS = set(served) | {k for k, rows in (cumulative or {}).items() if rows}
+    # R288 — a counter arriving inside the span is drawn as a STEP on its first reading:
+    # interpolated from the empty point before, its area rose in a slope that started
+    # before its dotted line, and the owner read the line as belonging to nobody.
+    _arrivals = (counter_arrivals(cumulative or {}, [k for k in order if k in served], span)
+                 if since is None and mode == "cumulative" else [])
+    _stepped = {k for _, k, _ in _arrivals}
     for pkey in order:
         for seg in segments[pkey]:
             first = pkey not in legend_done
@@ -970,7 +976,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                 # recouvrent jamais en x, et `stackgaps` (« infer zero » par défaut)
                 # laisse les autres plateformes continuer là où celle-ci s'arrête.
                 stackgroup="g",
-                line=dict(width=1.6, color=surface),   # le filet de 2 px entre les aires
+                line=dict(width=1.6, color=surface,    # le filet de 2 px entre les aires
+                          shape="hv" if pkey in _stepped else "linear"),
                 fillcolor=palette[pkey],
                 # `0` VEUT DIRE ZÉRO ÉCOUTE CE JOUR-LÀ, et rien d'autre : un jour
                 # non mesuré n'a pas de point du tout, la bande y est coupée. Le
@@ -1067,9 +1074,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     # franchi 1 200 lignes le 2026-09-13 et `test_a_file_only_gets_shorter` l'a dit.
     # Figer la dette dans sa liste était l'option paresseuse ; la découper la retire.
     annotate_series(fig, span, aligned, order, palette, surface, mode)
-    if since is None and mode == "cumulative":   # R241 — a counter's past is not a peak
-        mark_counter_arrivals(fig, counter_arrivals(
-            cumulative or {}, [k for k in order if k in served], span), PLATFORM_LABELS, muted)
+    if _arrivals:                                # R241 — a counter's past is not a peak
+        mark_counter_arrivals(fig, first_plotted(_arrivals, aligned, span),
+                              PLATFORM_LABELS, muted, palette)
 
     charts.plotly_chart(fig, width="stretch", key=key)
     if recap is not None:

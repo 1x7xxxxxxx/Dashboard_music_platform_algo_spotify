@@ -25,7 +25,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REVIEW = HERE / "review.yaml"
 ACTIONS = HERE / "actions.yaml"
-VERDICTS = {"garder", "corriger", "fusionner", "retirer", "a-trancher"}
+VERDICTS = {"garder", "corriger", "fusionner", "retirer", "a-trancher", "valider"}
 WHO = {"toi", "moi"}
 
 
@@ -81,6 +81,9 @@ def plan_actions(comments: dict, fiches: dict[int, str]) -> tuple[dict[str, dict
                 continue
             acts.append({"qui": a["qui"], "texte": str(a["texte"]).strip(),
                          **({"rid": str(rid)} if rid else {})})
+        # R286 — « valider » is the owner's verdict for « kept, nothing left to do ».
+        if str(c.get("v", "")).strip().lower() == "valider":
+            c = {**c, "valide": True}
         if c.get("valide") and acts:
             errors.append(f"fiche {no} : validée ET porteuse d'actions — l'un ou l'autre")
             continue
