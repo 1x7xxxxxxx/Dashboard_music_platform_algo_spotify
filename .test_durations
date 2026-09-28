@@ -9138,6 +9138,7 @@
     "tests/test_the_assistant_reopens_on_its_first_step.py::test_the_steps_carry_a_direction_not_only_a_state": 0.4452354889999697,
     "tests/test_the_breakeven_counts_every_euro.py::test_a_track_names_the_cost_entry": 0.0007995570194907486,
     "tests/test_the_breakeven_counts_every_euro.py::test_income_is_every_source_and_spend_is_ads_plus_entered_costs": 0.0147698100481648,
+    "tests/test_the_breakeven_counts_every_euro.py::test_meta_spend_in_decimal_sums_with_entered_costs_in_float": 0.14328107907203957,
     "tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens": 1.0016208969973377,
     "tests/test_the_bronze_boundary_only_tightens.py::test_the_ceiling_is_not_slack": 0.7449924880002072,
     "tests/test_the_bronze_boundary_only_tightens.py::test_the_declared_bronze_surfaces_still_read_bronze_and_still_do_not_aggregate": 0.019281133001641138,

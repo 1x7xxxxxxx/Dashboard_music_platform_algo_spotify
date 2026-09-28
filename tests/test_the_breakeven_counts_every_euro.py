@@ -27,3 +27,23 @@ def test_a_track_names_the_cost_entry():
     assert cost_label("", "Patte Velours", "distribution") == "Distribution — Patte Velours"
     assert cost_label("iMusician", "Patte Velours", "distribution") == "iMusician — Patte Velours"
     assert cost_label("", "—", "mastering") is None
+
+
+def test_meta_spend_in_decimal_sums_with_entered_costs_in_float():
+    """R294 — Postgres NUMERIC arrives as Decimal, the entered costs as float. Summed together
+    they raised « Decimal + float » and the chart vanished for every track the day the first
+    cost was entered (2026-09-28)."""
+    from decimal import Decimal
+
+    import pandas as pd
+
+    from src.dashboard.views.trigger_algo._tab_budget_roi import split_ledger
+    cf = pd.DataFrame([{"year": 2024, "month": 3, "flux": "depense", "source": "distribution",
+                        "amount_eur": Decimal("30.00")},
+                       {"year": 2024, "month": 3, "flux": "revenu", "source": "imusician",
+                        "amount_eur": Decimal("12.50")}])
+    meta = pd.DataFrame([{"date": "2024-03-01", "spend": Decimal("4.00")},
+                         {"date": "2024-03-02", "spend": Decimal("6.00")}])
+    spend, rev = split_ledger(cf, meta)
+    assert float(spend["spend"].sum()) == 40.0
+    assert float(rev["revenue_eur"].sum()) == 12.5

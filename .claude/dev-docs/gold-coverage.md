@@ -205,7 +205,7 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/spotify_s4a_combined.py:449` | `_render_momentum` | plotly_chart | à l'écran | `v_s4a_song_daily` · `v_s4a_song_measured_span` · `v_spotify_track_pi_daily` | or | plusieurs amonts | profondeur | — |
 | `views/trigger_algo/_tab_algo_streams.py:99` | `_show_tab_algo_streams` | plotly_chart | à l'écran | `s4a_song_algo_outcomes` | brut | plusieurs amonts | — | — |
 | `views/trigger_algo/_tab_budget_roi.py:361` | `_render_fit` | plotly_chart | à l'écran | `get_monthly_roi_series()` | or | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_budget_roi.py:524` | `_render_breakeven` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_meta_daily` · `saas_artists` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
+| `views/trigger_algo/_tab_budget_roi.py:529` | `_render_breakeven` | plotly_chart | à l'écran | `v_artist_monthly_cashflow` · `v_meta_daily` · `saas_artists` | mixte | plusieurs amonts | profondeur · sql-dynamique | — |
 | `views/trigger_algo/_tab_catalogue.py:157` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | profondeur | — |
 | `views/trigger_algo/_tab_catalogue.py:165` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
 | `views/trigger_algo/_tab_lifecycle.py:55` | `_show_tab_lifecycle` | plotly_chart | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
@@ -698,4 +698,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=32 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=da09f1e14c55d8eac471cb585435c9427fd54682d8d075b873f3e84adbdea411 -->
+<!-- gold-coverage: sha256=72a18c68bf732788b8c17d7d504e43ee48692d505260c275e698406535a82cef -->

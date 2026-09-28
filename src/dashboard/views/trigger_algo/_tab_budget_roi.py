@@ -416,6 +416,11 @@ def split_ledger(cf: pd.DataFrame, meta: pd.DataFrame) -> tuple:
     costs = (d[(d["flux"] == "depense") & (d["source"] != "meta_ads")]
              .groupby("date", as_index=False)["amount_eur"].sum()
              .rename(columns={"amount_eur": "spend"}))
+    # R294 — Postgres NUMERIC arrives as decimal.Decimal (dtype object) and the entered costs
+    # as float: summed together they raise « Decimal + float », which broke this chart for
+    # every track the day the first cost was entered (2026-09-28). Both sides are floats.
+    if meta is not None and not meta.empty:
+        meta = meta.assign(spend=pd.to_numeric(meta["spend"], errors="coerce"))
     parts = [x for x in (meta, costs) if x is not None and not x.empty]
     spend = (pd.concat(parts).assign(date=lambda x: pd.to_datetime(x["date"]))
              .groupby("date", as_index=False)["spend"].sum()) if parts \
