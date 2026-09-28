@@ -305,6 +305,15 @@ def _fan_out() -> tuple[str, str]:
         f"{dag} : p95 {p95:.0f} s = {share:.0%} de son timeout (seuil : 50 %)")
 
 
+def _model_weeks() -> tuple[str, str]:
+    """R293 — « la qualité du modèle semaine par semaine » : rouvre quand les constats S4A par
+    algorithme couvrent au moins 4 semaines distinctes. Mesuré le 2026-09-28 : une seule date
+    de relevé (33 lignes, 11 titres) — une tendance d'un point n'est pas une tendance."""
+    n = _scalar("SELECT COUNT(DISTINCT date_trunc('week', recorded_at)) "
+                "FROM s4a_song_algo_outcomes WHERE time_window = '28d'")
+    return (MET if n >= 4 else NOT_MET), f"{n} semaine(s) de constats S4A par algorithme (seuil : 4)"
+
+
 TRIGGERS = [
     Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
             "archive.md — 🩺 R122", _r122),
@@ -327,6 +336,8 @@ TRIGGERS = [
             "checklist.md — Conditions d'attente", _dashboard_ram),
     Trigger("fan-out par locataire", "un DAG de prod passe, au p95 sur 30 jours, la "
             "moitié de son `dagrun_timeout`", "ADR-030 — product-backlog.md", _fan_out),
+    Trigger("R293 qualité du modèle", "les constats S4A par algorithme couvrent 4 semaines "
+            "distinctes", "product-backlog.md — R293", _model_weeks),
     Trigger("R87", "`loadtest_dashboard.py -n 12` rend un p50 > 200 ms",
             "archive.md:5146", None),
     Trigger("« DB ping »",

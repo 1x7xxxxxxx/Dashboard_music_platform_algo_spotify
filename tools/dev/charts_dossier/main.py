@@ -61,7 +61,8 @@ RECOMMENDATIONS = [
      "P(DW) ne réagit pas à son levier. Recommandation : une figure « prédit vs constaté, "
      "semaine par semaine » avant de vendre davantage de prédictions (ADR-029). ⏳ Retenue "
      "par le code-critic (R292) : les fiches 51 et 58 comparent la DERNIÈRE prédiction, pas "
-     "une tendance — inscrite en roadmap R293 (607 prédictions sur 9 semaines, artiste 1)."),
+     "une tendance — différée au backlog (R293) : les constats S4A n'ont qu'UNE date de "
+     "relevé, une tendance d'un point n'en est pas une ; rouverte à 4 semaines de constats."),
     ("Corrélation n'est pas causalité",
      "Majors et al., <i>Observability Engineering</i>, p. 49",
      "Pour « qu'apporte Meta », les figures qui REFUSENT de conclure (le verdict d'auditeurs "
