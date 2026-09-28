@@ -2014,7 +2014,7 @@ base, **0 créative sur 61** est mesurée aujourd'hui.
 **Vérification** : page **🎨 Visuels de campagne** → tableau replié « Le classement au
 chiffre près » → la légende dit « (N/61 mesurées) » avec N > 0.
 
-## 33. R255 — Saisir le coût de distribution de tes titres · P3
+## 33. ~~R255 — Saisir le coût de distribution de tes titres~~ · ✅ FAIT le 2026-09-28
 
 **Pourquoi** : le « remboursement de la pub » (fiche 46) et la trésorerie comptent tes
 frais. Sans le coût de distribution (iMusician, DistroKid…), ils sont sous-estimés — la
@@ -2028,7 +2028,7 @@ fiche 62 attend cette saisie.
 **Vérification** : le message « ✅ … € enregistrés » s'affiche, et le tableau des coûts
 sous le formulaire liste une ligne *distribution* par titre saisi.
 
-## 34. R256 — Saisir les coûts d'exploitation de l'app · P3
+## 34. ~~R256 — Saisir les coûts d'exploitation de l'app~~ · ✅ FAIT le 2026-09-28
 
 **Pourquoi** : la marge de l'admin (fiche 66) ne peut rien afficher tant qu'aucun coût
 d'exploitation n'est saisi — hébergement Hetzner, nom de domaine, outils payants.

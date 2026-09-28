@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R255 — Saisir le **coût de distribution** de chaque titre (fiche 62) (livrée 2026-09-28)
+
+- [x] **R255 — Saisir le **coût de distribution** de chaque titre (fiche 62)** (P3) ✅ (2026-09-28, 131e5efe, ebe10a1f)
+  Mesuré par : ta saisie dans 📈 Prévisions revenus → 💳 Mes coûts, catégorie distribution, un titre par ligne — runbook § 33
+  saisi en prod le 2026-09-28 sur indication du proprietaire - 30 EUR par titre, une fois, au mois de sa sortie (track_release_reference) : 11 titres, 330 EUR ; aucun code produit
+  Commits : 131e5efe R254 : une action du dossier KPI designe une ligne de roadmap reelle - · ebe10a1f Roadmap : R254 inscrite ; R255 et R256 (gestes du proprietaire, fiches
+
+## ✅ R256 — Saisir les **coûts d'exploitation** de l'app (fiche 66) (livrée 2026-09-28)
+
+- [x] **R256 — Saisir les **coûts d'exploitation** de l'app (fiche 66)** (P3) ✅ (2026-09-28, 131e5efe, ebe10a1f)
+  Mesuré par : ta saisie dans ⚙️ Admin → 💸 Coûts d'exploitation & marge — runbook § 34
+  saisi en prod le 2026-09-28 sur indication du proprietaire - Hetzner 20 EUR par mois depuis 2026-06 (mise en ligne), categorie vps ; aucun code produit
+  Commits : 131e5efe R254 : une action du dossier KPI designe une ligne de roadmap reelle - · ebe10a1f Roadmap : R254 inscrite ; R255 et R256 (gestes du proprietaire, fiches
+
 ## ✅ R274 — Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes… (livrée 2026-09-28)
 
 - [x] **R274 — Poste de développement (notes L15, L72, L73, L79) : mesuré le 2026-09-27, trois gestes sur TON shell et TON VS Code — chemin de `.env.local` dans `~/.bashrc` (l'ancien dossier `/mnt/c` n'existe plus, les 4 variables MCP ne sont plus exportées), alias `sl`, ouverture Remote-WSL** (P4) ✅ (2026-09-28, 903548d6, 65f61128)
