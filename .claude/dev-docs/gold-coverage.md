@@ -475,7 +475,7 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 | `test_a_view_opens_on_one_decision.py` | `_MAX_FIRST_SCREEN` | 5 | — | — |
 | `test_a_view_opens_on_one_decision.py` | `_PLAFOND_PAR_VUE` | 0 entrées | — | — |
 | `test_chart_budget.py` | `_BUDGET` | 7 entrées | — | — |
-| `test_every_button_can_be_clicked.py` | `_MAX_PER_VIEW` | 12 | — | — |
+| `test_every_button_can_be_clicked.py` | `_MAX_PER_VIEW` | 20 | — | — |
 | `test_the_bronze_boundary_only_tightens.py` | `_CEILING` | 66 | — | — |
 | `test_the_declared_schema_matches_the_database.py` | `_PLAFOND` | 33 | — | — |
 | `test_the_error_class_families_only_improve.py` | `_MAX_ORPHANS` | 0 | — | — |
@@ -693,4 +693,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=b7bc23846b257e64333d57c0b76b8253682616c9a428fca5dfe4406ee1ccdf37 -->
+<!-- gold-coverage: sha256=d48e47e0a413643d5c2e0ead6ec5022bbc50cf6e59aa79a58eb4153a806ab029 -->

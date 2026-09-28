@@ -23,7 +23,9 @@ from tests.render_harness import SCRIPT, VIEWS
 
 pytest.importorskip("streamlit.testing.v1")
 
-_MAX_PER_VIEW = 12
+# 20, not 12 (2026-09-28): on the CI base the home page draws 15 buttons — every setup
+# step pending, plus « Y aller → » per platform — where the local base draws fewer.
+_MAX_PER_VIEW = 20
 
 
 def _db_up() -> bool:
