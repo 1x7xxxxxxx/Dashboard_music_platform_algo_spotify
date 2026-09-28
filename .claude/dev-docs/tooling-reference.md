@@ -46,6 +46,12 @@ vide). Les classes d'erreur génériques s'exportent en propositions par
 `tools/dev/export_generic_classes.py` du baseline. Premier destinataire : MSDR
 (`docs/transfer-from-streamlytics.md` de ce dépôt-là).
 
+Ce que l'adoption MSDR a appris au baseline (R296, 2026-09-28) : l'installeur ÉCRASAIT un
+fichier versionné du dépôt cible (`cp -rf` d'un sous-arbre, même sans `--update`) — il copie
+désormais fichier par fichier et garde ce que le dépôt possède
+(`tools/dev/check_installer_never_clobbers.sh`) ; `next_id` ne compte plus un id cité en
+prose ; le benchmark résout un nœud de classe de test ; `check_ci_waste.py` voit un `push:` nu.
+
 ### Required setup before first use
 
 1. **Export env vars** in `~/.bashrc` or `.env.local` (see `.env.example` § MCP Servers) :
