@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R309 — Scalabilité produit (ta demande du 2026-09-28, après l'outillage) : `tools/tenant_conta… (livrée 2026-09-28)
+
+- [x] **R309 — Scalabilité produit (ta demande du 2026-09-28, après l'outillage) : `tools/tenant_contamination_check.py` lance 2 requêtes par artiste × plateforme × table chaque nuit dans `alert_monitor` → une requête groupée par table pour tous les locataires ; même revue pour les autres contrôles nocturnes par locataire** (P3) ✅ (2026-09-28, f4754b7c)
+  Mesuré par : nombre de requêtes et durée de la tâche nocturne avant/après, même verdict
+  Differee au backlog : 0,3-0,5 s pour 13 locataires, rouverte par reopen_check a 100 locataires (ADR-007/030) ; f4754b7c, CI verte
+  Commits : f4754b7c R309 : differee au backlog avec un declencheur mesure - le controle de
+
+## ✅ R307 — Latence de l'outillage de dev, mesurée avant/après en alternance. Critic BUILD-MODIFIED… (livrée 2026-09-28)
+
+- [x] **R307 — Latence de l'outillage de dev, mesurée avant/après en alternance. Critic BUILD-MODIFIED (2026-09-28) : (1) d'abord la re-tokenisation interne de `guard_destructive` (~10 découpages de la commande, un processus git par chemin) — c'est là le coût d'une commande, pas le démarrage de Python ; (2) un dispatcher pour `PostToolUse Edit** (Write` SEULEMENT (5 processus par édition), qui capture `SystemExit`, réinjecte l'évènement sur stdin pour chaque vérificateur, porte un délai par vérificateur et une table bloquant/consultatif, garde muté rouge (un membre qui bloque, un qui lève) ; (3) gold_coverage en une passe avec cache des arbres ; (4) error_class_health en cache par commit ; (5) select_tests lit les tests une fois. RETIRÉ : la déduplication d'audit_runner, qui existe déjà (`run_batched`, union des nœuds pytest) <!-- critic: requis — BUILD-MODIFIED appliqué --> <!-- scope: .claude/hooks/, .claude/settings.json, .claude/scripts/, tools/dev/, tests/ -->) ✅ (2026-09-28, 2045043d)
+  Mesuré par : P3
+  error_class_health 33 s -> ~15 s (cat-file batch), gold_coverage 21 s -> ~16 s (cache de portee), mesure en alternance, sorties identiques ; dispatcher de hooks refute par la mesure (hooks en parallele) ; 2045043d, CI verte
+  Commits : 2045043d R307 : latence de l outillage mesuree, et ce qu elle a refute - error_
+
+## ✅ R311 — DEVLOG archivé (ta décision du 2026-09-28) : le DEVLOG racine (11 717 lignes) et celui… (livrée 2026-09-28)
+
+- [x] **R311 — DEVLOG archivé (ta décision du 2026-09-28) : le DEVLOG racine (11 717 lignes) et celui gelé de dev-docs vont dans `archive/docs/`, le hook `draft_devlog.py` qui l'écrit à chaque fin de séance est retiré vers `archive/claude-config/hooks/`, `/devlog-promote` archivé ; `/resume`, `pre_compact`, `session_summary`, les tests, CLAUDE.md et les permissions ne le lisent plus — la trace d'une livraison est l'entrée d'archive de roadmap (`make roadmap-close`) et git** (P4) ✅ (2026-09-28, 63b4d436)
+  Mesuré par : aucun hook n'écrit plus de DEVLOG ; garde d'archive verte
+  DEVLOG racine et gele archives, hook draft_devlog et /devlog-promote retires, /resume et hooks lisent la tete de l archive de roadmap ; 63b4d436, CI verte
+  Commits : 63b4d436 R311 : DEVLOG archive (ta decision) - le journal racine (11 717 lignes
+
 ## ✅ R306 — Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `archive/scri… (livrée 2026-09-28)
 
 - [x] **R306 — Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `archive/scripts/tools/generate-dev-docs.py`, `tools/prod_introspect.sh`, trois one-shots faits, cinq outils de mesure ponctuels, `run_tests.sh` ; commandes de debug retirées de la page « liens utiles » ; code mort retiré** (P3) ✅ (2026-09-28, f348773b)
