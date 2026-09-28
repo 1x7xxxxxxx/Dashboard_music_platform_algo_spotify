@@ -21,7 +21,7 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "Oui, corrige le pic d'auditeurs."
+  owner: "Je vois les deux pointillés qui disent à quel moment on a les data, mais le deuxième pointillé, il est pas sur YouTube. Donc c'est bizarre. Et les logos Spotify et YouTube, c'est des carrés, donc ça rend pas bien. Il faut reprendre les logos comme sur SoundCloud."
   cause: arrivee-historique-lue-comme-hausse
   note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   p: 5
   v: corriger
   owner_v: corriger
-  owner: "D'accord avec toi."
+  owner: "C'est pas mal. On a un peu du mal à voir la couleur verte des 28 derniers jours mesurés. Mettre pour qu'on voie plus la différence de longueur entre les 28 derniers jours mesurés et le cumul à vie. Propose-moi une solution."
   cause: lisibilite
   note: "Les barres « 28 derniers jours » sont presque invisibles quand la fenêtre est calme ; noms de titres coupés à gauche dans l'export. Afficher la valeur récente en texte."
 src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
@@ -53,8 +53,8 @@ src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
   c: 4
   p: 5
   v: garder
-  owner_v: fusionner
-  owner: "On garde, mais fusionner les deux."
+  owner_v: corriger
+  owner: "Veille bien à ce qu'on a le filtre par track sur ce graphique. Mettre les sauvegardes et les ajouts en playlist sur une aire de courbe, et sur un deuxième axe, parce que là elles sont un peu en bas."
   note: "Nouvelle figure à deux panneaux (R194). Chaque unité sur son axe ; le PI plancher (< 10) se lit bien comme « loin des portes »."
 
 # ── Bilan annuel (Wrapped) ───────────────────────────────────────────────────
@@ -67,7 +67,7 @@ src/dashboard/views/apple_music.py::show#1:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "D'accord, corrige."
+  owner: "Non garanti pour la couche or. Garantis que ça soit garanti. J'arrive pas à savoir ce qu'il faut corriger : si tu me proposes de corriger ou fusionner, mets-moi ce qu'il faut corriger ou fusionner."
   cause: libelles-tronques
   note: "Noms de titres coupés à gauche (« en le français »). Un instantané cumulé, pas une série."
 src/dashboard/views/apple_music.py::_render_song_series#1:
@@ -88,7 +88,7 @@ src/dashboard/views/soundcloud.py::show#1:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "Il n'y a plus le bump, je pense que c'est corrigé — corrige si tu vois des trucs."
+  owner: "Garantis que la couche or soit OK. On avait déjà fait le travail avec la couche or et on n'a plus le bump, je pense que c'est réglé. Pourquoi c'est toujours à corriger ?"
   cause: absence-ecrite-zero
   note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
 src/dashboard/views/soundcloud.py::show#2:
@@ -109,8 +109,8 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   c: 1
   p: 3
   v: corriger
-  owner_v: corriger
-  owner: "Déjà corrigé je crois, plus de bump — à voir."
+  owner_v: fusionner
+  owner: "Fusionne tout sur un même graphique : les écoutes cumulées, l'engagement cumulé, likes, reposts, commentaires. Pas en base 100, mais tout sur un même graphe."
   cause: absence-ecrite-zero
   note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
 src/dashboard/views/soundcloud.py::_render_top_chart#1:
@@ -141,7 +141,7 @@ src/dashboard/views/youtube.py::show#2:
   p: 3
   v: corriger
   owner_v: corriger
-  owner: "Oui, corrige."
+  owner: "C'est pas mal, tu m'as rajouté les vues, les likes et les vues par like. Mets-moi les trois métriques sur un même graphique, pas sur un même axe, en séparant le comportement des likes et de l'engagement. Propose-moi un autre truc."
   cause: lisibilite
   note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
 src/dashboard/views/instagram.py::_render_community#1:
@@ -161,8 +161,8 @@ src/dashboard/views/instagram.py::show#1:
   c: 3
   p: 2
   v: corriger
-  owner_v: garder
-  owner: "On garde ; tu as déjà corrigé les couleurs je crois."
+  owner_v: corriger
+  owner: "L'ergonomie du graphique est pas ouf, propose-moi un autre truc."
   cause: lisibilite
   note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
 src/dashboard/views/instagram.py::show#2:
@@ -183,7 +183,7 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   p: 3
   v: garder
   owner_v: corriger
-  owner: "On garde ; mettre mes campagnes Hypeddit depuis la sortie en ronds, avec la valeur totale de chaque en étiquette."
+  owner: "OK. Sur la fiche 17, le logo en carré dans le titre du rond n'a pas pris. Trouve pourquoi et fais l'analyse de tous les logos qui sont des carrés."
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée."
 src/dashboard/views/imusician.py::show#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
@@ -568,8 +568,8 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   c: 2
   p: 2
   v: a-trancher
-  owner_v: corriger
-  owner: "En admin, avec un calcul de MRR ; et saisir le coût de distribution d'un titre (iMusician, DistroKid), sommé dans la comptabilité."
+  owner_v: garder
+  owner: "Intègre-le et on garde en admin, pas pour l'artiste, c'est pour les plans premium. Non garanti couche : règle-moi ce problème."
   note: "R249 : déjà en admin — onglet « LTV & Churn » de Prévisions revenus, visible des seuls administrateurs ; le MRR est calculé dans l'onglet voisin « MRR Actuel ». Le coût de distribution par titre se saisit dans Mes revenus (R248)."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
@@ -600,8 +600,8 @@ src/dashboard/views/admin.py::_render_costs#1:
   c: 3
   p: 2
   v: a-trancher
-  owner_v: corriger
-  owner: "Pas de rendu."
+  owner_v: a-trancher
+  owner: "Non rendu. Check pourquoi on peut pas le rendre, il faut me le rendre pour que je prenne une décision."
   absent: "donnée absente — aucun coût d'exploitation saisi dans l'admin"
   note: "Non rendu par défaut."
 src/dashboard/views/usage_analytics.py::show#1:

@@ -3,8 +3,11 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   valide: false
   actions:
   - qui: moi
-    texte: Marquer l'arrivée d'historique (YouTube) au lieu d'une hausse, vérifier le chiffre sur le rendu
-    rid: R241
+    texte: Chaque marche d'une plateforme tombe sur son pointillé, pointillé à sa couleur
+    rid: R288
+  - qui: moi
+    texte: 'Logos : police emoji dans les images exportées, balayage de tous les emoji des figures'
+    rid: R287
 src/dashboard/utils/platform_chart.py::_render_facets#1:
   valide: false
   actions:
@@ -19,20 +22,23 @@ src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
   valide: false
   actions:
   - qui: moi
-    texte: Valeur récente en texte, noms de titres complets ; vérifier sur le rendu
-    rid: R241
+    texte: Les 28 derniers jours lisibles face au cumul à vie — proposition dessinée
+    rid: R290
 src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
   valide: false
   actions:
   - qui: moi
-    texte: Un seul graphique pour les deux panneaux, chaque unité sur son axe
-    rid: R244
+    texte: Sauvegardes et ajouts en aires sur un 2e axe ; filtre par titre vérifié
+    rid: R290
 src/dashboard/views/apple_music.py::show#1:
   valide: false
   actions:
   - qui: moi
-    texte: Noms de titres complets ; vérifier sur le rendu
-    rid: R241
+    texte: Lire Apple Music par une vue or (apple_songs_performance lu en brut)
+    rid: R289
+  - qui: moi
+    texte: Chaque fiche à corriger dit quoi corriger
+    rid: R286
 src/dashboard/views/apple_music.py::_render_song_series#1:
   valide: true
   actions: []
@@ -40,8 +46,9 @@ src/dashboard/views/soundcloud.py::show#1:
   valide: false
   actions:
   - qui: moi
-    texte: Vérifier sur le rendu qu'aucun retour à 0 ne subsiste
-    rid: R241
+    texte: Lire SoundCloud par une vue or (soundcloud_tracks_daily lu en brut) ; vérifier le retour à
+      0 sur l'instantané neuf
+    rid: R289
 src/dashboard/views/soundcloud.py::show#2:
   valide: true
   actions: []
@@ -49,8 +56,8 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   valide: false
   actions:
   - qui: moi
-    texte: Vérifier sur le rendu qu'aucun retour à 0 ne subsiste
-    rid: R241
+    texte: Écoutes, likes, reposts et commentaires SoundCloud sur un seul graphique
+    rid: R290
 src/dashboard/views/soundcloud.py::_render_top_chart#1:
   valide: true
   actions: []
@@ -61,8 +68,11 @@ src/dashboard/views/youtube.py::show#2:
   valide: false
   actions:
   - qui: moi
-    texte: Top vidéos en barres lisibles, sans panneau toujours à 0 ; vérifier sur le rendu
-    rid: R241
+    texte: Vues, likes et vues par like sur un graphique à axes séparés
+    rid: R290
+  - qui: moi
+    texte: Lire YouTube par une vue or (youtube_video_stats lu en brut)
+    rid: R289
 src/dashboard/views/instagram.py::_render_community#1:
   valide: true
   actions: []
@@ -70,8 +80,8 @@ src/dashboard/views/instagram.py::show#1:
   valide: false
   actions:
   - qui: moi
-    texte: Vérifier sur le rendu que likes et commentaires ont deux couleurs distinctes
-    rid: R241
+    texte: Autre forme pour l'engagement Instagram par mois
+    rid: R290
 src/dashboard/views/instagram.py::show#2:
   valide: true
   actions: []
@@ -79,8 +89,8 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   valide: false
   actions:
   - qui: moi
-    texte: Anneaux par campagne Hypeddit depuis la sortie, totaux étiquetés
-    rid: R245
+    texte: Logo du titre rendu (police emoji), puis revalidation
+    rid: R287
 src/dashboard/views/imusician.py::show#1:
   valide: false
   actions:
@@ -368,14 +378,8 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   valide: false
   actions:
   - qui: moi
-    texte: LTV + MRR en admin
-    rid: R249
-  - qui: moi
-    texte: Saisie du coût de distribution par titre dans « Mes revenus »
-    rid: R248
-  - qui: toi
-    texte: Saisir le coût de distribution de tes titres une fois la saisie livrée
-    rid: R255
+    texte: Déclarer et garantir la couche de la LTV admin
+    rid: R289
 src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
   valide: false
   actions:
@@ -394,9 +398,9 @@ src/dashboard/views/alerts.py::_section_plan_evolution#1:
 src/dashboard/views/admin.py::_render_costs#1:
   valide: false
   actions:
-  - qui: toi
-    texte: Saisir tes coûts d'exploitation (hébergement, domaine, outils) dans l'admin
-    rid: R256
+  - qui: moi
+    texte: Rendre la figure sur un instantané neuf (aucun coût saisi avant R256)
+    rid: R286
 src/dashboard/views/usage_analytics.py::show#1:
   valide: false
   actions:
