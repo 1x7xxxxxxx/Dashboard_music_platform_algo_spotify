@@ -30,6 +30,13 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R286 | **Dossier des KPI, tes règles de lecture** (revue du 2026-09-28) : ordre corriger → fusionner → garder → validé (validé à la fin), un état « validé » distinct de « garder », et chaque fiche « corriger / fusionner / non garanti » dit QUOI faire ; instantané de prod rafraîchi (la fiche 66 n'avait aucun coût à dessiner avant R256) et PDF refait <!-- anchor: r286 --> <!-- critic: non — outil de revue interne --> <!-- scope: tools/dev/charts_dossier --> | P3 | ton ordre respecté ; aucune fiche à corriger sans son action écrite |
+| R287 | **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune police emoji ni sur le poste ni dans le conteneur de prod, donc 🎵 🎬 🚀 deviennent des carrés dans le dossier ET dans le PDF artiste (☁️ passe, elle existe dans les polices ordinaires) — police emoji dans les images, balayage de chaque emoji des figures <!-- anchor: r287 --> <!-- critic: non — police manquante --> <!-- scope: Dockerfile, Dockerfile.api, src/dashboard --> | P3 | aucun carré sur les figures du dossier ; `fc-list` voit une police emoji dans le conteneur |
+| R288 | **Fiche 1 : la marche d'une plateforme glisse avant son pointillé** — l'aire empilée monte en pente depuis le dernier point vide jusqu'au premier relevé, donc la hausse YouTube commence avant sa ligne ; la marche doit tomber sur le pointillé, chaque pointillé à la couleur de sa plateforme <!-- anchor: r288 --> <!-- critic: non — tracé --> <!-- scope: src/dashboard/utils/platform_chart.py --> | P3 | figure regardée : chaque saut sur sa ligne |
+| R289 | **« Non garanti » sur les fiches 6, 8, 13, 62** : Apple Music (`apple_songs_performance`), SoundCloud (`soundcloud_tracks_daily`), YouTube (`youtube_video_stats`, `youtube_videos`) lus hors couche or, LTV admin sans couche déclarée — passer chacune par une vue or et baisser le cliquet de R280 (fiche 8 : vérifier sur l'instantané neuf qu'aucun retour à 0 ne subsiste) <!-- anchor: r289 --> <!-- critic: requis — vues or neuves --> <!-- scope: src/dashboard/views, src/dashboard/utils, migrations, tools/dev/gold_coverage.py --> | P2 | les 4 fiches « ✅ Chiffre vérifié » |
+| R290 | **Cinq figures à redessiner** (tes remarques) : fiche 4 (28 derniers jours invisibles face au cumul), fiche 5 (sauvegardes et ajouts en aires sur un 2ᵉ axe, filtre par titre), fiche 10 (écoutes + likes + reposts + commentaires SoundCloud sur UN graphique, sans base 100), fiche 13 (vues, likes et vues par like sur un graphique, comportements séparés), fiche 15 (autre forme) <!-- anchor: r290 --> <!-- critic: requis — forme de cinq figures --> <!-- scope: src/dashboard/views/spotify_s4a_combined.py, src/dashboard/views/soundcloud.py, src/dashboard/views/youtube.py, src/dashboard/views/instagram.py, src/dashboard/utils --> | P3 | chaque figure rendue et regardée ; tes validations |
+| R291 | **P2 dans l'app** : par campagne, les écoutes gagnées et le prix d'une écoute gagnée, fusionnés avec les streams obtenus, le budget dépensé et les autres métriques de campagne, sur la page Meta × Spotify, via une vue or <!-- anchor: r291 --> <!-- critic: requis — nouvelle figure et vue or --> <!-- scope: src/dashboard/views/meta_x_spotify.py, src/dashboard/utils, migrations, tools/dev/gold_coverage.py --> | P2 | figure rendue ; calcul testé ; pas de doublon avec les fiches 20 et 39 |
+| R292 | **Les recommandations du corpus pas encore intégrées** (section du dossier) : les lister, passer chacune au code-critic, une ligne de roadmap par recommandation retenue <!-- anchor: r292 --> <!-- critic: requis — c'est l'objet de la tâche --> <!-- scope: tools/dev/charts_dossier --> | P3 | la liste avec le verdict critic de chacune |
 
 ---
 
@@ -85,7 +92,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R282, R283, R275 -->
+<!-- reprise: open=R286, R287, R288, R289, R290, R291, R292, R282, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -212,7 +219,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R282 | Graphiques marketing : choisir parmi les propositions P1 à P6 du dossier des KPI (`revue/dossier-graphiques.pdf`, pages 1 à 4, dessinées le 2026-09-28 — 3651c1d8), et dire si le seuil de déclenchement sur la courbe Meta × Spotify (note L268) revient maintenant ; chaque proposition retenue devient une ligne | P4 | ta réponse — runbook § 38 |
+| R282 | Graphiques marketing — tes retours du 2026-09-28 : P2 gardée (→ R291) ; P3, P4 et P5 refusées ; P1 à reproposer avec sa question et en disant si une figure existante y répond déjà ; P6 à redessiner PAR CAMPAGNE (Hypeddit ne porte qu'un total par campagne, 6 campagnes) ; de nouvelles propositions à la place des refusées ; puis ton choix | P4 | ta réponse — runbook § 38 |
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39 |
 | R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
 
