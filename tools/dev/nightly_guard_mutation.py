@@ -66,6 +66,15 @@ SEEN_RED: dict[str, str] = {
     "tests/test_every_quality_check_has_a_category.py":
         "2026-09-27 — un check_ du soir ajouté sans catégorie → 1 rouge ; un pointeur "
         "renommé vers une fonction absente → 2 rouges",
+    # R323 (2026-09-29): the three the 09-28 night listed « à relire », re-mutated by hand.
+    "tests/test_the_fleet_readiness_does_not_grow_with_tenants.py":
+        "2026-09-29 — readiness_many rendu par le chemin par locataire (artist_readiness en "
+        "boucle) → 15 requêtes par locataire contre une borne de 3, 1 rouge",
+    "tests/test_a_release_is_benchmarked_with_its_spend.py":
+        "2026-09-29 — worth_a_panel répond True sur un cadre tout à zéro → 1 rouge",
+    "tests/test_engagement_stacks_actions_not_their_total.py":
+        "2026-09-29 — page_interactions remis dans _ENG_STACK (l'agrégat empilé avec ce "
+        "qu'il contient) → 1 rouge",
 }
 
 

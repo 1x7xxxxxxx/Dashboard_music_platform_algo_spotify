@@ -57,6 +57,10 @@ CONTROL = {
                     "ne couvre pas: anything outside the scratch worktree"),
     "siblings": ("swept:2026-09-26 — `sibling-sweeper` : 12 candidates → 10 excluded "
                  "(not the defect) → **2 sites vivants** (a.py:1, b.py:2)"),
+    # R264 (2026-09-28) made `closest:` mandatory on a new class; the control, left without
+    # it, was refused by admission and the whole probe read red (security nightly 09-28).
+    "closest": ("a-fallback-that-runs-when-the-first-branch-succeeded — a fabricated probe "
+                "class, not a fallback defect"),
     "first_seen": "2099-01-01",
 }
 
