@@ -14,6 +14,7 @@ services:
   postgres:
     image: postgres:17
     container_name: postgres_spotify_airflow
+    mem_limit: 1g   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     restart: unless-stopped          # survive host reboot (other services depend on it)
     environment:
       POSTGRES_USER: postgres
@@ -175,6 +176,7 @@ services:
       dockerfile: Dockerfile.airflow
     image: streamlytics-airflow
     container_name: airflow_webserver
+    mem_limit: 2560m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -220,6 +222,7 @@ services:
       dockerfile: Dockerfile.airflow
     image: streamlytics-airflow
     container_name: airflow_scheduler
+    mem_limit: 6g   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -255,6 +258,7 @@ services:
       dockerfile: Dockerfile
     image: streamlytics-dashboard
     container_name: streamlytics_dashboard
+    mem_limit: 900m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     depends_on:
       postgres:
         condition: service_healthy
@@ -371,6 +375,7 @@ services:
     # celle de l'ancre le fait rougir.
     image: streamlytics-dashboard
     container_name: streamlytics_dashboard2
+    mem_limit: 900m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     profiles: ['replica']
     ports:
       - '127.0.0.1:8511:8501'
@@ -383,6 +388,7 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: streamlytics_api
+    mem_limit: 400m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     depends_on:
       postgres:
         condition: service_healthy

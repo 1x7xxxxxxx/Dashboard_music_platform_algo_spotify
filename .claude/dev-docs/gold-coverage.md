@@ -626,16 +626,16 @@ Le second tableau liste les **tables brutes encore lues hors des portes**, alors
 | `instagram_media` | `v_instagram_media_monthly` | 2 | 1 | 0 | dashboard/views/instagram.py:213 |
 | `meta_ads` | `v_meta_ad_daily` | 6 | 3 | 0 | dashboard/views/meta_creatives.py:1058 · dashboard/views/meta_mapping/_campaigns.py:42 · dashboard/views/trigger_algo/_common/_budget_roi.py:221 |
 | `meta_adsets` | `v_meta_adset_daily` | 4 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:42 |
-| `meta_campaigns` | `v_meta_ad_daily` | 12 | 8 | 0 | dashboard/utils/period_side_metrics.py:84 · dashboard/views/meta_creatives.py:1058 · dashboard/views/meta_mapping/_campaigns.py:141 · dashboard/views/meta_mapping/_campaigns.py:156 · dashboard/views/meta_mapping/_campaigns.py:25 · dashboard/views/meta_mapping/_campaigns.py:42 · dashboard/views/trigger_algo/_common/_budget_roi.py:221 · utils/freshness_monitor.py:317 |
+| `meta_campaigns` | `v_meta_ad_daily` | 12 | 8 | 0 | dashboard/utils/period_side_metrics.py:84 · dashboard/views/meta_creatives.py:1058 · dashboard/views/meta_mapping/_campaigns.py:141 · dashboard/views/meta_mapping/_campaigns.py:156 · dashboard/views/meta_mapping/_campaigns.py:25 · dashboard/views/meta_mapping/_campaigns.py:42 · dashboard/views/trigger_algo/_common/_budget_roi.py:221 · utils/freshness_monitor.py:318 |
 | `meta_insights` | `v_meta_ad_daily` | 1 | 1 | 0 | dashboard/views/meta_creatives.py:1058 |
 | `meta_insights_performance` | `v_meta_campaign_daily` | 1 | 1 | 0 | dashboard/views/meta_mapping/_campaigns.py:191 |
 | `meta_insights_performance_day` | `v_meta_campaign_daily` | 6 | 5 | 0 | collectors/_meta_insight_fetch.py:66 · dashboard/views/imusician.py:34 · dashboard/views/imusician.py:43 · dashboard/views/meta_x_spotify.py:751 · dashboard/views/meta_x_spotify.py:771 |
-| `s4a_song_timeline` | `v_s4a_song_daily` | 12 | 4 | 0 | api/routers/streams.py:92 · dashboard/utils/pdf_exporter/_report.py:79 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:260 |
-| `saas_artists` | `v_spotify_followers_daily` | 67 | 10 | 0 | dashboard/utils/live_pulse.py:118 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:404 · dashboard/views/meta_mapping/_campaigns.py:191 · dashboard/views/referral_admin.py:179 · dashboard/views/referral_admin.py:206 · dashboard/views/trigger_algo/_tab_budget_roi.py:399 · utils/daily_ops_metrics.py:206 |
+| `s4a_song_timeline` | `v_s4a_song_daily` | 12 | 4 | 0 | api/routers/streams.py:92 · dashboard/utils/pdf_exporter/_report.py:79 · dashboard/utils/setup_completion.py:281 · utils/freshness_monitor.py:261 |
+| `saas_artists` | `v_spotify_followers_daily` | 68 | 10 | 0 | dashboard/utils/live_pulse.py:118 · dashboard/utils/live_pulse.py:68 · dashboard/views/admin.py:404 · dashboard/views/meta_mapping/_campaigns.py:191 · dashboard/views/referral_admin.py:179 · dashboard/views/referral_admin.py:206 · dashboard/views/trigger_algo/_tab_budget_roi.py:399 · utils/daily_ops_metrics.py:206 |
 | `sacem_statement` | `v_sacem_monthly` | 1 | — | 0 | dashboard/views/sacem.py:32 |
 | `soundcloud_tracks_daily` | `v_soundcloud_track_daily` | 4 | 1 | 0 | dashboard/views/soundcloud.py:90 |
 | `track_platform_link` | `v_spotify_track_pi_daily` | 11 | 4 | 0 | dashboard/utils/campaign_compare.py:89 · dashboard/utils/period_side_metrics.py:84 · dashboard/utils/setup_completion.py:281 · dashboard/views/spotify_s4a_combined.py:183 |
-| `track_release_reference` | `v_spotify_track_pi_daily` | 9 | 5 | 0 | dashboard/utils/period_filter.py:203 · dashboard/utils/period_side_metrics.py:84 · dashboard/views/spotify_s4a_combined.py:170 · dashboard/views/spotify_s4a_combined.py:183 · utils/freshness_monitor.py:260 |
+| `track_release_reference` | `v_spotify_track_pi_daily` | 9 | 5 | 0 | dashboard/utils/period_filter.py:203 · dashboard/utils/period_side_metrics.py:84 · dashboard/views/spotify_s4a_combined.py:170 · dashboard/views/spotify_s4a_combined.py:183 · utils/freshness_monitor.py:261 |
 | `youtube_video_stats` | `v_platform_levels` | 5 | 2 | 0 | dashboard/utils/pdf_exporter/_collectors.py:296 · dashboard/views/youtube.py:270 |
 
 ### Les tables de DIMENSION
@@ -693,4 +693,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=31 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=2a593f66a0d4abda2ba3f8e4da71efc5f3562b113007624408a3b3ace9add8a4 -->
+<!-- gold-coverage: sha256=935390a0339118fa531fcf69bae75f046596da9e82d4459d7fac20e2ccb2a5f8 -->

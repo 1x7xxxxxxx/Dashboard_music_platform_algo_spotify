@@ -61,27 +61,40 @@ pytestmark = pytest.mark.skipif(
 
 
 def _readiness_calls_during(view: str) -> tuple[int, int]:
-    """(appels à artist_readiness, locataires rendus) pour un rendu de `view`."""
+    """(matrices calculées, locataires rendus) pour un rendu de `view`.
+
+    R266 (e) : la page calcule désormais la flotte par `readiness_many`, et le calcul
+    d'UNE matrice vit dans `_matrix` — la seule copie, par locataire ou en lot. On compte
+    donc `_matrix` (combien de matrices), et les locataires par les deux entrées.
+    """
     from streamlit.testing.v1 import AppTest
 
     import src.utils.artist_readiness as ar
     from tests.render_harness import SCRIPT
-
-    seen: list[int] = []
-    original = ar.artist_readiness
-
-    def counting(db, artist_id, probe=None):
-        seen.append(artist_id)
-        return original(db, artist_id, probe=probe)
-
-    ar.artist_readiness = counting
-    # `status_matrix` importe la fonction DANS son corps, donc il verra le patch ;
-    # `onboarding_health`, lui, l'importe au niveau module — il faut patcher les deux.
     import src.dashboard.views.onboarding_health as oh
 
-    had = hasattr(oh, "artist_readiness")
-    if had:
-        oh.artist_readiness = counting
+    seen: list[int] = []
+    built = [0]
+    orig_one, orig_many, orig_matrix = ar.artist_readiness, ar.readiness_many, ar._matrix
+
+    def one(db, artist_id, probe=None):
+        seen.append(artist_id)
+        return orig_one(db, artist_id, probe=probe)
+
+    def many(db, artist_ids):
+        seen.extend(int(a) for a in artist_ids)
+        return orig_many(db, artist_ids)
+
+    def matrix(*a, **k):
+        built[0] += 1
+        return orig_matrix(*a, **k)
+
+    # `status_matrix` importe la fonction DANS son corps, donc il verra le patch ;
+    # `onboarding_health`, lui, l'importe au niveau module — il faut patcher les deux.
+    ar.artist_readiness, ar.readiness_many, ar._matrix = one, many, matrix
+    saved = {n: getattr(oh, n) for n in ("artist_readiness", "readiness_many") if hasattr(oh, n)}
+    for n in saved:
+        setattr(oh, n, one if n == "artist_readiness" else many)
     try:
         at = AppTest.from_string(SCRIPT.format(root=os.getcwd(), view=view))
         at.run(timeout=180)
@@ -90,10 +103,10 @@ def _readiness_calls_during(view: str) -> tuple[int, int]:
                 f"le rendu de `{view}` a levé — le compte porterait sur du vide :\n"
                 f"{at.exception[0].value}")
     finally:
-        ar.artist_readiness = original
-        if had:
-            oh.artist_readiness = original
-    return len(seen), len(set(seen))
+        ar.artist_readiness, ar.readiness_many, ar._matrix = orig_one, orig_many, orig_matrix
+        for n, v in saved.items():
+            setattr(oh, n, v)
+    return built[0], len(set(seen))
 
 
 def test_the_counter_actually_counts() -> None:
@@ -108,7 +121,7 @@ def test_the_counter_actually_counts() -> None:
 def test_onboarding_health_computes_each_matrix_once() -> None:
     calls, tenants = _readiness_calls_during("onboarding_health")
     assert calls == tenants, (
-        f"{calls} calculs de `artist_readiness` pour {tenants} locataire(s) — la "
+        f"{calls} matrices calculées pour {tenants} locataire(s) — la "
         f"matrice est recalculée {calls / tenants:.1f}× par artiste.\n\n"
         "`show()` la calcule pour l'en-tête, puis `render_status_matrix` la refait. "
         "Lui passer `rows=` : mesuré le 2026-09-17, 324 requêtes de rendu au lieu "

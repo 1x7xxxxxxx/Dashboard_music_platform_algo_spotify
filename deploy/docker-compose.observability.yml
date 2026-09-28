@@ -22,6 +22,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: streamlytics_prometheus
+    mem_limit: 512m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     profiles: ['observability']
     restart: unless-stopped
     command:
@@ -59,6 +60,7 @@ services:
   grafana:
     image: grafana/grafana-oss:11.1.0
     container_name: streamlytics_grafana
+    mem_limit: 256m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     profiles: ['observability']
     restart: unless-stopped
     depends_on:
@@ -90,6 +92,7 @@ services:
   node_exporter:
     image: prom/node-exporter:v1.8.1
     container_name: streamlytics_node_exporter
+    mem_limit: 64m   # R266 — measured 13 MiB (2026-09-28); a floor, not 2x, see ADR-030
     profiles: ['observability']
     restart: unless-stopped
     # Il lit l'HOTE, pas le conteneur : sans `pid: host` et les montages ci-dessous, il

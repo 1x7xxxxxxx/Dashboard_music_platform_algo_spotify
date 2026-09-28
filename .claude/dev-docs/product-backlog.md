@@ -20,6 +20,7 @@ attend un geste, l'index sinon).
 | R278 | Formats : migrer les 26 séparateurs faits main, les 77 formats `{:,}` et les 45 tableaux sans format vers `formats.num/eur/pct/table` — suite de R260 | **déclencheur : toute modification d'une vue qui en porte** ; le cliquet de `tests/test_a_number_is_written_one_way.py` interdit d'en ajouter et se baisse dans le même commit | la vue touchée |
 | R280 | Lectures brutes → or : descendre le plafond de 66 (18 figures, 44 tuiles) vue par vue, en vérifiant la sémantique de chacune (`v_meta_daily` n'a pas de `cpr` ; Apple à vérifier) — suite de R258, verdict critic (c) | **déclencheur : toute modification d'une vue qui lit le brut** ; le cliquet de `tests/test_the_bronze_boundary_only_tightens.py` interdit d'en ajouter |
 | R281 | Alertmanager : le déclencheur d'ADR-026 (~10 règles) est franchi le 2026-09-28 (11 règles, R265) ; non adopté tant qu'aucune alerte ne doit joindre quelqu'un avant le mail de 23 h | **déclencheur : une alerte qui ne peut pas attendre le soir** (astreinte, client payant touché en journée) |
+| R284 | Scalabilité différée d'ADR-030 : fan-out par locataire (`.expand()`) et budget de quota par locataire, cible de charge au seuil d'ADR-007, limites CPU par conteneur — suite de R266 | **déclencheur : un DAG de prod passe, au p95 sur 30 jours, la moitié de son `dagrun_timeout`** (6 % le 2026-09-28), ou `loadtest_dashboard.py -n 12` rend un p50 > 200 ms — les deux lus chaque nuit par `tools/dev/reopen_check.py` | ADR-030 |
 
 ---
 

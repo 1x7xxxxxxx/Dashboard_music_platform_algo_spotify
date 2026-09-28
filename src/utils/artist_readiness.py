@@ -188,15 +188,52 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
          hiccup must not be able to turn a collecting tenant red — that would make
          this the noise generator it exists to remove.
     """
-    from src.utils.freshness_monitor import check_freshness, sources_for
+    from src.utils.freshness_monitor import check_freshness
 
     creds = _load_extra(db, artist_id)
     sp = db.fetch_query(
         "SELECT spotify_artist_id FROM saas_artists WHERE id = %s", (artist_id,)
     )
     spotify_artist_id = sp[0][0] if sp else None
-    fresh = {r["source"]: r for r in check_freshness(db, artist_id)}
+    return _matrix(creds, spotify_artist_id, check_freshness(db, artist_id), probe)
 
+
+def readiness_many(db, artist_ids) -> dict:
+    """{artist_id: artist_readiness(db, artist_id)} in a CONSTANT number of queries (R266 e).
+
+    `artist_readiness` asks ~14 queries per tenant; the onboarding health page called it
+    once per tenant — ~700 queries at fifty. Here identities, Spotify ids and freshness
+    are each read once for every tenant, and the SAME `_matrix` builds each verdict.
+    No probe: a fleet screen never makes API calls on render.
+    """
+    import json
+
+    from src.utils.freshness_monitor import check_freshness_many
+
+    ids = [int(a) for a in artist_ids]
+    if not ids:
+        return {}
+    creds: dict = {a: {} for a in ids}
+    for aid, platform, extra in db.fetch_query(
+            "SELECT artist_id, platform, extra_config FROM artist_credentials "
+            "WHERE artist_id = ANY(%s)", (ids,)) or []:
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except ValueError:
+                extra = {}
+        creds.setdefault(int(aid), {})[platform] = extra or {}
+    spotify = {int(r[0]): r[1] for r in db.fetch_query(
+        "SELECT id, spotify_artist_id FROM saas_artists WHERE id = ANY(%s)", (ids,)) or []}
+    fresh = check_freshness_many(db, ids)
+    return {a: _matrix(creds[a], spotify.get(a), fresh[a], None) for a in ids}
+
+
+def _matrix(creds: dict, spotify_artist_id, fresh_rows: list, probe) -> list:
+    """The readiness matrix from what was read — one copy, per tenant or in batch."""
+    from src.utils.freshness_monitor import sources_for
+
+    fresh = {r["source"]: r for r in fresh_rows}
     matrix = []
     for p in _PLATFORMS:
         identity = _identity(p["key"], creds, spotify_artist_id)

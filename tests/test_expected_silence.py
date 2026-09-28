@@ -95,7 +95,8 @@ def test_freshness_exposes_why_it_stayed_quiet() -> None:
 
     from src.utils import freshness_monitor
 
-    src = inspect.getsource(freshness_monitor.check_freshness)
+    # R266 (e): the result dict is built by `_result`, shared with the batched path.
+    src = inspect.getsource(freshness_monitor._result)
     assert '"expected_silence": expected_silence' in src, (
         "check_freshness suppresses the alert without reporting why. A reader must "
         "be able to tell 'quiet because fine' from 'quiet because broken'."

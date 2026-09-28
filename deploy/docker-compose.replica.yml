@@ -43,6 +43,7 @@ services:
       file: docker-compose.yml
       service: dashboard
     container_name: streamlytics_dashboard2
+    mem_limit: 900m   # R266 — 2× the measured peak (2026-09-28), see ADR-030
     # ⚠️ `image:` EXPLICITE, et c'est la ligne qui compte le plus de ce fichier.
     #
     # `extends` reprend aussi `build:`. Sans cette ligne, compose fabrique donc une

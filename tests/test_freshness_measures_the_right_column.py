@@ -81,7 +81,8 @@ def test_the_result_says_which_column_answered():
 
     from src.utils import freshness_monitor
 
-    src = inspect.getsource(freshness_monitor.check_freshness)
+    # R266 (e): the result dict is built by `_result`, shared with the batched path.
+    src = inspect.getsource(freshness_monitor._result)
     assert '"measured_on"' in src, (
         "check_freshness no longer reports `measured_on`. Without it, "
         "'written recently' and 'describes a recent day' are indistinguishable "

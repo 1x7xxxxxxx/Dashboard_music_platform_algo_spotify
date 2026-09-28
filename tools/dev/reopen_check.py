@@ -265,6 +265,46 @@ def _dashboard_ram() -> tuple[str, str]:
     return (MET if worst > 2048 else NOT_MET), f"{worst:.0f} Mio (seuil : 2 048)"
 
 
+def _fan_out() -> tuple[str, str]:
+    """« Fan-out par locataire » (R266 a+b, ADR-030) — rouvre quand un DAG de PRODUCTION
+    passe, au p95 sur 30 jours, la MOITIÉ de son `dagrun_timeout`.
+
+    Les DAG bouclent sur les locataires dans une seule tâche. C'est correct tant que la
+    boucle finit loin de son timeout ; la moitié laisse le temps de construire le fan-out
+    avant qu'un locataire de plus fasse tuer la collecte de tous les autres.
+    """
+    import os
+
+    from src.utils.dag_timeouts import dagrun_timeout_for
+
+    ssh = os.environ.get("PROD_SSH", "").strip()
+    if not ssh:
+        raise RuntimeError("PROD_SSH non défini — ce contrôle n'a RIEN vérifié")
+    sql = ("SELECT dag_id, round(percentile_cont(0.95) WITHIN GROUP (ORDER BY "
+           "extract(epoch FROM end_date - start_date))) FROM dag_run "
+           "WHERE state = 'success' AND start_date > now() - interval '30 days' "
+           "GROUP BY dag_id")
+    r = subprocess.run(
+        ["ssh", "-o", "ConnectTimeout=10", ssh,
+         f"docker exec -i postgres_spotify_airflow psql -U postgres -d airflow_db -tA -c \"{sql}\""],
+        capture_output=True, text=True, check=False, timeout=60)
+    if r.returncode != 0:
+        raise RuntimeError(f"ssh/psql en échec : {(r.stderr or '').strip()[:120]}")
+    worst = None
+    for line in r.stdout.splitlines():
+        dag, _, p95 = line.partition("|")
+        if not p95.strip():
+            continue
+        share = float(p95) / dagrun_timeout_for(dag.strip()).total_seconds()
+        if worst is None or share > worst[1]:
+            worst = (dag.strip(), share, float(p95))
+    if worst is None:
+        raise RuntimeError("aucun run réussi sur 30 jours — ce contrôle n'a RIEN vérifié")
+    dag, share, p95 = worst
+    return (MET if share > 0.5 else NOT_MET), (
+        f"{dag} : p95 {p95:.0f} s = {share:.0%} de son timeout (seuil : 50 %)")
+
+
 TRIGGERS = [
     Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
             "archive.md — 🩺 R122", _r122),
@@ -285,6 +325,8 @@ TRIGGERS = [
             "checklist.md — Conditions d'attente", _pytest_third_worker),
     Trigger("Airflow hors boîte", "la RAM des conteneurs dashboard dépasse 2 Go",
             "checklist.md — Conditions d'attente", _dashboard_ram),
+    Trigger("fan-out par locataire", "un DAG de prod passe, au p95 sur 30 jours, la "
+            "moitié de son `dagrun_timeout`", "ADR-030 — product-backlog.md", _fan_out),
     Trigger("R87", "`loadtest_dashboard.py -n 12` rend un p50 > 200 ms",
             "archive.md:5146", None),
     Trigger("« DB ping »",

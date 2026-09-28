@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**65 exigences** sur **20 domaines** (carte : 24). conforme : 55 · partiel : 5 · absent : 5 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 6
+**65 exigences** sur **20 domaines** (carte : 24). conforme : 55 · partiel : 7 · absent : 3 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 5
 
 ## Collecteurs API (`collect`)
 
@@ -15,9 +15,9 @@
 
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
-| REQ-ORCH-01 | La durée d'une collecte ne croît pas linéairement avec le nombre de locataires — un locataire lent ne retarde pas les autres (fan-out par locataire) | absent | `—`  | Kleppmann, Designing Data-Intensive Applications p.39 (repenser à chaque ordre de grandeur); Golding, Multi-Tenant SaaS p.449 (noisy neighbor) | 5 DAGs bouclent sur les locataires dans une seule tâche ; meta p95 1 953 s pour ~1 locataire réel, timeout 3 h dépassé vers 10× → R266 |
+| REQ-ORCH-01 | La durée d'une collecte ne croît pas linéairement avec le nombre de locataires — un locataire lent ne retarde pas les autres (fan-out par locataire) | partiel | `—`  | Kleppmann, Designing Data-Intensive Applications p.39 (repenser à chaque ordre de grandeur); Golding, Multi-Tenant SaaS p.449 (noisy neighbor) | différé par ADR-030 derrière un déclencheur surveillé chaque nuit (reopen_check « fan-out par locataire ») : meta p95 636 s sur 30 jours = 6 % de son timeout de 3 h, 5 locataires ; le chiffre de 1 953 s précédait R266 → R284 |
 | REQ-ORCH-02 | Chaque DAG de collecte enregistre le résultat de chaque locataire (succès, échec, sauté) | conforme | `tests/test_every_collection_dag_records_its_tenants.py::test_a_collection_dag_records_each_tenant_outcome` ✅ | — | — |
-| REQ-ORCH-03 | Les quotas d'API partagés (YouTube, Meta) sont budgétés par locataire et leur consommation est mesurée | absent | `—`  | Golding p.341 (métriques de consommation par locataire) | — → R266 |
+| REQ-ORCH-03 | Les quotas d'API partagés (YouTube, Meta) sont budgétés par locataire et leur consommation est mesurée | absent | `—`  | Golding p.341 (métriques de consommation par locataire) | différé par ADR-030 avec le fan-out (même déclencheur) : sans tâche par locataire, un budget par locataire n'a rien à borner → R284 |
 | REQ-ORCH-04 | La collecte d'une plateforme part dès que ses identifiants sont validés, sans attendre la nuit | conforme | `tests/test_credentials_save_triggers_the_right_dag.py::test_each_tab_starts_only_its_own_collection` ✅ | — | — |
 
 ## Bronze — tables de collecte et schéma (`bronze`)
@@ -97,8 +97,8 @@
 | id | exigence | verdict | preuve | théorie | écart / livrable |
 |---|---|---|---|---|---|
 | REQ-RUN-01 | Un rendu ouvre au plus son plafond de connexions et les referme sur tous les chemins | conforme | `tests/test_a_render_opens_one_connection.py::test_rendering_a_view_opens_at_most_its_ceiling` ✅ | — | — |
-| REQ-RUN-02 | La latence de rendu est mesurée par page (p50/p95) et reste sous son seuil d'ADR à la charge visée | partiel | `tests/test_a_fragment_never_captures_a_connection.py` ✅ | Kleppmann p.44 (percentiles) | la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue → R266 |
-| REQ-RUN-03 | Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée | absent | `—`  | — | — → R266 |
+| REQ-RUN-02 | La latence de rendu est mesurée par page (p50/p95) et reste sous son seuil d'ADR à la charge visée | partiel | `tests/test_a_fragment_never_captures_a_connection.py` ✅ | Kleppmann p.44 (percentiles) | la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue → R284 |
+| REQ-RUN-03 | Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée | partiel | `tests/test_every_long_running_service_has_a_memory_limit.py::test_every_long_running_service_has_a_memory_limit` ✅ | — | mémoire limitée à ~2× le pic mesuré sur chaque conteneur (ADR-030) et observée par Grafana ; CPU non limité — une contention CPU ralentit sans tuer, différé avec R284 → R284 |
 | REQ-RUN-04 | Des sessions concurrentes ne perdent aucun rerun | absent | `—`  | Kleppmann p.44 | R114 : 33 à 37 reruns perdus à 12-24 onglets, sur une ou deux instances ; le goulot n'est pas identifié → R266 |
 | REQ-RUN-05 | Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1) | absent | `—`  | Golding p.449 | onboarding_health boucle par artiste : 106 requêtes à 6 artistes, ~900 projetées à 50 → R266 |
 | REQ-RUN-06 | Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés | partiel | `—`  | — | pool de 8 par instance, ~4 connexions par rendu → ~2 rendus concurrents avant replis directs → R266 |
@@ -174,7 +174,6 @@
 
 - REQ-ORCH-01
 - REQ-ORCH-03
-- REQ-RUN-03
 - REQ-RUN-04
 - REQ-RUN-05
 - REQ-RUN-06

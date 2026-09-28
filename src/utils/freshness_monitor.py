@@ -12,6 +12,7 @@ _CSV_STALE_H = 7 * 24  # CSV S4A / Apple Music : watcher peu fréquent
 # du 2026-09-14, appliquée avant d'avoir à la réapprendre.
 _MANUAL_STALE_H = 30 * 24
 
+from src.utils.safe_error import redact, safe_error  # noqa: E402
 from src.utils.source_registry import (  # noqa: E402
     colonne_de_mesure, table_et_colonne)
 
@@ -263,7 +264,7 @@ def _s4a_silence(db, artist_id=None) -> str | None:
             "       (SELECT MAX(date) FROM s4a_song_timeline WHERE artist_id = %s)",
             (artist_id, artist_id))
     except Exception as e:  # noqa: BLE001 — une sonde en échec ne tait rien
-        logger.warning("silence probe failed (s4a); keeping the alert: %s", e)
+        logger.warning("silence probe failed (s4a); keeping the alert: %s", safe_error(e))
         return None
     if not rows:
         return None
@@ -319,7 +320,7 @@ def _silence_reason(db, rule: str, artist_id=None) -> str | None:
                     "FROM meta_campaigns WHERE ad_account_id = ANY(%s)",
                     (accounts,))[0]
     except Exception as e:  # noqa: BLE001 — a failed probe must not silence anything
-        logger.warning("silence probe failed (%s); keeping the alert: %s", rule, e)
+        logger.warning("silence probe failed (%s); keeping the alert: %s", rule, safe_error(e))
         return None
     if not total:
         return None          # nothing known about campaigns → do not suppress
@@ -338,6 +339,74 @@ def _silence_reason(db, rule: str, artist_id=None) -> str | None:
             "ce silence est normal, il n'y a rien à réparer.")
 
 
+def _target_query(t: dict, artist_id) -> tuple[str, str, bool]:
+    """(table, column, scoped) that answer target `t` for this tenant — or the fleet."""
+    table, col = t["table"], t["col"]
+    # A per-tenant question asked of a table that has no tenant column is answered from
+    # the tenant-scoped equivalent, not from the whole fleet.
+    metric_col = t.get("metric_col")
+    if artist_id is not None and t.get("tenant_table"):
+        table, col = t["tenant_table"], t.get("tenant_col", col)
+        metric_col = t.get("tenant_metric_col")
+    # The day the data describes beats the day it was written: a collector that
+    # re-upserts old rows keeps the write time moving forever.
+    if metric_col:
+        col = metric_col
+    scoped = artist_id is not None and not (
+        t.get("skip_artist_filter") and not t.get("tenant_table"))
+    if table not in _ALLOWED_TABLES or col not in _ALLOWED_COLS:
+        raise ValueError(f"Identifier not in allowlist: {table}.{col}")
+    return table, col, scoped
+
+
+def _result(db, t: dict, artist_id, val, raw_age, error) -> dict:
+    """One source's verdict from its MAX and its age — ONE copy, fed per tenant or in batch."""
+    age_h, stale, expected_silence = None, True, None
+    if error is None:
+        try:
+            # Normaliser en datetime (DATE → datetime)
+            if val is not None and not isinstance(val, datetime):
+                val = datetime(val.year, val.month, val.day, 0, 0, 0)
+            if val is not None and raw_age is not None:
+                age_h = float(raw_age)
+                stale = age_h > t['stale_h']
+            # "Nothing arrived" and "nothing was supposed to arrive" are different
+            # statements, and only the first is a problem. Keeping them apart is
+            # what stops a correct pipeline from alerting nightly forever.
+            if stale and t.get("silence_expected"):
+                reason = _silence_reason(db, t["silence_expected"], artist_id)
+                if reason:
+                    stale = False
+                    expected_silence = reason
+        except Exception as e:      # noqa: BLE001 — a broken check is not « no data »
+            error = safe_error(e)
+    if error is not None:
+        logger.warning(f"Freshness check failed for {t['source']}: {redact(error)}")
+    return {
+        "source": t["source"],
+        # Which column answered — a reader needs to know whether "fresh" means
+        # "written recently" or "describes a recent day". They are not the same
+        # claim, and conflating them is what hid Meta Ads for weeks.
+        "measured_on": "metric" if t.get("metric_col") or t.get("tenant_metric_col") else "write",
+        # Set when the source is old AND that is the correct state. A reader must
+        # be able to tell "no data because broken" from "no data because there is
+        # none to collect" — the second is not an incident.
+        "expected_silence": expected_silence,
+        # How this source is fed. A CSV source waits on a human dropping an
+        # export; relaunching its watcher over an empty dropbox changes nothing,
+        # so the alert must not name that as the action (ADR-011).
+        "fed_by": t.get("fed_by", "dag"),
+        "last_dt": val,
+        "age_h": age_h,
+        "stale": stale,
+        "stale_h": t["stale_h"],
+        # `stale=True` alone made a BROKEN check look exactly like "connected but no
+        # data" — a missing table, a bad identifier or a dead connection all rendered
+        # as 🔴 "aucune donnée". `error` keeps the two apart.
+        "error": error,
+    }
+
+
 def check_freshness(db, artist_id=None):
     """
     Vérifie la fraîcheur de chaque source.
@@ -347,46 +416,16 @@ def check_freshness(db, artist_id=None):
     `stale` alone answers "should this fire?"; it does NOT answer "is this healthy?".
     A reader that renders `not stale` as OK will call an expected silence green —
     see `expected_silence`, which every display surface is expected to honour.
+
+    The age is computed BY POSTGRES, in the same statement that reads the value — one
+    clock, the database's (measured 2026-08-22: a naive `datetime.now()` in a container
+    without TZ reported an age of −1 h, optimistic, the worst direction for staleness).
     """
     results = []
-
     for t in MONITOR_TARGETS:
-        val = None
-        age_h = None
-        stale = True
-        error = None
-        expected_silence = None
-
+        val = raw_age = error = None
         try:
-            table, col = t["table"], t["col"]
-            # A per-tenant question asked of a table that has no tenant column is
-            # answered from the tenant-scoped equivalent, not from the whole fleet.
-            metric_col = t.get("metric_col")
-            if artist_id is not None and t.get("tenant_table"):
-                table, col = t["tenant_table"], t.get("tenant_col", col)
-                metric_col = t.get("tenant_metric_col")
-            # The day the data describes beats the day it was written: a collector
-            # that re-upserts old rows keeps the write time moving forever.
-            if metric_col:
-                col = metric_col
-            scoped = artist_id is not None and not (
-                t.get("skip_artist_filter") and not t.get("tenant_table"))
-
-            if table not in _ALLOWED_TABLES or col not in _ALLOWED_COLS:
-                raise ValueError(f"Identifier not in allowlist: {table}.{col}")
-            # The age is computed BY POSTGRES, in the same statement that reads the
-            # value. It used to be `datetime.now() - val` in Python, and that is two
-            # clocks: `datetime.now()` is NAIVE, so it is the container's local time,
-            # while psycopg2 converts an aware timestamp to the SESSION timezone when
-            # writing into a `timestamp without time zone` column — Europe/Paris here.
-            #
-            # Measured 2026-08-22 from a container with no TZ set: SoundCloud reported
-            # an age of -1h, a row in the future. It only agreed at all because the
-            # scheduler happens to run in Paris. The error is OPTIMISTIC — a genuinely
-            # stale source keeps reading fresh for one or two hours — which is the
-            # worst direction for a staleness check.
-            #
-            # One clock, and it is the clock of the database that holds the rows.
+            table, col, scoped = _target_query(t, artist_id)
             if scoped:
                 row = db.fetch_query(
                     f"SELECT MAX({col}), "
@@ -400,57 +439,48 @@ def check_freshness(db, artist_id=None):
                     f"EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "
                     f"FROM {table}"
                 )
-
             val = row[0][0] if row and row[0][0] is not None else None
             raw_age = row[0][1] if row and row[0][1] is not None else None
-
-            # Normaliser en datetime (DATE → datetime)
-            if val is not None and not isinstance(val, datetime):
-                val = datetime(val.year, val.month, val.day, 0, 0, 0)
-
-            if val is not None and raw_age is not None:
-                age_h = float(raw_age)
-                stale = age_h > t['stale_h']
-
-            # "Nothing arrived" and "nothing was supposed to arrive" are different
-            # statements, and only the first is a problem. Keeping them apart is
-            # what stops a correct pipeline from alerting nightly forever.
-            if stale and t.get("silence_expected"):
-                reason = _silence_reason(db, t["silence_expected"], artist_id)
-                if reason:
-                    stale = False
-                    expected_silence = reason
-
-        except Exception as e:
-            # `stale=True` alone made a BROKEN check look exactly like "connected
-            # but no data" — a missing table, a bad identifier or a dead connection
-            # all rendered as 🔴 "aucune donnée". `error` keeps the two apart so a
-            # pre-flight can say "the check failed" instead of blaming the artist.
-            error = str(e)
-            logger.warning(f"Freshness check failed for {t['source']}: {e}")
-
-        results.append({
-            "source": t["source"],
-            # Which column answered — a reader needs to know whether "fresh" means
-            # "written recently" or "describes a recent day". They are not the same
-            # claim, and conflating them is what hid Meta Ads for weeks.
-            "measured_on": "metric" if t.get("metric_col") or t.get("tenant_metric_col") else "write",
-            # Set when the source is old AND that is the correct state. A reader must
-            # be able to tell "no data because broken" from "no data because there is
-            # none to collect" — the second is not an incident.
-            "expected_silence": expected_silence,
-            # How this source is fed. A CSV source waits on a human dropping an
-            # export; relaunching its watcher over an empty dropbox changes nothing,
-            # so the alert must not name that as the action (ADR-011).
-            "fed_by": t.get("fed_by", "dag"),
-            "last_dt": val,
-            "age_h": age_h,
-            "stale": stale,
-            "stale_h": t["stale_h"],
-            "error": error,
-        })
-
+        except Exception as e:      # noqa: BLE001 — said, never « no data »
+            error = safe_error(e)
+        results.append(_result(db, t, artist_id, val, raw_age, error))
     return results
+
+
+def check_freshness_many(db, artist_ids) -> dict:
+    """{artist_id: check_freshness(db, artist_id)} in ONE query per source (R266 e).
+
+    `check_freshness` asks one query per source PER TENANT: 14 queries for one tenant's
+    readiness, ~700 for fifty on the onboarding health page. Here each source is asked
+    once for every tenant (`GROUP BY artist_id`); a source that cannot be scoped
+    (fleet-wide) is asked once and shared. Same verdicts, same code (`_result`).
+    """
+    ids = [int(a) for a in artist_ids]
+    out = {a: [] for a in ids}
+    if not ids:
+        return out
+    for t in MONITOR_TARGETS:
+        per, error, fleet = {}, None, None
+        try:
+            table, col, scoped = _target_query(t, ids[0])
+            if scoped:
+                rows = db.fetch_query(
+                    f"SELECT artist_id, MAX({col}), "
+                    f"EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 "
+                    f"FROM {table} WHERE artist_id = ANY(%s) GROUP BY artist_id",
+                    (ids,)) or []
+                per = {int(r[0]): (r[1], r[2]) for r in rows}
+            else:
+                row = db.fetch_query(
+                    f"SELECT MAX({col}), "
+                    f"EXTRACT(EPOCH FROM (now() - MAX({col})))/3600 FROM {table}")
+                fleet = (row[0][0], row[0][1]) if row else (None, None)
+        except Exception as e:      # noqa: BLE001 — said for every tenant, never « no data »
+            error = safe_error(e)
+        for a in ids:
+            val, raw_age = (fleet if fleet is not None else per.get(a, (None, None)))
+            out[a].append(_result(db, t, a, val, raw_age, error))
+    return out
 
 
 # `run_freshness_alerts()` lived here until 2026-08-22. Removed, not wired.

@@ -18,7 +18,7 @@ from src.dashboard.utils.status_matrix import render_status_matrix
 
 from src.dashboard.utils import get_db_connection
 from src.dashboard.auth import get_artist_id, is_admin
-from src.utils.artist_readiness import artist_readiness, NO_DATA
+from src.utils.artist_readiness import NO_DATA, artist_readiness, readiness_many
 from src.dashboard.utils.guide_assets import credentials_guide_pdf
 from src.dashboard.utils.i18n import t
 
@@ -67,6 +67,13 @@ def show():
         except Exception as exc:      # noqa: BLE001 — informational line, said when missing
             journeys = {}
             echecs.append(f"parcours d'inscription : {type(exc).__name__}")
+        # R266 (e) — every tenant's readiness in a constant number of queries, not ~14
+        # per tenant. A batch that fails falls back to the per-tenant read below, so one
+        # broken tenant still costs only its own line.
+        try:
+            matrices = readiness_many(db, [a for a, _ in artists])
+        except Exception:      # noqa: BLE001 — per-tenant isolation below says who failed
+            matrices = {}
         for aid, name in artists:
             # ISOLEMENT PAR LOCATAIRE — ajouté le 2026-09-18 (R132). Sans ce `try`, un
             # artiste dont la lecture lève emportait TOUTE la page : pour l'admin, qui
@@ -74,7 +81,7 @@ def show():
             # autres. Un artiste ne voit que sa propre ligne, donc lui n'était pas exposé
             # à la flotte — c'est l'écran de supervision qui perdait sa raison d'être.
             try:
-                matrix = artist_readiness(db, aid)
+                matrix = matrices.get(aid) or artist_readiness(db, aid)
             except Exception as exc:      # noqa: BLE001 — isolement par locataire
                 echecs.append(f"{name} (id={aid}) : {type(exc).__name__}")
                 continue

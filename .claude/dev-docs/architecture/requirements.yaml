@@ -102,10 +102,10 @@
   enonce: La durée d'une collecte ne croît pas linéairement avec le nombre de locataires — un locataire lent ne retarde pas les autres (fan-out par locataire)
   sources: [{notes: L72}, {notes: L80}, {theorie: "Kleppmann, Designing Data-Intensive Applications p.39 (repenser à chaque ordre de grandeur)"}, {theorie: "Golding, Multi-Tenant SaaS p.449 (noisy neighbor)"}]
   priorite: P2
-  statut: absent
+  statut: partiel
   a_ecrire: "test qui refuse, dans airflow/dags/*_daily.py, une boucle `for` sur les locataires à l'intérieur d'un seul PythonOperator (exiger .expand() ou une tâche par locataire)"
-  ecart: 5 DAGs bouclent sur les locataires dans une seule tâche ; meta p95 1 953 s pour ~1 locataire réel, timeout 3 h dépassé vers 10×
-  roadmap: R266
+  ecart: "différé par ADR-030 derrière un déclencheur surveillé chaque nuit (reopen_check « fan-out par locataire ») : meta p95 636 s sur 30 jours = 6 % de son timeout de 3 h, 5 locataires ; le chiffre de 1 953 s précédait R266"
+  roadmap: R284
 
 - id: REQ-ORCH-02
   domaine: orchestration
@@ -122,7 +122,8 @@
   priorite: P3
   statut: absent
   a_ecrire: "compteur Prometheus par plateforme et par locataire incrémenté dans src/utils/request_throttle.py, testé par un appel simulé"
-  roadmap: R266
+  ecart: "différé par ADR-030 avec le fan-out (même déclencheur) : sans tâche par locataire, un budget par locataire n'a rien à borner"
+  roadmap: R284
 
 - id: REQ-ORCH-04
   domaine: orchestration
@@ -321,15 +322,17 @@
   preuve: {pytest: tests/test_a_fragment_never_captures_a_connection.py}
   ecart: "la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue"
   a_ecrire: "cible de charge à N sessions sur l'instantané qui sort ≠ 0 si p95 > seuil ADR-007"
-  roadmap: R266
+  roadmap: R284
 - id: REQ-RUN-03
   domaine: app-runtime
   enonce: Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée
   sources: [{notes: L72}, {notes: L80}]
   priorite: P3
-  statut: absent
-  a_ecrire: "test qui lit docker-compose*.yml et exige mem_limit (ou deploy.resources) sur chaque service"
-  roadmap: R266
+  statut: partiel
+  preuve: {pytest: tests/test_every_long_running_service_has_a_memory_limit.py::test_every_long_running_service_has_a_memory_limit}
+  mutation: "retirer la ligne mem_limit du service api dans docker-compose.example.yml"
+  ecart: "mémoire limitée à ~2× le pic mesuré sur chaque conteneur (ADR-030) et observée par Grafana ; CPU non limité — une contention CPU ralentit sans tuer, différé avec R284"
+  roadmap: R284
 
 - id: REQ-API-01
   domaine: api
