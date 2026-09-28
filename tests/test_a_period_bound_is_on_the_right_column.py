@@ -58,7 +58,7 @@ _COHORT_PHRASES = (
 
 # Combien de lignes après le bornage on considère comme « autour de la figure ».
 # Au-delà, le texte parle d'autre chose sur la même page.
-_NEARBY_LINES = 90
+_NEARBY_LINES = 100
 
 
 @lru_cache(maxsize=32)

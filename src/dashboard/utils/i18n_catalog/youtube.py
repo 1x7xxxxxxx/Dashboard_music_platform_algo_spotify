@@ -36,4 +36,5 @@ EN = {
                              "of the period.",
     "youtube.n_comments": "{n} comm.",
     "youtube.views_per_like": "{r:.0f} views/like",
+    "youtube.likes_per_k": "Likes per 1,000 views",
 }

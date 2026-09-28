@@ -186,9 +186,13 @@ def test_the_figure_draws_one_follower_curve() -> None:
     fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                and n.name == "_engagement_fig"), None)
     assert fn is not None, "`_engagement_fig` a disparu"
+    # R290 — the flows are filled Scatters now too: a follower curve is a Scatter on the
+    # SECONDARY axis (the flows stay on the primary one).
     scatters = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", None) == "add_trace" and n.args
-                and getattr(getattr(n.args[0], "func", None), "attr", None) == "Scatter"]
+                and getattr(getattr(n.args[0], "func", None), "attr", None) == "Scatter"
+                and any(k.arg == "secondary_y" and isinstance(k.value, ast.Constant)
+                        and k.value.value is True for k in n.keywords)]
     assert len(scatters) == 1, (
         f"{len(scatters)} courbes d'abonnés au lieu d'une. La fusion du 2026-09-23 "
         "suppose que les deux sources mesurent la même chose — ce que "

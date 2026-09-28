@@ -34,8 +34,8 @@ EN = {
     "soundcloud.col_days_since": "📅 Released (days ago)",
     # Le catalogue sur un axe temporel — demandé le 2026-09-21.
     "soundcloud.catalog_header": "📊 Whole catalogue — plays, likes, reposts, comments",
-    "soundcloud.panel_plays": "Cumulative plays",
-    "soundcloud.panel_engagement": "Cumulative engagement — likes, reposts, comments",
+    "soundcloud.plays_axis": "Cumulative plays",
+    "soundcloud.engagement_axis": "Likes, reposts, comments (cumulative)",
     "soundcloud.likes": "Likes",
     "soundcloud.reposts": "Reposts",
     "soundcloud.catalog_caption": "**{n} reading(s)** over {t} track(s). These counters "

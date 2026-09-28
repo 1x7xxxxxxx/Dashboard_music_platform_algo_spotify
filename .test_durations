@@ -172,7 +172,7 @@
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/airflow_kpi.py-374-test_a_render_opens_one_connection]": 0.0859787940280512,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/credentials/_core.py-596-test_identity_uniqueness]": 0.0011340759956510738,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/credentials/_core.py-604-test_identity_conflict_names_no_other_tenant]": 0.0011742589995265007,
-    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/meta_ads_overview.py-211-test_a_join_never_multiplies_the_grain]": 0.05019818199798465,
+    "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/meta_ads_overview.py-211-test_a_join_never_multiplies_the_grain]": 0.10533233999740332,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/meta_creatives.py-233-test_a_creative_name_yields_its_hook]": 0.0015482250018976629,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/meta_creatives.py-88-test_a_rate_is_recomputed_from_its_counts]": 0.0011894349881913513,
     "tests/test_a_comment_names_a_test_that_exists.py::test_a_comment_names_a_test_file_that_exists[src/dashboard/views/revenue_forecast.py-528-test_the_metrics_layer_only_grows]": 0.09287564200349152,

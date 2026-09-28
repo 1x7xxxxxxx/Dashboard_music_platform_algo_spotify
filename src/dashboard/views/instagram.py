@@ -59,6 +59,7 @@ from src.dashboard.utils.platform_colors import UNMEASURED_BRAND, platform_color
 # bleu). Le détail est dans `platform_colors`. Sa page n'affiche qu'UNE plateforme :
 # la question de l'attribution ne s'y pose pas, et on garde donc sa teinte de marque.
 _IG = platform_color("instagram", default=UNMEASURED_BRAND["instagram"])
+_IG_DEEP = "#833AB4"   # R290 — engagement per post, the deeper Instagram ink
 
 def show():
     # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que sur Apple,
@@ -229,28 +230,46 @@ def show():
                               "Aucune publication collectée pour ce compte."))
             else:
                 df_eng['mois'] = pd.to_datetime(df_eng['mois'])
-                df_long = df_eng.melt(
-                    id_vars=['mois', 'posts'], value_vars=['likes', 'comments'],
-                    var_name='Type', value_name='Total',
-                )
-                fig_e = px.bar(
-                    df_long, x='mois', y='Total', color='Type',
+                # R290 (owner, fiche 15, 2026-09-28 : « l'ergonomie n'est pas ouf ») — the
+                # decision is « publish MORE or publish BETTER »: bars = how many posts that
+                # month (a volume, left), line = engagement PER POST (a ratio, right). Two
+                # natures, declared in the visual-rules gate; likes and comments stay in
+                # the hover, where the per-post ratio comes from.
+                from plotly.subplots import make_subplots
+
+                from src.dashboard.utils.ratios import per_series
+                df_eng['per_post'] = per_series(df_eng['likes'] + df_eng['comments'],
+                                                df_eng['posts'])
+                fig_e = make_subplots(specs=[[{"secondary_y": True}]])
+                fig_e.add_trace(go.Bar(
+                    x=df_eng['mois'], y=df_eng['posts'], marker_color=_IG, opacity=0.35,
+                    name=t("instagram.posts_per_month", "Publications du mois")),
+                    secondary_y=False)
+                fig_e.add_trace(go.Scatter(
+                    # POINTS, not a line: a month without a post has no engagement per
+                    # post, and a line would draw one through it.
+                    x=df_eng['mois'], y=df_eng['per_post'], mode="markers+text",
+                    marker=dict(color=_IG_DEEP, size=11),
+                    text=[f"{v:.0f}" if pd.notna(v) else "" for v in df_eng['per_post']],
+                    textposition="top center", textfont=dict(color=_IG_DEEP),
+                    name=t("instagram.engagement_per_post", "Engagement par publication"),
+                    customdata=df_eng[['likes', 'comments']].values,
+                    hovertemplate="%{y:.0f} par publication<br>%{customdata[0]:,.0f} likes · "
+                                  "%{customdata[1]:,.0f} commentaires<extra></extra>"),
+                    secondary_y=True)
+                fig_e.update_layout(
                     title=t("instagram.engagement_by_cohort",
                             "Likes et commentaires ACQUIS À CE JOUR, par mois de "
                             "publication ({label})").format(label=win_m.label),
-                    hover_data=['posts'],
-                    # R209 — likes and comments were both drawn black: the legend told
-                    # nothing apart. Instagram's pink for likes, a darker tone for
-                    # comments — two inks of one brand, distinct in contrast too.
-                    color_discrete_map={'likes': _IG, 'comments': "#833AB4"},
-                    labels={'mois': t("instagram.month_published",
-                                      "Mois de publication"),
-                            'Total': t("common.total", "Total")},
-                )
-                fig_e.update_layout(
-                    barmode='stack', hovermode="x unified",
-                    yaxis_title=t("instagram.likes_comments_axis", "Likes + commentaires"),
-                )
+                    hovermode="x unified",
+                    legend=dict(orientation="h", y=-0.2, x=0))
+                fig_e.update_yaxes(title_text=t("instagram.posts_axis", "Publications"),
+                                   title_font_color=_IG, secondary_y=False,
+                                   dtick=1, tickformat="d")
+                fig_e.update_yaxes(title_text=t("instagram.per_post_axis",
+                                                "Likes + commentaires par publication"),
+                                   title_font_color=_IG_DEEP, rangemode="tozero",
+                                   secondary_y=True)
                 charts.plotly_chart(fig_e, width="stretch")
                 st.caption(t(
                     "instagram.engagement_cohort_note",

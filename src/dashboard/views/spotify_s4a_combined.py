@@ -414,16 +414,17 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     # indice de popularité pour l'annoncer sous la figure. Les barres concernées
     # portent déjà l'absence dans leur étiquette.
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        y=merged["song"], x=merged["streams_total"], orientation="h",
-        name=t("spotify_s4a_combined.lifetime", "Cumul à vie"),
-        marker_color=_GHOST_INK,
-        # L'étiquette est posée au bout de la barre LA PLUS LONGUE des deux, pour
-        # qu'elle ne tombe jamais au milieu de l'autre.
-        text=pi_labels, textposition="outside", cliponaxis=False,
-        textfont=dict(color=_PI_INK, size=12),
-        hovertemplate="%{x:,.0f}<extra>cumul à vie</extra>"))
+    # R290 (owner, fiche 4, 2026-09-28 : « on a du mal à voir les 28 derniers jours ») —
+    # TWO panels sharing the titles, each on its OWN scale: on one axis next to a lifetime
+    # sum, a quiet 28-day window was a sliver. Left, what moves now (the sort key, in
+    # colour, its value written); right, the lifetime, in grey. Two x axes, not two y
+    # axes: the visual-rules gate counts secondary Y axes, and these are two panels.
+    from plotly.subplots import make_subplots
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06,
+                        column_widths=[0.55, 0.45],
+                        subplot_titles=(t("spotify_s4a_combined.recent_window",
+                                          "{n} derniers jours mesurés").format(n=_MOMENTUM_DAYS),
+                                        t("spotify_s4a_combined.lifetime", "Cumul à vie")))
     fig.add_trace(go.Bar(
         y=merged["song"], x=merged["recent"], orientation="h",
         name=t("spotify_s4a_combined.recent_window", "{n} derniers jours mesurés")
@@ -431,14 +432,19 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
         # Le titre choisi dans le filtre commun est en couleur pleine, les autres atténués :
         # c'est le lien visuel entre cette figure et le détail posé à côté.
         marker_color=[_SPOTIFY_GREEN if x == song else "#A5D6A7" for x in merged["song"]],
-        hovertemplate="%{x:,.0f}<extra>fenêtre récente</extra>"))
-    fig.update_layout(barmode="overlay", height=_PAIR_HEIGHT,
-                      xaxis_title=t("common.streams", "Streams"),
-                      margin=dict(r=150, t=30, b=90),
-                      # SOUS l'axe : dans le cadre elle recouvrait l'étiquette PI de la barre
-                      # du haut, au-dessus elle recouvrait la barre d'outils (vu à l'écran le
-                      # 2026-09-26, deux captures).
-                      legend=dict(orientation="h", y=-0.28, x=0))
+        text=pi_labels, textposition="outside", cliponaxis=False,
+        textfont=dict(color=_PI_INK, size=12),
+        hovertemplate="%{x:,.0f}<extra>fenêtre récente</extra>"), row=1, col=1)
+    fig.add_trace(go.Bar(
+        y=merged["song"], x=merged["streams_total"], orientation="h",
+        name=t("spotify_s4a_combined.lifetime", "Cumul à vie"),
+        marker_color=_GHOST_INK,
+        hovertemplate="%{x:,.0f}<extra>cumul à vie</extra>"), row=1, col=2)
+    fig.update_layout(height=_PAIR_HEIGHT, showlegend=False,
+                      margin=dict(r=40, t=40, b=40))
+    fig.update_xaxes(title_text=t("common.streams", "Streams"))
+    # Room for the written value at the end of the longest recent bar.
+    fig.update_xaxes(range=[0, float(merged["recent"].max() or 1) * 1.5], row=1, col=1)
     fig.update_yaxes(automargin=True)   # R209: titles were cut at the left edge
     charts.plotly_chart(fig, width="stretch")
 
@@ -529,17 +535,14 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
         note = _song_detail(db, spans, frag, params, song, window, fig, panel=1)
         drawn = _engagement_fig(db, frag, params, window, fig, panel=2)
         if note is not None or drawn:
-            # R244 (fiche 5 « fusionner les deux ») : UN repère, chaque série en indice
-            # (100 = sa première valeur), la vraie valeur au survol.
-            one, skipped = charts.to_base100(fig)
-            one.update_layout(height=_PAIR_HEIGHT, margin=dict(t=20, b=40),
-                              legend=dict(orientation="h", yanchor="top", y=-0.1, x=0))
-            charts.plotly_chart(one, width="stretch")
+            # R290 (owner, fiche 5, 2026-09-28) — each panel in its REAL units, no base
+            # 100: indexed on a first-month spike, saves and playlist adds read as ~0 for
+            # two years. The two panels stay ONE figure (R244, « fusionner les deux »).
+            fig.update_layout(height=_PAIR_HEIGHT + 80, margin=dict(t=30, b=40),
+                              legend=dict(orientation="h", yanchor="top", y=-0.08, x=0))
+            charts.plotly_chart(fig, width="stretch")
             if note:
                 st.caption(note)
-            if skipped:
-                st.caption(t("spotify_s4a_combined.no_base", "Sans valeur positive sur la "
-                             "période, donc sans base : {s}.").format(s=", ".join(skipped)))
 
 
 def _common_filter(db, spans: pd.DataFrame):
@@ -732,15 +735,16 @@ def _engagement_fig(db, frag: str, params: tuple, window, fig, panel: int = 2) -
     if not flux.empty:
         flux = flux.copy()
         flux["month"] = pd.to_datetime(flux["month"])
-        fig.add_trace(go.Bar(x=flux["month"], y=flux["saves"],
-                             name=t("spotify_s4a_combined.saves", "Sauvegardes"),
-                             marker_color=_SPOTIFY_GREEN),
-                      row=panel, col=1, secondary_y=False)
-        fig.add_trace(go.Bar(x=flux["month"], y=flux["playlist_adds"],
-                             name=t("spotify_s4a_combined.playlist_adds",
-                                    "Ajouts en playlist"),
-                             marker_color=_LISTENER_INK),
-                      row=panel, col=1, secondary_y=False)
+        # R290 (owner, fiche 5) : areas, on the panel's OWN left axis — next to the
+        # streams (or in base 100 from a first-month spike) they sat flat at the bottom.
+        for col, name, ink in (("saves", t("spotify_s4a_combined.saves", "Sauvegardes"),
+                                _SPOTIFY_GREEN),
+                               ("playlist_adds", t("spotify_s4a_combined.playlist_adds",
+                                                   "Ajouts en playlist"), _LISTENER_INK)):
+            fig.add_trace(go.Scatter(x=flux["month"], y=flux[col], name=name, mode="lines",
+                                     fill="tozeroy", line=dict(color=ink, width=1.6),
+                                     opacity=0.55),
+                          row=panel, col=1, secondary_y=False)
 
     if not abo.empty:
         # ── UNE SEULE COURBE D'ABONNÉS, ET UN DÉTECTEUR AVEC — 2026-09-23 ──────

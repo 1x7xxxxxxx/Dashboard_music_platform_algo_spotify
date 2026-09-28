@@ -334,7 +334,6 @@ def show():
                     def _cut(x: str, n: int = 44) -> str:
                         x = str(x)
                         return x if len(x) <= n else x[:n // 2 - 1] + "…" + x[-(n // 2 - 1):]
-                    _names = [f"{len(_d) - i}. {_cut(x)}" for i, x in enumerate(_d['title'])]
 
                     def _detail(r) -> str:
                         parts = [f"{int(r['like_count']):,} likes".replace(",", " ")]
@@ -346,23 +345,40 @@ def show():
                                          .format(r=r['ratio_views_like']))
                         return " · ".join(parts)
 
-                    fig_top = go.Figure(go.Bar(
-                        y=_names, x=_d['view_count'], orientation='h',
-                        marker_color="#2a78d6",
-                        text=[_detail(r) for _, r in _d.iterrows()],
-                        textposition="auto",
-                        customdata=_d['view_count'],
-                        hovertemplate="%{y}<br>%{customdata:,.0f} vues<br>%{text}"
-                                      "<extra></extra>"))
+                    # R290 (owner, fiche 13, 2026-09-28 : « les trois métriques sur un
+                    # même graphique, pas sur un même axe, en séparant le comportement des
+                    # likes ») — one BUBBLE per video: how far it went (views, across) and
+                    # how much it made people react (likes per 1 000 views, up), its size
+                    # the likes themselves. Reach and engagement are two behaviours: a video
+                    # far right and low was seen, one high was liked.
+                    from src.dashboard.utils.ratios import per_series
+                    _d = _d.assign(per_k=per_series(_d['like_count'], _d['view_count'], 1000))
+                    _pts = _d.dropna(subset=['per_k'])
+                    _size = _pts['like_count'].clip(lower=1) ** 0.5
+                    fig_top = go.Figure(go.Scatter(
+                        x=_pts['view_count'], y=_pts['per_k'], mode="markers+text",
+                        text=[_cut(x, 28) for x in _pts['title']],
+                        # Alternated above/below, by rank of views: neighbours on the log
+                        # axis printed their titles on top of each other.
+                        textposition=["top center" if i % 2 else "bottom center"
+                                      for i in _pts['view_count'].rank(method="first")],
+                        textfont=dict(size=10),
+                        marker=dict(size=8 + 32 * _size / max(float(_size.max()), 1.0),
+                                    color=_YT, opacity=0.7,
+                                    line=dict(width=1, color="white")),
+                        customdata=[[_detail(r)] for _, r in _pts.iterrows()],
+                        hovertemplate="%{text}<br>%{x:,.0f} vues · %{y:.1f} likes pour "
+                                      "1 000 vues<br>%{customdata[0]}<extra></extra>"))
                     fig_top.update_layout(
                         title=t("youtube.top_chart_title", "Top {n} {type}").format(
                             n=top_n, type=selected_type),
                         xaxis_title=t("youtube.views", "Vues"),
-                        showlegend=False,
-                        height=max(320, 34 * len(_d) + 120),
+                        yaxis_title=t("youtube.likes_per_k", "Likes pour 1 000 vues"),
+                        showlegend=False, height=460,
                         margin=dict(r=20, t=60, b=40),
                     )
-                    fig_top.update_yaxes(automargin=True)
+                    # Views span three orders of magnitude between two videos.
+                    fig_top.update_xaxes(type="log", tickformat="~s", dtick="D1")
 
                     charts.plotly_chart(fig_top, width="stretch")
 

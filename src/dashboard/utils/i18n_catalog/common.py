@@ -24,7 +24,6 @@ EN = {
     "common.year": "Year",
     "common.month": "Month",
     "common.date": "Date",
-    "common.total": "Total",
     "common.notes": "Notes",
     "common.artist": "Artist",
     "common.song": "Song",

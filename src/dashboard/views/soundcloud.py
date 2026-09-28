@@ -49,7 +49,7 @@ from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime
-from src.dashboard.utils.platform_colors import PALETTE_LIGHT
+from src.dashboard.utils.platform_colors import DISTINCT, PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
 from src.dashboard.utils.date_format import format_date, format_serie
 
@@ -57,6 +57,7 @@ from src.dashboard.utils.date_format import format_date, format_serie
 # le balayage du 2026-09-08 a refusée (ΔE 4,6 contre YouTube en deutéranopie).
 # C'est la meilleure position DANS la famille orange, pas une autre couleur.
 _SC = PALETTE_LIGHT["soundcloud"]
+_ENGAGEMENT_INK = DISTINCT[0]   # R290 — the engagement axis, apart from the plays area
 
 
 def show():
@@ -408,18 +409,21 @@ def _render_catalog_series(db, artist_id) -> None:
                   "cumul en recul, ce qui signale une collecte en panne."))
         return
 
+    # R290 (owner, fiche 10, 2026-09-28 : « fusionne tout sur un même graphique, pas en
+    # base 100 ») — ONE frame, two axes, declared in the visual-rules gate: the AUDIENCE
+    # counter (plays, an area on the left) and the ENGAGEMENT counters (likes, reposts,
+    # comments, lines on the right). Two natures and two magnitudes (23 486 plays against
+    # 412 comments): on one axis three curves were flat at the bottom. The crossing of
+    # the two families is an artefact of framing, and the right axis says so by its title.
     from plotly.subplots import make_subplots
-    fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12,
-        row_heights=[0.55, 0.45],
-        subplot_titles=[t("soundcloud.panel_plays", "Écoutes cumulées"),
-                        t("soundcloud.panel_engagement",
-                          "Engagement cumulé — likes, reposts, commentaires")])
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(go.Scatter(
-        x=ok["day"], y=ok["plays"], mode="lines+markers",
+        x=ok["day"], y=ok["plays"], mode="lines+markers", marker=dict(size=4),
         name=t("soundcloud.plays", "Écoutes"),
-        line=dict(color=_SC, width=2.5)), row=1, col=1)
+        # Small markers: each is a READING. Between two of them (no reading from
+        # December to April) the line is a join, not a measure.
+        line=dict(color=_SC, width=3)), secondary_y=False)
 
     # UNE SEULE TEINTE, TROIS TRAITS. Les trois séries du bas sont de la même
     # plateforme : leur donner trois couleurs inventerait trois familles là où il
@@ -437,14 +441,19 @@ def _render_catalog_series(db, artist_id) -> None:
     ):
         serie = ok[ok[flag].fillna(True).astype(bool)]
         fig.add_trace(go.Scatter(
-            x=serie["day"], y=serie[col], mode="lines+markers", name=lbl,
-            line=dict(color=_SC, width=2, dash=dash)), row=2, col=1)
+            x=serie["day"], y=serie[col], mode="lines", name=lbl,
+            line=dict(color=_ENGAGEMENT_INK, width=2, dash=dash)), secondary_y=True)
 
-    fig.update_layout(height=560, hovermode="x unified",
-                      legend=dict(orientation="h", y=1.10),
-                      margin=dict(t=90))
-    fig.update_yaxes(tickformat="~s", row=1, col=1)
-    fig.update_yaxes(tickformat="~s", row=2, col=1)
+    fig.update_layout(height=460, hovermode="x unified",
+                      legend=dict(orientation="h", y=-0.15, x=0),
+                      margin=dict(t=30))
+    fig.update_yaxes(tickformat="~s", secondary_y=False,
+                     title_text=t("soundcloud.plays_axis", "Écoutes cumulées"),
+                     title_font_color=_SC)
+    fig.update_yaxes(tickformat="~s", secondary_y=True,
+                     title_text=t("soundcloud.engagement_axis",
+                                  "Likes, reposts, commentaires (cumul)"),
+                     title_font_color=_ENGAGEMENT_INK)
     charts.plotly_chart(fig, width="stretch")
 
     legende = t("soundcloud.catalog_caption",

@@ -137,6 +137,17 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
         3, "dépense (€) + écoutes (volumes) vs € par écoute (un PRIX) — deux "
            "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
            "contre 0,181 € au Brésil"),
+    # R290 (owner, fiche 10, 2026-09-28 : « fusionne tout sur un même graphique ») — the
+    # AUDIENCE counter (plays, left) vs the ENGAGEMENT counters (likes, reposts, comments,
+    # right): two natures, and a 50× magnitude gap that flattened three curves on one axis.
+    # The crossing is an artefact of framing, owned: each axis title is in its series' ink.
+    "soundcloud.py": (3, "catalogue : écoutes cumulées (audience) vs likes/reposts/"
+                         "commentaires cumulés (engagement) — deux natures, demandé par "
+                         "le propriétaire le 2026-09-28"),
+    # R290 (owner, fiche 15) — posts per month (a VOLUME, left) vs engagement per post
+    # (a RATIO, right): the « volume vs price » pair already admitted three times.
+    "instagram.py": (3, "posts du mois (volume) vs likes + commentaires par publication "
+                        "(ratio) — deux natures, « publier plus ou mieux »"),
     "spotify_s4a_combined.py": (
         6, "(9 → 6 le 2026-09-26, R187 : le §2 « auditeurs-jour » et son axe du ratio ont "
            "été remplacés par une figure à UN axe) — détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "

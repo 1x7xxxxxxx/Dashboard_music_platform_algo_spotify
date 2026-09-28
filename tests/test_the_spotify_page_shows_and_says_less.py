@@ -381,13 +381,18 @@ def test_the_followers_level_never_shares_an_axis_with_a_monthly_flow() -> None:
         if not (isinstance(n, ast.Call)
                 and getattr(n.func, "attr", None) == "add_trace" and n.args):
             continue
-        forme = getattr(getattr(n.args[0], "func", None), "attr", None)  # Bar / Scatter
+        # R290 — the ROLE is read on the trace, not its class: since the owner asked for
+        # areas (fiche 5, 2026-09-28) the monthly flows are filled Scatters too. A flow
+        # is FILLED, the follower level is a plain line.
+        arg = n.args[0]
+        role = ("flux" if any(k.arg == "fill" for k in getattr(arg, "keywords", []))
+                else "niveau")
         sec = next((k.value for k in n.keywords if k.arg == "secondary_y"), None)
-        if forme and isinstance(sec, ast.Constant):
-            cotes.setdefault(forme, set()).add(bool(sec.value))
-    assert cotes.get("Bar") == {False}, (
+        if isinstance(sec, ast.Constant):
+            cotes.setdefault(role, set()).add(bool(sec.value))
+    assert cotes.get("flux") == {False}, (
         f"les flux mensuels ne sont plus tous sur l'axe principal : {cotes}")
-    assert cotes.get("Scatter") == {True}, (
+    assert cotes.get("niveau") == {True}, (
         f"les abonnés ne sont plus sur l'axe SECONDAIRE : {cotes}. Un NIVEAU quotidien "
         "sur la même échelle qu'un flux mensuel se lit comme un flux — "
         "`un-cumul-pris-pour-un-quotidien`.")
@@ -409,7 +414,7 @@ def test_the_followers_are_identifiable_without_colour() -> None:
     assert "title_font" in src and "_FOLLOWER_INK" in src, (
         "le titre de l'axe des abonnés n'est plus teinté de l'encre de sa série : deux "
         "échelles se lisent alors comme une, et c'est là que naît le faux croisement.")
-    assert "go.Bar" in src and "go.Scatter" in src, (
+    assert "tozeroy" in src and "go.Scatter" in src, (
         "les flux et le niveau n'ont plus deux FORMES : la distinction repose alors sur "
         "la seule couleur.")
 
@@ -443,9 +448,13 @@ def test_the_two_follower_sources_are_now_one_curve() -> None:
     fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                and n.name == "_engagement_fig"), None)
     assert fn is not None
+    # R290 — the flows are filled Scatters now too: a follower curve is a Scatter on the
+    # SECONDARY axis (the flows stay on the primary one).
     scatters = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", None) == "add_trace" and n.args
-                and getattr(getattr(n.args[0], "func", None), "attr", None) == "Scatter"]
+                and getattr(getattr(n.args[0], "func", None), "attr", None) == "Scatter"
+                and any(k.arg == "secondary_y" and isinstance(k.value, ast.Constant)
+                        and k.value.value is True for k in n.keywords)]
     assert len(scatters) == 1, (
         f"{len(scatters)} courbes d'abonnés. Une seule depuis le 2026-09-23 — et la "
         "condition de cette fusion est le détecteur de divergence, pas la mesure d'un "

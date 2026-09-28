@@ -3,7 +3,7 @@
 EN = {
     "instagram.engagement_by_cohort": (
         "Likes and comments EARNED TO DATE, by month of publication ({label})"),
-    "instagram.month_published": "Month published",
+    "instagram.posts_per_month": "Posts that month",
     "instagram.engagement_cohort_note": (
         "Each bar groups the posts **published** that month and shows the likes they "
         "have accumulated **up to today** — not the ones received during that month. "
@@ -26,7 +26,9 @@ EN = {
     "instagram.history_error": "History error: {err}",
     "instagram.engagement_header": "📝 Engagement & posts",
     "instagram.no_posts": "No posts in this period.",
-    "instagram.likes_comments_axis": "Likes + comments",
+    "instagram.engagement_per_post": "Engagement per post",
+    "instagram.posts_axis": "Posts",
+    "instagram.per_post_axis": "Likes + comments per post",
     "instagram.engagement_rate_title": "Engagement rate ≈ (avg. eng./post) ÷ followers — indicative",
     "instagram.rate_axis": "Rate (%)",
     "instagram.rate_expander": "📈 Engagement rate (indicative)",
