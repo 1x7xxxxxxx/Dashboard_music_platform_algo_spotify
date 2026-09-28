@@ -537,27 +537,28 @@
   sources: [{notes: L72}, {theorie: "Kleppmann p.44"}]
   priorite: P2
   statut: absent
-  ecart: "R114 : 33 à 37 reruns perdus à 12-24 onglets, sur une ou deux instances ; le goulot n'est pas identifié"
+  ecart: "le chiffre « 33 à 37 reruns perdus » précédait la mesure de R114, dont les quatre passes alternées n'en perdent aucun (archive.md, R114) ; rien ne le rejoue automatiquement — différé par ADR-030 derrière les seuils de tools/scale_check.sh, lus chaque nuit"
   a_ecrire: "make loadtest-concurrency avec un seuil de reruns perdus qui sort ≠ 0"
-  roadmap: R266
+  roadmap: R284
 - id: REQ-RUN-05
   domaine: app-runtime
   enonce: Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1)
   sources: [{adr: docs/adr/ADR-007-performance-work-is-trigger-gated.md}, {theorie: "Golding p.449"}]
   priorite: P2
-  statut: absent
-  ecart: "onboarding_health boucle par artiste : 106 requêtes à 6 artistes, ~900 projetées à 50"
-  a_ecrire: "test qui compte les requêtes du rendu admin avec 1 puis 10 locataires simulés et exige le même nombre"
-  roadmap: R266
+  statut: partiel
+  preuve: {pytest: tests/test_the_fleet_readiness_does_not_grow_with_tenants.py::test_the_fleet_readiness_does_not_grow_with_tenants}
+  mutation: "dans readiness_many, rendre {a: artist_readiness(db, a) for a in ids}"
+  ecart: "la matrice de flotte se lit en requêtes groupées (14 → 50 pour 1 → 13 locataires, 182 avant) ; restent ≤ 3 requêtes par locataire périmé (règles de silence attendu) et les lectures propres de render_status_matrix — ADR-030"
+  roadmap: R284
 - id: REQ-RUN-06
   domaine: app-runtime
   enonce: Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés
   sources: [{doc: src/database/postgres_handler.py}]
   priorite: P3
   statut: partiel
-  ecart: "pool de 8 par instance, ~4 connexions par rendu → ~2 rendus concurrents avant replis directs"
+  ecart: "replis directs surveillés (alerte ConnectionPoolExhausted ; son seul déclenchement, 2026-09-26/27, était la fuite de /health corrigée par R215 — 0 emprunt sur 24 h ensuite) ; pool de 8 par instance, 15 connexions sur 100 en prod — agrandi quand l'usage passe 50 % (ADR-030)"
   a_ecrire: "test qui lit la taille du pool et le nombre de connexions par rendu, et exige pool ≥ connexions × concurrence déclarée"
-  roadmap: R266
+  roadmap: R284
 - id: REQ-API-02
   domaine: api
   enonce: La latence de l'API a un chiffre publié (p95 par route) et un seuil d'alerte

@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R285 — **Le contrôle de contamination répète et crie sur l'attendu** (mail ops du 2026-09-28 2… (livrée 2026-09-28)
+
+- [x] **R285 — **Le contrôle de contamination répète et crie sur l'attendu** (mail ops du 2026-09-28 23:00) : les deux jointures de flotte (`track_popularity_history`, `youtube_video_stats`) tournent DANS la boucle par locataire — la même ligne MISATTRIBUTED sort une fois par locataire (8 copies) et gonfle le compte ; et le bac à sable, miroir voulu de l'artiste 1 (mig. 080), fait crier « CONTAMINATION » chaque nuit. Jointures sorties de la boucle, constats du bac à sable rangés sous « attendu » (listés, jamais comptés dans l'objet)** (P3) ✅ (2026-09-28, 347fde01, bef1e613)
+  Mesuré par : chaque constat une fois ; objet sans « CONTAMINATION » quand seul le bac à sable est touché
+  deploye 347fde01 (CI verte) - scan de prod rejoue en lecture : 29 constats (36 avant, dont 8 copies), 0 doublon, 29 attendus (bac a sable), 0 incident reel
+  Commits : 347fde01 Journal des mails ops : nuit du 2026-09-27 triee (5 CI rouges de la se · bef1e613 R285 : controle de contamination - les deux jointures de flotte (track
+
+## ✅ R266 — **Scalabilité : ingestion et runtime** (notes L72, L169, L549) : fan-out par locataire… (livrée 2026-09-28)
+
+- [x] **R266 — **Scalabilité : ingestion et runtime** (notes L72, L169, L549) : fan-out par locataire (tâche par locataire), budget de quota par locataire mesuré, limites mémoire/CPU par conteneur, test de charge (Locust) sur l'instantané avec seuil ADR-007, zéro rerun perdu en concurrence (R114 : 33-37 perdus), N+1 d'onboarding_health, pool dimensionné pour la concurrence ; ADR avant le code** (P2) ✅ (2026-09-28, 159ae934)
+  Mesuré par : REQ-ORCH-01/03, REQ-RUN-02/03 conformes
+  deploye 347fde01 (CI verte) - ADR-030 : mem_limit a ~2x le pic mesure sur chaque conteneur (prod appliquee, garde compose), sante d onboarding en requetes bornees (14 -> 50 pour 1 -> 13 locataires au lieu de 182), fan-out quota charge et CPU differes derriere un declencheur nocturne (meta p95 636 s = 6 pct du timeout) -> R284 au backlog ; le chiffre 33-37 reruns perdus etait refute par R114
+  Commits : 159ae934 R266 : scalabilite mesuree (ADR-030) - limites memoire a ~2x le pic me
+
+## ✅ R262 — **Finance en une vue avec projection** (notes L128, L139, L538, L540) : charges, pub, S… (livrée 2026-09-28)
+
+- [x] **R262 — **Finance en une vue avec projection** (notes L128, L139, L538, L540) : charges, pub, SACEM, distributeurs, valeur d'un déclenchement sur un graphique, durée restante avant le point mort écrite dessus ; accueil : sources étendues (distributeur, SACEM, Hypeddit, meilleurs paramètres Meta)** (P2) ✅ (2026-09-28, cdd0fa2c)
+  Mesuré par : la durée avant point mort lisible sur la figure
+  deploye 347fde01 (CI verte) - duree avant le point mort sur la tresorerie Distributeurs, declenchement Discover Weekly en point, etat trop_court sous 6 mois, phrase du point mort a une seule definition, accueil separe distributeurs et SACEM
+  Commits : cdd0fa2c R262 : finance - la duree avant le point mort ecrite sur la tresorerie
+
 ## ✅ R271 — **Pages : récap, graphiques et validation** (notes L8, L91, L142, L164, L168, L470) : p… (livrée 2026-09-28)
 
 - [x] **R271 — **Pages : récap, graphiques et validation** (notes L8, L91, L142, L164, L168, L470) : page récap des graphiques à plus forte valeur, Data Wrapped intégré à la page Spotify & S4A sous la saisie (décidé le 2026-09-27), « Mes sorties à âge égal » avec dépense Meta et Shazams, idées de graphiques par page, validation de chaque vue et de chaque bouton, actions en gras et informations en petit (note L242) (dont meta_breakdowns : engagement par dimension, 7 séries noires hors thème et libellés coupés), adaptation mobile** (P3) ✅ (2026-09-28, 60296b80, 4bfb331d, d4a7ac35, 1f8bfcbb, 31c35c4c, b7f30919, bda9398e)

@@ -3,7 +3,7 @@
 > **Généré** par `make arch-benchmark` depuis `domains.yaml` et `requirements.yaml`.
 > Ne pas éditer à la main : corriger le catalogue, puis régénérer.
 
-**65 exigences** sur **20 domaines** (carte : 24). conforme : 55 · partiel : 7 · absent : 3 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 5
+**65 exigences** sur **20 domaines** (carte : 24). conforme : 55 · partiel : 8 · absent : 2 · non-mesure : 0 · RÉGRESSION : 0 · sans preuve rejouable : 4
 
 ## Collecteurs API (`collect`)
 
@@ -99,9 +99,9 @@
 | REQ-RUN-01 | Un rendu ouvre au plus son plafond de connexions et les referme sur tous les chemins | conforme | `tests/test_a_render_opens_one_connection.py::test_rendering_a_view_opens_at_most_its_ceiling` ✅ | — | — |
 | REQ-RUN-02 | La latence de rendu est mesurée par page (p50/p95) et reste sous son seuil d'ADR à la charge visée | partiel | `tests/test_a_fragment_never_captures_a_connection.py` ✅ | Kleppmann p.44 (percentiles) | la mesure existe (metrics_seam) mais n'a que 1-2 points en 7 jours en prod ; un test de charge par navigateurs existe (make loadtest-concurrency, R114) mais se lance à la main, sans seuil qui échoue → R284 |
 | REQ-RUN-03 | Chaque conteneur a une limite de mémoire et de CPU, et la consommation par conteneur est observée | partiel | `tests/test_every_long_running_service_has_a_memory_limit.py::test_every_long_running_service_has_a_memory_limit` ✅ | — | mémoire limitée à ~2× le pic mesuré sur chaque conteneur (ADR-030) et observée par Grafana ; CPU non limité — une contention CPU ralentit sans tuer, différé avec R284 → R284 |
-| REQ-RUN-04 | Des sessions concurrentes ne perdent aucun rerun | absent | `—`  | Kleppmann p.44 | R114 : 33 à 37 reruns perdus à 12-24 onglets, sur une ou deux instances ; le goulot n'est pas identifié → R266 |
-| REQ-RUN-05 | Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1) | absent | `—`  | Golding p.449 | onboarding_health boucle par artiste : 106 requêtes à 6 artistes, ~900 projetées à 50 → R266 |
-| REQ-RUN-06 | Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés | partiel | `—`  | — | pool de 8 par instance, ~4 connexions par rendu → ~2 rendus concurrents avant replis directs → R266 |
+| REQ-RUN-04 | Des sessions concurrentes ne perdent aucun rerun | absent | `—`  | Kleppmann p.44 | le chiffre « 33 à 37 reruns perdus » précédait la mesure de R114, dont les quatre passes alternées n'en perdent aucun (archive.md, R114) ; rien ne le rejoue automatiquement — différé par ADR-030 derrière les seuils de tools/scale_check.sh, lus chaque nuit → R284 |
+| REQ-RUN-05 | Le nombre de requêtes d'un rendu ne croît pas avec le nombre de locataires (pas de N+1) | partiel | `tests/test_the_fleet_readiness_does_not_grow_with_tenants.py::test_the_fleet_readiness_does_not_grow_with_tenants` ✅ | Golding p.449 | la matrice de flotte se lit en requêtes groupées (14 → 50 pour 1 → 13 locataires, 182 avant) ; restent ≤ 3 requêtes par locataire périmé (règles de silence attendu) et les lectures propres de render_status_matrix — ADR-030 → R284 |
+| REQ-RUN-06 | Le pool de connexions est dimensionné pour la concurrence visée, et ses replis directs sont surveillés | partiel | `—`  | — | replis directs surveillés (alerte ConnectionPoolExhausted ; son seul déclenchement, 2026-09-26/27, était la fuite de /health corrigée par R215 — 0 emprunt sur 24 h ensuite) ; pool de 8 par instance, 15 connexions sur 100 en prod — agrandi quand l'usage passe 50 % (ADR-030) → R284 |
 
 ## API REST (`api`)
 
@@ -175,7 +175,6 @@
 - REQ-ORCH-01
 - REQ-ORCH-03
 - REQ-RUN-04
-- REQ-RUN-05
 - REQ-RUN-06
 
 ## Rejouer une preuve sur une ligne précise

@@ -2,8 +2,8 @@
   "days": 14,
   "baseline": false,
   "git": {
-    "product": 57,
-    "ok": 57,
+    "product": 59,
+    "ok": 59,
     "no_id": 0,
     "not_open": 0,
     "undecided": 0,
@@ -11,16 +11,13 @@
     "bypasses": []
   },
   "critic": {
-    "requis": 26,
-    "with_critic": 25,
+    "requis": 27,
+    "with_critic": 26,
     "without_critic": 1,
     "missing": [
       "R248"
     ]
   },
-  "open_rows_age_days": {
-    "R262": 0,
-    "R266": 0
-  },
+  "open_rows_age_days": {},
   "stale": []
 }

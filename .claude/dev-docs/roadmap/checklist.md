@@ -30,9 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R262 | **Finance en une vue avec projection** (notes L128, L139, L538, L540) : charges, pub, SACEM, distributeurs, valeur d'un déclenchement sur un graphique, durée restante avant le point mort écrite dessus ; accueil : sources étendues (distributeur, SACEM, Hypeddit, meilleurs paramètres Meta) <!-- anchor: r262 --> <!-- critic: requis — chiffres d'argent --> | P2 | la durée avant point mort lisible sur la figure |
-| R266 | **Scalabilité : ingestion et runtime** (notes L72, L169, L549) : fan-out par locataire (tâche par locataire), budget de quota par locataire mesuré, limites mémoire/CPU par conteneur, test de charge (Locust) sur l'instantané avec seuil ADR-007, zéro rerun perdu en concurrence (R114 : 33-37 perdus), N+1 d'onboarding_health, pool dimensionné pour la concurrence ; ADR avant le code <!-- anchor: r266 --> <!-- critic: requis — structure des DAGs --> | P2 | REQ-ORCH-01/03, REQ-RUN-02/03 conformes |
-| R285 | **Le contrôle de contamination répète et crie sur l'attendu** (mail ops du 2026-09-28 23:00) : les deux jointures de flotte (`track_popularity_history`, `youtube_video_stats`) tournent DANS la boucle par locataire — la même ligne MISATTRIBUTED sort une fois par locataire (8 copies) et gonfle le compte ; et le bac à sable, miroir voulu de l'artiste 1 (mig. 080), fait crier « CONTAMINATION » chaque nuit. Jointures sorties de la boucle, constats du bac à sable rangés sous « attendu » (listés, jamais comptés dans l'objet) <!-- anchor: r285 --> <!-- critic: non — correctif local d'un détecteur existant --> <!-- scope: tools/tenant_contamination_check.py, airflow/dags/alert_monitor.py --> | P3 | chaque constat une fois ; objet sans « CONTAMINATION » quand seul le bac à sable est touché |
 
 ---
 
@@ -88,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R262, R266, R285, R279, R282, R283, R274, R275, R255, R256 -->
+<!-- reprise: open=R279, R282, R283, R274, R275, R255, R256 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

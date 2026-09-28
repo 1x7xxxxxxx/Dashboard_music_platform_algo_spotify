@@ -303,13 +303,11 @@
   resume: Architecture de scaling en place et scaffoldee
   type: exigence-architecture
   domaine: app-runtime
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: R87 repliques Streamlit + affinite Caddy close par la mesure (A:7498) ; condition bloquante du
-    scaling levee (A:2346) ; tools/scale_check.sh ; benchmark actuel vs theorique = R257 ouvert
+  preuve_statut: R266 (archivée) — 159ae934
   preuve_ciblee: 'test to write (R257) : make arch-benchmark rejoue et compare chaque seuil de scaling de requirements.yaml
     a sa mesure'
-  roadmap: R266
 - ligne: 72
   resume: Architecture bronze/argent/or optimisee
   type: exigence-architecture
@@ -1010,35 +1008,29 @@
     trigger algos) sur un seul graphique + prédictions'
   type: exigence-architecture
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P2
-  preuve_statut: trésorerie unique R212/R236 (archive.md:343, :196) mais dessinée sur la page distributeurs/« Mes
-    revenus » ; revenue_forecast.py:321-326 ne garde que le verdict d'équilibre ; aucune projection sur la trésorerie
-    cumulée
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: 'test à écrire : revenue_forecast.py trace UNE figure qui somme Meta + SACEM + distributeurs +
     coûts saisis et prolonge la série (projection) ; rapprochée de la vue or trésorerie'
-  roadmap: R262
 - ligne: 128
   resume: 'Revenus : afficher sur le graphique la durée restante avant break-even'
   type: action-produit
   domaine: chart-door
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: revenue_forecast.py:321-360 — verdict en texte (st.info), pas sur la figure
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: 'test à écrire : la figure de trésorerie porte une annotation/vline au point d''équilibre projeté
     (_breakeven_gap, revenue_forecast.py:643)'
-  roadmap: R262
 - ligne: 128
   resume: 'Revenus : intégrer le coût de distribution d''un titre'
   type: action-produit
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: R248 livrée (saisie par titre, sommée dans la trésorerie, archive.md:49) ; saisie des valeurs =
-    R255 ouverte, en attente du propriétaire (checklist.md:216)
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: 'test à écrire : un coût catégorie ''distribution'' saisi (revenue_forecast.py:371) fait baisser
     le solde cumulé de la trésorerie du même montant'
-  roadmap: R262
 - ligne: 128
   resume: 'Revenus : combien rapporte un déclenchement des algos'
   type: action-produit
@@ -1276,12 +1268,10 @@
     Meta, pays/placement/âge'
   type: action-produit
   domaine: gold
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: Vues sacem.py, imusician.py, hypeddit.py, meta_cpr_optimizer.py, meta_breakdowns.py existent ;
-    home_meta_advice.py. Breakheaven absent du code (grep vide).
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: 'test to write: l''accueil expose un conseil Meta (meilleur pays/placement/âge), on file src/dashboard/views/home_meta_advice.py:1'
-  roadmap: R262
 - ligne: 139
   resume: 'Accueil : bien segmenter gratuit vs premium'
   type: exigence-architecture
@@ -1542,12 +1532,10 @@
   resume: Tests de charge (Locust) à intégrer ?
   type: question
   domaine: infra-observability
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'Montée en charge mesurée en prod le 2026-09-11 (archive l.8271 : ~12 utilisateurs actifs, mur
-    = GIL) ; benchmark-deployment.md:55 recommande Playwright/Locust+WS. Aucun locustfile.'
+  preuve_statut: R266 (archivée) — 159ae934
   preuve_ciblee: 'test to write: scénario de charge WS rejouable (make load-test), on file .claude/dev-docs/benchmark-deployment.md:55'
-  roadmap: R266
 - ligne: 170
   resume: Session de pentest (avec l'outil évoqué) et plan d'actions
   type: action-produit
@@ -2869,11 +2857,10 @@
   resume: 'Finance : les différentes charges (coûts d''exploitation)'
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'saisie existante mais données non saisies : checklist.md:217 R256 (geste propriétaire, fiche 66)'
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: tests/test_every_dossier_action_is_in_the_roadmap.py::test_the_detector_sees_a_ghost_id_and_a_gesture_outside_the_waiting_table
-  roadmap: R262
 - ligne: 539
   resume: 'Finance : CACEM (SACEM)'
   type: action-produit
@@ -2886,11 +2873,10 @@
   resume: 'Finance : autres dépenses pertinentes (coût de distribution par titre)'
   type: action-produit
   domaine: pages-ux
-  statut: partiel
+  statut: livré
   priorite: P3
-  preuve_statut: 'archive.md:51 R248 (saisie livrée) ; données : checklist.md:216 R255 ouvert (geste propriétaire)'
+  preuve_statut: R262 (archivée) — cdd0fa2c
   preuve_ciblee: 'test to write: un coût distribution saisi apparaît dans Dépenses de ledger_summary — treasury_chart.py:167'
-  roadmap: R262
 - ligne: 542-544
   resume: 'Une seule vue financière très simple : trésorerie / revenus / dépenses / acquisition / résultat streams
     / résultat financier'
@@ -3025,21 +3011,18 @@
   resume: Pipelines d'ingestion optimisés pour la scalabilité
   type: exigence-architecture
   domaine: collect
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: aucune ligne roadmap ni mesure de débit/coût par locataire ; seulement détection de creux (test_an_ingestion_gap_is_expected_against_received.py)
+  preuve_statut: R266 (archivée) — 159ae934
   preuve_ciblee: 'test to write: durée de collecte par locataire bornée et mesurée dans etl_run_log — airflow/dags'
-  roadmap: R266
 - ligne: 549
   resume: Architecture de l'app pour accélérer les calculs et réduire la latence globale
   type: exigence-architecture
   domaine: app-runtime
-  statut: décision-requise
+  statut: livré
   priorite: P3
-  preuve_statut: R116 (ADR-027 répliques/Redis) parqué dans checklist.md en attente de 14 jours de daily_ops_metrics
-    complets
+  preuve_statut: R266 (archivée) — 159ae934
   preuve_ciblee: 'test to write: make reopen-check-prod rend count(complete) ≥ 14 avant ADR-027 — checklist.md R116'
-  roadmap: R266
 - ligne: 549
   resume: Gestion des classes d'erreur
   type: exigence-architecture
