@@ -31,6 +31,9 @@ BASELINE_DAYS = 28
 MIN_BASELINE_MEASURED = 14
 MIN_CAMPAIGN_MEASURED = 7
 ENDED_AFTER_DAYS = 2          # no spend for 2 days ⇒ the campaign is over
+#: R291 — a baseline this low is not a baseline: artist 1's first wave began BEFORE its first
+#: release (≈ 0 streams/day), and « +191 per day, 0.029 € each » was the release, not the ads.
+MIN_BASELINE_LEVEL = 10.0
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,10 @@ def verdict_for(c: Campaign, camps: list[Campaign], series: pd.Series, today: dt
         return Verdict(False, f"Non concluant : {len(base)} jour(s) mesuré(s) dans les "
                               f"{BASELINE_DAYS} jours avant « {c.name} » (il en faut "
                               f"{MIN_BASELINE_MEASURED}).")
+    if base.mean() < MIN_BASELINE_LEVEL:
+        return Verdict(False, f"Non concluant : {base.mean():.0f} {many} par jour avant "
+                              f"« {c.name} » — presque rien à comparer ; une première sortie "
+                              "dans la même période ferait croire à un effet de la pub.")
     lift = float(during.mean() - base.mean())
     noise = float(base.std(ddof=1)) if len(base) > 1 else 0.0
     if lift <= noise:

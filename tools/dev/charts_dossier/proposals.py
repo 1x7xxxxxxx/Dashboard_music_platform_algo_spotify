@@ -2,23 +2,29 @@
 
 Type: Utility
 Uses: the local snapshot `spotify_etl_review` (capture.point_at_snapshot), gold views
-      v_meta_daily, v_meta_campaign_daily, v_meta_ad_daily, v_s4a_song_daily,
-      v_hypeddit_daily, bronze s4a_song_playlist_adds ; plotly + kaleido (dev extra)
+      v_meta_daily, v_meta_campaign_daily, v_s4a_song_daily, v_hypeddit_daily ;
+      src.dashboard.utils.meta_impact (waves, verdict_for) ; plotly + kaleido (dev extra)
 Triggers: tools/dev/charts_dossier/main.py (`make charts-dossier`), or directly:
           `python3 tools/dev/charts_dossier/proposals.py <out>` then `main.py --rebuild <out>`
 Persists in: <out>/proposals/*.png and <out>/proposals.json — outside the repository
 
 The owner's question (notes L167, L482): « qu'est-ce que nous apporte la campagne Meta Ads
 sur nos streams ». Each proposal answers ONE decision and is drawn on real data so the owner
-judges a chart, not a sentence. None is in the app: a proposal the owner keeps becomes a
-roadmap row, with its gold view and its test (`tests/test_the_bronze_boundary_only_tightens.py`
-refuses a new raw read in the app).
+judges a chart, not a sentence. A proposal the owner keeps becomes a roadmap row, with its
+gold view and its test.
 
-What these figures do NOT prove: a day with ads is also often a release week, so a lift
-measured around a campaign is an association, never a causal effect — every figure says so.
+Owner's review, 2026-09-28: P2 kept (now in the app, R291 — judged per WAVE of campaigns);
+the CTA button, ad fatigue and playlist proposals REFUSED (no decision follows); the lag bars
+not understood — replaced by the stream curve around each wave; Hypeddit redrawn per
+CAMPAIGN (it carries one total per campaign, not days). Every figure reuses the waves and
+the refusals of `meta_impact` — never a second definition of the same claim.
+
+What these figures do NOT prove: a wave often coincides with a release, so a lift is an
+association, never a causal effect — every figure says so.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -30,49 +36,37 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 ARTIST = 1
-MIN_POINTS = 10            # below this a figure is not drawn — the reason is printed instead
+MIN_POINTS = 3             # below this a figure is not drawn — the reason is printed instead
 BEFORE_DAYS = 28
+AFTER_DAYS = 42
+#: Below this average before a wave, an index is a division by almost nothing: the first
+#: wave of artist 1 started before its first release, and read « indice 1 332 800 ».
+MIN_BASE_PER_DAY = 10.0
 
 
-def lag_correlation(spend: pd.Series, streams: pd.Series, max_lag: int = 14) -> pd.Series:
-    """Correlation of daily spend with the streams `lag` days LATER, streams detrended by
-    their 28-day rolling median (a catalogue growing for a year correlates with anything).
-    Both series indexed by day. Pure."""
-    s = streams.asfreq("D").fillna(0)
-    detrended = s - s.rolling(28, min_periods=7, center=True).median()
-    sp = spend.reindex(s.index).fillna(0)
-    return pd.Series({lag: sp.corr(detrended.shift(-lag)) for lag in range(max_lag + 1)})
-
-
-def campaign_uplift(campaigns: pd.DataFrame, streams: pd.Series,
-                    before_days: int = BEFORE_DAYS) -> pd.DataFrame:
-    """Per campaign: streams/day DURING it against the `before_days` before it, and what one
-    extra stream cost. `campaigns` has campaign_name, start, end, spend. Pure."""
-    from src.dashboard.utils.ratios import per
-    s = streams.asfreq("D").fillna(0)
+def event_study(series: pd.Series, starts: list[tuple[str, dt.date]],
+                before: int = BEFORE_DAYS, after: int = AFTER_DAYS,
+                min_base: float = MIN_BASE_PER_DAY) -> pd.DataFrame:
+    """Streams around each wave start, as an index (100 = the average of the `before` days
+    ahead of it), MEASURED days only. Columns: wave, offset (days), index. Pure."""
+    idx = pd.to_datetime(pd.Series(series.index)).dt.date
+    s = pd.Series(series.values, index=idx).dropna()
     rows = []
-    for c in campaigns.itertuples():
-        during = s.loc[c.start:c.end]
-        before = s.loc[c.start - pd.Timedelta(days=before_days):c.start - pd.Timedelta(days=1)]
-        if during.empty or before.empty:
+    for label, start in starts:
+        base = s[(s.index >= start - dt.timedelta(days=before)) & (s.index < start)]
+        if base.empty or base.mean() < min_base:
             continue
-        lift = during.mean() - before.mean()
-        extra = lift * len(during)
-        rows.append({"campaign": c.campaign_name, "spend": float(c.spend),
-                     "before": before.mean(), "during": during.mean(), "lift": lift,
-                     "cost_per_extra_stream": per(c.spend, extra) if extra > 0 else None})
-    return pd.DataFrame(rows)
+        win = s[(s.index >= start - dt.timedelta(days=before))
+                & (s.index <= start + dt.timedelta(days=after))]
+        rows += [{"wave": label, "offset": (d - start).days, "index": v / base.mean() * 100}
+                 for d, v in win.items()]
+    return pd.DataFrame(rows, columns=["wave", "offset", "index"])
 
 
-def ad_fatigue(ads: pd.DataFrame) -> pd.DataFrame:
-    """CTR by week of age since each ad's first day, weighted over ads. Pure."""
-    from src.dashboard.utils.ratios import per_series
-    a = ads.copy()
-    a["week"] = (a["day"] - a.groupby("ad_id")["day"].transform("min")).dt.days // 7
-    w = a.groupby("week", as_index=False)[["clicks", "impressions"]].sum()
-    w["ads"] = a.groupby("week")["ad_id"].nunique().values
-    w["ctr"] = per_series(w["clicks"], w["impressions"], 100)
-    return w
+def streams_per_click(gained: float | None, clicks: float) -> float | None:
+    """Streams gained for one link click on the ads — None when nothing was gained. Pure."""
+    from src.dashboard.utils.ratios import per
+    return per(gained, clicks) if gained and gained > 0 else None
 
 
 def _query(sql: str, params: tuple = ()) -> pd.DataFrame:
@@ -92,159 +86,131 @@ def _streams() -> pd.Series:
     return df.set_index(pd.to_datetime(df["day"]))["streams"].astype(float)
 
 
-def _spend() -> pd.Series:
-    df = _query("SELECT day, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s "
-                "GROUP BY day ORDER BY day", (ARTIST,))
-    return df.set_index(pd.to_datetime(df["day"]))["spend"].astype(float)
+def _waves() -> list:
+    """[(wave, names, verdict)] — the SAME waves and refusals as the app (R291)."""
+    from src.dashboard.utils import meta_impact as mi
+    spend = _query("SELECT ad_account_id, campaign_name, day, spend FROM v_meta_daily "
+                   "WHERE artist_id = %s", (ARTIST,))
+    grouped = mi.waves(mi.campaigns(spend))
+    everyone = [w for w, _ in grouped]
+    series = _streams()
+    return [(w, n, mi.verdict_for(w, everyone, series, dt.date.today(), mi.STREAMS))
+            for w, n in grouped]
 
 
-def _fig_lag(out: Path) -> dict:
+def _label(w, names) -> str:
+    return f"{w.start:%d/%m/%y} · {len(names)} camp."
+
+
+def _fig_curve(out: Path) -> dict:
+    import plotly.graph_objects as go
+    from src.dashboard.utils.platform_colors import DISTINCT
+    waves = _waves()
+    es = event_study(_streams(), [(_label(w, n), w.start) for w, n, _ in waves])
+    dropped = len(waves) - es["wave"].nunique()
+    if es["wave"].nunique() < 1:
+        return {"reason": "aucune vague avec 28 jours d'écoutes mesurés avant elle"}
+    fig = go.Figure()
+    for i, (lab, g) in enumerate(es.groupby("wave", sort=False)):
+        fig.add_trace(go.Scatter(x=g["offset"], y=g["index"], mode="lines", name=lab,
+                                 line=dict(color=DISTINCT[i % len(DISTINCT)], width=2)))
+    fig.add_hline(y=100, line_dash="dot", line_color="#999")
+    fig.add_vline(x=0, line_dash="dash", line_color="#999")
+    fig.update_layout(xaxis_title="jours depuis le début de la vague (0 = premier euro)",
+                      yaxis_title="écoutes / jour (100 = les 28 jours avant)",
+                      legend=dict(orientation="h", y=-0.25, x=0))
+    peak = es[es["offset"] >= 0].sort_values("index", ascending=False).head(1)
+    note = (f" ; {dropped} vague(s) écartée(s) : moins de {MIN_BASE_PER_DAY:.0f} écoutes/jour "
+            "avant elles, un indice n'y voudrait rien dire") if dropped else ""
+    return {"fig": fig, "height": 420, "finding": (
+        f"{es['wave'].nunique()} vague(s) ; le plus haut : indice {peak['index'].iloc[0]:.0f} "
+        f"à J+{int(peak['offset'].iloc[0])} ({peak['wave'].iloc[0]})" + note) if not peak.empty
+        else f"{es['wave'].nunique()} vague(s){note}"}
+
+
+def _fig_clicks(out: Path) -> dict:
     import plotly.graph_objects as go
     from src.dashboard.utils.platform_colors import platform_color
-    spend, streams = _spend(), _streams()
-    streams = streams.loc[spend.index.min() - pd.Timedelta(days=30):
-                          spend.index.max() + pd.Timedelta(days=30)]
-    if (spend > 0).sum() < MIN_POINTS:
-        return {"reason": f"{int((spend > 0).sum())} jour(s) de dépense Meta"}
-    corr = lag_correlation(spend, streams)
-    best = int(corr.idxmax())
-    fig = go.Figure(go.Bar(x=corr.index, y=corr.values, marker_color=platform_color("meta")))
-    fig.update_layout(xaxis_title="délai après le jour de dépense (jours)",
-                      yaxis_title="corrélation dépense → écoutes Spotify")
-    strength = "faible" if abs(corr[best]) < 0.3 else "net"
-    return {"fig": fig, "finding": f"le lien le plus fort tombe à J+{best} "
-            f"(corrélation {corr[best]:.2f}, lien {strength}), sur "
-            f"{int((spend > 0).sum())} jours de dépense"}
-
-
-def _fig_uplift(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import platform_color
-    camp = _query("SELECT campaign_name, MIN(day) AS start, MAX(day) AS \"end\", "
-                  "SUM(spend) AS spend FROM v_meta_campaign_daily WHERE artist_id = %s "
-                  "GROUP BY campaign_name HAVING SUM(spend) > 0", (ARTIST,))
-    camp["start"], camp["end"] = pd.to_datetime(camp["start"]), pd.to_datetime(camp["end"])
-    up = campaign_uplift(camp, _streams())
-    if len(up) < 2:
-        return {"reason": f"{len(up)} campagne(s) mesurable(s)"}
-    up = up.sort_values("spend", ascending=False).head(15).sort_values("lift")
-    # A campaign followed by a DROP has no cost per extra stream: its bar says it (negative),
-    # and a label drawn left of zero would sit on the campaign names.
-    text = [f"{c:.3f} €/écoute" if pd.notna(c) else "" for c in up["cost_per_extra_stream"]]
-    # Campaign names run to 200 characters (Meta targeting strings): cut, never wrapped.
-    names = [n if len(n) <= 42 else n[:40] + "…" for n in up["campaign"]]
-    fig = go.Figure(go.Bar(y=names, x=up["lift"], orientation="h", text=text,
-                           textposition="outside", cliponaxis=False,
-                           marker_color=platform_color("spotify")))
-    fig.update_layout(xaxis_title=f"écoutes/jour pendant la campagne − les {BEFORE_DAYS} jours avant",
-                      margin={"l": 290, "r": 110})
-    fig.update_yaxes(automargin=True)
-    paid = up.dropna(subset=["cost_per_extra_stream"])
-    return {"fig": fig, "height": 120 + 32 * len(up), "finding":
-            f"{len(paid)} campagne(s) sur {len(up)} suivies d'une hausse ; "
-            + (f"coût médian {paid['cost_per_extra_stream'].median():.3f} € par écoute gagnée"
-               if len(paid) else "aucune hausse mesurée")}
-
-
-def _fig_cta(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import platform_color
-    from src.dashboard.utils.ratios import per_series
-    df = _query("SELECT COALESCE(call_to_action, 'non renseigné') AS bouton, SUM(spend) AS spend, "
-                "SUM(clicks) AS clicks FROM v_meta_ad_daily WHERE artist_id = %s GROUP BY 1",
-                (ARTIST,))
-    df["cpc"] = per_series(df["spend"].astype(float), df["clicks"].astype(float))
-    df = df.dropna(subset=["cpc"]).sort_values("cpc")
-    if len(df) < 2:
-        return {"reason": f"{len(df)} type(s) de bouton avec des clics"}
-    fig = go.Figure(go.Bar(x=df["bouton"], y=df["cpc"], marker_color=platform_color("meta"),
-                           text=[f"{int(c)} clics" for c in df["clicks"]]))
-    fig.update_layout(yaxis_title="coût par clic (€)")
-    return {"fig": fig, "finding": f"le bouton le moins cher : « {df.iloc[0]['bouton']} » "
-            f"({df.iloc[0]['cpc']:.2f} € le clic)"}
-
-
-def _fig_fatigue(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import platform_color
-    ads = _query("SELECT ad_id, day, clicks, impressions FROM v_meta_ad_daily "
-                 "WHERE artist_id = %s AND impressions > 0", (ARTIST,))
-    if ads.empty:
-        return {"reason": "aucune annonce avec des impressions"}
-    ads["day"] = pd.to_datetime(ads["day"])
-    w = ad_fatigue(ads)
-    w = w[w["ads"] >= 3]                     # a week seen on fewer ads is one ad's story
-    if len(w) < 3:
-        return {"reason": f"{len(w)} semaine(s) d'âge portée(s) par 3 annonces ou plus"}
-    fig = go.Figure(go.Scatter(x=w["week"], y=w["ctr"], mode="lines+markers",
-                               marker_color=platform_color("meta"),
-                               text=[f"{n} annonces" for n in w["ads"]]))
-    fig.update_xaxes(dtick=1)
-    fig.update_layout(xaxis_title="semaines depuis le lancement de l'annonce",
-                      yaxis_title="taux de clic (%)")
-    return {"fig": fig, "finding": f"taux de clic semaine 0 : {w.iloc[0]['ctr']:.2f} %, "
-            f"semaine {int(w.iloc[-1]['week'])} : {w.iloc[-1]['ctr']:.2f} %"}
-
-
-def _fig_playlist(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import platform_color
-    # S4A gives ROLLING windows counted back from the day of the export (7d, 28d, 12m):
-    # period_start/end are empty, so the 28-day window ends at `collected_at`.
-    adds = _query("SELECT song, count AS adds, collected_at::date AS \"end\" "
-                  "FROM s4a_song_playlist_adds WHERE artist_id = %s AND time_window = '28d' "
-                  "AND song NOT ILIKE %s", (ARTIST, "%1x7xxxxxxx%"))
-    if len(adds) < MIN_POINTS:
-        return {"reason": f"{len(adds)} relevé(s) d'ajouts en playlist sur 28 jours"}
-    daily = _query("SELECT song, day, streams FROM v_s4a_song_daily WHERE artist_id = %s",
-                   (ARTIST,))
-    daily["day"] = pd.to_datetime(daily["day"])
-    adds["streams"] = [daily[(daily.song == r.song)
-                             & (daily.day > pd.Timestamp(r.end) - pd.Timedelta(days=28))
-                             & (daily.day <= pd.Timestamp(r.end))]["streams"].sum()
-                       for r in adds.itertuples()]
-    fig = go.Figure(go.Scatter(x=adds["adds"], y=adds["streams"], mode="markers",
-                               text=adds["song"], marker_color=platform_color("spotify")))
-    fig.update_layout(xaxis_title="ajouts en playlist sur 28 jours",
-                      yaxis_title="écoutes Spotify sur les mêmes 28 jours")
-    return {"fig": fig, "finding": f"{len(adds)} relevés de 28 jours sur "
-            f"{adds['song'].nunique()} titres ; corrélation "
-            f"{adds['adds'].astype(float).corr(adds['streams'].astype(float)):.2f} "
-            "(portée par peu de titres : à relire avec les points)"}
+    clicks = _query("SELECT day, SUM(link_clicks) AS clicks FROM v_meta_campaign_daily "
+                    "WHERE artist_id = %s GROUP BY day", (ARTIST,))
+    clicks["day"] = pd.to_datetime(clicks["day"]).dt.date
+    rows = []
+    for w, n, v in _waves():
+        c = float(clicks[(clicks["day"] >= w.start) & (clicks["day"] <= w.end)]["clicks"].sum())
+        gained = (v.lift_per_day * ((w.end - w.start).days + 1)
+                  if v.conclusive and v.eur_per_listener_day is not None else None)
+        rows.append((_label(w, n), c, streams_per_click(gained, c), v.text))
+    judged = [r for r in rows if r[2] is not None]
+    if not judged:
+        return {"reason": "aucune vague au-dessus du bruit : pas d'écoute gagnée à rapporter"}
+    fig = go.Figure(go.Bar(
+        x=[r[0] for r in rows], y=[r[2] or 0 for r in rows],
+        text=[f"{r[2]:.2f} écoute/clic · {r[1]:,.0f} clics".replace(",", " ") if r[2]
+              else "non concluant" for r in rows],
+        textposition="outside", cliponaxis=False, marker_color=platform_color("spotify")))
+    fig.update_layout(yaxis_title="écoutes gagnées par clic sur la pub")
+    return {"fig": fig, "finding": f"{len(judged)} vague(s) jugée(s) sur {len(rows)}"}
 
 
 def _fig_hypeddit(out: Path) -> dict:
     import plotly.graph_objects as go
     from src.dashboard.utils.platform_colors import platform_color
-    hyp = _query("SELECT day, SUM(visits) AS visits FROM v_hypeddit_daily WHERE artist_id = %s "
-                 "GROUP BY day", (ARTIST,))
+    from src.dashboard.utils.ratios import per
+    hyp = _query("SELECT campaign_name, day, SUM(visits) AS visits, SUM(clicks) AS clicks "
+                 "FROM v_hypeddit_daily WHERE artist_id = %s GROUP BY 1, 2 ORDER BY 2",
+                 (ARTIST,))
     if len(hyp) < MIN_POINTS:
-        return {"reason": f"{len(hyp)} jour(s) Hypeddit dans l'instantané — trop peu pour une figure"}
-    hyp["spend"] = [float(_spend().get(pd.Timestamp(d), 0.0)) for d in hyp["day"]]
-    fig = go.Figure(go.Scatter(x=hyp["spend"], y=hyp["visits"], mode="markers",
-                               marker_color=platform_color("hypeddit")))
-    fig.update_layout(xaxis_title="dépense Meta du jour (€)", yaxis_title="visites Hypeddit")
-    return {"fig": fig, "finding": f"{len(hyp)} jours ; corrélation "
-            f"{hyp['spend'].corr(hyp['visits'].astype(float)):.2f}"}
+        return {"reason": f"{len(hyp)} campagne(s) Hypeddit — trop peu pour une figure"}
+    spend = _query("SELECT day, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s "
+                   "GROUP BY day", (ARTIST,))
+    spend["day"] = pd.to_datetime(spend["day"]).dt.date
+    # Hypeddit carries ONE total per campaign, dated on its release: Meta's spend is read on
+    # the 14 days on each side of that date.
+    hyp["meta"] = [float(spend[(spend["day"] >= d - dt.timedelta(days=14))
+                               & (spend["day"] <= d + dt.timedelta(days=14))]["spend"].sum())
+                   for d in pd.to_datetime(hyp["day"]).dt.date]
+    names = [n if len(n) <= 34 else n[:32] + "…" for n in hyp["campaign_name"]]
+    fig = go.Figure([
+        go.Bar(y=names, x=hyp["visits"], name="visites", orientation="h",
+               marker_color="#b0dde5"),
+        go.Bar(y=names, x=hyp["clicks"], name="clics vers les plateformes", orientation="h",
+               marker_color=platform_color("hypeddit"),
+               text=[f"{per(c, v, 100):.0f} % · pub autour : {m:,.0f} €".replace(",", " ")
+                     for c, v, m in zip(hyp["clicks"], hyp["visits"], hyp["meta"])],
+               textposition="outside", cliponaxis=False, textfont=dict(size=12))])
+    fig.update_layout(barmode="group", xaxis_title="par campagne", margin={"r": 180},
+                      legend=dict(orientation="h", y=-0.2, x=0))
+    fig.update_yaxes(automargin=True, autorange="reversed")
+    best = hyp.assign(rate=[per(c, v) for c, v in zip(hyp["clicks"], hyp["visits"])]
+                      ).sort_values("rate", ascending=False).iloc[0]
+    return {"fig": fig, "height": 420, "finding": (
+        f"{len(hyp)} campagnes ; meilleure conversion : « {best['campaign_name']} » "
+        f"({best['rate']:.0%})")}
+
+
+def _integrated(out: Path) -> dict:
+    return {"reason": "gardée par toi le 2026-09-28 — elle est maintenant DANS l'app : page "
+                      "Meta Ads, « Ce que chaque vague de campagnes a rapporté en écoutes » "
+                      "(R291), jugée par vague de campagnes"}
 
 
 #: (id, title, the decision it serves, the data it reads, builder)
 PROPOSALS = [
-    ("delai", "Combien de jours après la pub les écoutes bougent-elles ?",
-     "à quel moment juger une campagne, et quand relancer", "v_meta_daily · v_s4a_song_daily",
-     _fig_lag),
-    ("campagnes", "Ce que chaque campagne a rapporté en écoutes, et le prix d'une écoute gagnée",
-     "quelle campagne refaire, et combien payer une écoute", "v_meta_campaign_daily · v_s4a_song_daily",
-     _fig_uplift),
-    ("bouton", "Le coût par clic selon le bouton de l'annonce",
-     "quel bouton mettre sur la prochaine annonce", "v_meta_ad_daily (call_to_action)", _fig_cta),
-    ("fatigue", "La fatigue d'une annonce : le taux de clic semaine après semaine",
-     "quand couper ou renouveler une créa", "v_meta_ad_daily (clics / impressions)", _fig_fatigue),
-    ("playlists", "Les ajouts en playlist face aux écoutes de la même période",
-     "une playlist a-t-elle payé", "s4a_song_playlist_adds · v_s4a_song_daily", _fig_playlist),
-    ("hypeddit", "Les visites Hypeddit face à la dépense Meta du même jour",
-     "le lien intelligent capte-t-il le trafic payé", "v_hypeddit_daily · v_meta_daily",
-     _fig_hypeddit),
+    ("campagnes", "P2 — Ce que chaque campagne a rapporté en écoutes, et le prix d'une écoute "
+     "gagnée", "quelle campagne refaire, et combien payer une écoute", "R291", _integrated),
+    ("courbe", "La courbe des écoutes autour de chaque vague de pub (remplace P1)",
+     "combien de temps l'effet dure, donc quand juger une campagne et quand relancer — "
+     "P1 disait « le lien est le plus fort à J+3 » en barres de corrélation ; ici on voit la "
+     "courbe elle-même. Aucune figure de l'app ne la montre : la page Meta × Spotify (base "
+     "100) suit UNE campagne choisie, pas toutes les vagues superposées",
+     "v_meta_daily · v_s4a_song_daily · meta_impact.waves", _fig_curve),
+    ("clics", "Combien de clics sur la pub font une écoute gagnée (nouvelle)",
+     "si un clic payé se transforme en écoute — sinon, le coût par clic n'est pas le bon "
+     "chiffre à optimiser", "v_meta_campaign_daily · v_s4a_song_daily · meta_impact",
+     _fig_clicks),
+    ("hypeddit", "P6 — Hypeddit par campagne : visites, clics vers les plateformes, et la pub "
+     "Meta autour de chaque sortie", "le lien intelligent convertit-il, et la pub y amène-t-elle "
+     "du monde", "v_hypeddit_daily · v_meta_daily", _fig_hypeddit),
 ]
 
 

@@ -52,3 +52,13 @@ def test_the_last_campaign_verdict_is_unchanged_by_the_refactor():
     assert v.conclusive and v.lift_per_day == 300.0 and "auditeurs-jour" in v.text
     w = mi.verdict_for(camp[0], camp, series, D(2024, 4, 30), mi.STREAMS)
     assert w.lift_per_day == 300.0 and "écoutes" in w.text
+
+
+def test_a_wave_with_almost_nothing_before_it_is_not_judged():
+    """Artist 1's first wave began before its first release: « +191 per day » was the release."""
+    days = pd.date_range("2023-07-01", "2023-10-31", freq="D")
+    series = pd.Series(0.5, index=days)
+    series[series.index >= "2023-09-01"] = 200.0
+    camp = [_c("A", D(2023, 9, 1), D(2023, 9, 30))]
+    v = mi.verdict_for(camp[0], camp, series, D(2024, 1, 1), mi.STREAMS)
+    assert not v.conclusive and "presque rien à comparer" in v.text

@@ -49,16 +49,19 @@ RECOMMENDATIONS = [
      "applique ce critère."),
     ("Les quatre signaux d'or : latence, trafic, erreurs, saturation",
      "Beyer et al., <i>Site Reliability Engineering</i> (Google), p. 86",
-     "Grafana couvre les quatre — mais la LATENCE de rendu n'a que 1 à 2 points en sept jours "
-     "(panneaux 1 et 7) : le signal existe sur le papier et ne mesure rien. La SATURATION du "
-     "pool Postgres montre des replis directs par milliers. Ce sont les deux corrections "
-     "d'architecture prioritaires."),
+     "Grafana couvre les quatre. ✅ Intégrée (R292, relue le 2026-09-28) : les deux "
+     "manques que ce texte signalait sont réglés. La LATENCE mesure bien — 56 rendus en sept "
+     "jours, c'est le TRAFIC qui est faible (≈ 5 artistes actifs), et les panneaux lisent "
+     "désormais une fenêtre d'une heure. Les milliers de replis du POOL venaient d'une fuite "
+     "de la sonde /health de l'API, corrigée par R215 : aucune connexion bloquée depuis."),
     ("Un modèle se dégrade : suivre la dérive en production",
      "Crowe et al., <i>Machine Learning Production Systems</i>, p. 322",
      "La matrice de confusion porte sur le jeu de test ; aucune figure ne suit la qualité du "
      "modèle DANS LE TEMPS en production. Or les prévisions Release Radar valent toutes 0 et "
      "P(DW) ne réagit pas à son levier. Recommandation : une figure « prédit vs constaté, "
-     "semaine par semaine » avant de vendre davantage de prédictions (ADR-029)."),
+     "semaine par semaine » avant de vendre davantage de prédictions (ADR-029). ⏳ Retenue "
+     "par le code-critic (R292) : les fiches 51 et 58 comparent la DERNIÈRE prédiction, pas "
+     "une tendance — inscrite en roadmap R293 (607 prédictions sur 9 semaines, artiste 1)."),
     ("Corrélation n'est pas causalité",
      "Majors et al., <i>Observability Engineering</i>, p. 49",
      "Pour « qu'apporte Meta », les figures qui REFUSENT de conclure (le verdict d'auditeurs "

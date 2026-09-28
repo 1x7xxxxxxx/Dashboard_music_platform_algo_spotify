@@ -1,13 +1,16 @@
 """The R282 proposals compute what their titles claim (tools/dev/charts_dossier/proposals.py).
 
-A proposal is judged by the owner on its picture; the three calculations under the pictures
-are pinned here on series whose answer is known by construction.
+A proposal is judged by the owner on its picture; the calculations under the pictures are
+pinned here on series whose answer is known by construction. The lag, CTA, fatigue and
+playlist proposals were refused by the owner on 2026-09-28 and removed with their tests;
+P2 lives in the app (R291, tests/test_a_campaign_wave_is_judged_as_one.py).
 
 Does not cover: the SQL (it runs on the review snapshot only), nor the drawing — the PNGs are
 looked at before the dossier is sent.
 """
 from __future__ import annotations
 
+import datetime as dt
 import sys
 from pathlib import Path
 
@@ -20,38 +23,22 @@ import proposals  # noqa: E402
 _DAYS = pd.date_range("2024-01-01", periods=120, freq="D")
 
 
-def test_the_lag_is_found_where_the_streams_follow_the_spend():
-    spend = pd.Series(0.0, index=_DAYS)
-    spend.iloc[[20, 50, 80]] = 100.0
-    streams = pd.Series(100.0, index=_DAYS)
-    streams.iloc[[23, 53, 83]] = 400.0            # three days after each spend
-    corr = proposals.lag_correlation(spend, streams)
-    assert int(corr.idxmax()) == 3
+def test_the_curve_is_indexed_on_the_28_days_before_each_wave():
+    streams = pd.Series(50.0, index=_DAYS)
+    streams.loc["2024-03-01":"2024-03-10"] = 150.0
+    es = proposals.event_study(streams, [("A", dt.date(2024, 3, 1))])
+    at = es.set_index("offset")["index"]
+    assert at[-1] == 100.0 and at[0] == 300.0 and at[10] == 100.0
 
 
-def test_a_campaign_lift_is_during_minus_before_and_its_price_follows():
-    streams = pd.Series(10.0, index=_DAYS)
-    streams.loc["2024-03-01":"2024-03-10"] = 30.0
-    camp = pd.DataFrame([{"campaign_name": "A", "start": pd.Timestamp("2024-03-01"),
-                          "end": pd.Timestamp("2024-03-10"), "spend": 50.0}])
-    row = proposals.campaign_uplift(camp, streams).iloc[0]
-    assert row["lift"] == 20.0                     # 30/day during, 10/day before
-    assert row["cost_per_extra_stream"] == 50.0 / 200.0
+def test_a_wave_with_almost_no_streams_before_it_is_left_out():
+    """The first wave of artist 1 began before its first release: « indice 1 332 800 »."""
+    streams = pd.Series(0.2, index=_DAYS)
+    streams.loc["2024-03-01":] = 300.0
+    assert proposals.event_study(streams, [("A", dt.date(2024, 3, 1))]).empty
 
 
-def test_a_campaign_followed_by_a_drop_has_no_price_per_stream():
-    streams = pd.Series(30.0, index=_DAYS)
-    streams.loc["2024-03-01":"2024-03-10"] = 10.0
-    camp = pd.DataFrame([{"campaign_name": "B", "start": pd.Timestamp("2024-03-01"),
-                          "end": pd.Timestamp("2024-03-10"), "spend": 50.0}])
-    assert proposals.campaign_uplift(camp, streams).iloc[0]["cost_per_extra_stream"] is None
-
-
-def test_fatigue_counts_weeks_from_each_ads_own_launch():
-    ads = pd.DataFrame({"ad_id": ["a"] * 14 + ["b"] * 7,
-                        "day": list(_DAYS[:14]) + list(_DAYS[30:37]),
-                        "clicks": [2] * 7 + [1] * 7 + [2] * 7,
-                        "impressions": [100] * 21})
-    w = proposals.ad_fatigue(ads).set_index("week")
-    assert w.loc[0, "ads"] == 2 and w.loc[1, "ads"] == 1
-    assert w.loc[0, "ctr"] == 2.0 and w.loc[1, "ctr"] == 1.0
+def test_streams_per_click_is_none_when_nothing_was_gained():
+    assert proposals.streams_per_click(500.0, 250.0) == 2.0
+    assert proposals.streams_per_click(None, 250.0) is None
+    assert proposals.streams_per_click(-10.0, 250.0) is None
