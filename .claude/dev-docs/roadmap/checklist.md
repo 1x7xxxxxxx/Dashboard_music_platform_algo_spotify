@@ -43,6 +43,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R327 | Catalogue : les 8 classes `prose_only` — un garde automatique pour chacune, ou la raison écrite qu'aucun n'est possible <!-- critic: non — travail sur le catalogue et les tests --> <!-- scope: tests/, .claude/dev-docs/, .claude/scripts/ --> | P3 | make error-health : prose_only baissé, chaque restante motivée |
 | R328 | /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — confirmer la même cause une par une, compléter les classes existantes (ligne `(récidive)`) ou admettre les nouvelles, jamais sans billet <!-- critic: non — catalogue, règle 15 --> <!-- scope: tests/, .claude/dev-docs/ --> | P3 | audit_runner --admission vert ; chaque proposition tranchée dans le journal de nuit |
 | R329 | Vérifications de la base de configuration périmées (fleet 26 j, global 12 j) : rejouer `audit_fleet.py` et `verify_loop_wiring.py`, corriger ce qui touche ce dépôt <!-- critic: non — lecture, correctifs locaux --> <!-- scope: tools/dev/, .claude/, tests/ --> | P4 | les deux sorties rejouées et consignées |
+| R330 | WSL a gelé le 2026-09-29 à 01:28:46 (tous les écrivains muets à la même seconde : `.pytest-last.log` à 45 %, journal git du serveur VS Code) pendant `make test-changed` — sélection = suite entière — lancé EN MÊME TEMPS que `make error-management-probe`, avec le conteneur QuestDB de msdr (plafond 8 GiB sur une VM à 9,7) laissé debout par l'autre session ; redémarrage manuel à 01:39:50. Aucune trace noyau ne survit à un redémarrage WSL : la cause reste INFÉRÉE. Journaliser la mémoire pendant chaque cible lourde (MemAvailable, swap, 5 plus gros RSS, conteneurs) dans un fichier persistant, pour que le prochain gel se lise <!-- critic: non — outil local de diagnostic --> <!-- scope: Makefile, tools/dev/, tests/ --> | P2 | une suite lancée puis tuée ⇒ la trace reste lisible après coup, dernier échantillon ≤ 30 s avant la fin |
+| R331 | Deux cibles lourdes ne tournent plus en même temps : `make error-management-probe` prend `~/.cache/heavy-memory.lock` comme les cibles de test, et une cible de test qui le trouve tenu ATTEND (borné, et le dit) au lieu de partir à côté ; `pytest_workers.py` compte la mémoire que les conteneurs Docker peuvent encore prendre (plafond − usage) au lieu de ne connaître que n8n <!-- critic: requis --> <!-- scope: Makefile, tools/dev/, tests/ --> | P2 | sonde + suite lancées ensemble ⇒ la seconde attend ; un conteneur plafonné à 8 GiB ⇒ la réserve le compte |
 
 ---
 
@@ -98,7 +100,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R316, R318, R319, R320, R321, R322, R323, R324, R325, R326, R327, R328, R329, R283, R275 -->
+<!-- reprise: open=R316, R318, R319, R320, R321, R322, R323, R324, R325, R326, R327, R328, R329, R330, R331, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
