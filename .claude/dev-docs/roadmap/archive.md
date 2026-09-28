@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R305 — Inventaire à la demande (`make inventory` → `revue/inventaire.md`, une ligne et une déc… (livrée 2026-09-28)
+
+- [x] **R305 — Inventaire à la demande (`make inventory` → `revue/inventaire.md`, une ligne et une décision par document et par script) et archivage consolidé : un seul `archive/` (docs, scripts, claude-config) où descendent `.claude/.retired`, `.claude/dev-docs/archives`, `archive/scripts/legacy_meta_csv` et les documents figés que PLUS RIEN ne cite par leur chemin ; `archive/README.md` indexe chaque fichier ; CLAUDE.md allégé. Critic BUILD-MODIFIED (2026-09-28) : 6 documents d'allure figée sont encore lus (GANTT réécrit par un outil, migration-hetzner cité par deployment.md, token-management-bilan par ADR-006, prod-health-monitoring par CLAUDE.md, schema-drift-2026-06-13 par `airflow_kpi.py`, refactor-audit-dashboard par `credentials/__init__.py`) — le critère est le chemin cité, jamais le titre ; la prose de CLAUDE.md et les commentaires de src/ et tests/ sont repointés ; l'inventaire appelle `audit_unreachable_tools`/`usage_report`/`check_config_refs` au lieu de redéfinir « appelant »** (P3) ✅ (2026-09-28, df097657)
+  Mesuré par : inventaire complet ; garde « une archive est indexée et morte » mutée rouge ; `git ls-files .claude/.retired` vide
+  make inventory (revue/inventaire.md) et archive/ unique : 63 fichiers (.claude/.retired, dev-docs/archives, legacy_meta_csv, .migrated, 8 docs figes) indexes dans archive/README.md, 18 fichiers repointes ; df097657, CI verte
+  Commits : df097657 R305 : inventaire a la demande et archive unique - `make inventory` ec
+
+## ✅ R308 — engineering-loop.js nettoyé : vocabulaire du projet d'origine retiré (trading_bot, back… (livrée 2026-09-28)
+
+- [x] **R308 — engineering-loop.js nettoyé : vocabulaire du projet d'origine retiré (trading_bot, backtest), `main` au lieu de `master`, étapes de déploiement réelles ; test qui vérifie que chaque commande nommée existe** (P4) ✅ (2026-09-28, ef519516)
+  Mesuré par : test des commandes nommées muté rouge
+  engineering-loop.js nettoye (vocabulaire trading_bot retire, main, etapes reelles), test des commandes nommees mute rouge ; ef519516, CI verte a df097657 (le rouge intermediaire venait de make inventory cite avant sa creation)
+  Commits : ef519516 R308 : engineering-loop.js nettoye - vocabulaire du projet d origine r
+
 ## ✅ R304 — La courbe autour de chaque vague (fiche 133, R301) garantie couche or : elle était dess… (livrée 2026-09-28)
 
 - [x] **R304 — La courbe autour de chaque vague (fiche 133, R301) garantie couche or : elle était dessinée depuis une série passée en argument, que l'analyse de couches ne suit pas (« non garanti — couche — ») ; dessinée désormais dans la fonction qui lit l'or, verdict « faux doublon » enregistré face aux barres par vague** (P3) ✅ (2026-09-28, 9c35a764)
