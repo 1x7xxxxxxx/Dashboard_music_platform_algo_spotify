@@ -538,7 +538,7 @@ et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un table
 - **PostToolUse** → `check_python_syntax.py` — ruff après chaque Write/Edit ; exit 2 bloque
   sur E9. Avertit aussi quand une **suite complète tourne** : le fichier qu'on vient
   d'écrire n'y sera pas, donc son verdict décrira un arbre qui n'existe plus.
-- **Stop** → `session_summary.py` — git diff (≤5 files), Docker health, turn count
+- **Stop** → `session_summary.py` — git diff, Docker health, turn count, symptômes de défaut → `make defect-log`
 → Full specification: `.claude/hooks/hook.md`
 
 > **Pourquoi des hooks et pas des règles ici.** Ces trois comportements sont des gestes

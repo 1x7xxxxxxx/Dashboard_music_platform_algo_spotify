@@ -456,6 +456,16 @@ def _check_curator_age(repo_root: str, today=None) -> str | None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def record_defects(transcript_path: str, session: str, repo_root: str) -> None:
+    """R315: append this turn's symptoms to .claude/sessions/defects.jsonl (gitignored)."""
+    sys.path.insert(0, os.path.join(repo_root, ".claude", "scripts"))
+    try:
+        import defect_capture
+        defect_capture.capture(transcript_path, session or Path(transcript_path).stem)
+    except (ImportError, OSError, ValueError) as exc:
+        print(f"⚠️  defect capture skipped: {exc}", file=sys.stderr)
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -467,6 +477,9 @@ def main():
     # stripped only one level which produced `.claude/.claude/sessions/` artifacts.
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sections = []
+
+    # 0. R315 — record this turn's defect symptoms (never breaks the hook)
+    record_defects(transcript_path, data.get("session_id", ""), repo_root)
 
     # 1. Git changes
     changes = get_git_changes()
