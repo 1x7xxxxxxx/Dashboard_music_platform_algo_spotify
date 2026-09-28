@@ -24,6 +24,7 @@ import inspect
 import io
 import json
 import os
+import re
 import socket
 import smtplib
 import sys
@@ -205,16 +206,33 @@ def trace_shapes(fig: dict) -> list[dict]:
     return out
 
 
+#: Streamlit's plotly template fills its colorway with PLACEHOLDERS (#000001…#000010) that
+#: only its frontend swaps for the theme's colours. Re-rendered off-screen they stay near
+#: black: fiche 66 (admin costs) came out as black bars on 2026-09-28. Resolved here to the
+#: default light-theme categorical palette the app shows (R298).
+_ST_PALETTE = ("#0068c9", "#83c9ff", "#ff2b2b", "#ffabab", "#29b09d",
+               "#7defa1", "#ff8700", "#ffd16a", "#6d3fc0", "#d5dae5")
+_PLACEHOLDER = re.compile(r"#0000(0[1-9]|10)\b", re.I)
+
+
+def resolve_theme_placeholders(spec: str) -> tuple[str, int]:
+    """(spec with Streamlit's colour placeholders resolved, how many were found). Pure."""
+    n = len(_PLACEHOLDER.findall(spec))
+    return _PLACEHOLDER.sub(lambda m: _ST_PALETTE[int(m.group(1)) - 1], spec), n
+
+
 def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict:
     import plotly.io as pio
-    manifest, failed = [], []
+    manifest, failed, themed = [], [], 0
     for i, r in enumerate(records):
         name = f"{i:03d}_{r['view']}.png"
         try:
             if r["kind"] == "plotly":
                 if r["spec"] is None:
                     raise ValueError("figure non sérialisable")
-                fig = pio.from_json(r["spec"])
+                spec, n = resolve_theme_placeholders(r["spec"])
+                themed += 1 if n else 0
+                fig = pio.from_json(spec)
                 shapes = trace_shapes(json.loads(r["spec"]))
                 h = fig.layout.height or 450
                 fig.write_image(figs_dir / name, width=1000, height=int(h), scale=1)
@@ -227,6 +245,7 @@ def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict
                              "traces": shapes})
         except Exception as exc:  # noqa: BLE001 — listed as not rendered, never dropped
             failed.append({"view": r["view"], "site": r["site"], "reason": str(exc)[:200]})
+    print(f"couleurs du thème Streamlit résolues dans {themed} figure(s)")
     result = {"figures": manifest, "not_rendered": failed, "view_errors": errors}
     (out / "capture.json").write_text(json.dumps(result, ensure_ascii=False, indent=1),
                                       encoding="utf-8")

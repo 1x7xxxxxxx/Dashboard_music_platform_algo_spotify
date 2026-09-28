@@ -214,6 +214,21 @@ PROPOSALS = [
 ]
 
 
+#: My recommendation on each proposal (R298) — the owner decides, the PDF says what I would do.
+RECO = {
+    "campagnes": "déjà dans l'app (R291) : rien à décider.",
+    "courbe": "à garder si tu relances des campagnes — c'est la seule figure qui dit combien de "
+              "temps l'effet dure, donc quand juger une campagne. Elle irait sur la page Meta Ads, "
+              "sous le verdict par vague, repliée. Attention en la lisant : une courbe qui "
+              "monte AVANT le jour 0 est une sortie, pas la pub — c'est le cas de la vague du "
+              "02/04/24 sur l'instantané du 28/09.",
+    "clics": "à garder seulement si « combien me coûte une écoute via Meta » est TA question ; "
+             "tant que peu de vagues sortent du bruit, elle dira surtout « non concluant ».",
+    "hypeddit": "à garder : la seule vue qui compare tes campagnes Hypeddit entre elles "
+                "(conversion visite → clic) avec la pub dépensée autour.",
+}
+
+
 def render(out: Path) -> list[dict]:
     """Draw every proposal; a proposal that cannot be drawn keeps its line with its reason."""
     figs = out / "proposals"
@@ -221,7 +236,7 @@ def render(out: Path) -> list[dict]:
     done = []
     for pid, title, decision, data, build in PROPOSALS:
         entry = {"id": pid, "title": title, "decision": decision, "data": data,
-                 "png": None, "reason": None, "finding": None}
+                 "png": None, "reason": None, "finding": None, "reco": RECO.get(pid)}
         try:
             res = build(out)
         except Exception as exc:          # noqa: BLE001 — one proposal never sinks the dossier

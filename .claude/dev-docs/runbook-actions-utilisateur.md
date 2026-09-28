@@ -2088,18 +2088,24 @@ exportées par ton shell. Je ne modifie pas ton `~/.bashrc` moi-même.
 
 ## 38. R282 — Choisir les graphiques à ajouter · P4
 
-**Pourquoi** : trois notes attendent ton choix. L276 : « s'inspirer de graphiques générés
-ailleurs », mais lesquels ? L268 : le seuil de déclenchement de l'algorithme et la
-prédiction en pointillés sur la courbe Meta × Spotify, que tu as différés « après le set up
-initial ». L91 : quinze idées écrites page par page, chacune avec la décision qu'elle sert
-et la donnée qu'elle lit (`.claude/dev-docs/chart-ideas-by-page.md`).
+**Pourquoi** : ta question « qu'est-ce que nous apporte la campagne Meta Ads sur nos
+streams » (notes L167, L482). Les propositions sont DESSINÉES sur l'instantané de la prod,
+en tête du dossier de revue (`revue/dossier-graphiques.pdf`, pages 1 à 3), chacune avec la
+décision qu'elle sert et **ma reco** (R298, 2026-09-28) :
 
-1. Colle dans le fil (ou dans `revue/`) les graphiques qui t'inspirent, avec la page où tu
-   les verrais.
-2. Dis si le seuil sur Meta × Spotify revient maintenant ou reste différé.
-3. Coche dans le document les idées à construire : chacune deviendra une ligne de roadmap.
+- **A** — P2, déjà dans l'app (R291) : rien à décider ;
+- **B** — la courbe des écoutes autour de chaque vague : à garder si tu relances des
+  campagnes ;
+- **C** — les écoutes gagnées par clic : seulement si c'est TA question ;
+- **D** — Hypeddit par campagne : à garder ;
+- **L268** (seuil et prédiction en pointillés sur Meta × Spotify) : toujours différé — le
+  modèle ne change presque pas d'avis d'une semaine à l'autre (fiche 126, R297).
 
-**Vérification** : ta réponse dans le fil ; une ligne Rnnn par idée retenue.
+Ma reco d'ensemble : faire tester l'app par deux artistes (R275) avant de trancher.
+
+1. Réponds dans le fil : « garder B, D ; écarter C », par exemple.
+
+**Vérification** : ta réponse dans le fil ; une ligne Rnnn par proposition retenue.
 
 ## 39. R283 — Vérifier le parrainage Stripe en mode test · P2
 

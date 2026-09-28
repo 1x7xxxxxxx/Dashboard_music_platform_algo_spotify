@@ -369,7 +369,13 @@ sa vue or et son test. Un jour de pub est souvent aussi une semaine de sortie : 
 mesuré ici est une association, jamais la preuve d'un effet.</p>
 <p><b>Et une question restée ouverte (note L268)</b> : le seuil de déclenchement de
 l'algorithme et la prédiction en pointillés sur la courbe Meta × Spotify — maintenant, ou
-toujours après le réglage initial ?</p>"""
+toujours après le réglage initial ?</p>
+<p class="num"><b>Ma reco (L268)</b> : toujours différé. La nouvelle figure sous la fiche 51
+(R297) montre que le modèle ne change presque pas d'avis d'une semaine à l'autre, jugé contre
+un seul relevé S4A : une prédiction en pointillés serait lue comme une promesse qu'il ne
+tient pas encore. À rouvrir quand plusieurs relevés S4A diront s'il se rapproche du réel.</p>
+<p class="num"><b>Ma reco d'ensemble</b> : faire tester l'app par deux artistes (R275) AVANT
+de trancher ici — leurs questions diront quelles figures servent vraiment.</p>"""
 
 
 def proposals_html(out: Path) -> str:
@@ -381,9 +387,12 @@ def proposals_html(out: Path) -> str:
     for n, p in enumerate(json.loads(path.read_text(encoding="utf-8")), 1):
         body = (f"<img class='fig' src='{esc(p['png'])}'>" if p.get("png")
                 else f"<p class='nr'>Non dessiné : {esc(p.get('reason'))}</p>")
-        parts.append(f"<div class='fiche'><p class='q'>P{n}. {esc(p['title'])}</p>"
+        # A letter, never « P{n} »: the titles keep the owner's own P2/P6 labels, and
+        # « P1. P2 — … » read as two numbers for one proposal (2026-09-28).
+        parts.append(f"<div class='fiche'><p class='q'>Proposition {chr(64 + n)} — {esc(p['title'])}</p>"
                      f"<p class='note'>La décision : {esc(p['decision'])}</p>{body}"
                      + (f"<p class='num'>Mesuré : {esc(p['finding'])}</p>" if p.get("finding") else "")
+                     + (f"<p class='num'><b>Ma reco</b> : {esc(p['reco'])}</p>" if p.get("reco") else "")
                      + f"<p class='site'>données : {esc(p['data'])}</p></div>")
     return "".join(parts)
 

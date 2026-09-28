@@ -610,7 +610,7 @@ src/dashboard/views/alerts.py::_section_plan_evolution#1:
   owner: "Cool, à garder en admin."
   note: "8 artistes, 3 premium — lisible."
 src/dashboard/views/admin.py::_render_costs#1:
-  q: "(tableau d'administration)"
+  q: "Combien coûte l'exploitation chaque mois, face à ce que rapportent les abonnements ?"
   role: business
   d: 3
   c: 3
@@ -618,8 +618,7 @@ src/dashboard/views/admin.py::_render_costs#1:
   v: a-trancher
   owner_v: a-trancher
   owner: "Non rendu. Check pourquoi on peut pas le rendre, il faut me le rendre pour que je prenne une décision."
-  absent: "donnée absente — aucun coût d'exploitation saisi dans l'admin"
-  note: "Non rendu par défaut."
+  note: "Rendue (R298) : elle était vide faute de coût saisi ; depuis R256, le VPS à 20 €/mois depuis mai. Ses barres sortaient NOIRES dans ce dossier (couleurs du thème Streamlit non résolues hors écran — corrigé, l'app n'était pas touchée). MRR à 0 : pas de ligne de revenu. Les 30 € par sortie sont des coûts PAR TITRE, sur le point mort (fiche 46), pas ici. Ma reco : garder en admin — c'est la seule vue de la marge, elle prendra son sens au premier abonné payant."
 src/dashboard/views/usage_analytics.py::show#1:
   q: "L'app est-elle utilisée, jour après jour ?"
   role: business
