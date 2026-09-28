@@ -2086,7 +2086,7 @@ exportées par ton shell. Je ne modifie pas ton `~/.bashrc` moi-même.
 **Vérification** : `echo ${DB_PASSWORD:+ok}` affiche `ok` dans un nouveau terminal ;
 `type sl` affiche l'alias ; la barre d'état de VS Code affiche « WSL ».
 
-## 38. R282 — Choisir les graphiques à ajouter · P4
+## 38. ~~R282 — Choisir les graphiques à ajouter~~ · ✅ FAIT le 2026-09-28 — tranché sur mes recos, livré par R301 (C reste réclamable en commentaire)
 
 **Pourquoi** : ta question « qu'est-ce que nous apporte la campagne Meta Ads sur nos
 streams » (notes L167, L482). Les propositions sont DESSINÉES sur l'instantané de la prod,

@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R282 — Graphiques marketing — tes retours du 2026-09-28 : P2 gardée (→ R291) ; P3, P4 et P5 re… (livrée 2026-09-28)
+
+- [x] **R282 — Graphiques marketing — tes retours du 2026-09-28 : P2 gardée (→ R291) ; P3, P4 et P5 refusées ; P1 à reproposer avec sa question et en disant si une figure existante y répond déjà ; P6 à redessiner PAR CAMPAGNE (Hypeddit ne porte qu'un total par campagne, 6 campagnes) ; de nouvelles propositions à la place des refusées ; puis ton choix** (P4) ✅ (2026-09-28, 37e2fb5e, 01049742, 9a74960c, 3651c1d8, 2a7310d4)
+  Mesuré par : ta réponse — runbook § 38
+  Tranche le 2026-09-28 sur les recos (demande du proprietaire) : A et B dans l app, D integree sans doublon, C ecartee et reclamable, L268 differe - livre par R301 (37e2fb5e)
+  Commits : 37e2fb5e R301 : R282 tranche sur mes recos - B dans l app (page Meta Ads, repli · 01049742 R298 : R282 - mes recos dans le dossier PDF (une par proposition, L268 · 9a74960c R282 R291 R292 : tes verdicts sur les propositions et les recommandati · 3651c1d8 R282 : propositions de graphiques pour la question marketing du propri · 2a7310d4 Roadmap : R282 en attente de toi (graphiques d inspiration L276, seuil
+
+## ✅ R301 — R282 tranché par tes recos (2026-09-28) : dans l'app, B — la courbe des écoutes autour… (livrée 2026-09-28)
+
+- [x] **R301 — R282 tranché par tes recos (2026-09-28) : dans l'app, B — la courbe des écoutes autour de chaque vague de pub (page Meta Ads, repliée sous le verdict par vague) et D — Hypeddit par campagne (visites, clics vers les plateformes, pub Meta autour de la sortie) ; C écartée, L268 différé ; `event_study` descend dans `meta_impact` (une définition pour l'app et le dossier) ; PDF régénéré pour ta session de commentaires** (P3) ✅ (2026-09-28, 37e2fb5e)
+  Mesuré par : les deux figures rendues dans l'app et dans le PDF, tests mutés rouges
+  B dans l app (courbe autour de chaque vague, page Meta Ads), D sans doublon (pub Meta a +-14 j sous les anneaux Hypeddit), C ecartee ; event_study unique et trie ; deploye 37e2fb5e, CI verte
+  Commits : 37e2fb5e R301 : R282 tranche sur mes recos - B dans l app (page Meta Ads, repli
+
 ## ✅ R300 — Grafana DevOps / VPS (prod + PDF) : ~5 panneaux titrés par leur question (disque plein… (livrée 2026-09-28)
 
 - [x] **R300 — Grafana DevOps / VPS (prod + PDF) : ~5 panneaux titrés par leur question (disque plein quand, mémoire/OOM, redémarrages, services vivants, réseau), requêtes vérifiées sur le Prometheus de prod, fiche par panneau** (P3) ✅ (2026-09-28, e9e2e8fb)
