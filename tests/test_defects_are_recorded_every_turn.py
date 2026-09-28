@@ -56,7 +56,10 @@ def test_the_three_signals_are_recorded_and_the_noise_is_not() -> None:
     refusal = dc.symptoms(HOOK_REFUSAL)
     assert [s["kind"] for s in refusal] == ["hook_refusal"]
     assert refusal[0]["fingerprint"] == "hook:guard_destructive:est tube dans un filtre, et"
-    assert _kinds("fix end of files......................Failed") == ["precommit_refusal"]
+    refused = "fix end of files......................Failed"
+    assert _kinds(refused, 'git commit -q -m "x"') == ["precommit_refusal"]
+    assert _kinds(refused, "grep Failed .pytest-last.log") == [], (
+        "a refusal shown again by grep is a reading, not a refusal (R318: 23 counted, 3 real)")
     assert _kinds("Exit code 1\n") == []  # grep with no match
     assert _kinds("Permission to use Bash with command x has been denied.") == []
     scratch = 'Traceback (most recent call last):\n  File "<stdin>", line 3\nValueError: x\n'

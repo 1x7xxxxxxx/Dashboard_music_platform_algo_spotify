@@ -43,6 +43,7 @@ _TRACEBACK = "Traceback (most recent call last):"
 _FRAME = re.compile(r'^\s*File "([^"]+)", line \d+', re.M)
 _EXC = re.compile(r"^([A-Za-z_][\w.]*(?:Error|Exception|Exit|Interrupt))\b", re.M)
 _HOOK = re.compile(r"(?:PreToolUse|PostToolUse|Stop):?\w*:? hook error.*?\.claude/hooks/(\w+)\.py", re.S)
+_COMMITS = re.compile(r"\bgit\b[^|;&]*\bcommit\b|\bpre-commit\s+run\b")
 _UNSAFE = re.compile(r"[^\w-]")
 _PRECOMMIT = re.compile(r"^(?![AMDR?]{1,2} )(\S.*?)\.{3,}(?:\([^)]*\))?Failed$", re.M)
 _CODE = re.compile(r"`[^`]*`")
@@ -107,7 +108,9 @@ def symptoms(text: str, command: str = "") -> list[dict]:
         gist = " ".join(_CODE.sub("", reason).lower().split()[:6])
         out.append({"kind": "hook_refusal", "fingerprint": f"hook:{hook.group(1)}:{gist}",
                     "excerpt": reason.strip() or hook.group(1)})
-    for name in dict.fromkeys(_PRECOMMIT.findall(text)):
+    # R318: only a COMMIT's refusal is one. The same lines shown again by `grep`/`tail` on a
+    # log are a reading, and counted 23 end-of-file refusals where 3 happened (2026-09-29).
+    for name in dict.fromkeys(_PRECOMMIT.findall(text) if _COMMITS.search(command) else ()):
         out.append({"kind": "precommit_refusal", "fingerprint": f"precommit:{name.strip()}",
                     "excerpt": name.strip()})
     if not out and _GREEN.search(text):

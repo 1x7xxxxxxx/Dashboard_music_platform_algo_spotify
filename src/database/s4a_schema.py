@@ -13,11 +13,11 @@ S4A_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, song)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_s4a_songs_song ON s4a_songs_global(song);
         CREATE INDEX IF NOT EXISTS idx_s4a_songs_streams ON s4a_songs_global(streams DESC);
     """,
-    
+
     's4a_song_timeline': """
         CREATE TABLE IF NOT EXISTS s4a_song_timeline (
             id SERIAL PRIMARY KEY,
@@ -28,12 +28,12 @@ S4A_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, song, date)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_s4a_timeline_song ON s4a_song_timeline(song);
         CREATE INDEX IF NOT EXISTS idx_s4a_timeline_date ON s4a_song_timeline(date DESC);
         CREATE INDEX IF NOT EXISTS idx_s4a_timeline_song_date ON s4a_song_timeline(song, date);
     """,
-    
+
     's4a_audience': """
         CREATE TABLE IF NOT EXISTS s4a_audience (
             id SERIAL PRIMARY KEY,
@@ -45,7 +45,7 @@ S4A_SCHEMA = {
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(artist_id, date)
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_s4a_audience_date ON s4a_audience(date DESC);
     """
 }
