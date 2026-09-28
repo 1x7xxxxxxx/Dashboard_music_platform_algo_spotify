@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R296 — **Reporter dans le baseline ce que l'adoption MSDR a trouvé** (rapport MSDR du 2026-09-… (livrée 2026-09-28)
+
+- [x] **R296 — **Reporter dans le baseline ce que l'adoption MSDR a trouvé** (rapport MSDR du 2026-09-28) : l'installeur ÉCRASE un fichier versionné du dépôt cible (`audit_runner.py` de MSDR remplacé par une copie plus ancienne, `cp -rf` dans `setup-claude-code.sh`) ; puis les correctifs faits sur les copies des outils de gouvernance (next_id qui comptait un id en prose, nœuds de classe de test dans le benchmark, `push:` nu du vérificateur de CI) dès que MSDR les liste dans `governance/BASELINE-PORT.md`** (P2) ✅ (2026-09-28, 485a63f7, 370c2346, 32084ae5)
+  Mesuré par : l'installeur ne touche plus un fichier suivi par git, vu rouge puis vert sur un dépôt vide
+  Baseline : installeur qui n ecrase plus un fichier versionne (0872416), next_id, noeuds de classe et push nu reportes (0fe4543) ; tooling-reference le dit (32084ae5) ; capitalisation de la seance (370c2346, 485a63f7), CI verte
+  Commits : 485a63f7 R296 : error-class-health regenere apres le commit du catalogue (head_ · 370c2346 R296 : capitalisation de la seance - classe neuve a-write-sent-through · 32084ae5 R296 : ce que l adoption MSDR a appris au baseline - l installeur n ec
+
 ## ✅ R287 — **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune polic… (livrée 2026-09-28)
 
 - [x] **R287 — **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune police emoji ni sur le poste ni dans le conteneur de prod, donc 🎵 🎬 🚀 deviennent des carrés dans le dossier ET dans le PDF artiste (☁️ passe, elle existe dans les polices ordinaires) — police emoji dans les images, balayage de chaque emoji des figures — **reste** : rebâtir l'image Airflow (`Dockerfile.airflow`, PDF du DAG onboarding_report) quand aucune collecte ne tourne ; l'image du dashboard l'a au déploiement** (P3) ✅ (2026-09-28, 048c89ec)

@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R296 | **Reporter dans le baseline ce que l'adoption MSDR a trouvé** (rapport MSDR du 2026-09-28) : l'installeur ÉCRASE un fichier versionné du dépôt cible (`audit_runner.py` de MSDR remplacé par une copie plus ancienne, `cp -rf` dans `setup-claude-code.sh`) ; puis les correctifs faits sur les copies des outils de gouvernance (next_id qui comptait un id en prose, nœuds de classe de test dans le benchmark, `push:` nu du vérificateur de CI) dès que MSDR les liste dans `governance/BASELINE-PORT.md` <!-- anchor: r296 --> <!-- critic: non — correctifs d'un outil de déploiement, chacun reproduit --> <!-- scope: tools/dev, .claude/dev-docs --> | P2 | l'installeur ne touche plus un fichier suivi par git, vu rouge puis vert sur un dépôt vide |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R296, R282, R283, R275 -->
+<!-- reprise: open=R282, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
