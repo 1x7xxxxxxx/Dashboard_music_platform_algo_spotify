@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R306 — Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `archive/scri… (livrée 2026-09-28)
+
+- [x] **R306 — Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `archive/scripts/tools/generate-dev-docs.py`, `tools/prod_introspect.sh`, trois one-shots faits, cinq outils de mesure ponctuels, `run_tests.sh` ; commandes de debug retirées de la page « liens utiles » ; code mort retiré** (P3) ✅ (2026-09-28, f348773b)
+  Mesuré par : aucun appelant vivant vers archive/ ; tests verts
+  27 scripts archives (15 debug_dag, scripts/*, generate-dev-docs + GANTT, one-shots, instruments, run_tests.sh), page liens utiles nettoyee, garde d archive au chemin entier ; deploye f348773b, CI verte
+  Commits : f348773b R306 : 27 scripts archives dans archive/scripts - les 15 airflow/debug
+
 ## ✅ R305 — Inventaire à la demande (`make inventory` → `revue/inventaire.md`, une ligne et une déc… (livrée 2026-09-28)
 
 - [x] **R305 — Inventaire à la demande (`make inventory` → `revue/inventaire.md`, une ligne et une décision par document et par script) et archivage consolidé : un seul `archive/` (docs, scripts, claude-config) où descendent `.claude/.retired`, `.claude/dev-docs/archives`, `archive/scripts/legacy_meta_csv` et les documents figés que PLUS RIEN ne cite par leur chemin ; `archive/README.md` indexe chaque fichier ; CLAUDE.md allégé. Critic BUILD-MODIFIED (2026-09-28) : 6 documents d'allure figée sont encore lus (GANTT réécrit par un outil, migration-hetzner cité par deployment.md, token-management-bilan par ADR-006, prod-health-monitoring par CLAUDE.md, schema-drift-2026-06-13 par `airflow_kpi.py`, refactor-audit-dashboard par `credentials/__init__.py`) — le critère est le chemin cité, jamais le titre ; la prose de CLAUDE.md et les commentaires de src/ et tests/ sont repointés ; l'inventaire appelle `audit_unreachable_tools`/`usage_report`/`check_config_refs` au lieu de redéfinir « appelant »** (P3) ✅ (2026-09-28, df097657)
