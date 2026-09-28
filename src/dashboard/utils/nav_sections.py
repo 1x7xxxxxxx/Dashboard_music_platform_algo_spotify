@@ -194,6 +194,8 @@ NAV_SECTIONS: list = [
      [("Aperçu : déclencher les algos", "algo_preview"),
       ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo"),
       ("📊 CPR Optimizer", "meta_cpr_optimizer"),
+      # R272 — how each campaign was set up, beside what it produced (Premium).
+      ("⚙️ Paramètres de mes campagnes", "meta_campaign_settings"),
       ("📈 Prévisions revenus", "revenue_forecast")]),
     ("revenue",   "💶 Revenus",
      [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),

@@ -54,7 +54,7 @@ from functools import lru_cache
 # personne — c'est arrivé jusqu'au 2026-08-20 pour les trois que rencontre d'abord un
 # artiste neuf (`onboarding`, `onboarding_health`, `register`), ajoutées depuis.
 VIEWS = [
-    "recap", "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
+    "recap", "meta_campaign_settings", "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
     "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",

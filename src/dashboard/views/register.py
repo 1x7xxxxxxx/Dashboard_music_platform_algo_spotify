@@ -217,7 +217,7 @@ def _grant_welcome_trial(db, artist_id: int, trial_days: int = WELCOME_TRIAL_DAY
 
 def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: str,
                     discount_pct: int = 20) -> None:
-    """Credit referrer +1 free month, stamp the referred artist, record the event.
+    """Stamp the referred artist and record the referral (the reward comes on payment).
 
     The two columns on the referred artist used to be filled by
     `_create_artist_and_user`. They moved here when code validation moved AFTER account
@@ -233,10 +233,10 @@ def _apply_referral(db, referrer_artist_id: int, referred_artist_id: int, code: 
         "INSERT INTO referral_events (referrer_artist_id, referred_artist_id, code_used) VALUES (%s, %s, %s)",
         (referrer_artist_id, referred_artist_id, code),
     )
-    db.execute_query(
-        "UPDATE saas_artists SET referral_free_months = referral_free_months + 1 WHERE id = %s",
-        (referrer_artist_id,),
-    )
+    # R272 — the referrer's free month is no longer credited HERE, at sign-up: it is
+    # EARNED on the referred artist's first payment and applied as a Stripe coupon
+    # (`src/utils/referral_rewards.py`, from the `invoice.paid` webhook). A referral who
+    # never pays earns nothing.
     db.execute_query(
         "UPDATE referral_codes SET uses_count = uses_count + 1 WHERE code = %s",
         (code,),

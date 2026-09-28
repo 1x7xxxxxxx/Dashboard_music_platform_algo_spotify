@@ -98,6 +98,9 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
     ("meta_cpr_optimizer", "pitch.cpr",
      "💶 **Combien remettre sur quelle campagne** — augmenter, tenir ou couper, "
      "d'après le coût par clic sortant et l'âge de ton audience"),
+    ("meta_campaign_settings", "pitch.campaign_settings",
+     "⚙️ **Quel réglage de campagne a marché** — objectif, budget, audience, "
+     "emplacements et bouton, à côté du coût par clic sortant"),
     ("meta_creatives", "pitch.creatives",
      "🎨 **Quelle créative et quel hook coûtent le moins cher** par clic sortant"),
     ("meta_breakdowns", "pitch.breakdowns",

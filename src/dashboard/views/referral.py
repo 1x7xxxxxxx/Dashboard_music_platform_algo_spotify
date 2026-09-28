@@ -111,7 +111,10 @@ def show():
 
         col1, col2 = st.columns(2)
         col1.metric(t("referral.artists_referred", "Artistes parrainés"), total_referrals)
-        col2.metric(t("referral.free_months_earned", "Mois gratuits gagnés"), free_months)
+        col2.metric(t("referral.free_months_pending", "Mois offerts en attente"), free_months,
+                    help=t("referral.free_months_help",
+                           "Un mois est gagné quand l'artiste que tu as parrainé paie son "
+                           "premier mois ; il est déduit de ta facture suivante."))
 
         # ⚠️ LA PHRASE A CHANGÉ LE 2026-09-21, ET C'EST UNE CORRECTION DE FOND.
         #
@@ -134,10 +137,9 @@ def show():
         if free_months > 0:
             st.success(
                 t("referral.free_months_msg",
-                  "🎉 Tu as **{n} mois offert(s)** acquis. Écris-nous avant ton "
-                  "prochain paiement et on les applique sur ton abonnement — "
-                  "l'application n'est pas encore automatique.").format(
-                      n=free_months)
+                  "🎉 Tu as **{n} mois offert(s)** en attente. Chacun est déduit de ta "
+                  "prochaine facture Stripe, un mois à la fois, dès que ton abonnement "
+                  "est actif.").format(n=free_months)
             )
 
         st.markdown("---")
@@ -175,13 +177,13 @@ def show():
             st.markdown(t("referral.how_body", """
 **Pour vous (parrain) :**
 - Partagez votre code avec n'importe quel artiste.
-- Quand il s'inscrit et souscrit à un plan payant avec votre code, vous gagnez **+1 mois offert** sur votre plan actuel.
+- Quand il paie son premier mois avec votre code, vous gagnez **+1 mois offert**.
+- Chaque mois offert est déduit de votre prochaine facture Stripe, un mois à la fois.
 - Les mois offerts s'accumulent — sans plafond.
-- ⚠️ **L'application n'est pas encore automatique** : écris-nous avant ton prochain paiement et on les pose sur ton abonnement.
 
 **Pour lui (filleul) :**
 - Saisissez le code de parrainage à l'inscription.
-- Obtenez **20% de réduction sur le premier mois payant**.
+- Obtenez **20% de réduction sur le premier mois payant** — signalez votre code en vous abonnant : nous posons la remise sur votre première facture.
 
 **Limites :**
 - Chaque code ne peut être utilisé qu'une fois par artiste parrainé.

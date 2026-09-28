@@ -12,6 +12,9 @@ Events handled:
     customer.subscription.updated   → sync status + period dates
     customer.subscription.deleted   → mark canceled
     invoice.payment_failed          → mark past_due
+    invoice.paid                    → referral reward: earned on a first payment, applied
+                                      as a coupon (src/utils/referral_rewards.py, R272)
+    charge.refunded / charge.dispute.created → that reward taken back
 """
 import logging
 import os
@@ -261,6 +264,27 @@ async def stripe_webhook(request: Request):
             conn.commit()
             cur.close()
             logger.info(f"Subscription canceled: customer={data.get('customer')}")
+
+        # ── invoice.paid — the referral reward (R272) ───────────────────
+        # Earned on the referred artist's FIRST payment, applied as a coupon on the
+        # referrer's subscription, once per referral whatever Stripe retries. The whole
+        # cycle runs in this transaction: a failure rolls back and Stripe retries.
+        elif event_type == "invoice.paid":
+            from src.utils.referral_rewards import on_invoice_paid
+            cur = conn.cursor()
+            on_invoice_paid(cur, data, event.get("id", ""))
+            conn.commit()
+            cur.close()
+
+        # ── charge.refunded / charge.dispute.created — the month taken back ──
+        # A refund or a chargeback on the referred artist's payment revokes the reward it
+        # earned (security-specialist, R272): pending → deleted, applied → coupon removed.
+        elif event_type in ("charge.refunded", "charge.dispute.created"):
+            from src.utils.referral_rewards import revoke, stripe_remove
+            cur = conn.cursor()
+            revoke(cur, data.get("customer"), stripe_remove)
+            conn.commit()
+            cur.close()
 
         # ── invoice.payment_failed ───────────────────────────────────────
         elif event_type == "invoice.payment_failed":

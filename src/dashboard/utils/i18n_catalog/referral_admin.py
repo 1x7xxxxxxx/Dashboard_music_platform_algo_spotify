@@ -1,14 +1,18 @@
 """EN catalog for the referral_admin view."""
 
 EN = {
-    "referral_admin.owed_header": "🧾 Rewards to apply BY HAND",
+    "referral_admin.owed_header": "🧾 Referral rewards — free months and discounts",
+    "referral_admin.no_coupon": ("⚠️ `STRIPE_REFERRAL_COUPON_ID` is not configured on this "
+                                 "server: earned months stay **pending** until it is."),
+    "referral_admin.no_rewards": ("No month earned yet: one is earned at a referred "
+                                  "artist's first payment."),
     "referral_admin.owed_none": (
         "No pending reward. Nothing to apply today."),
     "referral_admin.owed_why": (
-        "This panel exists because `referral_free_months` and "
-        "`first_month_discount_pct` are consumed by NO code: the Stripe payment "
-        "link is static and carries no per-customer discount. The two pages that "
-        "display them now say so to the artist."),
+        "The referrer's FREE MONTH is applied by Stripe (a coupon on their "
+        "subscription when the referred artist pays their first month, R272). The "
+        "referred artist's DISCOUNT (`first_month_discount_pct`) is still applied by "
+        "hand: the payment link is static and carries no per-customer discount."),
     "referral_admin.owed_summary": (
         "{n} artist(s) concerned · **{v} €** to honour at their current plan's rate."),
     "referral_admin.owed_months": "Free months owed",

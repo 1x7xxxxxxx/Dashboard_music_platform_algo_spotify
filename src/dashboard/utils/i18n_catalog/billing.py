@@ -39,8 +39,8 @@ EN = {
     "billing.metric_price": "Monthly price",
     "billing.metric_status": "Status",
     "billing.free_months": (
-        "🎁 You have **{n} free month(s)** from referrals. Write to us before "
-        "your next payment and we apply them — it is not automatic yet."),
+        "🎁 You have **{n} free month(s)** from referrals: each one is deducted from "
+        "your next Stripe invoice, one month at a time."),
     "billing.discount": (
         "🏷️ A **{pct}% discount** is yours on your first paid month (referral). "
         "Tell us when you subscribe: it is applied by hand."),

@@ -58,4 +58,5 @@ ROUTES: dict[str, str] = {
     "usage_analytics": "views.usage_analytics",
     "alerts": "views.alerts",
     "recap": "views.recap",  # R271 — the ten charts that decide the most
+    "meta_campaign_settings": "views.meta_campaign_settings",  # R272 — Premium
 }

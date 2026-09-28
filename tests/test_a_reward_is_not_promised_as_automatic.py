@@ -117,7 +117,15 @@ def _chaines(path: pathlib.Path) -> list[str]:
     return out
 
 
-def _consommateurs() -> list[str]:
+# R272 (2026-09-28) — the two rewards are no longer in the same state, so the guard judges
+# them SEPARATELY. The referrer's free month got its mechanism (a Stripe coupon,
+# `src/utils/referral_rewards.py`); the referred artist's first-month discount did not (the
+# payment link is still static). A sentence belongs to a reward by what it TALKS about.
+_SUJET = {"referral_free_months": re.compile(r"mois offert|free month", re.I),
+          "first_month_discount_pct": re.compile(r"rabais|remise|discount", re.I)}
+
+
+def _consommateurs(colonnes=_COLONNES) -> list[str]:
     """Les fichiers qui font autre chose que LIRE ou CRÉDITER la récompense.
 
     Un consommateur DÉCRÉMENTE ou remet à zéro. Le prédicat cherche donc la
@@ -129,34 +137,39 @@ def _consommateurs() -> list[str]:
         if rel == _CREDITEUR:
             continue
         for sql in _chaines(p):
-            for col in _COLONNES:
+            for col in colonnes:
                 if re.search(rf"SET\s+[^;]*\b{col}\s*=", sql, re.I | re.S):
                     out.append(rel)
                     break
     return sorted(set(out))
 
 
-def test_the_reward_still_has_no_consumer() -> None:
-    """LA PRÉMISSE. Tout ce fichier repose dessus ; on la mesure, on ne la suppose pas."""
-    consommateurs = _consommateurs()
-    if consommateurs:
-        pytest.skip(
-            f"un mécanisme est apparu ({consommateurs}) — c'est une bonne "
-            "nouvelle, et `test_the_promise_firms_up_once_a_mechanism_exists` "
-            "prend le relais")
-    assert True
+def _phrases(col: str) -> list[tuple[str, str]]:
+    """(surface, sentence) of every surface literal that talks about THIS reward."""
+    return [(rel, s) for rel in _SURFACES for s in _chaines(_ROOT / rel)
+            if _SUJET[col].search(s)]
 
 
-@pytest.mark.parametrize("rel", _SURFACES)
-def test_no_surface_promises_an_automatic_application(rel: str) -> None:
-    if _consommateurs():
-        pytest.skip("un mécanisme existe : la promesse ferme est désormais légitime")
-    coupables = [" ".join(s.split())[:110] for s in _chaines(_ROOT / rel)
+def test_the_state_of_each_reward_is_measured() -> None:
+    """LA PRÉMISSE, mesurée par colonne : le mois a son mécanisme, la remise non."""
+    assert _consommateurs(("referral_free_months",)), (
+        "plus rien n'applique le mois offert (R272, referral_rewards.py) — les pages "
+        "qui le promettent déduit de la facture mentiraient")
+    assert not _consommateurs(("first_month_discount_pct",)), (
+        "un mécanisme consomme désormais la remise du filleul : bonne nouvelle — "
+        "mettre à jour ce garde et les pages qui disent « à la main »")
+
+
+@pytest.mark.parametrize("col", _COLONNES)
+def test_no_surface_promises_an_automatic_application(col: str) -> None:
+    if _consommateurs((col,)):
+        pytest.skip(f"{col} a un mécanisme : la promesse ferme est légitime")
+    coupables = [f"{rel} : {' '.join(s.split())[:100]}" for rel, s in _phrases(col)
                  if _PROMESSE.search(s)]
     assert not coupables, (
-        f"{rel} promet une application automatique :\n  " + "\n  ".join(coupables)
-        + "\nRien ne consomme " + " ni ".join(_COLONNES) + " : le lien de paiement "
-        "Stripe est statique et ne porte pas de remise par client. Dis que "
+        f"une page promet une application automatique de `{col}` :\n  "
+        + "\n  ".join(coupables)
+        + "\nRien ne la consomme : le lien de paiement Stripe est statique. Dis que "
         "l'application est manuelle, ou écris le mécanisme.")
 
 
@@ -168,17 +181,16 @@ def test_the_promise_firms_up_once_a_mechanism_exists() -> None:
     lui ferait faire à la main un geste que la machine fait. Le mensonge par
     défaut est un mensonge aussi.
     """
-    consommateurs = _consommateurs()
-    if not consommateurs:
-        pytest.skip("aucun mécanisme : c'est l'autre test qui s'applique")
     manuelles = []
-    for rel in _SURFACES:
-        for s in _chaines(_ROOT / rel):
-            if re.search(r"pas encore automatique|à la main|by hand|not yet automatic", s, re.I):
-                manuelles.append(f"{rel} : {' '.join(s.split())[:90]}")
+    for col in _COLONNES:
+        if not _consommateurs((col,)):
+            continue
+        manuelles += [f"{rel} : {' '.join(s.split())[:90]}" for rel, s in _phrases(col)
+                      if re.search(r"pas encore automatique|à la main|écris-nous|by hand|"
+                                   r"not yet automatic|write to us", s, re.I)]
     assert not manuelles, (
-        f"un mécanisme existe ({consommateurs}) et les pages disent encore que "
-        "c'est manuel :\n  " + "\n  ".join(manuelles))
+        "un mécanisme applique cette récompense et une page dit encore que c'est "
+        "manuel :\n  " + "\n  ".join(manuelles))
 
 
 def test_the_operator_can_see_what_is_owed() -> None:

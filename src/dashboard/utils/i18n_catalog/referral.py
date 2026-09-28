@@ -18,10 +18,12 @@ EN = {
                              "month**. (Reminder: every new sign-up also gets **30 days of "
                              "free Premium access** automatically.)",
     "referral.artists_referred": "Artists referred",
-    "referral.free_months_earned": "Free months earned",
+    "referral.free_months_pending": "Free months pending",
+    "referral.free_months_help": ("A month is earned when the artist you referred pays "
+                                  "their first month; it is deducted from your next invoice."),
     "referral.free_months_msg": (
-        "🎉 You have **{n} free month(s)** earned. Write to us before your next "
-        "payment and we apply them to your subscription — it is not automatic yet."),
+        "🎉 You have **{n} free month(s)** pending. Each one is deducted from your next "
+        "Stripe invoice, one month at a time, as soon as your subscription is active."),
     "referral.referred_header": "Artists you referred",
     "referral.no_referrals": "No referrals yet. Share your code to start earning free months!",
     "referral.joined_on": "Joined on",
@@ -29,12 +31,13 @@ EN = {
     "referral.how_body": """
 **For you (referrer):**
 - Share your code with any artist.
-- When they register and subscribe to a paid plan using your code, you automatically earn **+1 free month** on your current plan.
+- When they pay their first month with your code, you earn **+1 free month**.
+- Each free month is deducted from your next Stripe invoice, one month at a time.
 - Free months accumulate — no cap.
 
 **For them (referred):**
 - Enter the referral code during registration.
-- Get **20% off their first paid month**.
+- Get **20% off their first paid month** — mention the code when subscribing: we set the discount on the first invoice.
 
 **Limits:**
 - Each code can only be used once per referred artist.

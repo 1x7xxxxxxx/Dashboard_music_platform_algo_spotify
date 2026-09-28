@@ -44,7 +44,7 @@ _ALLOWED_TABLES = frozenset({
     'apple_songs_performance', 'apple_daily_plays', 'apple_listeners', 'apple_songs_history',
     'hypeddit_campaigns', 'hypeddit_daily_stats',
     'subscription_plans', 'artist_subscriptions',
-    'referral_codes', 'referral_events',
+    'referral_codes', 'referral_events', 'referral_rewards',
     'promo_codes', 'promo_events',
     # Tenant tables reached ONLY by GDPR erasure, which derives its scope from the
     # schema since 2026-09-23 — a tenant table missing here shows up on the erasure

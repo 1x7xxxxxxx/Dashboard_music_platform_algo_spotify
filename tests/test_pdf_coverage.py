@@ -58,6 +58,7 @@ _PDF_MAP = {
     "trigger_algo":         "songs",
     "meta_ads_overview":    "meta",
     "meta_breakdowns":      "meta_breakdowns",
+    "meta_campaign_settings": None,  # R272 — settings table, the PDF carries the Meta outcome
     "imusician":            "roi",
     "revenue_forecast":     "revenue_forecast",
     # Deliberate exclusions (covered elsewhere or not report-shaped):

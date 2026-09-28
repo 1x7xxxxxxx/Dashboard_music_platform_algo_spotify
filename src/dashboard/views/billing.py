@@ -185,9 +185,9 @@ def _show_current_plan(db, artist_id: int):
     # roadmap (coupons Stripe), pas une retouche de texte.
     if free_months > 0:
         st.success(t("billing.free_months",
-                     "🎁 Tu as **{n} mois offert(s)** grâce au parrainage. "
-                     "Écris-nous avant ton prochain paiement et on les applique — "
-                     "ce n'est pas encore automatique.").format(n=free_months))
+                     "🎁 Tu as **{n} mois offert(s)** grâce au parrainage : chacun est "
+                     "déduit de ta prochaine facture Stripe, un mois à la fois.").format(
+                         n=free_months))
 
     discount_row = db.fetch_query(
         "SELECT first_month_discount_pct FROM saas_artists WHERE id = %s", (artist_id,)

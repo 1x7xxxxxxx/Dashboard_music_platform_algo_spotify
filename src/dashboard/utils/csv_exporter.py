@@ -240,6 +240,7 @@ _NOT_EXPORTED: dict[str, str] = {
     "subscription_plan_history": _ACCOUNT,
     "referral_codes": _ACCOUNT,
     "referral_events": _ACCOUNT,
+    "referral_rewards": _ACCOUNT,     # R272 — links two tenants; its state shows on the referral page
     "promo_events": _ACCOUNT,
     "app_error_log": _TECHNICAL,
     "etl_run_log": _TECHNICAL,

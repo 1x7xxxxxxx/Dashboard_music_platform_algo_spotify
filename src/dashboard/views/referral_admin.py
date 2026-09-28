@@ -59,11 +59,40 @@ ORDER BY sa.referral_free_months DESC NULLS LAST, sa.name
 """
 
 
+_Q_REWARDS = """
+SELECT r.id, sp.name AS parrain, sf.name AS filleul, r.status, r.earned_at::date AS gagne_le,
+       r.applied_at::date AS applique_le, r.detail
+FROM referral_rewards r
+JOIN saas_artists sp ON sp.id = r.referrer_artist_id
+JOIN saas_artists sf ON sf.id = r.referred_artist_id
+ORDER BY (r.status = 'pending') DESC, r.earned_at DESC
+LIMIT 200
+"""
+
+
+def _render_rewards(db) -> None:
+    """R272 — each earned month and where it stands; a stuck one says why."""
+    from src.utils.referral_rewards import coupon_id
+    df = db.fetch_df(_Q_REWARDS)
+    if not coupon_id():
+        st.warning(t("referral_admin.no_coupon",
+                     "⚠️ `STRIPE_REFERRAL_COUPON_ID` n'est pas configuré sur ce serveur : "
+                     "les mois gagnés restent **en attente** jusqu'à ce qu'il le soit."))
+    if df is None or df.empty:
+        st.caption(t("referral_admin.no_rewards",
+                     "Aucun mois gagné pour l'instant : il l'est au premier paiement d'un "
+                     "filleul."))
+        return
+    from src.dashboard.utils import formats
+    formats.table(df)
+
+
 def _render_creances(db) -> None:
     """Ce que le programme DOIT, et à qui — en euros."""
     st.markdown("---")
     st.subheader(t("referral_admin.owed_header",
-                   "🧾 Récompenses à appliquer À LA MAIN"))
+                   "🧾 Récompenses de parrainage — mois offerts et remises"))
+    _render_rewards(db)
 
     df = db.fetch_df(_Q_CREANCES)
     if df is None or df.empty:
@@ -71,10 +100,10 @@ def _render_creances(db) -> None:
                      "Aucune récompense en attente. Rien à appliquer aujourd'hui."))
         st.caption(t(
             "referral_admin.owed_why",
-            "Ce panneau existe parce que `referral_free_months` et "
-            "`first_month_discount_pct` ne sont consommés par AUCUN code : le lien "
-            "de paiement Stripe est statique et ne porte pas de remise par client. "
-            "Les deux pages qui les affichent le disent désormais à l'artiste."))
+            "Le MOIS OFFERT au parrain est appliqué par Stripe (coupon posé sur son "
+            "abonnement quand le filleul paie son premier mois, R272). La REMISE du "
+            "filleul (`first_month_discount_pct`) reste à poser à la main : le lien "
+            "de paiement est statique et ne porte pas de remise par client."))
         return
 
     for c in ("mois_offerts", "remise_pct", "prix"):

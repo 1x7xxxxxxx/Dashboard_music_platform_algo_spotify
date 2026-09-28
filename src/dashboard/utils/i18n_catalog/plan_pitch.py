@@ -41,6 +41,9 @@ EN = {
     "pitch.meta_x": ("🔀 **Which ad euro produced which streams** — Meta × "
                      "Spotify × Hypeddit, and the cost of a stream country by "
                      "country"),
+    "pitch.campaign_settings": ("⚙️ **Which campaign setting worked** — objective, budget, "
+                                "audience, placements and button, beside the cost per "
+                                "outbound click"),
     "pitch.cpr": ("💶 **How much to put back on which campaign** — raise, hold "
                   "or cut, based on cost per result and your audience's age"),
     "pitch.creatives": ("🎨 **Which creative and which hook cost the least** per "
