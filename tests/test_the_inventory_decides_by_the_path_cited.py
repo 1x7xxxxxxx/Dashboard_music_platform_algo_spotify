@@ -25,7 +25,8 @@ def test_a_module_imported_by_name_by_a_sibling_has_a_reader() -> None:
 
 
 def test_history_is_not_a_reader() -> None:
-    texts = {"DEVLOG.md": "see a/b.md", ".test_durations": "a/b.md", "live.md": ""}
+    texts = {".claude/dev-docs/roadmap/archive.md": "see a/b.md", ".test_durations": "a/b.md",
+             "live.md": ""}
     assert ri.readers_of("a/b.md", texts) == []
 
 

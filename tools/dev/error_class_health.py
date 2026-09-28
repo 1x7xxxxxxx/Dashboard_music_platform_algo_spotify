@@ -928,8 +928,13 @@ def build() -> tuple[str, str]:
         # matchaient une FORME et non la propriété — la docstring comptée comme une
         # fabrication faisait passer dix tests de rendu pour des auto-mutations.
         "seen_red_unknown": sum(1 for c in classes.values() if c["seen_red"] == "unknown"),
+        # R311 (2026-09-28) : une classe RÉSOLUE dont le sujet est archivé n'a plus rien à
+        # garder — lui demander un garde qui se prouve à chaque exécution compterait comme
+        # trou une absence de sujet. Levée pour `pipeline-writes-to-the-copy-nobody-reads`
+        # (les deux DEVLOG archivés, son test avec eux).
         "guard_does_not_prove_itself": sum(
-            1 for c in classes.values() if c["seen_red"] != "self-proving"),
+            1 for c in classes.values()
+            if c["seen_red"] != "self-proving" and c.get("status") != "resolved"),
         "seen_red_never": sum(1 for c in classes.values() if c["seen_red"] == "never"),
         "cause_unknown": sum(1 for c in classes.values() if c["cause_evidence"] == "unknown"),
         "cause_inferred": sum(1 for c in classes.values() if c["cause_evidence"] == "inferred"),

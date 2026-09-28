@@ -18,7 +18,7 @@ For a new capability that is not a bug fix. A playbook the model runs.
 | 6 | Review | the repo's language reviewer; `security-specialist` if external-facing; `test-quality-reviewer` on new tests | playbook |
 | 7 | Flag-gate anything that touches a proven path | default OFF, measure, then flip. A production-proven path is not where an unmeasured improvement lands. | playbook |
 | 8 | Docs | the route/contract doc for an interface, diagrams for a structure, ROADMAP for the status | playbook |
-| 9 | DEVLOG | Why / What changed / Tests (the ACTUAL count — never copied from a prior entry) | playbook |
+| 9 | Delivery trace | `make roadmap-close ID=Rnnn NOTE="…"` — the measure and the ACTUAL test count, never copied from a prior entry | command |
 
 ## Rule of thumb
 

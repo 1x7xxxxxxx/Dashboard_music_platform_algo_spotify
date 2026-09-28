@@ -23,7 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "archive" / "README.md"
-HISTORY = {"DEVLOG.md", ".claude/dev-docs/DEVLOG.md", ".claude/dev-docs/roadmap/archive.md",
+HISTORY = {".claude/dev-docs/roadmap/archive.md",
            ".test_durations", "archive/README.md"}
 #: This file quotes the defects it catches (a moved path in a comment) — it is not a pointer.
 _SELF = Path(__file__).resolve().relative_to(ROOT).as_posix()
@@ -94,7 +94,8 @@ def test_the_detectors_see_what_they_are_written_for_not_vacuous() -> None:
     assert rows == {"archive/docs/a.md": ".claude/dev-docs/a.md"}
     assert unindexed(["archive/docs/a.md", "archive/docs/b.md", "archive/README.md"], rows) \
         == ["archive/docs/b.md"]
-    texts = {"CLAUDE.md": "see .claude/dev-docs/a.md", "DEVLOG.md": ".claude/dev-docs/a.md",
+    texts = {"CLAUDE.md": "see .claude/dev-docs/a.md",
+             ".claude/dev-docs/roadmap/archive.md": ".claude/dev-docs/a.md",
              "archive/docs/x.md": ".claude/dev-docs/a.md", "tools/y.sh": "nothing"}
     assert stale_pointers(rows, texts) == ["CLAUDE.md → .claude/dev-docs/a.md"]
     nested = {"archive/scripts/scripts/b.sh": "scripts/b.sh"}

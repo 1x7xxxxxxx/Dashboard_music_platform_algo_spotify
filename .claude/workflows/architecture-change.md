@@ -20,7 +20,7 @@ just quietly stops matching the label.
 | 6 | Schema? → a forward migration | generated, then reviewed by hand. **Never a manual edit on a deployed target.** | playbook |
 | 7 | Guard the new invariant | a test that fails if the structure regresses — then **mutation-verify it** | pytest |
 | 8 | Update the diagrams | solid = implemented, dashed = planned | playbook |
-| 9 | ROADMAP + DEVLOG | status lives in ROADMAP and nowhere else as prose | playbook |
+| 9 | ROADMAP | status lives in ROADMAP and nowhere else as prose; `make roadmap-close` writes the delivery trace | playbook |
 
 ## The question that catches the silent ones
 

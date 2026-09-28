@@ -100,7 +100,7 @@ Instagram, Apple Music.
   item with `/roadmap-done <id>`; a whole brick with `Spawn roadmap-keeper`. Never
   hand-delete: `tests/test_roadmap_two_files.py` fails if the two files' total shrinks.
 - `.claude/dev-docs/roadmap/archive.md` — delivered / closed, passive
-- `DEVLOG.md` (repo root) — append a session entry when done
+- the roadmap: `make roadmap-close ID=Rnnn NOTE="…"` writes the delivery trace (the DEVLOG is archived since R311)
 - `.claude/dev-docs/architecture.md` — **the** architecture surface: system Mermaid,
   data flow, table inventory, Views Map
 - `.claude/dev-docs/error-classes.md` — one entry per defect class (`/capitalise`)

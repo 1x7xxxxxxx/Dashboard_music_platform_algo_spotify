@@ -17,7 +17,7 @@ token-management-bilan (ADR-006), prod-health-monitoring (CLAUDE.md), schema-dri
 (`airflow_kpi.py`), refactor-audit-dashboard (`credentials/__init__.py`). A document is an archive
 candidate only when NO live file names it. History does not count as a reader: DEVLOG, the
 roadmap archive and `.test_durations` cite a file because it once existed, not because anyone
-opens it.
+opens it (the DEVLOG itself is archived since R311).
 
     python3 tools/dev/repo_inventory.py [out.md]
 """
@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 #: Files that cite others as HISTORY, not as readers.
-HISTORY = {"DEVLOG.md", ".claude/dev-docs/DEVLOG.md", ".claude/dev-docs/roadmap/archive.md",
+HISTORY = {".claude/dev-docs/roadmap/archive.md",
            ".test_durations", ".claude/dev-docs/architecture/notes-triage.yaml"}
 DOC_SUFFIXES = (".md",)
 SCRIPT_ROOTS = ("tools/", ".claude/scripts/", ".claude/hooks/", "airflow/debug_dag/", "scripts/")
@@ -179,7 +179,7 @@ def build() -> str:
     order = {"archiver": 0, "garder": 1, "archivé": 2}
     lines = ["# Inventaire du dépôt — documents et scripts (R305)", "",
              "Généré à la demande par `make inventory` ; jamais tenu à jour. Critère : le CHEMIN "
-             "cité par un fichier vivant (l'historique — DEVLOG, archive de roadmap, "
+             "cité par un fichier vivant (l'historique — archive de roadmap, "
              "`.test_durations` — ne compte pas comme lecteur).", ""]
     for title, rows in (("Documents", rows_d), ("Scripts", rows_s)):
         n = {k: sum(1 for r in rows if r[0] == k) for k in order}

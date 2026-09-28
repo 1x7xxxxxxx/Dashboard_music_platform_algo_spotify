@@ -47,12 +47,14 @@ def _get_git_files(repo_root: Path) -> list[str]:
 
 
 def _get_last_devlog(repo_root: Path) -> str:
-    devlog = repo_root / "DEVLOG.md"
-    if not devlog.exists():
+    """The last DELIVERED task — the roadmap archive's top entry. R311 (2026-09-28): the DEVLOG
+    was archived; `make roadmap-close` writes the trace of every delivery at the archive's head."""
+    archive = repo_root / ".claude" / "dev-docs" / "roadmap" / "archive.md"
+    if not archive.exists():
         return "N/A"
-    for line in reversed(devlog.read_text(encoding="utf-8", errors="ignore").splitlines()):
-        if line.startswith("## "):
-            return line[3:].strip()
+    for line in archive.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.startswith("## ✅ "):
+            return line[5:].strip()
     return "N/A"
 
 
@@ -102,7 +104,7 @@ def _build_content(timestamp: str, branch: str, git_str: str, devlog: str, wip: 
         f"*Saved by PreCompact hook before context compaction*\n\n"
         f"## Git branch\n{branch}\n\n"
         f"## Git status\n{git_str}\n\n"
-        f"## Last DEVLOG entry\n{devlog}\n\n"
+        f"## Last delivered roadmap entry\n{devlog}\n\n"
         f"## Active WIP\n{wip}\n\n"
         f"## Resume instructions\n"
         f"After /clear or session restart:\n"

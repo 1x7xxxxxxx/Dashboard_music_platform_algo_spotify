@@ -16,7 +16,7 @@ A step that looks automatic but cannot be is marked as such — never disguised.
 | 0 | ~~a hook launches the pipeline~~ | **IMPOSSIBLE.** A hook observes; it cannot spawn an agent. `inject_context.py` injects THIS file on the keywords above — the model then runs it. | ❌ observe-only |
 | 1 | Bug identified | the model, in context (the harness cannot detect "a bug was found") | playbook |
 | 2 | Whole-repo impact sweep | **`Spawn sibling-sweeper`** (rule 14) — the carrier that actually runs (77 calls / 30 days, measured 2026-09-25); `.claude/skills/impact-analysis/SKILL.md` is the method it follows. The bug is an INSTANCE OF A CLASS: find every sibling before fixing one. Writing a class or a `(récidive)` line without it is BLOCKED at commit by `.claude/hooks/require_sweep_before_catalogue.py`. | agent + hook |
-| 3 | Seen before? | grep `.claude/dev-docs/error-classes.md` + ADRs + `DEVLOG.md` + `git log` | playbook |
+| 3 | Seen before? | grep `.claude/dev-docs/error-classes.md` + ADRs + `.claude/dev-docs/roadmap/archive.md` + `git log` | playbook |
 | 4 | Sweep every catalogued class | `python3 .claude/scripts/audit_runner.py --deterministic` | signature |
 | 5 | Root-cause by READING the code | never from a guess about what is wrong | playbook |
 | 6 | Challenger — if it touches a high-stakes surface | `code-critic`, mandatory (see below). Treat **REJECT as blocking**. | playbook |

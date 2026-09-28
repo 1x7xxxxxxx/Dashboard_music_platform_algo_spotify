@@ -14,7 +14,7 @@ code triggered no reminder at all. That is the session whose omission costs most
 code reaches production and the journal keeps nothing of why.
 
 It also compared `mtime`, which lies in both directions — a `git checkout` resets a date
-with nothing changed, and touching `DEVLOG.md` for a comma silences the warning without
+with nothing changed, and touching a trace document for a comma silences the warning without
 journalling anything. `check_code_without_a_trace` reads `git status` instead.
 
 ## Why this is tested against a real throwaway repo
@@ -52,7 +52,7 @@ def _repo(tmp_path: Path, *changed: str) -> str:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
-    seeded = set(changed) | {"DEVLOG.md", ".claude/dev-docs/roadmap/checklist.md",
+    seeded = set(changed) | {".claude/dev-docs/roadmap/archive.md", ".claude/dev-docs/roadmap/checklist.md",
                              "src/keep.py", "airflow/keep.py"}
     for rel in seeded:
         f = tmp_path / rel
@@ -69,9 +69,9 @@ def test_code_alone_is_flagged(hook, tmp_path):
     """The measured gap: only production code moved, neither doc did."""
     out = hook.check_code_without_a_trace(_repo(tmp_path, "src/collectors/x.py"))
     joined = "\n".join(out)
-    assert out, "code changed with no DEVLOG and no roadmap entry must be reported"
+    assert out, "code changed with no roadmap entry and no archive entry must be reported"
     assert "src/collectors/x.py" in joined, joined
-    assert "DEVLOG.md" in joined and "checklist.md" in joined, (
+    assert ".claude/dev-docs/roadmap/archive.md" in joined and "checklist.md" in joined, (
         f"both untouched documents must be named, not just one: {joined}")
 
 
@@ -84,22 +84,22 @@ def test_airflow_counts_as_code(hook, tmp_path):
 def test_code_with_both_traces_is_silent(hook, tmp_path):
     """The half that must stay quiet, or the reminder becomes noise and gets ignored."""
     out = hook.check_code_without_a_trace(_repo(
-        tmp_path, "src/collectors/x.py", "DEVLOG.md",
+        tmp_path, "src/collectors/x.py", ".claude/dev-docs/roadmap/archive.md",
         ".claude/dev-docs/roadmap/checklist.md"))
     assert out == [], out
 
 
 def test_a_partial_trace_still_names_what_is_missing(hook, tmp_path):
-    """A DEVLOG entry without a roadmap update is the common half-done case."""
-    out = hook.check_code_without_a_trace(_repo(tmp_path, "src/collectors/x.py", "DEVLOG.md"))
+    """An archive entry without an open-roadmap update is the common half-done case."""
+    out = hook.check_code_without_a_trace(_repo(tmp_path, "src/collectors/x.py", ".claude/dev-docs/roadmap/archive.md"))
     joined = "\n".join(out)
     assert out, "a half-updated session must still be reported"
-    assert "checklist.md" in joined and "DEVLOG.md — PAS modifié" not in joined, joined
+    assert "checklist.md" in joined and "archive.md — PAS modifié" not in joined, joined
 
 
 def test_docs_alone_are_silent(hook, tmp_path):
     """Editing only documentation is not a session that forgot anything."""
-    assert hook.check_code_without_a_trace(_repo(tmp_path, "DEVLOG.md")) == []
+    assert hook.check_code_without_a_trace(_repo(tmp_path, ".claude/dev-docs/roadmap/archive.md")) == []
 
 
 def test_a_non_repo_returns_empty_instead_of_raising(hook, tmp_path):
@@ -116,7 +116,7 @@ def test_the_watched_trees_are_the_ones_that_ship(hook):
     every case above pass on a repo where nothing is ever watched.
     """
     assert set(hook._CODE_WATCH) >= {"src/", "airflow/"}, hook._CODE_WATCH
-    assert "DEVLOG.md" in hook._DOC_TRACES
+    assert ".claude/dev-docs/roadmap/archive.md" in hook._DOC_TRACES
     assert any("checklist.md" in d for d in hook._DOC_TRACES), hook._DOC_TRACES
 
 

@@ -43,7 +43,6 @@ _DELIVERABLES = {
     # This pointed at `.claude/dev-docs/ROADMAP.md` until 2026-08-03 — an unrendered
     # bootstrap template nothing wrote, so the freshness check was permanently stale.
     "roadmap/checklist.md": ".claude/dev-docs/roadmap/checklist.md",
-    "DEVLOG.md":            "DEVLOG.md",
 }
 
 
@@ -78,7 +77,7 @@ def format_git_summary(lines: list[str]) -> str:
     detail = "\n  ".join([""] + lines[:5])
     if len(lines) > 5:
         detail += f"\n  … et {len(lines) - 5} autre(s)"
-    reminder = '\n💡 Before /clear : update DEVLOG.md, close delivered roadmap rows (make roadmap-close ID=Rnnn), run /retro to promote pending REX drafts'
+    reminder = '\n💡 Before /clear : close delivered roadmap rows (make roadmap-close ID=Rnnn), run /retro to promote pending REX drafts'
     return header + detail + reminder
 
 
@@ -168,7 +167,7 @@ _CODE_WATCH = ("src/", "airflow/")
 _CODE_WATCH += (".claude/hooks/", ".claude/scripts/", ".claude/workflows/", "tools/",
                 "Makefile", ".github/")
 _SESSION_MARKER = ".claude/sessions/.session-start-ts"
-_DOC_TRACES = ("DEVLOG.md", ".claude/dev-docs/roadmap/checklist.md")
+_DOC_TRACES = (".claude/dev-docs/roadmap/checklist.md", ".claude/dev-docs/roadmap/archive.md")
 
 
 def _committed_this_session(repo_root: str) -> set[str]:
@@ -188,7 +187,7 @@ def check_code_without_a_trace(repo_root: str) -> list[str]:
 
     Lit `git status`, pas les dates de fichiers. `check_config_devlog_sync` compare des
     `mtime`, ce qui est fragile dans les deux sens : un `git checkout` remet une date à
-    zéro sans que rien n'ait changé, et toucher `DEVLOG.md` pour une virgule éteint
+    zéro sans que rien n'ait changé, et toucher un document de trace pour une virgule éteint
     l'alerte sans rien avoir journalisé. Le diff, lui, dit ce qui a réellement bougé.
 
     N'échoue jamais : un dépôt sans git, un `git` absent ou lent rend une liste vide.
@@ -280,45 +279,9 @@ def run_pytest_summary(repo_root: str) -> str | None:
         return None
 
 
-# ── Config vs DEVLOG sync check ───────────────────────────────────────────────
+# R311 (2026-09-28) : « config plus récente que le journal » est retiré avec le DEVLOG (archivé) ;
+# la trace d'une livraison est l'entrée d'archive de roadmap, que `check_code_without_a_trace` lit.
 
-# Files/dirs that must be reflected in DEVLOG when modified
-_CONFIG_WATCH = [
-    ".claude/rules",          # rules files (domain conventions)
-    "tools",                  # setup-claude-code.sh and other tooling
-    "CLAUDE.md",              # root project instructions
-    ".claude/hooks",          # hook scripts
-    ".claude/skills",         # skill files
-]
-
-
-def check_config_devlog_sync(repo_root: str) -> list[str]:
-    """Warn if config files are newer than DEVLOG.md — means unlogged work."""
-    devlog = os.path.join(repo_root, "DEVLOG.md")
-    if not os.path.exists(devlog):
-        return []
-
-    devlog_mtime = os.path.getmtime(devlog)
-    newer = []
-
-    for watch in _CONFIG_WATCH:
-        full = os.path.join(repo_root, watch)
-        if os.path.isfile(full):
-            if os.path.getmtime(full) > devlog_mtime:
-                newer.append(os.path.relpath(full, repo_root))
-        elif os.path.isdir(full):
-            for fname in os.listdir(full):
-                fpath = os.path.join(full, fname)
-                if os.path.isfile(fpath) and os.path.getmtime(fpath) > devlog_mtime:
-                    newer.append(os.path.relpath(fpath, repo_root))
-
-    if not newer:
-        return []
-
-    lines = [f"  📝 {f}" for f in sorted(newer)[:8]]
-    if len(newer) > 8:
-        lines.append(f"  … et {len(newer) - 8} autre(s)")
-    return lines
 
 
 # ── Deliverable freshness ─────────────────────────────────────────────────────
@@ -358,12 +321,14 @@ def _git_branch(repo_root: str) -> str:
 
 
 def _latest_devlog_title(repo_root: str) -> str:
-    devlog = Path(repo_root) / "DEVLOG.md"
-    if not devlog.exists():
+    """The last DELIVERED task (R311): the head of the roadmap archive, where
+    `make roadmap-close` writes every delivery. The DEVLOG it read is archived."""
+    archive = Path(repo_root) / ".claude" / "dev-docs" / "roadmap" / "archive.md"
+    if not archive.exists():
         return "N/A"
-    for line in reversed(devlog.read_text(encoding="utf-8", errors="ignore").splitlines()):
-        if line.startswith("## "):
-            return line[3:].strip()
+    for line in archive.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.startswith("## ✅ "):
+            return line[5:].strip()
     return "N/A"
 
 
@@ -418,7 +383,7 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
         f"*Saved by Stop hook (session_summary.py) — refreshed after each response*\n\n"
         f"## Git branch\n{branch}\n\n"
         f"## Git status\n{git_str}\n\n"
-        f"## Last DEVLOG entry\n{devlog}\n\n"
+        f"## Last delivered roadmap entry\n{devlog}\n\n"
         f"## Active WIP\n{wip}\n\n"
         f"## Resume instructions\n"
         f"After /clear or session restart:\n"
@@ -543,23 +508,14 @@ def main():
             + hint
         )
 
-    # 5. Config/DEVLOG sync check
-    config_newer = check_config_devlog_sync(repo_root)
-    if config_newer:
-        sections.append(
-            "\n⚠️  Config files modified but DEVLOG.md not updated:\n"
-            + "\n".join(config_newer)
-            + "\n  → Add a DEVLOG entry before /clear to avoid losing context"
-        )
-
     # 6. Deliverable freshness
     code_untraced = check_code_without_a_trace(repo_root)
     if code_untraced:
         sections.append(
             "\n⚠️  Du code a changé sans laisser de trace :\n"
             + "\n".join(code_untraced)
-            + "\n  → Une entrée DEVLOG et l'état de la roadmap, AVANT /clear."
-              " Le code part en production ; le journal est ce qui reste."
+            + "\n  → L'état de la roadmap (ligne ouverte, ou `make roadmap-close`), AVANT /clear."
+              " Le code part en production ; l'archive de roadmap est ce qui reste."
         )
 
     deliverable_warnings = check_deliverables_freshness()
@@ -567,7 +523,7 @@ def main():
         sections.append(
             "\n📋 Post-session deliverables not updated:\n"
             + "\n".join(deliverable_warnings)
-            + "\n  → make roadmap-close for delivered rows, update DEVLOG.md before /clear; run /retro to promote pending REX drafts"
+            + "\n  → make roadmap-close for delivered rows before /clear; run /retro to promote pending REX drafts"
         )
 
     # 7. Observations visibility

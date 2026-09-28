@@ -215,9 +215,9 @@ def test_the_purge_is_reachable_from_the_repo():
     """
     named_in = [p.name for p in (REPO / "docs" / "adr").glob("*.md")
                 if "airflow_db_clean" in p.read_text(encoding="utf-8")]
-    devlog = (REPO / "DEVLOG.md").read_text(encoding="utf-8")
-    assert named_in or "airflow_db_clean" in devlog, (
-        "nothing in docs/adr or DEVLOG mentions tools/airflow_db_clean.sh. An "
+    # R311 (2026-09-28): the DEVLOG is archived — an ADR is where a reader meets the script.
+    assert named_in, (
+        "nothing in docs/adr mentions tools/airflow_db_clean.sh. An "
         "operational script referenced by no document is one nobody will schedule "
         "again after a rebuild."
     )

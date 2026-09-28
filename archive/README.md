@@ -96,3 +96,8 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/scripts/tools/dev/pytest_peak_memory.py` | `tools/dev/pytest_peak_memory.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
 | `archive/scripts/tools/dev/view_rerun_cost.py` | `tools/dev/view_rerun_cost.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
 | `archive/scripts/tools/generate-dev-docs.py` | `tools/generate-dev-docs.py` | générateur de docs dont toutes les cibles sont retirées ; rien ne le lance | 2026-09-28 |
+| `archive/docs/DEVLOG.md` | `DEVLOG.md` | journal de séance (11 717 lignes) que plus rien ne lisait pour décider ; la trace d'une livraison est l'archive de roadmap (R311) | 2026-09-28 |
+| `archive/docs/dev-docs/DEVLOG.md` | `.claude/dev-docs/DEVLOG.md` | journal gelé depuis le 2026-06-11 (R311) | 2026-09-28 |
+| `archive/claude-config/hooks/draft_devlog.py` | `.claude/hooks/draft_devlog.py` | hook Stop qui écrivait le DEVLOG, retiré avec lui (R311) | 2026-09-28 |
+| `archive/claude-config/commands/devlog-promote.md` | `.claude/commands/devlog-promote.md` | commande de promotion vers le DEVLOG, retirée avec lui (R311) | 2026-09-28 |
+| `archive/claude-config/hooks/test_devlog_is_written_where_it_is_read.py` | `tests/test_devlog_is_written_where_it_is_read.py` | test du DEVLOG, archivé avec son sujet (R311) | 2026-09-28 |

@@ -113,8 +113,6 @@
       "Bash(command *)",
       "Edit(**/.claude/**)",
       "Write(**/.claude/**)",
-      "Edit(DEVLOG.md)",
-      "Write(DEVLOG.md)",
       "Edit(**/plan.md)",
       "Edit(**/context.md)",
       "Read(//tmp/**)",
@@ -226,10 +224,6 @@
           {
             "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/suggest_sweep.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/draft_devlog.py"
           },
           {
             "type": "command",

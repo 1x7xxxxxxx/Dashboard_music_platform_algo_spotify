@@ -28,7 +28,7 @@ Resume the current session context after a /clear or session restart.
    (`.claude/dev-docs/work-in-progress/` is no longer used: it has been empty since the
    two-file roadmap; open work lives in the index only — R201.)
 
-3. Read the last 5 entries from `DEVLOG.md` (repo root) — show title + "What changed" lines only, no full body.
+3. Read the last 5 delivered entries at the head of `.claude/dev-docs/roadmap/archive.md` (`## ✅ Rnnn` headings) — title and date only, no body. The DEVLOG is archived since R311.
 
 4. Read `.claude/sessions/pending-rex.md` if it exists and list any un-promoted REX drafts
    (session cleanup reminder). (`_archived_retro.md` is frozen — no longer read, R201.)
@@ -57,7 +57,7 @@ Resume the current session context after a /clear or session restart.
 (omit section if the index is empty)
 
 **Last changes:**
-- YYYY-MM-DD: <DEVLOG title>
+- YYYY-MM-DD: <Rnnn — delivered title>
 - ...
 
 **Suggested next action:**
