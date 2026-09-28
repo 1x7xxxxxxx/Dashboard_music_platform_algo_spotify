@@ -59,10 +59,16 @@ def _targets() -> set[str]:
 
 
 def _documents() -> list[Path]:
+    # VERSIONED documents only (2026-09-28): `benchmark.md` is generated and gitignored — on
+    # the disk here, absent in CI — so a disk glob judged a different set on each side
+    # (class `a-test-that-only-ever-ran-on-its-authors-machine`, found by sibling-sweeper).
+    import subprocess
+    tracked = set(subprocess.run(["git", "ls-files"], cwd=_ROOT, capture_output=True,
+                                 text=True).stdout.split())
     docs = list((_ROOT / ".claude" / "dev-docs").rglob("*.md"))
     docs += list((_ROOT / ".claude" / "rules").glob("*.md"))
     docs += [_ROOT / "CLAUDE.md"]
-    return [d for d in docs if d.exists()]
+    return [d for d in docs if d.exists() and str(d.relative_to(_ROOT)) in tracked]
 
 
 def test_the_scope_is_not_empty() -> None:

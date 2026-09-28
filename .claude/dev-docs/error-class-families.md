@@ -2,7 +2,7 @@
 
 <!-- GÉNÉRÉ par `tools/dev/error_class_families.py` — toute édition à la main est perdue à la prochaine exécution. `make error-families` -->
 
-**427 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
+**428 classes**, regroupées en **18 familles** par une règle explicite, écrite sous chaque titre. Aucune entrée de `.claude/dev-docs/error-classes.md` n'est modifiée : le catalogue est append-only, cette taxonomie vit à côté.
 
 Une famille porte une **question**, pas un mot-clef. La question est ce qui a de la valeur : elle se pose devant du code, avant que le défaut existe. Une classe rejoint la **première** famille qui la retient — l'ordre va du plus spécifique au plus général, sinon « deux surfaces, deux nombres » avalerait la moitié du catalogue.
 
@@ -19,16 +19,16 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [le-message-parle-au-mauvais-lecteur](#le-message-parle-au-mauvais-lecteur) | 20 | **0/20** · 0.0 % | Cette phrase s'adresse-t-elle à qui la lira — et nomme-t-elle un geste que ce lecteur-là peut faire ? |
 | [un-état-qui-déborde-de-sa-portée](#un-état-qui-déborde-de-sa-portée) | 26 | **1/26** · 3.8 % | Cet état vit-il exactement le temps de ce qui l'a créé — ni plus, ni pour quelqu'un d'autre ? |
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
-| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 23 | **3/23** · 13.0 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
+| [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 24 | **3/24** · 12.5 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 62 | **9/62** · 14.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
 | [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **6/35** · 17.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **2/16** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
-| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **0/11** · 0.0 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
+| [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **1/11** · 9.1 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 8 | **1/8** · 12.5 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 26 | **3/26** · 11.5 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 44 | **4/44** · 9.1 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 44 | **5/44** · 11.4 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 4 | **0/4** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 0 | — | — |
 
@@ -265,7 +265,7 @@ Règle de rattachement : `metric-computed-outside|outside-the-metrics|two-|diver
 
 **Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ?**
 
-Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|inbox-nobody-reads|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering|fallback` sur l'identifiant et le symptôme. 23 classe(s).
+Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a-measurement|empty-bracket|no-op|returns-none|degrade|logged-as-success|inbox-nobody-reads|outside-its-condition|read-that-failed|failed-read|except.*number|read-through-a-filtering|fallback` sur l'identifiant et le symptôme. 24 classe(s).
 
 | classe | symptôme |
 |---|---|
@@ -281,6 +281,7 @@ Règle de rattachement : `silent|swallow|avalée|absence|silencieu|renders?-as-a
 | [`a-parenthesis-is-not-a-tuple`](error-classes.md#a-parenthesis-is-not-a-tuple) | une requête paramétrée ne s'exécute JAMAIS. Elle lève avant d'atteindre la base, un `except` plus haut l'attrape, et l'appelant reçoit une liste vide  |
 | [`a-red-verdict-delivered-to-an-inbox-nobody-reads`](error-classes.md#a-red-verdict-delivered-to-an-inbox-nobody-reads) | un contrôle tourne, rougit à temps sur une vraie panne, et personne ne le sait. Son verdict ne part que par un canal que le destinataire ne lit pas —  |
 | [`a-failed-collection-writes-zeros`](error-classes.md#a-failed-collection-writes-zeros) | des lignes arrivent, à l'heure, en nombre normal — et leurs valeurs sont fausses. Mesuré le 2026-09-08 : le 2026-06-01, `soundcloud_tracks_daily` a re |
+| [`a-write-sent-through-a-read-method`](error-classes.md#a-write-sent-through-a-read-method) | une écriture (INSERT/UPDATE sans `RETURNING`) est envoyée par une méthode de LECTURE ; la base écrit (autocommit), puis la lecture du résultat lève `P |
 | [`ast-guard-blind-to-bom`](error-classes.md#ast-guard-blind-to-bom) | a source file starts with a UTF-8 BOM (`\xef\xbb\xbf`). `ast.parse` on text read with plain `encoding="utf-8"` raises `SyntaxError: invalid non-printa |
 | [`i18n-untranslated-key`](error-classes.md#i18n-untranslated-key) | a `t("ns.key", "FR …")` / `_t("ns.key", "FR …")` call has no EN entry in `i18n_catalog/` → EN mode silently renders the French default (untranslated s |
 | [`delivery-failure-logged-as-success`](error-classes.md#delivery-failure-logged-as-success) | the code path that sends a notification returns a "did not send" value, the very next line logs that it was sent, and the task ends green. The finding |
@@ -629,6 +630,6 @@ _Aucune._
 
 ## Les chiffres gelés
 
-<!-- error-class-families: total=427 families=18 orphans=0 -->
+<!-- error-class-families: total=428 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=77d8ae097c3a3847d7ada3c5727fd7c23db39895c30418a653d54fb582e0b88e -->
+<!-- error-class-families: sha256=5eec79cc9c559baa6b6b035d8550da93b5c4d0ee64f616ded365fa844f92bc01 -->
