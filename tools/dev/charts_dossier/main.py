@@ -397,6 +397,60 @@ def proposals_html(out: Path) -> str:
     return "".join(parts)
 
 
+def _first_sentence(text: str, cap: int = 110) -> str:
+    t_ = " ".join(str(text or "").split())
+    cut = min([i for i in (t_.find(". "), t_.find(" ; "), t_.find(" — ")) if i > 0] or [len(t_)])
+    t_ = t_[:cut]
+    return t_ if len(t_) <= cap else t_[:cap - 1].rstrip() + "…"
+
+
+def decisions_html(review: dict, no_of: dict, place_of: dict, out: Path) -> str:
+    """R313 — the FIRST page: what the owner decides, one line each, no prose. Pure but for
+    reading `proposals.json`."""
+    import questions
+    by = collections.defaultdict(list)
+    for k, pl in place_of.items():
+        by[pl].append(k)
+    n = lambda ks: ", ".join(str(no_of[k]) for k in sorted(ks, key=lambda k: no_of[k]))  # noqa: E731
+    rows = []
+    for k in sorted(by.get("a-trancher", []), key=lambda k: no_of[k]):
+        r = review[k]
+        rows.append(f"<tr><td><b>{no_of[k]}</b></td><td>{esc(_first_sentence(r.get('q'), 80))}</td>"
+                    f"<td>{esc(_first_sentence(r.get('note') or '—'))}</td></tr>")
+    blocks = []
+    if rows:
+        blocks.append(f"<h2>À trancher — {len(rows)}</h2><table class='dec'><tr><th>fiche</th>"
+                      "<th>la question</th><th>ma reco</th></tr>" + "".join(rows) + "</table>")
+    dups = [(g, v, hot) for g, (v, hot) in questions.SHARED_REVIEWED.items() if hot]
+    if dups:
+        import re as _re
+
+        def _reco(v: str) -> str:
+            m = _re.search(r"ma reco\s*:\s*([^;)]+)", v)
+            return "ma reco : " + m.group(1).strip() if m else _first_sentence(v, 120)
+        blocks.append("<h2>Doublons à trancher</h2><ul class='dec'>" + "".join(
+            f"<li>Fiches <b>{n([k for k in g if k in no_of and k in hot])}</b> — même mesure, même "
+            f"page ; {esc(_reco(v))}</li>" for g, v, hot in dups) + "</ul>")
+    prop = out / "proposals.json"
+    if prop.exists():
+        refused = [p for p in json.loads(prop.read_text(encoding="utf-8"))
+                   if "ÉCARTÉE" in (p.get("reco") or "")]
+        if refused:
+            blocks.append("<h2>Proposition écartée — la réclamer ?</h2><ul class='dec'>" + "".join(
+                f"<li>{esc(_first_sentence(p['title'], 90))} — dis « garder » pour l'intégrer.</li>"
+                for p in refused) + "</ul>")
+    todo = [(t, by.get(key, [])) for key, t in (("corriger", "à corriger"), ("fusionner", "à fusionner"),
+                                                  ("retirer", "à retirer")) if by.get(key)]
+    if todo:
+        blocks.append("<h2>Encore à faire de mon côté</h2><ul class='dec'>" + "".join(
+            f"<li>{len(ks)} {t} : fiches {n(ks)}</li>" for t, ks in todo) + "</ul>")
+    if by.get("revalider"):
+        blocks.append(f"<h2>À revalider — {len(by['revalider'])}</h2><p class='dec'>Mes actions "
+                      f"sont faites ; dis « valider » ou corrige : fiches {n(by['revalider'])}.</p>")
+    return "".join(blocks) + ("<p class='site'>Le détail de chaque fiche suit ; synthèse, guide des "
+                              "retours, traçabilité et propositions sont en annexe, à la fin.</p>")
+
+
 def build(out: Path) -> Path:
     review = load()
     fj = out / "fiches.json"
@@ -465,33 +519,33 @@ def build(out: Path) -> Path:
     # review: on 2026-09-27 the graded list still named fiches fixed that very day.
     suspects = [k for k in review if number_of.get(k, ("", ""))[0] == "ecart"]
 
-    parts = [f"""<h1>Les KPI de streaMLytics — ce qu'il reste à faire, puis ce qui est validé</h1>
-<p class="lead">{dt.date.today():%d/%m/%Y} · données : instantané de la production du
-{dt.date.today():%d/%m/%Y}, artiste 1 (1x7xxxxxxx), restauré en local — la production n'a jamais été
-connectée au rendu. Réglages par défaut des pages.</p>
-<h2>Synthèse</h2>
+    # R313 (owner, 2026-09-28) — « dès que j'ouvre le PDF, mes actions » : the document opens
+    # on the decisions, one line each; everything that explains goes to the END (`tail`).
+    parts = [f"""<h1>KPI streaMLytics — tes décisions</h1>
+<p class="lead">{dt.date.today():%d/%m/%Y} · instantané de la production, artiste 1.</p>"""]
+    tail = [f"""<h1 class='page'>Annexes</h1><h2>Synthèse</h2>
 <table class="sum"><tr><th>Graphiques revus</th><td>{total} — {len(app_keys)} de l'app, {sum(1 for k in review if k.startswith('grafana:'))} de Grafana ({len(cap['figures'])} images rendues)</td></tr>
 """ + "".join(f"<tr><th>{STATUSES[s_]}</th><td>{by_status.get(s_, 0)}</td></tr>" for s_ in STATUSES)
              + "<tr><th>Rapport PDF de l'artiste</th><td>retiré de ce dossier jusqu'à validation de tous les KPI</td></tr></table>"]
-    parts.append(GUIDE)
+    tail.append(GUIDE)
     # R299 — the traceability table: every chart, its Meta question, its layer, its twins.
     import questions
     import triage
     page_of = {k: (views_of[k][0] if views_of.get(k) else Path(k.split(":")[0]).stem)
                for k in review}
-    parts.append(questions.section_html(questions.rows(
+    tail.append(questions.section_html(questions.rows(
         review, inv, no_of, page_of, questions.shared_source_groups(inv_rows),
         triage.likely_twins(inv_rows, no_of))))
-    parts.append(proposals_html(out))
-    parts.append(method)
+    tail.append(proposals_html(out))
+    tail.append(method)
     if suspects:
-        parts.append("<h3>À vérifier en premier — les écarts mesurés sur cet instantané</h3><ul>"
+        tail.append("<h3>À vérifier en premier — les écarts mesurés sur cet instantané</h3><ul>"
                      + "".join(f"<li><b>Fiche {no_of[k]}</b> — {esc(number_of[k][1])}</li>"
                                for k in suspects) + "</ul>")
-    parts.append("<h2>Recommandations du corpus</h2>" + "".join(
+    tail.append("<h2>Recommandations du corpus</h2>" + "".join(
         f"<h3>{t}</h3><p class='src'>{s}</p><p>{b.replace('{ml_page}', page_phrase(cap))}</p>"
         for t, s, b in RECOMMENDATIONS))
-    parts.append("<h2>Méthode et limites</h2><ul>"
+    tail.append("<h2>Méthode et limites</h2><ul>"
                  "<li>Chaque graphique a été REGARDÉ ; les notes sont un jugement écrit dans "
                  "<code>tools/dev/charts_dossier/review.yaml</code>, relisible et corrigeable.</li>"
                  "<li>Chaque action porte son id de roadmap ; elle passe ✅ quand la ligne est "
@@ -524,6 +578,7 @@ connectée au rendu. Réglages par défaut des pages.</p>
     gpng = {f"grafana:{p['id']}": (p["png"], p.get("points")) for p in (gra or {}).get("panels", [])}
     graf_keys = [k for k in review if k.startswith("grafana:")]
     place_of = {k: place(review[k], st_of[k]) for k in review}
+    parts.append(decisions_html(review, no_of, place_of, out))
     for st_key, title in ORDER:
         keys = [k for k in [*[k for v_ in by_view for k in by_view[v_]], *graf_keys]
                 if place_of[k] == st_key]
@@ -539,6 +594,7 @@ connectée au rendu. Réglages par défaut des pages.</p>
                 current_view = view
             parts.append(render_one(k))
 
+    parts += tail
     parts.append("<h2 class='page'>Index des fiches</h2><table class='idx'>" + "".join(
         f"<tr><td>{n}</td><td>{STATUSES[st_of[k]]}</td><td>{esc(review[k].get('q'))}</td></tr>"
         for k, n in no_of.items() if k in review) + "</table>")
@@ -564,6 +620,8 @@ h2.page { page-break-before: always; } .src { color: #666; font-size: 8.5pt; mar
 table.idx td, table.sum td, table.sum th { font-size: 8.5pt; padding: .6mm 2mm; text-align: left; }
 table.trace td, table.trace th { font-size: 7pt; padding: .4mm 1.2mm; vertical-align: top; }
 table.trace tr.dup td { background: #fff3a8; }
+table.dec { width: 100%; } table.dec td, table.dec th { font-size: 9pt; padding: .6mm 2mm; vertical-align: top; }
+ul.dec li, p.dec { font-size: 10pt; margin: .8mm 0; }
 table.trace { table-layout: fixed; width: 100%; } table.trace td { word-wrap: break-word; }
 .srcs { color: #888; font-size: 6pt; margin-top: .5mm; }
 """
