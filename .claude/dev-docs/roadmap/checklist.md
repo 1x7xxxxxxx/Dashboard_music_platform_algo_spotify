@@ -30,6 +30,10 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R305 | Inventaire à la demande (`make inventory` → `revue/inventaire.md`, une ligne et une décision par document et par script) et archivage consolidé : un seul `archive/` (docs, scripts, claude-config) où descendent `.claude/.retired`, `.claude/dev-docs/archives`, `archive/legacy_meta_csv` et ~25 documents figés ; `archive/README.md` indexe chaque fichier ; CLAUDE.md allégé <!-- critic: requis --> <!-- scope: tools/dev/, tests/, .claude/, archive/, docs/, machine_learning/, CLAUDE.md, Makefile --> | P3 | inventaire complet ; garde « une archive est indexée et morte » mutée rouge ; `git ls-files .claude/.retired` vide |
+| R306 | Archivage des scripts inutiles : les 15 `airflow/debug_dag`, `scripts/*`, `tools/generate-dev-docs.py`, `tools/prod_introspect.sh`, trois one-shots faits, cinq outils de mesure ponctuels, `run_tests.sh` ; commandes de debug retirées de la page « liens utiles » ; code mort retiré <!-- critic: non — déplacements, la garde de R305 s'applique --> <!-- scope: airflow/, scripts/, tools/, src/dashboard/views/, src/dashboard/utils/, .claude/, tests/, archive/ --> | P3 | aucun appelant vivant vers archive/ ; tests verts |
+| R307 | Latence de l'outillage de dev : un dispatcher par évènement de hook (6 processus par édition, 3 par commande aujourd'hui), audit_runner sans doublons de signatures, gold_coverage en une passe avec cache des arbres, error_class_health mis en cache par commit, select_tests lit les tests une fois — mesuré avant/après en alternance <!-- critic: requis --> <!-- scope: .claude/hooks/, .claude/settings.json, .claude/scripts/, tools/dev/, tests/ --> | P3 | temps par édition et par commande, make test-changed, make gold-coverage, audit_runner --all |
+| R308 | engineering-loop.js nettoyé : vocabulaire du projet d'origine retiré (trading_bot, backtest), `main` au lieu de `master`, étapes de déploiement réelles ; test qui vérifie que chaque commande nommée existe <!-- critic: non — texte et commandes, comportement inchangé --> <!-- scope: .claude/workflows/, tests/ --> | P4 | test des commandes nommées muté rouge |
 
 ---
 
@@ -85,7 +89,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R283, R275 -->
+<!-- reprise: open=R305, R306, R307, R308, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
