@@ -34,6 +34,18 @@ Ce qui est ici : ce qui **documente**.
 
 ---
 
+### Exportée vers le parc — le preset `governance` (R295, 2026-09-28)
+
+La roadmap avant le code (`require_roadmap_id.py`, `require_roadmap_entry.py`, `roadmap.py`),
+le référentiel d'exigences sondées (`arch_benchmark.py`) et le modèle d'ADR des couches
+(ADR-019) ont une copie PORTABLE dans le dépôt baseline
+(`/mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/presets/governance/`), réglée par
+un `governance.toml` versionné au lieu de chemins en dur. Une correction apportée ICI à l'un de
+ces outils se reporte là-bas (`tools/dev/check_preset_governance.sh` la rejoue sur un dépôt
+vide). Les classes d'erreur génériques s'exportent en propositions par
+`tools/dev/export_generic_classes.py` du baseline. Premier destinataire : MSDR
+(`docs/transfer-from-streamlytics.md` de ce dépôt-là).
+
 ### Required setup before first use
 
 1. **Export env vars** in `~/.bashrc` or `.env.local` (see `.env.example` § MCP Servers) :
