@@ -212,7 +212,7 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R282 | Graphiques : dire lesquels t'inspirent (note L276) et quand reprendre le seuil de déclenchement sur la courbe Meta × Spotify (note L268, différée par toi) ; les 15 idées page par page sont dans `.claude/dev-docs/chart-ideas-by-page.md` | P4 | ta réponse — runbook § 38 |
+| R282 | Graphiques marketing : choisir parmi les propositions P1 à P6 du dossier des KPI (`revue/dossier-graphiques.pdf`, pages 1 à 4, dessinées le 2026-09-28 — 3651c1d8), et dire si le seuil de déclenchement sur la courbe Meta × Spotify (note L268) revient maintenant ; chaque proposition retenue devient une ligne | P4 | ta réponse — runbook § 38 |
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39 |
 | R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
 
