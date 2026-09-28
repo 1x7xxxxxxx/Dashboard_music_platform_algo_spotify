@@ -151,7 +151,7 @@ from src.collectors.my_collector import MyCollector
 | Full parameterized DAG | `airflow/dags/spotify_api_daily.py` |
 | CSV watcher with BranchOperator | `airflow/dags/s4a_csv_watcher.py` |
 | ML scoring with model load | `airflow/dags/ml_scoring_daily.py` |
-| Debug mirror | `airflow/debug_dag/debug_spotify_api.py` |
+| Debug mirror | `archive/scripts/debug_dag/debug_spotify_api.py` |
 
 ---
 

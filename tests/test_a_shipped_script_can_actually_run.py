@@ -13,7 +13,7 @@ Error class `exec-bit-lost-outside-the-index`, ported from
 * `tools/migrate.sh` — invoked by `Makefile:46`, and over SSH against **production**
   at `Makefile:52`;
 * `tools/dev/check_prod_ledger.sh` — `Makefile:228`, inside `sync-check`;
-* `scripts/backup_db.sh`;
+* `archive/scripts/scripts/backup_db.sh`;
 * `tools/prod_introspect.sh` — whose own usage block, line 22, reads
   `./tools/prod_introspect.sh`. That invocation **cannot work from a fresh clone**.
 

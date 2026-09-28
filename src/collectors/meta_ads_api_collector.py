@@ -312,7 +312,7 @@ class MetaAdsApiCollector(_MetaConfigFetchMixin, _MetaInsightFetchMixin, _MetaUp
 
 
 # ── Re-exports for backward compatibility ─────────────────────────────────────
-# Consumers (airflow/debug_dag/debug_meta_ads_api.py, tests) import these symbols
+# Consumers (the tests) import these symbols
 # from this module; keep them importable here after the move to leaf helper modules.
 from ._meta_parsers import (  # noqa: E402
     _extract_eng,

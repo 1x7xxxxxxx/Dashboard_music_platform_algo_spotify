@@ -121,6 +121,12 @@ def test_the_scope_is_not_empty(audit) -> None:
     assert total >= 30, (
         f"seulement {total} script(s) d'outillage trouvé(s) — le balayage ne lit plus "
         "les deux répertoires, et son verdict est vide de sens.")
-    assert instruments, (
-        "aucun instrument déclaré : soit le dépôt n'en a plus, soit le marqueur n'est "
-        "plus lu — et dans le second cas les instruments basculeraient tous en muets.")
+    # R306 (2026-09-28) : les cinq instruments déclarés sont partis dans archive/, donc
+    # « au moins un instrument » ne peut plus porter la question. Ce qu'elle voulait savoir
+    # — le marqueur est-il encore LU ? — se pose sur un en-tête fabriqué.
+    fabrique = f'"""Outil. {audit.MARQUEUR}."""\nimport sys\n'
+    assert audit.est_instrument(fabrique), (
+        "le marqueur n'est plus lu : un instrument déclaré basculerait en muet.")
+    assert not audit.est_instrument(f"import sys\n# {audit.MARQUEUR}\n"), (
+        "le marqueur cité APRÈS les imports (dans le corps) ferait passer n'importe quel "
+        "fichier pour un instrument.")

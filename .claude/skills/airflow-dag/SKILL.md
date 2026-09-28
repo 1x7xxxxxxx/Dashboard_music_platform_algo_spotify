@@ -92,21 +92,12 @@ default_args = {
 
 ---
 
-## Debug DAG Rules
+## Replaying a task locally
 
-- File location: `airflow/debug_dag/debug_<name>.py`
-- No Airflow DAG/Operator imports in the main execution path
-- Must be runnable directly: `python airflow/debug_dag/debug_<name>.py`
-- Mirrors production logic exactly — same collector, same DB schema
-
-```python
-# debug_my_dag.py
-import sys
-sys.path.insert(0, '/opt/airflow')
-
-from src.collectors.my_collector import MyCollector
-# ... run the same logic inline, no DAG wrapper
-```
+No debug mirror script: the 15 `airflow/debug_dag/` mirrors were archived on 2026-09-28 (R306,
+`archive/scripts/debug_dag/`) — nothing ran them, and a mirror drifts from its DAG. Replay a task
+by **calling its function** with the tenant's conf; never `airflow tasks test` against
+production (the scheduler adopts the temporary run).
 
 ---
 
@@ -118,7 +109,6 @@ from src.collectors.my_collector import MyCollector
 - [ ] `max_active_runs=1` set (serialize — concurrent runs on the same external account throttle)
 - [ ] All `src.*` imports are inside task functions
 - [ ] `on_failure_callback` set
-- [ ] `debug_dag/debug_<name>.py` created and runnable
 - [ ] DAG id does not collide with existing DAGs
 
 ---
@@ -130,7 +120,6 @@ from src.collectors.my_collector import MyCollector
 | Full parameterized DAG | `airflow/dags/spotify_api_daily.py` |
 | CSV watcher with BranchOperator | `airflow/dags/s4a_csv_watcher.py` |
 | ML scoring with model load | `airflow/dags/ml_scoring_daily.py` |
-| Debug mirror | `airflow/debug_dag/debug_spotify_api.py` |
 
 ---
 

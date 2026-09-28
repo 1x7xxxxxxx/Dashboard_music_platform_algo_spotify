@@ -183,15 +183,9 @@ def main() -> int:
     print("\n✅ refresh_token obtained.\n")
     print(f"  refresh_token : {rt}")
     print(f"  access_token  : expires in {tok.get('expires_in', '?')}s\n")
-    print("Next — verify it exposes real likes (GO/NO-GO):\n")
-    print(f'  SOUNDCLOUD_CLIENT_ID="{args.client_id}" \\')
-    print('  SOUNDCLOUD_CLIENT_SECRET="<secret>" \\')
-    print('  SOUNDCLOUD_USER_ID="<your numeric user id>" \\')
-    print(f'  SOUNDCLOUD_REFRESH_TOKEN="{rt}" \\')
-    print("  python airflow/debug_dag/debug_soundcloud_oauth.py\n")
-    print("If ✅ GO: Dashboard → Credentials → SoundCloud → paste it into "
-          "'Refresh Token (OAuth, optionnel)'. The collector then auto-"
-          "rotates & persists it (one-time mint).")
+    print("Next: Dashboard → Credentials → SoundCloud → paste it into "
+          "'Refresh Token (OAuth, optionnel)', then « Tester la connexion ». The collector "
+          "then auto-rotates & persists it (one-time mint).")
     return 0
 
 

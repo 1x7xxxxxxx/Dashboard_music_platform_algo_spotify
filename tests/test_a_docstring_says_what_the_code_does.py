@@ -1,10 +1,10 @@
-"""Trois affirmations de documentation que le code contredisait.
+"""Des affirmations de documentation que le code contredisait (la troisième, sur un script de
+debug SoundCloud, est partie avec lui dans archive/ le 2026-09-28, R306).
 
 Type: Test
 Uses: ast
 Depends on: src/dashboard/utils/collection_trigger.py,
-            migrations/migrate_saas_artist_id.py,
-            airflow/debug_dag/debug_soundcloud_oauth.py
+            migrations/migrate_saas_artist_id.py
 Persists in: nothing
 
 Pourquoi ce garde existe
@@ -74,30 +74,3 @@ def test_the_one_shot_migration_says_it_already_ran() -> None:
     # L'invariant qui compte est asserté : le script DÉCLARE qu'il a servi. Que son
     # avertissement propose aussi une alternative est de la qualité de prose, pas une
     # propriété du dépôt.
-
-
-def test_the_oauth_token_is_not_printed_unasked() -> None:
-    """Le jeton ne s'imprime que derrière un drapeau explicite.
-
-    L'impression est délibérée — le runbook la demande — mais **les deux crons de ce
-    dépôt capturent stdout dans un log ET un corps de mail**. Si ce script y est un jour
-    enveloppé, le jeton est persisté et posté.
-    """
-    arbre = ast.parse(
-        (ROOT / "airflow/debug_dag/debug_soundcloud_oauth.py").read_text(encoding="utf-8"))
-    impressions = [n for n in ast.walk(arbre)
-                   if isinstance(n, ast.Call)
-                   and getattr(n.func, "id", "") == "print"
-                   and any(isinstance(a, ast.JoinedStr)
-                           and any(isinstance(v, ast.FormattedValue)
-                                   and getattr(v.value, "id", "") == "effective_rt"
-                                   for v in a.values)
-                           for a in n.args)]
-    assert impressions, "plus aucune impression du jeton — mettre ce test à jour"
-    # chacune doit vivre sous une condition qui interroge argv
-    for n in impressions:
-        parents = [p for p in ast.walk(arbre) if isinstance(p, ast.If)
-                   and any(x is n for x in ast.walk(p))]
-        assert any("argv" in ast.unparse(p.test) for p in parents), (
-            f"l'impression du refresh_token (l.{n.lineno}) n'est sous aucune condition "
-            "lisant `sys.argv`. Elle s'exécuterait dans un cron qui capture stdout.")

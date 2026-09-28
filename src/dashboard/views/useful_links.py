@@ -300,30 +300,11 @@ Si le DAG `meta_ads_api_daily` échoue → vérifier le token Instagram.
     # TAB 5 — DEBUG & SCRIPTS
     # ─────────────────────────────────────────────
     with tab_debug:
-        st.subheader(t("useful_links.sec_debug_dags", "Debug DAGs sans Airflow (local)"))
-        st.caption(t("useful_links.debug_caption",
-                     "Ces scripts reproduisent chaque DAG en local, sans Docker Airflow."))
-
-        debug_scripts = [
-            ("debug_spotify_api.py", "spotify_api_daily", t("useful_links.dbg_spotify", "Test collecte Spotify API")),
-            ("debug_youtube.py", "youtube_daily", t("useful_links.dbg_youtube", "Test collecte YouTube")),
-            ("debug_soundcloud.py", "soundcloud_daily", t("useful_links.dbg_soundcloud", "Test collecte SoundCloud")),
-            ("debug_instagram.py", "instagram_daily", t("useful_links.dbg_instagram", "Test collecte Instagram")),
-            ("debug_s4a.py", "upload_csv (page)", t("useful_links.dbg_s4a", "Test traitement CSV S4A")),
-            ("debug_apple_music.py", "upload_csv (page)",
-             t("useful_links.dbg_apple", "Test traitement CSV Apple Music")),
-            ("debug_meta_ads_api.py", "meta_ads_api_daily", t("useful_links.dbg_meta", "Test collecte Meta Ads API")),
-            ("debug_ml_scoring.py", "ml_scoring_daily", t("useful_links.dbg_ml", "Test scoring ML")),
-        ]
-
-        for script, dag_id, desc in debug_scripts:
-            st.markdown(f"**{desc}** (`{dag_id}`)")
-            st.code(f".venv/bin/python airflow/debug_dag/{script}", language="bash")
-
-        st.divider()
+        # R306 (2026-09-28) — the « Debug DAGs sans Airflow » list is gone with the 15
+        # `airflow/debug_dag/` scripts (archive/scripts/debug_dag/): nothing ran them. A task
+        # is replayed by calling its function, never by `tasks test` in production.
         st.subheader(t("useful_links.sec_util_scripts", "Scripts utilitaires"))
         _cmd(t("useful_links.cmd_migrate", "Appliquer les migrations manquantes en DB"), "make migrate")
-        _cmd(t("useful_links.cmd_manage_mapping", "Gérer le mapping artistes"), ".venv/bin/python scripts/manage_mapping.py")
         st.caption(t(
             "useful_links.util_caption",
             "Spotify (client_credentials) et YouTube (clé API statique) "

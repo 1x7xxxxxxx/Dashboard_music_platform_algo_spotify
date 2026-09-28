@@ -57,7 +57,6 @@ src/
 
 airflow/
   dags/         # Production DAGs (live-mounted)
-  debug_dag/    # Standalone debug scripts (one per DAG)
 ```
 
 ### Database
@@ -91,7 +90,6 @@ make test           # La barrière avant de livrer — mêmes drapeaux que la CI
 make test-docs      # Après avoir touché un document généré
 
 # Un fichier précis reste direct : .venv/bin/python -m pytest tests/test_x.py -q
-python airflow/debug_dag/debug_<name>.py          # Run a DAG locally without Airflow
 ```
 
 ### Le temps de la suite — ce que chaque cible coûte
@@ -212,8 +210,7 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 
 ### Adding a New DAG
 1. Create `airflow/dags/<name>.py` with `sys.path.insert(0, '/opt/airflow')` at top.
-2. Create `airflow/debug_dag/debug_<name>.py` for local testing.
-3. `default_args`: owner, `depends_on_past=False`, `retries=2`, `retry_delay=timedelta(minutes=10)`.
+2. `default_args`: owner, `depends_on_past=False`, `retries=2`, `retry_delay=timedelta(minutes=10)`.
 → Full patterns (credentials, in-task imports, failure callback): `.claude/skills/airflow-dag/SKILL.md`
 
 ## Development tooling
@@ -500,7 +497,7 @@ a file that had not existed for weeks.
 | Skill | Use when |
 |---|---|
 | `dashboard-view/` | Implementing a new Streamlit view from scratch |
-| `airflow-dag/` | Creating a new DAG or debug_dag |
+| `airflow-dag/` | Creating a new DAG |
 | `db-schema/` | Designing a new table or migration |
 | `response-protocol/` | Detailed audit rules — `disable-model-invocation: true`, so **manual only** (`/review-*`) |
 | `audit-collectors/` | Silent success anti-pattern rules — load when touching collectors |

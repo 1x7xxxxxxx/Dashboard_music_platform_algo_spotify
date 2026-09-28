@@ -159,19 +159,8 @@ If the `meta_ads_api_daily` DAG fails → check the Instagram token.
 **Related DAG**: `meta_ads_api_daily`
 """,
     # TAB 5 — debug & scripts
-    "useful_links.sec_debug_dags": "Debug DAGs without Airflow (local)",
-    "useful_links.debug_caption": "These scripts reproduce each DAG locally, without Docker Airflow.",
-    "useful_links.dbg_spotify": "Test Spotify API collection",
-    "useful_links.dbg_youtube": "Test YouTube collection",
-    "useful_links.dbg_soundcloud": "Test SoundCloud collection",
-    "useful_links.dbg_instagram": "Test Instagram collection",
-    "useful_links.dbg_s4a": "Test S4A CSV processing",
-    "useful_links.dbg_apple": "Test Apple Music CSV processing",
-    "useful_links.dbg_meta": "Test Meta Ads API collection",
-    "useful_links.dbg_ml": "Test ML scoring",
     "useful_links.sec_util_scripts": "Utility scripts",
     "useful_links.cmd_migrate": "Apply missing DB migrations",
-    "useful_links.cmd_manage_mapping": "Manage artist mapping",
     "useful_links.util_caption": (
         "Spotify (client_credentials) and YouTube (static API key) "
         "have no auth script: test from Dashboard → "

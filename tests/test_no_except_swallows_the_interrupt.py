@@ -26,9 +26,9 @@ That is `collector-silent-success` — an entire family of guards, a cross-cutti
 (#6) and a dedicated AST auditor — **caused by a bare except**, fixed twice at the
 call site, and never registered as a class of its own.
 
-The live sites found on 2026-09-03: `scripts/manage_mapping.py` ×3 (an operator tool
+The live sites found on 2026-09-03: `archive/scripts/scripts/manage_mapping.py` ×3 (an operator tool
 that writes the Meta mapping table, where swallowing Ctrl-C means an interactive
-prompt cannot be aborted) and `airflow/debug_dag/debug_s4a.py` ×1, which logged
+prompt cannot be aborted) and `archive/scripts/debug_dag/debug_s4a.py` ×1, which logged
 « Impossible de créer le dossier » without ever saying why.
 
 ## Why the AST and not a grep

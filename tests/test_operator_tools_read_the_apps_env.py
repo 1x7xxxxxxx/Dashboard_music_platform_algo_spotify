@@ -58,7 +58,6 @@ DOCS = (
 # variable, pas de réseau. Deux exécutions sur le même arbre rendent le même verdict,
 # et c'est cette propriété qui le rend utilisable comme signature.
 _NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render_html.py",
-           "tools/dev/make_avatar_gif.py",
            "tools/dev/architecture_dossier/main.py",
            "tools/dev/gold_coverage.py",
            "tools/dev/check_container_bind_address.py",

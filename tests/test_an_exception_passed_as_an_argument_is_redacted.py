@@ -192,7 +192,7 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
 # `name=value`, la forme d'une chaîne de requête, et tout ce qui porte un secret sans
 # `=` — un en-tête `Authorization`, un corps JSON, un mot de passe dans l'userinfo
 # d'une URL — passait intact. Le cas le plus net vivait dans l'arbre :
-# `airflow/debug_dag/debug_meta_token_refresh.py:159` fait
+# `archive/scripts/debug_dag/debug_meta_token_refresh.py:159` fait
 # `redact(data.get('error', data))` sur un DICT, dont le `str()` est
 # `{'access_token': '…'}`.
 #

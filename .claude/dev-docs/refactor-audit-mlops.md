@@ -16,7 +16,7 @@ and `airflow/dags/ml_scoring_daily.py` :
 | Features | `FEATURE_COLUMNS` in `ml_inference.py:38` | 13 features, hardcoded list |
 | Versioning | `MODEL_VERSION = "v1_noscaler"` | Single string constant, manual bump |
 | Scoring DAG | `airflow/dags/ml_scoring_daily.py` | Runs daily, upserts `ml_song_predictions` |
-| Debug DAG | `airflow/debug_dag/debug_ml_scoring.py` | Local exec mirror |
+| Debug DAG | `archive/scripts/debug_dag/debug_ml_scoring.py` | Local exec mirror |
 | Cache | `_model_cache` dict in `ml_inference.py:56` | In-process model cache |
 | Prediction sink | `ml_song_predictions` table | Per-song predictions, joined with scoring inputs |
 

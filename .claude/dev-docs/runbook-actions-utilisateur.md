@@ -228,7 +228,7 @@ plus de passer `_dmarc.streamlytics.fr` de `p=none` (état vérifié le 2026-08-
 **Le geste, s'il faut le refaire** :
 
 ```bash
-python3 tools/dev/make_avatar_gif.py     # → assets/brand/avatar_streamlytics.gif
+python3 archive/scripts/tools/dev/make_avatar_gif.py     # → assets/brand/avatar_streamlytics.gif
 ```
 
 256×256, 24 frames, 35 KB, dérivé de `src/dashboard/assets/logo_mark.svg`. Puis, sur le
@@ -1071,7 +1071,7 @@ rougisse sur les scripts déjà joués.
 
 ### 16.5 — Un refresh_token SoundCloud imprimé en clair sur la sortie standard
 
-`airflow/debug_dag/debug_soundcloud_oauth.py:117` fait `print(f"\n   {effective_rt}\n")`.
+`archive/scripts/debug_dag/debug_soundcloud_oauth.py:117` fait `print(f"\n   {effective_rt}\n")`.
 
 **Ce n'est pas une escalade** : c'est délibéré, le runbook OAuth frappe le jeton et
 demande de le coller dans le dashboard, et l'opérateur le détient déjà. Le reste de ce
@@ -1083,7 +1083,7 @@ d'un sous-processus dans un fichier de log ET dans un corps de mail**
 enveloppé de la même façon, le jeton est persisté sur disque et posté.
 
 ```bash
-grep -n "print(f\"\\n   {effective_rt}" airflow/debug_dag/debug_soundcloud_oauth.py
+grep -n "print(f\"\\n   {effective_rt}" archive/scripts/debug_dag/debug_soundcloud_oauth.py
 grep -n "2>&1\|tee\|\$(" tools/schema_drift_cron.sh tools/infra_health_cron.sh | head
 ```
 

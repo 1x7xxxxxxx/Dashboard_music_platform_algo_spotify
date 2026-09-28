@@ -48,7 +48,7 @@ host has varied across API versions; the token endpoint is fixed to
 ## Step 2 — GO / NO-GO
 
 Run the printed command (it sets the 4 env vars and runs
-`airflow/debug_dag/debug_soundcloud_oauth.py`):
+`archive/scripts/debug_dag/debug_soundcloud_oauth.py`):
 
 - `✅ GO` → a track has `likes_count > 0` via the user token → proceed.
 - `❌ NO-GO` → the user token still returns 0 (account/app limitation). Do

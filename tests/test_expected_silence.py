@@ -283,22 +283,6 @@ def test_the_reason_survives_the_xcom_hop() -> None:
     )
 
 
-def test_the_debug_script_does_not_print_a_quiet_source_as_ok() -> None:
-    """Found by sweeping the class, not by looking at the bug: a fourth surface.
-
-    `airflow/debug_dag/debug_alert_monitor.py` is what someone runs when they
-    already suspect something — printing `✅ OK (16577h)` there is the worst place
-    of all four to reassure them.
-    """
-    dbg = ast.parse((ROOT / "airflow/debug_dag/debug_alert_monitor.py")
-                    .read_text(encoding="utf-8"))
-    branches = [n for n in ast.walk(dbg)
-                if isinstance(n, ast.If) and "expected_silence" in ast.unparse(n.test)]
-    assert branches, (
-        "the debug freshness loop renders `not stale` as OK with no expected-silence "
-        "branch, so it prints a green line beside a two-year-old row."
-    )
-
 
 class _TenantDB:
     """Une base qui répond À LA QUESTION POSÉE, et non la même ligne à tout.

@@ -25,6 +25,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "archive" / "README.md"
 HISTORY = {"DEVLOG.md", ".claude/dev-docs/DEVLOG.md", ".claude/dev-docs/roadmap/archive.md",
            ".test_durations", "archive/README.md"}
+#: This file quotes the defects it catches (a moved path in a comment) — it is not a pointer.
+_SELF = Path(__file__).resolve().relative_to(ROOT).as_posix()
 _ROW = re.compile(r"^\| `([^`]+)` \| `([^`]+)` \|", re.M)
 
 
@@ -39,11 +41,19 @@ def unindexed(archived: list[str], rows: dict[str, str]) -> list[str]:
 
 def stale_pointers(rows: dict[str, str], texts: dict[str, str]) -> list[str]:
     """`live file → old path` for every live file still naming an archived file's old path."""
-    out = []
+    # A WHOLE path, never a suffix of a longer one: `scripts/backup_db.sh` is also the tail of
+    # its own new home `archive/scripts/scripts/backup_db.sh` — matched as a substring, every
+    # correctly repointed line read as stale (2026-09-28, R306).
+    olds = sorted(set(rows.values()), key=len, reverse=True)
+    if not olds:
+        return []
+    # ONE alternation, longest first: 90 patterns × 1 700 files took 29 s one by one.
+    pat = re.compile(r"(?<![\w/.-])(" + "|".join(map(re.escape, olds)) + r")")
+    out = set()
     for f, text in texts.items():
-        if f in HISTORY or f.startswith("archive/"):
+        if f in HISTORY or f.startswith("archive/") or f == _SELF:
             continue
-        out += [f"{f} → {old}" for old in rows.values() if old in text]
+        out |= {f"{f} → {m}" for m in pat.findall(text)}
     return sorted(out)
 
 
@@ -87,3 +97,7 @@ def test_the_detectors_see_what_they_are_written_for_not_vacuous() -> None:
     texts = {"CLAUDE.md": "see .claude/dev-docs/a.md", "DEVLOG.md": ".claude/dev-docs/a.md",
              "archive/docs/x.md": ".claude/dev-docs/a.md", "tools/y.sh": "nothing"}
     assert stale_pointers(rows, texts) == ["CLAUDE.md → .claude/dev-docs/a.md"]
+    nested = {"archive/scripts/scripts/b.sh": "scripts/b.sh"}
+    assert stale_pointers(nested, {"x.md": "see `archive/scripts/scripts/b.sh`"}) == [], \
+        "the new path contains the old one as a suffix — not a stale pointer"
+    assert stale_pointers(nested, {"x.md": "run `scripts/b.sh`"}) == ["x.md → scripts/b.sh"]

@@ -69,3 +69,30 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/scripts/legacy_meta_csv/meta_insight_csv_parser.py` | `archive/legacy_meta_csv/meta_insight_csv_parser.py` | ancienne chaîne CSV Meta, remplacée par `src/collectors/meta_ads_api_collector.py` | 2026-09-28 |
 | `archive/scripts/legacy_meta_csv/meta_insight_watcher.py` | `archive/legacy_meta_csv/meta_insight_watcher.py` | ancienne chaîne CSV Meta, remplacée par `src/collectors/meta_ads_api_collector.py` | 2026-09-28 |
 | `archive/scripts/legacy_meta_csv/meta_insights_dag.py` | `archive/legacy_meta_csv/meta_insights_dag.py` | ancienne chaîne CSV Meta, remplacée par `src/collectors/meta_ads_api_collector.py` | 2026-09-28 |
+| `archive/docs/dev-docs/GANTT.md` | `.claude/dev-docs/GANTT.md` | sortie de `generate-dev-docs.py`, archivé avec lui | 2026-09-28 |
+| `archive/scripts/claude-scripts/run_tests.sh` | `.claude/scripts/run_tests.sh` | se disait appelé par un hook Stop ; aucun hook ne l'appelle | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_alert_monitor.py` | `airflow/debug_dag/debug_alert_monitor.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_apple_music.py` | `airflow/debug_dag/debug_apple_music.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_data_quality_check.py` | `airflow/debug_dag/debug_data_quality_check.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_instagram.py` | `airflow/debug_dag/debug_instagram.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_meta_ads_api.py` | `airflow/debug_dag/debug_meta_ads_api.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_meta_token_refresh.py` | `airflow/debug_dag/debug_meta_token_refresh.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_ml_outcome_labeling.py` | `airflow/debug_dag/debug_ml_outcome_labeling.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_ml_scoring.py` | `airflow/debug_dag/debug_ml_scoring.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_onboarding_report.py` | `airflow/debug_dag/debug_onboarding_report.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_s4a.py` | `airflow/debug_dag/debug_s4a.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_soundcloud.py` | `airflow/debug_dag/debug_soundcloud.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_soundcloud_oauth.py` | `airflow/debug_dag/debug_soundcloud_oauth.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_spotify_api.py` | `airflow/debug_dag/debug_spotify_api.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_weekly_digest.py` | `airflow/debug_dag/debug_weekly_digest.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/debug_dag/debug_youtube.py` | `airflow/debug_dag/debug_youtube.py` | miroir de DAG lancé à la main ; rien ne le lançait (décision du propriétaire, R306) | 2026-09-28 |
+| `archive/scripts/scripts/backup_db.sh` | `scripts/backup_db.sh` | remplacé par `tools/db_backup.sh` (ancien chemin `/opt/music-dashboard`, pas de copie hors-site) | 2026-09-28 |
+| `archive/scripts/scripts/manage_mapping.py` | `scripts/manage_mapping.py` | outil d'opérateur que rien ne lance (R306) | 2026-09-28 |
+| `archive/scripts/scripts/test_email.py` | `scripts/test_email.py` | outil d'opérateur que rien ne lance (R306) | 2026-09-28 |
+| `archive/scripts/tools/dev/figure_vs_aggregation_cost.py` | `tools/dev/figure_vs_aggregation_cost.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
+| `archive/scripts/tools/dev/lazy_body_cost.py` | `tools/dev/lazy_body_cost.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
+| `archive/scripts/tools/dev/make_avatar_gif.py` | `tools/dev/make_avatar_gif.py` | outil à usage unique, fait (R54, avatar posé) | 2026-09-28 |
+| `archive/scripts/tools/dev/profile_view_in_thread.py` | `tools/dev/profile_view_in_thread.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
+| `archive/scripts/tools/dev/pytest_peak_memory.py` | `tools/dev/pytest_peak_memory.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
+| `archive/scripts/tools/dev/view_rerun_cost.py` | `tools/dev/view_rerun_cost.py` | outil de mesure à usage ponctuel (déclaré dans son en-tête) | 2026-09-28 |
+| `archive/scripts/tools/generate-dev-docs.py` | `tools/generate-dev-docs.py` | générateur de docs dont toutes les cibles sont retirées ; rien ne le lance | 2026-09-28 |
