@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R295 | **Exporter la gouvernance vers la flotte, pour MSDR d'abord** (demande du propriétaire, 2026-09-28) : preset `governance` du dépôt baseline (roadmap avant le code, exigences sondées + méthode de garantie, couches bronze/argent/or), preset `error-classes` mis à jour (admission, prose, closest), export des classes génériques, fiche de passation écrite dans MSDR ; les chemins produit et l'en-tête d'index sortent du code vers `.claude/governance.toml` <!-- anchor: r295 --> <!-- critic: requis — portage de gardes vers d'autres dépôts --> <!-- scope: tools/dev, .claude/dev-docs --> | P3 | les deux presets passent leur contrôle sur un dépôt vide, chaque garde vue rouge |
 | R294 | **Fiche 46 non rendue sur l'instantané du 2026-09-28** (« Quand la pub aura-t-elle été remboursée ? », `_tab_budget_roi._render_breakeven`) : le dossier n'a ni image ni cause déclarée — trouver pourquoi la figure ne se dessine pas par défaut (donnée qui ne permet pas de point mort, ou branche non atteinte) et le dire sur la fiche <!-- anchor: r294 --> <!-- critic: non — enquête --> <!-- scope: src/dashboard/views/trigger_algo, tools/dev/charts_dossier --> | P3 | fiche 46 rendue, ou sa cause écrite |
 | R293 | **La qualité du modèle, semaine par semaine** (recommandation du corpus retenue par le code-critic en R292 — Crowe et al., p. 322) : les fiches 51 et 58 comparent la dernière prédiction de chaque titre à son constat, jamais une TENDANCE ; une figure « erreur de prévision par semaine de prédiction » (ml_song_predictions × s4a_song_algo_outcomes) sous `_show_volume_vs_recorded`, avant de vendre davantage de prédictions (ADR-029). Densité mesurée le 2026-09-28 : 607 prédictions sur 9 semaines pour l'artiste 1 — une série mince, à dire sur la figure <!-- anchor: r293 --> <!-- critic: requis — forme et seuil de la série --> <!-- scope: src/dashboard/views/trigger_algo, src/dashboard/utils --> | P3 | une ligne par semaine présente ; test sur trois semaines synthétiques |
 | R287 | **Les logos sortent en carrés dans toute image exportée** (fiches 1, 17) : aucune police emoji ni sur le poste ni dans le conteneur de prod, donc 🎵 🎬 🚀 deviennent des carrés dans le dossier ET dans le PDF artiste (☁️ passe, elle existe dans les polices ordinaires) — police emoji dans les images, balayage de chaque emoji des figures — **reste** : rebâtir l'image Airflow (`Dockerfile.airflow`, PDF du DAG onboarding_report) quand aucune collecte ne tourne ; l'image du dashboard l'a au déploiement <!-- anchor: r287 --> <!-- critic: non — police manquante --> <!-- scope: Dockerfile, Dockerfile.api, src/dashboard --> | P3 | aucun carré sur les figures du dossier ; `fc-list` voit une police emoji dans le conteneur |
@@ -89,7 +88,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R295, R294, R293, R287, R282, R283, R275 -->
+<!-- reprise: open=R294, R293, R287, R282, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

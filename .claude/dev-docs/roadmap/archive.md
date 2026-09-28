@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R295 — **Exporter la gouvernance vers la flotte, pour MSDR d'abord** (demande du propriétaire,… (livrée 2026-09-28)
+
+- [x] **R295 — **Exporter la gouvernance vers la flotte, pour MSDR d'abord** (demande du propriétaire, 2026-09-28) : preset `governance` du dépôt baseline (roadmap avant le code, exigences sondées + méthode de garantie, couches bronze/argent/or), preset `error-classes` mis à jour (admission, prose, closest), export des classes génériques, fiche de passation écrite dans MSDR ; les chemins produit et l'en-tête d'index sortent du code vers `.claude/governance.toml`** (P3) ✅ (2026-09-28, d2dcd6df)
+  Mesuré par : les deux presets passent leur contrôle sur un dépôt vide, chaque garde vue rouge
+  preset governance du baseline (a65348a, 5afb6d5 sur fleet-config-audit, non pousse) : roadmap avant le code, exigences sondees, modele d ADR des couches, export des classes generiques en propositions ; check_preset_governance 4/4, disposition MSDR verifiee ; fiche de passation posee dans MSDR, prompt et goal remis au proprietaire
+  Commits : d2dcd6df R295 : la gouvernance de streamlytics exportee vers le parc - preset g
+
 ## ✅ R290 — **Cinq figures à redessiner** (tes remarques) : fiche 4 (28 derniers jours invisibles f… (livrée 2026-09-28)
 
 - [x] **R290 — **Cinq figures à redessiner** (tes remarques) : fiche 4 (28 derniers jours invisibles face au cumul), fiche 5 (sauvegardes et ajouts en aires sur un 2ᵉ axe, filtre par titre), fiche 10 (écoutes + likes + reposts + commentaires SoundCloud sur UN graphique, sans base 100), fiche 13 (vues, likes et vues par like sur un graphique, comportements séparés), fiche 15 (autre forme)** (P3) ✅ (2026-09-28, 7e74cda5, 29adb8e1)
