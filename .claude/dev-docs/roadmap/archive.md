@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R310 — Ce que l'inventaire a trouvé hors des scripts : (a) 3 scripts de prod (`infra_health_cr… (livrée 2026-09-28)
+
+- [x] **R310 — Ce que l'inventaire a trouvé hors des scripts : (a) 3 scripts de prod (`infra_health_cron.sh`, `schema_drift_cron.sh`, `airflow_db_clean.sh`) dépendent d'une crontab du serveur que le dépôt ne versionne pas → la versionner et la vérifier au déploiement ; (b) le produit charge des outils de `tools/` à l'exécution (`gold_invariants.py` → `src/utils/metric_registry.py`, `alert_monitor.py` → deux modules `tools/`) alors qu'un commentaire du même DAG dit l'inverse → le registre descend dans `src/`, le commentaire est corrigé ; (c) pointeurs périmés (`check_prod_sync.py:57` nomme un document retiré)** (P3) ✅ (2026-09-28, e9706e89)
+  Mesuré par : crontab du serveur = crontab du dépôt ; aucun import de tools/ depuis src/
+  crontab de prod versionnee et comparee par sync-check (identique), registre des metriques dans src/utils (34 objets lus en prod), commentaire faux d alert_monitor corrige, check_prod_sync reecrit pour ce depot ; deploye 43c7dd6a, CI verte, 0 erreur d import DAG
+  Commits : e9706e89 R310 : ce que l inventaire a trouve hors des scripts - (a) la crontab 
+
 ## ✅ R309 — Scalabilité produit (ta demande du 2026-09-28, après l'outillage) : `tools/tenant_conta… (livrée 2026-09-28)
 
 - [x] **R309 — Scalabilité produit (ta demande du 2026-09-28, après l'outillage) : `tools/tenant_contamination_check.py` lance 2 requêtes par artiste × plateforme × table chaque nuit dans `alert_monitor` → une requête groupée par table pour tous les locataires ; même revue pour les autres contrôles nocturnes par locataire** (P3) ✅ (2026-09-28, f4754b7c)

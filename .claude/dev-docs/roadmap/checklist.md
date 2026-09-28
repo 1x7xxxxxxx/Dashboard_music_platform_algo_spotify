@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R310 | Ce que l'inventaire a trouvé hors des scripts : (a) 3 scripts de prod (`infra_health_cron.sh`, `schema_drift_cron.sh`, `airflow_db_clean.sh`) dépendent d'une crontab du serveur que le dépôt ne versionne pas → la versionner et la vérifier au déploiement ; (b) le produit charge des outils de `tools/` à l'exécution (`gold_invariants.py` → `src/utils/metric_registry.py`, `alert_monitor.py` → deux modules `tools/`) alors qu'un commentaire du même DAG dit l'inverse → le registre descend dans `src/`, le commentaire est corrigé ; (c) pointeurs périmés (`check_prod_sync.py:57` nomme un document retiré) <!-- critic: requis --> <!-- scope: tools/, src/, airflow/dags/, deploy/, .claude/hooks/, tests/ --> | P3 | crontab du serveur = crontab du dépôt ; aucun import de tools/ depuis src/ |
+| R312 | Page S4A combinée : `test_a_rendered_figure_is_laid_out[spotify_s4a_combined]` rouge sur la base locale (deux rangées de figures de hauteurs inégales, 640 et 720 px) — antérieur à R305-R311 (rouge aussi sur un HEAD propre, 2026-09-28), invisible en CI qui saute les rendus sans base ; regarder la page, corriger la hauteur ou déclarer l'exception <!-- critic: non — mise en page d'une vue --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> | P3 | le test vert sur la base locale |
 
 ---
 
@@ -86,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R310, R283, R275 -->
+<!-- reprise: open=R312, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
