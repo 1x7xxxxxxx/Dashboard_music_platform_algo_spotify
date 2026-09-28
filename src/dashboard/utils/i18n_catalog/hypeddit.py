@@ -43,4 +43,5 @@ EN = {
     "hypeddit.rings_capped": "Rings: the {k} most recent campaigns; {h} older one(s) stay in the detail.",
     "hypeddit.ring_visits": "visits",
     "hypeddit.ring_clicks": "clicks",
+    "hypeddit.ring_meta": "Meta ads ±14 d: {eur} €",
 }

@@ -14,8 +14,8 @@ RECAP: tuple[tuple[str, str, int], ...] = (
     ('Le titre choisi est-il encore écouté, encore vu par Spotify ; mon audience grandit-elle ?', 'spotify_s4a_combined', 13),
     ("Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ?", 'imusician', 12),
     ('Ma communauté Instagram grandit-elle ?', 'instagram', 12),
+    ("Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?", 'meta_ads_overview', 12),
     ("Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?", 'meta_ads_overview', 12),
     ('Où ma pub a-t-elle dépensé, dans le monde ?', 'meta_breakdowns', 12),
     ('Les créas avec « hook » coûtent-elles moins cher que sans ?', 'meta_creatives', 12),
-    ("Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?", 'meta_x_spotify', 12),
 )

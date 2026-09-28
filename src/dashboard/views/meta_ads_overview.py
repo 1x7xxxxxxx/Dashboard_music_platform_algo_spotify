@@ -130,8 +130,9 @@ _PERF_PANNEAUX = [
 ]
 
 
-def _waves_and_verdicts(db, artist_id) -> list:
-    """[(wave, names, verdict)] on daily Spotify STREAMS, oldest first — gold reads only."""
+def _waves_and_verdicts(db, artist_id) -> tuple[list, pd.Series | None]:
+    """([(wave, names, verdict)], the daily streams series) on Spotify STREAMS, oldest
+    first — gold reads only. The series also draws the curve around each wave (R301)."""
     import datetime as _dt
 
     from src.dashboard.utils import meta_impact
@@ -141,13 +142,13 @@ def _waves_and_verdicts(db, artist_id) -> list:
                           "WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY day",
                           (artist_id, "%1x7xxxxxxx%"))
     if spend.empty or streams.empty:
-        return []
+        return [], None
     series = streams.set_index(pd.to_datetime(streams["day"]))["streams"].astype(float)
     grouped = meta_impact.waves(meta_impact.campaigns(spend))
     everyone = [w for w, _ in grouped]
     today = _dt.date.today()
     return [(w, names, meta_impact.verdict_for(w, everyone, series, today, meta_impact.STREAMS))
-            for w, names in grouped]
+            for w, names in grouped], series
 
 
 def _render_campaign_waves(db, artist_id) -> None:
@@ -159,7 +160,7 @@ def _render_campaign_waves(db, artist_id) -> None:
     and gets the SAME refusals as the listener verdict of the Meta × Spotify page — running,
     too few measured days, a lift inside the day-to-day noise (code-critic, 2026-09-28)."""
     from plotly.subplots import make_subplots
-    rows = _waves_and_verdicts(db, artist_id)
+    rows, series = _waves_and_verdicts(db, artist_id)
     if not rows:
         return
     # Folded (the page's first-screen ceiling, Few): it refines the decision the per-campaign
@@ -197,6 +198,7 @@ def _render_campaign_waves(db, artist_id) -> None:
                           margin={"l": 10, "r": 60, "t": 50, "b": 20})
         fig.update_yaxes(automargin=True)
         charts.plotly_chart(fig, width="stretch")
+        _render_wave_curves(rows, series)
         judged = sum(1 for _, _, v in rows if v.conclusive)
         st.caption(t("meta_ads_overview.waves_caption",
                      "Une VAGUE regroupe les campagnes qui se chevauchent ou se suivent à moins "
@@ -207,6 +209,44 @@ def _render_campaign_waves(db, artist_id) -> None:
                      "souvent avec une sortie : c'est une association, pas la preuve que la pub "
                      "a causé ces écoutes. {j} vague(s) sur {n} jugée(s).").format(
                          j=judged, n=len(rows)))
+
+
+def _render_wave_curves(rows: list, series: pd.Series | None) -> None:
+    """R301 — the owner's R282, proposal B kept on my recommendation (2026-09-28): the
+    streams AROUND each wave, as an index (100 = the 28 days before it). The only figure
+    saying how long an effect lasts — hence when to judge a campaign and when to relaunch.
+
+    Same waves and same baseline floor as the verdict above (`meta_impact.event_study`),
+    never a second definition. A curve that rises BEFORE day 0 is a release, not the ads."""
+    from src.dashboard.utils import meta_impact
+    from src.dashboard.utils.platform_colors import DISTINCT
+    if series is None:
+        return
+    es = meta_impact.event_study(
+        series, [(f"{w.start:%d/%m/%y} · {len(n)} camp.", w.start) for w, n, _ in rows])
+    if es.empty:
+        return
+    fig = go.Figure()
+    for i, (lab, g) in enumerate(es.groupby("wave", sort=False)):
+        fig.add_trace(go.Scatter(x=g["offset"], y=g["index"], mode="lines", name=lab,
+                                 line=dict(color=DISTINCT[i % len(DISTINCT)], width=2)))
+    fig.add_hline(y=100, line_dash="dot", line_color="#999")
+    fig.add_vline(x=0, line_dash="dash", line_color="#999")
+    fig.update_layout(
+        height=380, legend=dict(orientation="h", y=-0.3, x=0),
+        title=t("meta_ads_overview.curve_title",
+                "Les écoutes autour de chaque vague — combien de temps l'effet dure"),
+        xaxis_title=t("meta_ads_overview.curve_x",
+                      "jours depuis le début de la vague (0 = premier euro)"),
+        yaxis_title=t("meta_ads_overview.curve_y", "écoutes / jour (100 = les 28 jours avant)"))
+    charts.plotly_chart(fig, width="stretch")
+    dropped = len(rows) - es["wave"].nunique()
+    st.caption(t(
+        "meta_ads_overview.curve_caption",
+        "100 = la moyenne des 28 jours avant la vague. Une courbe qui monte AVANT le jour 0 "
+        "est une sortie, pas la pub. {d} vague(s) sans base mesurée (moins de 10 écoutes par "
+        "jour avant elle) ne sont pas tracées : un indice n'y voudrait rien dire."
+    ).format(d=dropped))
 
 
 def _render_global_perf(df_perf: pd.DataFrame) -> None:

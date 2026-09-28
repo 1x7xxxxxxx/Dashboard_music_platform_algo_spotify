@@ -175,7 +175,7 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   v: garder
   owner_v: corriger
   owner: "OK. Sur la fiche 17, le logo en carré dans le titre du rond n'a pas pris. Trouve pourquoi et fais l'analyse de tous les logos qui sont des carrés."
-  note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée."
+  note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée. R301 (ta R282, proposition D) : sous chaque anneau, la pub Meta dépensée à ±14 jours de la sortie — regardée le 2026-09-28 (« pub Meta ±14 j : 817 € » sous Ô Chiotte)."
 src/dashboard/views/imusician.py::show#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
   role: business
@@ -206,6 +206,15 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   p: 4
   v: garder
   note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
+src/dashboard/views/meta_ads_overview.py::_render_wave_curves#1:
+  q: "Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?"
+  role: meta
+  mq: M4
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R301 (ta R282, proposition B, gardée sur ma reco) : regardée le 2026-09-28. Deux vagues tracées (02/04/24 et 27/06/24), la troisième écartée faute de base mesurée. La vague du 02/04/24 monte AVANT le jour 0 : c'est la sortie, pas la pub — la légende le dit. Premier rendu dans l'app en zig-zag (jours non triés par la requête) : corrigé dans event_study, garde muté rouge."
 src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   mq: M4
   q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"

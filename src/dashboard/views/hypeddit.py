@@ -219,7 +219,12 @@ def _render_global_stats(db):
     df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce')
     df['date'] = pd.to_datetime(df['date'])
 
-    _render_campaign_series(df, window)
+    # R301 (R282 proposal D, 2026-09-28) — the Meta spend around each campaign's release: the
+    # rings already carry visits, clicks and conversion per campaign, so the proposal's ONE
+    # new fact goes under each ring instead of a second chart repeating the first (R299).
+    spend = db.fetch_df("SELECT day, SUM(spend) AS spend FROM v_meta_daily "
+                        "WHERE artist_id = %s GROUP BY day", (artist_id,))
+    _render_campaign_series(df, window, spend)
 
 
 _MAX_RINGS = 12  # two rows of six rings (R245); the caption names what is left out
@@ -239,7 +244,7 @@ def _short(name, lines: int = 2, width: int = 16) -> str:
     return "<br>".join(out[:lines]) + ("…" if len(out) > lines else "")
 
 
-def _render_campaign_series(df, window) -> None:
+def _render_campaign_series(df, window, spend=None) -> None:
     """Visites, clics et taux de conversion — par CAMPAGNE, sur l'axe du temps.
 
     REMPLACE LES DEUX TUILES DE MOYENNE, et la raison est dans la donnée.
@@ -291,6 +296,10 @@ def _render_campaign_series(df, window) -> None:
     # pertinent ; la valeur totale de chaque en étiquette ») — les barres de volume
     # disparaissent : chaque campagne est UN anneau, son taux au centre, ses totaux dessous.
     ringed = par_camp[taux.notna()].tail(_MAX_RINGS)
+    if spend is not None and not spend.empty:
+        from src.dashboard.utils.meta_impact import spend_around
+        ringed = ringed.assign(meta=[spend_around(spend, pd.Timestamp(d).date())
+                                     for d in ringed['jour']])
     charts.plotly_chart(rings_figure(ringed, taux, window), width="stretch")
     hidden = int(taux.notna().sum()) - len(ringed)
     if hidden > 0:
@@ -441,11 +450,15 @@ if __name__ == "__main__":
     show()
 
 
-def ring_label(name: str, visits: float, clicks: float) -> str:
-    """The text under a ring: the campaign, then its TOTALS (fiche 17). Pure."""
+def ring_label(name: str, visits: float, clicks: float, meta: float | None = None) -> str:
+    """The text under a ring: the campaign, its TOTALS (fiche 17), and the Meta spend in the
+    14 days on each side of its release when known (R301). Pure."""
     fmt = lambda v: num(v, 0)   # noqa: E731
-    return (f"{_short(name)}<br>{fmt(visits)} " + t("hypeddit.ring_visits", "visites")
-            + f" · {fmt(clicks)} " + t("hypeddit.ring_clicks", "clics"))
+    out = (f"{_short(name)}<br>{fmt(visits)} " + t("hypeddit.ring_visits", "visites")
+           + f" · {fmt(clicks)} " + t("hypeddit.ring_clicks", "clics"))
+    if meta is not None and pd.notna(meta):
+        out += "<br>" + t("hypeddit.ring_meta", "pub Meta ±14 j : {eur} €").format(eur=fmt(meta))
+    return out
 
 
 def rings_figure(ringed, taux, window):
@@ -471,10 +484,11 @@ def rings_figure(ringed, taux, window):
         dom = fig.data[i].domain
         fig.add_annotation(x=(dom.x[0] + dom.x[1]) / 2, y=dom.y[0] - 0.02, xref="paper",
                            yref="paper", showarrow=False, yanchor="top", xanchor="center",
-                           align="center", text=ring_label(row['campaign_name'], v, c),
+                           align="center", text=ring_label(row['campaign_name'], v, c,
+                                                           row.get('meta')),
                            font=dict(size=11))
     fig.update_layout(
-        height=300 * rows + 60, margin=dict(t=70, b=70),
+        height=300 * rows + 80, margin=dict(t=70, b=90),
         legend=dict(orientation="h", y=-0.08),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
         .format(label=window.label))

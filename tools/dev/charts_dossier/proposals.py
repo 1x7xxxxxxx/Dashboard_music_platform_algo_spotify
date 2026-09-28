@@ -37,32 +37,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 ARTIST = 1
 MIN_POINTS = 3             # below this a figure is not drawn — the reason is printed instead
-BEFORE_DAYS = 28
-AFTER_DAYS = 42
-#: Below this average before a wave, an index is a division by almost nothing: the first
-#: wave of artist 1 started before its first release, and read « indice 1 332 800 ».
-MIN_BASE_PER_DAY = 10.0
-
-
-def event_study(series: pd.Series, starts: list[tuple[str, dt.date]],
-                before: int = BEFORE_DAYS, after: int = AFTER_DAYS,
-                min_base: float = MIN_BASE_PER_DAY) -> pd.DataFrame:
-    """Streams around each wave start, as an index (100 = the average of the `before` days
-    ahead of it), MEASURED days only. Columns: wave, offset (days), index. Pure."""
-    idx = pd.to_datetime(pd.Series(series.index)).dt.date
-    s = pd.Series(series.values, index=idx).dropna()
-    rows = []
-    for label, start in starts:
-        base = s[(s.index >= start - dt.timedelta(days=before)) & (s.index < start)]
-        if base.empty or base.mean() < min_base:
-            continue
-        win = s[(s.index >= start - dt.timedelta(days=before))
-                & (s.index <= start + dt.timedelta(days=after))]
-        rows += [{"wave": label, "offset": (d - start).days, "index": v / base.mean() * 100}
-                 for d, v in win.items()]
-    return pd.DataFrame(rows, columns=["wave", "offset", "index"])
-
-
 def streams_per_click(gained: float | None, clicks: float) -> float | None:
     """Streams gained for one link click on the ads — None when nothing was gained. Pure."""
     from src.dashboard.utils.ratios import per
@@ -102,31 +76,6 @@ def _label(w, names) -> str:
     return f"{w.start:%d/%m/%y} · {len(names)} camp."
 
 
-def _fig_curve(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import DISTINCT
-    waves = _waves()
-    es = event_study(_streams(), [(_label(w, n), w.start) for w, n, _ in waves])
-    dropped = len(waves) - es["wave"].nunique()
-    if es["wave"].nunique() < 1:
-        return {"reason": "aucune vague avec 28 jours d'écoutes mesurés avant elle"}
-    fig = go.Figure()
-    for i, (lab, g) in enumerate(es.groupby("wave", sort=False)):
-        fig.add_trace(go.Scatter(x=g["offset"], y=g["index"], mode="lines", name=lab,
-                                 line=dict(color=DISTINCT[i % len(DISTINCT)], width=2)))
-    fig.add_hline(y=100, line_dash="dot", line_color="#999")
-    fig.add_vline(x=0, line_dash="dash", line_color="#999")
-    fig.update_layout(xaxis_title="jours depuis le début de la vague (0 = premier euro)",
-                      yaxis_title="écoutes / jour (100 = les 28 jours avant)",
-                      legend=dict(orientation="h", y=-0.25, x=0))
-    peak = es[es["offset"] >= 0].sort_values("index", ascending=False).head(1)
-    note = (f" ; {dropped} vague(s) écartée(s) : moins de {MIN_BASE_PER_DAY:.0f} écoutes/jour "
-            "avant elles, un indice n'y voudrait rien dire") if dropped else ""
-    return {"fig": fig, "height": 420, "finding": (
-        f"{es['wave'].nunique()} vague(s) ; le plus haut : indice {peak['index'].iloc[0]:.0f} "
-        f"à J+{int(peak['offset'].iloc[0])} ({peak['wave'].iloc[0]})" + note) if not peak.empty
-        else f"{es['wave'].nunique()} vague(s){note}"}
-
 
 def _fig_clicks(out: Path) -> dict:
     import plotly.graph_objects as go
@@ -152,40 +101,18 @@ def _fig_clicks(out: Path) -> dict:
     return {"fig": fig, "finding": f"{len(judged)} vague(s) jugée(s) sur {len(rows)}"}
 
 
-def _fig_hypeddit(out: Path) -> dict:
-    import plotly.graph_objects as go
-    from src.dashboard.utils.platform_colors import platform_color
-    from src.dashboard.utils.ratios import per
-    hyp = _query("SELECT campaign_name, day, SUM(visits) AS visits, SUM(clicks) AS clicks "
-                 "FROM v_hypeddit_daily WHERE artist_id = %s GROUP BY 1, 2 ORDER BY 2",
-                 (ARTIST,))
-    if len(hyp) < MIN_POINTS:
-        return {"reason": f"{len(hyp)} campagne(s) Hypeddit — trop peu pour une figure"}
-    spend = _query("SELECT day, SUM(spend) AS spend FROM v_meta_daily WHERE artist_id = %s "
-                   "GROUP BY day", (ARTIST,))
-    spend["day"] = pd.to_datetime(spend["day"]).dt.date
-    # Hypeddit carries ONE total per campaign, dated on its release: Meta's spend is read on
-    # the 14 days on each side of that date.
-    hyp["meta"] = [float(spend[(spend["day"] >= d - dt.timedelta(days=14))
-                               & (spend["day"] <= d + dt.timedelta(days=14))]["spend"].sum())
-                   for d in pd.to_datetime(hyp["day"]).dt.date]
-    names = [n if len(n) <= 34 else n[:32] + "…" for n in hyp["campaign_name"]]
-    fig = go.Figure([
-        go.Bar(y=names, x=hyp["visits"], name="visites", orientation="h",
-               marker_color="#b0dde5"),
-        go.Bar(y=names, x=hyp["clicks"], name="clics vers les plateformes", orientation="h",
-               marker_color=platform_color("hypeddit"),
-               text=[f"{per(c, v, 100):.0f} % · pub autour : {m:,.0f} €".replace(",", " ")
-                     for c, v, m in zip(hyp["clicks"], hyp["visits"], hyp["meta"])],
-               textposition="outside", cliponaxis=False, textfont=dict(size=12))])
-    fig.update_layout(barmode="group", xaxis_title="par campagne", margin={"r": 180},
-                      legend=dict(orientation="h", y=-0.2, x=0))
-    fig.update_yaxes(automargin=True, autorange="reversed")
-    best = hyp.assign(rate=[per(c, v) for c, v in zip(hyp["clicks"], hyp["visits"])]
-                      ).sort_values("rate", ascending=False).iloc[0]
-    return {"fig": fig, "height": 420, "finding": (
-        f"{len(hyp)} campagnes ; meilleure conversion : « {best['campaign_name']} » "
-        f"({best['rate']:.0%})")}
+
+def _in_app_curve(out: Path) -> dict:
+    return {"reason": "intégrée le 2026-09-28 sur ma reco (R301) — page Meta Ads, repliée sous "
+                      "« Ce que chaque vague de campagnes a rapporté en écoutes » : voir sa fiche "
+                      "dans ce dossier"}
+
+
+def _in_app_hypeddit(out: Path) -> dict:
+    return {"reason": "intégrée le 2026-09-28 sur ma reco (R301) — page Hypeddit : sous chaque "
+                      "anneau de campagne, la pub Meta dépensée à ±14 jours de sa sortie. Les "
+                      "visites, clics et taux par campagne y étaient déjà ; un second graphique "
+                      "les aurait redits (R299)"}
 
 
 def _integrated(out: Path) -> dict:
@@ -203,29 +130,27 @@ PROPOSALS = [
      "P1 disait « le lien est le plus fort à J+3 » en barres de corrélation ; ici on voit la "
      "courbe elle-même. Aucune figure de l'app ne la montre : la page Meta × Spotify (base "
      "100) suit UNE campagne choisie, pas toutes les vagues superposées",
-     "v_meta_daily · v_s4a_song_daily · meta_impact.waves", _fig_curve),
+     "v_meta_daily · v_s4a_song_daily · meta_impact.waves", _in_app_curve),
     ("clics", "Combien de clics sur la pub font une écoute gagnée (nouvelle)",
      "si un clic payé se transforme en écoute — sinon, le coût par clic n'est pas le bon "
      "chiffre à optimiser", "v_meta_campaign_daily · v_s4a_song_daily · meta_impact",
      _fig_clicks),
     ("hypeddit", "P6 — Hypeddit par campagne : visites, clics vers les plateformes, et la pub "
      "Meta autour de chaque sortie", "le lien intelligent convertit-il, et la pub y amène-t-elle "
-     "du monde", "v_hypeddit_daily · v_meta_daily", _fig_hypeddit),
+     "du monde", "v_hypeddit_daily · v_meta_daily", _in_app_hypeddit),
 ]
 
 
 #: My recommendation on each proposal (R298) — the owner decides, the PDF says what I would do.
 RECO = {
     "campagnes": "déjà dans l'app (R291) : rien à décider.",
-    "courbe": "à garder si tu relances des campagnes — c'est la seule figure qui dit combien de "
-              "temps l'effet dure, donc quand juger une campagne. Elle irait sur la page Meta Ads, "
-              "sous le verdict par vague, repliée. Attention en la lisant : une courbe qui "
-              "monte AVANT le jour 0 est une sortie, pas la pub — c'est le cas de la vague du "
-              "02/04/24 sur l'instantané du 28/09.",
-    "clics": "à garder seulement si « combien me coûte une écoute via Meta » est TA question ; "
-             "tant que peu de vagues sortent du bruit, elle dira surtout « non concluant ».",
-    "hypeddit": "à garder : la seule vue qui compare tes campagnes Hypeddit entre elles "
-                "(conversion visite → clic) avec la pub dépensée autour.",
+    "courbe": "gardée (R301) — la seule figure qui dit combien de temps l'effet dure. Une "
+              "courbe qui monte AVANT le jour 0 est une sortie, pas la pub.",
+    "clics": "ÉCARTÉE sur ma reco (R301) : tant que peu de vagues sortent du bruit, elle dit "
+             "surtout « non concluant ». Dis-le en commentaire si « combien me coûte une écoute "
+             "via Meta » est ta question — elle entre alors dans l'app.",
+    "hypeddit": "gardée (R301), sous sa forme sans doublon : la pub autour de chaque sortie "
+                "sous les anneaux existants de la page Hypeddit.",
 }
 
 

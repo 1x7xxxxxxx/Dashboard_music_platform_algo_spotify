@@ -139,3 +139,45 @@ def waves(camps: list[Campaign]) -> list[tuple[Campaign, list[str]]]:
         else:
             out.append((c, [c.name]))
     return out
+
+
+#: R301 (R282 B) — the window of the stream curve drawn around each wave.
+CURVE_BEFORE_DAYS = BASELINE_DAYS
+CURVE_AFTER_DAYS = 42
+
+
+def event_study(series: pd.Series, starts: list[tuple[str, dt.date]],
+                before: int = CURVE_BEFORE_DAYS, after: int = CURVE_AFTER_DAYS,
+                min_base: float = MIN_BASELINE_LEVEL) -> pd.DataFrame:
+    """Streams around each wave start, as an index (100 = the average of the `before` days
+    ahead of it), MEASURED days only. Columns: wave, offset (days), index. Pure.
+
+    A wave whose baseline averages under `min_base` is left out: an index over almost
+    nothing read « 1 332 800 » on artist 1's first wave, which began before its first
+    release (R291). Drawn in the app since R301 (the owner's R282, proposal B)."""
+    idx = pd.to_datetime(pd.Series(series.index)).dt.date
+    # SORTED: `SELECT … GROUP BY day` has no order, and a curve drawn in row order zig-zags
+    # across the whole window (seen on the first render in the app, 2026-09-28).
+    s = pd.Series(series.values, index=idx).dropna().sort_index()
+    rows = []
+    for label, start in starts:
+        base = s[(s.index >= start - dt.timedelta(days=before)) & (s.index < start)]
+        if base.empty or base.mean() < min_base:
+            continue
+        win = s[(s.index >= start - dt.timedelta(days=before))
+                & (s.index <= start + dt.timedelta(days=after))]
+        rows += [{"wave": label, "offset": (d - start).days, "index": v / base.mean() * 100}
+                 for d, v in win.items()]
+    return pd.DataFrame(rows, columns=["wave", "offset", "index"])
+
+
+def spend_around(spend: pd.DataFrame, day: dt.date, radius: int = 14) -> float:
+    """Meta spend in the `radius` days on each side of `day` — the ads « around » a Hypeddit
+    campaign, which carries ONE total dated on its release (R301, R282 proposal D). Pure.
+
+    `spend` columns: day, spend (any account, any campaign)."""
+    if spend.empty:
+        return 0.0
+    days = pd.to_datetime(spend["day"]).dt.date
+    near = (days >= day - dt.timedelta(days=radius)) & (days <= day + dt.timedelta(days=radius))
+    return float(pd.to_numeric(spend.loc[near, "spend"], errors="coerce").sum())

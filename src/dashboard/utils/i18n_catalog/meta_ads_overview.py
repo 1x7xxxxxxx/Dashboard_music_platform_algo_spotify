@@ -80,4 +80,12 @@ EN = {
     "meta_ads_overview.axis_volume": "Spend (€) · clicks",
     # R146 — la série nomme le clic sortant.
     "meta_ads_overview.cpr_series": "CPR (€ per outbound click)",
+    # R301 — the curve around each wave (R282 B).
+    "meta_ads_overview.curve_title": "Streams around each wave — how long the effect lasts",
+    "meta_ads_overview.curve_x": "days since the wave began (0 = first euro)",
+    "meta_ads_overview.curve_y": "streams / day (100 = the 28 days before)",
+    "meta_ads_overview.curve_caption": (
+        "100 = the average of the 28 days before the wave. A curve that rises BEFORE day 0 "
+        "is a release, not the ads. {d} wave(s) with no measured baseline (under 10 streams "
+        "a day before it) are not drawn: an index there would mean nothing."),
 }

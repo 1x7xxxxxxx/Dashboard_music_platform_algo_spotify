@@ -363,10 +363,10 @@ def numbering(review: dict, previous: dict[str, int] | None = None) -> dict[str,
 
 PROPOSALS_INTRO = """<h1 class='page'>Propositions — ce que la pub Meta apporte à nos écoutes (R282)</h1>
 <p class="lead">Ta question (notes L167, L482) : « qu'est-ce que nous apporte la campagne Meta Ads
-sur nos streams ». Chaque graphique ci-dessous est une PROPOSITION dessinée sur l'instantané :
-il n'est pas dans l'app. Dis-moi lesquels garder — chacun deviendra une ligne de roadmap, avec
-sa vue or et son test. Un jour de pub est souvent aussi une semaine de sortie : ce qui est
-mesuré ici est une association, jamais la preuve d'un effet.</p>
+sur nos streams ». <b>Tranché le 28/09 sur mes recos (R301)</b> : A et B sont dans l'app, D y
+entre sans doublon (sous les anneaux Hypeddit), C est écartée et reste dessinée ici pour que tu
+puisses la réclamer. Commente pour changer un choix. Un jour de pub est souvent aussi une
+semaine de sortie : ce qui est mesuré est une association, jamais la preuve d'un effet.</p>
 <p><b>Et une question restée ouverte (note L268)</b> : le seuil de déclenchement de
 l'algorithme et la prédiction en pointillés sur la courbe Meta × Spotify — maintenant, ou
 toujours après le réglage initial ?</p>
@@ -386,7 +386,7 @@ def proposals_html(out: Path) -> str:
     parts = [PROPOSALS_INTRO]
     for n, p in enumerate(json.loads(path.read_text(encoding="utf-8")), 1):
         body = (f"<img class='fig' src='{esc(p['png'])}'>" if p.get("png")
-                else f"<p class='nr'>Non dessiné : {esc(p.get('reason'))}</p>")
+                else f"<p class='nr'>{esc(p.get('reason'))}</p>")
         # A letter, never « P{n} »: the titles keep the owner's own P2/P6 labels, and
         # « P1. P2 — … » read as two numbers for one proposal (2026-09-28).
         parts.append(f"<div class='fiche'><p class='q'>Proposition {chr(64 + n)} — {esc(p['title'])}</p>"
