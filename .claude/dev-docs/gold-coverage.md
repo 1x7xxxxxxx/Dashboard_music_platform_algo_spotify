@@ -35,7 +35,7 @@ Une attribution n'est publiée que s'il existe un **chemin def-use prouvé** ent
 | `sql-dynamique` | requête ou table assemblée hors littéral — indécidable sans exécuter | 18 |
 | `identifiant-non-résolu` | un nom capté dans un FROM qui n'existe ni en migration ni dans init_db.sql (CTE, alias, sous-requête) — écarté plutôt que publié | 8 |
 | `appelants-multiples` | rendu partagé par plus de trois appelants : un site, N jeux de données | 7 |
-| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 35 |
+| `profondeur` | chaîne de plus de 3 sauts — plafond MESURÉ : le cran suivant n'apporte rien | 36 |
 | `sans-appelant` | fonction dont aucun appel n'est résoluble statiquement | 12 |
 | `clé-à-l-exécution` | argument passé par **kwargs, partial, ou conteneur indexé par une variable | 12 |
 | `receveur-inconnu` | `X.metric(...)` où X n'est lié ni à st.columns ni à st.tabs — compté, pas deviné | 1 |
@@ -162,7 +162,7 @@ Les sept familles de contrôles demandées, et les contrôles qui TOURNENT déj�
 
 Une ligne par **site de code**, pas par figure rendue : une figure dans une boucle est un site et N images.
 
-**49 sur 65** portent une source établie ; **2** sont déclarées indéterminées et listées en tête ; 14 sont hors base par nature — la tranche a fini proprement sans lire la base — et 45 des attribuées ont plusieurs amonts.
+**50 sur 66** portent une source établie ; **2** sont déclarées indéterminées et listées en tête ; 14 sont hors base par nature — la tranche a fini proprement sans lire la base — et 46 des attribuées ont plusieurs amonts.
 
 | fichier:ligne | fonction | surface | visible | source établie | couche | confiance | motif | lu dans la même fonction (aucun lien prouvé) |
 |---|---|---|---|---|---|---|---|---|
@@ -209,7 +209,8 @@ Une ligne par **site de code**, pas par figure rendue : une figure dans une bouc
 | `views/trigger_algo/_tab_catalogue.py:157` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | profondeur | — |
 | `views/trigger_algo/_tab_catalogue.py:165` | `_show_tab_catalogue` | plotly_chart | à l'écran | `ml_song_predictions` | brut | plusieurs amonts | appelants-multiples · profondeur | — |
 | `views/trigger_algo/_tab_lifecycle.py:55` | `_show_tab_lifecycle` | plotly_chart | à l'écran | `tracks` | brut | plusieurs amonts | — | — |
-| `views/trigger_algo/_tab_model.py:117` | `_show_volume_vs_recorded` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | identifiant-non-résolu | — |
+| `views/trigger_algo/_tab_model.py:118` | `_show_volume_vs_recorded` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | identifiant-non-résolu | — |
+| `views/trigger_algo/_tab_model.py:200` | `_show_error_by_prediction_week` | plotly_chart | à l'écran | `ml_song_predictions` · `s4a_song_algo_outcomes` | brut | plusieurs amonts | profondeur | — |
 | `views/usage_analytics.py:59` | `show` | plotly_chart | à l'écran | `usage_events` | brut | plusieurs amonts | — | — |
 | `views/youtube.py:185` | `show` | plotly_chart | à l'écran | `v_youtube_video_latest` · `youtube_cumulative_views()` · `youtube_channel_history` | mixte | plusieurs amonts | — | — |
 | `views/youtube.py:383` | `show` | plotly_chart | à l'écran | `v_youtube_video_latest` · `youtube_cumulative_views()` | or | plusieurs amonts | — | ?`youtube_channel_history` |
@@ -687,7 +688,7 @@ Chaque déclaration est vérifiée : le site doit encore exister et encore agré
 
 Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_coverage_only_improves.py` les compare à un plafond posé **à** la mesure, jamais au-dessus.
 
-<!-- gold-coverage-figures: total=65 unknown=2 -->
+<!-- gold-coverage-figures: total=66 unknown=2 -->
 <!-- gold-coverage-tiles: total=162 unknown=10 -->
 <!-- gold-coverage-pdf: total=29 unknown=7 -->
 <!-- gold-coverage-gold-objects: total=34 orphans=0 -->
@@ -698,4 +699,4 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-invariants: pairs=32 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=34525ab6c015952eba570eb87358eed5b0c53e2088a1fccddf1cd29a432dadd0 -->
+<!-- gold-coverage: sha256=b3f5d0e4afcf8bbcc822759f835c7aed72c4472b9c1491b61375e0417ade8eb4 -->

@@ -68,8 +68,11 @@ def _script() -> None:
     class _FakeDB:
         def fetch_df(self, _query, _params=None):
             # R247 (fiche 51): one row per title — the S4A reading of each algorithm's
-            # 28-day streams, and the latest forecast made before it.
-            return pd.DataFrame({
+            # 28-day streams, and the latest forecast made before it. R297: the weekly
+            # error reads the same rows, with the week each forecast was made.
+            extra = ({"prediction_date": ["2026-09-01"] * 3, "recorded_at": ["2026-09-20"] * 3}
+                     if "prediction_date" in _query else {})
+            return pd.DataFrame({**extra,
                 "song": ["a", "b", "c"],
                 "dw_streams": ACTUAL, "rr_streams": ACTUAL, "radio_streams": ACTUAL,
                 "predicted_dw": FORECASTS["DW"],

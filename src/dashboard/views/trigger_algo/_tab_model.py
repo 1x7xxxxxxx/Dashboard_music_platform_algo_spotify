@@ -35,6 +35,7 @@ def _show_tab_model(db, track: str, artist_id):
     for _col, _algo in zip(st.columns(len(_SCATTER_ALGOS)), _SCATTER_ALGOS):
         with _col:
             _show_volume_vs_recorded(df, _algo)
+    _show_error_by_prediction_week(db, artist_id)
 
 
 # R247 (fiche 51, owner : « je ne comprends pas la valeur ajoutée : refais »). The old
@@ -126,3 +127,83 @@ def _show_volume_vs_recorded(df: pd.DataFrame, algo: str) -> None:
                    "**Même ordre de grandeur** : {p:.0f} prévus (médiane), {r:.0f} constatés "
                    "sur {n} titres — le volume peut être montré."),
     }[volume_verdict(pred, rec)].format(p=pred.median(), r=rec.median(), n=len(d)))
+
+
+# R297 (R293, the owner's call on 2026-09-28; corpus: Crowe et al., p. 322). Fiche 51 sets
+# the LATEST prediction of each title against its reading — one point, never a trend.
+# Here every prediction made before the reading is set against that same reading, per
+# WEEK the prediction was made: a flat line says the model did not change its mind from
+# week to week; a line falling towards the reading says it learned. While S4A carries one
+# reading per title, every week is judged against the same truth — the caption says so.
+_WEEKLY_SQL = """
+    SELECT p.prediction_date, o.song, o.recorded_at,
+           o.dw_streams, o.rr_streams, o.radio_streams,
+           p.dw_streams_forecast_7d AS predicted_dw, p.rr_streams_forecast_7d AS predicted_rr,
+           p.radio_streams_forecast_7d AS predicted_radio
+    FROM (SELECT DISTINCT ON (song) song, artist_id, recorded_at,
+                 dw_streams, rr_streams, radio_streams
+          FROM s4a_song_algo_outcomes
+          WHERE artist_id = %s AND time_window = '28d' AND song NOT ILIKE '%%1x7xxxxxxx%%'
+          ORDER BY song, recorded_at DESC) o
+    JOIN ml_song_predictions p ON p.song = o.song AND p.artist_id = o.artist_id
+     AND p.prediction_date <= o.recorded_at"""
+
+
+def error_by_prediction_week(rows: pd.DataFrame, algo: str) -> pd.DataFrame:
+    """[week, error, titles] — the median absolute gap between the forecasts made that week
+    and the S4A reading, for one algorithm. Pure; empty when nothing can be compared."""
+    pred, act = _FORECAST_COL[algo], _ACTUAL_COL[algo]
+    d = rows.dropna(subset=[pred, act, "prediction_date"])
+    if d.empty:
+        return pd.DataFrame(columns=["week", "error", "titles"])
+    d = d.assign(week=pd.to_datetime(d["prediction_date"]).dt.to_period("W").dt.start_time,
+                 gap=(d[pred].astype(float) - d[act].astype(float)).abs())
+    return (d.groupby("week").agg(error=("gap", "median"), titles=("song", "nunique"))
+            .reset_index().sort_values("week"))
+
+
+def _show_error_by_prediction_week(db, artist_id) -> None:
+    """The model's error per week of prediction, for every algorithm whose volume is shown."""
+    shown = [a for a in _SCATTER_ALGOS if ak.volume_forecast_reliable(a)]
+    if not shown:
+        return
+    st.subheader(t("trigger_algo.model.weekly_title",
+                   "📉 L'erreur du modèle, semaine de prédiction par semaine"))
+    try:
+        rows = db.fetch_df(_WEEKLY_SQL, (artist_id,))
+    except Exception as e:                                           # noqa: BLE001
+        st.warning(t("trigger_algo.model.chart_unavailable",
+                     "Graphique indisponible : {err}").format(err=e))
+        return
+    series = {a: error_by_prediction_week(rows, a) for a in shown} if rows is not None else {}
+    series = {a: s for a, s in series.items() if not s.empty}
+    if not series:
+        st.info(t("trigger_algo.model.weekly_empty",
+                  "Aucune prédiction faite avant un relevé S4A : rien à comparer."))
+        return
+    # A week without any prediction is a HOLE, not a straight line across it.
+    series = {a: s.set_index("week").reindex(pd.date_range(
+        s["week"].min(), s["week"].max(), freq="7D")).rename_axis("week").reset_index()
+        for a, s in series.items()}
+    fig = go.Figure([go.Scatter(
+        x=s["week"], y=s["error"], mode="lines+markers", name=_ALGO_LABEL[a],
+        connectgaps=False,
+        line=dict(color=_ALGO_COLOR[a], width=2),
+        customdata=s["titles"],
+        hovertemplate="%{x|%d/%m/%y} : %{y:.0f} streams d'écart (%{customdata} titres)"
+                      "<extra></extra>") for a, s in series.items()])
+    fig.update_layout(height=340, showlegend=True, yaxis_title=t(
+        "trigger_algo.model.weekly_y", "Écart prévu / constaté (streams)"),
+        xaxis_title=t("trigger_algo.model.weekly_x", "Semaine où la prédiction a été faite"),
+        legend=dict(orientation="h", y=-0.35))
+    fig.update_yaxes(rangemode="tozero")
+    charts.plotly_chart(fig, width='stretch')
+    readings = pd.to_datetime(rows["recorded_at"]).dt.date.nunique()
+    weeks = max(int(s["error"].notna().sum()) for s in series.values())
+    st.caption(t(
+        "trigger_algo.model.weekly_caption",
+        "{weeks} semaine(s) de prédictions jugées contre {readings} relevé(s) S4A. Une ligne "
+        "plate : le modèle n'a pas changé d'avis d'une semaine à l'autre ; une ligne qui "
+        "descend : il se rapproche du constat. Avec un seul relevé, chaque semaine est "
+        "jugée contre la même vérité — la série s'étoffera à chaque saisie S4A."
+    ).format(weeks=weeks, readings=readings))

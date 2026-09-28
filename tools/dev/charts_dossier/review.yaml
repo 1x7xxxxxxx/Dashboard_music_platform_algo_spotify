@@ -496,6 +496,14 @@ src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   owner: "Je ne comprends pas la valeur ajoutée : refais."
   cause: modele-degenere
   note: "R247 : refait — le volume prévu contre les streams d'algorithme SAISIS dans S4A (même grandeur, 28 j), par titre. Sur l'instantané : Radio prévoit 1 à 11 streams, S4A en constate 0 sur 11 titres → « le modèle surestime »."
+src/dashboard/views/trigger_algo/_tab_model.py::_show_error_by_prediction_week#1:
+  q: "Le modèle se rapproche-t-il du réel d'une semaine de prédiction à l'autre ?"
+  role: prediction
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "R297 (R293 finie à ta demande) : regardée sur l'instantané le 2026-09-28 — Radio, 9 streams d'écart la semaine du 8 juin puis 7 chaque semaine, trou de juillet à septembre (aucune prédiction) laissé VIDE. Le modèle ne change presque pas d'avis. Un seul relevé S4A : chaque semaine jugée contre la même vérité, la légende le dit."
 src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability#1:
   q: "Qu'est-ce qui pousse la prédiction (SHAP) ?"
   role: prediction

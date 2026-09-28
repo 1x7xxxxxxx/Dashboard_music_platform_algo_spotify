@@ -236,6 +236,15 @@ EN = {
     "trigger_algo.model.bar_predicted": "Forecast",
     "trigger_algo.model.bar_recorded": "Recorded (S4A)",
     "trigger_algo.model.y_algo_streams": "Streams from {label}, 28 d",
+    "trigger_algo.model.weekly_title": "📉 The model's error, week of prediction by week",
+    "trigger_algo.model.weekly_empty": "No prediction made before an S4A reading: nothing to compare.",
+    "trigger_algo.model.weekly_y": "Gap forecast / recorded (streams)",
+    "trigger_algo.model.weekly_x": "Week the prediction was made",
+    "trigger_algo.model.weekly_caption": (
+        "{weeks} week(s) of predictions judged against {readings} S4A reading(s). A flat line: "
+        "the model did not change its mind from week to week; a falling line: it gets closer "
+        "to the reading. With a single reading, every week is judged against the same truth — "
+        "the series will grow with each S4A entry."),
     "trigger_algo.model.verdict_over": (
         "**The model overestimates**: it forecasts {p:.0f} streams (median), S4A recorded "
         "{r:.0f} across {n} tracks. Do not show this volume as a promise."),

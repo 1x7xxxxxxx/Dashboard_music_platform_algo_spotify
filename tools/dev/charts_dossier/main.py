@@ -59,10 +59,10 @@ RECOMMENDATIONS = [
      "La matrice de confusion porte sur le jeu de test ; aucune figure ne suit la qualité du "
      "modèle DANS LE TEMPS en production. Or les prévisions Release Radar valent toutes 0 et "
      "P(DW) ne réagit pas à son levier. Recommandation : une figure « prédit vs constaté, "
-     "semaine par semaine » avant de vendre davantage de prédictions (ADR-029). ⏳ Retenue "
-     "par le code-critic (R292) : les fiches 51 et 58 comparent la DERNIÈRE prédiction, pas "
-     "une tendance — différée au backlog (R293) : les constats S4A n'ont qu'UNE date de "
-     "relevé, une tendance d'un point n'en est pas une ; rouverte à 4 semaines de constats."),
+     "semaine par semaine » avant de vendre davantage de prédictions (ADR-029). ✅ Intégrée "
+     "(R297, 2026-09-28) : sous la fiche 51, l'erreur Radio par semaine de prédiction — 9 "
+     "streams d'écart en juin, 7 ensuite : le modèle ne change presque pas d'avis. Jugée "
+     "contre un seul relevé S4A pour l'instant ; la série s'étoffe à chaque saisie."),
     ("Corrélation n'est pas causalité",
      "Majors et al., <i>Observability Engineering</i>, p. 49",
      "Pour « qu'apporte Meta », les figures qui REFUSENT de conclure (le verdict d'auditeurs "
