@@ -124,7 +124,7 @@ def test_a_green_proves_only_what_it_ran_and_a_return_is_proposed() -> None:
     green_file = _ev("test_green", "2026-09-27T10:05", fp="green", scope="files",
                      files=["tests/test_a.py"])
     assert dl.classify([red1, green_file])[0]["status"] == "transient"
-    red2 = _ev("test_red", "2026-09-28T09:00", session="s2")
+    red2 = dict(_ev("test_red", "2026-09-28T09:00", session="s2"), tree="clean")  # R336
     row = dl.classify([red1, green_file, red2])[0]
     assert row["recurrence_proposal"] == "recurrence:2026-09-27,2026-09-28"
     assert dl.classify([red1, red2])[0]["recurrence_proposal"] is None, (

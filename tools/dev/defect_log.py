@@ -67,8 +67,12 @@ def classify(events: list[dict]) -> list[dict]:
         after = [g for g in greens if g[0] > seen[-1]["ts"] and fp.startswith("test:")
                  and _covers(g[2], node)]
         days = sorted({e["ts"][:10] for e in seen})
-        back = [d for d in days[1:] if any(
+        returned = [d for d in days[1:] if any(
             g[0][:10] < d and g[0] > seen[0]["ts"] and _covers(g[2], node) for g in greens)]
+        # R336: only a red on a CLEAN tree proposes a ticket; one on work in progress, or on
+        # a tree nobody can vouch for (old events, backfill), is listed without one.
+        clean = {e["ts"][:10] for e in seen if e.get("tree") == "clean"}
+        back = [d for d in returned if d in clean]
         status = "open"
         if after:
             status = "transient" if len(days) == 1 and after[0][1] == seen[-1]["session"] \
@@ -78,6 +82,7 @@ def classify(events: list[dict]) -> list[dict]:
             "first_seen": seen[0]["ts"], "last_seen": seen[-1]["ts"], "days": days,
             "sightings": len(seen), "excerpt": seen[-1]["excerpt"],
             "recurrence_proposal": f"recurrence:{days[0]},{back[0]}" if back else None,
+            "returned_unvouched": [d for d in returned if d not in clean],
         })
     return sorted(rows, key=lambda r: (r["recurrence_proposal"] is None, r["status"] != "open",
                                        r["last_seen"]), reverse=False)
@@ -103,6 +108,10 @@ def render(rows: list[dict], refused: list[tuple[str, int, list[str]]]) -> str:
            "", "## Revenus après un vert — billet `recurrence:` à confirmer", ""]
     out += [f"- `{r['fingerprint']}` — {r['recurrence_proposal']} ({r['sightings']} vues)"
             for r in proposals] or ["(aucun)"]
+    unvouched = [r for r in rows if not r["recurrence_proposal"] and r.get("returned_unvouched")]
+    out += ["", "## Revenus après un vert sur un arbre EN COURS ou inconnu — aucun billet (R336)", ""]
+    out += [f"- `{r['fingerprint']}` — {', '.join(r['returned_unvouched'])}"
+            for r in unvouched] or ["(aucun)"]
     out += ["", "## Sans vert prouvé depuis (le nœud n'a pas été relancé seul ni dans la suite complète)", ""]
     out += [f"- `{r['fingerprint']}` — vu le {r['last_seen'][:10]}"
             for r in rows if r["status"] == "open"] or ["(aucun)"]

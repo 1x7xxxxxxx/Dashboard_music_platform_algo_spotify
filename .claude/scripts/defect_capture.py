@@ -168,6 +168,50 @@ def fresh_selection(path: Path = SELECTED, max_age_s: float = 3600) -> "list[str
         return None
 
 
+_WATCHED = ("src", "tests", "tools", ".claude", "airflow", "migrations")
+
+
+def tree_states(events: list[dict], dirty: "bool | None", last_commit: "float | None") -> None:
+    """Stamp each red with the tree it ran on: `wip`, `clean` or `unknown`. Pure.
+
+    R336 (2026-09-29): `make defect-log` proposed 32 `recurrence:` tickets and none held —
+    most were gates red on MY uncommitted edit. Per event, never per call (code-critic R336):
+    a red, then a fix and a commit in the same turn, must not read as clean.
+      * dirty at capture → `wip` (the red ran on uncommitted work, or on work still in flight);
+      * clean, and no commit landed after the red → `clean`;
+      * clean but a commit landed after it, or git unreadable → `unknown`.
+    """
+    for e in events:
+        if e["kind"] not in ("test_red", "traceback"):
+            continue
+        state = "unknown"
+        if dirty:
+            state = "wip"
+        elif dirty is False and last_commit is not None:
+            try:
+                at = datetime.fromisoformat(e["ts"].replace("Z", "+00:00")).timestamp()
+            except (ValueError, AttributeError):
+                at = None
+            if at is not None and last_commit <= at:
+                state = "clean"
+        e["tree"] = state
+
+
+def _tree_now() -> "tuple[bool | None, float | None]":
+    """(tracked changes under the watched paths?, last commit time) — (None, None) if unknown."""
+    import subprocess
+    try:
+        st = subprocess.run(["git", "status", "--porcelain", "-uno", "--", *_WATCHED],
+                            cwd=ROOT, capture_output=True, text=True, timeout=5)
+        lc = subprocess.run(["git", "log", "-1", "--format=%ct"], cwd=ROOT,
+                            capture_output=True, text=True, timeout=5)
+        if st.returncode or lc.returncode:
+            return None, None
+        return bool(st.stdout.strip()), float(lc.stdout.strip())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None, None
+
+
 def capture(transcript_path: str, session: str, log: Path = LOG,
             backfill: bool = False) -> int:
     """Append the symptoms written since the last call; returns how many."""
@@ -198,6 +242,9 @@ def capture(transcript_path: str, session: str, log: Path = LOG,
         with log.open("a", encoding="utf-8") as out:
             for e in events:
                 e["ts"] = e["ts"] or stamp
+            # backfill replays old turns: today's tree says nothing about them.
+            tree_states(events, *((None, None) if backfill else _tree_now()))
+            for e in events:
                 out.write(json.dumps(e, ensure_ascii=False) + "\n")
     marker.write_text(str(end))
     return len(events)
