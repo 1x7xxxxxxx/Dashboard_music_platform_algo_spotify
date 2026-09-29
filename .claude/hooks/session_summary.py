@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -249,34 +250,28 @@ def find_tests_dir(repo_root: str) -> tuple[str, str] | None:
     return None
 
 
-def run_pytest_summary(repo_root: str) -> str | None:
-    """Run pytest and return a short summary line. None if tests dir not found."""
-    found = find_tests_dir(repo_root)
-    if not found:
-        return None
-    tests_dir, app_dir = found
+def red_run_hint(repo_root: str, max_age_s: float = 3600) -> str | None:
+    """The build-error-resolver hint from the LAST suite this repo ran, or None.
+
+    R322 (2026-09-29): this was `run_pytest_summary`, which ran pytest itself and was never
+    called — too expensive per Stop — so the `failures >= 5` of CLAUDE.md rule 12 lived in
+    dead code and no surface signalled it. The test targets already write
+    `.pytest-last.log`; reading it costs nothing. Older than `max_age_s`: another session's
+    verdict, not this turn's.
+    """
+    log = os.path.join(repo_root, ".pytest-last.log")
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", tests_dir, "--tb=no", "-q", "--no-header"],
-            capture_output=True, text=True, timeout=60, cwd=app_dir,
-        )
-        output = (result.stdout + result.stderr).strip()
-        # Truncate to avoid token overflow — keep the summary line(s)
-        if len(output) > 600:
-            output = "…\n" + output[-580:]
-        last_line = output.splitlines()[-1] if output else ""
-        if result.returncode == 0:
-            return f"\n✅ Tests: {last_line}"
-        else:
-            msg = f"\n❌ Tests failing:\n  {last_line}"
-            failures = sum(1 for ln in output.splitlines() if " FAILED" in ln)
-            if failures >= 5:
-                msg += f"\n  → {failures} failures — consider spawning build-error-resolver agent"
-            return msg
-    except subprocess.TimeoutExpired:
-        return "\n⏱️  Tests timed out (>60s) — check for hanging fixtures"
-    except (OSError, UnicodeDecodeError):
+        if time.time() - os.path.getmtime(log) > max_age_s:
+            return None
+        with open(log, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
         return None
+    failures = sum(1 for ln in lines if ln.startswith(("FAILED ", "ERROR ")))
+    if failures >= 5:
+        return (f"\n❌ {failures} tests rouges dans la dernière exécution (.pytest-last.log) "
+                "→ Spawn build-error-resolver (règle 12)")
+    return None
 
 
 # R311 (2026-09-28) : « config plus récente que le journal » est retiré avec le DEVLOG (archivé) ;
@@ -500,6 +495,10 @@ def main():
             f"\n🔢 Long session ({turns} turns) — "
             "check token usage with /cost and consider /clear after this task."
         )
+
+    red = red_run_hint(repo_root)
+    if red:
+        sections.append(red)
 
     # 4. Pytest hint — not auto-run (too expensive per Stop). The command is built
     # from the layout actually found: printing a `cd` into a directory this repo
