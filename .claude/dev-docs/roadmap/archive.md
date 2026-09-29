@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R329 — Vérifications de la base de configuration périmées (fleet 26 j, global 12 j) : rejouer… (livrée 2026-09-29)
+
+- [x] **R329 — Vérifications de la base de configuration périmées (fleet 26 j, global 12 j) : rejouer `audit_fleet.py` et `verify_loop_wiring.py`, corriger ce qui touche ce dépôt** (P4) ✅ (2026-09-29, c1d08adc)
+  Mesuré par : les deux sorties rejouées et consignées
+  audit_fleet et verify_loop_wiring rejoues le 2026-09-29 : streamlytics OK sur toutes les chaines ; 5 skills plats = fichiers *.rex.md (faux positif de l'auditeur, hors depot) ; derive RTK.md global signalee au proprietaire (hors depot)
+  Commits : c1d08adc Roadmap : R316 a R329 inscrites - la nuit du 2026-09-29 (recap faux ro
+
 ## ✅ R323 — Relire les 3 jobs rouges de la nuit de sécurité du 2026-09-28 (`error-management-probe`… (livrée 2026-09-29)
 
 - [x] **R323 — Relire les 3 jobs rouges de la nuit de sécurité du 2026-09-28 (`error-management-probe`, `full-suite-random-order`, `guard-mutation`) — le run se conclut success, le mail n'en dit pas le détail — et corriger chaque cause** (P2) ✅ (2026-09-29, 5fb725e8, 1a918fe4)
