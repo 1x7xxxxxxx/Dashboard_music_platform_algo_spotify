@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**428 classes.** Fenêtre observée : `2026-05-15` → `2026-09-29` (577 révisions du catalogue rejouées).
+**428 classes.** Fenêtre observée : `2026-05-15` → `2026-09-29` (578 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -46,10 +46,10 @@ Elle vient de git, donc aucun champ tenu à la main ne peut la contredire. Un co
 
 | grandeur | valeur |
 |---|---|
-| `automatic_guard` | 420 |
+| `automatic_guard` | 422 |
 | `classes` | 428 |
 | `ever_recurred_observed` | 55 |
-| `prose_only` | 8 |
+| `prose_only` | 6 |
 | `with_signature` | 417 |
 
 ## Les trous — ce que le cliquet fait baisser
@@ -81,8 +81,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | strate | évènements | par classe-mois | IC 95 % | verdict |
 |---|---|---|---|---|
-| by_guard · automatique | 65 | 0.1555 | 0.12 – 0.1982 | insuffisant pour conclure (n=69) |
-| by_guard · prose | 4 | 0.5381 | 0.1448 – 1.3775 | insuffisant pour conclure (n=69) |
+| by_guard · automatique | 67 | 0.1587 | 0.123 – 0.2015 | insuffisant pour conclure (n=69) |
+| by_guard · prose | 2 | 0.6141 | 0.069 – 2.2173 | insuffisant pour conclure (n=69) |
 | by_guard_since · avec-garde | 64 | 0.1613 | 0.1242 – 0.206 | insuffisant pour conclure (n=69) |
 | by_guard_since · sans-garde | 5 | 0.1741 | 0.0561 – 0.4063 | insuffisant pour conclure (n=69) |
 | by_seen_red · daté | 0 | 0.0 | 0.0 – 0.083 | **séparent** |
@@ -95,7 +95,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 
 | | avec garde | sans garde | rapport |
 |---|---|---|---|
-| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1555 | 0.5381 | ×3.5 |
+| `by_guard` — étiquette d'aujourd'hui, **confondu** | 0.1587 | 0.6141 | ×3.9 |
 | `by_guard_since` — découpé au premier garde | 0.1613 | 0.1741 | ×1.1 |
 
 L'écart de la première ligne est un **artefact de mesure**, pas un effet. Écrire un garde automatique reste la bonne pratique ; ce tableau dit seulement que **ce jeu de données ne la démontre pas**, et qu'aucune règle ne devrait citer la première ligne comme preuve.

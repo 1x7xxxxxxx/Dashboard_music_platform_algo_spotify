@@ -768,7 +768,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-10",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -1566,7 +1566,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-12",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2471,7 +2471,7 @@
       "siblings_swept": true,
       "status": "resolved",
       "introduced_date": "2026-09-16",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3076,7 +3076,7 @@
       "siblings_swept": true,
       "status": "resolved",
       "introduced_date": "2026-09-16",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -3984,7 +3984,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 5,
+      "revisions": 6,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5176,7 +5176,7 @@
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
@@ -5190,7 +5190,7 @@
       "siblings_swept": true,
       "status": "fixed",
       "introduced_date": "2026-08-21",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5697,14 +5697,14 @@
     "central-app-missing": {
       "cause_evidence": "read",
       "first_seen_declared": "2026-06-19",
-      "guard_automatic": false,
-      "guard_ref": "tools/check_central_apps.py",
+      "guard_automatic": true,
+      "guard_ref": "tests/test_central_apps_are_monitored.py",
       "guard_ref_exists": true,
       "guard_scope_declared_family": "la-frontière-avec-le-dehors",
       "guard_scope_derived_family": "la-frontière-avec-le-dehors",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
-      "guard_type": "ops-probe",
+      "guard_scope_names_a_test": true,
+      "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
         "2026-06-19",
@@ -5719,7 +5719,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-06-20",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 2,
       "renamed_from": null
     },
@@ -7291,7 +7291,7 @@
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-09-05",
-      "revisions": 7,
+      "revisions": 8,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -8313,14 +8313,14 @@
     "mermaid-block-does-not-render": {
       "cause_evidence": "read",
       "first_seen_declared": "2026-09-03",
-      "guard_automatic": false,
-      "guard_ref": null,
-      "guard_ref_exists": false,
+      "guard_automatic": true,
+      "guard_ref": "tests/test_every_mermaid_block_renders.py",
+      "guard_ref_exists": true,
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-travail-qui-n-arrive-nulle-part",
       "guard_scope_has_not_covered": true,
       "guard_scope_names_a_test": false,
-      "guard_type": "manual",
+      "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [
         "2026-09-03",
@@ -8334,7 +8334,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-03",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11786,7 +11786,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 577,
+      "catalogue_revisions": 578,
       "head_date": "2026-09-29"
     },
     "holes": {
@@ -11806,10 +11806,10 @@
       "swept_by_rerunning_the_guard": 0
     },
     "population": {
-      "automatic_guard": 420,
+      "automatic_guard": 422,
       "classes": 428,
       "ever_recurred_observed": 55,
-      "prose_only": 8,
+      "prose_only": 6,
       "with_signature": 417
     },
     "recurrence": {
@@ -11827,21 +11827,21 @@
       "class_days_exposed": 12936,
       "by_guard": {
         "automatique": {
-          "events": 65,
-          "class_days": 12710,
-          "per_class_month": 0.1555,
+          "events": 67,
+          "class_days": 12837,
+          "per_class_month": 0.1587,
           "ci95": [
-            0.12,
-            0.1982
+            0.123,
+            0.2015
           ]
         },
         "prose": {
-          "events": 4,
-          "class_days": 226,
-          "per_class_month": 0.5381,
+          "events": 2,
+          "class_days": 99,
+          "per_class_month": 0.6141,
           "ci95": [
-            0.1448,
-            1.3775
+            0.069,
+            2.2173
           ]
         }
       },

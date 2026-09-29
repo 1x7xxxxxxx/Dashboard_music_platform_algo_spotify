@@ -501,12 +501,12 @@ Les deux colonnes de trou sont détectées sur le TEXTE du fichier de test (une 
 
 **fixed** : 10· **guarded** : 396· **open** : 4· **reported** : 15· **resolved** : 3
 
-**0 classe(s) nomment un fichier de garde qui n'existe plus** et **8** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
+**0 classe(s) nomment un fichier de garde qui n'existe plus** et **7** ne nomment aucun chemin (leur garde est une règle transverse, un hook, ou rien).
 
 _Aucune classe ne nomme un garde disparu._
 
 
-Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `repo-copy-of-a-config-is-not-what-runs` · `mermaid-block-does-not-render` · `guard-anchored-on-shape-not-question` · `a-guard-that-sees-the-binding-not-the-application`.
+Sans chemin de garde : `db-connection-per-show` · `view-session-adoption` · `snapshot-fixture-hook-reflow` · `dag-trigger-without-tenant-scope` · `repo-copy-of-a-config-is-not-what-runs` · `guard-anchored-on-shape-not-question` · `a-guard-that-sees-the-binding-not-the-application`.
 
 
 ## Ce qui n'est gardé par rien
@@ -693,9 +693,9 @@ Ces compteurs sont écrits par la machine. Le cliquet `tests/test_the_gold_cover
 <!-- gold-coverage-gold-objects: total=34 orphans=0 -->
 <!-- gold-coverage-unguarded-aggregates: total=0 -->
 <!-- gold-coverage-ratchets: total=29 without_nonvacuity=0 without_mutation=0 -->
-<!-- gold-coverage-error-classes: total=428 guard_missing=0 guard_unnamed=8 -->
+<!-- gold-coverage-error-classes: total=428 guard_missing=0 guard_unnamed=7 -->
 <!-- gold-coverage-guard-matrix: cells=40 holes=0 -->
 <!-- gold-coverage-invariants: pairs=32 unreconciled=0 -->
 <!-- gold-coverage-ci: steps=17 blocking=17 -->
 
-<!-- gold-coverage: sha256=0554abbce2fffc8b045182f42f6ddc55d6980d2f8074aef85eaa487c2df14559 -->
+<!-- gold-coverage: sha256=439a1172925294fdead3595fbd6fbc04fb3fbd732fd6c62064c4ad2c12a854ae -->

@@ -100,10 +100,10 @@ Règle de rattachement : `never-sent|not-alerted|never-read|nothing-happens|noth
 | [`stopped-collecting-is-not-a-status-anyone-reads`](error-classes.md#stopped-collecting-is-not-a-status-anyone-reads) | a tenant whose collection worked and then stopped produces no signal anywhere. The credential is valid, rows exist from before, the DAG reports SUCCES |
 | [`the-feature-is-wired-to-the-function-nobody-calls`](error-classes.md#the-feature-is-wired-to-the-function-nobody-calls) | une fonctionnalité est écrite, traduite, complète — et ne s'affiche nulle part. Aucun test ne tombe : la fonction qui la rend existe et fonctionne, el |
 | [`the-feature-exists-and-the-path-never-reaches-it`](error-classes.md#the-feature-exists-and-the-path-never-reaches-it) | un utilisateur ne peut pas faire une chose que le produit sait faire. La fonctionnalité est écrite, testée, documentée — et le chemin qui y mène s'arr |
-| [`mermaid-block-does-not-render`](error-classes.md#mermaid-block-does-not-render) | un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown. |
 | [`page-that-nothing-routes-to`](error-classes.md#page-that-nothing-routes-to) | une vue rend parfaitement, son test de rendu est vert, elle figure dans une liste intitulée « ce qu'un artiste peut atteindre » — et aucun artiste ne  |
 | [`a-surface-reads-a-table-nobody-writes`](error-classes.md#a-surface-reads-a-table-nobody-writes) | un panneau de tableau de bord reste vide sans rien dire. La table qu'il lit existe, le SQL est valide, et personne ne l'écrit. |
 | [`an-identifier-that-is-referenced-but-never-declared`](error-classes.md#an-identifier-that-is-referenced-but-never-declared) | **une interface entière rend « No data », et rien n'est en erreur.** Aucun journal ne se plaint, la source de données répond, les requêtes sont justes |
+| [`mermaid-block-does-not-render`](error-classes.md#mermaid-block-does-not-render) | un diagramme s'affiche en boîte d'erreur, ou pas du tout, chez le lecteur — et rien ne rougit, parce que rien dans le dépôt ne rend du markdown. |
 | [`pipeline-writes-to-the-copy-nobody-reads`](error-classes.md#pipeline-writes-to-the-copy-nobody-reads) | an automated capture → validate → publish loop runs, reports success, and produces nothing anyone sees. Each stage is individually correct; the output |
 | [`unregistered-write-table`](error-classes.md#unregistered-write-table) | a table passed as a literal to `upsert_many`/`insert_many` is absent from `_ALLOWED_TABLES` (postgres_handler) → the SQL-injection allowlist raises a  |
 | [`revocation-written-but-never-read`](error-classes.md#revocation-written-but-never-read) | an administrative gesture that is supposed to cut access writes a column nothing reads on the live path. The UI confirms, the row changes, and the hol |
@@ -632,4 +632,4 @@ _Aucune._
 
 <!-- error-class-families: total=428 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=5eec79cc9c559baa6b6b035d8550da93b5c4d0ee64f616ded365fa844f92bc01 -->
+<!-- error-class-families: sha256=9fdc6fa205f1ffd5937d855b907edab226c771d91902c3ca34c3b269f0bad9c4 -->
