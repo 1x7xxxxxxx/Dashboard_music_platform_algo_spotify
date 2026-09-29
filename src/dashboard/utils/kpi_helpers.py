@@ -810,19 +810,13 @@ def get_monthly_roi_series(_db, artist_id, from_date, to_date):
     return df.sort_values('period_date')
 
 
-def clear_kpi_caches(artist_id: int | None = None) -> None:
-    """Purge les compteurs mis en cache — appelée quand une collecte est déclenchée.
+def clear_local_caches() -> None:
+    """Purge THIS process's counters and series — and signal nobody.
 
-    Sans elle, un artiste qui lance une collecte depuis le dashboard verrait ses
-    anciens totaux pendant dix minutes et conclurait que rien ne s'est passé. C'est
-    le seul instant où ces nombres changent hors de la nuit, et il est observable :
-    on ne raccourcit donc pas le TTL « au cas où », on purge à cet instant précis.
-
-    `artist_id` est facultatif : sans lui, le locataire se résout de la session. Les
-    trente appelants n'ont donc rien à changer pour que l'invalidation traverse les
-    instances — le compteur en base est incrémenté dans les deux cas (voir
-    `cache_epoch.py`). On le passe explicitement là où la session ne porte pas le bon
-    locataire, c'est-à-dire depuis une session admin.
+    R334 (2026-09-29): the purge a remote invalidation triggers must not re-emit the
+    invalidation. It called `clear_kpi_caches()`, whose `bump()` moved the epoch again: every
+    purge caused another in every instance, and in its own process 30 s later — for ever,
+    with one extra connection per purge.
     """
     for fn in (get_source_freshness, get_total_streams_s4a, get_total_views_youtube,
                get_total_plays_soundcloud, get_total_plays_apple,
@@ -844,6 +838,22 @@ def clear_kpi_caches(artist_id: int | None = None) -> None:
     except Exception:  # noqa: BLE001
         pass
 
+
+def clear_kpi_caches(artist_id: int | None = None) -> None:
+    """Purge les compteurs mis en cache — appelée quand une collecte est déclenchée.
+
+    Sans elle, un artiste qui lance une collecte depuis le dashboard verrait ses
+    anciens totaux pendant dix minutes et conclurait que rien ne s'est passé. C'est
+    le seul instant où ces nombres changent hors de la nuit, et il est observable :
+    on ne raccourcit donc pas le TTL « au cas où », on purge à cet instant précis.
+
+    `artist_id` est facultatif : sans lui, le locataire se résout de la session. Les
+    trente appelants n'ont donc rien à changer pour que l'invalidation traverse les
+    instances — le compteur en base est incrémenté dans les deux cas (voir
+    `cache_epoch.py`). On le passe explicitement là où la session ne porte pas le bon
+    locataire, c'est-à-dire depuis une session admin.
+    """
+    clear_local_caches()
     # Et les AUTRES instances. La purge ci-dessus ne touche que ce processus ; le
     # compteur en base est ce qui la fait traverser.
     from src.dashboard.utils.cache_epoch import bump

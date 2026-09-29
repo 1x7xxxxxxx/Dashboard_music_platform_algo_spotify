@@ -78,6 +78,10 @@ _DECLARED: dict[str, str] = {
         "PER-INSTANCE VOULU. C'est la dernière époque que CE processus a vue ; chaque "
         "instance doit avoir la sienne, sinon aucune ne saurait qu'elle a raté une "
         "écriture. Partager cet état détruirait le mécanisme qu'il sert.",
+    "src/dashboard/utils/cache_epoch.py::_MINE":
+        "PER-INSTANCE VOULU (R334). L'époque que CE processus a écrite lui-même : la relire "
+        "n'est pas une nouvelle d'une autre instance. Partagé, chaque instance prendrait "
+        "l'écriture d'une autre pour la sienne et ne purgerait jamais.",
     "src/dashboard/utils/error_alert.py::_last_sent":
         "INOFFENSIF. C'est un chemin rapide devant `_email_due()`, qui lit le REGISTRE "
         "en base — le vrai verrou de refroidissement, et il traverse les instances "

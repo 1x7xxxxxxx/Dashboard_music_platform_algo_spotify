@@ -2840,6 +2840,7 @@
     "tests/test_a_write_never_goes_through_a_read_method.py::test_no_write_goes_through_a_read_method": 1.091907952039037,
     "tests/test_a_write_never_goes_through_a_read_method.py::test_the_detector_sees_the_defect_and_spares_returning_not_vacuous": 0.0010070450080092996,
     "tests/test_a_write_on_one_instance_invalidates_the_other.py::test_a_fresh_instance_does_not_purge_on_its_first_look": 0.000886330999492202,
+    "tests/test_a_write_on_one_instance_invalidates_the_other.py::test_a_purge_does_not_restart_the_loop_it_answers": 0.34491029399987383,
     "tests/test_a_write_on_one_instance_invalidates_the_other.py::test_an_epoch_that_moved_purges_exactly_once": 0.0010986689994751941,
     "tests/test_a_write_on_one_instance_invalidates_the_other.py::test_an_unchanged_epoch_never_purges": 0.0008517650003341259,
     "tests/test_a_write_on_one_instance_invalidates_the_other.py::test_bump_never_raises_when_the_tenant_is_unknown": 0.0017175850007333793,

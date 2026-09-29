@@ -56,6 +56,9 @@ _EPOCH_TTL = int(os.getenv("DASHBOARD_CACHE_EPOCH_TTL", "30"))
 # La dernière époque que CE processus a vue, par locataire. C'est bien un état de
 # processus, et c'est correct ici : chaque instance a le sien et doit l'avoir.
 _SEEN: dict[int, int] = {}
+# The epoch THIS process wrote last, per tenant (R334): reading it back is not news from
+# another instance, and purging on it restarted the loop the purge was answering.
+_MINE: dict[int, int] = {}
 
 
 def bump(artist_id: int | None = None, db=None) -> None:
@@ -91,9 +94,11 @@ def bump(artist_id: int | None = None, db=None) -> None:
         if db is None:
             return
         try:
-            db.execute_query(
-                "UPDATE saas_artists SET cache_epoch = cache_epoch + 1 WHERE id = %s",
-                (artist_id,))
+            rows = db.fetch_query(
+                "UPDATE saas_artists SET cache_epoch = cache_epoch + 1 WHERE id = %s "
+                "RETURNING cache_epoch", (artist_id,))
+            if rows and rows[0][0] is not None:
+                _MINE[artist_id] = int(rows[0][0])
         finally:
             if owned:
                 db.close()
@@ -143,11 +148,12 @@ def honour_remote_invalidation(artist_id: int, db=None) -> bool:
             return False
         previous = _SEEN.get(artist_id)
         _SEEN[artist_id] = epoch
-        if previous is None or previous == epoch:
+        if previous is None or previous == epoch or epoch == _MINE.get(artist_id):
             return False
 
-        from src.dashboard.utils.kpi_helpers import clear_kpi_caches
-        clear_kpi_caches()
+        # LOCAL purge only (R334): `clear_kpi_caches()` would bump the epoch again.
+        from src.dashboard.utils.kpi_helpers import clear_local_caches
+        clear_local_caches()
         logger.info("caches purgés : époque du locataire %s passée de %s à %s "
                     "(écriture faite par une autre instance)", artist_id, previous, epoch)
         return True

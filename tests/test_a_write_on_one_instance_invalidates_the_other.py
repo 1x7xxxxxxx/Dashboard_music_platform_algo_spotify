@@ -83,8 +83,16 @@ def _observe(monkeypatch, epochs: list[int]) -> dict:
 
     monkeypatch.setattr(cache_epoch, "_read", _read)
     monkeypatch.setattr(cache_epoch, "_SEEN", {})
-    monkeypatch.setattr("src.dashboard.utils.kpi_helpers.clear_kpi_caches",
-                        lambda artist_id=None: purged.append(True))
+    monkeypatch.setattr(cache_epoch, "_MINE", {})
+    # R334: the purge counted is the LOCAL one. The emitting gate must never be reached
+    # from a receiver — the old mock stood in for it, which is how the loop stayed green.
+    monkeypatch.setattr("src.dashboard.utils.kpi_helpers.clear_local_caches",
+                        lambda: purged.append(True))
+
+    def _emitted(artist_id=None):
+        raise AssertionError("a remote invalidation re-emitted the invalidation (R334)")
+    monkeypatch.setattr("src.dashboard.utils.kpi_helpers.clear_kpi_caches", _emitted)
+    monkeypatch.setattr(cache_epoch, "bump", _emitted)
 
     verdicts = [cache_epoch.honour_remote_invalidation(_TENANT, None) for _ in epochs]
     return {"purges": len(purged), "verdicts": verdicts}
@@ -170,3 +178,43 @@ def test_the_seam_is_actually_reached_by_a_real_render() -> None:
         "l'invalidation ne traverserait jamais les instances, et tous les autres tests "
         "de ce fichier resteraient verts."
     )
+
+
+class _EpochDB:
+    """A saas_artists.cache_epoch in memory, with the one UPDATE … RETURNING bump sends."""
+
+    def __init__(self, epoch: int) -> None:
+        self.epoch, self.updates = epoch, 0
+
+    def fetch_query(self, sql, params=None):
+        if sql.lstrip().upper().startswith("UPDATE"):
+            self.epoch += 1
+            self.updates += 1
+        return [(self.epoch,)]
+
+    def close(self) -> None:
+        pass
+
+
+def test_a_purge_does_not_restart_the_loop_it_answers(monkeypatch) -> None:
+    """R334 (2026-09-29) — real `clear_local_caches`, real `bump`, one remote write.
+
+    Before: honour → clear_kpi_caches → bump moved the epoch again, read back 30 s later
+    as another remote write, for ever. Mutation record (2026-09-29): seen red with honour
+    calling `clear_kpi_caches()` again, and with `_MINE` no longer consulted.
+    """
+    from src.dashboard.utils import cache_epoch
+
+    db = _EpochDB(7)
+    monkeypatch.setattr(cache_epoch, "_read", lambda _db, _aid: _db.epoch)
+    monkeypatch.setattr(cache_epoch, "_SEEN", {})
+    monkeypatch.setattr(cache_epoch, "_MINE", {})
+    monkeypatch.setattr("src.dashboard.utils.get_db_connection", lambda: db)
+    assert cache_epoch.honour_remote_invalidation(_TENANT, db) is False  # first look
+    db.epoch += 1                                                          # another instance
+    assert cache_epoch.honour_remote_invalidation(_TENANT, db) is True
+    assert db.updates == 0, "the purge wrote the epoch: every instance will purge again"
+    assert [cache_epoch.honour_remote_invalidation(_TENANT, db) for _ in range(3)] == [False] * 3
+    cache_epoch.bump(_TENANT, db=db)                                       # a write HERE
+    assert cache_epoch.honour_remote_invalidation(_TENANT, db) is False, (
+        "this process read its own bump back as a remote write")
