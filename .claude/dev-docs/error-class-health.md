@@ -3,7 +3,7 @@
 
 # La santé du catalogue de classes d'erreur
 
-**428 classes.** Fenêtre observée : `2026-05-15` → `2026-09-29` (578 révisions du catalogue rejouées).
+**428 classes.** Fenêtre observée : `2026-05-15` → `2026-09-29` (579 révisions du catalogue rejouées).
 
 ## Ce que le balayage RAPPORTE
 
@@ -60,7 +60,7 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 |---|---|
 | `cause_inferred` | 0 |
 | `cause_unknown` | 0 |
-| `guard_does_not_prove_itself` | 27 |
+| `guard_does_not_prove_itself` | 18 |
 | `guards_ref_missing` | 0 |
 | `scope_family_invalid` | 0 |
 | `scope_on_a_shared_guard_without_naming_its_tests` | 0 |
@@ -85,8 +85,8 @@ Ce sont ces compteurs qui sont cranté, **pas le taux de récidive** : normalis�
 | by_guard · prose | 2 | 0.6141 | 0.069 – 2.2173 | insuffisant pour conclure (n=69) |
 | by_guard_since · avec-garde | 64 | 0.1613 | 0.1242 – 0.206 | insuffisant pour conclure (n=69) |
 | by_guard_since · sans-garde | 5 | 0.1741 | 0.0561 – 0.4063 | insuffisant pour conclure (n=69) |
-| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.083 | **séparent** |
-| by_seen_red · jamais-ou-inconnu | 69 | 0.181 | 0.1408 – 0.229 | **séparent** |
+| by_seen_red · daté | 0 | 0.0 | 0.0 – 0.1913 | insuffisant pour conclure (n=69) |
+| by_seen_red · jamais-ou-inconnu | 69 | 0.1698 | 0.1321 – 0.2149 | insuffisant pour conclure (n=69) |
 | by_scope · ne-couvre-pas renseigné | 69 | 0.1622 | 0.1262 – 0.2052 | une seule strate peuplée (n=69) |
 
 ⚠️ **Quand deux intervalles se recouvrent, il n'y a PAS de résultat**, quel que soit l'écart des points. Le verdict ci-dessus le dit strate par strate plutôt que de laisser le lecteur comparer deux nombres et conclure.
