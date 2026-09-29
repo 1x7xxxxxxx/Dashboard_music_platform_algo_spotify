@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R338 | `make test-changed` rate ~45 tests dont l'entrée est un ENSEMBLE de fichiers (balayage du 2026-09-29, trace des lectures de la suite entière) : glob non récursif / `iterdir` sur `airflow/dags/`, `src/dashboard/views/`, `.claude/hooks/` (R1), dossiers imbriqués de `.claude/dev-docs/` que `tests_reading_the_directory` ne compare qu'au parent immédiat (R2), entrées hors `.py` — workflows, compose, `.streamlit` (R3), tests sur `git ls-files` (R4), formes de glob de `tests/` non littérales (R5). ⚠️ Prémisse d'abord écrite ici réfutée par le même balayage : les deux cliquets rouges sur main ÉTAIENT sélectionnés (mon rejeu comparait des formats différents) — ces rouges venaient de commits poussés sans `make test-changed` <!-- critic: requis --> <!-- scope: .claude/scripts/, tests/, Makefile, tools/dev/ --> | P2 | rejeu des sondes du balayage (DAG édité, vue neuve, `roadmap/checklist.md`, `ci.yml`) : chaque test lecteur est sélectionné ; garde muté rouge |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R338, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

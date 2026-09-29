@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R338 — `make test-changed` rate ~45 tests dont l'entrée est un ENSEMBLE de fichiers (balayage… (livrée 2026-09-29)
+
+- [x] **R338 — `make test-changed` rate ~45 tests dont l'entrée est un ENSEMBLE de fichiers (balayage du 2026-09-29, trace des lectures de la suite entière) : glob non récursif / `iterdir` sur `airflow/dags/`, `src/dashboard/views/`, `.claude/hooks/` (R1), dossiers imbriqués de `.claude/dev-docs/` que `tests_reading_the_directory` ne compare qu'au parent immédiat (R2), entrées hors `.py` — workflows, compose, `.streamlit` (R3), tests sur `git ls-files` (R4), formes de glob de `tests/` non littérales (R5). ⚠️ Prémisse d'abord écrite ici réfutée par le même balayage : les deux cliquets rouges sur main ÉTAIENT sélectionnés (mon rejeu comparait des formats différents) — ces rouges venaient de commits poussés sans `make test-changed`** (P2) ✅ (2026-09-29, 85d28973, a8a6f9b1, b6597248)
+  Mesuré par : rejeu des sondes du balayage (DAG édité, vue neuve, `roadmap/checklist.md`, `ci.yml`) : chaque test lecteur est sélectionné ; garde muté rouge
+  selection par inclusion du dossier parcouru et de son motif, lecteurs de tout le depot a chaque changement, .streamlit force la suite, fichiers de donnees nommes par un module ; make select-audit : 78 rates -> 0 nouveau, 5 residus declares et motives ; critic BUILD-MODIFIED suivi, sauf R4 contredit par la mesure ; premisse initiale refutee et corrigee dans la ligne
+  Commits : 85d28973 R338 : les 3 derniers rates de make select-audit declares au residu mo · a8a6f9b1 R338 : test-changed selectionne par inclusion du dossier parcouru et d · b6597248 R337 : make defect-log importe d'abord les rouges et les verts des run
+
 ## ✅ R337 — `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de l… (livrée 2026-09-29)
 
 - [x] **R337 — `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de la CI de main et de la nuit de sécurité n'y entrent pas (bilan du 2026-09-29) — or c'est l'arbre PROPRE par excellence, le seul où un retour vaut récidive (R336). Importer les tests rouges des runs CI de main terminés (`gh run view --log-failed`) comme évènements `tree: clean`, sans doublon, et les montrer dans `make defect-log`** (P3) ✅ (2026-09-29, b6597248)
