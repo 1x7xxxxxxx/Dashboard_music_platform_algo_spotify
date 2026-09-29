@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R320 — `test_the_committed_document_describes_this_repository` a rougi 34 fois (make defect-lo… (livrée 2026-09-29)
+
+- [x] **R320 — `test_the_committed_document_describes_this_repository` a rougi 34 fois (make defect-log) : un document généré oublié après un changement. Le régénérer à la source (une cible qui régénère tous les documents périmés, appelée par `make test-changed`) au lieu de l'apprendre au rouge** (P3) ✅ (2026-09-29, d4b5bd37)
+  Mesuré par : document rendu périmé exprès ⇒ make test-changed le régénère et reste vert
+  hook gold-coverage-fresh --fix-once : carte or reecrite au commit puis refus une fois, jamais en cours de suite ; garde mute rouge 2 fois ; CI verte
+  Commits : d4b5bd37 R319 + R320 : les hooks de commit reparent eux-memes au lieu de nommer
+
+## ✅ R319 — Le pre-commit des durées a refusé 13 commits (make defect-log) : un test neuf lancé hor… (livrée 2026-09-29)
+
+- [x] **R319 — Le pre-commit des durées a refusé 13 commits (make defect-log) : un test neuf lancé hors de `make test-changed` n'a pas de durée ; enregistrer la durée des tests neufs sans geste à part** (P3) ✅ (2026-09-29, d4b5bd37)
+  Mesuré par : un test neuf lancé par pytest direct puis commité ⇒ accepté ; la CI de durées reste verte
+  hook test-durations-known --fix-once : mesure les durees manquantes puis refuse une fois ; garde mute rouge ; CI verte
+  Commits : d4b5bd37 R319 + R320 : les hooks de commit reparent eux-memes au lieu de nommer
+
+## ✅ R318 — Le pre-commit `fix end of files` a refusé 23 commits en 3 jours (make defect-log) : tro… (livrée 2026-09-29)
+
+- [x] **R318 — Le pre-commit `fix end of files` a refusé 23 commits en 3 jours (make defect-log) : trouver quels fichiers naissent sans fin de ligne (générateurs ?) et corriger à la source** (P3) ✅ (2026-09-29, 1e2db734)
+  Mesuré par : le générateur fautif réécrit ⇒ fin de ligne présente ; relevé de refus rejoué
+  3 fichiers sans fin de ligne corriges, aucun generateur fautif ; defect_capture ne compte plus les relectures de journal comme refus, 23 comptes pour 3 reels ; CI verte
+  Commits : 1e2db734 R318 : les 3 fichiers sans fin de ligne corriges ; defect_capture ne c
+
+## ✅ R316 — Le récap de la nuit a dit « Santé prod : ROUGE » le 2026-09-28 14:32 alors que `prod-he… (livrée 2026-09-29)
+
+- [x] **R316 — Le récap de la nuit a dit « Santé prod : ROUGE » le 2026-09-28 14:32 alors que `prod-health.yml` était vert (run 13:53 success) : filtrer les runs terminés CÔTÉ CLIENT (plus de `?status=completed`, servi par un index qui peut retarder — cause inférée) et journaliser dans le run les runs lus, pour que la prochaine divergence se lise** (P2) ✅ (2026-09-29, 834ff52b, c1d08adc)
+  Mesuré par : verdict rejoué sur une liste où le filtre serveur manque un run ; mail journal trié
+  filtre client des runs termines + journal des runs lus (recap et ci_break_mail) ; verdict rejoue sur un run en cours et sur un corps d erreur ; CI verte 1e2db734
+  Commits : 834ff52b R316 : le recap filtre les runs termines cote client (plus de ?status= · c1d08adc Roadmap : R316 a R329 inscrites - la nuit du 2026-09-29 (recap faux ro
+
 ## ✅ R317 — `make night-status` annonce « UNE SUITE TOURNE » sans aucun processus pytest (mesuré 20… (livrée 2026-09-29)
 
 - [x] **R317 — `make night-status` annonce « UNE SUITE TOURNE » sans aucun processus pytest (mesuré 2026-09-29 00:40) : trouver ce que la sonde prend pour une suite et la corriger** (P3) ✅ (2026-09-29, 6020c8fe)

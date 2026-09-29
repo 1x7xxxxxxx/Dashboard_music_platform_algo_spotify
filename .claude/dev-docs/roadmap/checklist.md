@@ -30,10 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R316 | Le récap de la nuit a dit « Santé prod : ROUGE » le 2026-09-28 14:32 alors que `prod-health.yml` était vert (run 13:53 success) : filtrer les runs terminés CÔTÉ CLIENT (plus de `?status=completed`, servi par un index qui peut retarder — cause inférée) et journaliser dans le run les runs lus, pour que la prochaine divergence se lise <!-- critic: requis --> <!-- scope: src/utils/, .github/, tests/, .claude/dev-docs/ --> | P2 | verdict rejoué sur une liste où le filtre serveur manque un run ; mail journal trié |
-| R318 | Le pre-commit `fix end of files` a refusé 23 commits en 3 jours (make defect-log) : trouver quels fichiers naissent sans fin de ligne (générateurs ?) et corriger à la source <!-- critic: non — correctif de générateurs, sans surface prod --> <!-- scope: tools/dev/, .claude/scripts/, tests/, src/database/, README.md --> | P3 | le générateur fautif réécrit ⇒ fin de ligne présente ; relevé de refus rejoué |
-| R319 | Le pre-commit des durées a refusé 13 commits (make defect-log) : un test neuf lancé hors de `make test-changed` n'a pas de durée ; enregistrer la durée des tests neufs sans geste à part <!-- critic: requis --> <!-- scope: Makefile, tools/dev/, .pre-commit-config.yaml, tests/ --> | P3 | un test neuf lancé par pytest direct puis commité ⇒ accepté ; la CI de durées reste verte |
-| R320 | `test_the_committed_document_describes_this_repository` a rougi 34 fois (make defect-log) : un document généré oublié après un changement. Le régénérer à la source (une cible qui régénère tous les documents périmés, appelée par `make test-changed`) au lieu de l'apprendre au rouge <!-- critic: requis --> <!-- scope: Makefile, tools/dev/, tests/, .claude/dev-docs/ --> | P3 | document rendu périmé exprès ⇒ make test-changed le régénère et reste vert |
 | R321 | 27 défauts « sans vert prouvé » dans make defect-log parce qu'un vert de `make test-changed` ne dit pas quels fichiers il a lancés : l'écrire dans sa sortie et le lire dans la capture <!-- critic: non — outil local de traçabilité --> <!-- scope: Makefile, .claude/scripts/, tools/dev/, tests/ --> | P3 | relance de make defect-log : les verts de test-changed prouvent leurs nœuds |
 | R322 | `session_summary.run_pytest_summary` est du code mort (code-critic R315 : jamais appelé par main) : le retirer vers l'archive ou le brancher, selon ce que dit son historique <!-- critic: non — nettoyage d'un hook local --> <!-- scope: .claude/hooks/, archive/, tests/ --> | P4 | aucune fonction du hook sans appelant |
 | R323 | Relire les 3 jobs rouges de la nuit de sécurité du 2026-09-28 (`error-management-probe`, `full-suite-random-order`, `guard-mutation`) — le run se conclut success, le mail n'en dit pas le détail — et corriger chaque cause <!-- critic: non — lecture puis correctifs de tests --> <!-- scope: tools/dev/, tests/, .github/, .claude/dev-docs/ --> | P2 | prochain audit de nuit : 0 job rouge, ou chaque rouge nommé dans le journal |
@@ -101,7 +97,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R316, R318, R319, R320, R321, R322, R323, R324, R325, R326, R327, R328, R329, R330, R331, R332, R283, R275 -->
+<!-- reprise: open=R321, R322, R323, R324, R325, R326, R327, R328, R329, R330, R331, R332, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
