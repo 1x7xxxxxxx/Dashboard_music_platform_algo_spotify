@@ -30,12 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R324 | Catalogue : `seen_red_unknown` 10 → 0 — muter chaque garde et DATER la rougeur vue (ou `self-proving`) <!-- critic: non — travail sur le catalogue et les tests --> <!-- scope: tests/, .claude/dev-docs/ --> | P3 | make error-health : seen_red_unknown 0 |
-| R325 | Catalogue : `guard_does_not_prove_itself` 27 → le plus bas tenable — écrire dans chaque garde le test de non-vacuité qui fabrique son défaut <!-- critic: non — travail sur le catalogue et les tests --> <!-- scope: tests/, .claude/dev-docs/ --> | P3 | make error-health : compteur baissé, cliquet resserré |
-| R326 | Catalogue : `scope_on_a_shared_guard_without_naming_its_tests` 13 → 0 — nommer dans la portée les tests qui gardent réellement la classe <!-- critic: non — texte du catalogue --> <!-- scope: tests/, .claude/dev-docs/ --> | P4 | make error-health : 0 |
-| R327 | Catalogue : les 8 classes `prose_only` — un garde automatique pour chacune, ou la raison écrite qu'aucun n'est possible <!-- critic: non — travail sur le catalogue et les tests --> <!-- scope: tests/, .claude/dev-docs/, .claude/scripts/ --> | P3 | make error-health : prose_only baissé, chaque restante motivée |
 | R328 | /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — confirmer la même cause une par une, compléter les classes existantes (ligne `(récidive)`) ou admettre les nouvelles, jamais sans billet <!-- critic: non — catalogue, règle 15 --> <!-- scope: tests/, .claude/dev-docs/ --> | P3 | audit_runner --admission vert ; chaque proposition tranchée dans le journal de nuit |
-| R335 | Une écriture admin n'invalide pas le cache de l'artiste qu'elle touche sur les autres instances : `src/dashboard/views/admin.py:597` → `purge_after_write` → `clear_kpi_caches()` SANS `artist_id`, donc `bump` résout le locataire depuis la session admin (aucun) et n'émet rien — l'autre instance sert jusqu'à 600 s de chiffres périmés (trouvé par le balayage de R334). Passer le locataire ciblé <!-- critic: non — argument manquant sur un émetteur existant --> <!-- scope: src/dashboard/, tests/ --> | P3 | écriture admin sur l'artiste N ⇒ l'époque de N bouge ; garde muté rouge |
 | R336 | `make defect-log` propose 32 billets `recurrence:` dont aucun n'est confirmable (R328, 2026-09-29) : ~21 sont des portes de développement rougies sur MON arbre en cours d'édition, 4 viennent d'une base arrêtée, ~7 de tests rouges pendant l'édition de leur zone. La capture ne sait pas si le rouge est tombé sur un arbre commité. Enregistrer, avec chaque rouge, si les fichiers touchés portaient du travail non commité, et ne proposer `recurrence:` que pour un rouge sur arbre propre (ou en CI) <!-- critic: requis --> <!-- scope: .claude/scripts/, tools/dev/, tests/ --> | P3 | relance de make defect-log : les rouges de travail en cours ne proposent plus de billet ; garde muté rouge |
 
 ---
@@ -92,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R324, R325, R326, R327, R328, R335, R336, R283, R275 -->
+<!-- reprise: open=R328, R336, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

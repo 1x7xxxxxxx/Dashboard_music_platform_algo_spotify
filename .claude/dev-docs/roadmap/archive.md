@@ -11,6 +11,41 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R324 — Catalogue : `seen_red_unknown` 10 → 0 — muter chaque garde et DATER la rougeur vue (ou… (livrée 2026-09-29)
+
+- [x] **R324 — Catalogue : `seen_red_unknown` 10 → 0 — muter chaque garde et DATER la rougeur vue (ou `self-proving`)** (P3) ✅ (2026-09-29, 28c877bf)
+  Mesuré par : make error-health : seen_red_unknown 0
+  seen_red_unknown 10 -> 0 ; 2 signatures vertes a vie corrigees ; garde de famille. FORCE_CI : la CI rouge de 28c877bf venait du garde des lectures textuelles et du plafond de la carte or, repares par 8fa8fb51 (R325 + R327), CI verte sur c3bc8369 qui contient 28c877bf
+  Commits : 28c877bf R324 : seen_red_unknown 10 -> 0 - chaque signature lancee sur son defa
+
+## ✅ R335 — Une écriture admin n'invalide pas le cache de l'artiste qu'elle touche sur les autres i… (livrée 2026-09-29)
+
+- [x] **R335 — Une écriture admin n'invalide pas le cache de l'artiste qu'elle touche sur les autres instances : `src/dashboard/views/admin.py:597` → `purge_after_write` → `clear_kpi_caches()` SANS `artist_id`, donc `bump` résout le locataire depuis la session admin (aucun) et n'émet rien — l'autre instance sert jusqu'à 600 s de chiffres périmés (trouvé par le balayage de R334). Passer le locataire ciblé** (P3) ✅ (2026-09-29, 9c1d1584)
+  Mesuré par : écriture admin sur l'artiste N ⇒ l'époque de N bouge ; garde muté rouge
+  purge_after_write recoit le locataire ecrit, 5 emetteurs corriges ; mute rouge 2 fois ; CI verte c3bc8369
+  Commits : 9c1d1584 R335 : purge_after_write recoit le locataire ECRIT, et les 5 emetteurs
+
+## ✅ R327 — Catalogue : les 8 classes `prose_only` — un garde automatique pour chacune, ou la raiso… (livrée 2026-09-29)
+
+- [x] **R327 — Catalogue : les 8 classes `prose_only` — un garde automatique pour chacune, ou la raison écrite qu'aucun n'est possible** (P3) ✅ (2026-09-29, 8fa8fb51, 5908e790)
+  Mesuré par : make error-health : prose_only baissé, chaque restante motivée
+  prose_only 8 -> 6 : mermaid gagne un test qui tourne, central-app etait deja garde (DAG + test) ; 6 restantes motivees ; CI verte
+  Commits : 8fa8fb51 R325 + R327 : CI rouge reparee - la lecture des signatures du catalogu · 5908e790 R327 : prose_only 8 -> 6 - mermaid-block-does-not-render gagne un test
+
+## ✅ R326 — Catalogue : `scope_on_a_shared_guard_without_naming_its_tests` 13 → 0 — nommer dans la… (livrée 2026-09-29)
+
+- [x] **R326 — Catalogue : `scope_on_a_shared_guard_without_naming_its_tests` 13 → 0 — nommer dans la portée les tests qui gardent réellement la classe** (P4) ✅ (2026-09-29, 3b03bda5)
+  Mesuré par : make error-health : 0
+  scope_on_a_shared_guard_without_naming_its_tests 13 -> 0 ; deux portees disent tel quel qu'aucun test ne garde le defaut ; CI verte
+  Commits : 3b03bda5 R326 : scope_on_a_shared_guard_without_naming_its_tests 13 -> 0 - chaq
+
+## ✅ R325 — Catalogue : `guard_does_not_prove_itself` 27 → le plus bas tenable — écrire dans chaque… (livrée 2026-09-29)
+
+- [x] **R325 — Catalogue : `guard_does_not_prove_itself` 27 → le plus bas tenable — écrire dans chaque garde le test de non-vacuité qui fabrique son défaut** (P3) ✅ (2026-09-29, 8fa8fb51, f04fc0f8)
+  Mesuré par : make error-health : compteur baissé, cliquet resserré
+  guard_does_not_prove_itself 27 -> 18 : 9 classes se prouvent a chaque execution (defaut fabrique + temoin sain) ; 18 restantes motivees (5 n-a par nature, 13 gardes sur le vrai code datees par mutation) ; CI verte
+  Commits : 8fa8fb51 R325 + R327 : CI rouge reparee - la lecture des signatures du catalogu · f04fc0f8 R325 : guard_does_not_prove_itself 27 -> 18 - un test fabrique a chaqu
+
 ## ✅ R329 — Vérifications de la base de configuration périmées (fleet 26 j, global 12 j) : rejouer… (livrée 2026-09-29)
 
 - [x] **R329 — Vérifications de la base de configuration périmées (fleet 26 j, global 12 j) : rejouer `audit_fleet.py` et `verify_loop_wiring.py`, corriger ce qui touche ce dépôt** (P4) ✅ (2026-09-29, c1d08adc)
