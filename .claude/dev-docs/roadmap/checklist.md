@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R337 | `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de la CI de main et de la nuit de sécurité n'y entrent pas (bilan du 2026-09-29) — or c'est l'arbre PROPRE par excellence, le seul où un retour vaut récidive (R336). Importer les tests rouges des runs CI de main terminés (`gh run view --log-failed`) comme évènements `tree: clean`, sans doublon, et les montrer dans `make defect-log` <!-- critic: requis --> <!-- scope: .claude/scripts/, tools/dev/, tests/, Makefile --> | P3 | un run CI rouge fabriqué ⇒ ses nœuds entrent une fois, `tree: clean` ; garde muté rouge |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R283, R275 -->
+<!-- reprise: open=R337, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
