@@ -226,10 +226,17 @@ def test_a_connected_platform_is_marked_differently_in_the_tab_bar():
     db = _db()
     from tests.conftest import born_before_session
     born, params = born_before_session()
+    # R323 (2026-09-29): red in the random-order nightly of 09-28 — « aucun onglet n'est en
+    # VERT ». The first tenant with credentials was taken on faith; a test run before it
+    # had memorised FAILED probes for that tenant, which the router rightly shows as ⚠️.
+    # The premise « a connected platform whose last probe did not fail » is now selected
+    # for, not assumed.
     marked = db.fetch_query(
-        "SELECT artist_id FROM artist_credentials "
-        "WHERE artist_id IN (SELECT id FROM saas_artists WHERE active" + born + ") "
-        "ORDER BY artist_id LIMIT 1", params)
+        "SELECT c.artist_id FROM artist_credentials c "
+        "WHERE c.artist_id IN (SELECT id FROM saas_artists WHERE active" + born + ") "
+        "AND NOT EXISTS (SELECT 1 FROM tenant_platform_probe p WHERE p.artist_id = c.artist_id "
+        "AND p.platform = c.platform AND p.ok IS FALSE) "
+        "ORDER BY c.artist_id LIMIT 1", params)
     if not marked:
         pytest.skip("aucun locataire ne porte de credentials ici")
     artist_id = marked[0][0]
