@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R337 — `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de l… (livrée 2026-09-29)
+
+- [x] **R337 — `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de la CI de main et de la nuit de sécurité n'y entrent pas (bilan du 2026-09-29) — or c'est l'arbre PROPRE par excellence, le seul où un retour vaut récidive (R336). Importer les tests rouges des runs CI de main terminés (`gh run view --log-failed`) comme évènements `tree: clean`, sans doublon, et les montrer dans `make defect-log`** (P3) ✅ (2026-09-29, b6597248)
+  Mesuré par : un run CI rouge fabriqué ⇒ ses nœuds entrent une fois, `tree: clean` ; garde muté rouge
+  import des rouges et verts de la CI de main (tree: clean, fin de run, prefixe --log-failed retire, run sans noeud dit) ; 9 rouges / 30 verts au premier passage, 0 au second ; a fait apparaitre 4 billets recurrence reels -> R338 ; critic BUILD-MODIFIED suivi ; mute rouge 2 fois
+  Commits : b6597248 R337 : make defect-log importe d'abord les rouges et les verts des run
+
 ## ✅ R328 — /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — conf… (livrée 2026-09-29)
 
 - [x] **R328 — /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — confirmer la même cause une par une, compléter les classes existantes (ligne `(récidive)`) ou admettre les nouvelles, jamais sans billet** (P3) ✅ (2026-09-29, 4733857b, fa3f580b, c3bc8369)
