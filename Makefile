@@ -922,6 +922,7 @@ chart-decisions: ## R314 — régénère src/dashboard/content/chart_decisions.p
 	@python3 tools/dev/build_chart_decisions.py
 
 defect-log: ## R315 — les défauts relevés à chaque réponse (hook Stop), lus comme défauts : verts, passagers, encore rouges, revenus (billet recurrence: à confirmer)
+	@python3 tools/dev/import_ci_reds.py   # R337 : les rouges de la CI de main, l'arbre propre
 	@python3 tools/dev/defect_log.py
 
 recap: ## R271 : régénère la page Récap depuis la revue notée des graphiques
