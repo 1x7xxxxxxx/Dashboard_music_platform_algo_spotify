@@ -113,7 +113,7 @@ def _delete_revenue(db, table, artist_id, year, month):
         f"DELETE FROM {table} WHERE artist_id = %s AND year = %s AND month = %s",
         (artist_id, year, month)
     )
-    purge_after_write()
+    purge_after_write(artist_id=artist_id)
 
 
 def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
@@ -133,7 +133,7 @@ def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
         conflict_columns=['artist_id', 'year', 'month'],
         update_columns=['revenue_eur', 'notes', 'source', 'updated_at'],
     )
-    purge_after_write()
+    purge_after_write(artist_id=artist_id)
 
 
 def _render_entry_form(db, artist_id):

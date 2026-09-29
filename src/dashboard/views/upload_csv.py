@@ -1040,7 +1040,7 @@ def render_uploader(db, target_artist_id: int) -> None:
         # rien une fois la première collecte enregistrée, donc à TOUS les
         # ré-imports — le cas courant d'un locataire installé. S'appuyer sur lui
         # pour purger revenait à ne jamais purger.
-        purge_after_write(total_ok)
+        purge_after_write(total_ok, target_artist_id)
         _launched = _not_launched = {}
         try:
             from src.dashboard.app import COLLECTION_DAGS

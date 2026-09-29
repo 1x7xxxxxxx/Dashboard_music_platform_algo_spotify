@@ -34,15 +34,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def purge_after_write(rows_written: int | bool = 1) -> None:
+def purge_after_write(rows_written: int | bool = 1, artist_id: int | None = None) -> None:
     """Vide les caches de lecture après une écriture. Ne lève jamais.
 
     `rows_written` à 0 ou False : rien n'a été écrit, il n'y a rien à invalider.
+
+    `artist_id` : le locataire ÉCRIT (R335, 2026-09-29). Sans lui, `bump` le résout depuis
+    la session — celle d'un admin qui écrit pour l'artiste N n'en porte aucun, et les autres
+    instances servaient les chiffres périmés de N jusqu'à 600 s.
     """
     if not rows_written:
         return
     try:
         from src.dashboard.utils.kpi_helpers import clear_kpi_caches
-        clear_kpi_caches()      # purge aussi le cache des séries
+        clear_kpi_caches(artist_id)      # purge aussi le cache des séries
     except Exception:           # noqa: BLE001 — une purge ratée ne casse pas l'écriture
         logger.warning("purge des caches impossible après une écriture")

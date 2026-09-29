@@ -121,7 +121,7 @@ def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
         # l'écran pour l'expliquer.
         #
         # « On ne fait pas confiance à l'horloge, on écoute l'évènement. »
-        purge_after_write()
+        purge_after_write(artist_id=artist_id)
         return True, t("hypeddit.save_success", "✅ Données enregistrées avec succès")
 
     except Exception as e:

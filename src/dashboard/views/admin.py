@@ -594,7 +594,7 @@ def _tab_upload(db) -> None:
             else:
                 n = _upload_apple(db, target_artist_id, uploaded)
             # La donnée vient de changer — voir `utils/cache_invalidation`.
-            purge_after_write(n)
+            purge_after_write(n, target_artist_id)
             st.success(t("admin.import_success", "✅ {n} ligne(s) importée(s) pour l'artiste #{artist_id}.").format(n=n, artist_id=target_artist_id))
         except Exception as e:
             st.error(t("admin.import_error", "❌ Erreur import : {err}").format(err=e))
