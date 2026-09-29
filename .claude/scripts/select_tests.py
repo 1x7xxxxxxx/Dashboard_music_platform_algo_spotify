@@ -79,6 +79,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import re
 import subprocess
 import sys
@@ -134,8 +135,10 @@ _ENV_NAMES = {"uv.lock", "Pipfile.lock", "poetry.lock", "init_db.sql"}
 def _FORCE_LA_SUITE(chemin: str) -> bool:
     c = chemin.replace("\\", "/")
     n = Path(c).name
+    # `.streamlit/` (R338): the runtime reads it on every render, never by a name a test
+    # could carry — measured by `make select-audit`, three render tests read it unselected.
     return (n in _ENV_NAMES or n.startswith(("requirements", ".env"))
-            or c.endswith(".sql") or c.startswith("config/"))
+            or c.endswith(".sql") or c.startswith(("config/", ".streamlit/")))
 DYNAMIC = {"importlib", "__import__"}
 
 
@@ -652,7 +655,7 @@ def tests_scanning_the_test_files(changed: list[str], all_tests: set[str],
 # the whole repository — and stays so when a literal is joined to it: code-critic's
 # second finding, where `Path(__file__).parent / "fixtures"` in `tests/foo/` had resolved
 # to a top-level `fixtures/` because « root » and « unknown » shared one value.
-_TREE_SCAN_HINT = re.compile(r"\.rglob\(|\bos\.walk\(|glob\(\s*[\"']\*\*")
+_TREE_SCAN_HINT = re.compile(r"\.rglob\(|\.glob\(|\.iterdir\(|\bos\.(?:walk|listdir|scandir)\(")
 _UNKNOWN = None   # the whole repository — never joined to anything
 
 
@@ -727,11 +730,17 @@ def _literal_paths(node: ast.AST, names: dict[str, list[ast.AST]], loops: dict[s
     return {_UNKNOWN}
 
 
-def scanned_directories(source: str, rel: str | None = None) -> set[str | None]:
-    """Repo-relative directories whose `.py` files this test walks. Pure.
+def scanned_patterns(source: str, rel: str | None = None) -> set[tuple[str | None, str, bool]]:
+    """(directory, name pattern, recursive) for every directory walk in this test. Pure.
 
-    `rel` is the test file's repo-relative path, which resolves `Path(__file__)` anchors.
-    Empty set = the test walks no `.py` tree; `_UNKNOWN` (None) = the whole repository."""
+    R338 (2026-09-29): `scanned_directories` knew three FORMS — `rglob("*.py")`,
+    `glob("**…py")`, `os.walk` — and a sweep tracing every file the suite opens found ~45
+    tests it missed: `glob("*.py")` over `airflow/dags/`, `iterdir()` over the views,
+    `rglob("*.md")` over `.claude/dev-docs/`, `glob("docker-compose*.y*ml")` at the root.
+    The property is « this test reads the files under D matching P »: every walk counts,
+    whatever its pattern, and a change selects the test when it falls under D and matches P
+    (code-critic R338: containment of the RESOLVED directory, never a name match).
+    `directory` is `_UNKNOWN` when it cannot be resolved — then only the pattern decides."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -745,26 +754,62 @@ def scanned_directories(source: str, rel: str | None = None) -> set[str | None]:
     loops = {n.target.id: n.iter for n in ast.walk(tree)
              if isinstance(n, (ast.For, ast.comprehension)) and isinstance(n.target, ast.Name)}
     here = tuple(rel.split("/")) if rel else None
-    out: set[str | None] = set()
+    out: set[tuple[str | None, str, bool]] = set()
     for n in ast.walk(tree):
         if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
             continue
+        attr = n.func.attr
         pattern = (n.args[0].value if n.args and isinstance(n.args[0], ast.Constant)
-                   and isinstance(n.args[0].value, str) else "")
-        if n.func.attr == "rglob" and pattern.endswith(".py"):
-            out |= _literal_paths(n.func.value, names, loops, here)
-        elif n.func.attr == "glob" and pattern.startswith("**") and pattern.endswith(".py"):
-            out |= _literal_paths(n.func.value, names, loops, here)
-        elif n.func.attr == "walk" and getattr(n.func.value, "id", "") == "os" and n.args:
-            out |= _literal_paths(n.args[0], names, loops, here)
+                   and isinstance(n.args[0].value, str) else None)
+        if attr == "rglob":
+            dirs, pat, rec = _literal_paths(n.func.value, names, loops, here), pattern or "*", True
+        elif attr == "glob" and n.args:
+            pat = pattern or "*"
+            rec = pat.startswith("**")
+            pat = pat.split("/")[-1] if rec else pat
+            if "/" in pat:            # `glob("sub/*.py")`: resolve the fixed prefix
+                head, pat = pat.rsplit("/", 1)
+                dirs = {(f"{d}/{head}".strip("/") if d is not _UNKNOWN else _UNKNOWN)
+                        for d in _literal_paths(n.func.value, names, loops, here)}
+            else:
+                dirs = _literal_paths(n.func.value, names, loops, here)
+        elif attr == "iterdir" and not n.args:
+            dirs, pat, rec = _literal_paths(n.func.value, names, loops, here), "*", False
+        elif attr in ("listdir", "scandir") and getattr(n.func.value, "id", "") == "os" \
+                and n.args:
+            dirs, pat, rec = _literal_paths(n.args[0], names, loops, here), "*", False
+        elif attr == "walk" and getattr(n.func.value, "id", "") == "os" and n.args:
+            dirs, pat, rec = _literal_paths(n.args[0], names, loops, here), "*", True
+        else:
+            continue
+        out |= {(d, pat, rec) for d in dirs}
     return out
+
+
+def scanned_directories(source: str, rel: str | None = None) -> set[str | None]:
+    """Repo-relative directories whose `.py` files this test walks. Pure.
+
+    Kept for its callers and self-tests: the `.py` walks among `scanned_patterns`."""
+    return {d for d, pat, _ in scanned_patterns(source, rel) if fnmatch.fnmatch("x.py", pat)}
+
+
+def _walk_matches(d: str | None, pat: str, rec: bool, c: str) -> bool:
+    """Does changed path `c` fall under walk (d, pat, rec)? Pure."""
+    name = c.rsplit("/", 1)[-1]
+    if not fnmatch.fnmatch(name, pat):
+        return False
+    if d is _UNKNOWN:
+        return True
+    parent = c.rsplit("/", 1)[0] if "/" in c else ""
+    if rec:
+        return d == "" or parent == d or parent.startswith(d + "/")
+    return parent == d
 
 
 def tests_scanning_the_tree(changed: list[str], all_tests: set[str],
                             known: dict[str, Path], root: Path | None = None) -> set[str]:
-    """Tests that walk a `.py` tree containing a changed `.py` file."""
-    changed_py = [c for c in changed if c.endswith(".py")]
-    if not changed_py:
+    """Tests that walk a directory in which a changed file falls, pattern included (R338)."""
+    if not changed:
         return set()
     hits: set[str] = set()
     for mod, path in known.items():
@@ -781,21 +826,44 @@ def tests_scanning_the_tree(changed: list[str], all_tests: set[str],
             rel = path.resolve().relative_to(root.resolve()).as_posix() if root else None
         except ValueError:
             rel = None
-        dirs = scanned_directories(text, rel)
-        if any(d is _UNKNOWN or d == "" or c == d or c.startswith(d + "/")
-               for d in dirs for c in changed_py):
+        if any(_walk_matches(d, pat, rec, c)
+               for d, pat, rec in scanned_patterns(text, rel) for c in changed):
             hits.add(mod)
     return hits
 
 
+_LISTS_THE_REPOSITORY = re.compile(r"""["']ls-files["']""")
+
+
+def tests_listing_the_repository(any_change: bool, all_tests: set[str],
+                                 known: dict[str, Path]) -> set[str]:
+    """Tests whose input is `git ls-files` — selected on ANY change.
+
+    R338 (2026-09-29). code-critic proposed « on add/delete/rename only »; `make
+    select-audit` measured otherwise: these tests READ the content of every tracked file,
+    and they were 69 of its 78 misses on plain edits. Three tests, ~10 s together."""
+    if not any_change:
+        return set()
+    hits = set()
+    for mod, path in known.items():
+        if mod in all_tests:
+            try:
+                if _LISTS_THE_REPOSITORY.search(path.read_text(encoding="utf-8", errors="replace")):
+                    hits.add(mod)
+            except OSError:
+                hits.add(mod)
+    return hits
+
+
 def select(root: Path, base: str | None = None, _max_depth: int | None = None,
-           _sans_dossier: bool = False) -> dict:
+           _sans_dossier: bool = False, _changed: list[str] | None = None) -> dict:
     """Rend {'all': bool, 'tests': [...], 'reason': str}.
 
     `_max_depth` n'existe que pour `--self-test` : il bride la fermeture
     transitive afin de prouver que la brider fait bien rater un test. Voir R3.
     """
-    changed = changed_files(root, base)
+    # `_changed`: a fabricated diff, for the audit (`tools/dev/select_audit.py`) and tests.
+    changed = changed_files(root, base) if _changed is None else list(_changed)
     if changed is None:
         pourquoi = _DERNIERE_PANNE_GIT or "cause inconnue"
         return {"all": True, "tests": [],
@@ -871,6 +939,23 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
         d = (root / c).parent
         seeds |= {m for m, p in known.items() if p.parent == d and not is_test(
             str(p.relative_to(root)).replace("\\", "/"))}
+    # …and by the modules that NAME it, wherever they live (R338: the guide screenshots
+    # and the model's JSON are read by views that name them from another folder —
+    # `make select-audit` saw the render tests read them unselected). The basename only:
+    # a folder name is too common a word to mean « reads this file ».
+    for c in non_py:
+        base_name = Path(c).name
+        if len(base_name) < 8:
+            continue
+        for m, p in known.items():
+            rel = str(p.relative_to(root)).replace("\\", "/")
+            if is_test(rel):
+                continue
+            try:
+                if base_name in p.read_text(encoding="utf-8", errors="replace"):
+                    seeds.add(m)
+            except OSError:
+                continue
 
     if _max_depth is None:
         reached = importers_closure(imports, seeds)
@@ -895,8 +980,13 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
     meta = set() if _sans_dossier else (
         tests_scanning_the_test_files(sources, set(all_tests), known) - picked)
     picked |= meta                                     # gardes qui balaient tests/
-    tree = tests_scanning_the_tree(sources, set(all_tests), known, root) - picked
-    picked |= tree                                     # gardes qui balaient un arbre de .py
+    # `_sans_dossier` (self-test) cuts the WHOLE directory family: containment (R338) now
+    # covers what the two older rules caught, and a mutation must still be seen to miss.
+    tree = set() if _sans_dossier else (
+        tests_scanning_the_tree(sources + non_py, set(all_tests), known, root) - picked)
+    picked |= tree                                     # gardes qui balaient un dossier (R338)
+    listing = tests_listing_the_repository(bool(changed), set(all_tests), known) - picked
+    picked |= listing                                  # tests sur `git ls-files` (R338)
 
     reason = f"{len(picked)}/{len(all_tests)} tests atteignent {len(seeds)} module(s) modifié(s)"
     if named:
@@ -912,7 +1002,9 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
     if meta:
         reason += f" ; {len(meta)} garde(s) qui balaient tests/ (un test a changé)"
     if tree:
-        reason += f" ; {len(tree)} garde(s) qui balaient un arbre de .py modifié"
+        reason += f" ; {len(tree)} garde(s) qui balaient un dossier modifié"
+    if listing:
+        reason += f" ; {len(listing)} test(s) qui lisent tout le dépôt (`git ls-files`)"
     return {"all": False, "tests": sorted(picked),
             "paths": _chemins(root, sorted(picked), known), "reason": reason}
 
