@@ -33,6 +33,14 @@ KNOWN_RESIDUAL = {
     ".claude/scripts/audit_collectors_ast.py":
         "read by a script the test runs, not by the test — a subprocess read the trace "
         "attributes to the test but no import or name can carry",
+    # AppTest renders load the app by FILE PATH, not by import: an image the page shows is
+    # read by those tests, and no import edge leads from it to them (audit of 2026-09-29).
+    "assets/credential_guide/spotify/spotify_share_artist_link.png":
+        "shown by a page an AppTest renders by file path — outside the import graph",
+    "src/dashboard/assets/examples/dashboard-global-thumb.png":
+        "embedded in the verification e-mail by path — outside the import graph",
+    "src/dashboard/assets/logo_horizontal_adaptive.svg":
+        "shown by a page an AppTest renders by file path — outside the import graph",
 }
 
 
