@@ -540,7 +540,7 @@ _CEILINGS = {
     # RÉGRESSION là où il y a une correction de mesure. Le vrai nombre de classes
     # dont personne n'a cherché les frères est donc la SOMME des deux.
     "swept_by_rerunning_the_guard": 0,
-    "scope_on_a_shared_guard_without_naming_its_tests": 13,  # phase C ; 23 → 15 le 2026-09-17 ; → 14 le 2026-09-26 (R169, gardes pytest nommés) ; → 13
+    "scope_on_a_shared_guard_without_naming_its_tests": 0,  # phase C ; 13 → 0 le 2026-09-29 (R326) ; 23 → 15 le 2026-09-17 ; → 14 le 2026-09-26 (R169, gardes pytest nommés) ; → 13
                                       # ⚠️ 9 → 11 le 2026-09-17, et les DEUX de hausse sont
                                       # STRUCTURELS, pas de la négligence : `ci-runs-twice-for-one-commit`
                                       # et `ci-has-no-concurrency-group` partagent

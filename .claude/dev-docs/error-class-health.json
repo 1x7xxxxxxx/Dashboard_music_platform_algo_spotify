@@ -1056,7 +1056,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "pytest",
       "has_signature": true,
       "history_dates_declared": [],
@@ -1068,7 +1068,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -1414,7 +1414,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -1429,7 +1429,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -2593,7 +2593,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -2607,7 +2607,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2760,7 +2760,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -2774,7 +2774,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -3530,7 +3530,7 @@
       "guard_scope_declared_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_derived_family": "un-garde-qui-ne-garde-pas",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -3545,7 +3545,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-12",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -4708,7 +4708,7 @@
       "guard_scope_declared_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "script",
       "has_signature": true,
       "history_dates_declared": [
@@ -4722,7 +4722,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5815,7 +5815,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [],
@@ -5827,7 +5827,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-17",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5840,7 +5840,7 @@
       "guard_scope_declared_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_derived_family": "un-coût-payé-sans-contrepartie",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "error-class-signature",
       "has_signature": true,
       "history_dates_declared": [],
@@ -5852,7 +5852,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-17",
-      "revisions": 6,
+      "revisions": 7,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -5919,7 +5919,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-nombre-affirmé-qui-n-a-pas-été-mesuré",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -5934,7 +5934,7 @@
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 1,
       "renamed_from": null
     },
@@ -7910,7 +7910,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -7925,7 +7925,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8483,7 +8483,7 @@
       "guard_scope_declared_family": "le-temps-et-l-horloge",
       "guard_scope_derived_family": "le-temps-et-l-horloge",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -8497,7 +8497,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8956,7 +8956,7 @@
       "guard_scope_declared_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_derived_family": "un-document-qui-affirme-un-état-périmé",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "cross-cutting-rule",
       "has_signature": true,
       "history_dates_declared": [
@@ -8970,7 +8970,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -10298,7 +10298,7 @@
       "guard_scope_declared_family": "deux-surfaces-deux-nombres",
       "guard_scope_derived_family": "une-configuration-qui-diverge-de-la-prod",
       "guard_scope_has_not_covered": true,
-      "guard_scope_names_a_test": false,
+      "guard_scope_names_a_test": true,
       "guard_type": "ci-step",
       "has_signature": true,
       "history_dates_declared": [
@@ -10312,7 +10312,7 @@
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11786,8 +11786,8 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 576,
-      "head_date": "2026-09-28"
+      "catalogue_revisions": 577,
+      "head_date": "2026-09-29"
     },
     "holes": {
       "cause_inferred": 0,
@@ -11795,7 +11795,7 @@
       "guard_does_not_prove_itself": 27,
       "guards_ref_missing": 0,
       "scope_family_invalid": 0,
-      "scope_on_a_shared_guard_without_naming_its_tests": 13,
+      "scope_on_a_shared_guard_without_naming_its_tests": 0,
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
