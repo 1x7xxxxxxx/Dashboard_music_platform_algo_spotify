@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R328 | /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — confirmer la même cause une par une, compléter les classes existantes (ligne `(récidive)`) ou admettre les nouvelles, jamais sans billet <!-- critic: non — catalogue, règle 15 --> <!-- scope: tests/, .claude/dev-docs/ --> | P3 | audit_runner --admission vert ; chaque proposition tranchée dans le journal de nuit |
-| R336 | `make defect-log` propose 32 billets `recurrence:` dont aucun n'est confirmable (R328, 2026-09-29) : ~21 sont des portes de développement rougies sur MON arbre en cours d'édition, 4 viennent d'une base arrêtée, ~7 de tests rouges pendant l'édition de leur zone. La capture ne sait pas si le rouge est tombé sur un arbre commité. Enregistrer, avec chaque rouge, si les fichiers touchés portaient du travail non commité, et ne proposer `recurrence:` que pour un rouge sur arbre propre (ou en CI) <!-- critic: requis --> <!-- scope: .claude/scripts/, tools/dev/, tests/ --> | P3 | relance de make defect-log : les rouges de travail en cours ne proposent plus de billet ; garde muté rouge |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R328, R336, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

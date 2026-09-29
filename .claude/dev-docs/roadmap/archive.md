@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R328 — /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — conf… (livrée 2026-09-29)
+
+- [x] **R328 — /capitalise sur la séance : les 28 propositions `recurrence:` de make defect-log — confirmer la même cause une par une, compléter les classes existantes (ligne `(récidive)`) ou admettre les nouvelles, jamais sans billet** (P3) ✅ (2026-09-29, 4733857b, fa3f580b, c3bc8369)
+  Mesuré par : audit_runner --admission vert ; chaque proposition tranchée dans le journal de nuit
+  32 propositions triees dans le journal de nuit (fa3f580b) : aucune confirmable meme cause ; aucun billet admis ; la capture le sait desormais (R336) ; CI verte
+  Commits : 4733857b Roadmap : R324 a R327 et R335 livrees (CI verte c3bc8369 ; R324 fermee · fa3f580b R336 + R328 : chaque rouge porte l'arbre sur lequel il a tourne (wip / · c3bc8369 Roadmap : R328 et R329 closes (tri des propositions recurrence, audits
+
+## ✅ R336 — `make defect-log` propose 32 billets `recurrence:` dont aucun n'est confirmable (R328,… (livrée 2026-09-29)
+
+- [x] **R336 — `make defect-log` propose 32 billets `recurrence:` dont aucun n'est confirmable (R328, 2026-09-29) : ~21 sont des portes de développement rougies sur MON arbre en cours d'édition, 4 viennent d'une base arrêtée, ~7 de tests rouges pendant l'édition de leur zone. La capture ne sait pas si le rouge est tombé sur un arbre commité. Enregistrer, avec chaque rouge, si les fichiers touchés portaient du travail non commité, et ne proposer `recurrence:` que pour un rouge sur arbre propre (ou en CI)** (P3) ✅ (2026-09-29, fa3f580b, c3bc8369)
+  Mesuré par : relance de make defect-log : les rouges de travail en cours ne proposent plus de billet ; garde muté rouge
+  etat d'arbre par evenement (wip/clean/unknown) ; recurrence proposee seulement sur arbre propre ; critic BUILD-MODIFIED suivi ; mute rouge 2 fois ; CI verte fa3f580b
+  Commits : fa3f580b R336 + R328 : chaque rouge porte l'arbre sur lequel il a tourne (wip / · c3bc8369 Roadmap : R328 et R329 closes (tri des propositions recurrence, audits
+
 ## ✅ R324 — Catalogue : `seen_red_unknown` 10 → 0 — muter chaque garde et DATER la rougeur vue (ou… (livrée 2026-09-29)
 
 - [x] **R324 — Catalogue : `seen_red_unknown` 10 → 0 — muter chaque garde et DATER la rougeur vue (ou `self-proving`)** (P3) ✅ (2026-09-29, 28c877bf)
