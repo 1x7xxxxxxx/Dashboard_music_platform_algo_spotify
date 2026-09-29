@@ -22,20 +22,10 @@ import re
 import shlex
 from pathlib import Path
 
+from tests.catalogue_source import CATALOGUE, signatures
+
 ROOT = Path(__file__).resolve().parents[1]
-CATALOGUE = ROOT / ".claude/dev-docs/error-classes.md"
 _BAD_ESCAPE = re.compile(r"\\[tdDn]")      # not ERE/BRE escapes: `\t` is a `t`, `\d` a `d`
-
-
-def signatures(text: str) -> dict[str, str]:
-    out, cid = {}, None
-    for line in text.splitlines():
-        if line.startswith("## "):
-            cid = line[3:].strip()
-        m = re.match(r"^- signature: `(.+)`\s*$", line)
-        if m and cid:
-            out[cid] = m.group(1)
-    return out
 
 
 def _grep_segments(sig: str) -> list[list[str]]:
@@ -80,7 +70,7 @@ def problems(sig: str, root: Path = ROOT) -> list[str]:
 
 
 def test_no_catalogue_signature_can_pass_without_reading() -> None:
-    bad = {cid: p for cid, sig in signatures(CATALOGUE.read_text(encoding="utf-8")).items()
+    bad = {cid: p for cid, sig in signatures().items()
            if (p := problems(sig))}
     assert not bad, f"signatures that can pass without evaluating their pattern: {bad}"
 
@@ -88,11 +78,11 @@ def test_no_catalogue_signature_can_pass_without_reading() -> None:
 def test_the_detector_sees_the_defect_it_is_written_for(tmp_path) -> None:
     (tmp_path / "Makefile").write_text("up:\n\tdocker ps\n")
     assert problems('! grep -nE "^\\t.*docker" Makefile', tmp_path)
-    assert problems("! grep -rn x src/gone.py Makefile", tmp_path) == [
-        "operand 'src/gone.py' does not exist — grep exits 2, `!` reads 0"]
+    assert problems("! grep -rn x src/gone.txt Makefile", tmp_path) == [
+        "operand 'src/gone.txt' does not exist — grep exits 2, `!` reads 0"]
     assert problems('! grep -nE "^[[:space:]]+.*docker" Makefile', tmp_path) == []
     assert problems("cat f | grep -v x", tmp_path) == []          # stdin: no operand
-    quoted = '! grep -rnE "a|b (c|d)" src/gone.py'                  # `|` inside the quotes
+    quoted = '! grep -rnE "a|b (c|d)" src/gone.txt'                  # `|` inside the quotes
     assert problems(quoted, tmp_path) == [
-        "operand 'src/gone.py' does not exist — grep exits 2, `!` reads 0"]
-    assert len(signatures(CATALOGUE.read_text(encoding="utf-8"))) > 300
+        "operand 'src/gone.txt' does not exist — grep exits 2, `!` reads 0"]
+    assert len(signatures()) > 300

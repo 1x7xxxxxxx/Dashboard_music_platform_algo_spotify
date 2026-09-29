@@ -21,15 +21,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.catalogue_source import signatures
+
 ROOT = Path(__file__).resolve().parents[1]
-CATALOGUE = ROOT / ".claude/dev-docs/error-classes.md"
 
 
 def _signature(cid: str) -> str:
-    text = CATALOGUE.read_text(encoding="utf-8")
-    i = text.index(f"\n## {cid}\n")
-    block = text[i:text.find("\n## ", i + 5)]
-    return re.search(r"^- signature: `(.+)`\s*$", block, re.M).group(1)
+    return signatures()[cid]
 
 
 def _write(root: Path, rel: str, content: str) -> None:
