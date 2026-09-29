@@ -43,6 +43,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R331 | Deux cibles lourdes ne tournent plus en même temps : `make error-management-probe` prend `~/.cache/heavy-memory.lock` comme les cibles de test, et une cible de test qui le trouve tenu ATTEND (borné, et le dit) au lieu de partir à côté ; `pytest_workers.py` compte la mémoire que les conteneurs Docker peuvent encore prendre (plafond − usage) au lieu de ne connaître que n8n <!-- critic: requis --> <!-- scope: Makefile, tools/dev/, tests/ --> | P2 | sonde + suite lancées ensemble ⇒ la seconde attend ; un conteneur plafonné à 8 GiB ⇒ la réserve le compte |
 | R332 | La page admin « santé » plante (`AttributeError: 'NoneType' object has no attribute 'close'`, `src/dashboard/views/db_health.py:262`) quand la base est injoignable : `get_db_connection()` rend None par contrat et la vue ne le teste pas — vu le 2026-09-29, Postgres local arrêté après le redémarrage. Balayer les vues frères (`get_db_connection()` sans garde de None), les dégrader proprement ou les migrer vers `view_session()` <!-- critic: non — dégradation d'affichage, règle 7 --> <!-- scope: src/dashboard/, tests/ --> | P3 | base coupée ⇒ chaque vue balayée rend un message, aucune trace ; garde muté rouge |
 | R333 | L'API rend un 500 au lieu d'un 503 quand la base est injoignable : `src/api/deps.py:22` `get_db()` fait `yield db` avec None (trouvé par le balayage de R332) — chaque routeur reçoit None. Lever `HTTPException(503)` à la source, comme `/health` <!-- critic: non — dépendance FastAPI, comportement d'erreur seul ; security-specialist (règle 13) --> <!-- scope: src/api/, tests/ --> | P3 | base coupée ⇒ un routeur authentifié rend 503 et un message, pas un 500 ; garde muté rouge |
+| R334 | L'invalidation de cache entre instances se relance elle-même : `honour_remote_invalidation` (`src/dashboard/utils/cache_epoch.py`) purge par `clear_kpi_caches()`, qui RÉ-INCRÉMENTE l'époque (`bump`) en ouvrant une 2ᵉ connexion — chaque purge en déclenche une autre chez toutes les instances, puis chez soi 30 s plus tard (vu : rouge `test_a_render_opens_one_connection[meta_breakdowns]`, nuit de sécurité du 2026-09-28, ordre aléatoire). Purger localement sans bump, et qu'un bump local ne se relise pas comme distant <!-- critic: non — séparation purge locale / signal, sans changement de contrat --> <!-- scope: src/dashboard/utils/, tests/ --> | P2 | époque changée ⇒ une purge, zéro bump, une seule connexion ; bump local ⇒ aucune purge au rendu suivant ; gardes mutés rouges |
 
 ---
 
@@ -98,7 +99,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R321, R322, R323, R324, R325, R326, R327, R328, R329, R330, R331, R332, R333, R283, R275 -->
+<!-- reprise: open=R321, R322, R323, R324, R325, R326, R327, R328, R329, R330, R331, R332, R333, R334, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
