@@ -31,6 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R337 | `.claude/sessions/defects.jsonl` ne voit que les rouges des sessions Claude : ceux de la CI de main et de la nuit de sécurité n'y entrent pas (bilan du 2026-09-29) — or c'est l'arbre PROPRE par excellence, le seul où un retour vaut récidive (R336). Importer les tests rouges des runs CI de main terminés (`gh run view --log-failed`) comme évènements `tree: clean`, sans doublon, et les montrer dans `make defect-log` <!-- critic: requis --> <!-- scope: .claude/scripts/, tools/dev/, tests/, Makefile --> | P3 | un run CI rouge fabriqué ⇒ ses nœuds entrent une fois, `tree: clean` ; garde muté rouge |
+| R338 | `make test-changed` ne sélectionne pas les cliquets transverses qui rougissent ensuite sur main : rejoué le 2026-09-29 sur `28c877bf` et `5908e790`, la sélection (304 et 299 tests) ne contenait ni `test_a_guard_reads_structure_not_text.py` (qui balaie `tests/`) ni `test_the_gold_coverage_only_improves.py` (qui lit le catalogue) — ce sont les 4 billets `recurrence:` réels que R337 a fait apparaître. Balayer les tests à entrée globale et les faire sélectionner quand leur entrée change <!-- critic: requis --> <!-- scope: .claude/scripts/, tests/ --> | P2 | rejeu de la sélection sur les deux commits : les deux cliquets y sont ; garde muté rouge |
 
 ---
 
@@ -86,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R337, R283, R275 -->
+<!-- reprise: open=R337, R338, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
