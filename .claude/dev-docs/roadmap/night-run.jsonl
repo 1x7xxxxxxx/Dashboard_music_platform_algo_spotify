@@ -581,3 +581,4 @@
 {"at": "2026-09-28T23:04:06+00:00", "head": "6020c8fe", "kind": "start", "task": "R323", "what": "3 jobs rouges de la nuit de securite"}
 {"at": "2026-09-28T23:21:32+00:00", "head": "ac18b99d", "kind": "start", "task": "R316", "what": "recap : filtre client, journal des runs lus"}
 {"at": "2026-09-29T00:06:33+00:00", "kind": "done", "task": "R316", "what": "fermée par roadmap-close — filtre client des runs termines + journal des runs lus (recap et ci_break_mail) ; verdict rejoue sur un run en cours et sur un corps d erreur ; CI verte 1e2db734"}
+{"at": "2026-09-29T03:23:56+00:00", "head": "5fb725e8", "kind": "start", "task": "R335", "what": "purge nomme le locataire"}

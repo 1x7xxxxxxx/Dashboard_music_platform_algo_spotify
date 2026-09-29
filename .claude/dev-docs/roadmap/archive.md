@@ -11,6 +11,62 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R323 — Relire les 3 jobs rouges de la nuit de sécurité du 2026-09-28 (`error-management-probe`… (livrée 2026-09-29)
+
+- [x] **R323 — Relire les 3 jobs rouges de la nuit de sécurité du 2026-09-28 (`error-management-probe`, `full-suite-random-order`, `guard-mutation`) — le run se conclut success, le mail n'en dit pas le détail — et corriger chaque cause** (P2) ✅ (2026-09-29, 5fb725e8, 1a918fe4)
+  Mesuré par : prochain audit de nuit : 0 job rouge, ou chaque rouge nommé dans le journal
+  sonde du catalogue verte 21/21 (closest: du temoin), 3 gardes de guard-mutation dates, test des onglets choisit sa premisse (rouge aleatoire, cause inferee) ; CI verte 5fb725e8
+  Commits : 5fb725e8 R323 : le test des onglets choisit un locataire dont la plateforme con · 1a918fe4 R323 : la classe temoin de la sonde porte closest: (exige depuis R264,
+
+## ✅ R334 — L'invalidation de cache entre instances se relance elle-même : `honour_remote_invalidat… (livrée 2026-09-29)
+
+- [x] **R334 — L'invalidation de cache entre instances se relance elle-même : `honour_remote_invalidation` (`src/dashboard/utils/cache_epoch.py`) purge par `clear_kpi_caches()`, qui RÉ-INCRÉMENTE l'époque (`bump`) en ouvrant une 2ᵉ connexion — chaque purge en déclenche une autre chez toutes les instances, puis chez soi 30 s plus tard (vu : rouge `test_a_render_opens_one_connection[meta_breakdowns]`, nuit de sécurité du 2026-09-28, ordre aléatoire). Purger localement sans bump, et qu'un bump local ne se relise pas comme distant** (P2) ✅ (2026-09-29, 5e8c5bc6)
+  Mesuré par : époque changée ⇒ une purge, zéro bump, une seule connexion ; bump local ⇒ aucune purge au rendu suivant ; gardes mutés rouges
+  purge locale separee du bump, epoque propre (_MINE) non relue comme distante ; mute rouge 2 fois ; CI verte 5fb725e8
+  Commits : 5e8c5bc6 R334 : une purge declenchee par une invalidation distante ne la re-eme
+
+## ✅ R333 — L'API rend un 500 au lieu d'un 503 quand la base est injoignable : `src/api/deps.py:22`… (livrée 2026-09-29)
+
+- [x] **R333 — L'API rend un 500 au lieu d'un 503 quand la base est injoignable : `src/api/deps.py:22` `get_db()` fait `yield db` avec None (trouvé par le balayage de R332) — chaque routeur reçoit None. Lever `HTTPException(503)` à la source, comme `/health`** (P3) ✅ (2026-09-29, 466892d1)
+  Mesuré par : base coupée ⇒ un routeur authentifié rend 503 et un message, pas un 500 ; garde muté rouge
+  premisse fausse verifiee route par route (get_current_user rend 503) ; garde qui descend dans les _IncludedRouter ; CI verte
+  Commits : 466892d1 R333 : premisse fausse, verifiee route par route - chaque route qui re
+
+## ✅ R332 — La page admin « santé » plante (`AttributeError: 'NoneType' object has no attribute 'cl… (livrée 2026-09-29)
+
+- [x] **R332 — La page admin « santé » plante (`AttributeError: 'NoneType' object has no attribute 'close'`, `src/dashboard/views/db_health.py:262`) quand la base est injoignable : `get_db_connection()` rend None par contrat et la vue ne le teste pas — vu le 2026-09-29, Postgres local arrêté après le redémarrage. Balayer les vues frères (`get_db_connection()` sans garde de None), les dégrader proprement ou les migrer vers `view_session()`** (P3) ✅ (2026-09-29, c3510848)
+  Mesuré par : base coupée ⇒ chaque vue balayée rend un message, aucune trace ; garde muté rouge
+  require_db a la source (view_session) et dans 5 vues : base injoignable => message, plus de trace ; garde AST mute rouge 2 fois ; CI verte
+  Commits : c3510848 R332 : une base injoignable arrete la page avec un message au lieu de 
+
+## ✅ R331 — Deux cibles lourdes ne tournent plus en même temps : `make error-management-probe` pren… (livrée 2026-09-29)
+
+- [x] **R331 — Deux cibles lourdes ne tournent plus en même temps : `make error-management-probe` prend `~/.cache/heavy-memory.lock` comme les cibles de test, et une cible de test qui le trouve tenu ATTEND (borné, et le dit) au lieu de partir à côté ; `pytest_workers.py` compte la mémoire que les conteneurs Docker peuvent encore prendre (plafond − usage) au lieu de ne connaître que n8n** (P2) ✅ (2026-09-29, aaac4d73)
+  Mesuré par : sonde + suite lancées ensemble ⇒ la seconde attend ; un conteneur plafonné à 8 GiB ⇒ la réserve le compte
+  verrou lourd : la sonde le prend (fcntl), une suite attend une suite ou la sonde (holder lu dans /proc) puis retombe a 2 workers ; workers calcules apres le verrou ; reserve Docker differee jusqu'a une trace qui la justifie (critic) ; CI verte
+  Commits : aaac4d73 R330 + R331 + R321 : les cibles lourdes laissent une trace memoire qui
+
+## ✅ R330 — WSL a gelé le 2026-09-29 à 01:28:46 (tous les écrivains muets à la même seconde : `.pyt… (livrée 2026-09-29)
+
+- [x] **R330 — WSL a gelé le 2026-09-29 à 01:28:46 (tous les écrivains muets à la même seconde : `.pytest-last.log` à 45 %, journal git du serveur VS Code) pendant `make test-changed` — sélection = suite entière — lancé EN MÊME TEMPS que `make error-management-probe`, avec le conteneur QuestDB de msdr (plafond 8 GiB sur une VM à 9,7) laissé debout par l'autre session ; redémarrage manuel à 01:39:50. Aucune trace noyau ne survit à un redémarrage WSL : la cause reste INFÉRÉE. Journaliser la mémoire pendant chaque cible lourde (MemAvailable, swap, 5 plus gros RSS, conteneurs) dans un fichier persistant, pour que le prochain gel se lise** (P2) ✅ (2026-09-29, aaac4d73)
+  Mesuré par : une suite lancée puis tuée ⇒ la trace reste lisible après coup, dernier échantillon ≤ 30 s avant la fin
+  mem_trace.py : echantillon fsync toutes les 15 s dans ~/.cache/mem-trace.log pendant chaque cible lourde, survit a un kill -9 ; vu en usage reel (fin ecrite) ; CI verte
+  Commits : aaac4d73 R330 + R331 + R321 : les cibles lourdes laissent une trace memoire qui
+
+## ✅ R322 — `session_summary.run_pytest_summary` est du code mort (code-critic R315 : jamais appelé… (livrée 2026-09-29)
+
+- [x] **R322 — `session_summary.run_pytest_summary` est du code mort (code-critic R315 : jamais appelé par main) : le retirer vers l'archive ou le brancher, selon ce que dit son historique** (P4) ✅ (2026-09-29, 5f919bae)
+  Mesuré par : aucune fonction du hook sans appelant
+  run_pytest_summary mort remplace par red_run_hint (lit .pytest-last.log), atteint par main ; mute rouge 2 fois ; CI verte
+  Commits : 5f919bae R322 : run_pytest_summary (jamais appele) remplace par red_run_hint, q
+
+## ✅ R321 — 27 défauts « sans vert prouvé » dans make defect-log parce qu'un vert de `make test-cha… (livrée 2026-09-29)
+
+- [x] **R321 — 27 défauts « sans vert prouvé » dans make defect-log parce qu'un vert de `make test-changed` ne dit pas quels fichiers il a lancés : l'écrire dans sa sortie et le lire dans la capture** (P3) ✅ (2026-09-29, aaac4d73)
+  Mesuré par : relance de make defect-log : les verts de test-changed prouvent leurs nœuds
+  test-changed ecrit sa selection (.pytest-selected), defect_capture la lit : un vert diff-selectionne prouve ses fichiers ; mute rouge 2 fois ; CI verte
+  Commits : aaac4d73 R330 + R331 + R321 : les cibles lourdes laissent une trace memoire qui
+
 ## ✅ R320 — `test_the_committed_document_describes_this_repository` a rougi 34 fois (make defect-lo… (livrée 2026-09-29)
 
 - [x] **R320 — `test_the_committed_document_describes_this_repository` a rougi 34 fois (make defect-log) : un document généré oublié après un changement. Le régénérer à la source (une cible qui régénère tous les documents périmés, appelée par `make test-changed`) au lieu de l'apprendre au rouge** (P3) ✅ (2026-09-29, d4b5bd37)
