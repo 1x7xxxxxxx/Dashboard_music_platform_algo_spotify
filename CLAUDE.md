@@ -102,7 +102,7 @@ pour décorer :
 |---|---|---|
 | `make test-changed` | les tests atteignables depuis le diff — un `.md`/`.yml` ne force plus la suite entière (2026-09-25) | **secondes à ~2 min** |
 | `make test-fast` | tout sauf les documents | `make test` − ~38 s |
-| `make test` | la suite, `-n $(PYTEST_WORKERS) --dist loadgroup` | `.claude/dev-docs/test-suite-timing.json` — écrit par `make test` |
+| `make test` | la suite, `-n $$W --dist loadgroup` — `$$W` (shell) calculé APRÈS le verrou lourd (R331) | `.claude/dev-docs/test-suite-timing.json` — écrit par `make test` |
 | `python3 -m pytest tests/` **(à éviter)** | la même suite **en SÉRIE** | 1 146 s mesurés sur `/mnt/c` ; non remesuré ici |
 
 ⚠️ **La forme nue n'est pas « la même en plus simple » : elle perd `-n auto`.** Elle a été
@@ -111,7 +111,7 @@ seule explique l'essentiel du temps d'attente de cette séance.
 
 ⚠️ **`-n auto` n'est plus le drapeau réel, et ce fichier l'a annoncé une demi-journée de
 trop.** Le 2026-09-17, `make test` s'étant fait **tuer par l'OOM deux fois en une heure**,
-`PYTEST_DIST` est passé à `-n $(PYTEST_WORKERS)` : un nombre CALCULÉ,
+`PYTEST_DIST` est passé à `-n` un nombre CALCULÉ (aujourd'hui `$W`, pris après le verrou lourd — R331),
 `(MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. Ce poste porte `n8n-ollama` et le
 serveur MCP `knowledge-rag` en permanence, qu'un runner GitHub n'a pas. Conséquence
 contre-intuitive, mesurée : sur cette WSL plafonnée à 10 Go, **le calcul ne peut pas

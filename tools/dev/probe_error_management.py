@@ -204,6 +204,18 @@ def main() -> int:
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--only", default="", help="comma-separated probe names")
     a = ap.parse_args()
+    # R331 (2026-09-29): the night WSL froze, this probe ran beside a full-size suite. It
+    # holds the same lock as the test targets now (fd non-inheritable: its child pytest does
+    # not keep it), and it never calls a `make test*` target, which would wait on itself.
+    sys.path.insert(0, str(REPO / "tools" / "dev"))
+    from heavy_lock import acquire  # noqa: PLC0415
+    lock_fd = acquire("error-management-probe", float(os.environ.get("HEAVY_WAIT", "900")))
+    if lock_fd is None:
+        print("❌ une suite tient encore ~/.cache/heavy-memory.lock après l'attente — "
+              "relancer quand elle a fini (`python3 tools/dev/heavy_lock.py` dit qui).")
+        return 2
+    subprocess.Popen([PY, str(REPO / "tools/dev/mem_trace.py"), "--label", "probe", "--watch",
+                      str(os.getpid())], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     rows, ok = [], True
     import yaml  # noqa: PLC0415
     wf = yaml.safe_load((REPO / ".github" / "workflows" / "ci.yml").open(encoding="utf-8"))

@@ -124,8 +124,9 @@ logs:        ## Tail Airflow scheduler logs
 # ingestion qui DÉMARRERAIT pendant la suite est exclue par `HEAVY_LOCK` (ci-dessous),
 # pas détectée. Garde : tests/test_the_worker_count_follows_what_can_grow.py.
 # `=` et non `:=` : calculé quand une cible de test s'en sert, pas à chaque `make`.
-PYTEST_WORKERS = $(shell $(PYTHON) tools/dev/pytest_workers.py 2>/dev/null || echo 2)
-PYTEST_DIST = -n $(PYTEST_WORKERS) --dist loadgroup
+# R331: `$$W` is set by HOLD_HEAVY_LOCK AFTER the lock is taken — PYTEST_DIST is only valid
+# inside a recipe shell that ran it first.
+PYTEST_DIST = -n $$W --dist loadgroup
 
 # Tenu pendant une suite ; `run_book_drop.sh` (knowledge-rag) et `rag-mail-run.sh` (n8n)
 # sautent leur passe horaire tant qu'il l'est — une ingestion charge 1,5 à 3,5 Go, et un
@@ -133,7 +134,25 @@ PYTEST_DIST = -n $(PYTEST_WORKERS) --dist loadgroup
 # si une ingestion le tient déjà, la suite part quand même, avec la réserve élargie.
 # `$$HOME` résolu par bash, jamais `$(HOME)` : make importe l'environnement dans ses
 # variables (tests/test_a_make_variable_does_not_collide_with_the_environment.py).
-HOLD_HEAVY_LOCK = mkdir -p "$$HOME/.cache"; exec 9>"$$HOME/.cache/heavy-memory.lock"; flock -n 9 || echo "ingestion en cours : verrou non pris, reserve elargie";
+# R331 (2026-09-29): a held lock used to be ignored (« réserve élargie ») and the probe
+# never took it — the night WSL froze, a full-size suite ran beside it. Now: an ingestion
+# holding it is run beside (pytest_workers.py sees it in /proc and widens its reserve);
+# another suite or the probe is WAITED for, bounded, then the run falls back to 2 workers
+# rather than being refused. The worker count is computed AFTER the lock, into $$W: a
+# count taken before a 15-minute wait describes a machine that no longer exists.
+HOLD_HEAVY_LOCK = mkdir -p "$$HOME/.cache"; exec 9>>"$$HOME/.cache/heavy-memory.lock"; W=""; \
+  if ! flock -n 9; then case "$$($(PYTHON) tools/dev/heavy_lock.py | head -1)" in \
+    proceed) echo "ingestion en cours : verrou partagé, réserve élargie";; \
+    *) echo "⏳ une suite ou la sonde tient le verrou — attente ≤ $(HEAVY_WAIT) s ($(PYTHON) tools/dev/heavy_lock.py dit qui)"; \
+       flock -w $(HEAVY_WAIT) 9 || { echo "⚠ attente épuisée : 2 workers"; W=2; };; esac; fi; \
+  W=$${W:-$$($(PYTHON) tools/dev/pytest_workers.py 2>/dev/null || echo 2)}; \
+  echo "$$W" > "$$HOME/.cache/pytest-last-workers"; $(TRACE_MEMORY)
+HEAVY_WAIT ?= 900
+# R330 (2026-09-29): WSL froze mid-suite and kept no kernel log across the restart — the
+# cause could only be inferred. Every target holding the lock also samples memory into
+# ~/.cache/mem-trace.log (fsync'd, survives a restart) until its shell exits. `9>&-`: the
+# tracer must not inherit the lock and hold it past the suite.
+TRACE_MEMORY = ( $(PYTHON) tools/dev/mem_trace.py --label "$@" --watch $$$$ </dev/null >/dev/null 2>&1 9>&- & );
 
 # ── Les tests qui ne lisent QUE des documents (2026-09-15) ──
 # Portés par `pytestmark = pytest.mark.docs`. La liste est ici en clair parce que
@@ -170,7 +189,7 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	@# vert serait infiniment pire que lente.
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
-	  python3 tools/dev/suite_timing.py "$(PYTEST_WORKERS)"; exit $$rc
+	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
@@ -280,7 +299,7 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx '$(LOCAL_PG)'; then \
 	    $(MAKE) --no-print-directory schema-check-shared || exit 1; \
 	  else echo "⚠ R228: local Postgres down — schema check skipped. Run: make up"; fi; fi
-	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } \
+	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } | tee .pytest-selected \
 	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \

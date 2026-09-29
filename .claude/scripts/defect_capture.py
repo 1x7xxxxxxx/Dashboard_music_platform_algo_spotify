@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -39,6 +40,8 @@ _FAILED = re.compile(r"^(?:FAILED|ERROR) (tests/[^\s:]+\.py::\S+)", re.M)
 _GREEN = re.compile(r"^=*\s*(\d+) passed(?:,| in)(?![^\n]*\bfailed\b)(?![^\n]*\berror)", re.M)
 _FULL_SUITE = re.compile(r"\bmake test(?:-fast)?(?![\w-])")
 _TEST_FILE = re.compile(r"\btests/[\w/.-]+\.py\b")
+_CHANGED = re.compile(r"\bmake test-changed\b")
+SELECTED = ROOT / ".pytest-selected"   # written by `make test-changed` (R321)
 _TRACEBACK = "Traceback (most recent call last):"
 _FRAME = re.compile(r'^\s*File "([^"]+)", line \d+', re.M)
 _EXC = re.compile(r"^([A-Za-z_][\w.]*(?:Error|Exception|Exit|Interrupt))\b", re.M)
@@ -93,7 +96,7 @@ def _traceback_symptom(text: str) -> tuple[str, str] | None:
     return f"traceback:{exc[-1].rsplit('.', 1)[-1]}@{where}", exc[-1]
 
 
-def symptoms(text: str, command: str = "") -> list[dict]:
+def symptoms(text: str, command: str = "", selected: "list[str] | None" = None) -> list[dict]:
     """The symptoms one tool result shows. Pure: the heart of what is recorded."""
     out = [{"kind": "test_red", "fingerprint": f"test:{node}", "excerpt": node}
            for node in dict.fromkeys(_FAILED.findall(text))]
@@ -116,14 +119,18 @@ def symptoms(text: str, command: str = "") -> list[dict]:
     if not out and _GREEN.search(text):
         files = sorted(set(_TEST_FILE.findall(command)))
         # a green only proves the nodes it ran: named files, or the WHOLE suite. A diff-
-        # selected run (`make test-changed`) names neither, so it proves nothing here.
+        # selected run (`make test-changed`) names neither in its command — R321 (2026-09-29):
+        # it writes its selection to `.pytest-selected`, handed in here as `selected`.
+        if not files and selected and _CHANGED.search(command):
+            files = sorted(set(selected))
         scope = "files" if files else "suite" if _FULL_SUITE.search(command) else "unknown"
         out.append({"kind": "test_green", "fingerprint": "green", "scope": scope,
                     "excerpt": " ".join(files) or f"({scope})", "files": files})
     return out
 
 
-def events_of_lines(lines: list[str], session: str) -> list[dict]:
+def events_of_lines(lines: list[str], session: str,
+                    selected: "list[str] | None" = None) -> list[dict]:
     """Symptom events from transcript lines (tool_use commands joined to their results)."""
     commands: dict[str, str] = {}
     events = []
@@ -142,12 +149,23 @@ def events_of_lines(lines: list[str], session: str) -> list[dict]:
                 commands[item.get("id", "")] = str((item.get("input") or {}).get("command", ""))
             elif item.get("type") == "tool_result":
                 cmd = commands.get(item.get("tool_use_id", ""), "")
-                for s in symptoms(_text_of(item.get("content")), cmd):
+                for s in symptoms(_text_of(item.get("content")), cmd, selected):
                     s["excerpt"] = redact(s["excerpt"])
                     s["fingerprint"] = redact(s["fingerprint"])
                     s.update(ts=entry.get("timestamp", ""), session=session, status="observed")
                     events.append(s)
     return events
+
+
+def fresh_selection(path: Path = SELECTED, max_age_s: float = 3600) -> "list[str] | None":
+    """The last `make test-changed` selection, if recent enough to be this turn's run."""
+    try:
+        if time.time() - path.stat().st_mtime > max_age_s:
+            return None
+        return [ln.strip() for ln in path.read_text(encoding="utf-8").splitlines()
+                if ln.strip() and not ln.startswith("#")]
+    except OSError:
+        return None
 
 
 def capture(transcript_path: str, session: str, log: Path = LOG,
@@ -172,7 +190,8 @@ def capture(transcript_path: str, session: str, log: Path = LOG,
         chunk = f.read()
     end = start + chunk.rfind(b"\n") + 1  # a half-written last line is read next time
     lines = chunk[: end - start].decode("utf-8", errors="replace").splitlines()
-    events = events_of_lines(lines, session)
+    # backfill replays old turns: today's selection would be pinned on them — none then.
+    events = events_of_lines(lines, session, None if backfill else fresh_selection())
     log.parent.mkdir(parents=True, exist_ok=True)
     if events:
         stamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds")

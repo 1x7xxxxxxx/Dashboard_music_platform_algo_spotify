@@ -129,3 +129,28 @@ def test_a_green_proves_only_what_it_ran_and_a_return_is_proposed() -> None:
     assert row["recurrence_proposal"] == "recurrence:2026-09-27,2026-09-28"
     assert dl.classify([red1, red2])[0]["recurrence_proposal"] is None, (
         "never green in between: one long defect, not a return")
+
+
+def test_a_diff_selected_green_proves_the_files_it_selected(tmp_path) -> None:
+    """R321 — `make test-changed` names no file in its command; its selection file does.
+
+    Mutation record (2026-09-29): seen red with the `selected` branch removed from
+    `symptoms`, and with the Makefile's `tee .pytest-selected` removed.
+    """
+    green = "==== 12 passed in 3.1s ===="
+    cmd = "make test-changed > /dev/null 2>&1; tail -1 .pytest-last.log"
+    [ev] = dc.symptoms(green, cmd, ["tests/test_b.py", "tests/test_a.py"])
+    assert ev["scope"] == "files" and ev["files"] == ["tests/test_a.py", "tests/test_b.py"]
+    [bare] = dc.symptoms(green, cmd)
+    assert bare["scope"] == "unknown", "without its selection, a diff-selected green proves nothing"
+    sel = tmp_path / ".pytest-selected"
+    sel.write_text("# comment\ntests/test_a.py\n")
+    assert dc.fresh_selection(sel) == ["tests/test_a.py"]
+    import os
+    os.utime(sel, (0, 0))
+    assert dc.fresh_selection(sel) is None, "an old selection is another run's"
+    import subprocess
+    from pathlib import Path
+    dry = subprocess.run(["make", "-n", "test-changed"], cwd=Path(dc.ROOT), capture_output=True,
+                         text=True, timeout=60).stdout
+    assert "tee .pytest-selected" in dry, "make test-changed no longer records its selection"
