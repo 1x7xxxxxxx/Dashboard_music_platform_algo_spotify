@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import date
 
-from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils import get_db_connection, charts, require_db
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
@@ -248,7 +248,7 @@ def show():
             st.stop()
         artist_id = None  # admin: cross-tenant view
 
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     try:
         with st.spinner(t("db_health.spinner", "Chargement des métriques DB…")):
             df_health  = _load_health(db, artist_id)

@@ -18,7 +18,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils import get_db_connection, charts, require_db
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils import algo_knowledge as ak
@@ -939,7 +939,7 @@ def show() -> None:
 
     st.title(t("revenue_forecast.title", "📈 Prévisions revenus"))
 
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     # Les fragments de cette page REUTILISENT cette connexion pendant un rendu
     # complet (~13 ms de poignee SCRAM economises chacun) et n'en ouvrent une que
     # lors d'un rerun de fragment. Libere AVANT `close()` : entre les deux, un

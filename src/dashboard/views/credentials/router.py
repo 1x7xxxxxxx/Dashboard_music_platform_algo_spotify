@@ -14,7 +14,7 @@ Stockage :
 """
 import streamlit as st
 
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, require_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_id, is_admin
 
@@ -183,7 +183,7 @@ def show():
     # elle repoussait les onglets — « on arrive avec les différents onglets cliquables
     # tout en haut pour faciliter le parcours ».
 
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     try:
         # ── Sélection artiste ──────────────────────────────────────────────
         if is_admin():

@@ -84,6 +84,24 @@ def get_db_connection() -> Optional[PostgresHandler]:
         return None
 
 
+def require_db(db: "PostgresHandler | None") -> PostgresHandler:
+    """The connection, or a said error and a halted page — never a None handed to a body.
+
+    R332 (2026-09-29): `get_db_connection()` returns None by contract, and `view_session()`
+    and five views passed it on: with the base down, 16 pages crashed on
+    `'NoneType' object has no attribute …` instead of saying so. Call it BEFORE the `try`
+    whose `finally` closes the connection — `st.stop()` raises, and nothing is open yet.
+    """
+    if db is None:
+        import streamlit as st
+
+        from src.dashboard.utils.i18n import t
+        st.error(t("ui.db_unreachable",
+                   "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`"))
+        st.stop()
+    return db
+
+
 @contextmanager
 def project_db() -> Iterator[PostgresHandler]:
     """Open a Postgres connection scoped to a `with` block; guarantees close.
@@ -142,7 +160,7 @@ def view_session() -> Iterator[tuple[PostgresHandler, int]]:
             st.error(t("ui.invalid_session", "Session invalide."))
             st.stop()
         artist_id = 1  # admin fallback — full cross-tenant view (Admin panel)
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     # Une écriture faite par une AUTRE instance rend nos compteurs faux sans que rien
     # ici ne le sache : `clear_kpi_caches()` ne purge que son propre processus. Cette
     # ligne est l'unique endroit où ce dépôt le découvre — au seuil du rendu, avant que

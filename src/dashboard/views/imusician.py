@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection, charts
+from src.dashboard.utils import get_db_connection, charts, require_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils import filters
 from src.dashboard.utils.ui import flash
@@ -222,7 +222,7 @@ def show():
         t("imusician.tab_roi", "💹 ROI Breakheaven"),
     ])
 
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     try:
         artist_id, _ = _get_artist_filter()
 

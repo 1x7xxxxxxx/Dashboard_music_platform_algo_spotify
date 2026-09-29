@@ -5,7 +5,7 @@ and upgrade/manage links. Admin sees all artist subscriptions.
 """
 import os
 import streamlit as st
-from src.dashboard.utils import get_db_connection
+from src.dashboard.utils import get_db_connection, require_db
 from src.dashboard.utils.i18n import t
 from src.dashboard.auth import get_artist_plan, is_admin, tenant_scope
 from src.database.stripe_schema import (
@@ -62,7 +62,7 @@ def show():
     st.title(t("billing.title", "💳 Facturation & Abonnement"))
     st.markdown("---")
 
-    db = get_db_connection()
+    db = require_db(get_db_connection())
     # `if not admin and artist_id:` below reads a None as falsy and renders an
     # empty page rather than saying anything. tenant_scope() names the state.
     artist_id = tenant_scope()
