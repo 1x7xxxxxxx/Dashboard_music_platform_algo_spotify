@@ -1061,14 +1061,14 @@
       "has_signature": true,
       "history_dates_declared": [],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "n-a",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2023,14 +2023,14 @@
         "2026-09-15"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-16",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -2106,14 +2106,14 @@
         "2026-09-16"
       ],
       "kind": "manual",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P4",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-13",
-      "revisions": 11,
+      "revisions": 12,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8217,14 +8217,14 @@
         "2026-05-15"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 1,
       "siblings_swept": true,
       "status": "reported",
       "introduced_date": "2026-05-15",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8327,14 +8327,14 @@
         "2026-09-26"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-09-03",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8490,14 +8490,14 @@
         "2026-05-15"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8603,14 +8603,14 @@
         "2026-09-26"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 1,
       "siblings_swept": true,
       "status": "open",
       "introduced_date": "2026-05-15",
-      "revisions": 9,
+      "revisions": 10,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -8963,14 +8963,14 @@
         "2026-05-15"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-05-15",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -9539,14 +9539,14 @@
         "2026-08-22"
       ],
       "kind": "deterministic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P2",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-08-22",
-      "revisions": 8,
+      "revisions": 9,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11245,14 +11245,14 @@
         "2026-09-26"
       ],
       "kind": "heuristic",
-      "seen_red": "unknown",
+      "seen_red": "2026-09-29",
       "severity": "P3",
       "siblings_is_a_guard_rerun": false,
       "siblings_sites": 0,
       "siblings_swept": true,
       "status": "guarded",
       "introduced_date": "2026-06-01",
-      "revisions": 10,
+      "revisions": 11,
       "history_additions": 0,
       "renamed_from": null
     },
@@ -11786,7 +11786,7 @@
       "note": "DÉCLARATIF — histoire écrite après coup. Ne pas comparer à l'observé."
     },
     "generated_from": {
-      "catalogue_revisions": 575,
+      "catalogue_revisions": 576,
       "head_date": "2026-09-28"
     },
     "holes": {
@@ -11799,7 +11799,7 @@
       "scope_unknown": 0,
       "scope_without_not_covered": 0,
       "seen_red_never": 0,
-      "seen_red_unknown": 10,
+      "seen_red_unknown": 0,
       "siblings_never_swept": 0,
       "sites_unknown": 0,
       "sites_unknown_hors_relance": 0,
@@ -11814,103 +11814,103 @@
     },
     "recurrence": {
       "window_start": "2026-05-15",
-      "as_of": "2026-09-28",
+      "as_of": "2026-09-29",
       "observed": {
         "events": 69,
-        "class_days": 12508,
-        "per_class_month": 0.1677,
+        "class_days": 12936,
+        "per_class_month": 0.1622,
         "ci95": [
-          0.1305,
-          0.2122
+          0.1262,
+          0.2052
         ]
       },
-      "class_days_exposed": 12508,
+      "class_days_exposed": 12936,
       "by_guard": {
         "automatique": {
           "events": 65,
-          "class_days": 12290,
-          "per_class_month": 0.1608,
+          "class_days": 12710,
+          "per_class_month": 0.1555,
           "ci95": [
-            0.1241,
-            0.2049
+            0.12,
+            0.1982
           ]
         },
         "prose": {
           "events": 4,
-          "class_days": 218,
-          "per_class_month": 0.5578,
+          "class_days": 226,
+          "per_class_month": 0.5381,
           "ci95": [
-            0.1501,
-            1.4281
+            0.1448,
+            1.3775
           ]
         }
       },
       "by_seen_red": {
         "daté": {
           "events": 0,
-          "class_days": 569,
+          "class_days": 1344,
           "per_class_month": 0.0,
           "ci95": [
             0.0,
-            0.196
+            0.083
           ]
         },
         "jamais-ou-inconnu": {
           "events": 69,
-          "class_days": 11939,
-          "per_class_month": 0.1757,
+          "class_days": 11592,
+          "per_class_month": 0.181,
           "ci95": [
-            0.1367,
-            0.2224
+            0.1408,
+            0.229
           ]
         }
       },
       "by_scope": {
         "ne-couvre-pas renseigné": {
           "events": 69,
-          "class_days": 12508,
-          "per_class_month": 0.1677,
+          "class_days": 12936,
+          "per_class_month": 0.1622,
           "ci95": [
-            0.1305,
-            0.2122
+            0.1262,
+            0.2052
           ]
         }
       },
       "by_guard_since": {
         "avec-garde": {
           "events": 64,
-          "class_days": 11645,
-          "per_class_month": 0.1671,
+          "class_days": 12063,
+          "per_class_month": 0.1613,
           "ci95": [
-            0.1287,
-            0.2134
+            0.1242,
+            0.206
           ]
         },
         "sans-garde": {
           "events": 5,
-          "class_days": 863,
-          "per_class_month": 0.1761,
+          "class_days": 873,
+          "per_class_month": 0.1741,
           "ci95": [
-            0.0568,
-            0.411
+            0.0561,
+            0.4063
           ]
         }
       },
       "fixed_horizon": {
         "h7": {
-          "at_risk": 406,
-          "recurred": 50,
-          "rate": 0.1232
+          "at_risk": 411,
+          "recurred": 52,
+          "rate": 0.1265
         },
         "h14": {
-          "at_risk": 330,
-          "recurred": 43,
-          "rate": 0.1303
+          "at_risk": 332,
+          "recurred": 44,
+          "rate": 0.1325
         },
         "h30": {
-          "at_risk": 152,
-          "recurred": 30,
-          "rate": 0.1974
+          "at_risk": 164,
+          "recurred": 31,
+          "rate": 0.189
         }
       }
     },

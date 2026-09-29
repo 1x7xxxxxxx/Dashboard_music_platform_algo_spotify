@@ -49,7 +49,7 @@ Heuristic signature (report-only, manual triage — see
 `.claude/dev-docs/error-classes.md`):
 
 ```bash
-! grep -nE "^\t.*(docker|streamlit|psql|uv )" Makefile | grep -vE "check-env|check-manifest"
+! grep -nE "^[[:space:]]+.*(docker|streamlit|psql|uv )" Makefile | grep -vE "check-env|check-manifest"
 ```
 
 ## First sweep — 2026-05-15
