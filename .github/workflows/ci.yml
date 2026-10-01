@@ -110,7 +110,7 @@ jobs:
       # amont, pas contre le numéro de la dernière release ; le rapporteur imprime
       # désormais le tag exact, pour que ce qu'il suggère soit écrivable tel quel.
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
           # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
@@ -326,7 +326,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
           # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
