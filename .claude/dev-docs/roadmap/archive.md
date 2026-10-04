@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R360 — Écarts encore partiels du harnais (rapport R356) : REQ-HARN-09 manifeste de la boucle d… (livrée 2026-10-04)
+
+- [x] **R360 — Écarts encore partiels du harnais (rapport R356) : REQ-HARN-09 manifeste de la boucle d'ingénierie non testé ; -10 `suggest_sweep.py` sans test ; -11 `draft_rex.py` sans test ; -12 rules chargées 40/40 malgré `globs:` + 4 skills à 0 appel ; -17 `idle_containers.py` appelé par rien d'automatique ; -19 407 `seen_red` « self-proving » contre 14 datés** (P4) ✅ (2026-10-04, 62ab81ce, 65eca0d1)
+  Mesuré par : les 6 exigences passent `conforme` dans `make harness-report`
+  Harnais : boucle d'ingénierie, suggest_sweep FR, draft_rex préserve la saisie humaine, skills/rules/conteneurs prouvés ; HARN-09/10/11/12/17/19 conformes. CI verte 62ab81ce
+  Commits : 62ab81ce R360 : harnais — boucle d'ingénierie, suggest_sweep, draft_rex, skills · 65eca0d1 Roadmap : R360 inscrite (écarts partiels du harnais, repris de R356 li
+
 ## ✅ R363 — Des tests écrivent dans les VRAIS journaux de mesure : `test_a_security_finding_is_a_de… (livrée 2026-10-04)
 
 - [x] **R363 — Des tests écrivent dans les VRAIS journaux de mesure : `test_a_security_finding_is_a_defect_class` lance `inject_context.py` sans `session_id` (lignes `session ""` dans `injections.jsonl`, 3 paires le 2026-10-04) ; `test_every_session_starts_by_reading_the_ops_mails` lance `session_start.py` avec `cwd` = le dépôt (écrase `.session-start-ts` lu par `draft_rex`/`suggest_sweep`, importe les crons dans `defects.jsonl`) ; latent : `close_night_unit` ignore `ROADMAP_ROOT`** (P4) ✅ (2026-10-04, 9675bbb3)

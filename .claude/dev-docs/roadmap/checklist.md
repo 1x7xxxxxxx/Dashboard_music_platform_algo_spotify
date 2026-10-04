@@ -36,7 +36,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R349 | Spotify / S4A, retour d'écran du 2026-10-04 : sur le panneau de sortie, Meta €/jour en COURBE au lieu du nuage de points ; la série Meta absente du détail par titre (« qui a bu le crachoir du salon ») — jointure campagne↔titre par `track_platform_link`/match_key au lieu de `lower(title)` | P3 | test : la trace Meta est `mode=lines` ; un titre lié par match_key reçoit sa série Meta <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
 | R350 | Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge) | P3 | render smoke avec deux campagnes ; test de la sélection à deux <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
 | R351 | Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (dernière sortie par défaut, une seconde campagne au choix) | P3 | test : deux fenêtres de campagne donnent deux séries Shazam alignées sur J0 <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
-| R360 | Écarts encore partiels du harnais (rapport R356) : REQ-HARN-09 manifeste de la boucle d'ingénierie non testé ; -10 `suggest_sweep.py` sans test ; -11 `draft_rex.py` sans test ; -12 rules chargées 40/40 malgré `globs:` + 4 skills à 0 appel ; -17 `idle_containers.py` appelé par rien d'automatique ; -19 407 `seen_red` « self-proving » contre 14 datés <!-- critic: non --> <!-- scope: tests/, tools/dev/, .claude/ --> | P4 | les 6 exigences passent `conforme` dans `make harness-report` |
 
 ---
 
@@ -92,7 +91,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R346, R347, R348, R349, R350, R351, R360, R283, R275 -->
+<!-- reprise: open=R346, R347, R348, R349, R350, R351, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
