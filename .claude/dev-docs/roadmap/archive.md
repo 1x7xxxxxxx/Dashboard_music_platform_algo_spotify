@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R350 — Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale… (livrée 2026-10-04)
+
+- [x] **R350 — Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge)** (P3) ✅ (2026-10-04, 63e54199, 2dbbac30)
+  Mesuré par : render smoke avec deux campagnes ; test de la sélection à deux <!-- critic: non — rendu d'interface, pas de donnée --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, src/dashboard/content/, tools/dev/charts_dossier/, tests/ -->
+  Deux campagnes Meta comparées : J0 = premier euro (dépense, clics, CPC cumulés), parts de leur propre total pour pays/âge, classement des créas coloré par campagne. Corrige au passage un plantage de « Qui a vu tes pubs » (ordre des paramètres des sous-requêtes scalaires) ; balayage : 1 site vivant, 10 latents. CI verte 37230989515.
+  Commits : 63e54199 R350 : le rendu « Qui a vu tes pubs » saute sans campagne au lieu de p · 2dbbac30 R350 : comparer deux campagnes Meta — même horloge J0, parts de leur p
+
 ## ✅ R351 — Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (… (livrée 2026-10-04)
 
 - [x] **R351 — Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (dernière sortie par défaut, une seconde campagne au choix)** (P3) ✅ (2026-10-04, 170f5573, 9ec7cd46)

@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R350 | Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge) | P3 | render smoke avec deux campagnes ; test de la sélection à deux <!-- critic: non — rendu d'interface, pas de donnée --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, src/dashboard/content/, tools/dev/charts_dossier/, tests/ --> |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R350, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
