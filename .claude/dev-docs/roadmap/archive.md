@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R366 — Harnais — trier les composants jamais déclenchés en 30 jours : 14 commandes (`/adr`, `/… (livrée 2026-10-05)
+
+- [x] **R366 — Harnais — trier les composants jamais déclenchés en 30 jours : 14 commandes (`/adr`, `/curator`, `/sprint`, `/sweep`…), 6 skills (`airflow-dag`, `dashboard-view`, `db-schema`…), 2 playbooks (`feature-development`, `architecture-requirements`) — pour chacun : un déclencheur nommé dans une règle, ou le retrait vers `archive/` avec sa raison** (P3) ✅ (2026-10-05, d177ba04, ef6e90f3)
+  Mesuré par : `make harness-report` : composants à 0 déclenchement 22 → 0 (déclenchés ou archivés)
+  3 orphelins archivés, garde test_every_command_and_skill_has_a_trigger (ALLOWED = les 3 /review-*, décision de garde ou retrait laissée au propriétaire) ; CI verte sur 447d4a5d qui contient d177ba04
+  Commits : d177ba04 R366 : les commandes et skills jamais déclenchés — 3 orphelins archivé · ef6e90f3 Roadmap : R366 — verdict du critic et portée élargie (tools/dev, scrip
+
 ## ✅ R369 — Parrainage Stripe — 2 défauts trouvés par le rejeu de bout en bout en mode test (R283,… (livrée 2026-10-05)
 
 - [x] **R369 — Parrainage Stripe — 2 défauts trouvés par le rejeu de bout en bout en mode test (R283, 2026-10-04) : (a) `invoice.paid` arrive AVANT `checkout.session.completed` sur un lien de paiement → `earn()` ne retrouve pas le filleul (`stripe_customer_id` pas encore écrit) → récompense perdue sans trace ; (b) `stripe_apply` appelle `.get()` sur un `Subscription` stripe-python 15 → AttributeError, la récompense reste `pending` à vie (la prod installe `stripe>=8`) ; (c) `mrr_by_plan_sql()` rend 4 colonnes (plan, prix, artistes, mrr) depuis R140, `billing.py:357` et `admin.py:418` en lisent 3 → la page plante (billing) ou affiche le nombre d'abonnés comme MRR (admin) dès qu'existe un abonné payant humain — révélé par les comptes de test** (P2) ✅ (2026-10-05, 447d4a5d, 5ada254f)
