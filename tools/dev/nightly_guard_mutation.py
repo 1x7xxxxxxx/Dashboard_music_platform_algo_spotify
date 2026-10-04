@@ -120,6 +120,73 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — exemption élargie à AutoRemove seul → rouge ; ligne idle_containers retirée de night-status → 1 rouge",
     "tests/test_new_guards_are_mutated_every_night.py":
         "2026-10-04 — record_red écrivant aussi une mutation verte → 1 rouge ; rotation figée (`start = 0`) → 1 rouge",
+    # R364 — the 42 « verte, non prouvée » proofs, mutated by hand on 2026-10-04.
+    "tests/test_every_metric_is_registered.py":
+        "2026-10-04 — formula de v_s4a_song_daily vidée (metric_registry.py:50) → 1 rouge ; entrée v_spotify_followers_daily commentée → 1 rouge",
+    "tests/test_an_ingestion_gap_is_expected_against_received.py":
+        "2026-10-04 — attendu = somme/jours non vides au lieu de /7 (db_health.py:185) → 1 rouge",
+    "tests/test_a_nominal_bar_chart_is_sorted_pareto.py":
+        "2026-10-04 — pareto_by_default(fig) → False dans apply_defaults (charts.py:151) → 1 rouge",
+    "tests/test_the_first_screen_counts_its_gauges.py":
+        "2026-10-04 — un st.metric de plus dans billing.show(), déjà à son plafond de 6 → 1 rouge",
+    "tests/test_saving_credentials_yields_a_verdict_now.py":
+        "2026-10-04 — run_probes_now remplacé par pass à l'enregistrement (_render.py:1185) → 1 rouge",
+    "tests/test_a_secret_never_rides_into_an_image_layer.py":
+        "2026-10-04 — ligne `.env` retirée de .dockerignore:70 → 1 rouge",
+    "tests/test_every_error_class_is_complete.py":
+        "2026-10-04 — `- signature:` retirée d'une classe deterministic (error-classes.md:651) → 1 rouge",
+    "tests/test_grafana_and_admin_do_not_say_the_same_thing.py":
+        "2026-10-04 — panneau « Processus — RAM residente » renommé → 1 rouge ; `import psutil` dans admin.py → 1 rouge",
+    "tests/test_an_api_or_dag_failure_is_a_registered_defect.py":
+        "2026-10-04 — `sum by (le, route)` → `sum by (le)` (streamlytics.yml:245) → 1 rouge ; _record retiré du handler (error_capture.py:61) → 1 rouge",
+    "tests/test_a_delivery_closes_on_a_green_ci.py":
+        "2026-10-04 — ci_verdict rend « ok » sur failure (roadmap.py:203) → 1 rouge ; CLAUDE.md +81 octets au-dessus du budget → 1 rouge",
+    "tests/test_the_guard_axis_is_measured_without_immortal_time.py":
+        "2026-10-04 — la branche sans-garde verse toute l'exposition dans « avec-garde » (error_class_health.py:882) → 1 rouge",
+    "tests/test_every_object_has_a_layer.py":
+        "2026-10-04 — clé REGISTRY v_s4a_song_measured_span renommée (metric_registry.py:52) → 1 rouge",
+    "tests/test_the_period_filter_defaults_to_the_last_release.py":
+        "2026-10-04 — default_override=\"last_release\" → None (period_filter.py:275) → 1 rouge",
+    "tests/test_a_number_is_written_one_way.py":
+        "2026-10-04 — st.dataframe(df) brut ajouté à recap.py:37 → 1 rouge ; .style.map retiré (meta_mapping/_tracks.py:341) → 1 rouge",
+    "tests/test_views_render_smoke.py":
+        "2026-10-04 — raise RuntimeError en tête de privacy.show() → 1 rouge",
+    "tests/test_fleet_state_never_reaches_a_tenant_surface.py":
+        "2026-10-04 — `and is_admin()` retiré avant _render_dag_status_badge (_render.py:736) → 1 rouge",
+    "tests/test_an_error_class_is_generic_tracked_and_exported.py":
+        "2026-10-04 — duplicate_gap rend None sans `closest:` (audit_runner.py:777) → 1 rouge ; over_budget toujours None (:271) → 1 rouge",
+    "tests/test_api_security.py":
+        "2026-10-04 — _strict() `or` → `and` (api/main.py:41) → 1 rouge",
+    "tests/test_a_bash_guard_reads_the_command_not_the_prose.py":
+        "2026-10-04 — filtre tête-de-segment de pkill désactivé (guard_destructive.py:392) → 1 rouge",
+    "tests/test_a_platform_colour_has_one_definition.py":
+        "2026-10-04 — _SPOTIFY_GREEN = \"#1DB954\" au lieu de platform_color (spotify_s4a_combined.py:74) → 1 rouge",
+    "tests/test_a_date_shown_to_a_reader_follows_their_language.py":
+        "2026-10-04 — strftime('%Y-%m-%d') → '%d/%m/%Y' (billing.py:327) → 1 rouge",
+    "tests/test_canary_onboarding_walk.py":
+        "2026-10-04 — platform_status rend OK au lieu de NO_DATA sans données (artist_readiness.py:93) → 1 rouge",
+    "tests/test_a_new_advisory_fails_the_nightly.py":
+        "2026-10-04 — continue-on-error sous l'étape gitleaks (security-nightly.yml:212) → 1 rouge ; recheck-by échu (pip-audit-accepted.txt:10) → 1 rouge",
+    "tests/test_a_mute_defect_gauge_does_not_read_as_zero.py":
+        "2026-10-04 — yield g3 remplacé par pass (defect_gauge.py:295) → 1 rouge",
+    "tests/test_the_shards_are_balanced_by_real_durations.py":
+        "2026-10-04 — .test_durations vidé à {} → 1 rouge",
+    "tests/test_the_bronze_boundary_only_tightens.py":
+        "2026-10-04 — lecture de meta_insights_performance_day ajoutée à meta_breakdowns.show() → 1 rouge",
+    "tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py":
+        "2026-10-04 — _continuous remplit les jours non mesurés par 0 (platform_chart.py:118) → 24 rouges",
+    "tests/test_every_chart_says_what_it_lets_you_decide.py":
+        "2026-10-04 — entrée campaign_pair.py::render_day0#1 retirée (chart_decisions.py:9) → 1 rouge",
+    "tests/test_navigation_inside_the_app_opens_no_tab.py":
+        "2026-10-04 — lien markdown ?page=upgrade ajouté à billing.show() → 1 rouge",
+    "tests/test_a_render_opens_one_connection.py":
+        "2026-10-04 — seconde get_db_connection() dans sacem.show() → 1 rouge (2 > 1)",
+    "tests/test_a_new_test_brings_its_duration.py":
+        "2026-10-04 — prédicat de outside() forcé à True (check_durations_are_collectable.py:116) → 1 rouge",
+    "tests/test_no_shell_gesture_reads_a_dotenv.py":
+        "2026-10-04 — _reads_an_env_file rend None (guard_destructive.py:756) → 14 rouges sur test_a_read_of_a_dotenv_is_blocked",
+    "tests/test_a_commit_stays_in_its_rows_scope.py":
+        "2026-10-04 — out_of_scope rend [] sans condition (require_roadmap_id.py:91) → 1 rouge",
 }
 
 

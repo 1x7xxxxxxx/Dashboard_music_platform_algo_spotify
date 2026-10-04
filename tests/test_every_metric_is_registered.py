@@ -60,6 +60,18 @@ def test_every_metric_says_its_sense() -> None:
     assert len(names) == len(set(names)), "two gold objects registered under ONE metric name"
 
 
+def test_every_metric_carries_its_whole_card() -> None:
+    """REQ-GOLD-02 — definition, formula, grain, window: an empty field is a card with a hole.
+
+    The previous proof only capped untested metrics; emptying a formula stayed green
+    (mutated 2026-10-04, R364).
+    """
+    reg = _registry()
+    holes = {m.name: f for m in reg.REGISTRY.values()
+             for f in ("definition", "formula", "grain", "window") if not getattr(m, f).strip()}
+    assert not holes, f"a registered metric with an empty field: {holes}"
+
+
 def test_the_untested_metrics_only_become_fewer() -> None:
     reg = _registry()
     import gold_coverage as gc

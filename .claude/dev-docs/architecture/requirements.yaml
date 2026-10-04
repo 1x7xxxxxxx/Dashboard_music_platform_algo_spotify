@@ -36,7 +36,7 @@
   sources: [{notes: L508}, {theorie: "Reis & Housley p.482"}]
   priorite: P2
   statut: conforme
-  preuve: {pytest: tests/test_every_metric_is_registered.py::test_the_untested_metrics_only_become_fewer}
+  preuve: {pytest: tests/test_every_metric_is_registered.py::test_every_metric_carries_its_whole_card}
   ecart: "corrigé le 2026-09-27 (critic R258) : formula, grain et window existent dans le registre ; les tests d'une métrique sont CALCULÉS par gold_coverage, sous cliquet"
   mutation: "retirer `formula` d'une entrée de REGISTRY"
 - id: REQ-GOLD-03
@@ -517,7 +517,7 @@
   sources: [{notes: L140}, {notes: L80}]
   priorite: P4
   statut: conforme
-  preuve: {cmd: "test -f .claude/dev-docs/grafana-correspondence.md"}
+  preuve: {pytest: tests/test_grafana_and_admin_do_not_say_the_same_thing.py}
   ecart: "R265 (critic e) : la correspondance a conclu que l admin ne porte que du par-locataire, que Grafana ne peut pas tenir ; rien a retirer"
   roadmap: R265
 
@@ -530,7 +530,7 @@
   statut: conforme
   ecart: "R267 : garde structurel du shell (lecteur, redirection, substitution, bash -c, docker exec, ssh, xargs, glob)"
   roadmap: R267
-  preuve: {pytest: tests/test_no_shell_gesture_reads_a_dotenv.py::test_what_does_not_read_it_passes}
+  preuve: {pytest: tests/test_no_shell_gesture_reads_a_dotenv.py::test_a_read_of_a_dotenv_is_blocked}
 - id: REQ-SEC-05
   domaine: security
   enonce: En production, l'API refuse de démarrer sans ses secrets (démarrage strict), au lieu d'avertir

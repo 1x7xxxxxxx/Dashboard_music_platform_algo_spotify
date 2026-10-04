@@ -11,6 +11,7 @@ Mutation record (2026-09-28) : the handler no longer calling `_record` → red ;
 letting the mail's exception escape → red ; one DAG given a local callback again → red.
 """
 import ast
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -119,6 +120,10 @@ def test_the_api_latency_has_a_measured_alert_per_route():
     rules = yaml.safe_load((ROOT / "deploy/prometheus/rules/streamlytics.yml").read_text(encoding="utf-8"))
     by_name = {r["alert"]: r for g in rules["groups"] for r in g["rules"]}
     lat = by_name["ApiLatencyDegraded"]
-    assert "0.95" in lat["expr"] and "route" in lat["expr"]
+    assert "0.95" in lat["expr"]
+    grouping = re.search(r"sum by \(([^)]*)\)", lat["expr"])
+    assert grouping and "route" in [x.strip() for x in grouping.group(1).split(",")], (
+        "the p95 must be grouped BY route — a `route!~` filter alone keeps the word and "
+        "computes one global quantile (mutated 2026-10-04, R364)")
     assert "0,93 s" in lat["annotations"]["symptom"], "the threshold names the measure it came from"
     assert "ApiServerErrors" in by_name
