@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R351 — Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (… (livrée 2026-10-04)
+
+- [x] **R351 — Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (dernière sortie par défaut, une seconde campagne au choix)** (P3) ✅ (2026-10-04, 170f5573, 9ec7cd46)
+  Mesuré par : test : deux fenêtres de campagne donnent deux séries Shazam alignées sur J0 <!-- critic: non — graphique ajouté sur des lectures existantes --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/, src/dashboard/content/, tools/dev/charts_dossier/ -->
+  Shazams de deux sorties alignés sur J0 (apple_launches.py pur), cumul non différencié ; CI verte 170f5573
+  Commits : 170f5573 R351 : la page Apple Music compare les Shazams de deux sorties sur l'h · 9ec7cd46 Roadmap : portées R348-R351 déclarées (main rouge depuis a413a665) + j
+
+## ✅ R349 — Spotify / S4A, retour d'écran du 2026-10-04 : sur le panneau de sortie, Meta €/jour en… (livrée 2026-10-04)
+
+- [x] **R349 — Spotify / S4A, retour d'écran du 2026-10-04 : sur le panneau de sortie, Meta €/jour en COURBE au lieu du nuage de points ; la série Meta absente du détail par titre (« qui a bu le crachoir du salon ») — jointure campagne↔titre par `track_platform_link`/match_key au lieu de `lower(title)`** (P3) ✅ (2026-10-04, 3f43b688)
+  Mesuré par : test : la trace Meta est `mode=lines` ; un titre lié par match_key reçoit sa série Meta <!-- critic: non — reprend la jointure canonique match_key déjà utilisée par campaign_compare --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ -->
+  dépense Meta par match_key (règle campaign_compare), courbe mode=lines ; CI verte 3f43b688
+  Commits : 3f43b688 R349 : la dépense Meta d'une sortie passe par match_key et se trace en
+
+## ✅ R346 — Accueil, retour d'écran du 2026-10-04 : (a) `</div>` affiché en texte sous « Collecte a… (livrée 2026-10-04)
+
+- [x] **R346 — Accueil, retour d'écran du 2026-10-04 : (a) `</div>` affiché en texte sous « Collecte automatique » / « À déposer toi-même » — une ligne blanche dans un bloc HTML multi-lignes (`_divergence` vide) clôt le bloc CommonMark, la suite indentée devient du texte ; HTML émis sur une ligne + balayage des frères ; (b) police trop grosse sur les trois cases Discover Weekly / Radio / Release Radar ; (c) « Ce que ta publicité a apporté » en métriques plutôt qu'en phrases** (P3) ✅ (2026-10-04, 0d90552d, b7634f8c, 4e4cd40a)
+  Mesuré par : le rendu de l'accueil ne contient plus de `</div>` littéral (test) ; capture d'écran
+  freshness_tile_html sur une ligne, garde placeholders par propriété, AppTest accueil sans </div> ; CI verte 3f43b688 (porte 0d90552d) ; capture d'écran non faite
+  Commits : 0d90552d R346 : la tuile de fraîcheur sort d'un constructeur pur, sur une seule · b7634f8c R346 + R347 : accueil en chiffres, mise en route réduite à ses deux ét · 4e4cd40a Roadmap : R346 et R347 inscrites (retour d'ecran accueil + mise en rou
+
+## ✅ R347 — Mise en route, retour d'écran du 2026-10-04 : l'assistant ne montre QUE ses deux étapes… (livrée 2026-10-04)
+
+- [x] **R347 — Mise en route, retour d'écran du 2026-10-04 : l'assistant ne montre QUE ses deux étapes (plus de menu complet), le bloc « streaMLytics en bref » garde la seule promesse « toutes tes données au même endroit, récupérées chaque jour » (plus de figure ni de légende), « 🔑 Connecter mes sources → » mène à « 2. Où tu en es » au lieu de Credentials** (P3) ✅ (2026-10-04, 48b6936e, 6bf43a8b, c8b60da2, b7634f8c, 4e4cd40a)
+  Mesuré par : AppTest : sur l'assistant la barre ne rend pas `render_navigation` ; le bouton pose l'étape 2
+  sidebar_is_bare(page) + AppTest (pas de nav, bouton → étape 2, aucune figure) ; CI verte 48b6936e
+  Commits : 48b6936e R347 : la barre latérale de l'assistant se décide par la page seule —  · 6bf43a8b R347 : signature cumulative-counter limitée à home.py (la mise en rout · c8b60da2 R347 : le garde de l'étape d'accueil lit l'AST, pas le texte du source · b7634f8c R346 + R347 : accueil en chiffres, mise en route réduite à ses deux ét · 4e4cd40a Roadmap : R346 et R347 inscrites (retour d'ecran accueil + mise en rou
+
 ## ✅ R348 — Meta Ads, retour d'écran du 2026-10-04 : « Tout mon funnel » (`meta_x_spotify`) quitte… (livrée 2026-10-04)
 
 - [x] **R348 — Meta Ads, retour d'écran du 2026-10-04 : « Tout mon funnel » (`meta_x_spotify`) quitte le menu et devient un onglet de la page Meta Ads — la route reste, les renvois (pitch, récap, PDF, texte de `meta_creatives`) pointent l'onglet** (P3) ✅ (2026-10-04, 8ebc873b, 9ec7cd46)

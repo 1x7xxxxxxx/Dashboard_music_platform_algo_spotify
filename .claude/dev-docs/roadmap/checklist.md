@@ -30,11 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R346 | Accueil, retour d'écran du 2026-10-04 : (a) `</div>` affiché en texte sous « Collecte automatique » / « À déposer toi-même » — une ligne blanche dans un bloc HTML multi-lignes (`_divergence` vide) clôt le bloc CommonMark, la suite indentée devient du texte ; HTML émis sur une ligne + balayage des frères ; (b) police trop grosse sur les trois cases Discover Weekly / Radio / Release Radar ; (c) « Ce que ta publicité a apporté » en métriques plutôt qu'en phrases <!-- critic: non — rendu d'accueil, aucune donnée ni contrat modifié --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/views/home_meta_advice.py, src/dashboard/utils/, tests/ --> | P3 | le rendu de l'accueil ne contient plus de `</div>` littéral (test) ; capture d'écran |
-| R347 | Mise en route, retour d'écran du 2026-10-04 : l'assistant ne montre QUE ses deux étapes (plus de menu complet), le bloc « streaMLytics en bref » garde la seule promesse « toutes tes données au même endroit, récupérées chaque jour » (plus de figure ni de légende), « 🔑 Connecter mes sources → » mène à « 2. Où tu en es » au lieu de Credentials <!-- critic: non — parcours d'interface, pas de donnée --> <!-- scope: src/dashboard/views/onboarding.py, src/dashboard/app.py, src/dashboard/views/i18n/, tests/ --> | P3 | AppTest : sur l'assistant la barre ne rend pas `render_navigation` ; le bouton pose l'étape 2 |
-| R349 | Spotify / S4A, retour d'écran du 2026-10-04 : sur le panneau de sortie, Meta €/jour en COURBE au lieu du nuage de points ; la série Meta absente du détail par titre (« qui a bu le crachoir du salon ») — jointure campagne↔titre par `track_platform_link`/match_key au lieu de `lower(title)` | P3 | test : la trace Meta est `mode=lines` ; un titre lié par match_key reçoit sa série Meta <!-- critic: non — reprend la jointure canonique match_key déjà utilisée par campaign_compare --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
 | R350 | Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge) | P3 | render smoke avec deux campagnes ; test de la sélection à deux <!-- critic: non — rendu d'interface, pas de donnée --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
-| R351 | Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (dernière sortie par défaut, une seconde campagne au choix) | P3 | test : deux fenêtres de campagne donnent deux séries Shazam alignées sur J0 <!-- critic: non — graphique ajouté sur des lectures existantes --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/, src/dashboard/content/, tools/dev/charts_dossier/ --> |
 
 ---
 
@@ -90,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R346, R347, R349, R350, R351, R283, R275 -->
+<!-- reprise: open=R350, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
