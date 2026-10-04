@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R275 — Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (not… (livrée 2026-10-04)
+
+- [x] **R275 — Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173)** (P2) ✅ (2026-10-04, 017b1be8, 59412a9e, 01049742, 65f61128)
+  Mesuré par : ton envoi — runbook § 35
+  retirée sans livraison — suivie dans la roadmap personnelle du propriétaire, hors de ce dépôt ; aucun commit ne la livre, la CI du commit 017b1be8 cité ne la concerne pas
+  Commits : 017b1be8 Roadmap : R338 livree (CI verte) - restent R283 et R275, qui attendent · 59412a9e Roadmap : R301 et R282 livrees (deploye 37e2fb5e) - restent R283 et R2 · 01049742 R298 : R282 - mes recos dans le dossier PDF (une par proposition, L268 · 65f61128 Roadmap : R258 a R274 inscrites (tes notes du 2026-09-27 traduites en 
+
 ## ✅ R350 — Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale… (livrée 2026-10-04)
 
 - [x] **R350 — Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge)** (P3) ✅ (2026-10-04, 63e54199, 2dbbac30)
@@ -1112,6 +1119,79 @@ si le total passe sous son plancher.
 
 
 ## 🗄️ Historique de l'actif (déplacé le 2026-09-26, R200)
+
+### Déplacé de l'actif le 2026-10-04 (le fichier actif ne porte plus que l'en-cours)
+
+#### Mesuré le 2026-09-17 — pourquoi `PYTEST_WORKERS` restera à 2, et ce qui le débloquerait
+
+> ⚠️ **Rectifié le 2026-09-25, par une mesure.** Le raisonnement ci-dessous confond deux
+> choses : les résidents sont DÉJÀ hors de `MemAvailable`, la réserve n'a donc à couvrir
+> que ce qui peut GROSSIR pendant la suite. Les deux croissances de l'époque ont cessé
+> d'être permanentes (n8n le dimanche seulement, modèle knowledge-rag déchargé après
+> 10 min) ; la réserve suit désormais ce qui tourne (`tools/dev/pytest_workers.py`) et
+> rend **4 workers** : 179–180 s contre 269 s à 2, creux de `MemAvailable` ≥ 4 278 Mo sur
+> trois suites complètes alternées. Le texte qui suit reste comme trace de l'ancien calcul.
+
+`PYTEST_DIST` vaut `-n $(PYTEST_WORKERS)`, avec
+`workers = (MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. La constante de
+réserve avait été écrite le matin même après **deux morts par OOM en une heure**,
+sans être confrontée au pic réel. Elle l'a été :
+
+| ce qui a été mesuré | valeur |
+|---|---|
+| suite complète à `-n 2`, creux de `MemAvailable` | **991 Mo consommés** (3 918 → 2 927) |
+| donc par worker | **~495 Mo** — la formule en budgète 700, soit ×1,4 de marge |
+| résidents au repos | RAG **1 548** · Airflow+PG **1 686** · serveur VS Code **1 089** · `claude` **449** = **4 772 Mo** |
+| RAM totale de la WSL | 9 945 Mo (plafond `.wslconfig`, hôte 15,7 Gio) |
+
+**La réserve de 5 120 Mo n'est donc pas arbitraire : elle vaut à peu près ce que les
+résidents pèsent (4 772 Mo mesurés).** Et elle explique l'OOM : à 8 workers,
+8 × 495 = 3 960 Mo de suite + 4 772 de résidents = 8 732 Mo sur 9 945. La baisser
+rendrait l'OOM, elle ne rendrait pas des workers.
+
+**Le levier est donc les RÉSIDENTS, et il manque 68 Mo.** Le troisième worker demande
+`MemAvailable ≥ 7 220`. En libérant le RAG (1 548) et Airflow (1 686) :
+3 918 + 3 234 = **7 152 Mo** — à **68 Mo** du seuil. Arrêter en plus un serveur MCP
+inutilisé (`chrome-devtools` 89 Mo, `graphify` 90 Mo) ferait basculer.
+
+**Ce qu'on ne fait pas** : courir après ce troisième worker. Le gain attendu est
+178 s → ~145 s, soit ~33 s sur une suite qu'on lance quelques fois par jour, contre
+l'obligation d'éteindre Airflow — dont on a justement besoin pour que ~160 tests ne
+skippent pas. Motif d'ADR-007.
+
+⚠️ Deux mesures de cette séance sont **invalides et ne doivent pas être recitées** :
+la somme des `VmHWM` des processus pytest (**194 Mo**, le motif `pgrep` ratait les
+workers `execnet`) et les trois bancs mémoire du serveur RAG, dont le dernier rendait
+*moins* de mémoire avec préchargement que sans. Seul le creux de `MemAvailable` est
+fiable ici.
+
+> Les trois sections du 2026-09-10 (audit transverse, R83, les sept tâches livrées
+> plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait
+> franchi le plafond de 50 Ko que `/resume` lit à chaque session.
+
+## 🔁 Consignes permanentes — ce ne sont PAS des tâches
+
+Rien ici ne se coche, ne se livre ni ne s'archive : ce sont des gestes à faire le jour
+où un évènement les déclenche. Ils vivent dans le fichier actif pour être relus, pas
+pour être finis.
+
+⚠️ Titre corrigé le 2026-09-17. Il s'appelait « Brick Status » et annonçait « ce qui
+reste ouvert est ci-dessous » — deux affirmations fausses : aucune brique n'y figurait
+depuis des mois, et rien de ce qui suit n'est ouvert au sens de la roadmap. Un lecteur
+qui cherchait l'état des briques lisait une liste de secrets à faire tourner.
+
+### Rotation des secrets — sur incident seulement (aucune action de code)
+
+- **Secret rotation (incident-driven only)** — rotate the following on suspected compromise or scheduled audit (no auto-rotation possible — secrets are external):
+  - `DATABASE_PASSWORD` — PG superuser, used by all services
+  - `FERNET_KEY` — ⚠️ critical : re-encrypt the entire `artist_credentials` table after rotation (script TBD)
+  - `META_APP_SECRET` — Meta Developer Console
+  - `SPOTIFY_CLIENT_SECRET` — Spotify Developer Dashboard
+  - `YOUTUBE_API_KEY` — Google Cloud Console
+  - `SMTP_PASSWORD` — Gmail App Password
+
+  Files: `.env`, variables d'environnement de la prod (Hetzner). Auto-refreshed tokens (Meta personal 60-day, SoundCloud Client Credentials, Spotify Client Credentials regrant) are NOT in scope — see `.claude/dev-docs/meta-ads-credential-guide.md` § "What is automated vs manual".
+
 
 Prose qui vivait dans `checklist.md` autour d'un index d'une ligne — 95 % du fichier actif.
 Déplacée mot pour mot, sans réécriture ; les sections ⏸️ R116/R131, les conditions d'attente

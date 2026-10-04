@@ -83,11 +83,11 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ---
 
-## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
+## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R283, R275 -->
+<!-- reprise: open=R283 -->
 
-**État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
+**État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
@@ -95,49 +95,6 @@ Le récit des journées précédentes est dans l'archive (« 🗄️ Historique 
 
 Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans l'index.
 
-
-#### Mesuré le 2026-09-17 — pourquoi `PYTEST_WORKERS` restera à 2, et ce qui le débloquerait
-
-> ⚠️ **Rectifié le 2026-09-25, par une mesure.** Le raisonnement ci-dessous confond deux
-> choses : les résidents sont DÉJÀ hors de `MemAvailable`, la réserve n'a donc à couvrir
-> que ce qui peut GROSSIR pendant la suite. Les deux croissances de l'époque ont cessé
-> d'être permanentes (n8n le dimanche seulement, modèle knowledge-rag déchargé après
-> 10 min) ; la réserve suit désormais ce qui tourne (`tools/dev/pytest_workers.py`) et
-> rend **4 workers** : 179–180 s contre 269 s à 2, creux de `MemAvailable` ≥ 4 278 Mo sur
-> trois suites complètes alternées. Le texte qui suit reste comme trace de l'ancien calcul.
-
-`PYTEST_DIST` vaut `-n $(PYTEST_WORKERS)`, avec
-`workers = (MemAvailable_Mo − 5120) / 700`, borné à `[2, nproc]`. La constante de
-réserve avait été écrite le matin même après **deux morts par OOM en une heure**,
-sans être confrontée au pic réel. Elle l'a été :
-
-| ce qui a été mesuré | valeur |
-|---|---|
-| suite complète à `-n 2`, creux de `MemAvailable` | **991 Mo consommés** (3 918 → 2 927) |
-| donc par worker | **~495 Mo** — la formule en budgète 700, soit ×1,4 de marge |
-| résidents au repos | RAG **1 548** · Airflow+PG **1 686** · serveur VS Code **1 089** · `claude` **449** = **4 772 Mo** |
-| RAM totale de la WSL | 9 945 Mo (plafond `.wslconfig`, hôte 15,7 Gio) |
-
-**La réserve de 5 120 Mo n'est donc pas arbitraire : elle vaut à peu près ce que les
-résidents pèsent (4 772 Mo mesurés).** Et elle explique l'OOM : à 8 workers,
-8 × 495 = 3 960 Mo de suite + 4 772 de résidents = 8 732 Mo sur 9 945. La baisser
-rendrait l'OOM, elle ne rendrait pas des workers.
-
-**Le levier est donc les RÉSIDENTS, et il manque 68 Mo.** Le troisième worker demande
-`MemAvailable ≥ 7 220`. En libérant le RAG (1 548) et Airflow (1 686) :
-3 918 + 3 234 = **7 152 Mo** — à **68 Mo** du seuil. Arrêter en plus un serveur MCP
-inutilisé (`chrome-devtools` 89 Mo, `graphify` 90 Mo) ferait basculer.
-
-**Ce qu'on ne fait pas** : courir après ce troisième worker. Le gain attendu est
-178 s → ~145 s, soit ~33 s sur une suite qu'on lance quelques fois par jour, contre
-l'obligation d'éteindre Airflow — dont on a justement besoin pour que ~160 tests ne
-skippent pas. Motif d'ADR-007.
-
-⚠️ Deux mesures de cette séance sont **invalides et ne doivent pas être recitées** :
-la somme des `VmHWM` des processus pytest (**194 Mo**, le motif `pgrep` ratait les
-workers `execnet`) et les trois bancs mémoire du serveur RAG, dont le dernier rendait
-*moins* de mémoire avec préchargement que sans. Seul le creux de `MemAvailable` est
-fiable ici.
 
 | Ce qu'on ne fait pas | Ce qui le rouvrirait, calculable |
 |---|---|
@@ -148,10 +105,6 @@ fiable ici.
 | ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
 | Écrire **ADR-027** (répliques et Redis) | `daily_ops_metrics` porte **14 jours `complete = TRUE`** : `SELECT count(*) FROM daily_ops_metrics WHERE complete` — **aujourd'hui 0**. La table a UNE ligne (2026-09-16), `complete = FALSE`, et **tous ses percentiles de rendu sont `NULL`** ; seul `peak_sessions = 8` est renseigné. La courbe qui doit trancher — `streamlytics_rerun_duration_seconds` côté serveur, et `streamlytics_reruns_in_flight` pour la saturation — n'existe donc pas encore. Le bloc de R116 le disait lui-même : *« un ADR écrit avant la mesure serait une rationalisation »*. Ce n'est pas du travail en retard, c'est du temps et du trafic |
 | Fragmenter les **5 vues restantes** de R118 — `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin` | l'une d'elles dépasse **300 ms de vue** dans l'histogramme SERVEUR : `histogram_quantile(0.5, sum by (page,le) (rate(streamlytics_rerun_duration_seconds_bucket{phase="view"}[1h])))`. Mesuré localement le 2026-09-17 : 20 à 130 ms de rerun à chaud, **dans la même bande que les six déjà fragmentées** (78 à 172 ms) — donc rien ne les distingue, et le bruit local (±60 à 100 %) est plus large que les écarts. Seul le serveur peut trancher, et il lui faut du trafic sur ces pages |
-
-> Les trois sections du 2026-09-10 (audit transverse, R83, les sept tâches livrées
-> plus tôt) ont été **déplacées** dans `archive.md` le 2026-09-13 : ce fichier avait
-> franchi le plafond de 50 Ko que `/resume` lit à chaque session.
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=0 -->
@@ -213,29 +166,3 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39 |
-| R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
-
----
-
-## 🔁 Consignes permanentes — ce ne sont PAS des tâches
-
-Rien ici ne se coche, ne se livre ni ne s'archive : ce sont des gestes à faire le jour
-où un évènement les déclenche. Ils vivent dans le fichier actif pour être relus, pas
-pour être finis.
-
-⚠️ Titre corrigé le 2026-09-17. Il s'appelait « Brick Status » et annonçait « ce qui
-reste ouvert est ci-dessous » — deux affirmations fausses : aucune brique n'y figurait
-depuis des mois, et rien de ce qui suit n'est ouvert au sens de la roadmap. Un lecteur
-qui cherchait l'état des briques lisait une liste de secrets à faire tourner.
-
-### Rotation des secrets — sur incident seulement (aucune action de code)
-
-- **Secret rotation (incident-driven only)** — rotate the following on suspected compromise or scheduled audit (no auto-rotation possible — secrets are external):
-  - `DATABASE_PASSWORD` — PG superuser, used by all services
-  - `FERNET_KEY` — ⚠️ critical : re-encrypt the entire `artist_credentials` table after rotation (script TBD)
-  - `META_APP_SECRET` — Meta Developer Console
-  - `SPOTIFY_CLIENT_SECRET` — Spotify Developer Dashboard
-  - `YOUTUBE_API_KEY` — Google Cloud Console
-  - `SMTP_PASSWORD` — Gmail App Password
-
-  Files: `.env`, variables d'environnement de la prod (Hetzner). Auto-refreshed tokens (Meta personal 60-day, SoundCloud Client Credentials, Spotify Client Credentials regrant) are NOT in scope — see `.claude/dev-docs/meta-ads-credential-guide.md` § "What is automated vs manual".

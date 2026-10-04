@@ -2039,7 +2039,7 @@ d'exploitation n'est saisi — hébergement Hetzner, nom de domaine, outils paya
 
 **Vérification** : la section affiche la liste de tes coûts et la marge n'est plus vide.
 
-## 35. R275 — Faire tester l'app à deux artistes bêta · P2
+## 35. ~~R275 — Faire tester l'app à deux artistes bêta~~ · ✅ RETIRÉE le 2026-10-04 — suivie dans la roadmap personnelle du propriétaire, hors de ce dépôt
 
 **Pourquoi** : tes notes demandent un retour d'artistes réels avant d'aller plus loin ;
 personne d'autre ne peut l'envoyer.

@@ -103,8 +103,8 @@
   domaine: tests-ci
   statut: livré
   priorite: P3
-  preuve_statut: make gold-coverage (à la demande, non versionné depuis R345, cliquets calculés sur l'arbre) ; make error-health-check
-    range le catalogue ; R231 (A:206 'Mesure par make gold-coverage')
+  preuve_statut: make gold-coverage (à la demande, non versionné depuis R345, cliquets calculés sur l'arbre) ; make
+    error-health-check range le catalogue ; R231 (A:206 'Mesure par make gold-coverage')
   preuve_ciblee: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows
 - ligne: 15
   resume: Que optimiser sur le PC pour la rapidite ?
@@ -1560,11 +1560,10 @@
   resume: Envoyer l'app à deux artistes bêta avec message vocal pour feedback
   type: action-produit
   domaine: onboarding
-  statut: ouvert
+  statut: livré
   priorite: P2
-  preuve_statut: Geste humain ; runbook-artist-test-session.md (R1) ; aucune trace de feedback.
+  preuve_statut: R275 (archivée) — 017b1be8
   preuve_ciblee: 'test to write: section de runbook avec retour consigné, on file .claude/dev-docs/runbook-artist-test-session.md:1'
-  roadmap: R275
 - ligne: 174
   resume: 'RAG : optimiser la base de chunks + ingestion d''ebooks spécifiques MCP/RAG'
   type: action-produit
@@ -1740,7 +1739,8 @@
   domaine: onboarding
   statut: livré
   priorite: P3
-  preuve_statut: R347 (2026-10-04) — reduced on owner request to brief_1 only (« toutes tes données au même endroit »)
+  preuve_statut: R347 (2026-10-04) — reduced on owner request to brief_1 only (« toutes tes données au même endroit
+    »)
   preuve_ciblee: tests/test_the_setup_assistant_is_two_steps_and_nothing_else.py
 - ligne: 240
   resume: 'Block 2 welcome offer: 1-month premium and what is lost after'
@@ -1960,8 +1960,8 @@
   domaine: chart-door
   statut: ouvert
   priorite: P4
-  preuve_statut: Deferred again at R282's close (2026-09-28) — the model barely changes its mind week to
-    week (fiche 126); no threshold/probability overlay in tools/dev/make_example_charts.py
+  preuve_statut: Deferred again at R282's close (2026-09-28) — the model barely changes its mind week to week (fiche
+    126); no threshold/probability overlay in tools/dev/make_example_charts.py
   preuve_ciblee: 'test to write: welcome Meta×S4A figure carries a threshold trace (tools/dev/make_example_charts.py)'
   roadmap: R302
 - ligne: 268
