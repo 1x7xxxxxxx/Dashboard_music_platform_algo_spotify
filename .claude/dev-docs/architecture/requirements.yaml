@@ -93,10 +93,10 @@
   enonce: Rien d'écrasé n'est perdu — l'historique d'une donnée réécrite est conservé automatiquement
   sources: [{adr: docs/adr/ADR-018-nothing-overwritten-is-lost.md}]
   priorite: P2
-  statut: partiel
+  statut: conforme
   preuve: {cmd: "make schema-check-local"}
-  ecart: "R368 : l'empreinte lit les triggers (`trg:`) ; elle a aussitôt trouvé le trigger hypeddit et 10 index créés par le code d'exécution, absents des migrations — R396"
-  roadmap: R396
+  # R396 (2026-10-05) : le trigger hypeddit est entré dans la migration 146 ; les 10 index
+  # locaux ne sont pas comparés (index non uniques) et la prod n'en a aucun — non ajoutés.
   mutation: "commenter le trigger trg_revision_* de la migration 096 (vu rouge 2026-10-05)"
 - id: REQ-COLLECT-01
   domaine: collect

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R396 — Bronze — la DDL qui ne vit QUE dans le code d'exécution (trouvée par R368, balayage sib… (livrée 2026-10-05)
+
+- [x] **R396 — Bronze — la DDL qui ne vit QUE dans le code d'exécution (trouvée par R368, balayage sibling-sweeper : 159 CREATE → 12 sites vivants) : la fonction `calculate_hypeddit_metrics()` + le trigger `trg_calculate_hypeddit_metrics` (`hypeddit_schema.py:52,76`) et 10 index non uniques (`hypeddit_schema.py:48`, `apple_music_csv_schema.py:36,57`, `saas_schema.py:35`, `youtube_schema.py:29,79,102,126,129,155`) existent en base locale mais dans AUCUNE migration — une base reconstruite depuis les migrations n'a ni le trigger ni les index, et `make schema-check-local` est rouge depuis que l'empreinte lit les triggers. Remède additif : migration 146 (`CREATE OR REPLACE FUNCTION`, `CREATE OR REPLACE TRIGGER`, `CREATE INDEX IF NOT EXISTS`), puis les `create_*_tables()` morts (appelés seulement sous `__main__`) marqués comme non canoniques** (P2) ✅ (2026-10-05, b5cace9a, 54ef4a1c)
+  Mesuré par : `make schema-check-local` vert ; `make canon-pg` porte le trigger et les 10 index
+  CI verte sur b5cace9a (run 37244772976). Migration 146 additive (fonction au corps de la prod + trigger) ; 10 index locaux non ajoutés (099) ; garde test_every_trigger_is_created_by_a_migration muté. À appliquer en prod avec R395.
+  Commits : b5cace9a R396 : le trigger hypeddit entre dans la chaîne de migrations (146) · 54ef4a1c R368 : sondes durcies — format de date à 4 chiffres (home_tiles, meta_
+
 ## ✅ R368 — Harnais — les FORMES VOISINES que les gardes de R364 laissent passer (mutées le 2026-10… (livrée 2026-10-05)
 
 - [x] **R368 — Harnais — les FORMES VOISINES que les gardes de R364 laissent passer (mutées le 2026-10-04) : BRONZE-02 trigger `trg_revision_*` commenté reste vert (empreinte sans triggers) ; SEC-02 `** () ✅ (2026-10-05, 54ef4a1c, 51beaacd, 9e0d2e54)
