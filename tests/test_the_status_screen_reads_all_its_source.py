@@ -119,6 +119,38 @@ def test_an_archived_task_is_not_in_progress(tmp_path, monkeypatch) -> None:
         f"une tâche archivée reste affichée en cours (vu {unit})")
 
 
+def test_the_archive_is_read_under_both_its_spellings(tmp_path, monkeypatch) -> None:
+    """R343 : avant R197, l'archive n'écrit que `- [x] **Rnnn —` — 163 tâches closes.
+
+    Lire `## ✅` seul les laissait « EN COURS » pour toute unité ancienne ; le même
+    fichier, dans `cmd_check`, lisait l'autre écriture — deux définitions de « archivé ».
+    """
+    mod = _night_run()
+    archive = tmp_path / "archive.md"
+    archive.write_text("## ✅ R323 — x (livrée 2026-09-29)\n\n"
+                       "- [x] **R117 — dépôt sur ext4** livré\n"
+                       "- [x] **R61 - tiret court** livré\n", encoding="utf-8")
+    monkeypatch.setattr(mod, "ARCHIVE", archive)
+    assert mod._archived_ids() == {"R323", "R117", "R61"}
+    journal = [{"kind": "start", "task": "R116", "what": "ouverte"},
+               {"kind": "start", "task": "R117", "what": "archivée en bloc - [x]"}]
+    unit = mod._current_unit(journal)
+    assert unit is not None and unit["task"] == "R116", (
+        f"une tâche archivée sous `- [x] **` reste affichée en cours (vu {unit})")
+
+
+def test_a_parked_task_archived_without_done_is_no_longer_parked(tmp_path, monkeypatch) -> None:
+    """R343 : parquée, puis livrée par un lot — aucun `done`, mais l'archive la porte."""
+    mod = _night_run()
+    archive = tmp_path / "archive.md"
+    archive.write_text("## ✅ R330 — livrée par lot\n", encoding="utf-8")
+    monkeypatch.setattr(mod, "ARCHIVE", archive)
+    journal = [{"kind": "park", "task": "R330", "what": "bloquée"},
+               {"kind": "park", "task": "R331", "what": "bloquée"}]
+    left = mod.open_questions(journal, frozenset(mod._archived_ids()))
+    assert [e["task"] for e in left] == ["R331"]
+
+
 def test_git_unavailable_is_not_a_clean_tree() -> None:
     """`_git` doit LEVER, jamais rendre une chaîne vide qui se lit comme « propre »."""
     mod = _night_run()

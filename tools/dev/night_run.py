@@ -154,10 +154,18 @@ def _open_tasks() -> list[tuple[str, str, str]]:
 
 
 def _archived_ids() -> set[str]:
-    """Les tâches archivées (`## ✅ Rnnn`) — closes, quel que soit le geste qui les a closes."""
+    """Les tâches archivées — closes, quel que soit le geste qui les a closes.
+
+    Les DEUX écritures de l'archive (R343) : `## ✅ Rnnn` n'existe que depuis R197 ;
+    avant, et pour toute fermeture à la main, c'est un bloc `- [x] **Rnnn —`. Lire la
+    première seule laissait 163 tâches closes invisibles — la vérification des
+    fermetures orphelines (`cmd_check`), elle, lisait déjà la seconde.
+    """
     if not ARCHIVE.exists():
         return set()
-    return set(re.findall(r"^## ✅ (R\d+)", ARCHIVE.read_text(encoding="utf-8"), re.M))
+    text = ARCHIVE.read_text(encoding="utf-8")
+    return (set(re.findall(r"^## ✅ (R\d+)", text, re.M))
+            | set(re.findall(r"^- \[x\] \*\*(R\d+) [—-]", text, re.M)))
 
 
 def _current_unit(entries: list[dict]) -> dict | None:
@@ -262,8 +270,12 @@ def is_a_suite(tokens: list[str]) -> bool:
     return is_pytest and targets_suite and not collects_only
 
 
-def open_questions(entries: list[dict]) -> list[dict]:
-    """Les `park` qu'aucun `done` POSTÉRIEUR n'a tranchés.
+def open_questions(entries: list[dict], archived: frozenset[str] = frozenset()) -> list[dict]:
+    """Les `park` qu'aucun `done` POSTÉRIEUR n'a tranchés, ni aucune archive.
+
+    `archived` (R343) : une tâche parquée puis close par un lot ou par `roadmap-close`
+    sans unité ouverte n'écrit aucun `done` ; sans l'archive elle restait PARQUÉE à vie,
+    et `night-check` rougissait sur une tâche livrée.
 
     Extraite du corps de `cmd_status` le 2026-09-17, et pour une raison mesurée : la
     règle y était en ligne, donc le test qui la vérifiait en rejouait une COPIE. Muter
@@ -283,7 +295,7 @@ def open_questions(entries: list[dict]) -> list[dict]:
         elif e.get("kind") == "park":
             answered.discard(task)
     return [e for e in entries
-            if e.get("kind") == "park" and e.get("task") not in answered]
+            if e.get("kind") == "park" and e.get("task") not in answered | archived]
 
 
 MAIL_JOURNAL = REPO / ".claude" / "dev-docs" / "ops-mail-journal.md"
@@ -358,7 +370,7 @@ def cmd_status(_args) -> int:
     #
     # Le critère est l'ORDRE, pas la simple présence : un `done` postérieur au `park`
     # le referme ; un `park` postérieur à un `done` rouvre bel et bien la question.
-    parked = open_questions(entries)
+    parked = open_questions(entries, frozenset(_archived_ids()))
     if parked:
         print(f"\n▶ PARQUÉ    {len(parked)} question(s) en attente d'un humain :")
         for entry in parked[-5:]:
@@ -602,7 +614,7 @@ def cmd_check(_args) -> int:
         pending = []
         if unit and unit.get("task"):
             pending.append(("unité en cours", unit["task"]))
-        pending += [("question parquée", e["task"]) for e in open_questions(entries)
+        pending += [("question parquée", e["task"]) for e in open_questions(entries, frozenset(_archived_ids()))
                     if e.get("task")]
         for kind, task in pending:
             if task not in known:

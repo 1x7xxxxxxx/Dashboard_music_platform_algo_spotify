@@ -1,7 +1,7 @@
 """A dependency audit reads the set the CI INSTALLS, not the constraints it starts from.
 
 Type: Sub
-Uses: .github/workflows/*.yml (read as YAML)
+Uses: .github/workflows/*.yml (read as YAML), Makefile recipes
 Depends on: nothing
 Persists in: nothing
 
@@ -11,6 +11,10 @@ pip-audit resolved recent versions and reported clean — while the CI installed
 through `uv sync --frozen`, which pinned older ones. The class signature grepped for the
 one literal command; this file asks the property: every requirements file handed to
 `pip-audit -r` is written, earlier in the same job, by `uv export` from the lock.
+
+R343 (2026-10-04): the scan read only the workflows, and `make audit-deps` — the same
+gesture run locally — still audited `-r requirements.txt` through `$(PIP_AUDIT)`, a
+spelling the regex did not know. A Makefile target is now read as a job.
 """
 from __future__ import annotations
 
@@ -19,8 +23,10 @@ from pathlib import Path
 
 import yaml
 
-_WORKFLOWS = Path(__file__).resolve().parents[1] / ".github" / "workflows"
-_AUDITED = re.compile(r"pip-audit\b[^\n]*?\s-r\s+(\S+)")
+_ROOT = Path(__file__).resolve().parents[1]
+_WORKFLOWS = _ROOT / ".github" / "workflows"
+# `$(PIP_AUDIT)` too (R343): the Makefile calls the binary through a variable.
+_AUDITED = re.compile(r"(?:pip-audit\b|\$\(PIP_AUDIT\))[^\n]*?\s-r\s+(\S+)")
 # `uv pip compile` too (R267, 2026-09-28): the API image installs `requirements-api.txt`
 # by itself, not the lock — its installed set IS that file's resolution, pinned `==` by
 # compile exactly as `uv export` pins the lock. Auditing the floors themselves stays refused.
@@ -40,6 +46,37 @@ def audits_of_constraints(workflow: dict) -> list[str]:
                 out += [f"{name}: {a}" for a in _AUDITED.findall(line) if a not in exported]
                 exported |= set(_EXPORTED.findall(line))
     return out
+
+
+def makefile_as_workflow(text: str) -> dict:
+    """Each Makefile target becomes a job whose single step is its recipe. Pure."""
+    jobs: dict[str, list[str]] = {}
+    current = None
+    for line in text.splitlines():
+        if line.startswith("\t") and current:
+            jobs[current].append(line.strip().lstrip("@-"))
+        elif m := re.match(r"^([A-Za-z0-9_.-]+)\s*:(?!=)", line):
+            current = m.group(1)
+            jobs.setdefault(current, [])
+        elif line and not line.startswith(("\t", "#")):
+            current = None
+    return {"jobs": {k: {"steps": [{"run": "\n".join(v)}]} for k, v in jobs.items()}}
+
+
+def test_every_make_target_audits_the_exported_lock() -> None:
+    offenders = audits_of_constraints(
+        makefile_as_workflow((_ROOT / "Makefile").read_text(encoding="utf-8")))
+    assert not offenders, (
+        f"Makefile → {offenders} : une cible audite des contraintes, pas le lock exporté. "
+        "Exporter d'abord : `uv export --frozen --no-dev --no-hashes -q -o <f>`.")
+
+
+def test_the_scan_still_sees_the_make_audit() -> None:
+    wf = makefile_as_workflow((_ROOT / "Makefile").read_text(encoding="utf-8"))
+    assert _AUDITED.search(wf["jobs"]["audit-deps"]["steps"][0]["run"]), (
+        "`make audit-deps` no longer runs an audit this guard can read — it sees nothing")
+    before = "audit-deps: check-pipaudit\n\t@$(PIP_AUDIT) -r requirements.txt --desc on\n"
+    assert audits_of_constraints(makefile_as_workflow(before)) == ["audit-deps: requirements.txt"]
 
 
 def test_every_audit_reads_the_exported_lock() -> None:
