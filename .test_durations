@@ -4700,6 +4700,7 @@
     "tests/test_dag_fleet_isolation.py::test_the_wider_scope_is_not_empty": 0.001201841005240567,
     "tests/test_defects_are_recorded_every_turn.py::test_a_diff_selected_green_proves_the_files_it_selected": 0.23739867699987371,
     "tests/test_defects_are_recorded_every_turn.py::test_a_green_proves_only_what_it_ran_and_a_return_is_proposed": 0.001084418036043644,
+    "tests/test_defects_are_recorded_every_turn.py::test_a_long_first_turn_is_read_from_its_start": 0.12584771100046055,
     "tests/test_defects_are_recorded_every_turn.py::test_nothing_that_could_be_a_secret_reaches_the_log": 0.0007295439136214554,
     "tests/test_defects_are_recorded_every_turn.py::test_the_log_is_gitignored_and_the_stop_hook_reaches_it": 0.01263813499826938,
     "tests/test_defects_are_recorded_every_turn.py::test_the_three_signals_are_recorded_and_the_noise_is_not": 0.0010419710306450725,

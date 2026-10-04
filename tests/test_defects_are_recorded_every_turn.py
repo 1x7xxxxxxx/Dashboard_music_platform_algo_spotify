@@ -154,3 +154,23 @@ def test_a_diff_selected_green_proves_the_files_it_selected(tmp_path) -> None:
     dry = subprocess.run(["make", "-n", "test-changed"], cwd=Path(dc.ROOT), capture_output=True,
                          text=True, timeout=60).stdout
     assert "tee .pytest-selected" in dry, "make test-changed no longer records its selection"
+
+
+def test_a_long_first_turn_is_read_from_its_start(tmp_path, monkeypatch) -> None:
+    """R344: a `/goal` session's first Stop comes on a file already past the size bound.
+
+    2026-10-04: 24 symptoms rejoués, 0 written — the first Stop jumped to the end. A
+    session born after R315 is read from byte 0; one born before still starts at its end.
+    """
+    monkeypatch.setattr(dc, "FIRST_READ_MAX", 10)
+    red = json.dumps({"type": "user", "timestamp": "2026-10-04T09:00:00Z", "message": {
+        "content": [{"type": "tool_result", "tool_use_id": "x",
+                     "content": "FAILED tests/test_a.py::test_b - boom"}]}}) + "\n"
+    recent = tmp_path / "recent.jsonl"
+    recent.write_text(red, encoding="utf-8")
+    assert dc.capture(str(recent), "recent", tmp_path / "log.jsonl") == 1, (
+        "a session born after R315 lost its first long turn")
+    old = tmp_path / "old.jsonl"
+    old.write_text(red.replace("2026-10-04", "2026-09-01"), encoding="utf-8")
+    assert dc.capture(str(old), "old", tmp_path / "log2.jsonl") == 0, (
+        "a session born before R315 is read whole on one Stop")

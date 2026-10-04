@@ -34,7 +34,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 LOG = ROOT / ".claude" / "sessions" / "defects.jsonl"
 EXCERPT = 200
-FIRST_READ_MAX = 2_000_000  # bytes read on the first Stop of a session
+FIRST_READ_MAX = 2_000_000  # bytes read on the first Stop of a session born BEFORE R315
+CAPTURE_SINCE = "2026-09-29"  # R315 shipped: a session born after it is read from byte 0
 
 _FAILED = re.compile(r"^(?:FAILED|ERROR) (tests/[^\s:]+\.py::\S+)", re.M)
 _GREEN = re.compile(r"^=*\s*(\d+) passed(?:,| in)(?![^\n]*\bfailed\b)(?![^\n]*\berror)", re.M)
@@ -212,6 +213,26 @@ def _tree_now() -> "tuple[bool | None, float | None]":
         return None, None
 
 
+def born_since(src: Path, day: str, probe: int = 200) -> bool:
+    """True when the first timestamped line of the transcript is on/after `day`.
+
+    Unreadable or untimestamped head ⇒ True: losing a session is the defect R344 fixes,
+    reading one too many is only a few seconds once.
+    """
+    try:
+        with src.open("rb") as f:
+            for _, raw in zip(range(probe), f):
+                try:
+                    ts = json.loads(raw).get("timestamp")
+                except (ValueError, AttributeError):
+                    continue
+                if isinstance(ts, str) and ts:
+                    return ts[:10] >= day
+    except OSError:
+        pass
+    return True
+
+
 def capture(transcript_path: str, session: str, log: Path = LOG,
             backfill: bool = False) -> int:
     """Append the symptoms written since the last call; returns how many."""
@@ -224,9 +245,13 @@ def capture(transcript_path: str, session: str, log: Path = LOG,
     try:
         start = 0 if backfill else int(marker.read_text())  # duplicates: deduped by the log
     except (OSError, ValueError):
-        # First call on a session. A session resumed long after it started would cost
-        # seconds to read whole on one Stop: start at its end, `--backfill` catches up.
-        start = 0 if backfill or size <= FIRST_READ_MAX else size
+        # First call on a session. R344: the size alone said nothing about AGE — a `/goal`
+        # run or a session resumed after compaction makes one long turn, so its first Stop
+        # comes late on a big file, and skipping to the end dropped the whole session
+        # (2026-10-04: 24 symptoms, 0 written). Only a session born before R315 starts at
+        # its end; `--backfill` catches it up.
+        fresh = backfill or size <= FIRST_READ_MAX or born_since(src, CAPTURE_SINCE)
+        start = 0 if fresh else size
     if start > size:
         start = 0
     with src.open("rb") as f:
