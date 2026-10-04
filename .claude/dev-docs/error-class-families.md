@@ -21,14 +21,14 @@ Le rattachement est mécanique et donc parfois discutable. La règle est publié
 | [deux-surfaces-deux-nombres](#deux-surfaces-deux-nombres) | 29 | **5/29** · 17.2 % | Ce nombre a-t-il une seule définition, ou chaque surface refait-elle le calcul ? |
 | [une-erreur-avalée-devient-une-absence](#une-erreur-avalée-devient-une-absence) | 24 | **3/24** · 12.5 % | Ce `except` distingue-t-il « rien à lire » de « on n'a pas pu lire » — et l'utilisateur voit-il la différence ? |
 | [un-garde-qui-ne-garde-pas](#un-garde-qui-ne-garde-pas) | 62 | **9/62** · 14.5 % | Ce garde a-t-il déjà été VU rouge sur le défaut qu'il vise — et sa portée contient-elle ce défaut ? |
-| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **6/35** · 17.1 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
+| [un-document-qui-affirme-un-état-périmé](#un-document-qui-affirme-un-état-périmé) | 35 | **7/35** · 20.0 % | Ce qui est écrit là est-il régénéré, ou recopié une fois puis oublié ? |
 | [un-contrôle-qui-ne-peut-jamais-passer](#un-contrôle-qui-ne-peut-jamais-passer) | 13 | **0/13** · 0.0 % | Où ce contrôle s'exécute-t-il — la machine où il tourne a-t-elle ce qu'il lui faut pour réussir un jour ? |
 | [un-coût-payé-sans-contrepartie](#un-coût-payé-sans-contrepartie) | 16 | **2/16** · 12.5 % | Ce travail est-il payé par quelqu'un — temps de CI, premier écran, attention du lecteur — et lui rend-il quelque chose ? |
 | [un-seuil-écrit-d-instinct](#un-seuil-écrit-d-instinct) | 11 | **1/11** · 9.1 % | Ce seuil vient-il de la distribution réelle, ou d'une intuition ? Le test épingle-t-il la réalité ou la constante ? |
 | [une-écriture-qui-écrase](#une-écriture-qui-écrase) | 8 | **1/8** · 12.5 % | Cette écriture peut-elle détruire ce qu'un autre vient d'écrire — et le saurait-on ? |
 | [le-temps-et-l-horloge](#le-temps-et-l-horloge) | 19 | **0/19** · 0.0 % | Cette date est-elle celle de l'événement ou celle de la collecte ? Et dans quel fuseau ? |
 | [la-frontière-avec-le-dehors](#la-frontière-avec-le-dehors) | 26 | **3/26** · 11.5 % | Ce que ce code envoie dehors — un mail, une requête, un paiement, un secret — est-il ce qu'on croit, et vers qui ? |
-| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 44 | **5/44** · 11.4 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
+| [une-configuration-qui-diverge-de-la-prod](#une-configuration-qui-diverge-de-la-prod) | 44 | **6/44** · 13.6 % | Ce que le dépôt déclare est-il ce que la production exécute ? |
 | [l-instrument-ment-sur-ce-qu-il-mesure](#l-instrument-ment-sur-ce-qu-il-mesure) | 4 | **0/4** · 0.0 % | Ce que cet instrument AFFICHE est-il ce qu'il a mesuré ? |
 | _sans famille_ | 0 | — | — |
 
@@ -585,8 +585,8 @@ Règle de rattachement : `prod|deploy|schema-drift|migration|image|docker|compos
 | [`a-local-measurement-presented-as-a-production-fact`](error-classes.md#a-local-measurement-presented-as-a-production-fact) | un chiffre relevé sur l'environnement de développement est énoncé comme une propriété de la PRODUCTION. Il n'y a ni erreur ni exception : la requête r |
 | [`a-test-that-only-ever-ran-on-its-authors-machine`](error-classes.md#a-test-that-only-ever-ran-on-its-authors-machine) | un test vert sur le poste et rouge en CI — ou l'inverse — sur un code identique. Il n'a jamais tourné que dans UNE des deux formes d'environnement : s |
 | [`a-sql-file-that-switches-its-own-database`](error-classes.md#a-sql-file-that-switches-its-own-database) | `psql -d <base jetable> < fichier.sql` écrit dans `spotify_etl` (la base de dev) au lieu de la base visée : une vue remplacée par une version ancienne |
-| [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
 | [`audit-reads-the-constraints-not-the-installed-set`](error-classes.md#audit-reads-the-constraints-not-the-installed-set) | l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes |
+| [`a-major-upgrade-that-moves-a-default`](error-classes.md#a-major-upgrade-that-moves-a-default) | une montée de MAJEURE laisse le build vert et rend une de ses garanties fausse. Rien n'échoue, rien n'avertit : le seul endroit où le changement exist |
 | [`config-not-env`](error-classes.md#config-not-env) | a bootstrap/runtime path subscripts `config['…']` directly (config.yaml-only) instead of reading env first → `KeyError` in prod where there is no `con |
 | [`migration-ahead-of-its-code`](error-classes.md#migration-ahead-of-its-code) | a migration that changes a **key** (primary key, unique constraint, conflict target) is applied to production while the code that uses the new key is  |
 | [`dead-argument-from-a-major-version-ago`](error-classes.md#dead-argument-from-a-major-version-ago) | un paramètre d'une version majeure précédente traîne dans le code. Il ne fait **rien** sur la version qui tourne, donc rien ne le signale — et il rend |
@@ -632,4 +632,4 @@ _Aucune._
 
 <!-- error-class-families: total=428 families=18 orphans=0 -->
 
-<!-- error-class-families: sha256=9fdc6fa205f1ffd5937d855b907edab226c771d91902c3ca34c3b269f0bad9c4 -->
+<!-- error-class-families: sha256=2ea516f6081ec8ed51a68eafaf1cb66875a50a4726f196b02c27fe3f9cbb1857 -->

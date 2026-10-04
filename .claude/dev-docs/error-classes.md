@@ -4642,9 +4642,30 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-28
 - History:
   - 2026-09-28: trouvée par `tests/test_every_button_can_be_clicked.py` (R271) — le clic « Créer un code » de `promo_admin` écrivait puis faisait planter la page ; le balayage a trouvé les six sites d'inscription (P1 : le mail de vérification ne partait pas). Tous corrigés, garde AST écrit et muté rouge ; en prod, aucune inscription touchée.
+## audit-reads-the-constraints-not-the-installed-set
+- status: guarded
+- severity: P3
+- family: une-configuration-qui-diverge-de-la-prod
+- kind: deterministic
+- symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
+- root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
+- cause_evidence: read (.github/workflows/security-nightly.yml, rétro-portage mécanique 2026-09-16)
+- signature: `python3 -m pytest tests/test_an_audit_reads_what_is_installed.py -q`. Avant (la seule commande littérale) : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
+- seen_red: self-proving (tests/test_an_audit_reads_what_is_installed.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `audits_of_constraints(workflow)` sur la PROPRIÉTÉ : tout fichier passé à `pip-audit -r` a été écrit par `uv export` plus tôt dans le même job (ou plus haut dans le même script). Le nightly d'avant (deux audits de `requirements.txt`) et un audit placé AVANT son export sont nommés ; l'ordre export→audit passe, en `-o` comme en redirection. Muté rouge le 2026-09-26 (audits ignorés ; fichier audité compté comme exporté — survivant de la première preuve), et vu rouge sur le vrai `security-nightly.yml` en remettant `-r requirements.txt`. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
+- long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
+- guard: { type: pytest, ref: tests/test_an_audit_reads_what_is_installed.py } + { type: ci-step, ref: .github/workflows/security-nightly.yml }
+- guard_scope: un-garde-qui-ne-garde-pas — un audit lit le fichier de CONTRAINTES au lieu de l'ensemble RÉSOLU, donc il déclare sain ce qui n'est pas installé ; couvre: par la signature bloquante `! grep -nE 'pip-audit -r requirements.txt' security-nightly.yml` : l'audit de dépendances passe par `uv export --frozen --no-dev --no-hashes`, donc il regarde exactement ce que `uv sync --frozen` installe — le retour arrière est refusé par un grep, pas seulement documenté ; couvre aussi, depuis le 2026-10-04 : toute recette du `Makefile` (`pip-audit` ou `$(PIP_AUDIT)`), par `test_every_make_target_audits_the_exported_lock` (R343) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de contraintes du dépôt** : `check_manifest_consistency.py`, `gitleaks`, le compte de majeures de retard et la construction Docker (qui lit `requirements.txt`, pas le lock) raisonnent encore sur des planchers ; (2) l'ensemble résolu du conteneur de PROD, qui n'est pas celui du runner ; (3) les extras `--dev`, exclus de l'export ; (4) les dépendances système, hors de portée de pip-audit
+- siblings: swept:2026-10-04 — balayage de R341 : 14 sites → **`make audit-deps` vivant, corrigé** ; l'audit de l'image API passe désormais par la même barrière ; restent hors correctif `check_manifest_consistency.py` (ne compare que les `==`, ne lit pas `requirements-api.txt`) et les images construites par pip hors lock (atténué par des planchers). Précédent : swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
+- rex_ref: .github/workflows/security-nightly.yml
+- first_seen: 2026-08-24
+- History:
+  - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).
+  - 2026-10-04 (récidive): `make audit-deps` auditait encore `-r requirements.txt` — des planchers — alors que le nightly lisait le lock depuis 2026-09. Le `guard_scope` le disait non couvert (« les autres lectures de contraintes ») et rien ne l'a attrapé : le garde ne lisait que `.github/workflows/`, et ne connaissait pas l'écriture `$(PIP_AUDIT)`. Trouvé par le balayage de R341 ; corrigé là (export du lock puis `pip_audit_gate.py`), garde étendu aux recettes du Makefile en R343, muté rouge en remettant l'ancienne recette.
+
+
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
-> Les 238 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
+> Les 237 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
 > `error-class-health.json` et non au jugé (`tools/dev/error_class_health.py::is_dormant`) :
 >
 > * `history_additions == 0` — jamais récidivé sur la fenêtre observée ;
@@ -4656,7 +4677,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 190 classes encore vivantes.
+> les 191 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -4729,27 +4750,6 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-16
 - History:
   - 2026-09-16: la classe est née DU correctif d'une autre — la montée v4 → v10 faite pour réparer un cache à 0 % de succès. La clause « majeures manuelles » de `.github/dependabot.yml` visait exactement ce risque et avait raison ; ce qui lui manquait, et qui existe maintenant, est de DIRE ce qu'elle refuse (`tools/dev/check_action_drift.py`). Signature structurelle (YAML analysé, pas de texte) donc `deterministic` : elle ne peut pas matcher un commentaire. Mutation vue dans les deux sens : glob retiré → rc=1 ; remis → rc=0.
-
-## audit-reads-the-constraints-not-the-installed-set
-- status: guarded
-- severity: P3
-- family: une-configuration-qui-diverge-de-la-prod
-- kind: deterministic
-- symptom: l'audit de vulnérabilités rend un rapport propre pendant que le parc réellement installé porte des dizaines d'avis. Il lit un fichier de **contraintes** (des planchers `>=`) que rien n'installe tel quel.
-- root_cause: `.github/workflows/security-nightly.yml` exécutait `pip-audit -r requirements.txt`. Ce fichier porte des planchers (`weasyprint>=62.0`, `cryptography>=42.0.0`), donc pip-audit résolvait des versions récentes — pendant que la CI installait `uv.lock` via `uv sync --frozen`, qui épinglait `pyjwt 2.12.1` (notre authentification), `starlette 1.0.0`, `python-multipart 0.0.28` : **127 avis sur 18 paquets**.
-- cause_evidence: read (.github/workflows/security-nightly.yml, rétro-portage mécanique 2026-09-16)
-- signature: `python3 -m pytest tests/test_an_audit_reads_what_is_installed.py -q`. Avant (la seule commande littérale) : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`
-- seen_red: self-proving (tests/test_an_audit_reads_what_is_installed.py::test_the_detector_sees_the_defect_it_is_written_for) — prédicat pur `audits_of_constraints(workflow)` sur la PROPRIÉTÉ : tout fichier passé à `pip-audit -r` a été écrit par `uv export` plus tôt dans le même job (ou plus haut dans le même script). Le nightly d'avant (deux audits de `requirements.txt`) et un audit placé AVANT son export sont nommés ; l'ordre export→audit passe, en `-o` comme en redirection. Muté rouge le 2026-09-26 (audits ignorés ; fichier audité compté comme exporté — survivant de la première preuve), et vu rouge sur le vrai `security-nightly.yml` en remettant `-r requirements.txt`. Avant : unknown (rétro-portage mécanique 2026-09-16 — aucune date ne sera inventée)
-- long_term_fix: l'audit résout le lock avant de le lire — `uv export --frozen --no-dev --no-hashes` — donc il regarde exactement ce que `uv sync --frozen` installe. Règle générale : **on n'audite jamais un fichier de contraintes, on audite l'ensemble résolu**.
-- guard: { type: pytest, ref: tests/test_an_audit_reads_what_is_installed.py } + { type: ci-step, ref: .github/workflows/security-nightly.yml }
-- guard_scope: un-garde-qui-ne-garde-pas — un audit lit le fichier de CONTRAINTES au lieu de l'ensemble RÉSOLU, donc il déclare sain ce qui n'est pas installé ; couvre: par la signature bloquante `! grep -nE 'pip-audit -r requirements.txt' security-nightly.yml` : l'audit de dépendances passe par `uv export --frozen --no-dev --no-hashes`, donc il regarde exactement ce que `uv sync --frozen` installe — le retour arrière est refusé par un grep, pas seulement documenté ; couvre aussi, depuis le 2026-10-04 : toute recette du `Makefile` (`pip-audit` ou `$(PIP_AUDIT)`), par `test_every_make_target_audits_the_exported_lock` (R343) ; ne couvre pas: (1) **le geste voisin le plus proche — les autres lectures de contraintes du dépôt** : `check_manifest_consistency.py`, `gitleaks`, le compte de majeures de retard et la construction Docker (qui lit `requirements.txt`, pas le lock) raisonnent encore sur des planchers ; (2) l'ensemble résolu du conteneur de PROD, qui n'est pas celui du runner ; (3) les extras `--dev`, exclus de l'export ; (4) les dépendances système, hors de portée de pip-audit
-- siblings: swept:2026-10-04 — balayage de R341 : 14 sites → **`make audit-deps` vivant, corrigé** ; l'audit de l'image API passe désormais par la même barrière ; restent hors correctif `check_manifest_consistency.py` (ne compare que les `==`, ne lit pas `requirements-api.txt`) et les images construites par pip hors lock (atténué par des planchers). Précédent : swept:2026-09-17 — **0 site vivant.** sa signature PARCOURT l'arbre et a été exécutée ce jour-là, exit 0 : `! grep -nE 'pip-audit -r requirements.txt' .github/workflows/security-nightly.yml`. Aucun autre site ne correspond à son prédicat. ⚠️ C'est le prédicat qui a été balayé, pas la classe entière — ce qu'il ne regarde pas est nommé dans `guard_scope` ci-dessus.
-- rex_ref: .github/workflows/security-nightly.yml
-- first_seen: 2026-08-24
-- History:
-  - 2026-08-24: après régénération du lock, 127 avis sur 18 paquets → 12 sur 2. Les deux restants sont assumés : `apache-airflow` (pin délibéré sur la version de l'image Docker, suivi en R49b) et `ecdsa` (sans correctif amont).
-  - 2026-10-04 (récidive): `make audit-deps` auditait encore `-r requirements.txt` — des planchers — alors que le nightly lisait le lock depuis 2026-09. Le `guard_scope` le disait non couvert (« les autres lectures de contraintes ») et rien ne l'a attrapé : le garde ne lisait que `.github/workflows/`, et ne connaissait pas l'écriture `$(PIP_AUDIT)`. Trouvé par le balayage de R341 ; corrigé là (export du lock puis `pip_audit_gate.py`), garde étendu aux recettes du Makefile en R343, muté rouge en remettant l'ancienne recette.
-
 
 ## config-not-env
 - status: guarded
