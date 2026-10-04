@@ -12,10 +12,15 @@ What must hold:
 1. a `Skill` call counts under its skill, a `Workflow` call under its name, with a date;
 2. a rule loaded twice in one session counts ONE session;
 3. an injection appended by the hook is read back by the report;
-4. the hook's logger never raises (a hook that raises blocks the prompt).
+4. the hook's logger never raises (a hook that raises blocks the prompt);
+5. a hook run (an `attachment` line of type hook_*) counts under its script, with its
+   duration, and a blocking error or a non-zero exit counts as a non-success.
 
 Mutation record (2026-10-04): seen red with the Skill branch removed, the rule count
-per line instead of per session, and the injection log path desynchronised.
+per line instead of per session, and the injection log path desynchronised; the hook
+counter seen red with the attachment branch forced, the script key dropped, and the
+`type` test removed from the failure condition (the cancelled run went uncounted); the
+slash-command counter seen red with the `type == "user"` test removed (the echo counted).
 """
 from __future__ import annotations
 
@@ -71,3 +76,44 @@ def test_the_hook_logger_never_raises(tmp_path) -> None:
     blocker = tmp_path / "file"
     blocker.write_text("")
     inject_context.log_injection(["x"], "s", str(blocker / "sub" / "log.jsonl"))
+
+
+def _hook(command: str, kind: str = "hook_success", ms: int = 100, rc: int | None = 0) -> str:
+    return json.dumps({"timestamp": "2026-10-04T10:00:00.000Z", "attachment": {
+        "type": kind, "command": command, "durationMs": ms, "exitCode": rc}})
+
+
+def test_hook_runs_are_counted_with_duration_and_failures(tmp_path, monkeypatch) -> None:
+    script = 'python3 "$(git rev-parse --show-toplevel)/.claude/hooks/guard_destructive.py"'
+    (tmp_path / "s1.jsonl").write_text("\n".join([
+        _hook(script, ms=100), _hook(script, ms=300),
+        _hook(script, "hook_blocking_error", ms=50, rc=2),
+        _hook(script, "hook_cancelled", ms=0, rc=None),     # no exit code: the type decides
+        _hook("rtk hook claude", ms=10),
+        json.dumps({"attachment": {"type": "file", "command": script}}),
+    ]))
+    monkeypatch.setattr(ur, "_TRANSCRIPTS", tmp_path)
+    monkeypatch.setattr(ur, "_INJECTIONS", tmp_path / "none.jsonl")
+    data = ur.read()
+    key = ".claude/hooks/guard_destructive.py"
+    assert data["hooks"] == {key: 4, "cmd:rtk hook claude": 1}
+    assert data["hook_ms"][key] == 450
+    assert data["hook_failures"] == {key: 2}
+    assert data["last_seen"][f"hook:{key}"].startswith("2026-10-04")
+
+
+def test_slash_commands_and_make_targets_are_counted(tmp_path, monkeypatch) -> None:
+    typed = json.dumps({"type": "user", "message": {
+        "content": "<command-name>/resume</command-name> <command-args></command-args>"}})
+    echoed = json.dumps({"type": "assistant", "message": {
+        "content": "<command-name>/resume</command-name>"}})
+    (tmp_path / "s.jsonl").write_text("\n".join([
+        typed, echoed,
+        _tool("Bash", {"command": "rtk proxy make test-changed && make -s roadmap-close ID=R1"}),
+        _tool("Bash", {"command": "echo remake target; cmake build"}),
+    ]))
+    monkeypatch.setattr(ur, "_TRANSCRIPTS", tmp_path)
+    monkeypatch.setattr(ur, "_INJECTIONS", tmp_path / "none.jsonl")
+    data = ur.read()
+    assert data["commands"] == {"resume": 1}
+    assert data["make_targets"] == {"test-changed": 1, "roadmap-close": 1}

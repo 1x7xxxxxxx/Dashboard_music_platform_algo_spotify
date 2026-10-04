@@ -122,9 +122,23 @@ tests-ci:
 claude-wsl:
   nom: Configuration Claude Code et poste WSL
   perimetre: hooks, règles, agents, skills, workflows ; RTK ; dépôt sur ext4 ; VS Code Remote-WSL
-  fichiers: [CLAUDE.md, .claude/settings.json, .claude/hooks, .claude/agents, .claude/workflows]
-  gardes: [tests/test_claude_config_floor.py]
-  mesures: [python3 .claude/scripts/usage_report.py]
+  fichiers: [CLAUDE.md, .claude/settings.json, .claude/hooks, .claude/agents, .claude/workflows, .claude/skills, .claude/rules, .claude/commands, .claude/scripts/usage_report.py]
+  gardes: [tests/test_claude_config_floor.py, tests/test_skills_rules_and_injections_are_counted.py, tests/test_the_precompact_hook_saves_the_state.py, tests/test_every_harness_component_has_a_requirement.py]
+  mesures: [python3 .claude/scripts/usage_report.py, make harness-report]
+
+dev-resources:
+  nom: Ressources du poste de développement
+  perimetre: conteneurs à la demande (seul postgres 5433 au repos), workers pytest calibrés mémoire, verrou lourd partagé avec l'ingestion
+  fichiers: [tools/dev/idle_containers.py, tools/dev/pytest_workers.py, tools/dev/heavy_lock.py, tools/dev/mem_trace.py]
+  gardes: [tests/test_containers_are_on_demand.py, tests/test_the_worker_count_follows_what_can_grow.py]
+  mesures: [python3 tools/dev/idle_containers.py]
+
+defect-log:
+  nom: Journal des défauts
+  perimetre: chaque rouge relevé à chaque réponse (hook Stop) ou importé (CI, cron), clos par la preuve qui convient à son type
+  fichiers: [tools/dev/defect_log.py, tools/dev/import_cron_logs.py, .claude/scripts/defect_capture.py, .claude/hooks/session_summary.py, .claude/hooks/session_start.py]
+  gardes: [tests/test_every_defect_kind_can_close.py, tests/test_defects_are_recorded_every_turn.py]
+  mesures: [make defect-log]
 
 roadmap-gov:
   nom: Gouvernance de la roadmap

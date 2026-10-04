@@ -75,6 +75,20 @@ SEEN_RED: dict[str, str] = {
     "tests/test_engagement_stacks_actions_not_their_total.py":
         "2026-09-29 — page_interactions remis dans _ENG_STACK (l'agrégat empilé avec ce "
         "qu'il contient) → 1 rouge",
+    "tests/test_skills_rules_and_injections_are_counted.py":
+        "2026-10-04 — compteur de hooks sans le test de `type` dans la condition d'échec "
+        "(le run annulé non compté) → 1 rouge",
+    "tests/test_the_precompact_hook_saves_the_state.py":
+        "2026-10-04 — court-circuit `_same_state` retiré (second instantané identique écrit) "
+        "→ 1 rouge",
+    "tests/test_containers_are_on_demand.py":
+        "2026-10-04 — exemption `session_scoped` élargie à AutoRemove seul → 1 rouge",
+    "tests/test_every_defect_kind_can_close.py":
+        "2026-10-04 — un cron clos par le rc=0 de n'importe quelle étape → 1 rouge",
+    "tests/test_every_harness_component_has_a_requirement.py":
+        "2026-10-04 — vérification de couverture des composants retirée → 1 rouge",
+    "tests/test_the_harness_report_renders_every_state.py":
+        "2026-10-04 — branche « verte, non prouvée » retirée des opportunités → 1 rouge",
 }
 
 

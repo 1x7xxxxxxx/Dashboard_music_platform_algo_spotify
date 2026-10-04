@@ -83,14 +83,40 @@ _AGENT_TOOLS = ("Agent", "Task")
 
 
 _RULE_LOAD = re.compile(r"Contents of [^ \"]*?/\.claude/rules/([\w.-]+)\.md")
+_SLASH = re.compile(r"<command-name>/([\w:-]+)</command-name>")
+_MAKE = re.compile(r"(?:^|[;&|(\s])make\s+(?:-\S+\s+)*([a-z][\w-]*)")
 _INJECTIONS = _REPO / ".claude" / "sessions" / "injections.jsonl"
+# The harness records every hook run as an `attachment` line: hook_success, hook_blocking_error,
+# hook_non_blocking_error, hook_cancelled — each with `command`, `durationMs`, `exitCode`.
+# Measured 2026-10-04: only runs that PRINT something leave that line — PreCompact,
+# SubagentStop and the silent PostToolUse checks never appear. A 0 here reads
+# "never seen", not "never fired".
+_HOOK_SCRIPT = re.compile(r"\.claude/(?:hooks|scripts)/[\w-]+\.py")
 
 
 def _empty() -> dict:
     return {"agents": collections.Counter(), "tools": collections.Counter(),
             "tokens": collections.Counter(), "skills": collections.Counter(),
             "workflows": collections.Counter(), "rules": collections.Counter(),
-            "last_seen": {}}
+            "hooks": collections.Counter(), "hook_ms": collections.Counter(),
+            "hook_failures": collections.Counter(), "commands": collections.Counter(),
+            "make_targets": collections.Counter(), "last_seen": {}}
+
+
+def _hook_key(command: str) -> str:
+    m = _HOOK_SCRIPT.search(command or "")
+    return m.group(0) if m else "cmd:" + " ".join((command or "").split())[:40]
+
+
+def _scan_hook(acc: dict, att: dict, ts: str | None) -> None:
+    """One hook run: count, duration, and any outcome other than success."""
+    key = _hook_key(att.get("command") or "")
+    acc["hooks"][key] += 1
+    if isinstance(att.get("durationMs"), (int, float)):
+        acc["hook_ms"][key] += int(att["durationMs"])
+    if att.get("type") != "hook_success" or att.get("exitCode") not in (0, None):
+        acc["hook_failures"][key] += 1
+    _seen(acc, f"hook:{key}", ts)
 
 
 def _seen(acc: dict, key: str, ts: str | None) -> None:
@@ -108,11 +134,18 @@ def _scan_line(acc: dict, line: str, rules_here: set) -> None:
         return
     ts = d.get("timestamp")
     rules_here.update(_RULE_LOAD.findall(line))
+    att = d.get("attachment")
+    if isinstance(att, dict) and str(att.get("type", "")).startswith("hook_"):
+        _scan_hook(acc, att, ts)
     msg = d.get("message") if isinstance(d.get("message"), dict) else {}
     for k, v in (msg.get("usage") or {}).items():
         if isinstance(v, int):
             acc["tokens"][k] += v
     content = msg.get("content")
+    if d.get("type") == "user" and isinstance(content, str):
+        for cmd in _SLASH.findall(content):
+            acc["commands"][cmd] += 1
+            _seen(acc, f"command:{cmd}", ts)
     for c in content if isinstance(content, list) else []:
         if not isinstance(c, dict) or c.get("type") != "tool_use":
             continue
@@ -129,6 +162,10 @@ def _scan_line(acc: dict, line: str, rules_here: set) -> None:
             key = inp.get("name") or "(inline script)"
             acc["workflows"][key] += 1
             _seen(acc, f"workflow:{key}", ts)
+        elif name == "Bash":
+            for target in _MAKE.findall(inp.get("command") or ""):
+                acc["make_targets"][target] += 1
+                _seen(acc, f"make:{target}", ts)
 
 
 def injections() -> dict:
@@ -161,7 +198,8 @@ def read() -> dict:
     if not _TRANSCRIPTS.exists():
         return {"transcripts_dir": str(_TRANSCRIPTS), "found": False, "sessions": 0,
                 "agents": {}, "tools": {}, "tokens": {}, "skills": {}, "workflows": {},
-                "rules": {}, "last_seen": {}, "injections": injections()}
+                "rules": {}, "hooks": {}, "hook_ms": {}, "hook_failures": {},
+                "commands": {}, "make_targets": {}, "last_seen": {}, "injections": injections()}
     for f in sorted(_TRANSCRIPTS.glob("*.jsonl")):
         sessions += 1
         try:
@@ -245,10 +283,15 @@ def main() -> int:
           f"{builtin}/{total} ({100*builtin//total}%) of traffic goes to built-ins")
 
     for title, key in (("SKILLS", "skills"), ("WORKFLOWS", "workflows"),
-                       ("RULES (sessions that loaded it)", "rules")):
+                       ("RULES (sessions that loaded it)", "rules"),
+                       ("SLASH COMMANDS (typed)", "commands"), ("MAKE TARGETS (run by me)", "make_targets")):
         print(f"\n{title} (all-time)")
         for name, n in sorted(data[key].items(), key=lambda kv: -kv[1]):
             print(f"  {name:30s} {n:4d}")
+    print("\nHOOKS (runs that left a trace · mean ms · non-success) — a silent hook leaves none")
+    for name, n in sorted(data["hooks"].items(), key=lambda kv: -kv[1]):
+        print(f"  {name:40s} {n:5d} {data['hook_ms'].get(name, 0) // n:6d} ms "
+              f"{data['hook_failures'].get(name, 0):4d}")
     inj = data["injections"]
     print("\nPLAYBOOK INJECTIONS (inject_context.py)" + ("" if inj["found"] else " — no log yet"))
     for name, n in sorted(inj["counts"].items(), key=lambda kv: -kv[1]):

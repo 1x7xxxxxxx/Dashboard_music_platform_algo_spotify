@@ -13,6 +13,13 @@
 #              comme TROU dans le benchmark, jamais omis.
 #   mutation : l'édition, sur une ligne précise, qui doit faire rougir la preuve.
 #   roadmap  : la ligne Rnnn qui porte le livrable, quand l'écart en demande un.
+# Champs du harnais (R356, optionnels ailleurs — obligatoires sur REQ-HARN-*) :
+#   methode  : hook | commit | ci | nuit | regle-agent | playbook | humain | demande — ce qui
+#              PORTE l'exigence. Absente : déduite (pytest → ci, cmd → demande) et affichée telle.
+#   portee   : generique (exportable vers la baseline v2) | streamlytics (défaut).
+#   composants : fichiers `.claude/…` ou `Makefile:<cible>` couverts — voir le bloc du harnais.
+#   opportunite : l'optimisation mesurée ; premisse_corrigee : ce qu'une note croyait et que la
+#              mesure a corrigé. Le rapport (make harness-report) les rend tels quels.
 
 # ── Or : une métrique, une définition ──────────────────────────────────────────
 - id: REQ-GOLD-01
@@ -635,3 +642,305 @@
   preuve: {pytest: tests/test_a_function_is_written_once.py::test_the_copies_only_become_fewer}
   ecart: "R269 : 5 groupes / 11 sites mesurés le 2026-09-27, 4 factorisés ; reste la paire de rappels d'échec DAG (R265 les factorise avec les dix autres). graphify : 2 fichiers fantômes retirés, `make graph-update` élague"
   mutation: "recoller une copie d'un lecteur de kpi_helpers, ou retirer l'effacement des littéraux du détecteur"
+
+# ── Harnais Claude Code (R356) ─────────────────────────────────────────────────
+# Une exigence par point de la note du propriétaire du 2026-10-04 sur la configuration du
+# harnais. `composants:` nomme les fichiers (ou `Makefile:<cible>`) qu'elle couvre :
+# tests/test_every_harness_component_has_a_requirement.py exige que CHAQUE hook enregistré,
+# agent, skill, rule, workflow, commande et cible `make test*` soit nommé ici, et que chaque
+# nom résolve. Ajouter un composant sans exigence fait rougir le commit.
+- id: REQ-HARN-01
+  domaine: claude-wsl
+  enonce: Un hook enregistré bloque un geste irréversible sur sa STRUCTURE (la commande du segment), jamais sur un mot de prose
+  sources: [{doc: CLAUDE.md}]
+  priorite: P1
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/guard_destructive.py]
+  preuve: {pytest: tests/test_a_bash_guard_reads_the_command_not_the_prose.py::test_merely_naming_the_gesture_never_blocks}
+  mutation: "faire matcher le motif sur toute la ligne au lieu de la commande du segment"
+- id: REQ-HARN-02
+  domaine: claude-wsl
+  enonce: Un secret indexé est refusé au commit par le hook ET par la CI ; un scanner absent refuse aussi
+  sources: [{doc: CLAUDE.md}]
+  priorite: P1
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/pre_commit_scan.py]
+  preuve: {pytest: tests/test_a_staged_secret_is_refused.py::test_a_missing_scanner_refuses_the_commit}
+  mutation: "faire rendre 0 au hook quand gitleaks est introuvable"
+- id: REQ-HARN-03
+  domaine: claude-wsl
+  enonce: Un hook bloquant parle sur stderr (le seul canal que le modèle lit) et dit pourquoi
+  sources: [{doc: .claude/hooks/hook.md}]
+  priorite: P3
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: [.claude/hooks/require_roadmap_entry.py]
+  preuve: {pytest: tests/test_a_blocking_hook_says_why_on_stderr.py::test_no_blocking_hook_speaks_on_stdout}
+  mutation: "faire écrire le refus de require_roadmap_entry.py sur stdout"
+- id: REQ-HARN-04
+  domaine: claude-wsl
+  enonce: Chaque Write/Edit est relu aussitôt (syntaxe, vue Streamlit, journal d'observation, déploiement prod à prévoir, preuves d'une classe d'erreur)
+  sources: [{doc: .claude/hooks/hook.md}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/check_python_syntax.py, .claude/hooks/lint_dashboard_view.py, .claude/hooks/observe.py, .claude/hooks/check_prod_sync.py, .claude/hooks/check_error_class_evidence.py]
+  preuve: {pytest: tests/test_the_prose_gate_and_the_evidence_hook_see_their_defect.py::test_the_evidence_hook_names_a_class_without_its_proofs}
+  ecart: "observe.py et lint_dashboard_view.py n'ont qu'une preuve indirecte (tests qui lisent leur sortie)"
+  opportunite: "une seule invocation PostToolUse qui appelle les 5 contrôles en séquence : 5 processus Python par écriture → 1"
+  mutation: "faire accepter une classe sans seen_red par check_error_class_evidence.py"
+- id: REQ-HARN-05
+  domaine: claude-wsl
+  enonce: Une séance s'ouvre sur l'état qui compte (défauts ouverts, mails ops, vérifications périmées)
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/session_start.py]
+  preuve: {pytest: tests/test_every_session_starts_by_reading_the_ops_mails.py::test_the_hook_is_registered_and_prints_the_banner}
+  mutation: "retirer l'appel à la bannière dans session_start.py"
+- id: REQ-HARN-06
+  domaine: claude-wsl
+  enonce: La compaction automatique sauve l'état de reprise (branche, arbre, dernière livraison), une fois par état
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/pre_compact.py]
+  preuve: {pytest: tests/test_the_precompact_hook_saves_the_state.py::test_a_dirty_tree_is_saved_once_per_state}
+  ecart: "le contexte de reprise ne porte ni l'unité de nuit ouverte ni les tâches de fond en cours ; night-status y répond, le hook ne l'appelle pas"
+  opportunite: "faire écrire `make night-status` dans le fichier de séance : une reprise après compaction en un seul fichier"
+  mutation: "neutraliser _same_state (deux instantanés pour un même état)"
+- id: REQ-HARN-07
+  domaine: claude-wsl
+  enonce: Une injection de playbook par mots-clés est journalisée, donc comptable
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/inject_context.py, .claude/workflows/bug-resolution.md, .claude/workflows/architecture-change.md, .claude/workflows/feature-development.md, .claude/workflows/continuous-improvement.md, .claude/workflows/architecture-requirements.md]
+  preuve: {pytest: tests/test_skills_rules_and_injections_are_counted.py::test_an_injection_logged_by_the_hook_is_read_by_the_report}
+  ecart: "journal ouvert le 2026-10-04 (R357) : aucune série avant"
+  opportunite: "un playbook jamais injecté en 30 jours est un candidat au retrait — le relevé existe depuis R357, la décision attend 30 jours de série"
+  mutation: "désynchroniser le chemin du journal entre inject_context.py et usage_report.py"
+- id: REQ-HARN-08
+  domaine: claude-wsl
+  enonce: Chaque agent déclaré a un déclencheur impératif (règle « Spawn ») et son nombre réel de déclenchements se lit
+  sources: [{notes: L60}, {doc: CLAUDE.md}]
+  priorite: P3
+  statut: conforme
+  methode: regle-agent
+  portee: generique
+  composants: [.claude/agents/build-error-resolver.md, .claude/agents/code-architecture-reviewer.md, .claude/agents/code-critic.md, .claude/agents/roadmap-keeper.md, .claude/agents/security-specialist.md, .claude/agents/sibling-sweeper.md, .claude/agents/web-research-specialist.md, .claude/hooks/sensor.py]
+  preuve: {pytest: tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire}
+  opportunite: "32 % du trafic d'agents va aux agents intégrés (Explore 86) ; code-architecture-reviewer : 3 appels en tout"
+  mutation: "retirer la règle 18 de CLAUDE.md → code-architecture-reviewer n'a plus de déclencheur"
+- id: REQ-HARN-09
+  domaine: claude-wsl
+  enonce: ≥2 trouvailles d'une séance passent par la boucle d'ingénierie (impact → critic → fix → complétude) en worktree isolé
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: partiel
+  methode: regle-agent
+  portee: generique
+  composants: [.claude/workflows/engineering-loop.js]
+  preuve: {cmd: "node --check .claude/workflows/engineering-loop.js"}
+  ecart: "seule la syntaxe est rejouée ; aucun test ne vérifie le manifeste rendu. 5 lancements, tous dans une même séance (usage_report)"
+  opportunite: "écrire un test qui fait tourner le script sur des trouvailles factices avec un agent() simulé et lit le manifeste"
+  roadmap: R356
+  premisse_corrigee: "« le workflow js n'est pas déclenché » : il l'est, 5 fois, mais toutes dans une même séance — le déclencheur existe (require_sweep_before_catalogue.py), il est rarement atteint"
+- id: REQ-HARN-10
+  domaine: claude-wsl
+  enonce: Une classe d'erreur n'entre au catalogue qu'après un VRAI appel au balayeur, et un défaut corrigé laisse un balayage suggéré en fin de tour
+  sources: [{doc: CLAUDE.md}]
+  priorite: P2
+  statut: partiel
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/require_sweep_before_catalogue.py, .claude/hooks/suggest_sweep.py]
+  preuve: {pytest: tests/test_the_catalogue_needs_a_real_sweep.py::test_a_sentence_that_names_the_agent_is_not_a_call}
+  ecart: "suggest_sweep.py n'a aucun test"
+  roadmap: R356
+  mutation: "faire compter une phrase qui nomme sibling-sweeper comme un appel"
+- id: REQ-HARN-11
+  domaine: claude-wsl
+  enonce: Un apprentissage de séance devient un REX attaché à l'outil qu'il concerne, validé par un humain avant promotion
+  sources: [{doc: .claude/rules/rex-format.md}]
+  priorite: P4
+  statut: partiel
+  methode: humain
+  portee: generique
+  composants: [.claude/hooks/draft_rex.py, .claude/scripts/promote_rex.py, .claude/rules/rex-format.md, .claude/commands/rex-promote.md, .claude/commands/retro.md, .claude/skills/continuous-learning/SKILL.md]
+  preuve: {pytest: tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses}
+  ecart: "draft_rex.py n'a aucun test ; continuous-learning : 0 appel"
+  opportunite: "3 surfaces (draft_rex, /retro, continuous-learning) pour un même geste : en garder une"
+  roadmap: R356
+  mutation: "faire accepter une date YYYY-MM par validate_rex.py"
+- id: REQ-HARN-12
+  domaine: claude-wsl
+  enonce: Une skill ou une rule se charge quand son sujet est touché, et son usage réel se lit
+  sources: [{notes: L60}]
+  priorite: P4
+  statut: partiel
+  methode: hook
+  portee: generique
+  composants: [.claude/rules/python.md, .claude/rules/makefile-fail-fast.md, .claude/skills/dashboard-view/SKILL.md, .claude/skills/airflow-dag/SKILL.md, .claude/skills/db-schema/SKILL.md, .claude/skills/audit-collectors/SKILL.md, .claude/skills/impact-analysis/SKILL.md, .claude/skills/response-protocol/SKILL.md]
+  preuve: {pytest: tests/test_skills_rules_and_injections_are_counted.py::test_skills_and_workflows_are_counted_with_their_last_date}
+  ecart: "les 3 rules sont chargées dans 40 séances sur 40 alors que leur frontmatter porte `globs:` ; dashboard-view, airflow-dag, db-schema, audit-collectors : 0 appel"
+  opportunite: "si Claude Code attend `paths:` (à vérifier dans sa doc), les rules se chargent à chaque séance pour rien ; 4 skills sans un appel : retrait ou déclencheur"
+  roadmap: R356
+  mutation: "compter une rule par ligne de transcript au lieu d'une fois par séance"
+- id: REQ-HARN-13
+  domaine: claude-wsl
+  enonce: Chaque commande slash résout vers des chemins qui existent et sont versionnés
+  sources: [{notes: L60}]
+  priorite: P4
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/check-env.md, .claude/commands/curator.md, .claude/commands/dev-docs.md, .claude/commands/logs-airflow.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/run-tests.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
+  preuve: {pytest: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves}
+  opportunite: "capitalise 22 appels, roadmap-done 1, les 13 autres 0 : candidates au retrait ou à la fusion"
+  mutation: "renommer un fichier cité par une commande"
+- id: REQ-HARN-14
+  domaine: claude-wsl
+  enonce: Chaque composant du harnais a son exigence ici, et chaque exigence du harnais rend une méthode et une portée
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: [Makefile:test-docs]
+  preuve: {pytest: tests/test_every_harness_component_has_a_requirement.py::test_every_harness_component_has_a_requirement}
+  mutation: "enregistrer un hook factice dans settings.json"
+- id: REQ-HARN-15
+  domaine: tests-ci
+  enonce: Le nombre de workers pytest suit la mémoire réellement libre ; une ingestion ne démarre pas pendant une suite
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: [Makefile:test, Makefile:test-fast, Makefile:test-changed]
+  preuve: {pytest: tests/test_the_worker_count_follows_what_can_grow.py::test_the_detector_sees_the_defect_it_is_written_for}
+  opportunite: "4 workers 179 s, 2 workers 269 s (mesuré en alternance) : la pile Docker éteinte vaut 90 s par suite"
+  mutation: "faire ignorer la réserve Ollama par pytest_workers.py"
+- id: REQ-HARN-16
+  domaine: tests-ci
+  enonce: Les durées de chaque test sont connues ; la CI s'en sert pour équilibrer ses shards
+  sources: [{notes: L72}]
+  priorite: P3
+  statut: conforme
+  methode: ci
+  portee: generique
+  composants: [Makefile:test-durations, Makefile:test-durations-missing]
+  preuve: {pytest: tests/test_the_shards_are_balanced_by_real_durations.py::test_the_durations_file_still_describes_this_suite}
+  opportunite: "le plafond d'écart entre shards est un cliquet : le resserrer après chaque rééquilibrage mesuré"
+  mutation: "vider .test_durations"
+- id: REQ-HARN-17
+  domaine: dev-resources
+  enonce: Les conteneurs tournent à la demande — au repos, seul postgres 5433 et les serveurs MCP de séance (`--rm -i`) ; aucun `restart=always`
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: partiel
+  methode: humain
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_containers_are_on_demand.py::test_anything_else_running_at_rest_is_a_violation}
+  ecart: "la sonde vivante `python3 tools/dev/idle_containers.py` n'est appelée par rien d'automatique ; le docker-compose.yml LOCAL (non versionné) déclare encore `restart: unless-stopped` pour Airflow — `make up` le ramène"
+  opportunite: "brancher idle_containers.py dans night-status ; profils compose (`profiles: [airflow]`) pour que `make up` n'allume que postgres"
+  roadmap: R356
+  mutation: "élargir l'exemption de séance à AutoRemove seul"
+- id: REQ-HARN-18
+  domaine: defect-log
+  enonce: Chaque rouge relevé (test, traceback, étape CI, cron) se clôt par la preuve qui convient à son type
+  sources: [{notes: L60}]
+  priorite: P2
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/session_summary.py]
+  preuve: {pytest: tests/test_every_defect_kind_can_close.py::test_a_traceback_is_fixed_by_a_commit_then_a_ci_green}
+  opportunite: "8 billets « recurrence: à confirmer » attendent un tri humain : `make defect-log`"
+  mutation: "clore une étape CI sur n'importe quel vert"
+- id: REQ-HARN-19
+  domaine: error-classes
+  enonce: Le « vu rouge » d'un garde est daté et nomme sa mutation, ou le garde fabrique lui-même son défaut
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: partiel
+  methode: nuit
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_new_guards_are_mutated_every_night.py::test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation}
+  ecart: "sur 429 classes, 407 `seen_red` valent « self-proving » et 14 seulement sont datés"
+  opportunite: "faire écrire la date par le job nocturne guard-mutation quand il voit un garde rougir"
+  roadmap: R356
+  mutation: "accepter une entrée SEEN_RED sans date"
+  premisse_corrigee: "« ajouter cause racine / balayage / vu rouge aux classes » : les trois champs existent sur 429 classes sur 429 ; le trou est que le vu rouge est presque toujours « self-proving », rarement daté"
+- id: REQ-HARN-20
+  domaine: error-classes
+  enonce: Une récidive se mesure par exposition découpée au premier garde, jamais avec l'étiquette d'aujourd'hui
+  sources: [{doc: CLAUDE.md}]
+  priorite: P4
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_the_guard_axis_is_measured_without_immortal_time.py::test_a_class_that_never_had_a_guard_contributes_only_to_the_bare_arm}
+  mutation: "attribuer toute la vie d'une classe au bras « avec garde »"
+  premisse_corrigee: "« normaliser la récidive » : c'est fait (by_guard_since, error_class_health.py) — et la mesure a montré que l'ancien ×4,9 était un biais d'immortal time (×1,1 réel)"
+- id: REQ-HARN-21
+  domaine: security
+  enonce: Les surfaces publiques du dépôt sont balayées chaque nuit, et le résultat atteint le propriétaire
+  sources: [{doc: CLAUDE.md}]
+  priorite: P1
+  statut: conforme
+  methode: nuit
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_the_public_surfaces_are_swept_every_night.py::test_the_sweep_runs_nightly_and_reaches_notify}
+  mutation: "retirer le job de balayage des `needs` de notify"
+- id: REQ-HARN-22
+  domaine: claude-wsl
+  enonce: Un document généré (PDF, benchmark, inventaire, rapport du harnais) n'est jamais versionné ; il se régénère à la demande
+  sources: [{adr: docs/adr/ADR-031-generated-measurement-documents-are-not-versioned.md}]
+  priorite: P4
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_generated_documents_are_not_versioned.py::test_no_generated_document_is_versioned}
+  mutation: "versionner revue/harness-report.html"
+  premisse_corrigee: "« PDF à la demande » : déjà la règle (ADR-031, R345) ; les PDF encore versionnés sont les guides d'onboarding, du contenu produit qui doit le rester"
+- id: REQ-HARN-24
+  domaine: claude-wsl
+  enonce: Le rapport du harnais rend chaque état — preuve rouge, trou, vu rouge périmé, verte non prouvée, composant jamais invoqué — en opportunité visible, sans confondre un hook muet avec un hook jamais déclenché
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: demande
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_the_harness_report_renders_every_state.py::test_every_state_becomes_an_opportunity}
+  mutation: "retirer la branche « verte, non prouvée » des opportunités"
+- id: REQ-HARN-23
+  domaine: claude-wsl
+  enonce: Une séance longue sans interlocuteur reprend après chaque compaction depuis un journal append-only, une unité à la fois
+  sources: [{doc: .claude/dev-docs/roadmap/night-run.md}]
+  priorite: P3
+  statut: conforme
+  methode: humain
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_the_night_protocol_is_runnable.py::test_every_make_target_the_protocol_names_exists}
+  mutation: "renommer une cible night-* du Makefile"

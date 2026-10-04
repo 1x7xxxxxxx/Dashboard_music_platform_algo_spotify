@@ -26,6 +26,9 @@ from __future__ import annotations
 
 import argparse
 import collections
+import importlib.util
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +38,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 ARCH = ROOT / ".claude" / "dev-docs" / "architecture"
 STATUTS = ("conforme", "partiel", "absent", "non-mesure")
+# R356 — how a requirement is held, and whether its machinery travels to another project.
+METHODES = ("hook", "commit", "ci", "nuit", "regle-agent", "playbook", "humain", "demande")
+PORTEES = ("generique", "streamlytics")
+SETTINGS = ROOT / ".claude" / "settings.json"
+_HOOK_PATH = re.compile(r"\.claude/[\w/-]+\.py")
 PY = str(ROOT / ".venv" / "bin" / "python") if (ROOT / ".venv" / "bin" / "python").exists() \
     else sys.executable
 
@@ -98,6 +106,168 @@ def structure_errors(domains: dict, reqs: list[dict]) -> list[str]:
             if f.rstrip("/") not in tracked:
                 errs.append(f"domaine {key} : chemin absent du dépôt {f}")
     return errs
+
+
+def _make_targets() -> set[str]:
+    with open(ROOT / "Makefile", encoding="utf-8") as fh:
+        return {m.group(1) for m in re.finditer(r"^([\w-]+):", fh.read(), re.M)}
+
+
+def harness_components(settings_path: Path | None = None) -> set[str]:
+    """Every piece of the Claude Code harness: hook scripts REGISTERED in settings.json (a
+    registration is real even before the file is committed), plus the versioned agents,
+    skills, rules, workflows, slash commands, and every `make test*` target."""
+    settings = json.loads((settings_path or SETTINGS).read_text(encoding="utf-8"))
+    comps = {m for entries in (settings.get("hooks") or {}).values() for e in entries
+             for h in e.get("hooks", []) for m in _HOOK_PATH.findall(h.get("command", ""))}
+    tracked = _tracked()
+    for pattern in ("agents/*.md", "skills/*/SKILL.md", "rules/*.md", "workflows/*",
+                    "commands/*.md"):
+        comps |= {rel for p in (ROOT / ".claude").glob(pattern)
+                  if (rel := str(p.relative_to(ROOT))) in tracked}
+    comps |= {f"Makefile:{t}" for t in _make_targets() if t.startswith("test")}
+    return comps
+
+
+def component_errors(comps: set[str], reqs: list[dict]) -> list[str]:
+    """Both directions: a component no requirement names, a named component that does not
+    resolve; plus `methode`/`portee` outside their enums. Only `composants:` counts."""
+    errs, named = [], set()
+    tracked, targets = _tracked(), _make_targets()
+    for r in reqs:
+        rid = r.get("id", "?")
+        for c in r.get("composants") or []:
+            named.add(c)
+            alive = (c.split(":", 1)[1] in targets) if c.startswith("Makefile:") else c in tracked
+            if not alive and c not in comps:
+                errs.append(f"{rid} : composant introuvable {c}")
+        harness = rid.startswith("REQ-HARN") or "composants" in r
+        for field, allowed in (("methode", METHODES), ("portee", PORTEES)):
+            if field in r and r[field] not in allowed:
+                errs.append(f"{rid} : {field} « {r[field]} » hors {allowed}")
+            elif harness and field not in r:
+                errs.append(f"{rid} : {field} manquant")
+    errs += [f"{c} : aucun `composants:` ne le nomme — ajouter une exigence"
+             for c in sorted(comps - named)]
+    return errs
+
+
+def _mutation_evidence() -> tuple[dict, object]:
+    """SEEN_RED (a red seen by hand) and self_proving, from the nightly job — one source."""
+    spec = importlib.util.spec_from_file_location(
+        "nightly_guard_mutation", ROOT / "tools" / "dev" / "nightly_guard_mutation.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.SEEN_RED, mod.self_proving
+
+
+def proof_state(req: dict, proof: str, seen_red: dict, self_proving) -> dict:
+    """active = replayed green AND seen red (by hand, or self-proving). Pure but for the
+    file read of `self_proving` and `git log` for the staleness of a dated red."""
+    p = req.get("preuve") or {}
+    if not (p.get("pytest") or p.get("cmd")):
+        return {"etat": "trou", "vu_rouge": None}
+    path = (p.get("pytest") or "").split("::")[0]
+    red = None
+    if path in seen_red:
+        red = {"comment": "à la main", "detail": seen_red[path], "date": seen_red[path][:10]}
+        last = subprocess.run(["git", "log", "-1", "--format=%cs", "--", path], cwd=ROOT,
+                              capture_output=True, text=True).stdout.strip()
+        red["perime"] = bool(last) and last > red["date"]
+    elif path and (ROOT / path).is_file() and self_proving(ROOT / path):
+        red = {"comment": "auto-prouvant", "detail": "fabrique son défaut à chaque run"}
+    if proof == "rouge":
+        etat = "rouge"
+    elif proof == "—":
+        etat = "non rejouée"
+    else:
+        etat = "active" if red else "verte, non prouvée"
+    return {"etat": etat, "vu_rouge": red}
+
+
+def _activity() -> dict:
+    spec = importlib.util.spec_from_file_location(
+        "usage_report", ROOT / ".claude" / "scripts" / "usage_report.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.read()
+
+
+def component_activity(comp: str, usage: dict) -> dict | None:
+    """{'n': runs, 'last': date, 'kind': …} from the transcripts; None where unmeasurable."""
+    if not usage.get("found"):
+        return None
+    stem = Path(comp).stem
+    last = usage.get("last_seen", {})
+    if comp.startswith("Makefile:"):
+        t = comp.split(":", 1)[1]
+        return {"kind": "make", "n": usage["make_targets"].get(t, 0), "last": last.get(f"make:{t}")}
+    if "/hooks/" in comp or ("/scripts/" in comp and comp.endswith(".py")):
+        n = usage["hooks"].get(comp, 0)
+        return {"kind": "hook", "n": n, "last": last.get(f"hook:{comp}"),
+                "ms": usage["hook_ms"].get(comp, 0) // n if n else None,
+                "echecs": usage["hook_failures"].get(comp, 0),
+                "note": None if n else "aucune trace — un hook muet n'en laisse pas"}
+    if "/agents/" in comp:
+        return {"kind": "agent", "n": usage["agents"].get(stem, 0), "last": last.get(f"agent:{stem}")}
+    if "/skills/" in comp:
+        name = Path(comp).parent.name
+        return {"kind": "skill", "n": usage["skills"].get(name, 0), "last": last.get(f"skill:{name}")}
+    if "/rules/" in comp:
+        return {"kind": "rule", "n": usage["rules"].get(stem, 0), "last": None,
+                "note": "séances qui l'ont chargée"}
+    if "/commands/" in comp:
+        return {"kind": "command", "n": usage["commands"].get(stem, 0) + usage["skills"].get(stem, 0),
+                "last": last.get(f"command:{stem}") or last.get(f"skill:{stem}")}
+    if "/workflows/" in comp:
+        inj = usage.get("injections", {})
+        rel = "workflows/" + Path(comp).name
+        if comp.endswith(".js"):
+            return {"kind": "workflow", "n": usage["workflows"].get(stem, 0),
+                    "last": last.get(f"workflow:{stem}")}
+        return {"kind": "playbook", "n": inj.get("counts", {}).get(rel, 0),
+                "last": (inj.get("last_seen", {}).get(rel) or "")[:10] or None,
+                "note": "injections journalisées depuis R357"}
+    return None
+
+
+def _commit() -> str:
+    return subprocess.run(["git", "log", "-1", "--format=%h %cs %s"], cwd=ROOT,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def build(domains: dict, reqs: list[dict], proofs: dict | None, usage: dict | None) -> dict:
+    """The ONE derived object: benchmark.md and the harness page are rendered from it."""
+    seen_red, self_proving = _mutation_evidence()
+    comps = harness_components()
+    usage = usage or {"found": False}
+    owners = collections.defaultdict(list)
+    out_reqs = []
+    for r in reqs:
+        p = r.get("preuve") or {}
+        methode = r.get("methode") or ("ci" if p.get("pytest") else "demande" if p.get("cmd")
+                                       else None)
+        state = proof_state(r, (proofs or {}).get(r["id"], "—"), seen_red, self_proving)
+        for c in r.get("composants") or []:
+            owners[c].append(r["id"])
+        out_reqs.append({
+            "id": r["id"], "domaine": r["domaine"], "enonce": r["enonce"],
+            "priorite": r.get("priorite"), "statut": r["statut"],
+            "verdict": verdict(r["statut"], (proofs or {}).get(r["id"], "—")),
+            "methode": methode, "methode_deduite": "methode" not in r,
+            "portee": r.get("portee", "streamlytics"),
+            "preuve": p.get("pytest") or p.get("cmd"), "a_ecrire": r.get("a_ecrire"),
+            "mutation": r.get("mutation"), "ecart": r.get("ecart"),
+            "roadmap": r.get("roadmap"), "opportunite": r.get("opportunite"),
+            "premisse_corrigee": r.get("premisse_corrigee"),
+            "composants": r.get("composants") or [], **state})
+    components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage)}
+                  for c in sorted(comps | set(owners))}
+    return {"genere_depuis": _commit(), "rejoue": proofs is not None,
+            "activite_mesuree": bool(usage.get("found")),
+            "seances": usage.get("sessions"),
+            "domaines": {k: {"nom": d["nom"]} for k, d in domains.items()},
+            "exigences": out_reqs, "composants": components}
 
 
 def replay(reqs: list[dict], timeout: int = 900) -> dict[str, str]:
@@ -185,14 +355,20 @@ def render(domains: dict, reqs: list[dict], proofs: dict[str, str] | None) -> st
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-run", action="store_true")
+    ap.add_argument("--json", action="store_true",
+                    help="also write benchmark.json (proof states, activity) for the harness page")
     args = ap.parse_args()
     domains, reqs = load()
-    errs = structure_errors(domains, reqs)
+    errs = structure_errors(domains, reqs) + component_errors(harness_components(), reqs)
     if errs:
         print("❌ catalogue invalide :\n  " + "\n  ".join(errs), file=sys.stderr)
         return 1
     proofs = None if args.no_run else replay(reqs)
     (ARCH / "benchmark.md").write_text(render(domains, reqs, proofs).rstrip("\n") + "\n", encoding="utf-8")
+    if args.json:
+        data = build(domains, reqs, proofs, _activity())
+        (ARCH / "benchmark.json").write_text(json.dumps(data, ensure_ascii=False, indent=1),
+                                             encoding="utf-8")
     red = [k for k, v in (proofs or {}).items() if v == "rouge"]
     print(f"écrit : {ARCH / 'benchmark.md'} — {len(reqs)} exigences, {len(red)} preuve(s) rouge(s)")
     return 0
