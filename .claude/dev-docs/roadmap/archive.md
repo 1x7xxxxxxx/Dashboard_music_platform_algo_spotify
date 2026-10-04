@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R357 — Sondes manquantes du harnais : injections de workflows journalisées, compte des skills/… (livrée 2026-10-04)
+
+- [x] **R357 — Sondes manquantes du harnais : injections de workflows journalisées, compte des skills/rules chargées sur 30 j, test du hook PreCompact, conteneurs à la demande (compose sans `restart` hors postgres + sonde des conteneurs au repos)** (P4) ✅ (2026-10-04, d13f97c4)
+  Mesuré par : chaque sonde neuve vue rouge sous mutation
+  Sondes manquantes : injections journalisées, skills/rules comptés, PreCompact testé, conteneurs à la demande. CI d13f97c4 rouge UNIQUEMENT sur la cible make harness-report absente, livrée par R356 dont la CI 92218a87 est verte
+  Commits : d13f97c4 R357 : sondes manquantes du harnais — injections journalisées, skills/
+
+## ✅ R356 — Livrable du harnais : les exigences de la configuration Claude Code (hooks, agents, ski… (livrée 2026-10-04)
+
+- [x] **R356 — Livrable du harnais : les exigences de la configuration Claude Code (hooks, agents, skills, rules, workflows, compaction, tests local/CI, conteneurs à la demande, journal des défauts, roadmap + critic, error-class) entrent au catalogue `requirements.yaml` avec `methode`/`portee`/`opportunite` ; `arch_benchmark.py` distingue « active » (verte + vue rouge) de « présente, non prouvée », sort un JSON ; `make harness-report` génère la page publiée en Artifact ; un garde rougit si un composant du harnais n'a pas d'exigence** (P4) ✅ (2026-10-04, 92218a87)
+  Mesuré par : `test_every_harness_component_has_a_requirement` ; `make arch-benchmark` sans RÉGRESSION ; page rendue et lue
+  Rapport du harnais livré : make harness-report → revue/harness-report.html (43 actives, 4 trous, 40 opportunités) ; CI 92218a87 verte
+  Commits : 92218a87 R356 : rapport du harnais — chaque exigence, sa sonde, sa méthode, l'a
+
 ## ✅ R353 — Journal des défauts, ce qu'il ne capte pas (mesuré le 2026-10-04) : (a) un rouge CI SAN… (livrée 2026-10-04)
 
 - [x] **R353 — Journal des défauts, ce qu'il ne capte pas (mesuré le 2026-10-04) : (a) un rouge CI SANS nœud de test (gates, setup — R347 `c8b60da2`) n'est qu'un avertissement → défaut `ci-step:<job>/<étape>`, clos par le vert CI suivant ; (b) une traceback ne se clôt JAMAIS (5 « ouvertes » depuis le 27/09, dont 2 corrigées) → close par un commit sur son fichier + un vert CI après, ou `make defect-close FP= NOTE=` ; (c) les crons du poste (mail RAG n8n, book_drop) échouent sans trace — « LLM indisponible » le 2026-10-04 11:46 → défaut `cron:<nom>` depuis leurs journaux (liste locale, gitignorée), clos par le `rc=0` suivant ; (d) rien ne le LIT : une ligne au démarrage de séance et dans `make night-status`** (P3) ✅ (2026-10-04, 0acedb6c, 7c76f8f0)
