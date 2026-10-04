@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R369 — Parrainage Stripe — 2 défauts trouvés par le rejeu de bout en bout en mode test (R283,… (livrée 2026-10-05)
+
+- [x] **R369 — Parrainage Stripe — 2 défauts trouvés par le rejeu de bout en bout en mode test (R283, 2026-10-04) : (a) `invoice.paid` arrive AVANT `checkout.session.completed` sur un lien de paiement → `earn()` ne retrouve pas le filleul (`stripe_customer_id` pas encore écrit) → récompense perdue sans trace ; (b) `stripe_apply` appelle `.get()` sur un `Subscription` stripe-python 15 → AttributeError, la récompense reste `pending` à vie (la prod installe `stripe>=8`) ; (c) `mrr_by_plan_sql()` rend 4 colonnes (plan, prix, artistes, mrr) depuis R140, `billing.py:357` et `admin.py:418` en lisent 3 → la page plante (billing) ou affiche le nombre d'abonnés comme MRR (admin) dès qu'existe un abonné payant humain — révélé par les comptes de test** (P2) ✅ (2026-10-05, 447d4a5d, 5ada254f)
+  Mesuré par : rejeu mode test : `referral_rewards` A→B passe `applied` avec le coupon sur l'abonnement de A, quel que soit l'ordre des deux évènements
+  Rejeu mode test 2026-10-05 : récompense A→B passée applied, coupon 5qPPWXIT lu sur l'abonnement de A côté Stripe ; ordre de livraison couvert par 7 ordres + détecteur auto-prouvant ; CI verte 447d4a5d
+  Commits : 447d4a5d R369 : trois défauts du rejeu Stripe mode test — ordre de livraison, o · 5ada254f Roadmap : R364 close ; R369 inscrite — 3 défauts trouvés par le rejeu 
+
 ## ✅ R364 — Harnais — prouver les 42 exigences « verte, non prouvée » : 26 ont déjà une `mutation:`… (livrée 2026-10-04)
 
 - [x] **R364 — Harnais — prouver les 42 exigences « verte, non prouvée » : 26 ont déjà une `mutation:` déclarée (la jouer avec `mutate_guards.py`, vérifier que la ligne a changé, dater dans `SEEN_RED`) ; 16 n'en ont pas (FORMAT-01/03, UX-01/02, ONB-01, SEC-02/04/05/06, ERR-02/03/04, OBS-01/02…) — en écrire une qui incarne le défaut, puis la jouer. OBS-02 est un `test -f` : le remplacer par une preuve qui peut rougir** (P2) ✅ (2026-10-04, 9e0d2e54)
