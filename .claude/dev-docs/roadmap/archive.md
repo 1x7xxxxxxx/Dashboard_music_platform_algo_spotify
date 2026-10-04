@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R339 — `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : u… (livrée 2026-10-04)
+
+- [x] **R339 — `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : une fermeture par LOT (71f7fd08) ne passe pas par `roadmap-close`, donc pas de `done` au journal — une unité dont la tâche est archivée n'est plus en cours** (P3) ✅ (2026-10-04, df709376)
+  Mesuré par : `make night-status` ne montre plus R323 ; test rouge sur l'ancien code
+  une unite de nuit dont la tache est archivee n'est plus EN COURS ; R323 ne s'affiche plus ; test mute rouge ; CI verte df709376
+  Commits : df709376 R339 : une unite de nuit dont la tache est archivee n'est plus EN COUR
+
 ## ✅ R338 — `make test-changed` rate ~45 tests dont l'entrée est un ENSEMBLE de fichiers (balayage… (livrée 2026-09-29)
 
 - [x] **R338 — `make test-changed` rate ~45 tests dont l'entrée est un ENSEMBLE de fichiers (balayage du 2026-09-29, trace des lectures de la suite entière) : glob non récursif / `iterdir` sur `airflow/dags/`, `src/dashboard/views/`, `.claude/hooks/` (R1), dossiers imbriqués de `.claude/dev-docs/` que `tests_reading_the_directory` ne compare qu'au parent immédiat (R2), entrées hors `.py` — workflows, compose, `.streamlit` (R3), tests sur `git ls-files` (R4), formes de glob de `tests/` non littérales (R5). ⚠️ Prémisse d'abord écrite ici réfutée par le même balayage : les deux cliquets rouges sur main ÉTAIENT sélectionnés (mon rejeu comparait des formats différents) — ces rouges venaient de commits poussés sans `make test-changed`** (P2) ✅ (2026-09-29, 85d28973, a8a6f9b1, b6597248)

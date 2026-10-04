@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R339 | `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : une fermeture par LOT (71f7fd08) ne passe pas par `roadmap-close`, donc pas de `done` au journal — une unité dont la tâche est archivée n'est plus en cours <!-- critic: non — lecture d'un fait déjà écrit (archive), 1 fonction --> <!-- scope: tools/dev/night_run.py, tests/test_the_status_screen_reads_all_its_source.py --> | P3 | `make night-status` ne montre plus R323 ; test rouge sur l'ancien code |
 | R340 | Sécurité nocturne ROUGE 6 nuits (2026-09-29 → 10-04) : `reopen-check` rouvre R122, `ever_recurred_observed` = 55 > 53 (récidives du 2026-09-28). `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 53 → 55, dans le commentaire qui nomme les deux récidives <!-- critic: non — procédure d'acquittement déjà décidée (R202), une constante --> <!-- scope: tools/dev/reopen_check.py --> | P2 | `make reopen-check` sans ROUVRIR ; nuit de sécurité verte |
 
 ---
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R339, R340, R283, R275 -->
+<!-- reprise: open=R340, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
