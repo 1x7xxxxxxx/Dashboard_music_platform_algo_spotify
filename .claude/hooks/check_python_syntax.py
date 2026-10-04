@@ -24,6 +24,11 @@ import os
 import pathlib
 import subprocess
 import shutil
+import sys as _sys  # R365 — one trace line per run, even for a silent hook
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "hooks"))
+from _hook_trace import trace as _trace  # noqa: E402
+_trace(__file__)
 
 
 # ── Une suite qui tourne sous un arbre qui bouge ne prouve rien ───────────────

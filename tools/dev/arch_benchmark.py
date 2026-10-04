@@ -203,11 +203,16 @@ def component_activity(comp: str, usage: dict) -> dict | None:
         t = comp.split(":", 1)[1]
         return {"kind": "make", "n": usage["make_targets"].get(t, 0), "last": last.get(f"make:{t}")}
     if "/hooks/" in comp or ("/scripts/" in comp and comp.endswith(".py")):
+        runs = usage.get("hook_runs", {}).get(comp)
+        if runs:  # R365: the trace journal sees silent runs too
+            return {"kind": "hook", "n": runs["n"], "last": runs["last"][:10],
+                    "ms": runs["ms"] // runs["n"], "echecs": usage["hook_failures"].get(comp, 0),
+                    "note": "journal de traces (R365)"}
         n = usage["hooks"].get(comp, 0)
         return {"kind": "hook", "n": n, "last": last.get(f"hook:{comp}"),
                 "ms": usage["hook_ms"].get(comp, 0) // n if n else None,
                 "echecs": usage["hook_failures"].get(comp, 0),
-                "note": None if n else "aucune trace — un hook muet n'en laisse pas"}
+                "note": None if n else "aucune trace — ni transcript, ni journal R365"}
     if "/agents/" in comp:
         return {"kind": "agent", "n": usage["agents"].get(stem, 0), "last": last.get(f"agent:{stem}")}
     if "/skills/" in comp:

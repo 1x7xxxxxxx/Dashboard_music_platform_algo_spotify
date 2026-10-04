@@ -91,6 +91,9 @@ _INJECTIONS = _REPO / ".claude" / "sessions" / "injections.jsonl"
 # Measured 2026-10-04: only runs that PRINT something leave that line — PreCompact,
 # SubagentStop and the silent PostToolUse checks never appear. A 0 here reads
 # "never seen", not "never fired".
+# R365: so every hook also appends one line per run to hook-runs-YYYYMMDD.jsonl
+# (.claude/hooks/_hook_trace.py) — the only count that sees a silent hook.
+_HOOK_RUNS = _REPO / ".claude" / "sessions"
 _HOOK_SCRIPT = re.compile(r"\.claude/(?:hooks|scripts)/[\w-]+\.py")
 
 
@@ -187,6 +190,26 @@ def injections() -> dict:
     return {"found": True, "counts": dict(counts), "last_seen": last}
 
 
+def hook_runs(directory: pathlib.Path | None = None) -> dict:
+    """Runs per hook from the trace journal (R365): {hook: {n, last, ms}}."""
+    out: dict = {}
+    for f in sorted((directory or _HOOK_RUNS).glob("hook-runs-*.jsonl")):
+        try:
+            lines = f.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            r = out.setdefault(d.get("hook", "?"), {"n": 0, "last": "", "ms": 0})
+            r["n"] += 1
+            r["ms"] += int(d.get("ms") or 0)
+            r["last"] = max(r["last"], d.get("ts", ""))
+    return out
+
+
 def read() -> dict:
     """Aggregate every transcript. Returns counts; draws NO conclusion — that is the point.
 
@@ -199,7 +222,7 @@ def read() -> dict:
         return {"transcripts_dir": str(_TRANSCRIPTS), "found": False, "sessions": 0,
                 "agents": {}, "tools": {}, "tokens": {}, "skills": {}, "workflows": {},
                 "rules": {}, "hooks": {}, "hook_ms": {}, "hook_failures": {},
-                "commands": {}, "make_targets": {}, "last_seen": {}, "injections": injections()}
+                "commands": {}, "make_targets": {}, "last_seen": {}, "injections": injections(), "hook_runs": hook_runs()}
     for f in sorted(_TRANSCRIPTS.glob("*.jsonl")):
         sessions += 1
         try:
@@ -212,7 +235,7 @@ def read() -> dict:
         acc["rules"].update(rules_here)
     out = {k: dict(v) for k, v in acc.items()}
     return {"transcripts_dir": str(_TRANSCRIPTS), "found": True, "sessions": sessions,
-            **out, "injections": injections()}
+            **out, "injections": injections(), "hook_runs": hook_runs()}
 
 
 def declared_agents() -> list[str]:
