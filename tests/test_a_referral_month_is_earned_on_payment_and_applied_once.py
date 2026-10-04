@@ -67,7 +67,10 @@ def _statuses(cur, referrer):
     return [r[0] for r in cur.fetchall()]
 
 
-def test_a_first_payment_earns_once_and_the_coupon_lands(cur):
+def test_a_first_payment_earns_once_and_the_coupon_lands(cur, monkeypatch):
+    # « no coupon configured » must be TRUE here, not inherited: under xdist this test was
+    # red when the process environment carried STRIPE_REFERRAL_COUPON_ID (R397).
+    monkeypatch.delenv("STRIPE_REFERRAL_COUPON_ID", raising=False)
     referrer, referred = _artist(cur, "parrain"), _artist(cur, "filleul")
     _subscribe(cur, referrer, "cus_parrain", "sub_parrain")
     _subscribe(cur, referred, "cus_filleul", "sub_filleul")

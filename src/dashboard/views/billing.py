@@ -4,10 +4,15 @@ Shows the current artist's subscription status, plan comparison,
 and upgrade/manage links. Admin sees all artist subscriptions.
 """
 import os
+from typing import TYPE_CHECKING
+
 import streamlit as st
 from src.dashboard.utils import get_db_connection, require_db
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.auth import get_artist_plan, is_admin, tenant_scope
+if TYPE_CHECKING:
+    import pandas as pd
 from src.database.stripe_schema import (
     PLAN_CATALOG, PLAN_RANK, SERVICE_CALENDLY_URL)
 
@@ -303,6 +308,16 @@ def _render_plan_columns(current_plan: str | None) -> None:
             _upgrade_cta(plan_key, current_plan)
 
 
+def _admin_frame(rows: list) -> "pd.DataFrame":
+    """The subscriptions table. A NULL period end is NaT in pandas, and NaT is TRUTHY:
+    `x.strftime(...) if x` raised on it (R397) — format_date renders it « — »."""
+    import pandas as pd
+    df = pd.DataFrame(rows, columns=["Artist", "Tier", "Plan", "Status", "Period End", "Stripe Customer"])
+    df["Period End"] = df["Period End"].apply(format_date)
+    df["Stripe Customer"] = df["Stripe Customer"].apply(lambda x: x[:8] + "…" if x else "—")
+    return df
+
+
 def _show_admin_view(db):
     st.subheader(t("billing.admin_header", "Tous les abonnements artistes"))
 
@@ -322,10 +337,7 @@ def _show_admin_view(db):
         st.info(t("billing.no_artists", "Aucun artiste trouvé."))
         return
 
-    import pandas as pd
-    df = pd.DataFrame(rows, columns=["Artist", "Tier", "Plan", "Status", "Period End", "Stripe Customer"])
-    df["Period End"] = df["Period End"].apply(lambda x: x.strftime('%Y-%m-%d') if x else "—")
-    df["Stripe Customer"] = df["Stripe Customer"].apply(lambda x: x[:8] + "…" if x else "—")
+    df = _admin_frame(rows)
     df.columns = [
         t("common.artist", "Artiste"),
         t("billing.col_tier", "Tier"),
