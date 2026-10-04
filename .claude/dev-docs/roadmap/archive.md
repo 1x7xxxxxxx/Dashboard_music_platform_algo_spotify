@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R361 — Défauts : 9 billets `recurrence:` sont tous des rouges de CI de `main` sur un garde de… (livrée 2026-10-04)
+
+- [x] **R361 — Défauts : 9 billets `recurrence:` sont tous des rouges de CI de `main` sur un garde de PILOTAGE (roadmap, catalogue d'exigences, docs) — le dernier : `make roadmap-close R356` a laissé 6 exigences nommer une ligne close, et `roadmap-close` ne proposait que 2 tests. Un commit qui touche un fichier de pilotage lance les tests qui le NOMMENT (31 s en série pour `checklist.md`, contre 274 s pour la sélection entière)** (P3) ✅ (2026-10-04, 832231a5)
+  Mesuré par : un commit de roadmap qui laisse une exigence pointer une ligne close est refusé localement (test + mutation)
+  porte governance-readers (pre-commit + make roadmap-close) : les tests qui NOMMENT checklist/archive/architecture/*.yaml tournent avant le push ; scénario R356 rejoué rouge en 45 s ; frère R358 corrigé (test_no_versioned_command… balayait .claude/worktrees). CI 832231a5 verte.
+  Commits : 832231a5 R361 : porte des lecteurs de pilotage — un commit ou une fermeture qui
+
 ## ✅ R358 — Deux défauts du harnais : la porte des durées collecte les fichiers de tests NON suivis… (livrée 2026-10-04)
 
 - [x] **R358 — Deux défauts du harnais : la porte des durées collecte les fichiers de tests NON suivis (un fichier d'une autre séance bloque le commit) ; des tests balaient `.claude/worktrees/`** (P4) ✅ (2026-10-04, 2985faca)
