@@ -4,6 +4,8 @@
 # renvoie à ce fichier). Trié par cinq agents qui ont vérifié chaque statut dans le code actuel
 # ou l'archive de la roadmap. `preuve_statut` = ce qui prouve le statut ; `roadmap` = la ligne
 # qui porte ce qui reste (index, table « en attente de toi », archive ou backlog produit).
+# Depuis le 2026-10-05, les entrées portant `source:` renvoient à ce fichier-là (notes vocales
+# V1-V88, `ligne` = sa ligne, `note` = son numéro), jamais à celui du 2026-09-27.
 # Garde : tests/test_every_note_is_on_the_roadmap.py — une note ni livrée ni obsolète sans
 # ligne réelle rougit.
 - ligne: 5
@@ -3018,3 +3020,817 @@
   priorite: P3
   preuve_statut: error-class-families.md, error-family-rules.md, make error-health-check ; billet d'admission
   preuve_ciblee: tests/test_the_guard_axis_is_measured_without_immortal_time.py
+- ligne: 5
+  source: revue/notes-vocales-2026-10-05.md
+  note: V1
+  resume: Police du total des écoutes plus grande.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R371
+- ligne: 6
+  source: revue/notes-vocales-2026-10-05.md
+  note: V2
+  resume: Camembert des proportions par plateforme (Spotify, YouTube, Apple Music, SoundCloud) avec étiquettes de
+    valeur.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R371
+- ligne: 7
+  source: revue/notes-vocales-2026-10-05.md
+  note: V3
+  resume: Meta Ads + Hypeddit sur une ligne ; nombre de Shazam + Instagram sur une autre.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R371
+- ligne: 8
+  source: revue/notes-vocales-2026-10-05.md
+  note: V4
+  resume: 'Typo : apostrophe / é manquants sur Discover Weekly, Radio, Release Radar.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R371
+- ligne: 9
+  source: revue/notes-vocales-2026-10-05.md
+  note: V5
+  resume: 'Dernière sortie, automatiquement, sans filtre (en disant que c''est la dernière) : % de chance de déclencher
+    chaque playlist + budget Meta nécessaire (meilleur CPR traduit en écoutes).'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R372
+- ligne: 10
+  source: revue/notes-vocales-2026-10-05.md
+  note: V6
+  resume: 'Retirer tout de « ce que ta publicité a appris » à « ce qui alimente tes chiffres » jusqu''au rapport
+    PDF : chaque élément déplacé dans une autre vue s''il n''y est pas déjà, sinon supprimé.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R373
+- ligne: 11
+  source: revue/notes-vocales-2026-10-05.md
+  note: V7
+  resume: '« Ce qui alimente tes chiffres » affiche « /div » dessous : collecte cassée ? Trouver pourquoi.'
+  type: action-produit
+  domaine: pages-ux
+  statut: livré
+  priorite: P3
+  preuve_statut: 0d90552d — freshness_tile_html (home.py:162-192) ; en prod au prochain déploiement (prod au commit
+    R345)
+- ligne: 13
+  source: revue/notes-vocales-2026-10-05.md
+  note: V8
+  resume: Déplacer tout son contenu dans les vues concernées (par plateforme, ML…) ; la vue disparaît.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 15
+  source: revue/notes-vocales-2026-10-05.md
+  note: V9
+  resume: 'Le clic expose toutes les vues : la barre latérale ne montre que « Bienvenue et choix » et « 2 Où tu
+    en es ».'
+  type: action-produit
+  domaine: onboarding
+  statut: livré
+  priorite: P3
+  preuve_statut: 48b6936e — sidebar_is_bare (app.py:318) ; en prod au prochain déploiement
+- ligne: 16
+  source: revue/notes-vocales-2026-10-05.md
+  note: V10
+  resume: Garder le sélecteur de langue.
+  type: action-produit
+  domaine: onboarding
+  statut: livré
+  priorite: P3
+  preuve_statut: étape « 0. Ta langue » de la mise en route (HEAD) ; en prod au prochain déploiement
+- ligne: 17
+  source: revue/notes-vocales-2026-10-05.md
+  note: V11
+  resume: '« 1 Streamlytics en bref » : remplacer le graphique tiré de nos données par un graphique générique toujours
+    disponible.'
+  type: action-produit
+  domaine: onboarding
+  statut: ouvert
+  priorite: P3
+  roadmap: R374
+- ligne: 18
+  source: revue/notes-vocales-2026-10-05.md
+  note: V12
+  resume: Les deux autres graphiques (prédiction algo, optimisation campagne) de même taille et ordonnés.
+  type: action-produit
+  domaine: onboarding
+  statut: ouvert
+  priorite: P3
+  roadmap: R374
+- ligne: 19
+  source: revue/notes-vocales-2026-10-05.md
+  note: V13
+  resume: Supprimer le texte « YouTube mesuré / YouTube / SoundCloud », garder « toutes tes données au même endroit
+    récupérées chaque jour ».
+  type: action-produit
+  domaine: onboarding
+  statut: livré
+  priorite: P3
+  preuve_statut: texte YouTube retiré de la mise en route (HEAD) ; en prod au prochain déploiement
+- ligne: 20
+  source: revue/notes-vocales-2026-10-05.md
+  note: V14
+  resume: Garder « offre de bienvenue ».
+  type: action-produit
+  domaine: onboarding
+  statut: livré
+  priorite: P3
+  preuve_statut: offre de bienvenue conservée (onboarding, HEAD)
+- ligne: 21
+  source: revue/notes-vocales-2026-10-05.md
+  note: V15
+  resume: '« Bienvenue et choix » : le bouton « Connecter mes sources » devient un bouton vers « Où tu en es »,
+    qui garde « Connecter mes sources ».'
+  type: action-produit
+  domaine: onboarding
+  statut: livré
+  priorite: P3
+  preuve_statut: bouton « Bienvenue » → étape 2 (HEAD) ; en prod au prochain déploiement
+- ligne: 23
+  source: revue/notes-vocales-2026-10-05.md
+  note: V16
+  resume: « Campagne Meta » sous « Titre et couverture », deux grands titres chacun dans son expander (deux parcours
+    distincts).
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R375
+- ligne: 25
+  source: revue/notes-vocales-2026-10-05.md
+  note: V17
+  resume: Garder « signaux du mois ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R376
+- ligne: 26
+  source: revue/notes-vocales-2026-10-05.md
+  note: V18
+  resume: « Résultats réalisés / ce que ça donne » → vue Prédiction déclenchement algos.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 27
+  source: revue/notes-vocales-2026-10-05.md
+  note: V19
+  resume: « Fraîcheur des saisies » → vue admin.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R376
+- ligne: 28
+  source: revue/notes-vocales-2026-10-05.md
+  note: V20
+  resume: « Le pari du modèle / ce qui est arrivé » → Prédiction déclenchement (ML).
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 29
+  source: revue/notes-vocales-2026-10-05.md
+  note: V21
+  resume: « Titres couverts par la saisie » tout en bas de « signaux du mois ». Une seule sous-vue au final.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R376
+- ligne: 31
+  source: revue/notes-vocales-2026-10-05.md
+  note: V22
+  resume: Garder la saisie.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R377
+- ligne: 32
+  source: revue/notes-vocales-2026-10-05.md
+  note: V23
+  resume: 'Expander « comment récupérer les données sur Hypeddit » : procédure précise, actions seulement.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R377
+- ligne: 33
+  source: revue/notes-vocales-2026-10-05.md
+  note: V24
+  resume: 'Statistiques globales comparant plusieurs sorties : filtre campagne, par défaut les deux dernières sorties,
+    KPI visites/clics + Meta Ads.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R377
+- ligne: 34
+  source: revue/notes-vocales-2026-10-05.md
+  note: V25
+  resume: Historique dans un expander fermé par défaut.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R377
+- ligne: 36
+  source: revue/notes-vocales-2026-10-05.md
+  note: V26
+  resume: Supprimer la vue Récap.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R379
+- ligne: 38
+  source: revue/notes-vocales-2026-10-05.md
+  note: V27
+  resume: Garder « mes sorties à J égal / sorties à comparer ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 39
+  source: revue/notes-vocales-2026-10-05.md
+  note: V28
+  resume: 'Nuage Meta €/jour laid : courbes suivant les écoutes cumulées, sur un nouvel axe.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 40
+  source: revue/notes-vocales-2026-10-05.md
+  note: V29
+  resume: Recréer la vue croisée Spotify × Meta × Hypeddit × Shazam × Insta (elle aurait existé), en tête d'Analytics,
+    texte + graphique.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 41
+  source: revue/notes-vocales-2026-10-05.md
+  note: V30
+  resume: 'Entonnoir à suivre : Insta → Hypeddit → Spotify, Insta Ads, impact sur Insta et Shazam.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 42
+  source: revue/notes-vocales-2026-10-05.md
+  note: V31
+  resume: '« Titres » : seulement ceux qui bougent en ce moment.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 43
+  source: revue/notes-vocales-2026-10-05.md
+  note: V32
+  resume: Légende de l'indice de popularité sur le graphique.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 44
+  source: revue/notes-vocales-2026-10-05.md
+  note: V33
+  resume: '« Ton audience » : axe secondaire de popularité dynamique selon le max (0-20 ici, jusqu''à 60 ailleurs).'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 45
+  source: revue/notes-vocales-2026-10-05.md
+  note: V34
+  resume: Garder Spotify Wrapped tel quel.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R382
+- ligne: 47
+  source: revue/notes-vocales-2026-10-05.md
+  note: V35
+  resume: Garder séparées Spotify+S4A, Apple Music, YouTube, SoundCloud.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 48
+  source: revue/notes-vocales-2026-10-05.md
+  note: V36
+  resume: 'Fusionner tout le reste en UNE vue « Meta × Hypeddit × Spotify × Insta × Shazam » (Publicité Meta Ads,
+    Visuels de campagne, Qui a vu tes pubs, Instagram) : architecture simple, mêmes filtres dynamiques, solution
+    de refactor.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 50
+  source: revue/notes-vocales-2026-10-05.md
+  note: V37
+  resume: Expander « Shazam par chanson » → graphique, à droite de « top 10 écoutes cumulées au dernier relevé ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R383
+- ligne: 52
+  source: revue/notes-vocales-2026-10-05.md
+  note: V38
+  resume: Garder « évolution de la chaîne ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R384
+- ligne: 53
+  source: revue/notes-vocales-2026-10-05.md
+  note: V39
+  resume: Retirer le texte explicatif et tout texte inutile.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R384
+- ligne: 54
+  source: revue/notes-vocales-2026-10-05.md
+  note: V40
+  resume: 'Nuage vues × likes → voir d''un coup d''œil la meilleure vidéo : ratio like/vue et abonnés gagnés par
+    vidéo si obtenable.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R384
+- ligne: 55
+  source: revue/notes-vocales-2026-10-05.md
+  note: V41
+  resume: Proposer des graphiques YouTube plus pertinents (données sous-exploitées).
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R384
+- ligne: 57
+  source: revue/notes-vocales-2026-10-05.md
+  note: V42
+  resume: Écoutes, likes, reposts, commentaires sur une ligne.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R385
+- ligne: 58
+  source: revue/notes-vocales-2026-10-05.md
+  note: V43
+  resume: Graphique comparant chaque sortie sur ces métriques.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R385
+- ligne: 59
+  source: revue/notes-vocales-2026-10-05.md
+  note: V44
+  resume: '« Tout le catalogue » : sélectionner un ou plusieurs titres et comparer en cumulé, comme « sorties à
+    J égal ».'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R385
+- ligne: 60
+  source: revue/notes-vocales-2026-10-05.md
+  note: V45
+  resume: Expliquer « taux d'engagement ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R385
+- ligne: 61
+  source: revue/notes-vocales-2026-10-05.md
+  note: V46
+  resume: Peu de graphiques simples, côte à côte, alignés, le plus pertinent en haut.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R385
+- ligne: 63
+  source: revue/notes-vocales-2026-10-05.md
+  note: V47
+  resume: Onglet juste sous Accueil ; section = Accueil, Export PDF, puis « Faire piloter mes campagnes ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R386
+- ligne: 64
+  source: revue/notes-vocales-2026-10-05.md
+  note: V48
+  resume: Filtre chansons aligné avec Artiste et Période, par défaut toutes, fusionnant « S4A chansons à inclure
+    » et « Focus ML chansons à inclure ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R386
+- ligne: 65
+  source: revue/notes-vocales-2026-10-05.md
+  note: V49
+  resume: Bouton « dernière sortie ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R386
+- ligne: 66
+  source: revue/notes-vocales-2026-10-05.md
+  note: V50
+  resume: Bouton Générer juste après les trois filtres.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R386
+- ligne: 67
+  source: revue/notes-vocales-2026-10-05.md
+  note: V51
+  resume: Retirer « rapport pour XX période… ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R386
+- ligne: 69
+  source: revue/notes-vocales-2026-10-05.md
+  note: V52
+  resume: Texte concis « je gère vos campagnes de A à Z… » sans durée ni prix.
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R387
+- ligne: 70
+  source: revue/notes-vocales-2026-10-05.md
+  note: V53
+  resume: 'Deux CTA : m''écrire (mail) et réserver un rendez-vous (Calendly ou alternative).'
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R387
+- ligne: 71
+  source: revue/notes-vocales-2026-10-05.md
+  note: V54
+  resume: Retirer le blabla, click-to-action.
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R387
+- ligne: 73
+  source: revue/notes-vocales-2026-10-05.md
+  note: V55
+  resume: 'Aucun graphique DW/RR/Radio : réutiliser le graphique de l''étape 1 de la mise en route.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R374
+- ligne: 74
+  source: revue/notes-vocales-2026-10-05.md
+  note: V56
+  resume: Plus de graphiques de valeur, dont SHAP identifiant les valeurs manquantes sur les critères les plus importants.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R381
+- ligne: 76
+  source: revue/notes-vocales-2026-10-05.md
+  note: V57
+  resume: Garder « comment lire ».
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 77
+  source: revue/notes-vocales-2026-10-05.md
+  note: V58
+  resume: Sélection automatique de la dernière sortie.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 78
+  source: revue/notes-vocales-2026-10-05.md
+  note: V59
+  resume: 'Séparateurs : la page se lit de haut en bas.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 79
+  source: revue/notes-vocales-2026-10-05.md
+  note: V60
+  resume: Garder les jauges 0-100 %.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 80
+  source: revue/notes-vocales-2026-10-05.md
+  note: V61
+  resume: Noms des playlists en petites boîtes lisibles.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 81
+  source: revue/notes-vocales-2026-10-05.md
+  note: V62
+  resume: Retirer « prochain geste titre par titre ».
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 82
+  source: revue/notes-vocales-2026-10-05.md
+  note: V63
+  resume: '« Valeurs qui déclencheraient » : 2 au lieu de 5, graphiques au lieu de tableaux.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 83
+  source: revue/notes-vocales-2026-10-05.md
+  note: V64
+  resume: 'SHAP/XGBoost : paramètres les plus importants décroissants, valeur atteinte vs nécessaire par playlist
+    ; DW puis Radio puis RR ; seuils Spotify.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R381
+- ligne: 84
+  source: revue/notes-vocales-2026-10-05.md
+  note: V65
+  resume: Retirer « le vrai pour tout ton catalogue ».
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 85
+  source: revue/notes-vocales-2026-10-05.md
+  note: V66
+  resume: '« Ce titre, ce qu''il reste à faire » : coût Meta pour combler l''écart (meilleur et moyen CPR), sans
+    tableaux.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R381
+- ligne: 86
+  source: revue/notes-vocales-2026-10-05.md
+  note: V67
+  resume: '« Ce qui s''est vraiment passé » : bien, à réorganiser.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 87
+  source: revue/notes-vocales-2026-10-05.md
+  note: V68
+  resume: 'Budget & ROI : graphiques, pas tableaux.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 88
+  source: revue/notes-vocales-2026-10-05.md
+  note: V69
+  resume: Fusionner les quatre sous-vues en UNE, simplifiée, dédoublonnée.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 90
+  source: revue/notes-vocales-2026-10-05.md
+  note: V70
+  resume: « Quelle tranche d'âge clique le moins » → vue croisée Meta× (donnée Meta gratuite).
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R378
+- ligne: 91
+  source: revue/notes-vocales-2026-10-05.md
+  note: V71
+  resume: « Recommandations détaillées » → Prédiction déclenchement, dernière sortie.
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R381
+- ligne: 93
+  source: revue/notes-vocales-2026-10-05.md
+  note: V72
+  resume: → Prédiction déclenchement ; garder la liste, ajouter des recommandations tirées des réglages des campagnes
+    au meilleur CPR (âge, placement…).
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R381
+- ligne: 95
+  source: revue/notes-vocales-2026-10-05.md
+  note: V73
+  resume: Graphique « où j'en suis vs somme des dépenses ».
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 96
+  source: revue/notes-vocales-2026-10-05.md
+  note: V74
+  resume: 'Intégrer dans Prédiction déclenchement : la section algo n''a plus qu''une vue ; visuels pertinents (groupes
+    de prédiction × revenus), simple.'
+  type: action-produit
+  domaine: ml
+  statut: ouvert
+  priorite: P3
+  roadmap: R380
+- ligne: 98
+  source: revue/notes-vocales-2026-10-05.md
+  note: V75
+  resume: Par défaut toutes années/mois, filtre refait.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R388
+- ligne: 99
+  source: revue/notes-vocales-2026-10-05.md
+  note: V76
+  resume: Graphique d'évolution au lieu du tableau détail.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R388
+- ligne: 100
+  source: revue/notes-vocales-2026-10-05.md
+  note: V77
+  resume: Saisie tout en haut.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R388
+- ligne: 101
+  source: revue/notes-vocales-2026-10-05.md
+  note: V78
+  resume: 'Une seule sous-vue : données + ROI point mort en bas, éventuellement un graphique avec les prédictions.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R388
+- ligne: 103
+  source: revue/notes-vocales-2026-10-05.md
+  note: V79
+  resume: Graphiques au lieu des chiffres brut / charges / net.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R389
+- ligne: 104
+  source: revue/notes-vocales-2026-10-05.md
+  note: V80
+  resume: Expliquer que l'import est un CSV dans Credentials › import CSV, bouton direct.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R389
+- ligne: 106
+  source: revue/notes-vocales-2026-10-05.md
+  note: V81
+  resume: Supprimer « mes comptes branchés ».
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R390
+- ligne: 107
+  source: revue/notes-vocales-2026-10-05.md
+  note: V82
+  resume: 'Bouton sous « supprimer mon compte » : demande par mail / action à faire.'
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R390
+- ligne: 108
+  source: revue/notes-vocales-2026-10-05.md
+  note: V83
+  resume: Garder mot de passe, 2FA, communication.
+  type: action-produit
+  domaine: pages-ux
+  statut: ouvert
+  priorite: P3
+  roadmap: R390
+- ligne: 110
+  source: revue/notes-vocales-2026-10-05.md
+  note: V84
+  resume: Renommer Facturation / Abonnement.
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R391
+- ligne: 111
+  source: revue/notes-vocales-2026-10-05.md
+  note: V85
+  resume: Free et Premium affichés, l'inactif barré, l'actif avec petite flèche verte, prix mensuel et statut sous
+    chacun.
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R391
+- ligne: 112
+  source: revue/notes-vocales-2026-10-05.md
+  note: V86
+  resume: Bouton « Faire piloter mes campagnes » entre les plans et « nos offres ».
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R391
+- ligne: 114
+  source: revue/notes-vocales-2026-10-05.md
+  note: V87
+  resume: Bouton « format zip/Excel, préparer l'export » en haut, avec l'export par mail.
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R392
+- ligne: 116
+  source: revue/notes-vocales-2026-10-05.md
+  note: V88
+  resume: Après le lien d'activation, afficher le code de parrainage (codes promo Stripe si possible, sinon une
+    alternative).
+  type: action-produit
+  domaine: product-offer
+  statut: ouvert
+  priorite: P3
+  roadmap: R393
