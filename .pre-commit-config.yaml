@@ -42,6 +42,14 @@ repos:
         # refused — CI, with no exclusion, would read them as phantoms (2026-10-04).
         files: ^(tests/test_[^/]*\.py|\.test_durations)$
         pass_filenames: true        # staged names = "runs as the commit hook"
+      - id: governance-readers
+        name: pilotage — the tests that NAME a staged roadmap/architecture file run first (R361)
+        language: system
+        entry: .venv/bin/python tools/dev/run_readers.py
+        # 9 recurrence tickets on 2026-10-04 were all main-CI reds on these guards; the
+        # readers of checklist.md run in ~31 s serial, the full selection in 274 s.
+        files: ^\.claude/dev-docs/(roadmap/(checklist|archive)\.md|architecture/[^/]*\.yaml)$
+        pass_filenames: true
 
   # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
   - repo: https://github.com/astral-sh/ruff-pre-commit

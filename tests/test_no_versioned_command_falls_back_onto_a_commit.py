@@ -47,6 +47,8 @@ import ast
 import re
 from pathlib import Path
 
+from tools.dev.repo_files import repo_files
+
 REPO = Path(__file__).resolve().parents[1]
 
 # Les surfaces versionnées où une commande shell est REJOUÉE : recettes, scripts, CI.
@@ -83,10 +85,10 @@ def _candidate_files() -> list[Path]:
                 out.append(path)
             continue
         root, pattern = surface
-        base = REPO / root
-        if base.is_dir():
-            out.extend(p for p in base.glob(pattern)
-                       if p.is_file() and "__pycache__" not in str(p))
+        # R361: git's view, not the disk — `.claude/worktrees/` holds whole repo copies
+        # (84 `.sh` files walked there on 2026-10-04, none in the tree nor in CI).
+        out.extend(p for p in repo_files(REPO, pattern.rsplit("/", 1)[-1], under=root)
+                   if "__pycache__" not in str(p))
     return sorted(set(out))
 
 

@@ -351,8 +351,10 @@ def cmd_close(args) -> int:
     # (`make roadmap-discipline WRITE=1`), no longer rewritten by every closure — it put
     # a generated file in every closing commit. The nightly still measures it live.
     print(f"   reste {len(ids)} tâche(s) ouverte(s)")
-    print("   vérifier : python3 -m pytest tests/test_roadmap_two_files.py "
-          "tests/test_the_resume_header_is_checked.py -q")
+    # R361: the narrow hint once missed a requirement left pointing at the closed line
+    # (R356 → main red). `make roadmap-close` now runs every test that NAMES the roadmap.
+    print("   vérifier : python3 tools/dev/run_readers.py .claude/dev-docs/roadmap/checklist.md "
+          ".claude/dev-docs/roadmap/archive.md   (lancé par make roadmap-close)")
     return 0
 
 

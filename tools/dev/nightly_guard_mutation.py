@@ -89,6 +89,8 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — vérification de couverture des composants retirée → 1 rouge",
     "tests/test_the_harness_report_renders_every_state.py":
         "2026-10-04 — branche « verte, non prouvée » retirée des opportunités → 1 rouge",
+    "tests/test_a_governance_commit_runs_its_readers.py":
+        "2026-10-04 — `|| exit 1` retiré de roadmap-close → 1 rouge ; scénario R356 rejoué → rouge",
 }
 
 
