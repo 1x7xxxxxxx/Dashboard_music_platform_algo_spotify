@@ -192,7 +192,7 @@ $("#acts thead").onclick=e=>{const k=e.target.dataset.k;if(!k)return; sd = sk===
 $("#a-kind").oninput=drawAct; drawAct();
 
 // opportunities
-const OC={"preuve rouge":"s-rouge","trou":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","jamais invoqué":"s-na","hook lent":"s-na"};
+const OC={"preuve rouge":"s-rouge","trou":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","jamais invoqué":"s-na","hook lent":"s-na","défaut ouvert":"s-rouge","billet à répondre":"s-trou"};
 $("#opps").innerHTML=P.opportunites.map(o=>`<div class="item"><div class="top"><span class="pill ${OC[o.type]||"s-na"}">${esc(o.type)}</span>
   <span class="id">${esc(o.ref)}</span></div><div class="meta" style="color:var(--ink)">${esc(o.texte)}</div></div>`).join("") || "<p class=note>Aucune.</p>";
 

@@ -870,7 +870,6 @@
   portee: generique
   composants: [.claude/hooks/session_summary.py]
   preuve: {pytest: tests/test_every_defect_kind_can_close.py::test_a_traceback_is_fixed_by_a_commit_then_a_ci_green}
-  opportunite: "8 billets « recurrence: à confirmer » attendent un tri humain : `make defect-log`"
   mutation: "clore une étape CI sur n'importe quel vert"
 - id: REQ-HARN-19
   domaine: error-classes
@@ -933,6 +932,28 @@
   composants: []
   preuve: {pytest: tests/test_the_harness_report_renders_every_state.py::test_every_state_becomes_an_opportunity}
   mutation: "retirer la branche « verte, non prouvée » des opportunités"
+- id: REQ-HARN-25
+  domaine: defect-log
+  enonce: "Un billet « recurrence: » reçoit une réponse enregistrée (même cause ou causes distinctes) qui le retire du compte, et revient s'il récidive après elle ; les défauts ouverts et les billets sans réponse sont des opportunités du rapport du harnais"
+  sources: [{notes: L60}]
+  priorite: P3
+  statut: conforme
+  methode: humain
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_a_recurrence_ticket_can_be_answered.py::test_an_answered_ticket_leaves_the_count_until_it_comes_back}
+  mutation: "ignorer la date du dernier retour propre dans _answer"
+- id: REQ-HARN-26
+  domaine: roadmap-gov
+  enonce: Un commit ou une fermeture qui touche un fichier de pilotage (roadmap, catalogue d'architecture) lance avant le push les tests qui le nomment
+  sources: [{notes: L60}]
+  priorite: P2
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: []
+  preuve: {pytest: tests/test_a_governance_commit_runs_its_readers.py::test_the_hook_and_the_closure_both_run_the_gate}
+  mutation: "retirer le `|| exit 1` de la recette roadmap-close"
 - id: REQ-HARN-23
   domaine: claude-wsl
   enonce: Une séance longue sans interlocuteur reprend après chaque compaction depuis un journal append-only, une unité à la fois

@@ -17,7 +17,7 @@ reads the catalogue, and main's CI went red. What must hold:
 
 Mutation record (2026-10-04): seen red with the shared-basename branch removed from
 `needles`, with the hook's `files:` narrowed to checklist.md, and with the `|| exit 1`
-dropped from the recipe (1 red each). The R356 scenario itself, replayed (a requirement
+dropped from the recipe (1 red each), and with the one-hop loop removed from `readers`. The R356 scenario itself, replayed (a requirement
 repointed at the closed R356): `run_readers.py` on the roadmap went red in 45 s.
 """
 from __future__ import annotations
@@ -38,6 +38,12 @@ ROADMAP = [".claude/dev-docs/roadmap/checklist.md", ".claude/dev-docs/roadmap/ar
 
 def test_the_roadmap_readers_include_the_requirement_line_guard() -> None:
     assert "tests/test_every_requirement_has_a_probe.py" in rr.readers(ROADMAP)
+
+
+def test_a_reader_through_a_tool_script_is_found() -> None:
+    """The catalogue's main guard reads requirements.yaml only via arch_benchmark.py."""
+    got = rr.readers([".claude/dev-docs/architecture/requirements.yaml"])
+    assert "tests/test_every_requirement_has_a_probe.py" in got
 
 
 def test_a_shared_basename_is_not_a_needle() -> None:

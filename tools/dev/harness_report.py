@@ -30,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / ".claude" / "dev-docs" / "architecture" / "benchmark.json"
+DEFECTS = ROOT / ".claude" / "sessions" / "defect-log.json"   # R362, written by make defect-log
 OUT = ROOT / "revue" / "harness-report.html"
 ETATS = ("active", "verte, non prouvée", "rouge", "trou", "non rejouée")
 _INVOKED = ("agent", "skill", "command", "workflow", "playbook", "make")
@@ -69,7 +70,24 @@ def opportunities(data: dict) -> list[dict]:
             elif a and a["kind"] == "hook" and a.get("ms") and a["ms"] >= 1000:
                 out.append({"rang": 4, "type": "hook lent", "ref": comp,
                             "texte": f"{a['ms']} ms en moyenne sur {a['n']} passages"})
+    out += defect_opportunities(data.get("defauts") or [])
     return sorted(out, key=lambda o: (o["rang"], o["ref"]))
+
+
+def defect_opportunities(rows: list[dict]) -> list[dict]:
+    """R362: an open defect and an unanswered `recurrence:` ticket are work. Pure.
+
+    Only the fingerprint and the status leave the log: the excerpts stay local (the repo
+    is public, and the page is published)."""
+    out = [{"rang": 0, "type": "défaut ouvert", "ref": r["fingerprint"],
+            "texte": f"rouge depuis le {r['last_seen'][:10]}, aucun vert prouvé — le relancer, "
+                     "ou make defect-close FP=… NOTE=…"}
+           for r in rows if r.get("status") == "open"]
+    out += [{"rang": 2, "type": "billet à répondre", "ref": r["fingerprint"],
+             "texte": f"{r['recurrence_proposal']} — même cause ? "
+                      "make defect-ticket FP=… VERDICT=same-cause|distinct NOTE=…"}
+            for r in rows if r.get("recurrence_proposal") and not r.get("ticket")]
+    return out
 
 
 def summary(data: dict) -> dict:
@@ -100,6 +118,10 @@ def main() -> int:
               file=sys.stderr)
         return 1
     data = json.loads(SRC.read_text(encoding="utf-8"))
+    if DEFECTS.exists():
+        data["defauts"] = [{k: r.get(k) for k in ("fingerprint", "status", "last_seen",
+                                                   "recurrence_proposal", "ticket")}
+                           for r in json.loads(DEFECTS.read_text(encoding="utf-8"))["defects"]]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render(data), encoding="utf-8")
     s = summary(data)

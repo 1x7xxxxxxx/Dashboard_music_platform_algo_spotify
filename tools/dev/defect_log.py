@@ -19,6 +19,9 @@ the same step's next `rc=0`) — before it, only a `test:` red could ever close.
   for the catalogue's existing `recurrence:<d1>,<d2>` admission ticket (rule 15). Proposed
   only — a fingerprint groups by where a symptom surfaced, not by why (rule 20), so a human
   confirms the same cause before writing a class (code-critic, R315).
+- R362: that confirmation is RECORDED — `make defect-ticket FP=… VERDICT=same-cause|distinct
+  NOTE=…` appends a `ticket` event. An answered proposal leaves the « à confirmer » count;
+  a clean return AFTER the answer proposes it again (the answer covered the reds it saw).
 Refusals (hooks, pre-commit) are counted by reason: they measure MY repeated gestures.
 """
 from __future__ import annotations
@@ -102,6 +105,18 @@ def _status(seen: list[dict], after: list[tuple[str, str, str]], days: list[str]
     return "green"
 
 
+VERDICTS = ("same-cause", "distinct")
+
+
+def _answer(fp: str, events: list[dict], back: list[str]) -> dict | None:
+    """The latest ticket answer that postdates every clean return, or None. Pure."""
+    answers = [e for e in events if e["kind"] == "ticket" and e["fingerprint"] == fp]
+    if not answers or not back or answers[-1]["ts"][:10] < back[-1]:
+        return None
+    return {"verdict": answers[-1]["verdict"], "note": answers[-1]["excerpt"],
+            "date": answers[-1]["ts"][:10]}
+
+
 def classify(events: list[dict], touched: dict[str, str] | None = None) -> list[dict]:
     """One row per red fingerprint. Pure.
 
@@ -127,6 +142,7 @@ def classify(events: list[dict], touched: dict[str, str] | None = None) -> list[
             "first_seen": seen[0]["ts"], "last_seen": seen[-1]["ts"], "days": days,
             "sightings": len(seen), "excerpt": seen[-1]["excerpt"],
             "recurrence_proposal": f"recurrence:{days[0]},{back[0]}" if back else None,
+            "ticket": _answer(fp, events, back),
             "returned_unvouched": [d for d in returned if d not in clean],
         })
     return sorted(rows, key=lambda r: (r["recurrence_proposal"] is None, r["status"] != "open",
@@ -147,12 +163,16 @@ def render(rows: list[dict], refused: list[tuple[str, int, list[str]]]) -> str:
     count = defaultdict(int)
     for r in rows:
         count[r["status"]] += 1
-    proposals = [r for r in rows if r["recurrence_proposal"]]
+    proposals = [r for r in rows if r["recurrence_proposal"] and not r.get("ticket")]
+    answered = [r for r in rows if r["recurrence_proposal"] and r.get("ticket")]
     out = ["# Journal des défauts (généré par `make defect-log`, ne pas éditer)", "",
            f"{len(rows)} défaut(s) : " + ", ".join(f"{v} {k}" for k, v in sorted(count.items())),
            "", "## Revenus après un vert — billet `recurrence:` à confirmer", ""]
     out += [f"- `{r['fingerprint']}` — {r['recurrence_proposal']} ({r['sightings']} vues)"
             for r in proposals] or ["(aucun)"]
+    out += ["", "## Billets répondus (`make defect-ticket`)", ""]
+    out += [f"- `{r['fingerprint']}` — {r['ticket']['verdict']} le {r['ticket']['date']} : "
+            f"{r['ticket']['note']}" for r in answered] or ["(aucun)"]
     unvouched = [r for r in rows if not r["recurrence_proposal"] and r.get("returned_unvouched")]
     out += ["", "## Revenus après un vert sur un arbre EN COURS ou inconnu — aucun billet (R336)", ""]
     out += [f"- `{r['fingerprint']}` — {', '.join(r['returned_unvouched'])}"
@@ -188,7 +208,7 @@ def summary(rows: list[dict]) -> str:
     by = defaultdict(int)
     for r in open_:
         by[r["kind"]] += 1
-    tickets = sum(1 for r in rows if r["recurrence_proposal"])
+    tickets = sum(1 for r in rows if r["recurrence_proposal"] and not r.get("ticket"))
     detail = ", ".join(f"{n} {k}" for k, n in sorted(by.items()))
     return (f"{len(open_)} défaut(s) ouvert(s)" + (f" ({detail})" if detail else "")
             + (f", {tickets} billet(s) recurrence: à confirmer" if tickets else "")
@@ -214,9 +234,33 @@ def close(fp: str, note: str, path: Path = LOG) -> int:
     return 0
 
 
+def ticket(fp: str, verdict: str, note: str, path: Path = LOG) -> int:
+    """R362: answer a `recurrence:` proposal — same cause (write the class or its
+    `(récidive)` line) or distinct causes under one fingerprint (no class)."""
+    if verdict not in VERDICTS or not note.strip():
+        print(f"❌ VERDICT parmi {', '.join(VERDICTS)} et NOTE non vide — "
+              "make defect-ticket FP=… VERDICT=… NOTE=\"pourquoi\"")
+        return 1
+    rows = {r["fingerprint"]: r for r in classify(load(path))}
+    if not (rows.get(fp) or {}).get("recurrence_proposal"):
+        print(f"❌ aucun billet recurrence: pour {fp!r} (voir .claude/sessions/defect-log.md)")
+        return 1
+    with path.open("a", encoding="utf-8") as out:
+        out.write(json.dumps({"kind": "ticket", "fingerprint": fp, "verdict": verdict,
+                              "excerpt": note.strip(),
+                              "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                              "session": "manual", "status": "observed"},
+                             ensure_ascii=False) + "\n")
+    print(f"✅ billet répondu : {fp} — {verdict} — {note.strip()}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if len(argv) >= 2 and argv[1] == "--close":
         return close(argv[2] if len(argv) > 2 else "", " ".join(argv[3:]))
+    if len(argv) >= 2 and argv[1] == "--ticket":
+        fp, verdict = (argv[2:4] + ["", ""])[:2]
+        return ticket(fp, verdict, " ".join(argv[4:]))
     events = load()
     if len(argv) >= 2 and argv[1] == "--summary":
         if events:

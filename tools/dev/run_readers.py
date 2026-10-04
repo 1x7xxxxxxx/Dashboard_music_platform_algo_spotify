@@ -16,9 +16,11 @@ run — neither reads the catalogue. The full selection would have caught it, bu
 
 The predicate is the property « this test reads that file », approximated by the
 file's path or — when no other tracked file shares it — its basename appearing in the
-test's source (tests build paths as `ROOT / "roadmap" / "checklist.md"`). A test that
-reaches the file only through a script it calls is NOT selected: that is this gate's
-uncovered neighbour, and CI stays the net for it.
+test's source (tests build paths as `ROOT / "roadmap" / "checklist.md"`) — plus ONE hop:
+a test that names a tool script (`tools/`, `.claude/scripts`, `.claude/hooks`) whose own
+source names the file. The hop was added the day the gate shipped: the catalogue's main
+guard reads `requirements.yaml` only through `arch_benchmark.py`, and the direct predicate
+selected 2 readers out of 3. Two hops and dynamic paths are NOT followed: CI stays the net.
 """
 from __future__ import annotations
 
@@ -42,13 +44,24 @@ def needles(rel: str, tracked: list[str]) -> list[str]:
     return [rel] if shared else [rel, base]
 
 
+_TOOLS = ("tools/*.py", "tools/**/*.py", ".claude/scripts/*.py", ".claude/hooks/*.py")
+
+
+def _naming(needle_list: list[str], where: tuple[str, ...]) -> set[str]:
+    out: set[str] = set()
+    for n in needle_list:
+        out |= set(_git("grep", "-l", "-F", n, "--", *where).split())
+    return out
+
+
 def readers(files: list[str]) -> list[str]:
-    """Test files whose source names one of `files` (themselves excluded)."""
+    """Test files whose source names one of `files`, directly or through one tool script."""
     tracked = _git("ls-files").split()
     out: set[str] = set()
     for rel in files:
-        for n in needles(rel, tracked):
-            out |= set(_git("grep", "-l", "-F", n, "--", "tests/test_*.py").split())
+        out |= _naming(needles(rel, tracked), ("tests/test_*.py",))
+        for tool in _naming(needles(rel, tracked), _TOOLS):
+            out |= _naming(needles(tool, tracked), ("tests/test_*.py",))
     return sorted(t for t in out if t not in files and (ROOT / t).is_file())
 
 
