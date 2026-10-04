@@ -11,8 +11,8 @@ run on main is the committed tree par excellence, the one place where a red comi
 recurrence (R336 proposes tickets only for `tree: clean`). Design reviewed by code-critic:
   * `--log-failed` prefixes every line with `job<TAB>step<TAB>timestamp ` — stripped before
     matching, or the importer reads nothing and looks green;
-  * a failed run with zero test nodes (the `gates` job, a shard's setup) is SAID, never
-    silently skipped;
+  * a failed run with zero test nodes (the `gates` job, a shard's setup) is SAID, and since
+    R353 logged as one `ci-step:<job>/<step>` per failed step, closed by the next CI green;
   * ci.yml only: the random-order nightly is order-dependent, and `clean` would turn its
     flakes into tickets;
   * `ts` = when the run FINISHED (`updatedAt`), in the log's millisecond `Z` format, because
@@ -48,6 +48,19 @@ def nodes(log_text: str) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def steps(log_text: str) -> list[str]:
+    """`job/step` of every failed step of a `--log-failed` text, from the line prefix. Pure.
+
+    R353: a red with no test node (the `gates` job, a shard's setup) was only PRINTED — the
+    log never held it, so a gate red for a week counted as nothing."""
+    out = []
+    for line in log_text.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) == 3 and parts[0].strip() and parts[1].strip():
+            out.append(f"{parts[0].strip()}/{parts[1].strip()}")
+    return list(dict.fromkeys(out))
+
+
 def stamp(gh_ts: str) -> str:
     """`2026-09-29T03:57:29Z` → `2026-09-29T03:57:29.000+00:00`, the log's own format. Pure."""
     t = datetime.fromisoformat(gh_ts.replace("Z", "+00:00"))
@@ -65,7 +78,13 @@ def events_of(run: dict, log_text: str | None) -> tuple[list[dict], str | None]:
         return [], None                                  # cancelled / skipped: no verdict
     found = nodes(log_text or "")
     if not found:
-        return [], f"run {run['databaseId']}: failed, 0 test nodes (gates or setup) — not a test red"
+        failed = steps(log_text or "")
+        note = (f"run {run['databaseId']}: failed, 0 test nodes — "
+                f"{len(failed)} step(s) logged as ci-step" if failed else
+                f"run {run['databaseId']}: failed, 0 test nodes and no readable step")
+        return [{"kind": "ci_step", "fingerprint": f"ci-step:{st}", "excerpt": st, "ts": ts,
+                 "session": session, "tree": "clean", "source": "ci", "status": "observed"}
+                for st in failed], note
     return [{"kind": "test_red", "fingerprint": f"test:{n}", "excerpt": n, "ts": ts,
              "session": session, "tree": "clean", "source": "ci", "status": "observed"}
             for n in found], None
@@ -122,7 +141,7 @@ def main() -> int:
     with LOG.open("a", encoding="utf-8") as out:
         for e in events:
             out.write(json.dumps(e, ensure_ascii=False) + "\n")
-    print(f"CI main : {sum(e['kind'] == 'test_red' for e in events)} rouge(s), "
+    print(f"CI main : {sum(e['kind'] in ('test_red', 'ci_step') for e in events)} rouge(s), "
           f"{sum(e['kind'] == 'test_green' for e in events)} vert(s) importés (nouveaux seulement)")
     return 0
 

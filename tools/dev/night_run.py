@@ -384,6 +384,16 @@ def cmd_status(_args) -> int:
     if not entries:
         print("              (vide — première unité de la séance)")
     print()
+    # ── R353 : le journal des défauts, que seul `make defect-log` lisait ─────────
+    try:
+        sys.path.insert(0, str(REPO / "tools" / "dev"))
+        import defect_log
+        events = defect_log.load()
+        if events:
+            print("▶ DÉFAUTS  " + defect_log.summary(
+                defect_log.classify(events, defect_log.touched_files(events))))
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"▶ DÉFAUTS  ⚠️ journal illisible ({type(exc).__name__}) — `make defect-log`")
     # ── Les mails automatiques, que le propriétaire ne lit pas (2026-09-26) ──────
     try:
         age = mail_journal_age_days(MAIL_JOURNAL.read_text(encoding="utf-8"),

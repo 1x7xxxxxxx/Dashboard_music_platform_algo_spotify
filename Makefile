@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: chart-decisions select-audit defect-log inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark duplicates error-class-metrics recap charts-dossier charts-review
+.PHONY: chart-decisions select-audit defect-log defect-close inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark duplicates error-class-metrics recap charts-dossier charts-review
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -923,7 +923,12 @@ select-audit: ## [MINUTES] R338 : trace ce que la suite LIT et rejoue le sélect
 
 defect-log: ## R315 — les défauts relevés à chaque réponse (hook Stop), lus comme défauts : verts, passagers, encore rouges, revenus (billet recurrence: à confirmer)
 	@python3 tools/dev/import_ci_reds.py   # R337 : les rouges de la CI de main, l'arbre propre
+	@python3 tools/dev/import_cron_logs.py # R353 : les crons du poste (.claude/sessions/cron-logs.json, local)
 	@python3 tools/dev/defect_log.py
+
+defect-close: ## R353 — clore À LA MAIN un défaut qu'aucun vert ne peut clore, AVEC sa raison : make defect-close FP=… NOTE="…"
+	@test -n "$(FP)" || { echo "❌ FP manquant. Run: make defect-close FP=<empreinte> NOTE=\"pourquoi\""; exit 1; }
+	@python3 tools/dev/defect_log.py --close "$(FP)" "$(NOTE)"
 
 recap: ## R271 : régénère la page Récap depuis la revue notée des graphiques
 	python3 tools/dev/build_recap.py

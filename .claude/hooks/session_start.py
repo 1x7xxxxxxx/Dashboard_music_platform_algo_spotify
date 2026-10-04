@@ -108,6 +108,27 @@ def mail_banner(journal_text: str, today: str | None = None) -> str:
             + gap)
 
 
+def defect_banner(repo_root: Path) -> str | None:
+    """R353: the defect log was read only by `make defect-log`, run by hand — a red recorded
+    at 15:11 (the stale REPRISE anchor, 2026-10-04) went unread until a commit later."""
+    try:
+        sys.path.insert(0, str(repo_root / "tools" / "dev"))
+        import contextlib
+        import io
+
+        import defect_log
+        import import_cron_logs
+        with contextlib.redirect_stdout(io.StringIO()):  # local logs only, ~0.1 s; the CI
+            import_cron_logs.main()                      # import needs the network: not here
+        events = defect_log.load()
+        if not events:
+            return None
+        rows = defect_log.classify(events, defect_log.touched_files(events))
+        return "🩺 Journal des défauts : " + defect_log.summary(rows)
+    except Exception as exc:  # a banner must never block a session start
+        return f"🩺 Journal des défauts illisible ({type(exc).__name__}) — `make defect-log`"
+
+
 def main():
     repo_root = find_repo_root()
     _write_session_marker(repo_root)
@@ -116,6 +137,10 @@ def main():
     brick_banner = _brick_banner(repo_root)
     if brick_banner:
         print(brick_banner)
+
+    banner = defect_banner(repo_root)
+    if banner:
+        print(banner)
 
     journal = repo_root / ".claude" / "dev-docs" / "ops-mail-journal.md"
     if journal.is_file():

@@ -43,9 +43,12 @@ def test_a_red_run_becomes_clean_reds_and_a_green_run_proves_the_suite() -> None
     assert ci.events_of(dict(RED, conclusion="cancelled"), None) == ([], None)
 
 
-def test_a_red_run_without_test_nodes_is_said_not_skipped() -> None:
+def test_a_red_run_without_test_nodes_is_logged_as_a_ci_step() -> None:
+    """R353: it used to be printed only — a gate red for a week counted as nothing."""
     events, note = ci.events_of(RED, "Gates\tstep\t2026-09-29T03:00:00Z ruff: E501\n")
-    assert events == [] and note and "0 test nodes" in note
+    assert note and "0 test nodes" in note
+    assert [(e["kind"], e["fingerprint"], e["tree"]) for e in events] == [
+        ("ci_step", "ci-step:Gates/step", "clean")]
 
 
 def test_a_second_import_writes_nothing_new(tmp_path) -> None:
