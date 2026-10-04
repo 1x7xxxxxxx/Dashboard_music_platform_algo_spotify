@@ -26,7 +26,6 @@ import os
 
 import numpy as np
 import pandas as pd
-from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_absolute_error, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
@@ -161,6 +160,9 @@ def train_classifiers(ds: pd.DataFrame) -> tuple[dict, dict]:
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
         )
         if use_smote and ytr.sum() >= 6:
+            # Imported here, not at load (R355): the export scripts import this module for
+            # its CONSTANTS only, and the project venv has no imbalanced-learn.
+            from imblearn.over_sampling import SMOTE
             Xtr, ytr = SMOTE(random_state=RANDOM_STATE).fit_resample(Xtr, ytr)
         clf = _clf().fit(Xtr, ytr)
         p_raw = clf.predict_proba(Xte)[:, 1]
