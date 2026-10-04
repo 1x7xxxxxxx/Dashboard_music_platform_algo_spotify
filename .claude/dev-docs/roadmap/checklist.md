@@ -31,9 +31,9 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R364 | Harnais — prouver les 42 exigences « verte, non prouvée » : 26 ont déjà une `mutation:` déclarée (la jouer avec `mutate_guards.py`, vérifier que la ligne a changé, dater dans `SEEN_RED`) ; 16 n'en ont pas (FORMAT-01/03, UX-01/02, ONB-01, SEC-02/04/05/06, ERR-02/03/04, OBS-01/02…) — en écrire une qui incarne le défaut, puis la jouer. OBS-02 est un `test -f` : le remplacer par une preuve qui peut rougir <!-- critic: non — gardes existants mis en défaut, aucun code produit --> <!-- scope: tools/dev/nightly_guard_mutation.py, .claude/dev-docs/architecture/requirements.yaml, tests/ --> | P2 | `make harness-report` : « verte, non prouvée » 42 → 0, « active » 46 → 88 |
-| R365 | Harnais — 8 hooks sans aucune trace d'exécution (`check_error_class_evidence`, `lint_dashboard_view`, `observe`, `pre_compact`, `require_roadmap_entry`, `require_sweep_before_catalogue`, `sensor`, `promote_rex`) et 2 outils nocturnes sans mesure d'activité (`idle_containers.py`, `nightly_guard_mutation.py`) : journaliser chaque appel (nom, durée, verdict) pour que « a tiré » soit mesuré et non supposé <!-- critic: requis — touche le chemin de chaque hook, coût par appel à borner --> <!-- scope: .claude/hooks/, .claude/scripts/, tools/dev/, tests/ --> | P2 | `make harness-report` : composants « aucune trace » 10 → 0 après une séance |
 | R366 | Harnais — trier les composants jamais déclenchés en 30 jours : 14 commandes (`/adr`, `/curator`, `/sprint`, `/sweep`…), 6 skills (`airflow-dag`, `dashboard-view`, `db-schema`…), 2 playbooks (`feature-development`, `architecture-requirements`) — pour chacun : un déclencheur nommé dans une règle, ou le retrait vers `archive/` avec sa raison <!-- critic: requis — retrait de config, décision de conception --> <!-- scope: .claude/commands/, .claude/skills/, .claude/workflows/, archive/, .claude/dev-docs/architecture/, tests/ --> | P3 | `make harness-report` : composants à 0 déclenchement 22 → 0 (déclenchés ou archivés) |
 | R367 | Harnais — les 4 trous (ORCH-01, ORCH-03, RUN-04, RUN-06) renvoient vers R284, qui vit dans `product-backlog.md` derrière un déclencheur de charge : écrire leurs SONDES maintenant (elles rendent l'état mesuré, pas un échec), garder le code de scalabilité derrière le déclencheur <!-- critic: requis — une sonde qui ne doit pas rougir sur un écart accepté --> <!-- scope: tests/, tools/dev/, .claude/dev-docs/architecture/, Makefile --> | P3 | `make harness-report` : trous 4 → 0 |
+| R368 | Harnais — les FORMES VOISINES que les gardes de R364 laissent passer (mutées le 2026-10-04) : BRONZE-02 trigger `trg_revision_*` commenté reste vert (empreinte sans triggers) ; SEC-02 `|| true` sur le portail pip-audit reste vert ; FORMAT-02 `strftime("%d/%m/%y")` vivant à `home_tiles.py:225` non vu ; FORMAT-01/03 plafonds avec 1 à 4 de mou ; FILTER-04 une import `filters` pour le compte Meta masque une vue sans filtre de période ; TEST-01 et ERR-04 testent la fonction, pas l'appel (`main()` / `sys.exit(3)`) ; TEST-03 une durée écrite à la main dans l'aide `make test` <!-- critic: non — durcir des gardes existants, additif --> <!-- scope: tests/, tools/dev/schema_fingerprint.sql, src/dashboard/views/home_tiles.py, .github/workflows/security-nightly.yml, tools/dev/, .claude/scripts/audit_runner.py --> | P3 | chaque forme voisine mutée → rouge, datée dans `SEEN_RED` |
 
 ---
 
@@ -89,7 +89,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R364, R365, R366, R367, R283 -->
+<!-- reprise: open=R364, R366, R367, R368, R283 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

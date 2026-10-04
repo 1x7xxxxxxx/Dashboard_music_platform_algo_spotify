@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R365 — Harnais — 8 hooks sans aucune trace d'exécution (`check_error_class_evidence`, `lint_da… (livrée 2026-10-04)
+
+- [x] **R365 — Harnais — 8 hooks sans aucune trace d'exécution (`check_error_class_evidence`, `lint_dashboard_view`, `observe`, `pre_compact`, `require_roadmap_entry`, `require_sweep_before_catalogue`, `sensor`, `promote_rex`) et 2 outils nocturnes sans mesure d'activité (`idle_containers.py`, `nightly_guard_mutation.py`) : journaliser chaque appel (nom, durée, verdict) pour que « a tiré » soit mesuré et non supposé** (P2) ✅ (2026-10-04, ffcf4e9c)
+  Mesuré par : `make harness-report` : composants « aucune trace » 10 → 0 après une séance
+  17 hooks enregistrés laissent une ligne par run dans hook-runs-*.jsonl ; usage_report.hook_runs + arch_benchmark la lisent ; garde AST muté rouge (CI verte ffcf4e9c)
+  Commits : ffcf4e9c R365 : chaque hook laisse une ligne de trace par exécution, même muet
+
 ## ✅ R275 — Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (not… (livrée 2026-10-04)
 
 - [x] **R275 — Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173)** (P2) ✅ (2026-10-04, 017b1be8, 59412a9e, 01049742, 65f61128)
