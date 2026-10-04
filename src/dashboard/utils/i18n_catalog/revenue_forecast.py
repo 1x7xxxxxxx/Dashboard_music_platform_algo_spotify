@@ -199,7 +199,7 @@ EN = {
     "revenue_forecast.col_streams_28d": "Streams 28d (actual)",
     # Net margin
     "revenue_forecast.ledger_head": "| Revenue | Spend | of which ads | Financial result | Streams (all platforms) | Ads per stream |",
-    "revenue_forecast.ledger_caption": "Since the start. « Ads per stream » divides ad spend by ALL streams, organic included: it is a ceiling, not what a gained stream cost — that one is in « My whole funnel », campaign by campaign.",
+    "revenue_forecast.ledger_caption": "Since the start. « Ads per stream » divides ad spend by ALL streams, organic included: it is a ceiling, not what a gained stream cost — that one is in « Meta Ads › My whole funnel », campaign by campaign.",
     "revenue_forecast.be_short_too_short": "too early to date",
     "revenue_forecast.be_too_short": ("⏳ {c:,.0f} € to go — only {n} month(s) known:<br>"
                                       "too early to date the break-even point"),

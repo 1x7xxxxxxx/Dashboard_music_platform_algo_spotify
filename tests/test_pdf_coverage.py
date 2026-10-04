@@ -49,7 +49,8 @@ _NON_ANALYTICS = {
 # Analytics view → PDF section key (None = deliberately not a standalone section).
 _PDF_MAP = {
     "spotify_s4a_combined": "s4a_songs",
-    "meta_x_spotify":       "meta_x_spotify",
+    # `meta_x_spotify` left the menu (R348, 2026-10-04): it is the « Tout mon funnel » tab
+    # of `meta_ads_overview`. Its PDF section `meta_x_spotify` stays in ALL_SECTIONS.
     "apple_music":          "apple",
     "youtube":              "youtube",
     "soundcloud":           "soundcloud_detail",

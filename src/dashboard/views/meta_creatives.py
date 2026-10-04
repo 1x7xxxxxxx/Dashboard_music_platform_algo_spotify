@@ -818,7 +818,7 @@ def _render_scatter(df: pd.DataFrame) -> None:
                      "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
                      "Les créatives sans résultat (CPR absent) ne sont pas tracées. Le CPR compte des "
                      "CLICS vers les plateformes, pas des écoutes : « à couper » veut dire « cher par "
-                     "clic » — à confirmer dans 🔀 Tout mon funnel › Comparer mes campagnes."))
+                     "clic » — à confirmer dans 📣 Publicité Meta Ads › 🔀 Tout mon funnel › Comparer mes campagnes."))
 
 
 

@@ -114,9 +114,12 @@ NAV_SECTIONS: list = [
     # campagnes » et vivait en troisième ligne d'« Analytics ». Elle monte juste sous
     # l'accueil, sous son nom de parcours. La ROUTE `meta_x_spotify` ne change pas —
     # des liens la visent.
+    #
+    # ⚠️ R348 (2026-10-04, retour d'écran) : « Tout mon funnel » REDESCEND, en onglet de
+    # « 📣 Publicité Meta Ads » — « normalement on a des onglets à disposition pour ça ».
+    # La route survit pour les liens (pitch, récap, PDF).
     ("start",     "",
-     [("🏠 Accueil", "home"),
-      ("🔀 Tout mon funnel", "meta_x_spotify")]),
+     [("🏠 Accueil", "home")]),
     ("data",      "⚙️ Configuration de streaMLytics",
      [("🚀 Mise en route (assistant)", "onboarding"),
       ("🚦 Santé onboarding", "onboarding_health"),
@@ -149,7 +152,7 @@ NAV_SECTIONS: list = [
       ("📣 Publicité Meta Ads", "meta_ads_overview"),
       # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces
       # pages lisent tes données, elles ne prédisent rien. « Tout mon funnel »
-      # (`meta_x_spotify`) est monté sous l'accueil le 2026-09-27 (R213).
+      # (`meta_x_spotify`) est un onglet de « 📣 Publicité Meta Ads » depuis R348.
       ("🎨 Visuels de campagne", "meta_creatives"),
       ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
       ("🎎 Apple Music", "apple_music"),

@@ -206,10 +206,13 @@ def test_what_is_read_together_sits_together() -> None:
 
 def test_the_listener_verdict_opens_the_campaign_page() -> None:
     """R195 : « auditeurs/jour + jours de pub Meta » en TÊTE de `meta_x_spotify`, avant le
-    sélecteur de campagne — elle juge la DERNIÈRE campagne, pas celle qu'on choisit."""
+    sélecteur de campagne — elle juge la DERNIÈRE campagne, pas celle qu'on choisit.
+
+    R348 : le corps vit dans `render_funnel`, que la route ET l'onglet Meta Ads appellent."""
     page = _SPOTIFY.parent / "meta_x_spotify.py"
     tree = ast.parse(page.read_text(encoding="utf-8"))
-    show = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "show")
+    show = next(n for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "render_funnel")
     order = [ast.unparse(c.func) for c in ast.walk(show) if isinstance(c, ast.Call)
              and ast.unparse(c.func) in {"_render_listener_verdict", "_show_body"}]
     assert order == ["_render_listener_verdict", "_show_body"], order

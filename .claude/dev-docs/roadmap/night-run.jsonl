@@ -612,3 +612,9 @@
 {"at": "2026-10-04T17:53:49+00:00", "head": "bc410bde", "kind": "done", "task": "R362", "what": "livrée, CI verte"}
 {"at": "2026-10-04T17:54:24+00:00", "head": "bc410bde", "kind": "start", "task": "R360", "what": "6 écarts partiels du harnais"}
 {"at": "2026-10-04T17:58:44+00:00", "kind": "done", "task": "R359", "what": "fermée par roadmap-close — validate_rex ne juge que les fichiers visibles de git (outils + archives) ; 3 tests mutés 2× rouges ; CI verte bc410bde (run 37222259764)"}
+{"at": "2026-10-04T18:01:25+00:00", "head": "d73d70c6", "kind": "done", "task": "R359", "what": "CI verte bc410bde"}
+{"at": "2026-10-04T18:03:11+00:00", "head": "cae78e90", "kind": "start", "task": "R363", "what": "tests qui polluent les journaux de mesure"}
+{"at": "2026-10-04T18:24:54+00:00", "kind": "done", "task": "R363", "what": "fermée par roadmap-close — 3 sites de test n'écrivent plus les journaux réels (inject_context sans session_id, close_night_unit sur ROADMAP_ROOT, session_start en tmp) ; 1 garde par site vu rouge ; CI verte 9675bbb3"}
+{"at": "2026-10-04T18:27:13+00:00", "head": "6fb3d3f1", "kind": "done", "task": "R363", "what": "tests isolés des journaux réels"}
+{"at": "2026-10-04T18:46:18+00:00", "kind": "done", "task": "R360", "what": "fermée par roadmap-close — Harnais : boucle d'ingénierie, suggest_sweep FR, draft_rex préserve la saisie humaine, skills/rules/conteneurs prouvés ; HARN-09/10/11/12/17/19 conformes. CI verte 62ab81ce"}
+{"at": "2026-10-04T18:48:32+00:00", "head": "9a41b8ad", "kind": "done", "task": "R360", "what": "CI verte, close"}

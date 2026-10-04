@@ -862,11 +862,16 @@ def show():
     st.markdown("---")
 
     with view_session() as (db, artist_id):
-        # En TÊTE, au-dessus du sélecteur de campagne (R195) : elle juge la dernière
-        # campagne de tous les comptes, pas celle qu'on choisit plus bas.
-        _render_listener_verdict(db, artist_id)
-        st.markdown("---")
-        _show_body(db, artist_id)
+        render_funnel(db, artist_id)
+
+
+def render_funnel(db, artist_id) -> None:
+    """The funnel without its title — the standalone route and the Meta Ads tab (R348)."""
+    # En TÊTE, au-dessus du sélecteur de campagne (R195) : elle juge la dernière
+    # campagne de tous les comptes, pas celle qu'on choisit plus bas.
+    _render_listener_verdict(db, artist_id)
+    st.markdown("---")
+    _show_body(db, artist_id)
 
 
 def _campaign_window(camp_start, camp_end, campaign: str) -> tuple:

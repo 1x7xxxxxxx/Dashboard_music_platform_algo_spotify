@@ -92,11 +92,28 @@ def _render_scope_notice(db, artist_id) -> None:
     st.caption(f"ⓘ {period}{answer}")
 
 
+def _section_label(key: str) -> str:
+    if key == "funnel":
+        return t("meta_ads_overview.section_funnel", "🔀 Tout mon funnel — de la pub à l'écoute")
+    return t("meta_ads_overview.section_perf", "📣 Performance des campagnes")
+
+
 def show():
     st.title(t("meta_ads_overview.title", "📱 Méta Ads - Analyse Stratégique"))
 
     # --- 1. CONNEXION & FILTRES ---
     with view_session() as (db, artist_id):
+        # R348 (2026-10-04, owner's screen review): « Tout mon funnel » left the menu and
+        # is a tab of this page. A segmented control rather than `st.tabs`: `st.tabs` runs
+        # every body on each rerun, and the funnel already runs four tabs of its own.
+        section = st.segmented_control(
+            t("meta_ads_overview.section", "Vue"), ["perf", "funnel"],
+            format_func=_section_label,
+            default="perf", key="meta_overview_section") or "perf"
+        if section == "funnel":
+            from src.dashboard.views.meta_x_spotify import render_funnel
+            render_funnel(db, artist_id)
+            return
         _render_scope_notice(db, artist_id)
         _show_meta_ads(db, artist_id)
         # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans

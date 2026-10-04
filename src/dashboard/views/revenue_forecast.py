@@ -312,7 +312,7 @@ def _render_ledger(db, artist_id, cashflow: pd.DataFrame, mensuel: pd.DataFrame)
     st.caption(t("revenue_forecast.ledger_caption",
                  "Depuis le début. « Pub par écoute » divise la dépense publicitaire par TOUTES "
                  "les écoutes, organiques comprises : c'est un plafond, pas ce qu'une écoute "
-                 "gagnée a coûté — celui-là est dans « Tout mon funnel », campagne par campagne."))
+                 "gagnée a coûté — celui-là est dans « 📣 Publicité Meta Ads › Tout mon funnel », campagne par campagne."))
 
 
 def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,

@@ -186,11 +186,12 @@ def test_the_home_stands_alone_at_the_top() -> None:
     Une seule exception, décidée par le propriétaire le 2026-09-26 (R213) : « Tout mon
     funnel », la page qui JOINT les plateformes, monte sous l'accueil — « la valeur du
     produit, ce sont les données jointes ». Rien d'autre n'y remonte, et l'accueil reste
-    premier.
+    premier. R348 (2026-10-04) la redescend en onglet de la page Meta Ads : « normalement on
+    a des onglets à disposition pour ça ».
     """
-    assert _items("start") == ["home", "meta_x_spotify"], (
-        f"la tête du menu porte autre chose que l'accueil et « Tout mon funnel » : "
-        f"{_items('start')}")
+    assert _items("start") == ["home"], (
+        f"la tête du menu porte autre chose que l'accueil : {_items('start')} — « Tout mon "
+        "funnel » est un onglet de « 📣 Publicité Meta Ads » depuis R348 (2026-10-04).")
 
 
 # ══════════════════════════════════════════════════════════════════════════
