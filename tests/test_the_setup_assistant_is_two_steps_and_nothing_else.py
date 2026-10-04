@@ -32,20 +32,30 @@ def _fn(path: Path, name: str) -> ast.FunctionDef:
                 if isinstance(n, ast.FunctionDef) and n.name == name)
 
 
-def bare_depends_on_first_run(fn: ast.FunctionDef) -> bool | None:
-    """Does the `_bare` decision read the first-run flag? None if `_bare` is gone. Pure."""
+def bare_depends_on_first_run(fn: ast.FunctionDef,
+                              helper: ast.FunctionDef | None = None) -> bool | None:
+    """Does the `_bare` decision read the first-run flag? None if `_bare` is gone. Pure.
+
+    Since 2026-10-04 `_bare` is computed by `sidebar_is_bare(page)`: when the assigned
+    value is a call to `helper`, the helper's body is what is read.
+    """
     for n in ast.walk(fn):
         if (isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "_bare"
                                               for t in n.targets)):
-            names = {x.id for x in ast.walk(n.value) if isinstance(x, ast.Name)}
-            consts = {x.value for x in ast.walk(n.value) if isinstance(x, ast.Constant)}
+            value: ast.AST = n.value
+            if (helper is not None and isinstance(value, ast.Call)
+                    and getattr(value.func, "id", "") == helper.name):
+                value = helper
+            names = {x.id for x in ast.walk(value) if isinstance(x, ast.Name)}
+            consts = {x.value for x in ast.walk(value) if isinstance(x, ast.Constant)}
             assert "onboarding" in consts, "`_bare` no longer names the assistant page"
             return "FIRST_RUN_FOCUS" in names or "_focus" in names
     return None
 
 
 def test_the_assistant_sidebar_is_bare_for_every_account() -> None:
-    found = bare_depends_on_first_run(_fn(APP, "_main_body"))
+    found = bare_depends_on_first_run(_fn(APP, "_main_body"),
+                                      _fn(APP, "sidebar_is_bare"))
     assert found is not None, "the `_bare` decision disappeared from `_main_body`"
     assert not found, (
         "the bare sidebar on the assistant depends on the FIRST login again: a configured "

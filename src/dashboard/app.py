@@ -316,6 +316,18 @@ def _select_nav_radio(page_key: str, rendered) -> None:
 
 
 
+def sidebar_is_bare(page: str) -> bool:
+    """Does the sidebar carry ONLY the assistant's steps on this page? Pure.
+
+    R347 (2026-10-04): on the setup assistant the sidebar shows its two steps and
+    nothing else — no menu, no collect button, no language radio, no logout — for
+    every account, not only on the first login. The exit is the assistant's primary
+    button (« Où tu en es » → the first unfinished setup page). Split out of
+    `_main_body` so the decision can be tested without rendering the whole app.
+    """
+    return page == 'onboarding'
+
+
 def render_navigation(role: str, rendered, all_skeys) -> str:
     """Draw the section radios; return the page, plan-gating applied."""
     # Plan-based gating: locked pages shown with 🔒 and routed to upgrade view
@@ -843,7 +855,7 @@ def _main_body():
     # R347 (2026-10-04) — for EVERY account, not only the first login: « on devait aller
     # directement avec deux choix … Et là on peut voir toute l'app ». The exit is the
     # assistant's own primary button, which always leads to a page outside it.
-    _bare = page == 'onboarding'
+    _bare = sidebar_is_bare(page)
 
     # Les ÉTAPES sont rendues DÈS QU'ON EST SUR L'ASSISTANT, première connexion ou
     # non — et la condition était `_bare`, ce qui les réservait à la première.
