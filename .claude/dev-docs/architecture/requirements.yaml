@@ -756,7 +756,7 @@
   preuve: {cmd: "node --check .claude/workflows/engineering-loop.js"}
   ecart: "seule la syntaxe est rejouée ; aucun test ne vérifie le manifeste rendu. 5 lancements, tous dans une même séance (usage_report)"
   opportunite: "écrire un test qui fait tourner le script sur des trouvailles factices avec un agent() simulé et lit le manifeste"
-  roadmap: R356
+  roadmap: R360
   premisse_corrigee: "« le workflow js n'est pas déclenché » : il l'est, 5 fois, mais toutes dans une même séance — le déclencheur existe (require_sweep_before_catalogue.py), il est rarement atteint"
 - id: REQ-HARN-10
   domaine: claude-wsl
@@ -769,7 +769,7 @@
   composants: [.claude/hooks/require_sweep_before_catalogue.py, .claude/hooks/suggest_sweep.py]
   preuve: {pytest: tests/test_the_catalogue_needs_a_real_sweep.py::test_a_sentence_that_names_the_agent_is_not_a_call}
   ecart: "suggest_sweep.py n'a aucun test"
-  roadmap: R356
+  roadmap: R360
   mutation: "faire compter une phrase qui nomme sibling-sweeper comme un appel"
 - id: REQ-HARN-11
   domaine: claude-wsl
@@ -783,7 +783,7 @@
   preuve: {pytest: tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses}
   ecart: "draft_rex.py n'a aucun test ; continuous-learning : 0 appel"
   opportunite: "3 surfaces (draft_rex, /retro, continuous-learning) pour un même geste : en garder une"
-  roadmap: R356
+  roadmap: R360
   mutation: "faire accepter une date YYYY-MM par validate_rex.py"
 - id: REQ-HARN-12
   domaine: claude-wsl
@@ -797,7 +797,7 @@
   preuve: {pytest: tests/test_skills_rules_and_injections_are_counted.py::test_skills_and_workflows_are_counted_with_their_last_date}
   ecart: "les 3 rules sont chargées dans 40 séances sur 40 alors que leur frontmatter porte `globs:` ; dashboard-view, airflow-dag, db-schema, audit-collectors : 0 appel"
   opportunite: "si Claude Code attend `paths:` (à vérifier dans sa doc), les rules se chargent à chaque séance pour rien ; 4 skills sans un appel : retrait ou déclencheur"
-  roadmap: R356
+  roadmap: R360
   mutation: "compter une rule par ligne de transcript au lieu d'une fois par séance"
 - id: REQ-HARN-13
   domaine: claude-wsl
@@ -858,7 +858,7 @@
   preuve: {pytest: tests/test_containers_are_on_demand.py::test_anything_else_running_at_rest_is_a_violation}
   ecart: "la sonde vivante `python3 tools/dev/idle_containers.py` n'est appelée par rien d'automatique ; le docker-compose.yml LOCAL (non versionné) déclare encore `restart: unless-stopped` pour Airflow — `make up` le ramène"
   opportunite: "brancher idle_containers.py dans night-status ; profils compose (`profiles: [airflow]`) pour que `make up` n'allume que postgres"
-  roadmap: R356
+  roadmap: R360
   mutation: "élargir l'exemption de séance à AutoRemove seul"
 - id: REQ-HARN-18
   domaine: defect-log
@@ -884,7 +884,7 @@
   preuve: {pytest: tests/test_new_guards_are_mutated_every_night.py::test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation}
   ecart: "sur 429 classes, 407 `seen_red` valent « self-proving » et 14 seulement sont datés"
   opportunite: "faire écrire la date par le job nocturne guard-mutation quand il voit un garde rougir"
-  roadmap: R356
+  roadmap: R360
   mutation: "accepter une entrée SEEN_RED sans date"
   premisse_corrigee: "« ajouter cause racine / balayage / vu rouge aux classes » : les trois champs existent sur 429 classes sur 429 ; le trou est que le vu rouge est presque toujours « self-proving », rarement daté"
 - id: REQ-HARN-20
