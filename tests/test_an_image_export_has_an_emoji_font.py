@@ -16,8 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FONT = "fonts-noto-color-emoji"
-#: The images whose code exports figures to PNG/PDF: the dashboard (pdf_exporter, pdf_charts,
-#: welcome_figures) and Airflow (the onboarding_report DAG builds the artist PDF).
+#: The images whose code exports figures to PNG/PDF: the dashboard (pdf_exporter, pdf_charts)
+#: and Airflow (the onboarding_report DAG builds the artist PDF).
 EXPORTING_IMAGES = ("Dockerfile", "Dockerfile.airflow")
 
 

@@ -38,6 +38,7 @@ from src.dashboard.utils.algo_preview_data import proba_affichable, texte_planch
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
+from src.dashboard.utils.stat_boxes import stat_box
 
 
 def _format_gate(algo: str, val) -> str:
@@ -470,10 +471,14 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         g1, g2, g3 = st.columns(3)
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
-            with col.container(border=True):
-                st.metric(label, _format_gate(_gate_algo[key], val),
-                          help=t("home.gate_help",
-                                 "Probabilité PRÉDITE par le modèle que ce titre "
-                                 "entre dans cette playlist algorithmique. Ce n'est "
-                                 "pas un taux observé : aucune issue n'a encore été "
-                                 "saisie."))
+            # R346 — compact HTML, not `st.metric`: its label/value fonts are fixed and
+            # « 🆕 Release Radar » was cut to « 🆕 Release Ra… » in a third of the column.
+            # The help survives as the tooltip; the HTML is ONE line (see
+            # tests/test_an_html_placeholder_never_stands_alone_on_its_line.py).
+            col.markdown(stat_box(label, _format_gate(_gate_algo[key], val),
+                                   t("home.gate_help",
+                                     "Probabilité PRÉDITE par le modèle que ce titre "
+                                     "entre dans cette playlist algorithmique. Ce n'est "
+                                     "pas un taux observé : aucune issue n'a encore été "
+                                     "saisie.")),
+                         unsafe_allow_html=True)

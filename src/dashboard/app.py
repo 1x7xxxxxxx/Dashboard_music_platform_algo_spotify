@@ -839,7 +839,11 @@ def _main_body():
     # (`page != 'onboarding'`, `page == 'onboarding'`, `_focus`) qui disaient presque
     # la même chose et divergeaient — un artiste ADMIN voyait les étapes sans le mode
     # première connexion, par exemple.
-    _bare = bool(st.session_state.get(FIRST_RUN_FOCUS)) and page == 'onboarding'
+    #
+    # R347 (2026-10-04) — for EVERY account, not only the first login: « on devait aller
+    # directement avec deux choix … Et là on peut voir toute l'app ». The exit is the
+    # assistant's own primary button, which always leads to a page outside it.
+    _bare = page == 'onboarding'
 
     # Les ÉTAPES sont rendues DÈS QU'ON EST SUR L'ASSISTANT, première connexion ou
     # non — et la condition était `_bare`, ce qui les réservait à la première.

@@ -98,8 +98,8 @@ PLATFORM_LABELS = {
 # proposer une source qui ne pourrait rien tracer.
 STEP_ONLY = {"apple": "year"}
 
-# Le minimum pour qu'une courbe dise quelque chose — le même esprit que `MIN_POINTS`
-# de `welcome_figures`, mais compté sur ce qui est RÉELLEMENT traçable après
+# Le minimum pour qu'une courbe dise quelque chose — sept jours (le seuil de l'ancienne
+# figure de bienvenue, retirée par R347), compté sur ce qui est RÉELLEMENT traçable après
 # conversion des cumuls, pas sur le nombre de lignes en base.
 MIN_POINTS_DRAWN = 7
 

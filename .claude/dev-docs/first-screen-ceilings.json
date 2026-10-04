@@ -19,7 +19,7 @@
     "src/dashboard/views/data_wrapped.py": 8,
     "src/dashboard/views/db_health.py": 8,
     "src/dashboard/views/etl_logs.py": 6,
-    "src/dashboard/views/home_tiles.py": 6,
+    "src/dashboard/views/home_tiles.py": 5,
     "src/dashboard/views/imusician.py": 0,
     "src/dashboard/views/instagram.py": 5,
     "src/dashboard/views/meta_ads_overview.py": 7,

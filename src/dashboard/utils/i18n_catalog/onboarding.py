@@ -22,7 +22,7 @@ EN = {
         "answered us. **Data**: figures have arrived.",
     "onboarding.reco_tag": " — ⭐ recommended",
     "onboarding.need": "You will need: {need}",
-    "onboarding.go_configure": "🔑 Connect my selection →",
+    "onboarding.go_configure": "🔑 Connect my sources →",
     # Les lignes de valeur et de piège par plateforme ont été retirées de l'écran le
     # 2026-09-04 — « on ne garde uniquement les sections à cocher ». Elles vivent
     # désormais là où elles servent : le guide de chaque onglet pour le piège, la
@@ -32,16 +32,7 @@ EN = {
     # Sidebar progress
     "onboarding.b1_title": "1. streaMLytics in brief",
     "onboarding.brief_1": "**All your data in one place, pulled every day, "
-                          "automatically** — Spotify, Instagram, Meta Ads, YouTube, "
-                          "SoundCloud, Apple Music. Your credentials are encrypted; "
-                          "you never re-enter them.",
-    "onboarding.brief_2": "**Spotify algorithm predictions** — when a track is likely "
-                          "to trigger Discover Weekly or Release Radar, from machine "
-                          "learning models trained on your own data.",
-    "onboarding.brief_3": "**Marketing campaign optimisation (Instagram Ads, Meta "
-                          "Ads)** — linking what you spend on promotion to what it "
-                          "actually produces in streams.",
-    "onboarding.figure_mine": "📈 **Your own figures**",
+                          "automatically.**",
     "onboarding.step1": "1. Welcome & pick",
     "onboarding.step2": "2. Where you stand",
     "onboarding.b0_title": "0. Your language",

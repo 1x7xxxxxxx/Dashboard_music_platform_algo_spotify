@@ -1,4 +1,4 @@
-"""Ce que les chiffres Meta de l'accueil permettent de DÉCIDER — en phrases.
+"""Ce que les chiffres Meta de l'accueil permettent de DÉCIDER — en boîtes chiffrées.
 
 Type: Sub
 Uses: streamlit, meta_confidence, proxy_disclosure, plan_gate
@@ -6,8 +6,10 @@ Depends on: les clés Meta de `period_side_metrics` — déjà en mémoire
 Triggers: views/home.py
 Persists in: nothing
 
-Pourquoi des phrases, et pas des jauges
-----------------------------------------
+Pourquoi des boîtes HTML, et pas des jauges
+--------------------------------------------
+R346 (2026-10-04) : le propriétaire voulait des métriques, pas du texte. Les chiffres
+sont donc des boîtes (`utils/stat_boxes.py`), hors du compte des `st.metric` :
 `home_tiles.py` porte **6 `st.metric` pour un plafond de 6**
 (`.claude/dev-docs/first-screen-ceilings.json`) : une jauge de plus fait rougir le
 cliquet du premier écran. Ce n'est pas une contrainte subie — c'est la bonne forme.
@@ -52,6 +54,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.meta_confidence import confidence_factor
 from src.dashboard.utils.plan_gate import bouton_vers, note_de_plan
 from src.dashboard.utils.proxy_disclosure import cpr_help
+from src.dashboard.utils.stat_boxes import stat_box, stat_row
 
 #: En dessous, on ne tire aucune conclusion — on dit qu'on ne peut pas.
 #:
@@ -83,59 +86,62 @@ def _euros(v: float) -> str:
     return f"{v:,.0f}".replace(",", " ")
 
 
-def _ligne_argent(side: dict) -> None:
-    """Ce qui est SORTI et ce qui est RENTRÉ — deux nombres, aucun verdict.
+def _boites(side: dict, depense: float) -> list[str]:
+    """The ad block's figures as metric boxes (R346) — no sentence to read.
 
-    ⚠️ AUCUN HORIZON ICI, ET C'EST MESURÉ, pas prudentiel.
+    ⚠️ « Rentré » is NEVER « 0 € » when no statement was uploaded: an artist who never
+    uploaded one would read a bankruptcy where there is only a missing file.
 
-    Le point mort existe déjà — `utils/artist_cashflow.break_even()` — et il est
-    mieux fait que ce qu'on écrirait à la hâte : quatre états, dont un `jamais` qui
-    refuse d'inventer une date parce que « en inventer une lointaine serait un
-    mensonge poli ». Il vit sur 📈 Prévisions revenus, et l'accueil y RENVOIE.
+    ⚠️ NO HORIZON. The break-even lives on 📈 Prévisions revenus
+    (`utils/artist_cashflow.break_even()`); recomputing it here needs a query (the
+    home page is at its ceiling) and DIVERGED ×2,2 in SQL, measured 2026-09-22.
 
-    Le recopier ici demanderait la série mensuelle, donc une requête — et l'accueil
-    est à 14 sur 14. Le recalculer en SQL DIVERGE, vérifié le 2026-09-22 :
-
-        forward_rate via monthly_net (mois vides remis à zéro)  2,20 €/mois
-        la même question en SQL, mois existants seulement       0,98 €/mois
-
-    ×2,2 sur le rythme, donc sur l'horizon — 107 ans contre 241. `monthly_net`
-    réintroduit les mois sans mouvement à zéro parce qu'« un mois sans mouvement est
-    un mois à zéro, pas un mois qui n'existe pas ». Recopier cette règle, c'est la
-    faire diverger.
-
-    Les deux sommes ci-dessous, elles, n'ont besoin d'aucune interpolation.
+    ⚠️ THE DATE TRAVELS WITH THE COST: in production the last spending day is
+    30/09/2024; without it « 0,109 € » reads in the present tense.
     """
-    sorti, rentre = side.get("cash_sorti"), side.get("cash_rentre")
-    if not sorti:
-        return
+    sorti, rentre, sacem = (side.get("cash_sorti"), side.get("cash_rentre"),
+                            side.get("cash_sacem"))
+    total = (t("home.box_spend_total", "depuis le début : {v} €").format(v=_euros(sorti))
+             if sorti and round(sorti) != round(depense) else "")
+    boxes = [stat_box(t("home.box_spend", "Dépensé en pub"), f"{_euros(depense)} €",
+                      t("home.box_spend_help", "Sur la période affichée."), total)]
+    if sorti:
+        if rentre is None:
+            boxes.append(stat_box(t("home.box_back", "Rentré"), "—", t(
+                "home.money_no_revenue",
+                "Tu n'as pas encore déposé de relevé de distributeur : impossible de "
+                "dire ce que cette dépense t'a rapporté."),
+                t("home.box_back_none", "aucun relevé déposé")))
+        else:
+            split = (t("home.box_back_split", "distributeurs {d} € · SACEM {s} €").format(
+                d=_euros(rentre - sacem), s=_euros(sacem)) if sacem else "")
+            boxes.append(stat_box(t("home.box_back_total", "Rentré depuis le début"),
+                                  f"{_euros(rentre)} €", _caveat(), split))
+    cpr, nom = side.get("best_cpr"), side.get("best_cpr_name")
+    if cpr and nom:
+        jour = side.get("best_cpr_last_day")
+        sub = nom + (t("home.box_cpr_until", " · jusqu'au {jour}").format(
+            jour=format_date(jour)) if jour else "")
+        boxes.append(stat_box(t("home.box_cpr", "Meilleur coût / clic sortant"),
+                              f"{cpr:.3f}".replace(".", ",") + " €", cpr_help(), sub))
+    ecarts = _axes_de(side)
+    if ecarts:
+        e = ecarts[0]
+        boxes.append(stat_box(
+            t("home.box_waste", "Payé au-dessus du meilleur coût"),
+            "≈ " + _euros(e.gaspillage) + " €", _phrase_ecart(e).replace("**", ""),
+            t("home.box_waste_sub", "{axe} — le moins cher : {meilleur}").format(
+                axe=_AXE_NOM.get(e.dimension, lambda: e.dimension)(),
+                meilleur=_lisible(e.meilleur))))
+    return boxes
 
-    if rentre is None:
-        # PAS DE « 0 € ». Un artiste qui n'a jamais déposé de relevé lirait une
-        # faillite là où il n'y a qu'un fichier manquant. La carte d'absence du
-        # distributeur, plus haut sur la page, porte déjà le geste.
-        st.caption(t(
-            "home.money_no_revenue",
-            "Tu n'as pas encore déposé de relevé de distributeur : impossible de "
-            "dire ce que cette dépense t'a rapporté."))
-        return
 
-    sacem = side.get("cash_sacem")
-    st.markdown(t(
-        "home.money_line",
-        "Investi **{sorti} €** · Rentré **{rentre} €**").format(
-            sorti=_euros(sorti), rentre=_euros(rentre))
-        # R262 (note L540) — where the money came from: distributors and SACEM apart.
-        + (t("home.money_split", " — distributeurs {d} € · SACEM {s} €").format(
-            d=_euros(rentre - sacem), s=_euros(sacem)) if sacem else ""))
-    # LA RÉSERVE EST OBLIGATOIRE : ce sont les revenus QU'IL A DÉPOSÉS, sur toute
-    # sa carrière, face à une dépense qui peut s'être arrêtée il y a deux ans. Sans
-    # elle, deux nombres côte à côte se lisent comme un bilan.
-    st.caption(t(
-        "home.money_caveat",
-        "Depuis le début, hors période affichée. Les revenus sont ceux que tu as "
-        "importés — distributeurs et SACEM. Le point mort, lui, se calcule sur "
-        "📈 Prévisions revenus."))
+def _caveat() -> str:
+    """The mandatory reserve: career revenue, not a balance of the period."""
+    return t("home.money_caveat",
+             "Depuis le début, hors période affichée. Les revenus sont ceux que tu as "
+             "importés — distributeurs et SACEM. Le point mort, lui, se calcule sur "
+             "📈 Prévisions revenus.")
 
 
 #: Le nom lisible de chaque axe. Déclaré ici et non dans `meta_axes` : ce module-là
@@ -198,34 +204,18 @@ def _phrase_ecart(e) -> str:
             perte=f"{e.gaspillage:,.0f}".replace(",", " "))
 
 
-def _bloc_axes(side: dict) -> None:
-    """Le pire écart en clair, les deux autres repliés.
+def _detail_axes(side: dict) -> None:
+    """Every axis gap in a sentence, folded: the box above carries the costliest one.
 
-    ⚠️ LE PIRE EN EUROS, PAS EN RAPPORT — et l'écart entre les deux classements est
-    mesuré, pas théorique. Sur le catalogue de l'artiste 1 le 2026-09-22 :
-
-        par rapport      pays ×1,92  >  âge ×1,67  >  placement ×1,27
-        par euros        âge ~768 €  >  pays ~289 €  >  placement ~182 €
-
-    Le pays a le rapport le plus spectaculaire et coûte **2,7 fois moins cher** que
-    l'âge. Classer par rapport aurait envoyé l'artiste chasser le mauvais écart.
-
-    ⚠️ Et un classement de coût par clic NE SAIT PAS ce qu'un clic vaut. La ligne la
-    moins chère du catalogue est `audience_network/rewarded_video` — des clics posés
-    pour obtenir une récompense de jeu. Le plancher de dépense l'écarte ici par
-    chance, pas par construction : la réserve du proxy est donc obligatoire.
+    ⚠️ RANKED IN EUROS, NOT BY RATIO — measured on artist 1 on 2026-09-22, the country
+    has the most spectacular ratio (×1,92) and costs 2,7 times less than age.
     """
     ecarts = _axes_de(side)
     if not ecarts:
         return
-    st.markdown(_phrase_ecart(ecarts[0]))
-    reste = ecarts[1:]
-    if not reste:
-        return
-    titre = t("home.axes_reste", "Les {n} autres axes, moins coûteux").format(
-        n=len(reste))
-    with st.expander(titre, expanded=False):
-        for e in reste:
+    with st.expander(t("home.axes_detail", "Détail par axe ({n})").format(n=len(ecarts)),
+                     expanded=False):
+        for e in ecarts:
             st.markdown(_phrase_ecart(e))
 
 
@@ -298,7 +288,7 @@ def _ligne_activite(side: dict) -> None:
 
 
 def render_meta_advice(side: dict) -> None:
-    """Trois phrases sur ce que la publicité a appris, ou le refus de conclure.
+    """Ce que la publicité a appris, en chiffres (R346), ou le refus de conclure.
 
     Rend `None` sans rien dessiner quand il n'y a pas de dépense : un bloc de
     conseil sur zéro euro dépensé est du bruit sur l'écran de quelqu'un qui n'a
@@ -315,22 +305,9 @@ def render_meta_advice(side: dict) -> None:
     nom = side.get("best_cpr_name")
     depense_campagne = side.get("best_cpr_spend")
 
-    # ⚠️ LA PHRASE DE PÉRIODE NE S'AFFICHE QUE SI ELLE DIT AUTRE CHOSE que la
-    # ligne « Investi / Rentré » juste en dessous. Défaut trouvé en REGARDANT le
-    # rendu : sur le filtre « Depuis le début », les deux portaient le MÊME nombre,
-    # à une ligne d'intervalle — « tu as dépensé 3 088 € » puis « Investi 3 088 € ».
-    #
-    # Elles ne sont pas redondantes par nature : celle-ci est bornée à la période
-    # affichée, l'autre porte toute la carrière. Elles coïncident quand la période
-    # couvre tout, et c'est le cas par défaut — donc le cas que la plupart voient.
-    _sorti = side.get("cash_sorti")
-    if _sorti is None or round(_sorti) != round(depense):
-        st.markdown(t(
-            "home.advice_spend",
-            "Sur la période, tu as dépensé **{depense} €** en publicité.").format(
-                depense=f"{depense:,.0f}".replace(",", " ")))
-
-    _ligne_argent(side)
+    # R346 — figures, not sentences (owner, 2026-10-04: « mettre des métriques plutôt
+    # que du texte »). HTML boxes, not `st.metric`: the first screen counts its gauges.
+    st.markdown(stat_row(_boites(side, depense)), unsafe_allow_html=True)
 
     if not (cpr and nom):
         st.caption(t("home.advice_no_campaign",
@@ -338,27 +315,7 @@ def render_meta_advice(side: dict) -> None:
                      "exploitable."))
         return
 
-    # ⚠️ LA DATE VOYAGE AVEC LE CHIFFRE. Sans elle, « 0,109 € le clic » se lit au
-    # présent — et en production le dernier jour de dépense est le **30/09/2024**,
-    # soit 722 jours. Le coût est juste ; le temps de la phrase était faux.
-    _jour = side.get("best_cpr_last_day")
-    if _jour:
-        st.markdown(t(
-            "home.advice_best_dated",
-            "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant, "
-            "sur ses dépenses jusqu'au **{jour}**.")
-            .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ","),
-                    jour=format_date(_jour)))
-    else:
-        st.markdown(t(
-            "home.advice_best",
-            "Ta campagne la moins chère est **{nom}** : **{cpr} €** le clic sortant.")
-            .format(nom=nom, cpr=f"{cpr:.3f}".replace(".", ",")))
-    # ⚠️ LA RÉSERVE VOYAGE AVEC LE CHIFFRE. Un clic sortant n'est pas une écoute :
-    # la phrase canonique vit dans `proxy_disclosure` et n'est pas réécrite ici.
-    st.caption(cpr_help())
-
-    _bloc_axes(side)
+    _detail_axes(side)
 
     n = _resultats(depense_campagne, cpr)
     confiance = confidence_factor(n) if n else 0.0

@@ -6,7 +6,6 @@ Depends on: artist_credentials table, saas_artists table
 Accessible via /?page=onboarding (authenticated route).
 """
 import logging
-from pathlib import Path
 
 import streamlit as st
 
@@ -74,59 +73,6 @@ def _trial_deadline(artist_id: int | None, db) -> str | None:
 # Sa troisième ligne, elle, disait quelque chose qu'aucun écran ne montre — ce qui se
 # passe APRÈS, quand l'artiste a fermé l'onglet. Elle a rejoint le bloc du guide, qui
 # est devenu « Ton guide, et ce qui se passe ensuite ».
-
-
-_EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "assets" / "examples"
-
-
-def _example_chart(name: str) -> None:
-    """Une figure d'exemple, construite hors ligne par `make example-charts`.
-
-    Un PNG et non un graphique rendu : il n'y a AUCUNE donnée à tracer le jour où
-    cette page compte, la figure doit être identique en app, en mail et en PDF, et
-    `kaleido` est absent de toutes les images — Plotly ne saurait pas l'exporter.
-    Absente, l'image ne casse rien : le texte au-dessus dit déjà la promesse.
-    """
-    path = _EXAMPLES_DIR / name
-    if not path.exists():
-        return
-    st.image(str(path), width="stretch")
-
-
-def _tenant_series(db, artist_id):
-    """Les séries du locataire pour la première figure, ou `None` s'il n'y a rien.
-
-    Rend `({plateforme: [(jour, écoutes du jour), …]}, {plateforme: série cumulée})`
-    — les deux formes que `render_platform_chart` attend — et `None` quand
-    `figure_source` dit « exemple ».
-    Un seul point de décision : le libellé et la courbe ne peuvent pas diverger.
-
-    `tenant_daily_streams` reste la porte d'entrée parce que c'est elle qui décide
-    « assez de données pour tracer » (7 jours, `MIN_POINTS`). Ce qui est TRACÉ, en
-    revanche, ne vient plus d'elle : sa requête additionnait un cumul et un
-    quotidien. Voir `platform_timeseries`.
-    """
-    from src.dashboard.utils.welcome_figures import figure_source, tenant_daily_streams
-
-    rows = tenant_daily_streams(db, artist_id)
-    if figure_source(rows) != "tenant":
-        return None
-    from src.dashboard.utils.platform_timeseries import (
-        MIN_POINTS_DRAWN, combined_daily_streams, daily_streams_by_platform,
-    )
-    series = daily_streams_by_platform(db, artist_id)
-    # « Assez de lignes en base » ne veut pas dire « assez de points à tracer » : les
-    # compteurs cumulatifs ne rendent un point qu'entre deux jours consécutifs. Sans
-    # cette seconde condition, le libellé « Tes chiffres » s'afficherait au-dessus
-    # d'une figure vide — le mélange exact que `figure_source` existe pour empêcher.
-    if len(combined_daily_streams(series)) < MIN_POINTS_DRAWN:
-        return None
-    # La figure est tracée en mode CUMULÉ (le défaut de `render_platform_chart`), et
-    # le cumul des plateformes à compteur ne se déduit pas de leur série quotidienne :
-    # les journées non consécutives en sont absentes. C'est la deuxième moitié du même
-    # reproche — « les datas sont incohérentes » — sur l'autre axe.
-    from src.dashboard.utils.platform_timeseries import cumulative_by_platform
-    return series, cumulative_by_platform(db, artist_id)
 
 
 def _language_buttons() -> None:
@@ -206,77 +152,18 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
 
     _language_buttons()
 
-    # « streaMLytics en bref » — demandé après le test du 2026-08-30. Un artiste qui
-    # vient de créer son compte sait ce qu'il a acheté ; il ne sait pas encore ce que
-    # l'outil FAIT. Trois phrases, avant l'offre et avant le guide.
-    # Trois promesses, trois images. Un artiste sans données ne peut pas voir les
-    # siennes : l'illustration est la seule façon HONNÊTE de montrer ce qui l'attend,
-    # et chaque figure porte « Exemple — données fictives » dans l'image elle-même.
-    # Le dépôt a déjà été mordu par une valeur de démo lue comme réelle (le compteur
-    # public qui comptait nos propres canaris) : un exemple qui ne s'annonce pas est
-    # un mensonge avec un graphique autour.
+    # « streaMLytics en bref » — UNE phrase depuis le 2026-10-04 (R347). Elle portait
+    # trois colonnes (figure du locataire ou exemple, prédiction, Meta) ; la figure
+    # réelle traînait sa légende de plateformes, sa phrase de décision (« Poser ton
+    # point de départ… ») et sa comparaison à la période précédente. Retour d'écran :
+    # « juste laisser streaMLytics en bref et garder uniquement toutes tes données au
+    # même endroit, récupérées chaque jour automatiquement — pas de blabla inutile ».
+    # Les chiffres de l'artiste vivent sur l'accueil ; l'offre, juste en dessous, dit
+    # ce que Premium prédit.
     st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
-    # TROIS COLONNES, pas trois blocs empilés. Demandé le 2026-09-04 : « les
-    # graphiques en plus petit sur la même ligne pour que ça soit visuel ». Empilées,
-    # les trois figures faisaient défiler l'écran d'accueil sur trois hauteurs avant
-    # que l'artiste n'atteigne son offre ; côte à côte, elles se lisent d'un regard
-    # comme ce qu'elles sont — trois promesses, pas trois chapitres.
-    #
-    # L'image AVANT son texte dans chaque colonne : c'est elle qui porte la promesse,
-    # le texte l'explique. `use_container_width` la met à la largeur de la colonne,
-    # donc au tiers — c'est là que « plus petit » se décide, pas dans le PNG, qui
-    # doit rester à sa résolution native pour le PDF et l'e-mail.
-    # Lu AVANT la boucle : une requête, pas trois, et la décision est prise une fois.
-    _mine = _tenant_series(db, artist_id)
-
-    _cols = st.columns(3)
-    for _col, (key, default, image) in zip(_cols, (
-        ("onboarding.brief_1",
-         "**Toutes tes données au même endroit, récupérées chaque jour, "
-         "automatiquement** — Spotify, Instagram, Meta Ads, YouTube, SoundCloud, "
-         "Apple Music. Tes identifiants sont chiffrés ; tu ne ressaisis rien.",
-         "dashboard-global.png"),
-        ("onboarding.brief_2",
-         "**La prédiction des algorithmes Spotify** — quand un titre a des chances "
-         "de déclencher Discover Weekly ou Release Radar, via des modèles de machine "
-         "learning entraînés sur tes données.",
-         "prediction-discover-weekly.png"),
-        ("onboarding.brief_3",
-         "**L'optimisation de tes campagnes marketing (Instagram Ads, Meta Ads)** — "
-         "en reliant ce que tu dépenses en promo à ce que ça produit réellement en "
-         "écoutes.",
-         "meta-x-s4a.png"),
-    )):
-        with _col:
-            # R58, la moitié qui n'attendait pas R1 : la PREMIÈRE figure devient
-            # celle du locataire dès qu'il a de quoi tracer. Les deux autres restent
-            # des illustrations — une prédiction d'algorithme et un croisement Meta ×
-            # Spotify n'existent pas avant d'avoir collecté, et une figure vide dirait
-            # « ça ne marche pas » là où « voilà ce que tu auras » est la vérité.
-            #
-            # `figure_source` décide la courbe ET le libellé, ensemble. C'est le
-            # piège que la tâche nommait d'avance : une figure réelle et une figure
-            # d'exemple côte à côte, sans que rien ne les distingue, est pire que
-            # trois exemples.
-            if image == "dashboard-global.png" and _mine is not None:
-                st.caption(t("onboarding.figure_mine", "📈 **Tes chiffres**"))
-                # `st.line_chart` sur une série bricolée a été remplacé le 2026-09-08,
-                # et les deux moitiés du reproche — « pas beau » et « les datas sont
-                # incohérentes » — avaient chacune une cause distincte :
-                #
-                #   * la SÉRIE additionnait des streams quotidiens et le cumul
-                #     SoundCloud depuis toujours (23 560 « écoutes » chaque jour) ;
-                #   * le RENDU était un `line_chart` nu, sans couleurs de plateforme,
-                #     sans légende et sans distinction entre « zéro » et « pas mesuré ».
-                #
-                # Les deux sont maintenant réglés au même endroit que l'accueil.
-                from src.dashboard.utils.platform_chart import render_platform_chart
-                render_platform_chart(_mine[0], cumulative=_mine[1],
-                                      key="onb_trend",
-                                      decision_key="views/onboarding.py::platform")
-            else:
-                _example_chart(image)
-            st.markdown(t(key, default))
+    st.markdown(t("onboarding.brief_1",
+                  "**Toutes tes données au même endroit, récupérées chaque jour, "
+                  "automatiquement.**"))
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",
@@ -415,9 +302,11 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     with _mid:
         if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
                      type="primary", width="stretch", key="_onb_go_creds"):
+            # « Où tu en es », pas Credentials (R347) : l'assistant n'a que deux
+            # étapes et ce bouton mène à la seconde ; c'est elle qui envoie vers la
+            # première étape non faite.
             st.session_state[_STEP_KEY] = 2
-            _goto('credentials')
-            return
+            st.rerun()
 
 
 # `_platform_picker` et `_platform_checkbox` ont été supprimés le 2026-09-05 avec le

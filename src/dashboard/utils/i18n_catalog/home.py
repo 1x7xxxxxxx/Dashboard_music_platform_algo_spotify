@@ -14,7 +14,6 @@ EN = {
     ),
     "home.launching": "Launching collections…",
     "home.next_step": "Your next step",
-    "home.money_split": " — distributors {d} € · SACEM {s} €",
     "home.collection_running": "🔄 {label} — collection running, each platform's state "
                                "is in the sidebar.",
     "home.launched": "🚀 Collection launched — your first numbers arrive in "
@@ -193,15 +192,6 @@ EN = {
     "alerts.freshness_unreadable": (
         "\u26a0\ufe0f Could not read source freshness \u2014 this is not \u00ab all good \u00bb, it is \u00ab we do not know \u00bb."),
     "home.advice_header": "\U0001F4F1 What your advertising has learned",
-    "home.advice_spend": "Over the period you spent **{depense} \u20ac** on advertising.",
-    "home.advice_best": (
-        "Your cheapest campaign is **{nom}**: **{cpr} \u20ac** per outbound click."),
-    # ── LA DATE VOYAGE AVEC LE CHIFFRE (2026-09-22) ─────────────────────────────
-    # Sans elle, « 0,109 € per outbound click » se lit au présent, et la dernière
-    # dépense de ce catalogue date du 30/09/2024 — 722 jours, mesurés en production.
-    "home.advice_best_dated": (
-        "Your cheapest campaign is **{nom}**: **{cpr} \u20ac** per outbound click, "
-        "on its spending up to **{jour}**."),
     # Les deux états d'un compte qui ne dépense plus. Ils ne se confondent pas : le
     # premier SAIT qu'aucune campagne ne tourne (`meta_campaigns` porte des lignes,
     # aucune ACTIVE), le second ne sait pas (la liste est vide). Affirmer « none is
@@ -228,8 +218,6 @@ EN = {
         "raise or cut."),
     "home.advice_cta_locked_help": (
         "The detailed comparison of your campaigns is included in the subscription."),
-    # ── Investi / Rentré (2026-09-22) ──────────────────────────────────────
-    "home.money_line": "Invested **{sorti} \u20ac** \u00b7 Earned back **{rentre} \u20ac**",
     "home.money_caveat": (
         "Since the beginning, outside the selected period. The revenue is what you "
         "imported \u2014 distributors and SACEM. The break-even point is computed on "
@@ -245,5 +233,17 @@ EN = {
         "On **{axe}**, your best result is **{meilleur}** at {cpr_min} \u20ac per "
         "outbound click, and your worst **{pire}** at {cpr_max} \u20ac. About "
         "**{perte} \u20ac** went above the cheapest cost."),
-    "home.axes_reste": "The {n} other axes, less costly",
+    # ── R346 : the ad block as metric boxes (2026-10-04) ──────────────────
+    "home.box_spend": "Spent on ads",
+    "home.box_spend_help": "Over the selected period.",
+    "home.box_spend_total": "since the beginning: {v} \u20ac",
+    "home.box_back": "Earned back",
+    "home.box_back_none": "no statement uploaded",
+    "home.box_back_total": "Earned back since the beginning",
+    "home.box_back_split": "distributors {d} \u20ac \u00b7 SACEM {s} \u20ac",
+    "home.box_cpr": "Best cost / outbound click",
+    "home.box_cpr_until": " \u00b7 up to {jour}",
+    "home.box_waste": "Paid above the cheapest cost",
+    "home.box_waste_sub": "{axe} \u2014 cheapest: {meilleur}",
+    "home.axes_detail": "Detail per axis ({n})",
 }

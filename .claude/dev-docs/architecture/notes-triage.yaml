@@ -1740,8 +1740,8 @@
   domaine: onboarding
   statut: livré
   priorite: P3
-  preuve_statut: onboarding.py:216-270 three columns brief_1..brief_3
-  preuve_ciblee: tests/test_the_welcome_figure_says_whose_it_is.py
+  preuve_statut: R347 (2026-10-04) — reduced on owner request to brief_1 only (« toutes tes données au même endroit »)
+  preuve_ciblee: tests/test_the_setup_assistant_is_two_steps_and_nothing_else.py
 - ligne: 240
   resume: 'Block 2 welcome offer: 1-month premium and what is lost after'
   type: action-produit
@@ -1950,9 +1950,9 @@
   domaine: onboarding
   statut: livré
   priorite: P4
-  preuve_statut: onboarding.py:229-270 three columns; verification_email.py:206/229 _welcome_image_row + inline
-    images; commit c62370d2
-  preuve_ciblee: tests/test_the_welcome_figure_says_whose_it_is.py
+  preuve_statut: verification_email.py _welcome_image_row + inline images (commit c62370d2); the app welcome step
+    dropped its figures in R347 (2026-10-04, owner request)
+  preuve_ciblee: tests/test_the_setup_page_is_reachable_and_on_top.py
 - ligne: 268
   resume: On Meta×Spotify chart add algo trigger threshold with % chance and dotted prediction; offer shows ad €
     and setup (deferred by owner)
@@ -1961,8 +1961,8 @@
   statut: ouvert
   priorite: P4
   preuve_statut: Deferred again at R282's close (2026-09-28) — the model barely changes its mind week to
-    week (fiche 126); no threshold/probability overlay in dashboard/utils/welcome_figures.py
-  preuve_ciblee: 'test to write: welcome Meta×S4A figure carries a threshold trace (src/dashboard/utils/welcome_figures.py)'
+    week (fiche 126); no threshold/probability overlay in tools/dev/make_example_charts.py
+  preuve_ciblee: 'test to write: welcome Meta×S4A figure carries a threshold trace (tools/dev/make_example_charts.py)'
   roadmap: R302
 - ligne: 268
   resume: '''Configure my selection'' should go straight to connect section, not an intermediate page'

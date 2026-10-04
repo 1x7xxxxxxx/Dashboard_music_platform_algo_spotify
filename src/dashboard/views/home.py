@@ -159,6 +159,10 @@ def _section_freshness(db, artist_id, etat=None):
             with col:
                 # HIGH-07: html.escape() on all interpolated values — defence-in-depth
                 # against stored XSS if a DB-sourced value ever reaches these variables.
+                # R346: `{_divergence}` stays GLUED to the previous tag. Alone on its line
+                # it left a blank line whenever it was "" (the usual case): CommonMark
+                # ends an HTML block at a blank line, and the indented `</div>` after it
+                # rendered as literal text under every tile.
                 st.markdown(
                     f"""<div style="border:1px solid {_html.escape(color)}; border-radius:8px;
                         padding:8px 6px; background:{_html.escape(color)}18; text-align:center;">
@@ -166,8 +170,7 @@ def _section_freshness(db, artist_id, etat=None):
                         <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{_html.escape(label)}</div>
                         <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
                         <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
-                        <div style="font-size:0.62em; color:#999; margin-top:2px;">{_html.escape(when)}</div>
-                        {_divergence}
+                        <div style="font-size:0.62em; color:#999; margin-top:2px;">{_html.escape(when)}</div>{_divergence}
                     </div>""",
                     unsafe_allow_html=True
                 )

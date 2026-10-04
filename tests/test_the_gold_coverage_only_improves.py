@@ -301,7 +301,9 @@ _FLOOR: dict[str, int] = {
     # chart; fiche 44 gains one (the written verdict under the cohort position).
     # 2026-09-27 (R249) : 166 → 162 — the MRR projection tab (fiche 61, « à retirer »)
     # took its four tiles with it (MRR final, ARR final, months to target ×2).
-    "tiles.total": 162,
+    # 2026-10-04 (R346) : 162 → 161 — the three algorithm gates of the home page are
+    # compact HTML boxes now (owner: the `st.metric` font was too big); same figures.
+    "tiles.total": 161,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,
