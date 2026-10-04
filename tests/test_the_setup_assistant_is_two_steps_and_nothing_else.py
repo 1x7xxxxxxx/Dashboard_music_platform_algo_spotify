@@ -76,8 +76,21 @@ def test_connect_my_sources_goes_to_step_two() -> None:
         "assistant; it led straight to Credentials (R347).")
 
 
+def _strings_and_names(path: Path) -> set[str]:
+    """Every string constant, name and function name of a module. Pure."""
+    out: set[str] = set()
+    for n in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            out.add(n.value)
+        elif isinstance(n, ast.Name):
+            out.add(n.id)
+        elif isinstance(n, ast.FunctionDef):
+            out.add(n.name)
+    return out
+
+
 def test_the_welcome_block_is_one_sentence() -> None:
-    src = ONB.read_text(encoding="utf-8")
-    for gone in ("onboarding.brief_2", "onboarding.brief_3", "_example_chart"):
-        assert gone not in src, f"{gone} is back in the welcome step (R347: no filler)"
-    assert "onboarding.brief_1" in src, "the one sentence that stays is gone too"
+    seen = _strings_and_names(ONB)
+    back = {"onboarding.brief_2", "onboarding.brief_3", "_example_chart"} & seen
+    assert not back, f"{back} is back in the welcome step (R347: no filler)"
+    assert "onboarding.brief_1" in seen, "the one sentence that stays is gone too"
