@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R342 — `make error-inbox-check` se périme par la seule HORLOGE : `error-inbox.md` porte des âg… (livrée 2026-10-04)
+
+- [x] **R342 — `make error-inbox-check` se périme par la seule HORLOGE : `error-inbox.md` porte des âges relatifs (« il y a N j ») et un horodatage de génération, donc l'arbre est sale à chaque séance sans qu'aucun défaut n'ait changé. Rendre le document fonction des données seules** (P4) ✅ (2026-10-04, 2d0affe3)
+  Mesuré par : régénérer deux fois à 1 min d'écart : `git diff --quiet`
+  CI verte 2d0affe3 ; regenere deux fois, diff nul
+  Commits : 2d0affe3 R342 : error-inbox.md ne depend plus de l'horloge - ages relatifs remp
+
+## ✅ R340 — Sécurité nocturne ROUGE 6 nuits (2026-09-29 → 10-04) : `reopen-check` rouvre R122, `eve… (livrée 2026-10-04)
+
+- [x] **R340 — Sécurité nocturne ROUGE 6 nuits (2026-09-29 → 10-04) : `reopen-check` rouvre R122, `ever_recurred_observed` = 55 > 53 (récidives du 2026-09-28). `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 53 → 55, dans le commentaire qui nomme les deux récidives** (P2) ✅ (2026-10-04, 2a9854f6, 10260a0f)
+  Mesuré par : `make reopen-check` sans ROUVRIR ; nuit de sécurité verte
+  CI verte 10260a0f ; seuil R122 53->55
+  Commits : 2a9854f6 Journal des mails ops : 2026-09-29 -> 2026-10-04 tries (rouge nocturne · 10260a0f R340 : R122 acquittee une seconde fois - ever_recurred_observed 55 (re
+
 ## ✅ R339 — `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : u… (livrée 2026-10-04)
 
 - [x] **R339 — `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : une fermeture par LOT (71f7fd08) ne passe pas par `roadmap-close`, donc pas de `done` au journal — une unité dont la tâche est archivée n'est plus en cours** (P3) ✅ (2026-10-04, df709376)
