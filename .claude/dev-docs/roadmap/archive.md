@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R352 — Poste : VS Code Remote WSL déconnecté 3× le 2026-10-04 (15:15, 15:25, 15:31) — échecs d… (livrée 2026-10-04)
+
+- [x] **R352 — Poste : VS Code Remote WSL déconnecté 3× le 2026-10-04 (15:15, 15:25, 15:31) — échecs d'allocation noyau d'ordre 7 sur le socket Hyper-V (`hvs_probe`), swap plein, charge 32 ; trace mémoire : deux serveurs knowledge-rag à 3,2–4 Go pendant `make test-changed` à 2 workers (pic mesuré 2,2 Go au premier `search_books`, la réserve en suppose 1,6). (a) `pytest_workers.py` : réserve knowledge-rag au pic mesuré et déficit de swap compté ; (b) les cibles de test tournent dans un scope systemd plafonné (`MemoryHigh`/`MemoryMax`) et en `nice`, pour que la suite soit freinée ou tuée elle-même plutôt que le canal de VS Code ; (c) noyau : `vm.min_free_kbytes` relevé et `vm.compaction_proactiveness` remis à 20 (il valait 0), persisté dans `/etc/sysctl.d`** (P3) ✅ (2026-10-04, 01241bf7)
+  Mesuré par : `tests/test_the_worker_count_follows_what_can_grow.py` ; `sysctl vm.min_free_kbytes vm.compaction_proactiveness` ; une suite lancée sous `systemd-cgls` dans son scope
+  Relecture du catalogue en flux : VmHWM 4 047 → 71 Mo, 51 → 17 s, sortie identique (01241bf7). Suite sous scope systemd 4G/5G + nice 10 ; réserve RAG_PEAK_MB 2 300 mesuré ; sysctl min_free_kbytes=131072 + compaction_proactiveness=20 (hors dépôt). FORCE_CI : la CI de 01241bf7 était rouge sur des défauts hérités (portées R348-R351 absentes, ancre), corrigés par 9ec7cd46 + 3bb0676a — CI verte sur 3bb0676a (run 37209022000).
+  Commits : 01241bf7 R352 : la suite ne peut plus affamer VS Code Remote WSL
+
 ## ✅ R345 — Documents générés À LA DEMANDE, plus versionnés : `error-class-health.{md,json}`, `erro… (livrée 2026-10-04)
 
 - [x] **R345 — Documents générés À LA DEMANDE, plus versionnés : `error-class-health.{md,json}`, `error-class-families.md`, `gold-coverage.md`. Mesuré le 2026-10-04 : 302 commits sur 652 depuis le 20/09 (46 %) en touchent un, 15 646 lignes de churn, AUCUN hook/commande/agent ne les lit, et leur péremption est le premier rouge récurrent du journal des défauts (15, 8, 2 retours). Les cliquets restent — calculés sur l'arbre au lieu d'un fichier commité ; la série temporelle d'`error-health` se recalcule depuis l'historique du catalogue. `error-inbox.md` reste (3 commits, source = base)** (P4) ✅ (2026-10-04, 235d9b84, b7cb7183)
