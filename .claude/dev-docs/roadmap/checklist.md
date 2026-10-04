@@ -38,7 +38,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R351 | Apple Music, retour d'écran du 2026-10-04 : évolution des Shazam entre deux campagnes (dernière sortie par défaut, une seconde campagne au choix) | P3 | test : deux fenêtres de campagne donnent deux séries Shazam alignées sur J0 <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
 | R353 | Journal des défauts, ce qu'il ne capte pas (mesuré le 2026-10-04) : (a) un rouge CI SANS nœud de test (gates, setup — R347 `c8b60da2`) n'est qu'un avertissement → défaut `ci-step:<job>/<étape>`, clos par le vert CI suivant ; (b) une traceback ne se clôt JAMAIS (5 « ouvertes » depuis le 27/09, dont 2 corrigées) → close par un commit sur son fichier + un vert CI après, ou `make defect-close FP= NOTE=` ; (c) les crons du poste (mail RAG n8n, book_drop) échouent sans trace — « LLM indisponible » le 2026-10-04 11:46 → défaut `cron:<nom>` depuis leurs journaux (liste locale, gitignorée), clos par le `rc=0` suivant ; (d) rien ne le LIT : une ligne au démarrage de séance et dans `make night-status` <!-- critic: non — outillage local du journal, aucune donnée produit ni contrat --> <!-- scope: tools/dev/, .claude/scripts/, .claude/hooks/, Makefile, tests/, CLAUDE.md --> | P3 | tests : un run gates rouge produit `ci-step:` ; une traceback est close après commit+vert ; un `rc=3` de cron devient un défaut et le `rc=0` suivant le clôt |
 | R354 | Pre-commit `test-durations-known` : refus le plus répété encore actif (18 refus, dernier le 2026-10-04) — il MESURE la durée manquante puis refuse pour qu'on indexe `.test_durations` à la main ; il l'indexe lui-même et laisse passer <!-- critic: non — un hook de commit, aucune donnée --> <!-- scope: tools/dev/check_durations_are_collectable.py, .pre-commit-config.yaml, tests/ --> | P4 | test : `--fix-once` indexe `.test_durations` et sort 0 quand la mesure a comblé le trou |
-| R355 | `machine_learning/train.py` importe `imblearn` au chargement : tout script qui veut ses SEULES constantes (`export_algo_stream_estimates.py`, `derive_thresholds.py`…) casse dans le venv du projet (`ModuleNotFoundError`, journal des défauts du 2026-09-27) → import paresseux dans la branche SMOTE <!-- critic: non — un import déplacé, comportement d'entraînement identique --> <!-- scope: machine_learning/train.py, tests/ --> | P3 | test : `import train` réussit sans `imblearn` |
 
 ---
 
@@ -94,7 +93,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R346, R347, R348, R349, R350, R351, R353, R354, R355, R283, R275 -->
+<!-- reprise: open=R346, R347, R348, R349, R350, R351, R353, R354, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

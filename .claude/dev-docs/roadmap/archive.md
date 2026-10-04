@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R355 — `machine_learning/train.py` importe `imblearn` au chargement : tout script qui veut ses… (livrée 2026-10-04)
+
+- [x] **R355 — `machine_learning/train.py` importe `imblearn` au chargement : tout script qui veut ses SEULES constantes (`export_algo_stream_estimates.py`, `derive_thresholds.py`…) casse dans le venv du projet (`ModuleNotFoundError`, journal des défauts du 2026-09-27) → import paresseux dans la branche SMOTE** (P3) ✅ (2026-10-04, 7cb404f2)
+  Mesuré par : test : `import train` réussit sans `imblearn`
+  train.py importe SMOTE dans sa branche : les scripts d'export chargent ses constantes sans imbalanced-learn ; test vu rouge par mutation. CI de 7cb404f2 rouge sur l'ancre REPRISE SEULE (test_the_anchor_matches_the_open_index, faute de 1207722d), recalée par 1becaee6 — CI verte.
+  Commits : 7cb404f2 R355 : train.py se charge sans imbalanced-learn — import de SMOTE dans
+
 ## ✅ R352 — Poste : VS Code Remote WSL déconnecté 3× le 2026-10-04 (15:15, 15:25, 15:31) — échecs d… (livrée 2026-10-04)
 
 - [x] **R352 — Poste : VS Code Remote WSL déconnecté 3× le 2026-10-04 (15:15, 15:25, 15:31) — échecs d'allocation noyau d'ordre 7 sur le socket Hyper-V (`hvs_probe`), swap plein, charge 32 ; trace mémoire : deux serveurs knowledge-rag à 3,2–4 Go pendant `make test-changed` à 2 workers (pic mesuré 2,2 Go au premier `search_books`, la réserve en suppose 1,6). (a) `pytest_workers.py` : réserve knowledge-rag au pic mesuré et déficit de swap compté ; (b) les cibles de test tournent dans un scope systemd plafonné (`MemoryHigh`/`MemoryMax`) et en `nice`, pour que la suite soit freinée ou tuée elle-même plutôt que le canal de VS Code ; (c) noyau : `vm.min_free_kbytes` relevé et `vm.compaction_proactiveness` remis à 20 (il valait 0), persisté dans `/etc/sysctl.d`** (P3) ✅ (2026-10-04, 01241bf7)
