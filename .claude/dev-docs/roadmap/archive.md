@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R358 — Deux défauts du harnais : la porte des durées collecte les fichiers de tests NON suivis… (livrée 2026-10-04)
+
+- [x] **R358 — Deux défauts du harnais : la porte des durées collecte les fichiers de tests NON suivis (un fichier d'une autre séance bloque le commit) ; des tests balaient `.claude/worktrees/`** (P4) ✅ (2026-10-04, 2985faca)
+  Mesuré par : un fichier de test non suivi ne change plus le verdict de la porte ; un worktree ne fait plus rougir les deux tests
+  Porte des durées : un id qui nomme un fichier non suivi est laissé hors (commit R358 passé sans SKIP malgré le fichier funnel non suivi d'une autre séance) ; tools/dev/repo_files.py + sonde conftest : aucune marche n'entre dans .claude/worktrees/. CI 65eca0d1 verte
+  Commits : 2985faca R358 : deux défauts du harnais — la porte des durées et les marches di
+
 ## ✅ R357 — Sondes manquantes du harnais : injections de workflows journalisées, compte des skills/… (livrée 2026-10-04)
 
 - [x] **R357 — Sondes manquantes du harnais : injections de workflows journalisées, compte des skills/rules chargées sur 30 j, test du hook PreCompact, conteneurs à la demande (compose sans `restart` hors postgres + sonde des conteneurs au repos)** (P4) ✅ (2026-10-04, d13f97c4)
