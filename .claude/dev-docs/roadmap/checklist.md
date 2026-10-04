@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R346 | Accueil, retour d'écran du 2026-10-04 : (a) `</div>` affiché en texte sous « Collecte automatique » / « À déposer toi-même » — une ligne blanche dans un bloc HTML multi-lignes (`_divergence` vide) clôt le bloc CommonMark, la suite indentée devient du texte ; HTML émis sur une ligne + balayage des frères ; (b) police trop grosse sur les trois cases Discover Weekly / Radio / Release Radar ; (c) « Ce que ta publicité a apporté » en métriques plutôt qu'en phrases <!-- critic: non — rendu d'accueil, aucune donnée ni contrat modifié --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/views/home_meta_advice.py, src/dashboard/utils/, tests/ --> | P3 | le rendu de l'accueil ne contient plus de `</div>` littéral (test) ; capture d'écran |
+| R347 | Mise en route, retour d'écran du 2026-10-04 : l'assistant ne montre QUE ses deux étapes (plus de menu complet), le bloc « streaMLytics en bref » garde la seule promesse « toutes tes données au même endroit, récupérées chaque jour » (plus de figure ni de légende), « 🔑 Connecter mes sources → » mène à « 2. Où tu en es » au lieu de Credentials <!-- critic: non — parcours d'interface, pas de donnée --> <!-- scope: src/dashboard/views/onboarding.py, src/dashboard/app.py, src/dashboard/views/i18n/, tests/ --> | P3 | AppTest : sur l'assistant la barre ne rend pas `render_navigation` ; le bouton pose l'étape 2 |
 
 ---
 
