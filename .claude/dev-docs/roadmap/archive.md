@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ⛔ R354 — Pre-commit `test-durations-known` : refus le plus répété encore actif (18 refus, dernier l… (abandonnée 2026-10-04)
+
+- [x] **R354 — ABANDONNÉE le 2026-10-04, sans livraison.** Pre-commit `test-durations-known` : refus le plus répété encore actif (18 refus, dernier le 2026-10-04) — il MESURE la durée manquante puis refuse pour qu'on indexe `.test_durations` à la main ; il l'indexe lui-même et laisse passer
+  Mesuré par : test : `--fix-once` indexe `.test_durations` et sort 0 quand la mesure a comblé le trou
+  Leçon : R354 proposait que le hook pre-commit des durées indexe lui-même `.test_durations` au lieu de refuser une fois (`--fix-once`). Ce refus est VOULU — décision code-critic de R319, « jamais de `git add` silencieux, jamais un 0 après une réécriture ». Mesure : 18 refus pour 76 fichiers de test neufs depuis le 2026-09-27, soit une relance par test, coût faible. Le revenir sans information nouvelle contredirait une décision de critic.
+  Constat distinct, à ne pas confondre : le hook collecte aussi les fichiers de test NON SUIVIS d'une autre séance et exige leurs durées (contourné par `SKIP=test-durations-known` sur 7cb404f2). C'est un défaut à part, pas une raison de rouvrir R354.
+
 ## ✅ R355 — `machine_learning/train.py` importe `imblearn` au chargement : tout script qui veut ses… (livrée 2026-10-04)
 
 - [x] **R355 — `machine_learning/train.py` importe `imblearn` au chargement : tout script qui veut ses SEULES constantes (`export_algo_stream_estimates.py`, `derive_thresholds.py`…) casse dans le venv du projet (`ModuleNotFoundError`, journal des défauts du 2026-09-27) → import paresseux dans la branche SMOTE** (P3) ✅ (2026-10-04, 7cb404f2)
