@@ -474,3 +474,22 @@ def test_the_path_checker_sees_the_defect_it_is_written_for(tmp_path):
     assert ccr.dangling_refs(cfg, text, tmp_path) == ["settings.json:2:.claude/scripts/gone.py"]
     hook = tmp_path / "hook.py"
     assert ccr.dangling_refs(hook, "x = 1\n# see .claude/scripts/gone.py\n", tmp_path) == []
+
+
+def test_a_path_on_the_disk_but_not_versioned_is_dangling(tmp_path):
+    """R345: a gitignored generated document exists on the author's disk only. Judged on
+    the disk, the checker went green here and red in CI; it must judge what git versions."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "check_config_refs", REPO / ".claude" / "scripts" / "check_config_refs.py")
+    ccr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ccr)
+    docs = tmp_path / ".claude" / "dev-docs"
+    docs.mkdir(parents=True)
+    (docs / "kept.md").write_text("x\n", encoding="utf-8")
+    (docs / "generated.md").write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", ".claude/dev-docs/kept.md"], cwd=tmp_path, check=True)
+    text = "see .claude/dev-docs/kept.md\nsee .claude/dev-docs/generated.md\nsee .claude/dev-docs/\n"
+    assert ccr.dangling_refs(tmp_path / "CLAUDE.md", text, tmp_path) == [
+        "CLAUDE.md:2:.claude/dev-docs/generated.md"]

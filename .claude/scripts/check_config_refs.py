@@ -32,6 +32,7 @@ from __future__ import annotations
 import ast
 import pathlib
 import re
+import subprocess
 import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -181,9 +182,34 @@ def dangling_refs(path, text: str, repo=None) -> list[str]:
             target = match.group(0)
             if target.startswith(_RUNTIME):
                 continue
-            if not (repo / target).exists():
+            if not _resolves(repo, target):
                 out.append(f"{shown}:{num}:{target}")
     return out
+
+
+def _tracked(repo: pathlib.Path) -> set[str] | None:
+    """Tracked paths, or None outside a git checkout (a fabricated test repo)."""
+    r = subprocess.run(["git", "ls-files"], cwd=repo, capture_output=True, text=True)
+    return set(r.stdout.split()) if r.returncode == 0 and r.stdout else None
+
+
+def _resolves(repo: pathlib.Path, target: str) -> bool:
+    """Judged on what git VERSIONS, not on the disk (R345, 2026-10-04).
+
+    A gitignored generated document exists on the author's disk and nowhere else: a disk
+    check went green here and red in CI on four CLAUDE.md references to the measurement
+    documents R345 stopped versioning (class `a-test-that-only-ever-ran-on-its-authors-
+    machine`)."""
+    if not (repo / target).exists():
+        return False
+    tracked = _TRACKED.setdefault(repo, _tracked(repo))
+    if tracked is None:
+        return True
+    t = target.rstrip("/")
+    return t in tracked or any(x.startswith(t + "/") for x in tracked)
+
+
+_TRACKED: dict = {}
 
 
 def main() -> int:

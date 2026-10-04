@@ -3948,6 +3948,7 @@
     "tests/test_ci_checks_out_the_history_its_guards_read.py::test_the_builder_still_reads_git": 0.12098319300275762,
     "tests/test_ci_checks_out_the_history_its_guards_read.py::test_the_detector_sees_the_defect_it_is_written_for": 0.0011598890050663613,
     "tests/test_claude_config_floor.py::test_a_benign_command_still_passes": 0.02961766799853649,
+    "tests/test_claude_config_floor.py::test_a_path_on_the_disk_but_not_versioned_is_dangling": 0.1344125189989427,
     "tests/test_claude_config_floor.py::test_bypass_permissions_stays_off": 0.0007261339997057803,
     "tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves": 0.10581415200431366,
     "tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire": 0.003571104993170593,
