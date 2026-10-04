@@ -1,4 +1,4 @@
-"""A placeholder in a markdown HTML block never stands alone on its line.
+"""A markdown HTML block can never render a blank line, whatever its placeholders hold.
 
 Type: Hook
 Uses: ast over src/dashboard
@@ -11,11 +11,23 @@ showed a literal `</div>` under every tile. The f-string passed to
 `_divergence` is "" in the usual case: the line became blank, CommonMark ended the HTML
 block there, and the indented `</div>` after it rendered as text.
 
-The property is « no rendered line can become blank », and the form that breaks it is a
-line made of ONE placeholder and whitespace. A placeholder glued to a tag
-(`<div>{x}</div>`) has the shape of the class without the property: an empty value leaves
-`<div></div>`, not a blank line — so it is not flagged (sibling sweep, 1 live site of 4
-multi-line candidates).
+The property is « no rendered line can become blank ». The first version of this guard
+looked for the FORM (a line made of one placeholder and whitespace); it missed two
+writings of the same property — a line of two placeholders (`{a}{b}`) and a literal
+blank line. The predicate is now the property itself: rebuild the literal with EVERY
+placeholder empty and look for a blank line. A placeholder glued to a tag
+(`<div>{x}</div>`) leaves `<div></div>`, never a blank line — so it is not flagged.
+
+Sweep (2026-10-04, R346): 19 `unsafe_allow_html=True` markdown calls in src/dashboard
+→ 15 excluded (single-line HTML from concatenation, a helper or a constant: no newline
+literal) → 4 multi-line f-strings → 1 live (home.py freshness tile, fixed and now a pure
+single-line builder `views.home.freshness_tile_html`), 3 with every placeholder glued
+inside a tag (home.py DAG grid, home_tiles.py total banner, useful_links.py `_card`).
+
+Mutation record (2026-10-04): the pre-R346 tile (`{_divergence}` alone on its line) put
+back in home.py → red at home.py:163; `{_divergence}{"" if _written else ""}` on that
+line → red here, while the previous lone-placeholder regex returned [] on the same file;
+`{a}{b}` and a literal blank line → red in the detector self-test.
 """
 from __future__ import annotations
 
@@ -23,8 +35,10 @@ import ast
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-_ALONE = re.compile(r"^\s*\{[^{}]+\}\s*$")
+import src.dashboard as _dashboard
+
+ROOT = Path(_dashboard.__file__).resolve().parents[1]  # src/ — every markdown caller
+_BLANK = re.compile(r"\n[ \t]*\n")
 
 
 def _is_unsafe_markdown(call: ast.Call) -> bool:
@@ -34,28 +48,41 @@ def _is_unsafe_markdown(call: ast.Call) -> bool:
         for k in call.keywords)
 
 
+def _literal_with_empty_placeholders(arg: ast.expr) -> str | None:
+    """The string the call renders when every placeholder is "" — None if not literal."""
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    if isinstance(arg, ast.JoinedStr):
+        return "".join(v.value for v in arg.values
+                       if isinstance(v, ast.Constant) and isinstance(v.value, str))
+    return None
+
+
 def offenders(source: str, label: str = "<src>") -> list[str]:
-    """Every markdown HTML f-string with a line that is a lone placeholder. Pure."""
+    """Every markdown HTML literal that renders a blank line with empty placeholders."""
     out = []
     for node in ast.walk(ast.parse(source)):
         if not (isinstance(node, ast.Call) and _is_unsafe_markdown(node) and node.args):
             continue
-        arg = node.args[0]
-        if not isinstance(arg, ast.JoinedStr):
+        text = _literal_with_empty_placeholders(node.args[0])
+        if text is None or "<" not in text:
             continue
-        segment = ast.get_source_segment(source, arg) or ""
-        if "<" not in segment:
-            continue
-        for i, line in enumerate(segment.splitlines()[1:], start=arg.lineno + 1):
-            if _ALONE.match(line):
-                out.append(f"{label}:{i}: {line.strip()}")
+        m = _BLANK.search(text)
+        if m:
+            line = node.args[0].lineno + text.count("\n", 0, m.start()) + 1
+            out.append(f"{label}:{line}")
     return out
 
 
 def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     bad = ('st.markdown(f"""<div>\n    <b>x</b>\n    {extra}\n</div>""", '
            'unsafe_allow_html=True)\n')
-    assert offenders(bad) == ["<src>:3: {extra}"]
+    assert offenders(bad) == ["<src>:3"]
+    two = ('st.markdown(f"""<div>\n    <b>x</b>\n    {a}{b}\n</div>""", '
+           'unsafe_allow_html=True)\n')
+    assert offenders(two) == ["<src>:3"], "two placeholders alone are the same defect"
+    blank = 'st.markdown("""<div>\n    <b>x</b>\n\n</div>""", unsafe_allow_html=True)\n'
+    assert offenders(blank) == ["<src>:3"], "a literal blank line is the same defect"
     glued = ('st.markdown(f"""<div>\n    <b>x</b>{extra}\n</div>""", '
              'unsafe_allow_html=True)\n')
     assert offenders(glued) == []
@@ -67,11 +94,11 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
 
 def test_no_markdown_html_block_can_render_a_blank_line() -> None:
     found = []
-    for path in sorted((ROOT / "src").rglob("*.py")):
+    for path in sorted(ROOT.rglob("*.py")):
         text = path.read_text(encoding="utf-8")
         if "unsafe_allow_html" in text:
-            found += offenders(text, str(path.relative_to(ROOT)))
+            found += offenders(text, str(path.relative_to(ROOT.parent)))
     assert not found, (
-        f"{found} — a placeholder alone on its line in a markdown HTML block: when it is "
-        "\"\" the line is blank, CommonMark closes the HTML block and the rest (`</div>`) "
-        "renders as text (R346). Glue the placeholder to the previous tag.")
+        f"{found} — a markdown HTML block renders a blank line when its placeholders are "
+        "\"\": CommonMark closes the HTML block there and the rest (`</div>`) renders as "
+        "text (R346). Glue each placeholder to a tag, or build the HTML on one line.")

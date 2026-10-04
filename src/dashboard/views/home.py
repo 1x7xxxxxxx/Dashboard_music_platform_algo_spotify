@@ -149,31 +149,47 @@ def _section_freshness(db, artist_id, etat=None):
             # Un seuil en jours aurait demandé une distribution ; il n'y en a pas
             # (dix sources, six valeurs). Le barème, lui, est déjà calibré.
             _ecrit = info.get("last_dt")
-            _divergence = ""
+            _written = ""
             if _ecrit is not None and _mesure is not None and (
                     freshness_state(_ecrit, kind) != freshness_state(_mesure, kind)):
-                _divergence = (
-                    f'<div style="font-size:0.6em; color:#c77; margin-top:2px;">'
-                    f'{_html.escape(t("home.freshness_written", "collecte du {d}").format(d=format_date(_ecrit)))}'
-                    f'</div>')
-            with col:
-                # HIGH-07: html.escape() on all interpolated values — defence-in-depth
-                # against stored XSS if a DB-sourced value ever reaches these variables.
-                # R346: `{_divergence}` stays GLUED to the previous tag. Alone on its line
-                # it left a blank line whenever it was "" (the usual case): CommonMark
-                # ends an HTML block at a blank line, and the indented `</div>` after it
-                # rendered as literal text under every tile.
-                st.markdown(
-                    f"""<div style="border:1px solid {_html.escape(color)}; border-radius:8px;
-                        padding:8px 6px; background:{_html.escape(color)}18; text-align:center;">
-                        <div style="font-size:1.2em;">{_html.escape(str(info['icon']))}</div>
-                        <div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{_html.escape(label)}</div>
-                        <div style="font-size:0.75em; color:{_html.escape(color)};">{_html.escape(emoji)} {_html.escape(age_label)}</div>
-                        <div style="font-size:0.65em; color:#888;">{_html.escape(date_str)}</div>
-                        <div style="font-size:0.62em; color:#999; margin-top:2px;">{_html.escape(when)}</div>{_divergence}
-                    </div>""",
-                    unsafe_allow_html=True
-                )
+                _written = t("home.freshness_written", "collecte du {d}").format(
+                    d=format_date(_ecrit))
+            col.markdown(freshness_tile_html(color, str(info['icon']), label, emoji,
+                                             age_label, date_str, when, _written),
+                         unsafe_allow_html=True)
+
+
+def freshness_tile_html(color: str, icon: str, label: str, emoji: str, age_label: str,
+                        date_str: str, when: str, written: str = "") -> str:
+    """One freshness tile as HTML on a SINGLE line. Pure.
+
+    R346 (2026-10-04): the divergence line, "" in the usual case, sat alone on its line
+    in a multi-line f-string. An empty value left a blank line, CommonMark closed the
+    HTML block there, and the indented `</div>` after it rendered as literal text under
+    every tile of « Collecte automatique » / « À déposer toi-même ». The parts are now
+    joined with no separator, so no value — empty or not — can open a blank line.
+
+    HIGH-07: every interpolated value is escaped — defence-in-depth against stored XSS
+    if a DB-sourced value ever reaches these arguments — and its whitespace is collapsed,
+    so a value carrying "\\n\\n" cannot reopen the blank line either.
+    """
+    def e(s: str) -> str:
+        return _html.escape(" ".join(str(s).split()))
+
+    parts = [
+        f'<div style="border:1px solid {e(color)}; border-radius:8px; padding:8px 6px; '
+        f'background:{e(color)}18; text-align:center;">',
+        f'<div style="font-size:1.2em;">{e(icon)}</div>',
+        f'<div style="font-weight:600; font-size:0.8em; white-space:nowrap;">{e(label)}</div>',
+        f'<div style="font-size:0.75em; color:{e(color)};">{e(emoji)} {e(age_label)}</div>',
+        f'<div style="font-size:0.65em; color:#888;">{e(date_str)}</div>',
+        f'<div style="font-size:0.62em; color:#999; margin-top:2px;">{e(when)}</div>',
+    ]
+    if written:
+        parts.append('<div style="font-size:0.6em; color:#c77; margin-top:2px;">'
+                     f'{e(written)}</div>')
+    parts.append("</div>")
+    return "".join(parts)
 
 def _section_streams(db, artist_id):
     """Le filtre en haut au centre, la courbe à gauche, les chiffres à droite.
