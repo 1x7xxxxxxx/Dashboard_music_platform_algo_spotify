@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R359 — Frère de R358 : `validate_rex.py` (`_iter_files`, `d.glob` sur `.claude/{agents,command… (livrée 2026-10-04)
+
+- [x] **R359 — Frère de R358 : `validate_rex.py` (`_iter_files`, `d.glob` sur `.claude/{agents,commands,rules,hooks,scripts}`) juge les fichiers NON suivis d'une autre séance, et le hook `validate-rex --strict` bloque un commit qui ne les touche pas** (P4) ✅ (2026-10-04, 1164eaaf, 65eca0d1, 2985faca)
+  Mesuré par : un fichier d'agent NON suivi ne change plus le verdict de `validate-rex`
+  validate_rex ne juge que les fichiers visibles de git (outils + archives) ; 3 tests mutés 2× rouges ; CI verte bc410bde (run 37222259764)
+  Commits : 1164eaaf R359 : validate_rex ne juge que les fichiers visibles de git — un agen · 65eca0d1 Roadmap : R360 inscrite (écarts partiels du harnais, repris de R356 li · 2985faca R358 : deux défauts du harnais — la porte des durées et les marches di
+
 ## ✅ R362 — Défauts : un billet `recurrence:` ne peut jamais recevoir de réponse — il revient à cha… (livrée 2026-10-04)
 
 - [x] **R362 — Défauts : un billet `recurrence:` ne peut jamais recevoir de réponse — il revient à chaque `make defect-log` ; et le rapport du harnais ignore le journal des défauts. `make defect-ticket FP=… VERDICT=…` enregistre la réponse (cause commune nommée ou écartée) ; le rapport affiche défauts ouverts et billets sans réponse comme opportunités** (P3) ✅ (2026-10-04, ec9bccdb)
