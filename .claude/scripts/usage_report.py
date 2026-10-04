@@ -64,6 +64,7 @@ import collections
 import json
 import os
 import pathlib
+import re
 
 # Claude Code stores transcripts per project, outside the repo, in a directory whose name is the
 # repo path with BOTH separators AND underscores flattened to dashes (`trading_bot` → `trading-bot`).
@@ -81,41 +82,99 @@ _TRANSCRIPTS = (pathlib.Path(os.environ["USAGE_TRANSCRIPTS_DIR"])
 _AGENT_TOOLS = ("Agent", "Task")
 
 
-def read() -> dict:
-    """Aggregate every transcript. Returns counts; draws NO conclusion — that is the point."""
-    agents: collections.Counter = collections.Counter()
-    tools: collections.Counter = collections.Counter()
-    tokens: collections.Counter = collections.Counter()
-    sessions = 0
+_RULE_LOAD = re.compile(r"Contents of [^ \"]*?/\.claude/rules/([\w.-]+)\.md")
+_INJECTIONS = _REPO / ".claude" / "sessions" / "injections.jsonl"
 
+
+def _empty() -> dict:
+    return {"agents": collections.Counter(), "tools": collections.Counter(),
+            "tokens": collections.Counter(), "skills": collections.Counter(),
+            "workflows": collections.Counter(), "rules": collections.Counter(),
+            "last_seen": {}}
+
+
+def _seen(acc: dict, key: str, ts: str | None) -> None:
+    if ts and ts > acc["last_seen"].get(key, ""):
+        acc["last_seen"][key] = ts
+
+
+def _scan_line(acc: dict, line: str, rules_here: set) -> None:
+    """One transcript line: tool calls (agents, skills, workflows), tokens, rule loads."""
+    try:
+        d = json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        return
+    if not isinstance(d, dict):
+        return
+    ts = d.get("timestamp")
+    rules_here.update(_RULE_LOAD.findall(line))
+    msg = d.get("message") if isinstance(d.get("message"), dict) else {}
+    for k, v in (msg.get("usage") or {}).items():
+        if isinstance(v, int):
+            acc["tokens"][k] += v
+    content = msg.get("content")
+    for c in content if isinstance(content, list) else []:
+        if not isinstance(c, dict) or c.get("type") != "tool_use":
+            continue
+        name, inp = c.get("name"), c.get("input") or {}
+        acc["tools"][name] += 1
+        if name in _AGENT_TOOLS:
+            key = inp.get("subagent_type") or "(default)"
+            acc["agents"][key] += 1
+            _seen(acc, f"agent:{key}", ts)
+        elif name == "Skill" and inp.get("skill"):
+            acc["skills"][inp["skill"]] += 1
+            _seen(acc, f"skill:{inp['skill']}", ts)
+        elif name == "Workflow":
+            key = inp.get("name") or "(inline script)"
+            acc["workflows"][key] += 1
+            _seen(acc, f"workflow:{key}", ts)
+
+
+def injections() -> dict:
+    """Playbook injections by inject_context.py (R357), one JSON line per injected file."""
+    counts: collections.Counter = collections.Counter()
+    last: dict = {}
+    try:
+        lines = _INJECTIONS.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {"found": False, "counts": {}, "last_seen": {}}
+    for line in lines:
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        for f in d.get("files") or []:
+            counts[f] += 1
+            last[f] = max(last.get(f, ""), d.get("ts", ""))
+    return {"found": True, "counts": dict(counts), "last_seen": last}
+
+
+def read() -> dict:
+    """Aggregate every transcript. Returns counts; draws NO conclusion — that is the point.
+
+    `rules` counts SESSIONS that loaded each rule file (Claude Code loads `.claude/rules/`
+    itself), not lines: a rule repeated after a compaction is one load, not two.
+    """
+    acc = _empty()
+    sessions = 0
     if not _TRANSCRIPTS.exists():
         return {"transcripts_dir": str(_TRANSCRIPTS), "found": False, "sessions": 0,
-                "agents": {}, "tools": {}, "tokens": {}}
-
+                "agents": {}, "tools": {}, "tokens": {}, "skills": {}, "workflows": {},
+                "rules": {}, "last_seen": {}, "injections": injections()}
     for f in sorted(_TRANSCRIPTS.glob("*.jsonl")):
         sessions += 1
         try:
             lines = f.read_text(encoding="utf-8", errors="ignore").splitlines()
         except OSError:
             continue                      # a sensor that raises is a sensor people delete
+        rules_here: set = set()
         for line in lines:
-            try:
-                d = json.loads(line)
-            except (json.JSONDecodeError, ValueError):
-                continue
-            msg = d.get("message") or {}
-            for k, v in (msg.get("usage") or {}).items():
-                if isinstance(v, int):
-                    tokens[k] += v
-            for c in msg.get("content") or []:
-                if not isinstance(c, dict) or c.get("type") != "tool_use":
-                    continue
-                tools[c.get("name")] += 1
-                if c.get("name") in _AGENT_TOOLS:
-                    agents[(c.get("input") or {}).get("subagent_type") or "(default)"] += 1
-
+            _scan_line(acc, line, rules_here)
+        acc["rules"].update(rules_here)
+    out = {k: dict(v) for k, v in acc.items()}
     return {"transcripts_dir": str(_TRANSCRIPTS), "found": True, "sessions": sessions,
-            "agents": dict(agents), "tools": dict(tools), "tokens": dict(tokens)}
+            **out, "injections": injections()}
 
 
 def declared_agents() -> list[str]:
@@ -184,6 +243,16 @@ def main() -> int:
     builtin = sum(n for k, n in used.items() if k not in declared)
     print(f"\n  {len(dead)}/{len(declared)} declared agents never invoked · "
           f"{builtin}/{total} ({100*builtin//total}%) of traffic goes to built-ins")
+
+    for title, key in (("SKILLS", "skills"), ("WORKFLOWS", "workflows"),
+                       ("RULES (sessions that loaded it)", "rules")):
+        print(f"\n{title} (all-time)")
+        for name, n in sorted(data[key].items(), key=lambda kv: -kv[1]):
+            print(f"  {name:30s} {n:4d}")
+    inj = data["injections"]
+    print("\nPLAYBOOK INJECTIONS (inject_context.py)" + ("" if inj["found"] else " — no log yet"))
+    for name, n in sorted(inj["counts"].items(), key=lambda kv: -kv[1]):
+        print(f"  {name:30s} {n:4d}   last {inj['last_seen'].get(name, '?')[:10]}")
 
     print("\nTOKENS (all-time)")
     for k, v in sorted(data["tokens"].items(), key=lambda kv: -kv[1]):

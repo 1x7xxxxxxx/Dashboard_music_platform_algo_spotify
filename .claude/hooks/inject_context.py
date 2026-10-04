@@ -141,6 +141,22 @@ def detect_domains(prompt: str) -> list[str]:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+_LOG = os.path.join(_CLAUDE_DIR, "sessions", "injections.jsonl")
+
+
+def log_injection(files: list[str], session: str, log: str = _LOG) -> None:
+    """R357: one line per injecting prompt, read by usage_report.py. Never raises."""
+    from datetime import datetime, timezone
+    line = {"ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "session": session, "files": files}
+    try:
+        os.makedirs(os.path.dirname(log), exist_ok=True)
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except OSError:
+        pass  # a hook that raises blocks the prompt; a lost count does not
+
+
 def main() -> None:
     try:
         data = json.load(sys.stdin)
@@ -156,11 +172,15 @@ def main() -> None:
         sys.exit(0)
 
     blocks: list[str] = []
+    injected: list[str] = []
     for domain in detected:
         _, folder, filename = DOMAINS[domain]
         content = load_file(folder, filename)
         if content:
             blocks.append(content)
+            injected.append(f"{folder}/{filename}")
+    if injected:
+        log_injection(injected, str(data.get("session_id", "")))
 
     if blocks:
         print("\n".join(blocks))
