@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R362 — Défauts : un billet `recurrence:` ne peut jamais recevoir de réponse — il revient à cha… (livrée 2026-10-04)
+
+- [x] **R362 — Défauts : un billet `recurrence:` ne peut jamais recevoir de réponse — il revient à chaque `make defect-log` ; et le rapport du harnais ignore le journal des défauts. `make defect-ticket FP=… VERDICT=…` enregistre la réponse (cause commune nommée ou écartée) ; le rapport affiche défauts ouverts et billets sans réponse comme opportunités** (P3) ✅ (2026-10-04, ec9bccdb)
+  Mesuré par : un billet répondu disparaît de la liste ; le rapport rend un défaut ouvert (test)
+  billets recurrence: répondables (make defect-ticket, verdict same-cause|distinct + raison) ; les 9 billets du jour répondus, résumé 0 billet ; harness-report liste défauts ouverts et billets restants ; CI verte ec9bccdb
+  Commits : ec9bccdb R362 : un billet recurrence: reçoit sa réponse, et le rapport du harna
+
 ## ✅ R361 — Défauts : 9 billets `recurrence:` sont tous des rouges de CI de `main` sur un garde de… (livrée 2026-10-04)
 
 - [x] **R361 — Défauts : 9 billets `recurrence:` sont tous des rouges de CI de `main` sur un garde de PILOTAGE (roadmap, catalogue d'exigences, docs) — le dernier : `make roadmap-close R356` a laissé 6 exigences nommer une ligne close, et `roadmap-close` ne proposait que 2 tests. Un commit qui touche un fichier de pilotage lance les tests qui le NOMMENT (31 s en série pour `checklist.md`, contre 274 s pour la sélection entière)** (P3) ✅ (2026-10-04, 832231a5)
