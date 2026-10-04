@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R339 | `make night-status` affiche R323 « EN COURS » depuis 5 j alors qu'elle est archivée : une fermeture par LOT (71f7fd08) ne passe pas par `roadmap-close`, donc pas de `done` au journal — une unité dont la tâche est archivée n'est plus en cours <!-- critic: non — lecture d'un fait déjà écrit (archive), 1 fonction --> | P3 | `make night-status` ne montre plus R323 ; test rouge sur l'ancien code |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R283, R275 -->
+<!-- reprise: open=R339, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
