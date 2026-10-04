@@ -144,3 +144,6 @@ revue/
 .claude/dev-docs/error-class-families.md
 .claude/dev-docs/gold-coverage.md
 .generated-cache/
+# R360 (2026-10-04): dated reds seen by the nightly guard-mutation job (append-only record;
+# CI artifact `guard-red-log`, merged locally by `nightly_guard_mutation.py --fetch`)
+.claude/dev-docs/guard-red-log.jsonl

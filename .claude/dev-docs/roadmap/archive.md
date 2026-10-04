@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R363 — Des tests écrivent dans les VRAIS journaux de mesure : `test_a_security_finding_is_a_de… (livrée 2026-10-04)
+
+- [x] **R363 — Des tests écrivent dans les VRAIS journaux de mesure : `test_a_security_finding_is_a_defect_class` lance `inject_context.py` sans `session_id` (lignes `session ""` dans `injections.jsonl`, 3 paires le 2026-10-04) ; `test_every_session_starts_by_reading_the_ops_mails` lance `session_start.py` avec `cwd` = le dépôt (écrase `.session-start-ts` lu par `draft_rex`/`suggest_sweep`, importe les crons dans `defects.jsonl`) ; latent : `close_night_unit` ignore `ROADMAP_ROOT`** (P4) ✅ (2026-10-04, 9675bbb3)
+  Mesuré par : les 3 sites rejoués ne touchent plus aucun fichier du dépôt ; un garde par site vu rouge
+  3 sites de test n'écrivent plus les journaux réels (inject_context sans session_id, close_night_unit sur ROADMAP_ROOT, session_start en tmp) ; 1 garde par site vu rouge ; CI verte 9675bbb3
+  Commits : 9675bbb3 R363 : les tests n'écrivent plus dans les vrais journaux de mesure
+
 ## ✅ R359 — Frère de R358 : `validate_rex.py` (`_iter_files`, `d.glob` sur `.claude/{agents,command… (livrée 2026-10-04)
 
 - [x] **R359 — Frère de R358 : `validate_rex.py` (`_iter_files`, `d.glob` sur `.claude/{agents,commands,rules,hooks,scripts}`) juge les fichiers NON suivis d'une autre séance, et le hook `validate-rex --strict` bloque un commit qui ne les touche pas** (P4) ✅ (2026-10-04, 1164eaaf, 65eca0d1, 2985faca)

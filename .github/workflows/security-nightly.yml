@@ -479,6 +479,16 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/spotify_etl  # pragma: allowlist secret
         run: python3 tools/dev/nightly_guard_mutation.py | tee -a "$GITHUB_STEP_SUMMARY"
+      # R360: the dated reds the job saw (guard, date, mutation) — no secret, only test paths.
+      # Merged locally by `python3 tools/dev/nightly_guard_mutation.py --fetch`.
+      - name: Keep the dated reds
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-red-log
+          path: .claude/dev-docs/guard-red-log.jsonl
+          if-no-files-found: ignore
+          retention-days: 90
 
   # ── A debt that stops falling is reported (2026-09-26) ──────────────────────────
   # The ratchets forbid a rise; nothing noticed a debt that froze (six commits, 2026-09-25).

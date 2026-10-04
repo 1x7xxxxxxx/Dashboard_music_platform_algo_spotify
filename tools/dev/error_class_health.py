@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import importlib.util
 import itertools
 import json
 import math
@@ -396,6 +397,10 @@ def _declared(text: str) -> dict[str, dict]:
             "history_dates_declared": sorted(set(_HISTORY_LINE.findall(body))),
             # Les trois champs du 2026-09-16. Absents tant que la passe n'a pas eu lieu.
             "seen_red": (_field(body, "seen_red") or "unknown").split()[0].lower(),
+            # R360: the guard FILE a `self-proving (<file>::<test>)` claim names — the key
+            # the nightly job's dated reds are recorded under.
+            "seen_red_guard": (re.match(r"self-proving \((tests/[\w./-]+\.py)",
+                                        _field(body, "seen_red") or "") or [None, None])[1],
             "cause_evidence": (_field(body, "cause_evidence") or "unknown").split()[0].lower(),
             "guard_scope_declared_family": (scope.split("—")[0].strip() if scope else None),
             "guard_scope_has_not_covered": bool(scope and "ne couvre pas:" in scope),
@@ -937,6 +942,53 @@ def _declarative(declared: dict, observed: dict) -> dict:
 
 # ── Assemblage ───────────────────────────────────────────────────────────────
 
+def _nightly_reds() -> dict:
+    """The dated reds the nightly guard-mutation job recorded — read through its own module."""
+    spec = importlib.util.spec_from_file_location(
+        "nightly_guard_mutation", ROOT / "tools" / "dev" / "nightly_guard_mutation.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.reds_seen()
+
+
+def seen_red_by_mutation(classes: dict, reds: dict) -> dict:
+    """REQ-HARN-19 (R360). `self-proving` says the test fabricates its defect and the
+    detector FIRES on it, every run. It never says the guard went RED when the code it
+    protects was broken: that is what a dated mutation adds, and only that is counted here.
+    Kept out of `holes_of`: it reads a log, not the declared fields, and the trend replays
+    `holes_of` over past catalogue revisions."""
+    proving = [c for c in classes.values() if c["seen_red"] == "self-proving"]
+    dated = [c for c in proving if c.get("seen_red_guard") in reds]
+    return {
+        "hand_dated": sum(1 for c in classes.values()
+                          if re.fullmatch(r"20\d\d-\d\d-\d\d", c["seen_red"] or "")),
+        "self_proving": len(proving),
+        "self_proving_seen_red_by_mutation": len(dated),
+        "guard_files_seen_red": len(reds),
+        "last_red": max((r["date"] for r in reds.values()), default=None),
+    }
+
+
+def _prose_du_rouge_date(m: dict) -> list[str]:
+    """The REQ-HARN-19 section: hand-dated, self-proving, and self-proving SEEN RED."""
+    return [
+        "## Le « vu rouge » daté (REQ-HARN-19)",
+        "",
+        "`self-proving` dit que le détecteur se DÉCLENCHE sur un défaut fabriqué, à chaque "
+        "run ; il ne dit pas que le garde ROUGIT quand le code qu'il protège casse. Le job "
+        "nocturne `guard-mutation` le date (`guard-red-log.jsonl`, `--fetch` pour la CI). "
+        "⚠️ Une mutation générique prouve que le garde mord, pas qu'elle incarne la classe.",
+        "",
+        "| grandeur | valeur |",
+        "|---|---|",
+        f"| datées à la main | **{m['hand_dated']}** |",
+        f"| `self-proving` | **{m['self_proving']}** |",
+        f"| dont vues ROUGES par mutation, datées | **{m['self_proving_seen_red_by_mutation']}** |",
+        f"| fichiers de garde vus rouges | {m['guard_files_seen_red']} "
+        f"(dernier : `{m['last_red'] or '—'}`) |",
+    ]
+
+
 def holes_of(classes: dict) -> dict:
     """The hole counters — a function of the DECLARED fields alone, no git replay.
 
@@ -1107,6 +1159,7 @@ def build() -> tuple[str, str]:
             "holes": dict(sorted(holes.items())),
             "population": dict(sorted(population.items())),
             "recurrence": rates,
+            "seen_red_by_mutation": seen_red_by_mutation(classes, _nightly_reds()),
             "sweep_yield": yield_,
         },
     }
@@ -1161,6 +1214,8 @@ def _render(p: dict) -> str:
         f"**{a['sweep_yield']['hit_rate_on_verdicts']}** |",
         "",
         *_prose_des_trous(h, a),
+        "",
+        *_prose_du_rouge_date(a["seen_red_by_mutation"]),
         "",
         "## Ce que ce document corrige",
         "",

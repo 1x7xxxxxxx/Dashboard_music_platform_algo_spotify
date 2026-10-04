@@ -4,7 +4,10 @@
 Type: Utility
 Uses: tools/dev/mutate_guards.py (try_mutations), git log
 Triggers: .github/workflows/security-nightly.yml, job `guard-mutation`
-Persists in: nothing — prints a verdict per guard, exit 1 when one is suspect
+Persists in: .claude/dev-docs/guard-red-log.jsonl (gitignored, append-only) — one dated
+             line per guard the job saw go red, naming the mutation; uploaded as the
+             `guard-red-log` CI artifact, merged locally by `--fetch`. Prints a verdict per
+             guard, exit 1 when a NEW guard is suspect.
 
 Rule 15ter says « mutate a new guard before believing it », and until 2026-09-26 that was a
 gesture done by hand. The same day, doing it by hand for ~30 guards found three real defects
@@ -19,8 +22,12 @@ reported as proof; only the absence of any red is reported, as a suspicion to re
 """
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
+import tempfile
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -28,6 +35,10 @@ import mutate_guards as mg  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parents[2]
 _MAX_GUARDS = 12          # each guard costs up to 7 pytest runs; the nightly is not unbounded
+_SELF_PROVING_PER_NIGHT = 4   # catalogue self-proving guards with no dated red, per night
+RED_LOG = _ROOT / ".claude/dev-docs/guard-red-log.jsonl"
+_CATALOGUE = _ROOT / ".claude/dev-docs/error-classes.md"
+_CLAIM = re.compile(r"^- seen_red:\s*self-proving \((tests/[\w./-]+\.py)", re.M)
 
 
 def changed_guards(days: int = 2) -> list[str]:
@@ -110,6 +121,81 @@ def self_proving(path: Path) -> bool:
                and n.name.startswith("test_the_detector_sees") for n in ast.walk(tree))
 
 
+# R360 (2026-10-04) — REQ-HARN-19. 407 of 429 classes say `seen_red: self-proving`: a test
+# fabricates the defective INPUT and demands the detector fire. That is « seen FIRE every
+# run », not « seen RED »: a detector made blind is caught only if the test also fails when
+# the code it protects is mutated — and nothing recorded whether it ever did. The job now
+# writes the date and the mutation each time it sees a guard go red. ⚠️ A generic mutation
+# (identifier → identifier_MUTE) says « this guard bites », never « it embodies the class ».
+def record_red(rel: str, result: dict, today: str, log: Path = RED_LOG) -> bool:
+    """Append one dated line when `result` is a red mutation; False, nothing written, else."""
+    if "source" not in result:
+        return False
+    log.parent.mkdir(parents=True, exist_ok=True)
+    line = {"date": today, "guard": rel, "source": result["source"],
+            "target": result["cible"], "line": result["ligne"], "tries": result["essais"]}
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(line, ensure_ascii=False) + "\n")
+    return True
+
+
+def reds_seen(log: Path = RED_LOG) -> dict[str, dict]:
+    """Latest red record per guard file. A malformed line is skipped, never fatal."""
+    out: dict[str, dict] = {}
+    if not log.is_file():
+        return out
+    for raw in log.read_text(encoding="utf-8").splitlines():
+        try:
+            rec = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        ok = (isinstance(rec, dict) and rec.get("guard") and rec.get("source")
+              and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(rec.get("date", ""))))
+        if ok and rec["date"] >= out.get(rec["guard"], {}).get("date", ""):
+            out[rec["guard"]] = rec
+    return out
+
+
+def self_proving_backlog(catalogue: str, seen: dict[str, dict], root: Path = _ROOT) -> list[str]:
+    """Guard files the catalogue calls self-proving that no mutation has yet turned red."""
+    files = dict.fromkeys(_CLAIM.findall(catalogue))
+    return sorted(f for f in files if f not in seen and (root / f).is_file())
+
+
+def tonight(backlog: list[str], day: date, limit: int) -> list[str]:
+    """A window that ROTATES with the date. The CI runner starts with an empty log every
+    night, so « the first N not yet seen » would be the same N forever there."""
+    if not backlog or limit <= 0:
+        return []
+    start = (day.toordinal() * limit) % len(backlog)
+    return (backlog[start:] + backlog[:start])[:limit]
+
+
+def fetch(log: Path = RED_LOG) -> int:
+    """Merge the last nightly run's `guard-red-log` artifact into the local log (needs gh)."""
+    run = subprocess.run(["gh", "run", "list", "--workflow", "security-nightly.yml", "-L", "1",
+                          "--json", "databaseId", "-q", ".[0].databaseId"],
+                         capture_output=True, text=True, cwd=_ROOT).stdout.strip()
+    if not run:
+        print("❌ no security-nightly run found — run: gh auth status")
+        return 1
+    with tempfile.TemporaryDirectory() as tmp:
+        got = subprocess.run(["gh", "run", "download", run, "-n", "guard-red-log", "-D", tmp],
+                             capture_output=True, text=True, cwd=_ROOT)
+        remote = Path(tmp) / log.name
+        if got.returncode or not remote.is_file():
+            print(f"ℹ️ run {run}: no guard-red-log artifact (no red that night)")
+            return 0
+        known = set(log.read_text(encoding="utf-8").splitlines()) if log.is_file() else set()
+        new = [ln for ln in remote.read_text(encoding="utf-8").splitlines() if ln and ln not in known]
+    if new:
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as fh:
+            fh.write("".join(ln + "\n" for ln in new))
+    print(f"✅ run {run}: {len(new)} new red record(s) merged into {log.name}")
+    return 0
+
+
 def verdict(result: dict) -> str | None:
     """A suspicion to report, or None. Pure: tested without running anything."""
     if "skipped" in result:
@@ -121,7 +207,31 @@ def verdict(result: dict) -> str | None:
     return None          # a red mutation, or no applicable site (nothing to conclude)
 
 
+def mutate_self_proving(today: str, limit: int = _SELF_PROVING_PER_NIGHT) -> int:
+    """Mutate a few catalogue self-proving guards with no dated red; record each red.
+    Green here is not a suspect (the fabrication may live in the test): it is only shown."""
+    backlog = self_proving_backlog(_CATALOGUE.read_text(encoding="utf-8"), reds_seen())
+    batch = tonight(backlog, date.fromisoformat(today), limit)
+    print(f"▶ {len(batch)} garde(s) auto-prouvant(s) sans rouge daté mutés "
+          f"({len(backlog)} dans le reliquat)")
+    seen = 0
+    for rel in batch:
+        result = mg.try_mutations(_ROOT / rel)
+        if record_red(rel, result, today):
+            seen += 1
+            print(f"   ✓ {rel} — vu rouge le {today} : {result['source']}:{result['ligne']} "
+                  f"`{result['cible']}` → `{result['cible']}_MUTE`")
+        else:
+            print(f"   · {rel} — aucun rouge daté ({verdict(result) or 'rien à muter'})")
+    return seen
+
+
 def main() -> int:
+    if "--fetch" in sys.argv[1:]:
+        return fetch()
+    limit = next((int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--self-proving=")),
+                 _SELF_PROVING_PER_NIGHT)
+    today = date.today().isoformat()
     guards, credited = [], []
     for rel in changed_guards():
         if rel in SEEN_RED:
@@ -138,9 +248,12 @@ def main() -> int:
           + (f" — {dropped} non mutés cette nuit (plafond {_MAX_GUARDS})" if dropped else ""))
     suspects = 0
     for rel in guards:
-        v = verdict(mg.try_mutations(_ROOT / rel))
+        result = mg.try_mutations(_ROOT / rel)
+        record_red(rel, result, today)
+        v = verdict(result)
         suspects += v is not None
         print(f"   {'✗' if v else '✓'} {rel}" + (f" — {v}" if v else ""))
+    mutate_self_proving(today, limit)
     print(f"{'❌' if suspects else '✅'} {suspects} garde(s) à relire")
     return 1 if suspects else 0
 
