@@ -92,8 +92,6 @@ SEEN_RED: dict[str, str] = {
     "tests/test_the_precompact_hook_saves_the_state.py":
         "2026-10-04 — court-circuit `_same_state` retiré (second instantané identique écrit) "
         "→ 1 rouge",
-    "tests/test_containers_are_on_demand.py":
-        "2026-10-04 — exemption `session_scoped` élargie à AutoRemove seul → 1 rouge",
     "tests/test_every_defect_kind_can_close.py":
         "2026-10-04 — un cron clos par le rc=0 de n'importe quelle étape → 1 rouge",
     "tests/test_every_harness_component_has_a_requirement.py":
@@ -110,6 +108,18 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — condition `session_id` retirée d'inject_context.main → 1 rouge ; `nr.JOURNAL` rétabli dans close_night_unit → 1 rouge",
     "tests/test_every_session_starts_by_reading_the_ops_mails.py":
         "2026-10-04 — hook relancé avec cwd=_ROOT → 1 rouge (marqueur absent du tmp)",
+    "tests/test_the_engineering_loop_returns_a_manifest.py":
+        "2026-10-04 — trouvaille DO-NOT-BUILD envoyée à Fix → 1 rouge",
+    "tests/test_suggest_sweep_suggests_after_a_fix.py":
+        "2026-10-04 — `if commits:` → `if False:` → 1 rouge ; mots français retirés de `_FIX_RE` → 1 rouge",
+    "tests/test_draft_rex_drafts_from_the_session.py":
+        "2026-10-04 — filtre `_is_tool_path` retiré → 2 rouges ; `_holds_human_input` court-circuité → 1 rouge",
+    "tests/test_a_skill_loads_when_its_subject_is_touched.py":
+        "2026-10-04 — `keywords:` retiré de dashboard-view → 1 rouge ; `paths:` → `globs:` dans python.md → 1 rouge",
+    "tests/test_containers_are_on_demand.py":
+        "2026-10-04 — exemption élargie à AutoRemove seul → rouge ; ligne idle_containers retirée de night-status → 1 rouge",
+    "tests/test_new_guards_are_mutated_every_night.py":
+        "2026-10-04 — record_red écrivant aussi une mutation verte → 1 rouge ; rotation figée (`start = 0`) → 1 rouge",
 }
 
 

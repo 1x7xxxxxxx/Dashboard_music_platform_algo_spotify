@@ -13,7 +13,8 @@ What must hold:
 5. `unless-stopped` on a stopped container is not.
 
 Mutation record (2026-10-04): seen red with the `session_scoped` exemption widened to
-`AutoRemove` alone, with the `always` branch removed, and with ALWAYS_ON ignored.
+`AutoRemove` alone, with the `always` branch removed, and with ALWAYS_ON ignored;
+R360: with the `idle_containers.py` line removed from the `night-status` recipe.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
 
+import idle_containers  # noqa: E402
 from idle_containers import violations  # noqa: E402
 
 
@@ -45,3 +47,12 @@ def test_anything_else_running_at_rest_is_a_violation() -> None:
 def test_restart_always_is_a_violation_even_stopped() -> None:
     assert violations([_c("hermes", False, "always")])
     assert violations([_c("hermes", False, "unless-stopped")]) == []
+
+
+def test_every_wake_up_runs_the_probe() -> None:
+    """R360: the probe was called by nothing automatic — `night-status` now runs it."""
+    root = Path(__file__).resolve().parents[1]
+    probe = Path(idle_containers.__file__).resolve().relative_to(root).as_posix()
+    recipe = (root / "Makefile").read_text(encoding="utf-8").split("\nnight-status:", 1)[1]
+    commands = [ln.split() for ln in recipe.split("\n\n", 1)[0].splitlines()]
+    assert any(probe in words for words in commands)

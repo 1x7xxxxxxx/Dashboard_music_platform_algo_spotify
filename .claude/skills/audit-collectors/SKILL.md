@@ -1,6 +1,7 @@
 ---
 name: audit-collectors
 description: "The silent-success anti-pattern: a collector swallows an API error, returns empty data, upserts zero rows and still exits SUCCESS. Use when writing or reviewing anything under src/collectors, when touching Spotify, YouTube, Meta Ads, Instagram, SoundCloud or Apple Music ingestion, or when the dashboard shows stale data with no alert. Not for the DAG that schedules the collector, and not for schema design. Assumes a collector that persists to Postgres."
+keywords: collecteur, collector, src/collectors, collecte, ingestion, api spotify, youtube, meta ads, instagram, soundcloud, apple music, données périmées, stale, silent success
 ---
 
 # Audit: Silent Success Anti-Pattern in Collectors

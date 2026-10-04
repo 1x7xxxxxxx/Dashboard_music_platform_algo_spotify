@@ -1,5 +1,5 @@
 ---
-globs: [".claude/**/*.md", ".claude/hooks/*.py", ".claude/scripts/*.py"]
+paths: [".claude/**/*.md", ".claude/hooks/*.py", ".claude/scripts/*.py"]
 rex: []
 ---
 

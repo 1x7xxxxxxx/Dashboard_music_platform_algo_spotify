@@ -1,6 +1,7 @@
 ---
 name: db-schema
 description: "Postgres schema and upsert conventions: tables, migrations, constraints, indexes and the PostgresHandler contract. Use when creating or altering a table, writing a migration, or when the user mentions schema, upsert, column, constraint, index or init_db. Not for query performance tuning and not for dashboard rendering. Assumes this project's PostgresHandler."
+keywords: table, colonne, column, schéma, schema, migration, contrainte, constraint, index, upsert, init_db, alter table, create table, clé de conflit
 ---
 
 # Skill: Database Schema

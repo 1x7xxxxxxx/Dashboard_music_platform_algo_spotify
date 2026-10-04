@@ -460,6 +460,7 @@ roadmap-sync: ## Remet l'ancre de reprise d'accord avec les deux tables d'index
 night-status: ## Où j'en suis : unité en cours, arbre, roadmap, parkings, journal (~1 s)
 	@python3 tools/dev/night_run.py status
 	@python3 tools/dev/roadmap_discipline.py || true
+	@python3 tools/dev/idle_containers.py || true
 
 charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artiste + Grafana), sur un instantané local de la prod. OUT=revue (ignoré par git) ou un dossier hors dépôt [PROM=http://127.0.0.1:19090] [AIRFLOW_REPLAY=1]
 	@test -n "$(OUT)" || { echo "❌ OUT= manquant — un dossier HORS du dépôt (le PDF contient des données d'artiste)"; exit 1; }

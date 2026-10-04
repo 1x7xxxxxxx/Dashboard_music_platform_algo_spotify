@@ -1,5 +1,5 @@
 ---
-globs: ["Makefile"]
+paths: ["Makefile"]
 rex:
   - date: 2026-05-15
     issue: "`make dashboard` ran Streamlit then crashed mid-render: Postgres 5433 down, failed late with no actionable message"

@@ -28,7 +28,13 @@ _SESSION_MARKER_FILE = ".claude/sessions/.session-start-ts"
 _PENDING_REX = ".claude/sessions/pending-rex.md"
 _CATALOGUE = ".claude/dev-docs/error-classes.md"
 _FALLBACK_WINDOW_SEC = 2 * 60 * 60  # 2h
-_FIX_RE = re.compile(r"\b(fix|bug|hotfix|regression|broke|broken|crash)\b", re.I)
+# R360: this repo writes its commits in French — the English-only list matched 2 of the
+# last 300 commits while French fix words appeared in 24.
+_FIX_RE = re.compile(
+    r"\b(fix(?:es|ed)?|bugs?|hotfix|regression|broke|broken|crash"
+    r"|corrige[sr]?|correctif|défauts?|régression|bogue|répare)\b",
+    re.I,
+)
 # Source dirs whose .py changes most often map to a catalogued class.
 #
 # This used to be a hardcoded list of directories from the repo this payload was

@@ -1,6 +1,7 @@
 ---
 name: airflow-dag
 description: "Mandatory structure for production Airflow DAGs in this project. Use when writing or reviewing a DAG, a PythonOperator, a sensor, a schedule, a backfill or a catchup setting, or when the user says dag, airflow, scheduler or collector orchestration. Not for the collector's own logic — audit-collectors covers that — and not for dashboard code. Assumes the DAG runs under this repo's Airflow deployment."
+keywords: dag, airflow, scheduler, planificateur, pythonoperator, operator, schedule, backfill, catchup, default_args, tâche airflow, retries
 ---
 
 # Skill: Airflow DAG

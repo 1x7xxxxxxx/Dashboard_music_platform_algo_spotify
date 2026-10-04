@@ -1,5 +1,5 @@
 ---
-globs: ["**/*.py"]
+paths: ["**/*.py"]
 rex:
   - date: 2026-07-06
     issue: "Ingest-latency instrumentation did a SYNCHRONOUS Redis XADD on the ingestion hot path (acquisition._persist_frame with a PG pool conn checked out; rib_reader.persist inside sync_joiner's budget); and the 11 redis.Redis.from_url sites passed no retry= → a redis-py 8.x bump would turn socket_timeout into a 30s+ blocking call."

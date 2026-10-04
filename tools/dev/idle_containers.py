@@ -3,7 +3,7 @@
 
 Type: Utility
 Uses: `docker inspect` on every container of this machine
-Triggers: `make night-status`-style manual runs; REQ-HARN (dev-resources) in requirements.yaml
+Triggers: `make night-status` (every wake-up, report-only — R360); REQ-HARN (dev-resources) in requirements.yaml
 Persists in: nothing — prints, exits 1 on a violation, 0 when Docker is absent (said aloud)
 
 R357 (2026-10-04). The on-demand decision (three VS Code disconnects, WSL capped at 10 Go)

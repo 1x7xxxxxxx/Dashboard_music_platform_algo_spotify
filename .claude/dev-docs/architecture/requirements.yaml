@@ -749,56 +749,49 @@
   enonce: ≥2 trouvailles d'une séance passent par la boucle d'ingénierie (impact → critic → fix → complétude) en worktree isolé
   sources: [{doc: CLAUDE.md}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   methode: regle-agent
   portee: generique
   composants: [.claude/workflows/engineering-loop.js]
-  preuve: {cmd: "node --check .claude/workflows/engineering-loop.js"}
-  ecart: "seule la syntaxe est rejouée ; aucun test ne vérifie le manifeste rendu. 5 lancements, tous dans une même séance (usage_report)"
-  opportunite: "écrire un test qui fait tourner le script sur des trouvailles factices avec un agent() simulé et lit le manifeste"
-  roadmap: R360
+  preuve: {pytest: tests/test_the_engineering_loop_returns_a_manifest.py::test_a_refused_design_never_reaches_the_fixes}
+  mutation: "envoyer une trouvaille DO-NOT-BUILD à la phase Fix"
   premisse_corrigee: "« le workflow js n'est pas déclenché » : il l'est, 5 fois, mais toutes dans une même séance — le déclencheur existe (require_sweep_before_catalogue.py), il est rarement atteint"
 - id: REQ-HARN-10
   domaine: claude-wsl
   enonce: Une classe d'erreur n'entre au catalogue qu'après un VRAI appel au balayeur, et un défaut corrigé laisse un balayage suggéré en fin de tour
   sources: [{doc: CLAUDE.md}]
   priorite: P2
-  statut: partiel
+  statut: conforme
   methode: hook
   portee: generique
   composants: [.claude/hooks/require_sweep_before_catalogue.py, .claude/hooks/suggest_sweep.py]
   preuve: {pytest: tests/test_the_catalogue_needs_a_real_sweep.py::test_a_sentence_that_names_the_agent_is_not_a_call}
-  ecart: "suggest_sweep.py n'a aucun test"
-  roadmap: R360
+  opportunite: "suggest_sweep ne reconnaissait que les mots anglais (2 commits sur 300 contre 24 en français) — corrigé R360 et gardé par tests/test_suggest_sweep_suggests_after_a_fix.py"
   mutation: "faire compter une phrase qui nomme sibling-sweeper comme un appel"
 - id: REQ-HARN-11
   domaine: claude-wsl
   enonce: Un apprentissage de séance devient un REX attaché à l'outil qu'il concerne, validé par un humain avant promotion
   sources: [{doc: .claude/rules/rex-format.md}]
   priorite: P4
-  statut: partiel
+  statut: conforme
   methode: humain
   portee: generique
   composants: [.claude/hooks/draft_rex.py, .claude/scripts/promote_rex.py, .claude/rules/rex-format.md, .claude/commands/rex-promote.md, .claude/commands/retro.md, .claude/skills/continuous-learning/SKILL.md]
   preuve: {pytest: tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses}
-  ecart: "draft_rex.py n'a aucun test ; continuous-learning : 0 appel"
-  opportunite: "3 surfaces (draft_rex, /retro, continuous-learning) pour un même geste : en garder une"
-  roadmap: R360
+  opportunite: "3 surfaces (draft_rex, /retro, continuous-learning — 0 appel) pour un même geste : en garder une. draft_rex écrasait à chaque Stop un pending-rex.md rempli par un humain — corrigé R360, gardé par tests/test_draft_rex_drafts_from_the_session.py"
   mutation: "faire accepter une date YYYY-MM par validate_rex.py"
 - id: REQ-HARN-12
   domaine: claude-wsl
   enonce: Une skill ou une rule se charge quand son sujet est touché, et son usage réel se lit
   sources: [{notes: L60}]
   priorite: P4
-  statut: partiel
+  statut: conforme
   methode: hook
   portee: generique
   composants: [.claude/rules/python.md, .claude/rules/makefile-fail-fast.md, .claude/skills/dashboard-view/SKILL.md, .claude/skills/airflow-dag/SKILL.md, .claude/skills/db-schema/SKILL.md, .claude/skills/audit-collectors/SKILL.md, .claude/skills/impact-analysis/SKILL.md, .claude/skills/response-protocol/SKILL.md]
-  preuve: {pytest: tests/test_skills_rules_and_injections_are_counted.py::test_skills_and_workflows_are_counted_with_their_last_date}
-  ecart: "les 3 rules sont chargées dans 40 séances sur 40 alors que leur frontmatter porte `globs:` ; dashboard-view, airflow-dag, db-schema, audit-collectors : 0 appel"
-  opportunite: "si Claude Code attend `paths:` (à vérifier dans sa doc), les rules se chargent à chaque séance pour rien ; 4 skills sans un appel : retrait ou déclencheur"
-  roadmap: R360
-  mutation: "compter une rule par ligne de transcript au lieu d'une fois par séance"
+  preuve: {pytest: tests/test_a_skill_loads_when_its_subject_is_touched.py::test_a_rule_is_scoped_with_the_key_claude_code_reads}
+  mutation: "remettre `globs:` dans python.md ; retirer `keywords:` de dashboard-view"
+  opportunite: "les 3 rules portaient `globs:` (chargées 40 séances sur 40) → `paths:` le 2026-10-04 ; les 4 skills à 0 appel ont reçu `keywords:`. Remesurer chargements et appels sur les séances postérieures au 2026-10-04 (usage_report)"
 - id: REQ-HARN-13
   domaine: claude-wsl
   enonce: Chaque commande slash résout vers des chemins qui existent et sont versionnés
@@ -851,14 +844,12 @@
   enonce: Les conteneurs tournent à la demande — au repos, seul postgres 5433 et les serveurs MCP de séance (`--rm -i`) ; aucun `restart=always`
   sources: [{notes: L60}]
   priorite: P3
-  statut: partiel
-  methode: humain
+  statut: conforme
+  methode: nuit
   portee: generique
-  composants: []
-  preuve: {pytest: tests/test_containers_are_on_demand.py::test_anything_else_running_at_rest_is_a_violation}
-  ecart: "la sonde vivante `python3 tools/dev/idle_containers.py` n'est appelée par rien d'automatique ; le docker-compose.yml LOCAL (non versionné) déclare encore `restart: unless-stopped` pour Airflow — `make up` le ramène"
-  opportunite: "brancher idle_containers.py dans night-status ; profils compose (`profiles: [airflow]`) pour que `make up` n'allume que postgres"
-  roadmap: R360
+  composants: [tools/dev/idle_containers.py]
+  preuve: {pytest: tests/test_containers_are_on_demand.py::test_every_wake_up_runs_the_probe}
+  opportunite: "la sonde tourne à chaque `make night-status` (R360). Reste : profils compose (`profiles: [airflow]`) — le docker-compose.yml LOCAL (non versionné) déclare encore `restart: unless-stopped` pour Airflow, `make up` le rallume"
   mutation: "élargir l'exemption de séance à AutoRemove seul"
 - id: REQ-HARN-18
   domaine: defect-log
@@ -876,15 +867,13 @@
   enonce: Le « vu rouge » d'un garde est daté et nomme sa mutation, ou le garde fabrique lui-même son défaut
   sources: [{doc: CLAUDE.md}]
   priorite: P3
-  statut: partiel
+  statut: conforme
   methode: nuit
   portee: generique
-  composants: []
-  preuve: {pytest: tests/test_new_guards_are_mutated_every_night.py::test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation}
-  ecart: "sur 429 classes, 407 `seen_red` valent « self-proving » et 14 seulement sont datés"
-  opportunite: "faire écrire la date par le job nocturne guard-mutation quand il voit un garde rougir"
-  roadmap: R360
-  mutation: "accepter une entrée SEEN_RED sans date"
+  composants: [tools/dev/nightly_guard_mutation.py, .github/workflows/security-nightly.yml]
+  preuve: {pytest: tests/test_new_guards_are_mutated_every_night.py::test_a_red_mutation_is_written_dated_with_its_mutation_and_a_green_one_is_not}
+  mutation: "écrire aussi une mutation restée verte dans guard-red-log.jsonl"
+  opportunite: "407 `seen_red` « self-proving » prouvent que le détecteur voit un défaut construit, pas que le garde rougit quand son code casse ; 14 datés à la main, 5 vus rouges par le job nocturne (R360). Il en mute 4 par nuit en rotation : ~100 nuits pour le stock ; 179 des 407 pointent un fichier sans test `test_the_detector_sees*`"
   premisse_corrigee: "« ajouter cause racine / balayage / vu rouge aux classes » : les trois champs existent sur 429 classes sur 429 ; le trou est que le vu rouge est presque toujours « self-proving », rarement daté"
 - id: REQ-HARN-20
   domaine: error-classes

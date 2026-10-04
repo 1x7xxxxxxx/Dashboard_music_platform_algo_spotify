@@ -13,6 +13,7 @@ rex: []
 """
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -117,6 +118,16 @@ def _render_pending(by_file: dict[str, list[str]]) -> str:
     return header + "\n".join(sections)
 
 
+def _holds_human_input(pending: Path) -> bool:
+    """R360: a draft a human validated or filled must survive the next Stop."""
+    try:
+        text = pending.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return bool(re.search(r"^\s*validated:\s*true\b", text, re.M)
+                or re.search(r'^\s*issue:[ \t]*(?!"\?"[ \t]*$|\?[ \t]*$)\S', text, re.M))
+
+
 def main() -> None:
     try:
         sys.stdin.read()
@@ -130,6 +141,10 @@ def main() -> None:
 
     content = _render_pending(by_file)
     pending = repo_root / _PENDING_FILE
+    if _holds_human_input(pending):
+        print("\n📝 pending-rex.md holds validated or filled drafts — not overwritten; "
+              "run /rex-promote", file=sys.stderr)
+        sys.exit(0)
     try:
         pending.parent.mkdir(parents=True, exist_ok=True)
         pending.write_text(content, encoding="utf-8")

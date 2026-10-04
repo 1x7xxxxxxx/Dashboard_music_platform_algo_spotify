@@ -1,6 +1,7 @@
 ---
 name: dashboard-view
 description: "Rules for Streamlit views: page structure, sidebar, caching, plotly charts and KPI tiles. Use when writing or reviewing a dashboard page, a show() function, a filter or a widget, or when the user mentions streamlit, view, page, navigation or metric. Not for the pipeline that feeds it and not for the database layer. Assumes a Streamlit app following this repo's view layout."
+keywords: vue, view, page, streamlit, show(), tuile, tile, kpi, widget, filtre, filter, onglet, tab, barre latérale, sidebar, graphique, chart, nav_sections, routes.py
 ---
 
 # Skill: Dashboard View
