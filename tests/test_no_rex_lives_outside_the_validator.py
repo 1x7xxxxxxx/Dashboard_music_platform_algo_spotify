@@ -35,10 +35,19 @@ from pathlib import Path
 
 import pytest
 
+from tools.dev.repo_files import repo_files
+
 yaml = pytest.importorskip("yaml")
 
-_CLAUDE = Path(__file__).resolve().parents[1] / ".claude"
+_REPO = Path(__file__).resolve().parents[1]
+_CLAUDE = _REPO / ".claude"
 _FRONTMATTER = re.compile(r"^---\n(.*?)\n---", re.S)
+
+
+# ⚠️ The `.claude/` walks go through `repo_files` (git's view AND the disk), never
+# `_CLAUDE.rglob(...)`: `.claude/worktrees/*` are git-ignored FULL copies of the repo
+# (Claude Code agent worktrees). On 2026-10-04 a raw walk listed every rex-bearing `.md`
+# of both copies as an orphan of `validate_rex.py` — which rightly never visits them.
 
 
 class _Unparseable(Exception):
@@ -73,7 +82,7 @@ def _carries_rex(path: Path) -> bool:
 def test_no_frontmatter_is_unparseable() -> None:
     """Un frontmatter illisible sort du périmètre SANS que personne ne le sache."""
     broken = []
-    for p in _CLAUDE.rglob("*.md"):
+    for p in repo_files(_REPO, "*.md", under=".claude"):
         if ".retired" in p.parts:
             continue
         try:
@@ -109,12 +118,11 @@ def test_the_validator_visits_something() -> None:
         "validateur lui-même, ne démontrent plus rien")
 
 
-def test_every_rex_bearing_markdown_is_visited() -> None:
-    """Un fichier qui porte des leçons et que personne ne lit est un cimetière."""
-    visited = _visited()
-    orphans = sorted(
-        str(p.relative_to(_CLAUDE.parent))
-        for p in _CLAUDE.rglob("*.md")
+def _orphans(root: Path, visited: set[Path]) -> list[str]:
+    """Rex-bearing `.md` under `root/.claude` that the validator does not visit."""
+    return sorted(
+        str(p.relative_to(root))
+        for p in repo_files(root, "*.md", under=".claude")
         # `.retired/` est un cimetière DÉLIBÉRÉ : on y range ce qu'on a cessé
         # d'utiliser, et son histoire n'a plus d'outil à instruire. `.migrated/`
         # n'en était pas un — c'était une étape de migration qu'on a oubliée en
@@ -122,6 +130,11 @@ def test_every_rex_bearing_markdown_is_visited() -> None:
         if ".retired" not in p.parts
         and _carries_rex(p) and p.resolve() not in visited
     )
+
+
+def test_every_rex_bearing_markdown_is_visited() -> None:
+    """Un fichier qui porte des leçons et que personne ne lit est un cimetière."""
+    orphans = _orphans(_REPO, _visited())
     assert not orphans, (
         "ces fichiers portent des entrées `rex:` que `validate_rex.py` ne visite "
         "jamais :\n  " + "\n  ".join(orphans) + "\n\n"
@@ -134,7 +147,7 @@ def test_every_rex_bearing_markdown_is_visited() -> None:
 def test_an_archive_is_not_an_injectable_tool() -> None:
     """Une `.rex.md` ne porte pas `keywords:` — sinon elle se lit comme un outil."""
     offenders = []
-    for archive in _CLAUDE.rglob("*.rex.md"):
+    for archive in repo_files(_REPO, "*.rex.md", under=".claude"):
         m = _FRONTMATTER.match(archive.read_text(encoding="utf-8"))
         if not m:
             continue

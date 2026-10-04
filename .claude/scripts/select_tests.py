@@ -326,7 +326,8 @@ def _trouve_conftests(root: Path) -> list[Path]:
     import os
     out: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in PRUNE and d != ".git"]
+        dirnames[:] = [d for d in dirnames if d not in PRUNE and d != ".git"
+                       and not _copie_imbriquee(dirpath, d)]
         if "conftest.py" in filenames:
             out.append(Path(dirpath) / "conftest.py")
     return out
@@ -408,6 +409,18 @@ PRUNE = {".git", ".venv", "venv", "env", "node_modules", "__pycache__",
          "build", "dist", ".mypy_cache", ".pytest_cache", ".ruff_cache",
          "site-packages", ".tox", "htmlcov", ".idea", ".vscode"}
 
+# (parent, child) directories that hold a git-ignored FULL copy of the repo: Claude Code
+# agent worktrees live under `.claude/worktrees/<name>/`, ignored only by the local
+# `.git/info/exclude`, never present in CI. Pruned by PAIR, not by name, so a project
+# with its own `worktrees/` package is still walked. Measured 2026-10-04: two such
+# copies (118 MB each) under `.claude/`.
+NESTED_COPIES = {(".claude", "worktrees")}
+
+
+def _copie_imbriquee(dirpath: str, d: str) -> bool:
+    """Is `dirpath/d` a nested git-ignored copy of the repo?"""
+    return (Path(dirpath).name, d) in NESTED_COPIES
+
 
 def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     """Les `.py` du dépôt, en ÉLAGUANT pendant la descente.
@@ -431,7 +444,7 @@ def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     for dirpath, dirnames, filenames in os.walk(root):
         gardes = []
         for d in dirnames:
-            if d in PRUNE:
+            if d in PRUNE or _copie_imbriquee(dirpath, d):
                 continue
             chemin = str(Path(dirpath) / d)
             if d.startswith(".") and not any(
@@ -655,7 +668,8 @@ def tests_scanning_the_test_files(changed: list[str], all_tests: set[str],
 # the whole repository — and stays so when a literal is joined to it: code-critic's
 # second finding, where `Path(__file__).parent / "fixtures"` in `tests/foo/` had resolved
 # to a top-level `fixtures/` because « root » and « unknown » shared one value.
-_TREE_SCAN_HINT = re.compile(r"\.rglob\(|\.glob\(|\.iterdir\(|\bos\.(?:walk|listdir|scandir)\(")
+_TREE_SCAN_HINT = re.compile(
+    r"\.rglob\(|\.glob\(|\.iterdir\(|\bos\.(?:walk|listdir|scandir)\(|\brepo_files\(")
 _UNKNOWN = None   # the whole repository — never joined to anything
 
 
@@ -756,6 +770,9 @@ def scanned_patterns(source: str, rel: str | None = None) -> set[tuple[str | Non
     here = tuple(rel.split("/")) if rel else None
     out: set[tuple[str | None, str, bool]] = set()
     for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and _callee(n) == "repo_files":
+            out |= _repo_files_walk(n, names, loops)
+            continue
         if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
             continue
         attr = n.func.attr
@@ -784,6 +801,36 @@ def scanned_patterns(source: str, rel: str | None = None) -> set[tuple[str | Non
             continue
         out |= {(d, pat, rec) for d in dirs}
     return out
+
+
+def _callee(call: ast.Call) -> str:
+    f = call.func
+    return f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+
+
+def _repo_files_walk(n: ast.Call, names: dict[str, list[ast.AST]],
+                     loops: dict[str, ast.AST]) -> set[tuple[str | None, str, bool]]:
+    """`tools/dev/repo_files.repo_files(root, pattern, under=…)` is a recursive walk.
+
+    Its contract is « `root` is the repository, `under` is repo-relative », so the walked
+    directory is `under` alone (the repo root without it). `root` is a parameter in every
+    caller — so a guard can pass a `tmp_path` repo — and resolving it would always give
+    `_UNKNOWN`. Added 2026-10-04 when four guards moved off `rglob` onto it: without
+    this branch `make test-changed` stopped selecting them."""
+    args = list(n.args)
+    kw = {k.arg: k.value for k in n.keywords if k.arg}
+    pat_node = args[1] if len(args) > 1 else kw.get("pattern")
+    pat = (pat_node.value if isinstance(pat_node, ast.Constant)
+           and isinstance(pat_node.value, str) else "*")
+    under = args[2] if len(args) > 2 else kw.get("under")
+    if under is None:
+        return {("", pat, True)}
+    vals = _strings(under, names)
+    if vals is None and isinstance(under, ast.Name) and under.id in loops:
+        vals = _strings(loops[under.id], names)
+    if vals is None:
+        return {(_UNKNOWN, pat, True)}
+    return {("" if v in (".", "./") else v.strip("/"), pat, True) for v in vals}
 
 
 def scanned_directories(source: str, rel: str | None = None) -> set[str | None]:

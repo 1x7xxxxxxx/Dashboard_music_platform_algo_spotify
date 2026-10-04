@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tools.dev.repo_files import repo_files
+
 _SCRIPT = Path(__file__).resolve().parents[1] / ".claude/workflows/engineering-loop.js"
 
 _HARNESS = r"""
@@ -101,7 +103,12 @@ def _missing(src: str, root: Path) -> list[str]:
     targets, scripts = named_commands(src)
     out = [f"make {t}" for t in sorted(targets - declared)]
     for sc in sorted(scripts):
-        found = (root / sc).exists() if "/" in sc else any(root.rglob(sc))
+        # git's view AND the disk (`repo_files`), never a raw `rglob`: a script present only
+        # in a git-ignored `.claude/worktrees/*` copy is not in the tree, and one still in
+        # the index but deleted on disk cannot be run either.
+        rel = Path(sc).as_posix().removeprefix("./")
+        found = any(p.relative_to(root.resolve()).as_posix() == rel if "/" in sc else True
+                    for p in repo_files(root, Path(sc).name))
         if not found:
             out.append(sc)
     return out

@@ -45,23 +45,77 @@ def collection_errors(stdout: str) -> list[str]:
                    if ligne.startswith("ERROR tests/")})
 
 
-def untracked_tests() -> set[str]:
-    """Test files git does not track — the only thing a commit hook may leave out.
+def _git_files(*args: str) -> set[str]:
+    r = subprocess.run(["git", "ls-files", *args],
+                       capture_output=True, text=True, cwd=str(_ROOT))
+    return {ligne.strip() for ligne in r.stdout.splitlines() if ligne.strip()}
+
+
+def untracked_files() -> set[str]:
+    """Every file git does not track, ignored ones aside — what a commit does not carry.
 
     R251 (2026-09-27). R250 scoped the hook to the STAGED files. Too narrow: a test's id
     can be built from ANOTHER file's content — `test_a_comment_names_a_test_that_exists`
     puts a line number of the file it reads into its id — so a comment added to one
     staged file renamed a test in an unstaged one, and main went red (0dee1d41). At commit
     time pre-commit has already stashed every unstaged change: the tree IS the commit,
-    plus the untracked files. Those, and only those, are not this commit's."""
-    r = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "tests/"],
-                       capture_output=True, text=True, cwd=str(_ROOT))
-    return {ligne.strip() for ligne in r.stdout.splitlines() if ligne.strip()}
+    plus the untracked files. Those, and only those, are not this commit's.
+
+    2026-10-04: no `tests/` pathspec any more. About ten TRACKED tests parametrize over
+    `src/`, `src/dashboard/views/` and `tools/` by walking the disk, so an untracked
+    `src/dashboard/views/wip.py` adds ids to tracked files exactly as a test file does."""
+    return _git_files("--others", "--exclude-standard")
 
 
-def outside(node_ids, excluded: set[str]) -> list[str]:
-    """The node-ids whose FILE is not excluded. Pure."""
-    return [k for k in node_ids if k.split("::")[0] not in excluded]
+def tracked_names() -> set[str]:
+    """Every name a TRACKED path answers to: its components, basenames and stems."""
+    noms: set[str] = set()
+    for chemin in _git_files():
+        for part in Path(chemin).parts:
+            noms.update((part, Path(part).stem))
+    return noms
+
+
+def _names(path: str, tracked: set[str]) -> set[str]:
+    """What an id param may call an untracked file: its path always; its basename and
+    stem only when no tracked path answers to them (`[__init__.py]` names nobody). A
+    stem shorter than 3 characters is never a name: a scratch `x.py` would otherwise
+    claim the `x` of R251's own id `[tests/…-310-x]`."""
+    p = Path(path)
+    souche = {p.stem} if len(p.stem) >= 3 else set()
+    return {path} | (({p.name} | souche) - tracked)
+
+
+def _tokens(param: str) -> set[str]:
+    """Every run of `-`-joined pieces of a pytest param, each also without the integer
+    suffix pytest adds to duplicate ids (`wip.py0`). Exact pieces — `310` and `x` in
+    `[tests/f.py-310-x]` are tokens, never substrings of a path."""
+    morceaux = param.split("-")
+    runs = {"-".join(morceaux[i:j]) for i in range(len(morceaux))
+            for j in range(i + 1, len(morceaux) + 1)}
+    return (runs | {t.rstrip("0123456789") for t in runs if t[-1:].isdigit()}) - {""}
+
+
+def outside(node_ids, excluded: set[str], tracked: set[str] = frozenset()) -> list[str]:
+    """The node-ids that name no excluded file — neither as their FILE nor in their
+    `[param]` (path, or basename/stem no tracked path shares). Pure.
+
+    2026-10-04: three tracked tests (`test_no_test_deletes_a_module`, `test_no_test_
+    stubs_an_installed_package`, `test_the_http_escape_hatch_stays_narrow`) put every
+    test file they find on disk in their ids; the file-only predicate let another
+    session's untracked test refuse commits that did not touch it."""
+    noms: set[str] = set()
+    for f in excluded:
+        noms |= _names(f, tracked)
+
+    def nomme(k: str) -> bool:
+        if k.split("::")[0] in excluded:
+            return True
+        if "[" not in k or not k.endswith("]"):
+            return False
+        return bool(_tokens(k[k.index("[") + 1:-1]) & noms)
+
+    return [k for k in node_ids if not nomme(k)] if noms else list(node_ids)
 
 
 def fix(fantomes: dict, sans: list[str]) -> int:
@@ -87,16 +141,73 @@ def fix(fantomes: dict, sans: list[str]) -> int:
     return 0 if r.returncode in (0, 1) else r.returncode
 
 
+def _collect() -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:randomly",
+         "--collect-only"],
+        capture_output=True, text=True, cwd=str(_ROOT), timeout=600)
+
+
+def _named(ids, hors: set[str], noms: set[str]) -> list[str]:
+    """The ids that DO name an untracked file — the complement of `outside`."""
+    gardes = set(outside(ids, hors, noms))
+    return sorted(k for k in ids if k not in gardes)
+
+
+def _list(titre: str, ids: list[str]) -> None:
+    print(titre)
+    for k in ids[:10]:
+        print(f"   {k}")
+    if len(ids) > 10:
+        print(f"   … et {len(ids) - 10} autre(s)")
+
+
+def _refuse_staged_entries_for_untracked(durees: dict, hors, noms) -> int:
+    """Second line: a STAGED `.test_durations` must not carry durations for files the
+    commit does not carry — CI would read them as phantoms (ci.yml runs this script with
+    no argument, so with no exclusion). `make test-durations-missing` still writes them
+    on purpose, for the author who measures before `git add`; this is where they stop."""
+    souillees = _named(durees, hors, noms)
+    if not souillees:
+        return 0
+    _list(f"❌ `.test_durations` est indexé avec {len(souillees)} durée(s) de fichiers NON "
+          "suivis — la CI les lirait comme des fantômes :", souillees)
+    print("\n   Remède : `git add` ces fichiers dans ce commit, ou désindexer ces lignes "
+          "(`git add -p .test_durations`).")
+    return 1
+
+
+def _report(fantomes: dict, sans: list[str]) -> None:
+    if fantomes:
+        masse = sum(fantomes.values())
+        print(f"❌ {len(fantomes)} entrée(s) non collectable(s), {masse:.1f} s de temps "
+              "attribué à des tests qui n'existent plus :")
+        for k, v in sorted(fantomes.items(), key=lambda x: -x[1])[:10]:
+            print(f"   {v:6.2f} s  {k}")
+        if len(fantomes) > 10:
+            print(f"   … et {len(fantomes) - 10} autre(s)")
+    if sans:
+        _list(f"❌ {len(sans)} test(s) collecté(s) sans durée connue — `pytest-split` "
+              "leur donne une durée MOYENNE :", sans)
+
+
+def _scope(argv: list[str]) -> tuple[list[str], bool, set[str], set[str]]:
+    """R251 — in the commit hook (staged files passed), what is UNTRACKED is not this
+    commit's: neither a test in progress beside it, nor the ids a tracked test builds
+    from it. `--fix` computes the same set, to WARN, never to filter."""
+    fichiers = [a for a in argv[1:] if not a.startswith("-")]
+    hook = bool(fichiers)
+    hors = untracked_files() if hook or "--fix" in argv else set()
+    return fichiers, hook, hors, (tracked_names() if hors else set())
+
+
 def main() -> int:
     if not _DUR.is_file():
         print("❌ `.test_durations` absent — `pytest-split` répartirait sur le NOMBRE "
               "de tests. Remède : `make test-durations`.")
         return 1
 
-    r = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/", "-q", "-p", "no:randomly",
-         "--collect-only"],
-        capture_output=True, text=True, cwd=str(_ROOT), timeout=600)
+    r = _collect()
     collectes = {ligne.strip() for ligne in r.stdout.splitlines()
                  if "::" in ligne and ligne.strip().startswith("tests/")}
 
@@ -107,15 +218,11 @@ def main() -> int:
               f"   {r.stdout[-400:]}")
         return 1
 
+    fichiers, hook, hors, noms = _scope(sys.argv)
     # A file that fails to IMPORT is absent from the collection, so every duration it
     # owns reads as a phantom. On 2026-09-25 that is how a missing FERNET_KEY in this
     # job was reported: 37 "tests that no longer exist" in two files that exist.
-    erreurs = collection_errors(r.stdout)
-    # R251 — in the commit hook (files passed), an error in an UNTRACKED file is not this
-    # commit's: a test in progress beside it cannot import code the commit does not carry.
-    hook = any(a.startswith("tests/") for a in sys.argv[1:])
-    hors = untracked_tests() if hook else set()
-    erreurs = outside(erreurs, hors)
+    erreurs = outside(collection_errors(r.stdout), hors if hook else set(), noms)
     if erreurs:
         print(f"❌ la collecte a échoué sur {len(erreurs)} fichier(s) — leurs durées "
               "passeraient pour des fantômes. Ce n'est pas `.test_durations` qui est "
@@ -126,35 +233,32 @@ def main() -> int:
         return 1
 
     durees = json.loads(_DUR.read_text(encoding="utf-8"))
+    if hook and ".test_durations" in fichiers and \
+            _refuse_staged_entries_for_untracked(durees, hors, noms):
+        return 1
     fantomes = {k: v for k, v in durees.items() if k not in collectes}
     sans = sorted(collectes - set(durees))
-    # R251 — every tracked test is judged, not only the staged files' own (see
-    # `untracked_tests`); the untracked ones are the work in progress beside the commit.
-    if hors:
-        fantomes = {k: fantomes[k] for k in outside(fantomes, hors)}
-        sans = outside(sans, hors)
+    laisses = _named([*fantomes, *sans], hors, noms)
+    if hook:
+        # Neither judged NOR measured by `--fix-once`: the hook never writes a duration
+        # for a file the commit does not carry.
+        fantomes = {k: fantomes[k] for k in outside(fantomes, hors, noms)}
+        sans = outside(sans, hors, noms)
+        if laisses:
+            _list(f"▶ {len(laisses)} id(s) laissé(s) hors — ils nomment un fichier non "
+                  "suivi :", laisses)
 
     if not fantomes and not sans:
         print(f"▶ durations: {len(durees)} entrée(s), {len(collectes)} test(s) collecté(s)")
         print("✅ chaque durée désigne un test collecté, et chaque test a une durée")
         return 0
 
-    if fantomes:
-        masse = sum(fantomes.values())
-        print(f"❌ {len(fantomes)} entrée(s) non collectable(s), {masse:.1f} s de temps "
-              "attribué à des tests qui n'existent plus :")
-        for k, v in sorted(fantomes.items(), key=lambda x: -x[1])[:10]:
-            print(f"   {v:6.2f} s  {k}")
-        if len(fantomes) > 10:
-            print(f"   … et {len(fantomes) - 10} autre(s)")
-    if sans:
-        print(f"❌ {len(sans)} test(s) collecté(s) sans durée connue — `pytest-split` "
-              "leur donne une durée MOYENNE :")
-        for k in sans[:10]:
-            print(f"   {k}")
-        if len(sans) > 10:
-            print(f"   … et {len(sans) - 10} autre(s)")
+    _report(fantomes, sans)
     if "--fix" in sys.argv:
+        if laisses:
+            _list(f"⚠️ {len(laisses)} de ces durées appartiennent à des fichiers HORS de "
+                  "l'index — ne commitez `.test_durations` qu'avec eux (le hook refuse "
+                  "sinon) :", laisses)
         print("\n→ --fix")
         return fix(fantomes, sans) or main_check_again()
     if "--fix-once" in sys.argv:

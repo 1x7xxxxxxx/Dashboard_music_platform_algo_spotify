@@ -38,8 +38,10 @@ repos:
         language: system
         entry: .venv/bin/python tools/dev/check_durations_are_collectable.py
         args: [--fix-once]          # R319: measures the missing ones, then refuses ONCE
-        files: ^tests/test_[^/]*\.py$
-        pass_filenames: true        # only the STAGED test files are judged
+        # `.test_durations` too: a staged copy carrying durations of UNTRACKED files is
+        # refused — CI, with no exclusion, would read them as phantoms (2026-10-04).
+        files: ^(tests/test_[^/]*\.py|\.test_durations)$
+        pass_filenames: true        # staged names = "runs as the commit hook"
 
   # ── Ruff: Python lint (matches CI baseline 2026-05-14 = 0 errors) ─────
   - repo: https://github.com/astral-sh/ruff-pre-commit

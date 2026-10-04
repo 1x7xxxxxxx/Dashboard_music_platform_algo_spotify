@@ -127,6 +127,12 @@ def _ligne_de(texte: str, motif: str) -> int:
     return 1
 
 
+# (parent, child) directories holding a git-ignored FULL copy of the repo — Claude Code
+# agent worktrees, ignored only by the local `.git/info/exclude`, absent in CI. A
+# conftest found there is not one the workflow runs (measured 2026-10-04).
+NESTED_COPIES = {(".claude", "worktrees")}
+
+
 def _conftests_xdist(root: Path) -> list[Path]:
     """Les `conftest.py` qui ont ECRIT une isolation par worker xdist.
 
@@ -141,7 +147,8 @@ def _conftests_xdist(root: Path) -> list[Path]:
         dirnames[:] = [d for d in dirnames
                        if d not in {".git", ".venv", "venv", "node_modules",
                                     "__pycache__", ".tox", "build", "dist",
-                                    "site-packages", ".pytest_cache"}]
+                                    "site-packages", ".pytest_cache"}
+                       and (Path(dirpath).name, d) not in NESTED_COPIES]
         if "conftest.py" not in filenames:
             continue
         p = Path(dirpath) / "conftest.py"

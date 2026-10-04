@@ -34,6 +34,42 @@ def tmp_csv(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# A walk never judges the repo copies Claude Code keeps under `.claude/worktrees/`
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+@pytest.fixture(autouse=True)
+def _no_walk_into_a_nested_repo_copy():
+    """Fail a test whose disk walk yields a path inside `<repo>/.claude/worktrees/`.
+
+    Those are full git-ignored copies of the repo, absent in CI: on 2026-10-04 two guards
+    went red on files that were neither in the tree nor in CI. The wrapper binds whatever
+    the walker's receiver is called (`Path.rglob/glob`, `os.walk`, `glob.glob/iglob`).
+    Limits: vacuous where no worktree exists (CI), blind to a subprocess, to a walk bound
+    before the fixture, and to a skipped test. Walk the tree with
+    `tools.dev.repo_files.repo_files` instead. Guard:
+    `tests/test_a_walk_never_enters_a_nested_repo_copy.py`.
+    """
+    from tools.dev.repo_files import install_walk_probe
+
+    sink: list[str] = []
+    undo = install_walk_probe(_REPO_ROOT, sink)
+    try:
+        yield
+    finally:
+        undo()
+    if sink:
+        pytest.fail(
+            f"{len(sink)} path(s) walked inside a git-ignored repo copy under "
+            f"`.claude/worktrees/` — files that are neither in the tree nor in CI:\n  "
+            + "\n  ".join(sorted(set(sink))[:8])
+            + "\nWalk through `tools.dev.repo_files.repo_files(root, pattern, under=…)` "
+            "(git's view AND the disk), or prune `.claude/worktrees`.", pytrace=False)
+
+
+# ---------------------------------------------------------------------------
 # The silence that let four waves of tenant-isolation work ship unverified
 # ---------------------------------------------------------------------------
 #

@@ -47,6 +47,8 @@ import ast
 import shlex
 from pathlib import Path
 
+from tools.dev.repo_files import repo_files
+
 REPO = Path(__file__).resolve().parent.parent
 
 _ROOTS = (".claude", "tools", "scripts", ".github")
@@ -114,21 +116,22 @@ def _chaines_python(source: str) -> list[str]:
             and id(n) not in docstrings]
 
 
-def _fichiers() -> list[Path]:
+def _fichiers(root: Path = REPO) -> list[Path]:
+    """The automation files of the tree, as git sees it.
+
+    ⚠️ Not `rglob`: `.claude/worktrees/*` holds git-ignored full copies of the repo, and a
+    raw walk of `.claude` judged their `tests/` (4 false sites on 2026-10-04).
+    """
     vus: list[Path] = []
     for racine in _ROOTS:
-        base = REPO / racine
-        if not base.exists():
-            continue
-        for chemin in sorted(base.rglob("*")):
-            if chemin.is_file() and chemin.suffix in (_PY, *_SHELLISH):
-                vus.append(chemin)
+        vus += [c for c in repo_files(root, "*", under=racine)
+                if c.suffix in (_PY, *_SHELLISH)]
     return vus
 
 
-def _sites() -> list[str]:
+def _sites(root: Path = REPO) -> list[str]:
     trouves = []
-    for chemin in _fichiers():
+    for chemin in _fichiers(root):
         try:
             texte = chemin.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -145,7 +148,7 @@ def _sites() -> list[str]:
                 continue
             for segment in _segments(commande):
                 if _lit_stdin(segment):
-                    trouves.append(str(chemin.relative_to(REPO)))
+                    trouves.append(str(chemin.relative_to(root)))
                     break
     return sorted(set(trouves))
 

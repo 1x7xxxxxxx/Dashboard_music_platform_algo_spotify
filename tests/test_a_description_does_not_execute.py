@@ -40,6 +40,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tools.dev.repo_files import repo_files
+
 _ROOT = Path(__file__).resolve().parents[1]
 _SCANNED = ("tools", ".claude", "deploy")
 
@@ -51,14 +53,12 @@ _RISQUE = re.compile(r"^\s*(echo|printf)\b[^\n]*`[A-Za-z_./$]")
 _SIMPLE = re.compile(r"^\s*(echo|printf)\s+'[^']*'\s*$")
 
 
-def _shell_files() -> list[Path]:
+def _shell_files(root: Path = _ROOT) -> list[Path]:
+    # git's view, not `rglob`: `.claude/worktrees/*` are git-ignored full repo copies.
     out: list[Path] = []
     for base in _SCANNED:
-        d = _ROOT / base
-        if not d.is_dir():
-            continue
-        out += [p for p in d.rglob("*.sh") if "__pycache__" not in p.parts]
-    mk = _ROOT / "Makefile"
+        out += repo_files(root, "*.sh", under=base)
+    mk = root / "Makefile"
     if mk.is_file():
         out.append(mk)
     return sorted(out)
