@@ -4,7 +4,8 @@ Type: Feature
 Uses: project_db, secondary_analyses, smart_period_filter, goto, i18n, meta_impact
 Depends on: v_s4a_song_daily (105), v_s4a_audience_* (117), v_meta_daily, v_s4a_song_measured_span
             (118), v_s4a_release_cohort / _reach (119), v_spotify_followers_daily (120),
-            v_spotify_track_pi_daily (130)
+            v_spotify_track_pi_daily (130), campaign_track_mapping,
+            track_platform_link (049)
 Persists in: — (lecture seule)
 
 Ce que cette page était, et pourquoi elle a changé
@@ -161,27 +162,98 @@ def worth_a_panel(df: pd.DataFrame, col: str) -> bool:
             and float(pd.to_numeric(df[col], errors="coerce").fillna(0).abs().sum()) > 0)
 
 
+def release_spend(spend: pd.DataFrame, mapping: pd.DataFrame, links: pd.DataFrame,
+                  releases: pd.DataFrame, horizon: int) -> pd.DataFrame:
+    """Meta € per day by release title and day since release. Pure (R349).
+
+    The campaign -> release join goes through the CONFIRMED link, never through a name:
+    `campaign_track_mapping.track_name` is matched (trimmed) against the `platform_title`
+    of ANY confirmed `track_platform_link` row, and the release is reached by that row's
+    `match_key` — the same resolution as `campaign_compare.load` and
+    `meta_x_spotify._resolve_track`.
+
+    Seen on the screen (2026-10-04): the previous join, `lower(r.title) = lower(m.track_name)`,
+    compared the release title (« … saloon ? ») with a track name written in the S4A file
+    spelling (« … saloon _ », see `meta_mapping/_campaigns.py`) — the Meta panel stayed
+    empty for that release. No name fallback: the codebase draws no series for an
+    unlinked track elsewhere either (campaign_compare, meta_x_spotify).
+
+    Frames: spend(artist_id, campaign_name, day, spend), mapping(artist_id,
+    campaign_name, track_name), links(artist_id, match_key, platform_title),
+    releases(artist_id, match_key, title, release_date). Returns (title, day_index, spend)
+    with 0 <= day_index < horizon.
+    """
+    out_cols = ["title", "day_index", "spend"]
+    if any(f.empty for f in (spend, mapping, links, releases)):
+        return pd.DataFrame(columns=out_cols)
+    m = mapping.assign(_name=mapping["track_name"].astype(str).str.strip())
+    lk = links.assign(_name=links["platform_title"].astype(str).str.strip())
+    # One campaign may reach one match_key through several platform titles (s4a and
+    # spotify spell it alike): de-duplicated before it touches the spend, which it
+    # would otherwise multiply.
+    resolved = (m.merge(lk, on=["artist_id", "_name"], validate="many_to_many")
+                [["artist_id", "campaign_name", "match_key"]].drop_duplicates())
+    rel = releases[["artist_id", "match_key", "title", "release_date"]].drop_duplicates(
+        ["artist_id", "match_key"])
+    df = (spend.merge(resolved, on=["artist_id", "campaign_name"], validate="many_to_many")
+          .merge(rel, on=["artist_id", "match_key"], validate="many_to_one"))
+    if df.empty:
+        return pd.DataFrame(columns=out_cols)
+    df["day_index"] = (pd.to_datetime(df["day"]) - pd.to_datetime(df["release_date"])).dt.days
+    df = df[(df["day_index"] >= 0) & (df["day_index"] < horizon)]
+    df = df.assign(spend=pd.to_numeric(df["spend"], errors="coerce").fillna(0))
+    return (df.groupby(["title", "day_index"], sort=True, as_index=False)["spend"].sum()
+            [out_cols])
+
+
+def spend_curve(meta: pd.DataFrame) -> pd.DataFrame:
+    """Each title's spend made DENSE between its first and last spending day. Pure (R349).
+
+    The panel is drawn as a curve (owner, 2026-10-04: the points read as a cloud). A line
+    over the sparse `spend > 0` rows would bridge a paused week with a slope, i.e. invent
+    spend; between two spending days, a day without a row is a day at 0 €. Outside
+    [first, last] nothing is drawn — before the first and after the last campaign day the
+    page does not claim anything.
+    """
+    if meta.empty:
+        return meta
+    parts = []
+    for title, grp in meta.groupby("title", sort=False):
+        idx = pd.RangeIndex(int(grp["day_index"].min()), int(grp["day_index"].max()) + 1,
+                            name="day_index")
+        dense = (grp.groupby("day_index")["spend"].sum().reindex(idx, fill_value=0)
+                 .reset_index())
+        parts.append(dense.assign(title=title)[["title", "day_index", "spend"]])
+    return pd.concat(parts, ignore_index=True)
+
+
 def _release_overlays(db, keys: list, horizon: int, frag: str,
                       params: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
     """(Meta € per day, Shazams per reading) by release title and day since release.
 
-    Meta: the campaigns tied to the track (`campaign_track_mapping`) on the gold daily
+    Meta: the campaigns tied to the track (`campaign_track_mapping`) resolved to the
+    release by `track_platform_link.match_key` (`release_spend`), on the gold daily
     spend. Shazams: the Apple title linked to the release (`track_platform_link`) on the
     gold per-reading series — Apple publishes readings, not days.
     """
-    meta = _df(db, f"""
-        SELECT r.title, (d.day - r.release_date) AS day_index, SUM(d.spend) AS spend
-          FROM (SELECT artist_id, campaign_name, day, spend FROM v_meta_daily
-                 WHERE spend > 0 {frag}) d
-          JOIN (SELECT artist_id, campaign_name, track_name FROM campaign_track_mapping
-                 WHERE TRUE {frag}) m
-            ON m.artist_id = d.artist_id AND m.campaign_name = d.campaign_name
-          JOIN (SELECT artist_id, match_key, title, release_date
-                  FROM track_release_reference WHERE match_key = ANY(%s) {frag}) r
-            ON r.artist_id = m.artist_id AND lower(r.title) = lower(m.track_name)
-         WHERE d.day - r.release_date BETWEEN 0 AND %s
-         GROUP BY 1, 2 ORDER BY 1, 2
-    """, (*params, *params, keys, *params, horizon - 1))
+    spend = _df(db, f"""
+        SELECT artist_id, campaign_name, day, SUM(spend) AS spend FROM v_meta_daily
+         WHERE spend > 0 {frag}
+         GROUP BY 1, 2, 3
+    """, params)
+    mapping = _df(db, f"""
+        SELECT artist_id, campaign_name, track_name FROM campaign_track_mapping
+         WHERE TRUE {frag}
+    """, params)
+    links = _df(db, f"""
+        SELECT artist_id, match_key, platform_title FROM track_platform_link
+         WHERE status = 'confirmed' {frag}
+    """, params)
+    releases = _df(db, f"""
+        SELECT artist_id, match_key, title, release_date FROM track_release_reference
+         WHERE match_key = ANY(%s) {frag}
+    """, (keys, *params))
+    meta = release_spend(spend, mapping, links, releases, horizon)
     shazam = _df(db, f"""
         SELECT r.title, (a.day - r.release_date) AS day_index,
                SUM(a.daily_shazams) AS shazams
@@ -197,6 +269,14 @@ def _release_overlays(db, keys: list, horizon: int, frag: str,
          GROUP BY 1, 2 ORDER BY 1, 2
     """, (*params, *params, keys, *params, horizon - 1))
     return meta, shazam
+
+
+def meta_spend_traces(meta: pd.DataFrame, colour: dict) -> list:
+    """The Meta €/day panel's traces — one CURVE per release. Pure (R349)."""
+    return [go.Scatter(x=grp["day_index"], y=grp["spend"], name=str(title),
+                       mode="lines", legendgroup=str(title), showlegend=False,
+                       line=dict(color=colour.get(title, "#888"), width=2))
+            for title, grp in spend_curve(meta).groupby("title", sort=False)]
 
 
 def _render_releases(db, frag: str, params: tuple) -> None:
@@ -283,10 +363,8 @@ def _render_releases(db, frag: str, params: tuple) -> None:
             textfont=dict(size=13), cliponaxis=False), row=1, col=1)
     row = 2
     if not meta.empty:
-        for title, grp in meta.groupby("title", sort=False):
-            fig.add_trace(go.Bar(x=grp["day_index"], y=grp["spend"], name=str(title),
-                                 legendgroup=str(title), showlegend=False,
-                                 marker_color=colour.get(title, "#888")), row=row, col=1)
+        for trace in meta_spend_traces(meta, colour):
+            fig.add_trace(trace, row=row, col=1)
         fig.update_yaxes(title_text=t("spotify_s4a_combined.meta_spend_axis", "Meta €/jour"),
                          row=row, col=1)
         row += 1

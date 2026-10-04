@@ -33,4 +33,7 @@ def test_the_overlays_read_gold_and_stop_at_the_common_horizon():
     sql = " ".join(n.value for n in ast.walk(fn) if isinstance(n, ast.Constant)
                    and isinstance(n.value, str))
     assert "v_meta_daily" in sql and "v_apple_song_daily" in sql
-    assert sql.count("BETWEEN 0 AND %s") == 2, "each overlay is cut at the compared horizon"
+    # R349 (2026-10-04): the Meta overlay is joined and cut in the pure `release_spend`
+    # (horizon checked there by test_a_release_receives_its_meta_spend_by_match_key);
+    # the Shazam overlay keeps its cut in SQL.
+    assert sql.count("BETWEEN 0 AND %s") == 1, "the Shazam overlay is cut at the horizon"
