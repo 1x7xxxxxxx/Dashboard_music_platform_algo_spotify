@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -89,14 +89,19 @@ def _fetch(db, include_resolved: bool):
     )
 
 
-def _age(dt) -> str:
+def _day(dt) -> str:
+    # An absolute date, never "N days ago": a relative age made the generated file
+    # change with the clock alone, so `make error-inbox` dirtied the tree at every
+    # session with no defect having moved (R342).
     if dt is None:
         return "—"
-    delta = datetime.now(timezone.utc) - dt
-    hours = delta.total_seconds() / 3600
-    if hours < 48:
-        return f"{hours:.0f} h"
-    return f"{hours / 24:.0f} j"
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _as_of(rows) -> str:
+    """The latest event the registry knows of — data-derived, unlike a wall clock."""
+    stamps = [d for r in rows for d in (r[8], r[10]) if d is not None]
+    return _day(max(stamps)) if stamps else "—"
 
 
 def render(rows, known: set[str]) -> tuple[str, int]:
@@ -119,7 +124,7 @@ def render(rows, known: set[str]) -> tuple[str, int]:
         "2026-09-25 — le fichier était resté 7 jours sans régénération, avec pour seul "
         "défaut ouvert un artefact de test.",
         "",
-        f"Régénéré le {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC · "
+        f"État au {_as_of(rows)} (dernier évènement connu) · "
         f"**{len(open_rows)} ouverte(s)** sur {len(rows)} au total.",
         "",
         "Fermer une entrée : `make error-resolve FP=<12 premiers caractères> "
@@ -133,7 +138,7 @@ def render(rows, known: set[str]) -> tuple[str, int]:
                   "Aucune erreur applicative non triée.", ""]
     else:
         lines += ["## Ouvertes", "",
-                  "| Empreinte | Exception | Où | Page | Env | # | Vue il y a | Classe |",
+                  "| Empreinte | Exception | Où | Page | Env | # | Vue le | Classe |",
                   "|---|---|---|---|---|---|---|---|"]
         for r in open_rows:
             (fp, exc_type, _msg, page, origin, env, occ, _first, last,
@@ -142,7 +147,7 @@ def render(rows, known: set[str]) -> tuple[str, int]:
                      if err_class and err_class in known else "—")
             lines.append(
                 f"| `{fp[:12]}` | `{exc_type}` | `{origin}` | {page or '—'} | "
-                f"{env} | {occ} | {_age(last)} | {klass} |")
+                f"{env} | {occ} | {_day(last)} | {klass} |")
         lines.append("")
         lines.append("### Le détail")
         lines.append("")
@@ -154,8 +159,8 @@ def render(rows, known: set[str]) -> tuple[str, int]:
                 "",
                 f"- **Message** : {msg or '—'}",
                 f"- **Page** : {page or '—'} · **environnement** : {env}",
-                f"- **{occ} occurrence(s)**, première il y a {_age(first)}, "
-                f"dernière il y a {_age(last)}",
+                f"- **{occ} occurrence(s)**, première le {_day(first)}, "
+                f"dernière le {_day(last)}",
                 (f"- **Classe** : `{err_class}`" if err_class
                  else "- **Classe** : non rattachée — si elle se reproduit, "
                       "`/capitalise` en écrit une"),
@@ -165,11 +170,11 @@ def render(rows, known: set[str]) -> tuple[str, int]:
     resolved = [r for r in rows if r[10] is not None]
     if resolved:
         lines += ["## Fermées", "",
-                  "| Empreinte | Exception | Fermée il y a | Note |",
+                  "| Empreinte | Exception | Fermée le | Note |",
                   "|---|---|---|---|"]
         for r in resolved[:25]:
             fp, exc_type = r[0], r[1]
-            lines.append(f"| `{fp[:12]}` | `{exc_type}` | {_age(r[10])} | "
+            lines.append(f"| `{fp[:12]}` | `{exc_type}` | {_day(r[10])} | "
                          f"{(r[11] or '—')[:90]} |")
         lines.append("")
 
@@ -245,10 +250,10 @@ def _check() -> int:
               file=sys.stderr)
         return 1
 
-    # L'horodatage de régénération change à chaque exécution : le comparer ferait
-    # rougir un document parfaitement à jour. On compare tout le reste, ligne à ligne.
+    # Nothing in the document depends on the clock any more (R342), so the whole
+    # text is compared — a filter here once hid a line that changed by itself.
     def _body(text: str) -> list[str]:
-        return [ln for ln in text.splitlines() if not ln.startswith("Régénéré le ")]
+        return text.splitlines()
 
     if _body(current) == _body(fresh):
         print(f"✅ {DOC.relative_to(ROOT)} décrit la base — {n_open} ouverte(s) sur "

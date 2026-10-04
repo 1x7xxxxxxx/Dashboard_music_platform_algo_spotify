@@ -6,7 +6,7 @@ Une ligne par **défaut**, pas par occurrence : l'empreinte (`src/utils/error_fi
 
 ⚠️ **Instantané de la base LOCALE, régénéré à la main** (`make error-inbox`). Les défauts de PRODUCTION n'ont pas besoin de ce fichier : ils arrivent chaque soir dans le mail de 23 h (`check_app_errors`, DAG `alert_monitor`). Décision R171 du 2026-09-25 — le fichier était resté 7 jours sans régénération, avec pour seul défaut ouvert un artefact de test.
 
-Régénéré le 2026-09-28 23:20 UTC · **0 ouverte(s)** sur 2 au total.
+État au 2026-10-04 (dernier évènement connu) · **0 ouverte(s)** sur 6 au total.
 
 Fermer une entrée : `make error-resolve FP=<12 premiers caractères> NOTE="ce qui a été corrigé"`. Une **nouvelle** occurrence la rouvre automatiquement — c'est le signal le plus utile du registre.
 
@@ -16,7 +16,11 @@ Aucune erreur applicative non triée.
 
 ## Fermées
 
-| Empreinte | Exception | Fermée il y a | Note |
+| Empreinte | Exception | Fermée le | Note |
 |---|---|---|---|
-| `7390cf06815a` | `DecodeError` | 0 h | DecodeError pendant le passage a PyJWT, 12 min avant R267 (7dd27f90) qui attrape InvalidTo |
-| `513cba567b5a` | `ValueError` | 3 j | artefact de test local (ValueError boom, env local), pas un defaut applicatif - R171 |
+| `1f3fd59c2411` | `ValueError` | 2026-10-04 | Airflow LOCAL redemarre le 2026-10-04 avec identifiants locaux (cles de test, canari 471)  |
+| `edbd81a22c47` | `RuntimeError` | 2026-10-04 | Airflow LOCAL redemarre le 2026-10-04 avec identifiants locaux (cles de test, canari 471)  |
+| `e9412665ebd4` | `RuntimeError` | 2026-10-04 | Airflow LOCAL redemarre le 2026-10-04 avec identifiants locaux (cles de test, canari 471)  |
+| `54bb526fe04b` | `ValueError` | 2026-10-04 | Airflow LOCAL redemarre le 2026-10-04 avec identifiants locaux (cles de test, canari 471)  |
+| `7390cf06815a` | `DecodeError` | 2026-09-28 | DecodeError pendant le passage a PyJWT, 12 min avant R267 (7dd27f90) qui attrape InvalidTo |
+| `513cba567b5a` | `ValueError` | 2026-09-25 | artefact de test local (ValueError boom, env local), pas un defaut applicatif - R171 |
