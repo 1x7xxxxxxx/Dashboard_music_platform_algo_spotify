@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R350 | Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge) | P3 | render smoke avec deux campagnes ; test de la sélection à deux <!-- critic: non — rendu d'interface, pas de donnée --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ --> |
+| R350 | Meta Ads, retour d'écran du 2026-10-04 : comparer DEUX campagnes — performance globale à échelle comparable, un second filtre de campagne dans « Visuels de campagne » et dans « Qui a vu tes pubs » (pays, âge) | P3 | render smoke avec deux campagnes ; test de la sélection à deux <!-- critic: non — rendu d'interface, pas de donnée --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, src/dashboard/content/, tools/dev/charts_dossier/, tests/ --> |
 
 ---
 
