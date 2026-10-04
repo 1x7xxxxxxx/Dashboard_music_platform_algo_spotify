@@ -87,20 +87,16 @@ jobs:
       - name: Block on an advisory nobody accepted (R267)
         run: python3 tools/dev/pip_audit_gate.py pip-audit.json
 
-      - name: Audit the API image's own requirements — nothing accepted (R267)
-        # requirements-api.txt is what the API container installs; it carried no Airflow,
-        # so no advisory is accepted for it: 0 on 2026-09-28.
+      - name: Audit the API image's own requirements — same gate (R341)
+        # requirements-api.txt is what the API container installs. It carries no Airflow,
+        # so the Airflow lines of the accepted list cannot match here: in practice only
+        # PYSEC-2026-4146 (pyjwt, no fixed release) is accepted for it. Until R341 this
+        # step accepted nothing — an advisory with no fix kept it red for good.
         run: |
           # The API image installs this file by itself: audit its RESOLUTION, pinned.
           uv pip compile requirements-api.txt --python-version 3.11 -o audited-api.txt
           pip-audit -r audited-api.txt --format json -o pip-audit-api.json || true
-          python3 - <<'PY'
-          import json, sys
-          d = json.load(open("pip-audit-api.json"))
-          n = sum(len(x.get("vulns", [])) for x in d.get("dependencies", []))
-          print(f"requirements-api.txt: {n} advisory(ies)")
-          sys.exit(1 if n else 0)
-          PY
+          python3 tools/dev/pip_audit_gate.py pip-audit-api.json
 
   error-class-audit:
     # Heuristic sweep of the catalogue's automatable signatures

@@ -103,6 +103,8 @@ airflow-webserver.pid
 backups/
 
 # pip-audit sandbox (make audit-deps) — never committed
+.audited-requirements.txt
+.pip-audit.json
 .audit-venv/
 
 # schemathesis run cache (make/runbook §6c fuzzing) — never committed

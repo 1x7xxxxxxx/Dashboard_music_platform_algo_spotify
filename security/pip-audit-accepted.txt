@@ -4,7 +4,8 @@
 # All of them come with the Airflow 2.11 stack (apache-airflow, its FAB provider, and the
 # flask / flask-appbuilder it pins). Their fix is Airflow 3: a major upgrade that broke
 # the import of the 16 DAGs when tried (PR #100, 2026-08-24). Airflow runs on the private
-# Docker network, its UI behind Caddy with its own auth. Re-check: at each Airflow 3.x
+# Docker network; its webserver listens on 127.0.0.1 only and deploy/Caddyfile has NO
+# Airflow site (corrected 2026-10-04, R341 — this header said "behind Caddy"). Re-check: at each Airflow 3.x
 # release, and when this list grows — a new line here needs its own reason.
 # recheck-by: 2026-12-31   (REQ-SEC-06 — past this date the nightly and the tests refuse the list)
 
@@ -44,3 +45,6 @@ PYSEC-2026-3712 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (s
 PYSEC-2026-3806 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
 PYSEC-2026-3988 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
 PYSEC-2026-3989 apache-airflow — Airflow 2.11 stack, fix requires Airflow 3 (see header)
+CVE-2026-59242 apache-airflow — Airflow 3 /api/v2 XCom deserialize; 2.11 has no api_fastapi, v1 needs an authenticated user on a 127.0.0.1-only webserver; fix 3.3.1 (R341)
+CVE-2026-68971 apache-airflow — Airflow 3 asset-materialize team check; the endpoint and team auth do not exist in 2.11; fix 3.3.1 (R341)
+PYSEC-2026-4146 pyjwt — decode() with verify_signature off mutates the caller's options dict; NO fixed release; src/api/auth.py:56 keeps verification on and passes no options (R341)

@@ -44,7 +44,11 @@ dependencies = [
     # REST API (Brick 14)
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",
-    "PyJWT>=2.10.0",
+    # Floors, not pins: the Docker images install with pip on top of their base
+    # image, which keeps an older copy unless the floor forbids it (R341 —
+    # PYSEC-2026-4140..4152 fixed in 2.15, PYSEC-2026-4175..4177 in urllib3 2.8).
+    "PyJWT>=2.15.0",
+    "urllib3>=2.8.0",
     "passlib[bcrypt]>=1.7.4",
     # bcrypt 4.1+ rejects passwords >72 bytes with ValueError, breaking
     # passlib 1.7.4's detect_wrap_bug probe (73-byte secret). Without this

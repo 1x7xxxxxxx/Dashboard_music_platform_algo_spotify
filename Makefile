@@ -671,12 +671,15 @@ check-pipaudit: ## (internal) fail fast with the install command, rule #10
 	  echo "❌ pip-audit absent. Run: python3 -m venv $(AUDIT_VENV) && $(AUDIT_VENV)/bin/pip install pip-audit"; \
 	  exit 1; }
 
-audit-deps: check-pipaudit ## Known CVEs in requirements.txt (R22). Fails on anything not named below.
-	@# No ignore left (R267, 2026-09-28): PYSEC-2026-1325 (ecdsa) came only through
-	@# python-jose, replaced by PyJWT — ecdsa and rsa left the lock with it. An ignore
-	@# added here names its advisory, its reason and the date it is re-checked.
-	@$(PIP_AUDIT) -r requirements.txt \
-	  && echo "✅ no actionable dependency vulnerability"
+audit-deps: check-pipaudit ## Known CVEs in the RESOLVED lock, same gate as the nightly (R341)
+	@# Until R341 this audited `requirements.txt` — floors that pip-audit resolved to
+	@# today's latest, so it stayed green while uv.lock carried pyjwt 2.13 / urllib3 2.7.
+	@# Class `audit-reads-the-constraints-not-the-installed-set`: audit the resolved set,
+	@# accepted advisories named in security/pip-audit-accepted.txt.
+	@command -v uv >/dev/null 2>&1 || { echo "❌ uv absent. Run: pip install uv"; exit 1; }
+	@uv export --frozen --no-dev --no-hashes -q -o .audited-requirements.txt
+	@$(PIP_AUDIT) -r .audited-requirements.txt --format json -o .pip-audit.json || true
+	@python3 tools/dev/pip_audit_gate.py .pip-audit.json
 
 check-manifest: ## Assert pin parity across pyproject/requirements/uv.lock
 	@python3 tools/dev/check_manifest_consistency.py && echo "✅ manifests consistent"
