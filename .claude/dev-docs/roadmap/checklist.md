@@ -31,6 +31,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R340 | Sécurité nocturne ROUGE 6 nuits (2026-09-29 → 10-04) : `reopen-check` rouvre R122, `ever_recurred_observed` = 55 > 53 (récidives du 2026-09-28). `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 53 → 55, dans le commentaire qui nomme les deux récidives <!-- critic: non — procédure d'acquittement déjà décidée (R202), une constante --> <!-- scope: tools/dev/reopen_check.py --> | P2 | `make reopen-check` sans ROUVRIR ; nuit de sécurité verte |
+| R341 | pip-audit nocturne ROUGE (run 37190347865) : 18 avis non acceptés — pyjwt 2.13.0 (PYSEC-2026-4140..4152), urllib3 2.7.0 (PYSEC-2026-4175..4177), apache-airflow 2.11.2 (CVE-2026-59242, CVE-2026-68971). Monter pyjwt ≥ 2.15.1 et urllib3 ≥ 2.8.0 ; accepter avec raison ce qui n'a pas de correctif hors Airflow 3 <!-- critic: non — montée de version mineure + acceptation selon la procédure R267 existante --> <!-- scope: pyproject.toml, requirements.txt, uv.lock, security/pip-audit-accepted.txt --> | P1 | `pip-audit` sur `uv export --frozen --no-dev` : 0 avis non accepté |
+| R342 | `make error-inbox-check` se périme par la seule HORLOGE : `error-inbox.md` porte des âges relatifs (« il y a N j ») et un horodatage de génération, donc l'arbre est sale à chaque séance sans qu'aucun défaut n'ait changé. Rendre le document fonction des données seules <!-- critic: non — retirer une dépendance à l'horloge d'un document généré --> <!-- scope: tools/error_inbox.py, .claude/dev-docs/error-inbox.md, tests/ --> | P4 | régénérer deux fois à 1 min d'écart : `git diff --quiet` |
 
 ---
 
@@ -86,7 +88,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R340, R283, R275 -->
+<!-- reprise: open=R340, R341, R342, R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
