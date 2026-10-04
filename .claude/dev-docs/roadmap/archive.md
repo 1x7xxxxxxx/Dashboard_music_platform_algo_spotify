@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R368 — Harnais — les FORMES VOISINES que les gardes de R364 laissent passer (mutées le 2026-10… (livrée 2026-10-05)
+
+- [x] **R368 — Harnais — les FORMES VOISINES que les gardes de R364 laissent passer (mutées le 2026-10-04) : BRONZE-02 trigger `trg_revision_*` commenté reste vert (empreinte sans triggers) ; SEC-02 `** () ✅ (2026-10-05, 54ef4a1c, 51beaacd, 9e0d2e54)
+  Mesuré par : true` sur le portail pip-audit reste vert ; FORMAT-02 `strftime("%d/%m/%y")` vivant à `home_tiles.py:225` non vu ; FORMAT-01/03 plafonds avec 1 à 4 de mou ; FILTER-04 une import `filters` pour le compte Meta masque une vue sans filtre de période ; TEST-01 et ERR-04 testent la fonction, pas l'appel (`main()` / `sys.exit(3)`) ; TEST-03 une durée écrite à la main dans l'aide `make test` <!-- critic: non — durcir des gardes existants, additif --> <!-- scope: tests/, tools/dev/schema_fingerprint.sql, src/dashboard/views/home_tiles.py, src/dashboard/views/meta_ads_overview.py, src/dashboard/views/trigger_algo/_tab_model.py, .test_durations, .claude/dev-docs/, .github/workflows/security-nightly.yml, tools/dev/, .claude/scripts/audit_runner.py -->
+  CI verte sur 54ef4a1c (run 37244008144). Dates à 4 chiffres (3 sites), triggers comparés par schema-check (trouve la DDL hypeddit → R396), sorties de main() gardées, FILTER-04 en AST avec 2 exemptions motivées. 3 rouges locaux hors périmètre → R397.
+  Commits : 54ef4a1c R368 : sondes durcies — format de date à 4 chiffres (home_tiles, meta_ · 51beaacd Roadmap : R397 inscrite — billing NaT + test parrainage dépendant de l · 9e0d2e54 R364 : les 42 preuves « verte, non prouvée » mutées à la main — 38 vue
+
 ## ✅ R366 — Harnais — trier les composants jamais déclenchés en 30 jours : 14 commandes (`/adr`, `/… (livrée 2026-10-05)
 
 - [x] **R366 — Harnais — trier les composants jamais déclenchés en 30 jours : 14 commandes (`/adr`, `/curator`, `/sprint`, `/sweep`…), 6 skills (`airflow-dag`, `dashboard-view`, `db-schema`…), 2 playbooks (`feature-development`, `architecture-requirements`) — pour chacun : un déclencheur nommé dans une règle, ou le retrait vers `archive/` avec sa raison** (P3) ✅ (2026-10-05, d177ba04, ef6e90f3)
