@@ -63,6 +63,9 @@ _AGE_COLUMN: dict[str, str] = {
     # interrogent — purger sur l'autre laisserait vivre des coups que le compteur ignore.
     "data_revisions": "revised_at",
     "rate_limit_hits": "ts",
+    # Migration 145 (2026-10-04) : un evenement Stripe parque avant son checkout. Purge
+    # sur `received_at`, rejoue ou non — un parque non rejoue a deja alerte 90 soirs.
+    "stripe_unmatched_events": "received_at",
     # app_error_log est CONDITIONNELLE, traitee a part : voir `_purge_conditional`.
 }
 

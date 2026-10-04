@@ -482,6 +482,9 @@ def check_billing_sync(**context):
             issues.append({'artist_id': artist_id, 'artist_name': name,
                            'status': status, 'reason': reason})
             logger.warning(f"Billing sync issue: artist={name} (id={artist_id}) — {reason}")
+        # A Stripe event parked before its checkout and never replayed (migration 145).
+        from src.utils.stripe_unmatched import stale_issues
+        issues += stale_issues(db.fetch_query)
     finally:
         db.close()
 

@@ -340,23 +340,27 @@ def _show_admin_view(db):
     # LA MÊME DÉFINITION QU'`admin.py` — 2026-09-20 (R140 §16.6). Les deux pages
     # affichaient « MRR total » sous le même mot pour deux nombres différents dès qu'un
     # abonnement était `trialing`.
+    # Read BY NAME (R369): R140 inserted `price_monthly` at index 1, and the positional
+    # reads that stayed here took the price for the artist count and the count for the
+    # MRR, then raised on a 3-name DataFrame. `float()`/`int()`: psycopg2 returns
+    # Decimal for `numeric`, and Decimal / numpy.int64 raises.
     from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
-    rev_rows = db.fetch_query(mrr_by_plan_sql(), mrr_params())
+    rev = db.fetch_df(mrr_by_plan_sql(), mrr_params())
 
-    if rev_rows:
+    if not rev.empty:
         st.markdown("---")
         st.subheader(t("billing.mrr_header", "Répartition du MRR"))
         col1, col2, col3 = st.columns(3)
-        total_mrr = sum(float(r[2] or 0) for r in rev_rows)
-        total_artists = sum(int(r[1]) for r in rev_rows)
+        total_mrr = float(rev["mrr"].fillna(0).sum())
+        total_artists = int(rev["artists"].sum())
         col1.metric(t("billing.total_mrr", MRR_LABEL), f"{total_mrr:.2f} €")
         col2.metric(t("billing.paying_artists", "Artistes payants"), total_artists)
         col3.metric("ARPU", f"{(total_mrr / total_artists):.2f} €" if total_artists else "—")
 
-        import pandas as pd
-        df_mrr = pd.DataFrame(rev_rows, columns=[
+        df_mrr = rev[["plan", "artists", "mrr"]].astype({"artists": int, "mrr": float})
+        df_mrr.columns = [
             t("billing.col_plan", "Plan"),
             t("billing.col_artists", "Artistes"),
             t("billing.col_mrr", "MRR (€)"),
-        ])
+        ]
         st.dataframe(df_mrr, width="stretch", hide_index=True)

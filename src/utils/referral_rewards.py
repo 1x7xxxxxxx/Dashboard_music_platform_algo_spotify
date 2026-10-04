@@ -5,7 +5,7 @@ Type: Core
 Uses: psycopg2 cursor (the webhook's connection), a `stripe_apply(sub_id, coupon_id)` callable
 Depends on: referral_rewards (migration 143), referral_events, artist_subscriptions,
             saas_artists.referral_free_months, env STRIPE_REFERRAL_COUPON_ID
-Triggers: src/api/routers/stripe_webhook.py (`invoice.paid`)
+Triggers: src/api/routers/stripe_webhook.py (`invoice.paid`, and its replay at checkout)
 Persists in: referral_rewards, saas_artists.referral_free_months
 
 R272 (owner decision 2026-09-27 : « l'appliquer via Stripe » ; code-critic verdict a).
@@ -36,6 +36,10 @@ from typing import Callable, Optional
 logger = logging.getLogger(__name__)
 
 FIRST_PAYMENT = "subscription_create"
+
+# What `on_invoice_paid` returns when the payer's customer matches no subscription row yet:
+# the router parks the event instead of answering 200 over a lost month (2026-10-04).
+UNKNOWN_CUSTOMER = "unknown_customer"
 
 
 def coupon_id() -> Optional[str]:
@@ -71,13 +75,19 @@ def _same_person(cur, a: int, b: int) -> bool:
     return bool(boxes.get(a, set()) & boxes.get(b, set()))
 
 
+def is_first_payment(invoice: dict) -> bool:
+    """THE definition of a first payment — read by `earn` and by the router's park decision.
+
+    A 0 € first invoice (a trial, a 100 % promo code) is not a payment: it earns nothing
+    (security-specialist, R272, HIGH).
+    """
+    return (invoice.get("billing_reason") == FIRST_PAYMENT
+            and (invoice.get("amount_paid") or 0) > 0)
+
+
 def earn(cur, invoice: dict, event_id: str) -> Optional[int]:
     """Record the reward a first payment earns. Returns the referrer, or None."""
-    if invoice.get("billing_reason") != FIRST_PAYMENT or not event_id:
-        return None
-    # A 0 € first invoice (a trial, a 100 % promo code) is not a payment: it earns nothing
-    # (security-specialist, R272, HIGH).
-    if (invoice.get("amount_paid") or 0) <= 0:
+    if not is_first_payment(invoice) or not event_id:
         return None
     referred = _artist_of_customer(cur, invoice.get("customer"))
     if referred is None:
@@ -166,14 +176,30 @@ def stripe_apply(subscription_id: str, coupon: str, idempotency_key: str = "") -
 
     `discounts=[…]` REPLACES what is there: the referrer's other discounts are read and
     kept. The idempotency key makes a retried webhook set it once (security-specialist).
+
+    The SDK object is converted ONCE, at the boundary: since stripe-python 15 a
+    StripeObject is not a dict and `.get` raises AttributeError (R369 — every referral
+    coupon failed that way; the webhook paid the same lesson in June, 9493941c).
+    `to_dict()` then `[...]` is measured valid from the 8.0.0 floor to 15.5.1.
+    Guard: tests/test_stripe_apply_touches_the_real_sdk_object.py.
     """
     import stripe
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
-    sub = stripe.Subscription.retrieve(subscription_id)
-    kept = [{"discount": d if isinstance(d, str) else d.get("id")}
+    sub = stripe.Subscription.retrieve(subscription_id).to_dict()
+    kept = [{"discount": d if isinstance(d, str) else d["id"]}
             for d in (sub.get("discounts") or [])]
     stripe.Subscription.modify(subscription_id, discounts=kept + [{"coupon": coupon}],
                                idempotency_key=idempotency_key or None)
+
+
+# Whether `stripe_remove` (DELETE /subscriptions/{id}/discount, the legacy SINGULAR
+# discount) removes OUR coupon on a subscription that holds several `discounts` entries
+# — which is exactly what `stripe_apply` builds — has never been observed in Stripe test
+# mode (code-critic, R369). Until it is, an `applied` reward is NOT removed on a refund
+# and its row is KEPT with the reason: an unverified irreversible call could delete the
+# referrer's other discount, and the DELETE below would erase the only record of it.
+# Flip only together with a test that pins the test-mode result.
+REMOVE_ON_A_MULTI_DISCOUNT_SUBSCRIPTION_VERIFIED = False
 
 
 def revoke(cur, customer_id, remove: Callable[[str], None]) -> Optional[str]:
@@ -191,6 +217,12 @@ def revoke(cur, customer_id, remove: Callable[[str], None]) -> Optional[str]:
     if status == "pending":
         cur.execute("UPDATE saas_artists SET referral_free_months = "
                     "GREATEST(COALESCE(referral_free_months, 0) - 1, 0) WHERE id = %s", (referrer,))
+    elif status == "applied" and sub and not REMOVE_ON_A_MULTI_DISCOUNT_SUBSCRIPTION_VERIFIED:
+        logger.error("referral reward %s refunded while applied — coupon NOT removed "
+                     "(removal unverified, R369): check subscription %s", reward, sub)
+        cur.execute("UPDATE referral_rewards SET detail = 'remboursé pendant application — "
+                    "retrait du coupon à vérifier (R369)' WHERE id = %s", (reward,))
+        return "applied-kept"
     elif status == "applied" and sub:
         remove(sub)
     else:
@@ -209,8 +241,16 @@ def stripe_remove(subscription_id: str) -> None:
 
 
 def on_invoice_paid(cur, invoice: dict, event_id: str,
-                    apply: Callable[..., None] = stripe_apply) -> None:
-    """The whole reward cycle for one paid invoice."""
+                    apply: Optional[Callable[..., None]] = None) -> Optional[str]:
+    """The whole reward cycle for one paid invoice.
+
+    Returns UNKNOWN_CUSTOMER when the payer matches no subscription row — the caller decides
+    whether to park it — and None otherwise. `apply` is resolved at CALL time so a test can
+    stub `stripe_apply` on the module.
+    """
+    if _artist_of_customer(cur, invoice.get("customer")) is None:
+        return UNKNOWN_CUSTOMER
+    apply = apply or stripe_apply
     consume(cur, invoice)
     referrer = earn(cur, invoice, event_id)
     if referrer is not None:
@@ -218,3 +258,4 @@ def on_invoice_paid(cur, invoice: dict, event_id: str,
     payer = _artist_of_customer(cur, invoice.get("customer"))
     if payer is not None:                    # the payer may be a referrer owed a month
         apply_next(cur, payer, apply)
+    return None

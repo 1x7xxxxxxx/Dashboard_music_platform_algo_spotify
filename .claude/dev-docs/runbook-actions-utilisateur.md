@@ -2144,7 +2144,11 @@ de test ; seul le coupon live va en prod.
 
 6. Dans Stripe en mode **live** : même coupon (100 %, une fois). Note son identifiant.
 7. Développeurs → Webhooks → le point de terminaison de production : ajoute les évènements
-   `invoice.paid`, `charge.refunded`, `charge.dispute.created`.
+   `invoice.paid`, `charge.refunded`, `charge.dispute.created`, `customer.subscription.created`.
+   Stripe ne garantit pas l'ordre : `invoice.paid` peut arriver AVANT le checkout. Il est
+   alors mis de côté (`stripe_unmatched_events`) et rejoué par le checkout — dans les deux
+   ordres, la ligne du parrain doit finir `applied`. Un évènement resté de côté plus d'une
+   heure apparaît dans le mail du soir (« client Stripe cus_… »).
 8. Sur le serveur, dans le `.env` de production : `STRIPE_REFERRAL_COUPON_ID=<identifiant
    live>`, puis `make deploy PROD_SSH=root@… SERVICE=api`.
 

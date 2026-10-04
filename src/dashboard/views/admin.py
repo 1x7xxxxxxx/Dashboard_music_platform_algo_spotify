@@ -413,17 +413,20 @@ def _render_supervision(db):
         # les deux requêtes SQL ignoraient `trialing`, le calcul pandas le comptait. Et
         # aucune des trois n'excluait les locataires techniques — que le compteur
         # « Artistes actifs » quatre lignes plus haut exclut, lui, depuis toujours.
+        # Read BY NAME (R369): the positional reads left here by R140 handed the artist
+        # count to `_render_costs` as the MRR, and raised on a 3-name DataFrame.
         from src.utils.mrr import MRR_LABEL, mrr_by_plan_sql, mrr_params
-        rev = db.fetch_query(mrr_by_plan_sql(), mrr_params())
-        mrr = sum(float(r[2] or 0) for r in rev) if rev else 0.0
-        if rev:
-            paying = sum(int(r[1]) for r in rev)
+        rev = db.fetch_df(mrr_by_plan_sql(), mrr_params())
+        mrr = float(rev["mrr"].fillna(0).sum()) if not rev.empty else 0.0
+        if not rev.empty:
+            paying = int(rev["artists"].sum())
             m1, m2, m3 = st.columns(3)
             m1.metric(t("admin.metric_mrr", MRR_LABEL), f"{mrr:.2f} €")
             m2.metric(t("admin.metric_paying", "Abonnés payants"), paying)
             m3.metric(t("admin.metric_arpu", "ARPU"), f"{mrr / paying:.2f} €" if paying else "—")
-            st.dataframe(pd.DataFrame(rev, columns=["Plan", "Abonnés", "MRR (€)"]),
-                         hide_index=True, width="stretch")
+            vue = rev[["plan", "artists", "mrr"]].astype({"artists": int, "mrr": float})
+            vue.columns = ["Plan", "Abonnés", "MRR (€)"]
+            st.dataframe(vue, hide_index=True, width="stretch")
         else:
             st.caption(t("admin.no_paid_subs",
                          "Aucun abonnement payant actif (tous en Free / essai de bienvenue)."))

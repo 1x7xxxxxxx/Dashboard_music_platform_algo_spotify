@@ -189,3 +189,21 @@ def test_a_refund_takes_the_month_back(cur):
     assert _months(cur, referrer) == 1
     assert rr.revoke(cur, "cus_f8", lambda sub: None) == "pending"
     assert _statuses(cur, referrer) == [] and _months(cur, referrer) == 0
+
+
+def test_a_refund_on_an_applied_month_keeps_the_record_and_calls_no_unverified_removal(cur):
+    """R369: once stripe_apply works, revoke() reaches `applied`. DELETE /discount on a
+    multi-discount subscription is unverified in Stripe test mode, so nothing is removed
+    and the row — the only record — is kept with the reason."""
+    referrer, _ = _pair(cur, "9")
+    _subscribe(cur, referrer, "cus_p9", "sub_p9")
+    rr.earn(cur, {"customer": "cus_f9", "billing_reason": "subscription_create",
+                  "amount_paid": 1000}, "evt_9")
+    assert rr.apply_next(cur, referrer, lambda s, c, *k: None, "COUPON") is not None
+    removed: list = []
+    assert rr.revoke(cur, "cus_f9", removed.append) == "applied-kept"
+    assert removed == [], "no unverified irreversible Stripe call"
+    cur.execute("SELECT status, detail FROM referral_rewards WHERE referrer_artist_id = %s",
+                (referrer,))
+    status, detail = cur.fetchone()
+    assert status == "applied" and "R369" in detail

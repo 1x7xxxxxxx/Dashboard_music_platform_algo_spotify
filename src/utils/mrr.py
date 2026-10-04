@@ -48,6 +48,13 @@ MRR_STATUSES = ("active", "trialing")
 #: « MRR total » seul laissait croire à de l'encaissé.
 MRR_LABEL = "MRR (abonnements actifs + essais)"
 
+#: The column contract of `mrr_by_plan_sql()`, declared at the producer. Consumers read
+#: the result BY NAME (`fetch_df(...)["mrr"]`), never by position: R140 inserted
+#: `price_monthly` at index 1 and both callers, still reading `r[1]`/`r[2]`, took the
+#: price for the artist count and the count for the MRR (R369). The tuple is pinned to
+#: the SELECT list by `tests/test_the_mrr_has_one_definition.py` — it is not trusted.
+MRR_COLUMNS = ("plan", "price_monthly", "artists", "mrr")
+
 
 def mrr_by_plan_sql() -> str:
     """Le MRR par plan : une ligne par plan, avec son compte d'artistes.

@@ -8,8 +8,16 @@ Required env vars:
     STRIPE_WEBHOOK_SECRET      — whsec_... (from Stripe dashboard → Webhooks)
 
 Events handled:
-    checkout.session.completed      → provision subscription
+    checkout.session.completed      → provision subscription, then replay the events that
+                                      arrived before it (src/utils/stripe_unmatched.py)
+    customer.subscription.created   → fill the period dates (never the status)
     customer.subscription.updated   → sync status + period dates
+
+Stripe does not promise delivery order (2026-10-04: an invoice.paid delivered before its
+checkout matched no row, answered 200, and its referral month was lost). An invoice.paid
+or a customer.subscription.created/updated whose customer has no row yet is PARKED, and
+the checkout replays it in the same transaction. Nothing below the endpoint commits: the
+endpoint commits once per event.
     customer.subscription.deleted   → mark canceled
     invoice.payment_failed          → mark past_due
     invoice.paid                    → referral reward: earned on a first payment, applied
@@ -62,10 +70,36 @@ def _subscription_period(sub: dict) -> tuple:
     return start, end
 
 
-def _upsert_subscription(conn, stripe_customer_id: str, stripe_subscription_id: str,
-                          status: str, period_start, period_end, cancel_at_period_end: bool):
-    """Update artist_subscriptions row matched by stripe_customer_id."""
-    cur = conn.cursor()
+def _known_customer(cur, stripe_customer_id) -> bool:
+    """Does a subscription row carry this Stripe customer yet? Read under `lock_customer`."""
+    if not stripe_customer_id:
+        return False
+    cur.execute("SELECT 1 FROM artist_subscriptions WHERE stripe_customer_id = %s",
+                (stripe_customer_id,))
+    return cur.fetchone() is not None
+
+
+def _upsert_subscription(cur, data: dict, fill_only: bool = False) -> None:
+    """Write a customer.subscription.* event onto the row matched by stripe_customer_id.
+
+    Never commits: the endpoint commits once per event. `fill_only` (the `.created` event)
+    only fills what is still empty and never touches the status, so a late or replayed
+    creation (status `incomplete`) cannot undo the `active` the checkout already wrote.
+    """
+    p_start, p_end = _subscription_period(data)
+    if fill_only:
+        cur.execute(
+            """
+            UPDATE artist_subscriptions SET
+                stripe_subscription_id = COALESCE(stripe_subscription_id, %s),
+                current_period_start = COALESCE(current_period_start, to_timestamp(%s)),
+                current_period_end = COALESCE(current_period_end, to_timestamp(%s)),
+                updated_at = NOW()
+            WHERE stripe_customer_id = %s
+            """,
+            (data.get("id"), p_start, p_end, data.get("customer")),
+        )
+        return
     cur.execute(
         """
         UPDATE artist_subscriptions
@@ -78,11 +112,9 @@ def _upsert_subscription(conn, stripe_customer_id: str, stripe_subscription_id: 
             updated_at = NOW()
         WHERE stripe_customer_id = %s
         """,
-        (stripe_subscription_id, status, period_start, period_end,
-         cancel_at_period_end, stripe_customer_id),
+        (data.get("id"), data.get("status", "active"), p_start, p_end,
+         data.get("cancel_at_period_end", False), data.get("customer")),
     )
-    conn.commit()
-    cur.close()
 
 
 def _verified_artist_id(conn, claimed, data: dict):
@@ -173,134 +205,10 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=503, detail="Database unavailable")
 
     try:
-        # ── checkout.session.completed ───────────────────────────────────
-        if event_type == "checkout.session.completed":
-            customer_id = data.get("customer")
-            subscription_id = data.get("subscription")
-            # Payment Links pass the tenant via client_reference_id (?client_reference_id=…);
-            # API-created sessions may instead set metadata.artist_id. Accept both.
-            artist_id = data.get("client_reference_id") or data.get("metadata", {}).get("artist_id")
-            # LE PAYEUR NE CHOISIT PAS LE LOCATAIRE À PROVISIONNER.
-            #
-            # `client_reference_id` arrive du lien de paiement, construit côté client et
-            # modifiable dans la barre d'adresse. La signature Stripe passe — elle
-            # relaie fidèlement ce que le payeur a mis. Sans appariement, un locataire A
-            # pouvait activer PUIS révoquer l'abonnement d'un locataire V (l'`ON CONFLICT
-            # (artist_id)` écrasait la ligne de V avec le client Stripe de A), et V, s'il
-            # payait réellement, cessait d'être synchronisé en silence : ses propres
-            # événements ne matchaient plus aucune ligne.
-            #
-            # On apparie donc l'identifiant à l'e-mail réellement payé. C'est la même
-            # classe que « le lien de paiement non attribuable » du 2026-08-23, fermée
-            # alors sur les deux surfaces d'ÉMISSION et pas sur celle de RÉCEPTION.
-            artist_id = _verified_artist_id(conn, artist_id, data)
-            plan_name = data.get("metadata", {}).get("plan_name", "premium")
-            if plan_name == "basic":          # retired tier → premium
-                plan_name = "premium"
-
-            if artist_id and customer_id:
-                cur = conn.cursor()
-                # Resolve plan id
-                cur.execute(
-                    "SELECT id FROM subscription_plans WHERE name = %s", (plan_name,)
-                )
-                plan_row = cur.fetchone()
-                plan_id = plan_row[0] if plan_row else 1
-
-                cur.execute(
-                    """
-                    INSERT INTO artist_subscriptions
-                        (artist_id, plan_id, stripe_customer_id, stripe_subscription_id, status)
-                    VALUES (%s, %s, %s, %s, 'active')
-                    ON CONFLICT (artist_id) DO UPDATE SET
-                        plan_id = EXCLUDED.plan_id,
-                        stripe_customer_id = EXCLUDED.stripe_customer_id,
-                        stripe_subscription_id = EXCLUDED.stripe_subscription_id,
-                        status = 'active',
-                        updated_at = NOW()
-                    """,
-                    (int(artist_id), plan_id, customer_id, subscription_id),
-                )
-                # Also update saas_artists.tier
-                _tier = plan_name if plan_name in ('free', 'premium') else 'premium'
-                cur.execute(
-                    "UPDATE saas_artists SET tier = %s WHERE id = %s",
-                    (_tier, int(artist_id)),
-                )
-                # Audit the plan transition for the Alerts plan-evolution chart.
-                cur.execute(
-                    "INSERT INTO subscription_plan_history (artist_id, plan, source) "
-                    "VALUES (%s, %s, 'stripe_webhook')",
-                    (int(artist_id), _tier),
-                )
-                conn.commit()
-                cur.close()
-                logger.info(f"Subscription provisioned: artist_id={artist_id} plan={plan_name}")
-
-        # ── customer.subscription.updated ───────────────────────────────
-        elif event_type == "customer.subscription.updated":
-            _p_start, _p_end = _subscription_period(data)
-            _upsert_subscription(
-                conn,
-                stripe_customer_id=data.get("customer"),
-                stripe_subscription_id=data.get("id"),
-                status=data.get("status", "active"),
-                period_start=_p_start,
-                period_end=_p_end,
-                cancel_at_period_end=data.get("cancel_at_period_end", False),
-            )
-
-        # ── customer.subscription.deleted ───────────────────────────────
-        elif event_type == "customer.subscription.deleted":
-            cur = conn.cursor()
-            cur.execute(
-                """
-                UPDATE artist_subscriptions
-                SET status = 'canceled', updated_at = NOW()
-                WHERE stripe_customer_id = %s
-                """,
-                (data.get("customer"),),
-            )
-            conn.commit()
-            cur.close()
-            logger.info(f"Subscription canceled: customer={data.get('customer')}")
-
-        # ── invoice.paid — the referral reward (R272) ───────────────────
-        # Earned on the referred artist's FIRST payment, applied as a coupon on the
-        # referrer's subscription, once per referral whatever Stripe retries. The whole
-        # cycle runs in this transaction: a failure rolls back and Stripe retries.
-        elif event_type == "invoice.paid":
-            from src.utils.referral_rewards import on_invoice_paid
-            cur = conn.cursor()
-            on_invoice_paid(cur, data, event.get("id", ""))
-            conn.commit()
-            cur.close()
-
-        # ── charge.refunded / charge.dispute.created — the month taken back ──
-        # A refund or a chargeback on the referred artist's payment revokes the reward it
-        # earned (security-specialist, R272): pending → deleted, applied → coupon removed.
-        elif event_type in ("charge.refunded", "charge.dispute.created"):
-            from src.utils.referral_rewards import revoke, stripe_remove
-            cur = conn.cursor()
-            revoke(cur, data.get("customer"), stripe_remove)
-            conn.commit()
-            cur.close()
-
-        # ── invoice.payment_failed ───────────────────────────────────────
-        elif event_type == "invoice.payment_failed":
-            cur = conn.cursor()
-            cur.execute(
-                """
-                UPDATE artist_subscriptions
-                SET status = 'past_due', updated_at = NOW()
-                WHERE stripe_customer_id = %s
-                """,
-                (data.get("customer"),),
-            )
-            conn.commit()
-            cur.close()
-            logger.warning(f"Payment failed: customer={data.get('customer')}")
-
+        _dispatch(conn, event_type, data, event.get("id", ""), event.get("created"))
+        # THE single commit of a webhook event: the park, the provisioning, the replay and
+        # `replayed_at` land together or not at all (Stripe retries a 5xx).
+        conn.commit()
     except Exception as e:
         logger.error(f"Webhook handler error: {e}")
         conn.rollback()
@@ -309,3 +217,136 @@ async def stripe_webhook(request: Request):
         conn.close()
 
     return {"received": True}
+
+
+def _dispatch(conn, event_type: str, data: dict, event_id: str, created) -> None:
+    """Route one event. Nothing here commits — `stripe_webhook` does, once."""
+    from src.utils import stripe_unmatched
+
+    cur = conn.cursor()
+    try:
+        if event_type == "checkout.session.completed":
+            _checkout_completed(conn, cur, data)
+        elif event_type in ("invoice.paid", *stripe_unmatched.SUBSCRIPTION_EVENTS):
+            stripe_unmatched.lock_customer(cur, data.get("customer"))
+            _handle_resolvable(cur, event_type, data, event_id, created)
+        elif event_type == "customer.subscription.deleted":
+            _mark_status(cur, data.get("customer"), "canceled", event_type)
+        elif event_type in ("charge.refunded", "charge.dispute.created"):
+            # A refund or a chargeback on the referred artist's payment revokes the reward it
+            # earned (security-specialist, R272): pending → deleted, applied → KEPT with the
+            # reason until the coupon removal is verified in Stripe test mode. An unknown customer is left alone ON
+            # PURPOSE and not parked: it has no reward to take back yet, and replaying a
+            # refund after its checkout would revoke a month the order never earned.
+            from src.utils.referral_rewards import revoke, stripe_remove
+            revoke(cur, data.get("customer"), stripe_remove)
+        elif event_type == "invoice.payment_failed":
+            _mark_status(cur, data.get("customer"), "past_due", event_type)
+    finally:
+        cur.close()
+
+
+def _mark_status(cur, customer, status: str, event_type: str) -> None:
+    """customer.subscription.deleted / invoice.payment_failed — NOT parked: replaying a
+    cancellation or a failure after the checkout would undo the checkout. A 0-row update is
+    said, never silent. (Still keyed by customer, not by subscription id: a known gap.)"""
+    cur.execute("UPDATE artist_subscriptions SET status = %s, updated_at = NOW() "
+                "WHERE stripe_customer_id = %s", (status, customer))
+    if cur.rowcount == 0:
+        logger.warning("Stripe %s: customer %s matches no subscription row — ignored",
+                       event_type, customer)
+    else:
+        logger.info(f"Stripe {event_type}: customer={customer} → {status}")
+
+
+def _handle_resolvable(cur, event_type: str, data: dict, event_id: str, created) -> None:
+    """invoice.paid and customer.subscription.created/updated — the events that need the
+    customer's row. Run live (under `lock_customer`) AND on replay, through the same code:
+    an event whose customer is not known yet is parked, never dropped."""
+    from src.utils import stripe_unmatched
+    from src.utils.referral_rewards import UNKNOWN_CUSTOMER, is_first_payment, on_invoice_paid
+
+    if event_type == "invoice.paid":
+        # R272: earned on the referred artist's FIRST payment, applied as a coupon on the
+        # referrer's subscription, once per referral whatever Stripe retries.
+        if on_invoice_paid(cur, data, event_id) != UNKNOWN_CUSTOMER:
+            return
+        if is_first_payment(data):
+            stripe_unmatched.park(cur, event_id, event_type, data, created)
+        else:
+            logger.warning("Stripe invoice.paid (%s) for unknown customer %s — nothing to "
+                           "replay, ignored", data.get("billing_reason"), data.get("customer"))
+        return
+    if not _known_customer(cur, data.get("customer")):
+        p_start, p_end = _subscription_period(data)
+        resolved = {**data, "current_period_start": p_start, "current_period_end": p_end}
+        stripe_unmatched.park(cur, event_id, event_type, resolved, created)
+        return
+    _upsert_subscription(cur, data, fill_only=(event_type == "customer.subscription.created"))
+
+
+def _checkout_completed(conn, cur, data: dict) -> None:
+    """Provision the subscription, then replay what arrived before it — one transaction."""
+    from src.utils import stripe_unmatched
+
+    customer_id = data.get("customer")
+    # Payment Links pass the tenant via client_reference_id (?client_reference_id=…);
+    # API-created sessions may instead set metadata.artist_id. Accept both.
+    artist_id = data.get("client_reference_id") or data.get("metadata", {}).get("artist_id")
+    # LE PAYEUR NE CHOISIT PAS LE LOCATAIRE À PROVISIONNER.
+    #
+    # `client_reference_id` arrive du lien de paiement, construit côté client et
+    # modifiable dans la barre d'adresse. La signature Stripe passe — elle
+    # relaie fidèlement ce que le payeur a mis. Sans appariement, un locataire A
+    # pouvait activer PUIS révoquer l'abonnement d'un locataire V (l'`ON CONFLICT
+    # (artist_id)` écrasait la ligne de V avec le client Stripe de A), et V, s'il
+    # payait réellement, cessait d'être synchronisé en silence : ses propres
+    # événements ne matchaient plus aucune ligne.
+    #
+    # On apparie donc l'identifiant à l'e-mail réellement payé. C'est la même
+    # classe que « le lien de paiement non attribuable » du 2026-08-23, fermée
+    # alors sur les deux surfaces d'ÉMISSION et pas sur celle de RÉCEPTION.
+    artist_id = _verified_artist_id(conn, artist_id, data)
+    plan_name = data.get("metadata", {}).get("plan_name", "premium")
+    if plan_name == "basic":          # retired tier → premium
+        plan_name = "premium"
+    if not (artist_id and customer_id):
+        return
+    # Taken BEFORE the row is written: an invoice.paid for this customer either committed
+    # its park before us (replayed below) or waits on the lock and then finds the row.
+    stripe_unmatched.lock_customer(cur, customer_id)
+    _provision(cur, int(artist_id), plan_name, customer_id, data.get("subscription"))
+    for parked_id, event_id, event_type, payload in stripe_unmatched.waiting(cur, customer_id):
+        _handle_resolvable(cur, event_type, payload, event_id, None)
+        stripe_unmatched.mark_replayed(cur, parked_id)
+        logger.info("Stripe %s %s replayed after checkout", event_type, event_id)
+
+
+def _provision(cur, artist_id: int, plan_name: str, customer_id, subscription_id) -> None:
+    cur.execute("SELECT id FROM subscription_plans WHERE name = %s", (plan_name,))
+    plan_row = cur.fetchone()
+    plan_id = plan_row[0] if plan_row else 1
+    cur.execute(
+        """
+        INSERT INTO artist_subscriptions
+            (artist_id, plan_id, stripe_customer_id, stripe_subscription_id, status)
+        VALUES (%s, %s, %s, %s, 'active')
+        ON CONFLICT (artist_id) DO UPDATE SET
+            plan_id = EXCLUDED.plan_id,
+            stripe_customer_id = EXCLUDED.stripe_customer_id,
+            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+            status = 'active',
+            updated_at = NOW()
+        """,
+        (artist_id, plan_id, customer_id, subscription_id),
+    )
+    # Also update saas_artists.tier
+    _tier = plan_name if plan_name in ('free', 'premium') else 'premium'
+    cur.execute("UPDATE saas_artists SET tier = %s WHERE id = %s", (_tier, artist_id))
+    # Audit the plan transition for the Alerts plan-evolution chart.
+    cur.execute(
+        "INSERT INTO subscription_plan_history (artist_id, plan, source) "
+        "VALUES (%s, %s, 'stripe_webhook')",
+        (artist_id, _tier),
+    )
+    logger.info(f"Subscription provisioned: artist_id={artist_id} plan={plan_name}")

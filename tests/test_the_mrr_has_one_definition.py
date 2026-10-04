@@ -25,8 +25,10 @@ nombres de la même page se contredisaient.
 from __future__ import annotations
 
 import ast
+import contextlib
 import re
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -34,7 +36,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.utils.mrr import MRR_STATUSES, mrr_by_plan_sql, mrr_params  # noqa: E402
+from src.utils.mrr import (  # noqa: E402
+    MRR_COLUMNS, MRR_LABEL, MRR_STATUSES, mrr_by_plan_sql, mrr_params,
+)
 
 _SURFACES = (
     "src/dashboard/views/admin.py",
@@ -151,6 +155,149 @@ def test_the_query_runs_against_the_real_schema() -> None:
     except Exception:                          # noqa: BLE001
         pytest.skip("base injoignable")
     try:
-        db.fetch_query(mrr_by_plan_sql(), mrr_params())
+        df = db.fetch_df(mrr_by_plan_sql(), mrr_params())
     finally:
         db.close()
+    # The SHAPE, not only "it runs" (R369): the previous version discarded the result, so
+    # a fourth column inserted at index 1 left this test green for 14 days.
+    assert tuple(df.columns) == MRR_COLUMNS, (
+        f"the MRR query returns {tuple(df.columns)} but `MRR_COLUMNS` declares "
+        f"{MRR_COLUMNS} — update the contract with the query, never one without the other.")
+
+
+# ── R369 — the consumers read the result BY NAME, on a row of the REAL shape ─────────────
+#
+# Measured 2026-10-04: R140 (5ddd7f6c) gave `mrr_by_plan_sql()` a 4th column,
+# `price_monthly`, at index 1. Both callers were switched to the helper by their CALL and
+# not by their SHAPE: `billing.py` and `admin.py` kept `sum(r[2])` for the MRR (now the
+# artist count), `sum(int(r[1]))` for the paying artists (now the price), and a 3-name
+# `pd.DataFrame` that raises "3 columns passed, passed data had 4 columns". Nothing saw it
+# for 14 days: the schema test above ran the query and threw the result away, and the
+# render smoke test skips in CI (empty DB) and only crashes once a PAYING human exists.
+#
+# So this half needs no database. The row is built FROM THE SQL TEXT: each SELECT item's
+# expression is mapped to what psycopg2 returns for it (`numeric` -> Decimal, `COUNT` ->
+# int). Retyping the columns here would be circular: the stub would agree with the
+# constant it is meant to check, and swapping two aliases in `mrr.py` would never reach
+# the consumer.
+
+#: What psycopg2 returns for each SELECT expression, for ONE premium plan at 10.00 EUR
+#: with three human subscribers. An expression not listed (a column added later) is None.
+_PSYCOPG2_VALUE = {
+    "sp.name": "premium",
+    "sp.price_monthly": Decimal("10.00"),
+    "COUNT(*)": 3,
+    "SUM(sp.price_monthly)": Decimal("30.00"),
+}
+
+
+def _select_items(sql: str) -> list[tuple[str, str]]:
+    """`(expression, alias)` of the outer SELECT list, read from the SQL text."""
+    m = re.search(r"\bSELECT\b(.*?)\bFROM\b", sql, re.S | re.I)
+    assert m, "no SELECT ... FROM in the MRR query"
+    items, depth, cur = [], 0, ""
+    for ch in m.group(1):
+        depth += (ch == "(") - (ch == ")")
+        if ch == "," and depth == 0:
+            items.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    items.append(cur)
+    out = []
+    for item in items:
+        mm = re.fullmatch(r"\s*(.*?)\s+AS\s+(\w+)\s*", item, re.S | re.I)
+        assert mm, f"SELECT item without an alias: {item.strip()!r} — consumers read by name"
+        out.append((re.sub(r"\s+", " ", mm.group(1)), mm.group(2)))
+    return out
+
+
+def test_the_declared_columns_are_the_select_list() -> None:
+    """`MRR_COLUMNS` is pinned to the SQL text, and each name to its MEANING — in CI.
+
+    The DB pin above skips without a database; this one does not. Swapping `AS artists`
+    and `AS mrr` keeps the names and their order, so only the expression check sees it.
+    """
+    items = _select_items(mrr_by_plan_sql())
+    assert tuple(a for _, a in items) == MRR_COLUMNS, (
+        f"SELECT aliases {[a for _, a in items]} != MRR_COLUMNS {MRR_COLUMNS}")
+    meaning = {a: e for e, a in items}
+    assert meaning["artists"] == "COUNT(*)", f"`artists` is {meaning['artists']!r}"
+    assert meaning["mrr"] == "SUM(sp.price_monthly)", f"`mrr` is {meaning['mrr']!r}"
+
+
+class _StubDB:
+    """Answers the MRR query with one row of its REAL shape, in both read methods."""
+
+    def __init__(self, other_rows: list[tuple]) -> None:
+        self._sql = mrr_by_plan_sql()
+        items = _select_items(self._sql)
+        self._cols = [a for _, a in items]
+        self._rows = [tuple(_PSYCOPG2_VALUE.get(e) for e, _ in items)]
+        self._other = other_rows
+
+    def fetch_query(self, query: str, params: tuple | None = None) -> list[tuple]:
+        return list(self._rows) if query == self._sql else list(self._other)
+
+    def fetch_df(self, query: str, params: tuple | None = None):
+        import pandas as pd
+        assert query == self._sql, f"unexpected fetch_df: {query[:80]!r}"
+        return pd.DataFrame(self._rows, columns=self._cols)  # as PostgresHandler.fetch_df
+
+
+class _St:
+    """A Streamlit stand-in that records what a view SHOWS."""
+
+    def __init__(self) -> None:
+        self.metrics: dict[str, object] = {}
+        self.frames: list = []
+
+    def metric(self, label, value, *a, **k) -> None:
+        self.metrics[label] = value
+
+    def dataframe(self, df, *a, **k) -> None:
+        self.frames.append(df)
+
+    def columns(self, spec, *a, **k) -> list:
+        return [self] * (spec if isinstance(spec, int) else len(spec))
+
+    def expander(self, *a, **k):
+        return contextlib.nullcontext()
+
+    def __getattr__(self, name: str):
+        return lambda *a, **k: None
+
+
+def _default_label(key: str, default: str | None = None, **_) -> str:
+    return default if default is not None else key
+
+
+def test_billing_reads_the_mrr_by_meaning(monkeypatch) -> None:
+    """LE GARDE (consumer 1/2). One premium row, 3 artists at 10 EUR — what billing shows."""
+    from src.dashboard.views import billing
+    st = _St()
+    monkeypatch.setattr(billing, "st", st)
+    monkeypatch.setattr(billing, "t", _default_label)
+    billing._show_admin_view(_StubDB([("A", "premium", "premium", "active", None, None)]))
+    assert st.metrics.get(MRR_LABEL) == "30.00 €", st.metrics
+    assert st.metrics.get("Artistes payants") == 3, st.metrics
+    assert st.metrics.get("ARPU") == "10.00 €", st.metrics
+    assert list(st.frames[-1].iloc[0]) == ["premium", 3, 30.0], st.frames[-1]
+
+
+def test_admin_reads_the_mrr_by_meaning(monkeypatch) -> None:
+    """LE GARDE (consumer 2/2) — and the margin section receives the MRR, not a count."""
+    from src.dashboard.views import admin, admin_activation
+    st = _St()
+    costs: list = []
+    monkeypatch.setattr(admin, "st", st)
+    monkeypatch.setattr(admin, "t", _default_label)
+    monkeypatch.setattr(admin_activation, "_render_activation", lambda db: None)
+    monkeypatch.setattr(admin, "_render_costs", lambda db, mrr: costs.append(mrr))
+    admin._render_supervision(_StubDB([(0, 0, 0, 0)]))
+    assert st.metrics.get(MRR_LABEL) == "30.00 €", st.metrics
+    assert st.metrics.get("Abonnés payants") == 3, st.metrics
+    assert st.metrics.get("ARPU") == "10.00 €", st.metrics
+    assert list(st.frames[-1].iloc[0]) == ["premium", 3, 30.0], st.frames[-1]
+    assert costs == [30.0] and isinstance(costs[0], float), (
+        f"`_render_costs` received {costs!r} — the margin is computed against it")
