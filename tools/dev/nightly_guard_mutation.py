@@ -93,6 +93,8 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — `|| exit 1` retiré de roadmap-close → 1 rouge ; scénario R356 rejoué → rouge",
     "tests/test_a_recurrence_ticket_can_be_answered.py":
         "2026-10-04 — `_answer` sans la date du dernier retour propre → 1 rouge ; padding CLI d'origine → 1 rouge",
+    "tests/test_rex_validation_reads_only_tracked_files.py":
+        "2026-10-04 — filtre `visible` retiré de `_iter_files` → 1 rouge ; `_git_visible` rendant set() hors dépôt → 1 rouge",
 }
 
 

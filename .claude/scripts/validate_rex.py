@@ -48,6 +48,7 @@ rex:
 import argparse
 import ast
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -152,10 +153,33 @@ def _validate_rex_entries(entries, source: str) -> list[str]:
     return errors
 
 
+def _git_visible(claude_root: Path) -> set[Path] | None:
+    """Files git tracks or has staged under `claude_root`, or None outside a work tree.
+
+    R359: a `d.glob` judged another session's UNTRACKED agent, and `--strict` then blocked
+    a commit that did not touch it — CI, which only sees the tree, never would."""
+    try:
+        res = subprocess.run(["git", "ls-files", "-c", "-z", "--full-name", "."],
+                             cwd=claude_root, capture_output=True, text=True, timeout=30)
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=claude_root,
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if res.returncode or top.returncode:
+        return None
+    root = Path(top.stdout.strip())
+    return {(root / rel).resolve() for rel in res.stdout.split("\0") if rel}
+
+
 def _iter_files(claude_root: Path):
+    visible = _git_visible(claude_root) if claude_root.exists() else None
     for subdir, pattern in _SCAN_DIRS:
         d = claude_root / subdir
         if not d.exists():
+            continue
+        if visible is not None:
+            yield from (p for p in d.glob(pattern)
+                        if not p.name.endswith(".rex.md") and p.resolve() in visible)
             continue
         # `*.rex.md` are colocated REX ARCHIVES (rotated overflow — see rex-format.md §Archive), not
         # tools: they carry no `keywords:`, are never injected, and must not be counted in the tool
@@ -177,10 +201,11 @@ def _iter_files(claude_root: Path):
 
 def _iter_archives(claude_root: Path):
     """Colocated `<tool>.rex.md` REX archives — validated for schema, but not tools."""
+    visible = _git_visible(claude_root)
     for subdir, _ in _SCAN_DIRS:
         d = claude_root / subdir
         if d.exists():
-            yield from d.glob("*.rex.md")
+            yield from (p for p in d.glob("*.rex.md") if visible is None or p.resolve() in visible)
 
 
 def main() -> None:
