@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R344 | Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 symptômes rejoués, 0 écrit. Au PREMIER Stop d'une séance, une transcription > 2 Mo fait sauter `defect_capture` à la fin — or une séance `/goal` ou reprise après compaction fait un seul tour long, donc son premier Stop arrive tard et tout est perdu. Lire depuis le début quand la séance est née après R315 ; garde muté ; `--backfill` du jour <!-- critic: non — borne de lecture d'un hook d'observation, aucune surface produit --> <!-- scope: .claude/scripts/defect_capture.py, tests/test_defects_are_recorded_every_turn.py, .test_durations --> | P3 | rejouer la transcription du jour : les 24 évènements entrent dans `defects.jsonl` |
 
 ---
 
@@ -212,7 +213,6 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R344 | Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 symptômes rejoués, 0 écrit. Au PREMIER Stop d'une séance, une transcription > 2 Mo fait sauter `defect_capture` à la fin — or une séance `/goal` ou reprise après compaction fait un seul tour long, donc son premier Stop arrive tard et tout est perdu. Lire depuis le début quand la séance est née après R315 ; garde muté ; `--backfill` du jour <!-- critic: non — borne de lecture d'un hook d'observation, aucune surface produit --> <!-- scope: .claude/scripts/defect_capture.py, tests/test_defects_are_recorded_every_turn.py, .test_durations --> | P3 | rejouer la transcription du jour : les 24 évènements entrent dans `defects.jsonl` |
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39 |
 | R275 | Faire tester l'app à deux artistes bêta (message vocal) et rapporter leurs retours (notes L173) | P2 | ton envoi — runbook § 35 |
 
