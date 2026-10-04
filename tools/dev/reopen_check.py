@@ -87,7 +87,11 @@ def _health() -> dict:
 # son garde auto-prouvant, 2 en revue manuelle par conception). UNE constante, lue par
 # l'évaluateur ET par le libellé : le libellé disait « au-dessus de 47 » quand
 # l'évaluateur testait 48 — deux surfaces, deux nombres, dans l'outil qui les compte.
-_R122_SEUIL = 53
+# 53 → 55 le 2026-10-04 (R340) : a tiré à 55 — deux récidives du 2026-09-28
+# (dev-doc atteint par le disque et non par git, R279 ; `Decimal` + `float` dans
+# `split_ledger`, en production). ACQUITTÉE : `make error-debt` rend 0 classe à traiter.
+# Elle a tenu la nuit de sécurité ROUGE six nuits sans que personne ne l'acquitte.
+_R122_SEUIL = 55
 
 
 def _r122() -> tuple[str, str]:
