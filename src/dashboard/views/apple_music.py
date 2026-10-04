@@ -1,9 +1,11 @@
 """Apple Music — ce que le catalogue a gagné, et sur combien de jours.
 
 Type: Feature
-Uses: view_session, entity_period_filter, platform_colors, i18n
+Uses: view_session, entity_period_filter, platform_colors, i18n,
+      utils.apple_launches (R351 — two releases aligned on J0)
 Depends on: v_apple_song_cumulative / v_apple_song_daily (131),
-            apple_songs_performance, gold_apple_lifetime (103/113/114)
+            apple_songs_performance, gold_apple_lifetime (103/113/114),
+            track_release_reference (release dates = J0)
 Persists in: — (lecture seule)
 
 LE DÉFAUT QUE CETTE PAGE PORTAIT, rapporté par l'artiste le 2026-09-21
@@ -162,7 +164,17 @@ def show():
             st.markdown("---")
 
             # ============================================================
-            # 3. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
+            # 3. DEUX SORTIES, UNE HORLOGE (R351)
+            # ============================================================
+            # Les sorties, la plus récente d'abord — UNE lecture, servie à la
+            # comparaison ci-dessous ET à la présélection de la série d'un titre.
+            launches = _launches(db, artist_id)
+            _render_shazam_launches(db, artist_id, launches)
+
+            st.markdown("---")
+
+            # ============================================================
+            # 4. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
             # ============================================================
             # « Quotidienne » est parti du titre le 2026-09-21 : les relevés Apple sont
             # espacés de 12 à 179 jours chez le locataire 1, et promettre un quotidien
@@ -182,20 +194,8 @@ def show():
             # titre Apple → match_key → release_date. Seulement au premier
             # affichage ; un choix ultérieur de l'artiste persiste en session.
             _ent_key = "apple_daily_ent"
-            if _ent_key not in st.session_state:
-                from src.utils.track_matching import get_release_dates, normalize_track_title
-                rel_by_key = get_release_dates(db, artist_id)
-                if rel_by_key:
-                    songs = db.fetch_query(
-                        "SELECT DISTINCT song_name FROM v_apple_song_cumulative "
-                        "WHERE artist_id = %s", (artist_id,))
-                    best_song, best_date = None, None
-                    for (sn,) in (songs or []):
-                        rd = rel_by_key.get(normalize_track_title(sn))
-                        if rd and (best_date is None or rd > best_date):
-                            best_song, best_date = sn, rd
-                    if best_song is not None:
-                        st.session_state[_ent_key] = best_song
+            if _ent_key not in st.session_state and launches:
+                st.session_state[_ent_key] = launches[0].song
 
             selected_song, window = entity_period_filter(
                 db,
@@ -335,3 +335,84 @@ def _render_song_series(df, song: str, window) -> None:
                      "égale.")
                    .format(n=len(df), mini=int(jours.min()) if len(jours) else "—",
                            maxi=int(jours.max()) if len(jours) else "—"))
+
+
+def _launches(db, artist_id: int) -> list:
+    """The artist's dated Apple titles, newest release first (R351)."""
+    from src.dashboard.utils.apple_launches import release_launches
+    from src.utils.track_matching import get_release_dates
+
+    rel_by_key = get_release_dates(db, artist_id)
+    if not rel_by_key:
+        return []
+    songs = db.fetch_query(
+        "SELECT DISTINCT song_name FROM v_apple_song_cumulative WHERE artist_id = %s",
+        (artist_id,))
+    return release_launches([sn for (sn,) in (songs or [])], rel_by_key)
+
+
+def _render_shazam_launches(db, artist_id: int, launches: list) -> None:
+    """Two releases, one clock: Shazams since J0 (R351)."""
+    from src.dashboard.utils.apple_launches import align_on_j0
+    from src.dashboard.utils.platform_timeseries import apple_launch_readings
+    from src.dashboard.utils.date_format import format_date
+
+    st.subheader(t("apple_music.launches_header",
+                   "⚡ Shazams depuis la sortie — deux sorties comparées"))
+    if not launches:
+        st.info(t("apple_music.launches_none",
+                  "Aucune date de sortie connue pour tes titres Apple Music : la "
+                  "comparaison se cale sur le jour de sortie. Les dates viennent de "
+                  "Spotify for Artists — relie tes titres dans **🔗 Mapping "
+                  "cross-plateforme**."))
+        return
+    label = lambda lc: f"{lc.song} · {format_date(lc.j0)}"      # noqa: E731
+    col_a, col_b = st.columns(2)
+    first = col_a.selectbox(t("apple_music.launch_a", "Sortie (la dernière par défaut)"),
+                            launches, index=0, format_func=label, key="apple_launch_a")
+    others = [lc for lc in launches if lc != first]
+    second = col_b.selectbox(t("apple_music.launch_b", "Comparer avec"), others, index=0,
+                             format_func=label, key="apple_launch_b") if others else None
+    chosen = [first] + ([second] if second else [])
+    readings = apple_launch_readings(db, artist_id, [lc.song for lc in chosen])
+    aligned = align_on_j0(readings, chosen)
+    if not aligned["measured"].any():
+        st.info(t("apple_music.launches_no_reading",
+                  "Aucun relevé Apple Music couvrant ces titres depuis leur sortie : "
+                  "dépose un export « depuis le début » pour les voir ici."))
+        return
+    charts.plotly_chart(_launches_figure(aligned, chosen), width="stretch")
+    st.caption(t("apple_music.launches_caption",
+                 "J0 = le jour de sortie de chaque titre, donc deux sorties d'années "
+                 "différentes se lisent côte à côte. Chaque point est un relevé CUMULÉ : "
+                 "les Shazams du titre depuis sa sortie. Le point creux à J0 vaut 0 par "
+                 "construction (aucun Shazam avant la sortie). Entre deux relevés, le "
+                 "trait relie deux mesures — ce n'est pas un rythme quotidien. Cette "
+                 "figure ne suit pas le sélecteur de période plus bas."))
+    if len(chosen) < 2:
+        st.caption(t("apple_music.launches_single",
+                     "Une seule sortie datée : il en faut deux pour comparer."))
+
+
+def _launches_figure(aligned, chosen: list):
+    """One line per release, x = days since J0, the J0 anchor drawn hollow."""
+    from src.dashboard.utils.platform_colors import DISTINCT
+
+    fig = go.Figure()
+    for i, lc in enumerate(chosen):
+        s = aligned[aligned["song"] == lc.song]
+        color = DISTINCT[i % len(DISTINCT)]
+        fig.add_trace(go.Scatter(
+            x=s["offset"], y=s["shazams"], mode="lines+markers", name=lc.song[:40],
+            line=dict(color=color, width=2.5),
+            marker=dict(size=8, color=color,
+                        symbol=["circle" if m else "circle-open" for m in s["measured"]]),
+            hovertemplate=t("apple_music.launch_hover",
+                            "J+%{x} · %{y:,.0f} Shazam(s) depuis la sortie"
+                            "<extra></extra>")))
+    fig.update_layout(
+        height=420, hovermode="closest",
+        xaxis_title=t("apple_music.launch_x", "Jours depuis la sortie (J0)"),
+        yaxis_title=t("apple_music.launch_y", "Shazams cumulés depuis J0"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=60))
+    return fig

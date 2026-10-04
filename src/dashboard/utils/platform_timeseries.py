@@ -604,6 +604,29 @@ def _apple_readings(db, artist_id):
     return out
 
 
+# R351 — the cumulative Apple readings of a few titles, WITH the period their export
+# covers. It lives in the gate (ADR-022) because `period_start` exists only on the bronze
+# table: no gold view carries it, and the view reading it directly would add a raw
+# bronze read to a surface. Deliberately not bounded by any calendar window — the
+# consumer (`apple_launches.align_on_j0`) puts each title on its own « days since J0 »
+# axis and keeps only exports that span the title's whole life.
+_APPLE_LAUNCH_READINGS = """
+    SELECT c.song_name, c.day, c.shazam_count, p.period_start
+      FROM v_apple_song_cumulative c
+      LEFT JOIN apple_songs_performance p
+        ON p.artist_id = c.artist_id AND p.song_name = c.song_name
+       AND p.snapshot_date = c.day AND c.source = 'csv_import'
+     WHERE c.artist_id = %s AND c.song_name = ANY(%s)
+     ORDER BY c.song_name, c.day
+"""
+
+
+def apple_launch_readings(db, artist_id: int, songs: list):
+    """DataFrame `song_name, day, shazam_count, period_start` for `songs` (R351).
+
+    A read failure raises: an empty frame would read « no reading since release »."""
+    return db.fetch_df(_APPLE_LAUNCH_READINGS, (artist_id, list(songs)))
+
 def non_overlapping_cover(readings: list) -> list:
     """Le sous-ensemble le plus FIN qui ne se chevauche pas — sinon on compte double.
 

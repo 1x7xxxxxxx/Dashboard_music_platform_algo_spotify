@@ -33,6 +33,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/alerts.py::_section_plan_evolution#1': (
         "Suivre combien d'artistes s'inscrivent et paient, pour juger tes campagnes d'acquisition.",
         'Follow how many artists sign up and pay, to judge your acquisition campaigns.'),
+    'views/apple_music.py::_render_shazam_launches#1': (
+        'Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche.',
+        'Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works.'),
     'views/apple_music.py::_render_song_series#1': (
         "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter.",
         'See whether a track still gains Apple and Shazam plays, a sign a campaign can still carry it.'),

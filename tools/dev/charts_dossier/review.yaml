@@ -92,6 +92,16 @@ src/dashboard/views/apple_music.py::_render_song_series#1:
   owner_v: garder
   owner: "On garde."
   note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
+src/dashboard/views/apple_music.py::_render_shazam_launches#1:
+  q: "Ma dernière sortie se fait-elle Shazamer plus vite que la précédente ?"
+  decision: "Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche."
+  decision_en: "Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works."
+  role: plateforme
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R351. Cumul depuis J0, jamais un « par jour » ; ancre J0 = 0 en point creux (pas une mesure). Peu de relevés : la courbe est faite de paliers entre exports."
 src/dashboard/views/soundcloud.py::show#1:
   q: "Mes écoutes SoundCloud croissent-elles ?"
   decision: "Suivre ta croissance SoundCloud pour juger si une promo y a un effet."

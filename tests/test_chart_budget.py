@@ -65,7 +65,12 @@ _BUDGET = {
     # et le détail du titre et l'engagement ne font plus qu'UNE figure à deux panneaux
     # (R194). Descendu à la mesure, pour que le plafond reste serré.
     "spotify_s4a_combined.py": 3,
-    "apple_music.py": 2,
+    # 2 → 3 le 2026-10-04, DÉLIBÉRÉMENT (R351, demandé par le propriétaire en regardant
+    # l'écran) : « deux sorties alignées sur J0 » répond à une question que ni le top ni
+    # la série d'un titre ne posent — ma dernière sortie se fait-elle Shazamer plus vite
+    # que la précédente ? Ce n'est pas un raffinement d'une figure existante : l'axe
+    # (jours depuis la sortie) n'existe nulle part ailleurs sur la page.
+    "apple_music.py": 3,
     "imusician.py": 2,
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions
     # distinctes — chacune dans SON onglet, donc jamais trois à l'écran.
