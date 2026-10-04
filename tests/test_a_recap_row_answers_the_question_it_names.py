@@ -200,7 +200,7 @@ def test_an_empty_box_names_its_last_reading():
     rows = _tiles({"spotify": None, "youtube": 12_000},
                   last={"spotify": day, "youtube": _d.date(2026, 9, 12)})
     captions = [r[1] for r in rows if r[0] == "caption"]
-    assert any("05/09/26" in c for c in captions), (
+    assert any("05/09/2026" in c for c in captions), (
         "une plateforme SANS mesure sur la fenêtre, mais avec un relevé au "
         f"{day}, n'affiche pas sa dernière date : {captions!r}. C'est le signalement "
         "du 2026-09-12 — la figure se dessinait grâce aux autres plateformes, et "

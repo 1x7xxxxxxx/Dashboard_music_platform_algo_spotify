@@ -25,18 +25,23 @@ import pathlib
 from src.dashboard.utils import formats
 
 VIEWS = pathlib.Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
-CEILING_HACKS, CEILING_SPECS = 26, 77
+# R368 (2026-10-05): the hack used to mean only `.replace(",", " ")`. A sweep found 16
+# more written with a NARROW no-break space (U+202F) — the same gesture, invisible to
+# the predicate. Ceilings set to the count of that day, no slack: a slack is a free
+# regression.
+_SEPARATORS = frozenset({" ", "\u202f", "\xa0"})
+CEILING_HACKS, CEILING_SPECS = 37, 75
 # Tables shown with no number format at all — 45 of 58 on 2026-09-27. `formats.table` is
 # the way out ; this count only goes down.
 CEILING_RAW_TABLES = 45
 
 
 def _is_sep_hack(node: ast.AST) -> bool:
-    """`<x>.replace(",", " ")` — the hand-made thousands separator."""
+    """`<x>.replace(",", " ")` — the hand-made thousands separator, any space."""
     return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
             and node.func.attr == "replace" and len(node.args) == 2
             and all(isinstance(a, ast.Constant) for a in node.args)
-            and [a.value for a in node.args] == [",", " "])
+            and node.args[0].value == "," and node.args[1].value in _SEPARATORS)
 
 
 def _is_comma_spec(node: ast.AST) -> bool:
@@ -105,6 +110,7 @@ def test_the_counter_is_not_vacuous(tmp_path):
         'y = f"{w:,}"\n'
         'st.dataframe(df)\n'
         'st.dataframe(df.style.format(f))\n'
-        'st.table(df, column_config={})\n', encoding="utf-8")
-    assert count(tmp_path) == (1, 2, 1)
+        'st.table(df, column_config={})\n'
+        'z = f"{v:,}".replace(",", "\\u202f")\n', encoding="utf-8")
+    assert count(tmp_path) == (2, 3, 1), "the narrow no-break space is the same hack (R368)"
     assert sum(count()) >= 1, "the views are no longer read"

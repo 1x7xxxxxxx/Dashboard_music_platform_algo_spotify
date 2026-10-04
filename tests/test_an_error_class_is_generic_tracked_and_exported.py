@@ -79,3 +79,35 @@ def test_a_sweep_past_its_budget_names_its_slowest_signature():
     assert audit.over_budget({"a": 100.0, "b": 33.0}, budget=1800) is None
     verdict = audit.over_budget({"a": 1700.0, "b": 200.0}, budget=1800)
     assert verdict and "a" in verdict and "1900" in verdict
+
+
+def _budget_exit_codes(source: str) -> list[int]:
+    """Exit codes `main()` raises when `over_budget(...)` returns a verdict. Pure."""
+    import ast
+    main = next(n for n in ast.walk(ast.parse(source))
+                if isinstance(n, ast.FunctionDef) and n.name == "main")
+    bound = {t.id for n in ast.walk(main) if isinstance(n, ast.Assign)
+             and isinstance(n.value, ast.Call) and getattr(n.value.func, "id", "") == "over_budget"
+             for t in n.targets if isinstance(t, ast.Name)}
+    codes = []
+    for node in ast.walk(main):
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id in bound:
+            for c in ast.walk(node):
+                if (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                        and c.func.attr == "exit" and c.args and isinstance(c.args[0], ast.Constant)):
+                    codes.append(c.args[0].value)
+    return codes
+
+
+def test_main_fails_the_run_when_the_sweep_is_over_budget():
+    """R368 — REQ-ERR-04 tested `over_budget()`; a `main()` that printed its verdict and
+    went on stayed green. The CALL must end the run non-zero."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1]
+           / ".claude/scripts/audit_runner.py").read_text(encoding="utf-8")
+    codes = _budget_exit_codes(src)
+    assert codes and all(c != 0 for c in codes), (
+        f"audit_runner.main() no longer exits non-zero on an over-budget sweep: {codes}")
+    printed_only = "def main():\n    v = over_budget({})\n    if v:\n        print(v)\n"
+    assert _budget_exit_codes(printed_only) == []
+    assert _budget_exit_codes("def main():\n    v = over_budget({})\n    if v:\n        sys.exit(0)\n") == [0]

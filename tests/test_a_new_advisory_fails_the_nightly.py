@@ -13,6 +13,7 @@ Mutation record (2026-09-28) : `unaccepted` ignoring the accepted set → red ; 
 step removed from the workflow → red ; `continue-on-error` put back on gitleaks → red.
 """
 import importlib.util
+import re
 from pathlib import Path
 
 import yaml
@@ -21,6 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 _spec = importlib.util.spec_from_file_location("pip_audit_gate", ROOT / "tools/dev/pip_audit_gate.py")
 gate = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gate)
+
+#: R368 — a shell suffix that turns any exit code into 0.
+_SWALLOW = re.compile(r"(\|\|\s*(true|:|exit\s+0)\b|\|\|\s*:|;\s*true\b)")
 
 
 def test_only_an_unaccepted_advisory_is_reported():
@@ -47,6 +51,19 @@ def test_the_nightly_blocks_on_audit_and_on_leaks():
     assert any("requirements-api.txt" in (s.get("run") or "") for s in audit["steps"])
     scan = next(s for s in leaks["steps"] if s.get("id") == "scan")
     assert not scan.get("continue-on-error")
+    # R368 — the neighbour gestures: the gate CALLED, then its verdict swallowed.
+    gates = [s for s in audit["steps"] if "pip_audit_gate.py" in (s.get("run") or "")]
+    assert all(not s.get("continue-on-error") for s in gates), "a gate step may not continue on error"
+    swallowed = [ln.strip() for s in gates for ln in s["run"].splitlines()
+                 if "pip_audit_gate.py" in ln and _SWALLOW.search(ln)]
+    assert not swallowed, f"the gate's exit code is swallowed: {swallowed}"
+
+
+def test_the_swallow_detector_sees_the_forms():
+    for ln in ("python3 g.py x.json || true", "python3 g.py x.json || :",
+               "python3 g.py x.json; true", "python3 g.py x.json || exit 0"):
+        assert _SWALLOW.search(ln), ln
+    assert not _SWALLOW.search("python3 g.py x.json")
 
 
 def test_the_accepted_list_carries_a_recheck_date_not_yet_past():

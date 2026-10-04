@@ -175,3 +175,31 @@ def test_the_manual_fix_still_measures_untracked_files_and_says_so(
     rc, measured = _run_main(mod, monkeypatch, tmp_path, ["--fix"], {}, _META)
     assert measured == [sorted(_META)], "`make test-durations-missing` measures before git add"
     assert "HORS de l'index" in capsys.readouterr().out, "…and names what it wrote"
+
+
+def test_main_leaves_out_an_untracked_test_and_judges_a_tracked_one(tmp_path, monkeypatch):
+    """R368 — REQ-TEST-01 tested the FUNCTION `outside()`; a `main()` that stopped calling
+    it stayed green. Here the hook's whole path runs: an untracked test without a duration
+    passes, a tracked one without a duration is refused."""
+    import importlib.util
+    import json
+    import subprocess
+    spec = importlib.util.spec_from_file_location(
+        "check_durations_main", ROOT / "tools/dev/check_durations_are_collectable.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    known = [f"tests/test_known.py::test_{i}" for i in range(1000)]
+    dur = tmp_path / ".test_durations"
+    dur.write_text(json.dumps({k: 0.1 for k in known}), encoding="utf-8")
+    monkeypatch.setattr(mod, "_DUR", dur)
+    monkeypatch.setattr(mod, "untracked_files", lambda: {"tests/test_wip.py"})
+    monkeypatch.setattr(mod, "tracked_names",
+                        lambda: {"tests", "test_known.py", "test_known", "test_new.py", "test_new"})
+    monkeypatch.setattr(mod.sys, "argv", ["check", "tests/test_known.py"])
+
+    def collected(extra):
+        return lambda: subprocess.CompletedProcess([], 0, "\n".join(known + extra), "")
+    monkeypatch.setattr(mod, "_collect", collected(["tests/test_wip.py::test_x"]))
+    assert mod.main() == 0, "an UNTRACKED test is not this commit's — the hook must leave it out"
+    monkeypatch.setattr(mod, "_collect", collected(["tests/test_new.py::test_x"]))
+    assert mod.main() == 1, "a TRACKED test without a duration must be refused"

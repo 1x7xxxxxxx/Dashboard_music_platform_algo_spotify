@@ -31,4 +31,13 @@ UNION ALL
 SELECT 'uix:' || tablename || ':' || substring(indexdef from 'USING .*')
   FROM pg_indexes
  WHERE schemaname = 'public' AND indexdef LIKE 'CREATE UNIQUE%'
+UNION ALL
+-- R368 (2026-10-05): triggers. ADR-018 keeps history through `trg_revision_*` triggers;
+-- a migration that lost one (commented out) left every line above identical, so the
+-- check stayed green on the exact loss BRONZE-02 exists to catch.
+SELECT 'trg:' || t.tgrelid::regclass || ':' || t.tgname || ':' || p.proname
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_proc p ON p.oid = t.tgfoid
+ WHERE c.relnamespace = 'public'::regnamespace AND NOT t.tgisinternal
  ORDER BY 1;

@@ -140,21 +140,25 @@ SEEN_RED: dict[str, str] = {
     "tests/test_an_api_or_dag_failure_is_a_registered_defect.py":
         "2026-10-04 — `sum by (le, route)` → `sum by (le)` (streamlytics.yml:245) → 1 rouge ; _record retiré du handler (error_capture.py:61) → 1 rouge",
     "tests/test_a_delivery_closes_on_a_green_ci.py":
-        "2026-10-04 — ci_verdict rend « ok » sur failure (roadmap.py:203) → 1 rouge ; CLAUDE.md +81 octets au-dessus du budget → 1 rouge",
+        "2026-10-04 — ci_verdict rend « ok » sur failure (roadmap.py:203) → 1 rouge ; CLAUDE.md +81 octets au-dessus du budget → 1 rouge"
+        " ; 2026-10-05 — R368 : « ~180 s » écrit à la main dans l'aide de make test → 1 rouge",
     "tests/test_the_guard_axis_is_measured_without_immortal_time.py":
         "2026-10-04 — la branche sans-garde verse toute l'exposition dans « avec-garde » (error_class_health.py:882) → 1 rouge",
     "tests/test_every_object_has_a_layer.py":
         "2026-10-04 — clé REGISTRY v_s4a_song_measured_span renommée (metric_registry.py:52) → 1 rouge",
     "tests/test_the_period_filter_defaults_to_the_last_release.py":
-        "2026-10-04 — default_override=\"last_release\" → None (period_filter.py:275) → 1 rouge",
+        "2026-10-04 — default_override=\"last_release\" → None (period_filter.py:275) → 1 rouge"
+        " ; 2026-10-05 — R368 : _uses_the_layer comptant un import du filtre de COMPTE → 2 vues sans période vues",
     "tests/test_a_number_is_written_one_way.py":
-        "2026-10-04 — st.dataframe(df) brut ajouté à recap.py:37 → 1 rouge ; .style.map retiré (meta_mapping/_tracks.py:341) → 1 rouge",
+        "2026-10-04 — st.dataframe(df) brut ajouté à recap.py:37 → 1 rouge ; .style.map retiré (meta_mapping/_tracks.py:341) → 1 rouge"
+        " ; 2026-10-05 — R368 : _SEPARATORS réduit à l'espace seul → 1 rouge (16 hacks à espace fine insécable)",
     "tests/test_views_render_smoke.py":
         "2026-10-04 — raise RuntimeError en tête de privacy.show() → 1 rouge",
     "tests/test_fleet_state_never_reaches_a_tenant_surface.py":
         "2026-10-04 — `and is_admin()` retiré avant _render_dag_status_badge (_render.py:736) → 1 rouge",
     "tests/test_an_error_class_is_generic_tracked_and_exported.py":
-        "2026-10-04 — duplicate_gap rend None sans `closest:` (audit_runner.py:777) → 1 rouge ; over_budget toujours None (:271) → 1 rouge",
+        "2026-10-04 — duplicate_gap rend None sans `closest:` (audit_runner.py:777) → 1 rouge ; over_budget toujours None (:271) → 1 rouge"
+        " ; 2026-10-05 — R368 : sys.exit(3) retiré après over_budget dans main() → 1 rouge",
     "tests/test_api_security.py":
         "2026-10-04 — _strict() `or` → `and` (api/main.py:41) → 1 rouge",
     "tests/test_a_bash_guard_reads_the_command_not_the_prose.py":
@@ -162,11 +166,13 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_platform_colour_has_one_definition.py":
         "2026-10-04 — _SPOTIFY_GREEN = \"#1DB954\" au lieu de platform_color (spotify_s4a_combined.py:74) → 1 rouge",
     "tests/test_a_date_shown_to_a_reader_follows_their_language.py":
-        "2026-10-04 — strftime('%Y-%m-%d') → '%d/%m/%Y' (billing.py:327) → 1 rouge",
+        "2026-10-04 — strftime('%Y-%m-%d') → '%d/%m/%Y' (billing.py:327) → 1 rouge"
+        " ; 2026-10-05 — R368 : 5 sites jour-mois-année courte (home_tiles ×2, meta_ads_overview ×2, _tab_model) vus par la forme élargie → 1 rouge",
     "tests/test_canary_onboarding_walk.py":
         "2026-10-04 — platform_status rend OK au lieu de NO_DATA sans données (artist_readiness.py:93) → 1 rouge",
     "tests/test_a_new_advisory_fails_the_nightly.py":
-        "2026-10-04 — continue-on-error sous l'étape gitleaks (security-nightly.yml:212) → 1 rouge ; recheck-by échu (pip-audit-accepted.txt:10) → 1 rouge",
+        "2026-10-04 — continue-on-error sous l'étape gitleaks (security-nightly.yml:212) → 1 rouge ; recheck-by échu (pip-audit-accepted.txt:10) → 1 rouge"
+        " ; 2026-10-05 — R368 : `|| true` ajouté à la ligne pip_audit_gate du workflow → 1 rouge",
     "tests/test_a_mute_defect_gauge_does_not_read_as_zero.py":
         "2026-10-04 — yield g3 remplacé par pass (defect_gauge.py:295) → 1 rouge",
     "tests/test_the_shards_are_balanced_by_real_durations.py":
@@ -182,13 +188,16 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_render_opens_one_connection.py":
         "2026-10-04 — seconde get_db_connection() dans sacem.show() → 1 rouge (2 > 1)",
     "tests/test_a_new_test_brings_its_duration.py":
-        "2026-10-04 — prédicat de outside() forcé à True (check_durations_are_collectable.py:116) → 1 rouge",
+        "2026-10-04 — prédicat de outside() forcé à True (check_durations_are_collectable.py:116) → 1 rouge"
+        " ; 2026-10-05 — R368 : main() sans outside() sur `sans` → 1 rouge (test non suivi refusé)",
     "tests/test_no_shell_gesture_reads_a_dotenv.py":
         "2026-10-04 — _reads_an_env_file rend None (guard_destructive.py:756) → 14 rouges sur test_a_read_of_a_dotenv_is_blocked",
     "tests/test_a_commit_stays_in_its_rows_scope.py":
         "2026-10-04 — out_of_scope rend [] sans condition (require_roadmap_id.py:91) → 1 rouge",
     "tests/test_every_command_and_skill_has_a_trigger.py":
         "2026-10-04 — /zz-ghost nommé seulement dans tooling-reference.md → 1 rouge ; `.claude/workflows/*` retiré des surfaces → 1 rouge (db-schema) ; lookbehind retiré du motif → 1 rouge",
+    "tests/test_the_schema_gate_decides_correctly.py":
+        "2026-10-05 — R368 : \"trg\" retiré des sortes comparées → 7 rouges ; trigger de l'historique commenté dans la migration 096 → schema-check-local rouge",
 }
 
 

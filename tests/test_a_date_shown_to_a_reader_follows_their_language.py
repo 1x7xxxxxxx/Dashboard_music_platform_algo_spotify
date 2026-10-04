@@ -43,9 +43,13 @@ exactement ce que ce dépôt a vidé le matin du 2026-09-22 dans `audit_runner.p
 
 ⚠️ CE QU'IL NE TIENT PAS
 ------------------------
-1. **Les autres formats ambigus.** `%m/%d/%Y` et `%d-%m-%Y` posent le même problème et
-   ne sont pas cherchés : ils n'existent pas dans ce dépôt aujourd'hui, et un garde qui
-   interdit ce qui n'existe pas ne se vérifie jamais.
+1. **Les formats sans année** (`%d/%m`, `%d/%m %H:%M`) : sans année, l'ordre reste
+   ambigu en anglais, mais ils vivent dans des écrans admin non traduits et une vue
+   d'onboarding — non cherchés. `%m/%d/%Y` non plus : il n'existe pas ici.
+   ⚠️ R368 (2026-10-05) : le motif était le LITTÉRAL `%d/%m/%Y`. Un balayage AST a
+   trouvé 5 sites vivants au voisin `%d/%m/%y` (année courte — accueil, Meta,
+   survol plotly de l'onglet modèle), invisibles au garde. Le motif est désormais
+   une expression : jour, séparateur, mois, séparateur, année longue OU courte.
 2. **Le geste voisin le plus proche : une date construite à la main**
    (`f"{d.day}/{d.month}/{d.year}"`). Elle est invisible à ce prédicat, et elle produit
    exactement la même ambiguïté.
@@ -71,6 +75,8 @@ _L_ALERTE_FR = "src/utils/freshness_monitor.py"
 _EXEMPTES = frozenset({_LE_FORMATEUR, _LE_PARSER, _L_ALERTE_FR})
 
 _MOTIF = "%d/%m/%Y"
+#: Le jour d'abord, puis le mois, puis une année longue ou courte, séparateurs / . -
+_FORME = re.compile(r"%d[/.\-]%m[/.\-]%[yY]")
 
 
 def _chaines(tree) -> list[tuple[int, str]]:
@@ -119,7 +125,7 @@ def _sites() -> list[str]:
         except SyntaxError:
             continue
         for lineno, valeur in _chaines(tree):
-            if _MOTIF in valeur:
+            if _FORME.search(valeur):
                 out.append(f"{rel}:{lineno}  {valeur[:80]!r}")
     return out
 
@@ -128,7 +134,7 @@ def test_no_view_formats_a_date_day_first() -> None:
     """LE CLIQUET, à zéro. 49 sites corrigés le 2026-09-22."""
     sites = _sites()
     assert not sites, (
-        f"{len(sites)} site(s) formatent encore une date en `{_MOTIF}` :\n"
+        f"{len(sites)} site(s) formatent encore une date jour d'abord (`{_FORME.pattern}`) :\n"
         + "\n".join(f"    {s}" for s in sites)
         + "\n\nEn mode anglais, `04/03/2025` se lit « 3 avril » au lieu de « 4 mars ». "
           "Utiliser `src.dashboard.utils.date_format.format_date`, qui rend "
@@ -252,9 +258,14 @@ def test_the_sweep_would_see_a_new_offender() -> None:
     # Les DEUX formes que le dépôt portait, plus la prose qui doit rester libre.
     fautif = ast.parse('x = d.strftime("%d/%m/%Y")\ny = f"{d:%d/%m/%Y}"\n')
     trouve = [v for _l, v in _chaines(fautif) if _MOTIF in v]
-    assert len(trouve) == 2, (
-        f"le prédicat ne voit que {len(trouve)} des deux formes fautives ("
-        "`strftime` et le format d'une f-string) : il en laisserait passer une.")
+    assert len(trouve) == 2
+    # R368 — les formes voisines : année courte, autre séparateur, survol plotly.
+    voisins = ast.parse('a = d.strftime("%d/%m/%y")\nb = "%{x|%d/%m/%y}"\n'
+                        'c = f"{d:%d.%m.%Y}"\nok = d.strftime("%Y-%m-%d")\n')
+    vus = [v for _l, v in _chaines(voisins) if _FORME.search(v)]
+    assert len(vus) == 3, (
+        f"le prédicat ne voit que {len(vus)} des trois formes voisines (année courte, "
+        "séparateur point, survol plotly) — ou voit l'ISO, qui n'est pas ambigu.")
 
     # ⚠️ ET LA PROSE RESTE LIBRE. Un commentaire qui NOMME le format doit être
     # invisible, sinon documenter le correctif ferait rougir le garde du défaut.

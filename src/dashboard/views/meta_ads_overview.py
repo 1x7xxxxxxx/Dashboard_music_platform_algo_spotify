@@ -186,7 +186,7 @@ def _render_campaign_waves(db, artist_id) -> None:
     with secondary_analyses(t("meta_ads_overview.waves_header",
                               "🌊 Ce que chaque vague de campagnes a rapporté en écoutes"),
                             expanded=False):
-        labels = [f"{w.start:%d/%m/%y} → {w.end:%d/%m/%y} · {len(n)} camp." for w, n, _ in rows]
+        labels = [f"{format_date(w.start)} → {format_date(w.end)} · {len(n)} camp." for w, n, _ in rows]
         # A lift is written ONLY above the day-to-day noise (the verdict's own rule): below it,
         # « +455 » next to « dans le bruit » would say two things about one wave.
         real = [v.conclusive and v.eur_per_listener_day is not None for _, _, v in rows]
@@ -246,7 +246,7 @@ def _wave_curves_figure(rows: list, series: pd.Series | None):
     if series is None:
         return None
     es = meta_impact.event_study(
-        series, [(f"{w.start:%d/%m/%y} · {len(n)} camp.", w.start) for w, n, _ in rows])
+        series, [(f"{format_date(w.start)} · {len(n)} camp.", w.start) for w, n, _ in rows])
     if es.empty:
         return None
     fig = go.Figure()

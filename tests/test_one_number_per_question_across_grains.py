@@ -133,7 +133,7 @@ def test_a_lifetime_counter_says_what_the_curve_cannot_draw():
 
     box = next((r for r in seen if "YouTube" in r[0]), None)
     assert box, f"la boîte YouTube a disparu : {[r[0] for r in seen]}"
-    assert "29/11/25" in box[3], (
+    assert "29/11/2025" in box[3], (
         f"l'infobulle ne dit pas depuis quand nous relevons ce compteur : {box[3]!r}. "
         "Sans cette date, l'écart entre 118 336 dans la boîte et 304 sur la courbe "
         "n'a aucune explication visible, et c'est lui qui fait dire « ces chiffres "

@@ -93,9 +93,11 @@
   enonce: Rien d'écrasé n'est perdu — l'historique d'une donnée réécrite est conservé automatiquement
   sources: [{adr: docs/adr/ADR-018-nothing-overwritten-is-lost.md}]
   priorite: P2
-  statut: conforme
+  statut: partiel
   preuve: {cmd: "make schema-check-local"}
-  mutation: "retirer une table d'historique d'une migration (le schéma local diverge)"
+  ecart: "R368 : l'empreinte lit les triggers (`trg:`) ; elle a aussitôt trouvé le trigger hypeddit et 10 index créés par le code d'exécution, absents des migrations — R396"
+  roadmap: R396
+  mutation: "commenter le trigger trg_revision_* de la migration 096 (vu rouge 2026-10-05)"
 - id: REQ-COLLECT-01
   domaine: collect
   enonce: Un collecteur lève ; jamais de retour vide silencieux dans un except
@@ -411,8 +413,8 @@
   sources: [{notes: L72}, {theorie: "Khorikov, Unit Testing p.113 (retour rapide)"}]
   priorite: P3
   statut: conforme
-  preuve: {pytest: tests/test_a_new_test_brings_its_duration.py::test_the_hook_judges_every_tracked_test_not_only_the_staged_files}
-  mutation: "restreindre le hook aux fichiers indexés (outside() ignoré)"
+  preuve: {pytest: tests/test_a_new_test_brings_its_duration.py::test_main_leaves_out_an_untracked_test_and_judges_a_tracked_one}
+  mutation: "main() ne filtre plus `sans` par outside() (R368 : la preuve testait la fonction, pas l'appel)"
 - id: REQ-TEST-02
   domaine: tests-ci
   enonce: La boucle de code ne lance que les tests atteignables depuis le diff
@@ -595,7 +597,7 @@
   statut: conforme
   ecart: "R264 : 133 s mesures pour 42 signatures ; le passage echoue au-dela de 1 800 s en nommant la plus lente"
   roadmap: R264
-  preuve: {pytest: tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_sweep_past_its_budget_names_its_slowest_signature}
+  preuve: {pytest: tests/test_an_error_class_is_generic_tracked_and_exported.py::test_main_fails_the_run_when_the_sweep_is_over_budget}
 - id: REQ-FILTER-04
   domaine: filters
   enonce: Toute vue qui trace une série dans le temps offre le filtre de période commun

@@ -70,6 +70,10 @@ def test_the_suite_time_is_read_from_the_run_not_written_by_hand():
     with open(ROOT / "Makefile", encoding="utf-8") as fh:
         help_line = next(ln for ln in fh if ln.startswith("test:"))
     assert "test-suite-timing.json" in help_line, "make test's help states a figure by hand again"
+    # R368 — the pointer can sit BESIDE a hand-written figure (« ~180 s, see timing.json »).
+    import re
+    assert not re.search(r"\d+(?:[.,]\d+)?\s*(?:s|sec|min)\b", help_line), (
+        f"make test's help writes a duration by hand: {help_line.strip()}")
 
 
 def test_the_ci_is_asked_with_the_full_sha(monkeypatch):

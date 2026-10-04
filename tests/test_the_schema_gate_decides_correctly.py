@@ -189,3 +189,24 @@ def test_the_same_nullability_is_no_drift() -> None:
     from tools.dev.schema_drift_check import find_drift, parse_dump
     both = parse_dump("col:meta_ads.ad_name\nnn:meta_ads.ad_name\n")
     assert not find_drift(both, both)["found"]
+
+
+# ── R368 (2026-10-05) — triggers are part of the schema ───────────────────────────────
+def test_a_lost_history_trigger_is_drift(monkeypatch, tmp_path) -> None:
+    """Measured: commenting `trg_revision_s4a_song_timeline` out of migration 096 left
+    `make schema-check-local` green — the fingerprint carried no trigger, and the drift
+    checker dropped any line with an unknown prefix. ADR-018 keeps history in them."""
+    trg = "trg:s4a_song_timeline:trg_revision_s4a_song_timeline:log_value_revision"
+    code, sortie = _run(monkeypatch, tmp_path, ["col:s4a_song_timeline.streams"],
+                        ["col:s4a_song_timeline.streams", trg])
+    assert code == 1, f"un trigger d'historique absent de la base vivante passe vert :\n{sortie}"
+    assert "trg_revision_s4a_song_timeline" in sortie
+
+
+def test_the_fingerprint_reads_the_triggers() -> None:
+    """The other half: the SQL must emit `trg:` lines, or the checker has nothing to see."""
+    sql = (_ROOT / "tools/dev/schema_fingerprint.sql").read_text(encoding="utf-8")
+    code = "\n".join(x.split("--", 1)[0] for x in sql.splitlines())
+    assert "'trg:'" in code and "pg_trigger" in code, (
+        "`schema_fingerprint.sql` ne lit plus `pg_trigger` : un trigger perdu "
+        "redevient invisible à la comparaison de schéma.")

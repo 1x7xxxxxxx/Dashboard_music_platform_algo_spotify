@@ -190,7 +190,7 @@ def _show_error_by_prediction_week(db, artist_id) -> None:
         connectgaps=False,
         line=dict(color=_ALGO_COLOR[a], width=2),
         customdata=s["titles"],
-        hovertemplate="%{x|%d/%m/%y} : %{y:.0f} streams d'écart (%{customdata} titres)"
+        hovertemplate="%{x|%Y-%m-%d} : %{y:.0f} streams d'écart (%{customdata} titres)"
                       "<extra></extra>") for a, s in series.items()])
     fig.update_layout(height=340, showlegend=True, yaxis_title=t(
         "trigger_algo.model.weekly_y", "Écart prévu / constaté (streams)"),

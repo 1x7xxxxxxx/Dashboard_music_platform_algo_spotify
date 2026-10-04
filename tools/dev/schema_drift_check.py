@@ -17,6 +17,7 @@ older dumps still work):
   `table.column`                    a column
   `key:table:PRIMARY KEY (id)`      a PK / UNIQUE / FK constraint
   `uix:table:(artist_id, video_id)` a UNIQUE index
+  `trg:table:trigger:function`      a user trigger (R368 — ADR-018's history lives in them)
 
 Constraints and unique indexes are compared by DEFINITION, never by name: two
 databases legitimately name the same constraint differently, and the name is not
@@ -54,7 +55,7 @@ def _load(path: str) -> dict[str, set[str]]:
 
 def parse_dump(text: str) -> dict[str, set[str]]:
     """Split a dump's text into {columns, keys, unique indexes}. Pure."""
-    buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set(), "nn": set()}
+    buckets: dict[str, set[str]] = {"col": set(), "key": set(), "uix": set(), "nn": set(), "trg": set()}
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -63,6 +64,8 @@ def parse_dump(text: str) -> dict[str, set[str]]:
             buckets["key"].add(line[4:])
         elif line.startswith("uix:"):
             buckets["uix"].add(line[4:])
+        elif line.startswith("trg:"):
+            buckets["trg"].add(line[4:])
         elif line.startswith("nn:"):
             buckets["nn"].add(line[3:])
         elif line.startswith("col:"):
@@ -85,9 +88,10 @@ def find_drift(live: dict[str, set[str]], canon: dict[str, set[str]]) -> dict:
         "canon_extra": sorted(canon["col"] - live["col"]),
         "tables_live_only": sorted(live_tables - canon_tables),
     }
-    for kind in ("key", "uix", "nn"):
-        out[f"{kind}_live_only"] = sorted(live[kind] - canon[kind])
-        out[f"{kind}_canon_only"] = sorted(canon[kind] - live[kind])
+    for kind in ("key", "uix", "nn", "trg"):
+        lv, cv = live.get(kind, set()), canon.get(kind, set())
+        out[f"{kind}_live_only"] = sorted(lv - cv)
+        out[f"{kind}_canon_only"] = sorted(cv - lv)
     out["found"] = any(out.values())
     return out
 
@@ -175,7 +179,8 @@ def main() -> None:
 
     # ── Constraints and unique indexes — what ON CONFLICT actually resolves ──
     for kind, label in (("key", "CONSTRAINTS (PK / UNIQUE / FK)"),
-                        ("uix", "UNIQUE INDEXES")):
+                        ("uix", "UNIQUE INDEXES"),
+                        ("trg", "TRIGGERS (a lost trg_revision_* loses history, ADR-018)")):
         only_prod, only_canon = drift[f"{kind}_live_only"], drift[f"{kind}_canon_only"]
         if not (only_prod or only_canon):
             continue
@@ -184,6 +189,10 @@ def main() -> None:
             print(f"  [{side} only]{' ' * max(1, 12 - len(side))}{item}")
         for item in only_canon:
             print(f"  [canonical only] {item}")
+        if kind == "trg":
+            print("  → a trigger present on one side only: an UPDATE writes history there "
+                  "and not here. Reconcile by migration.\n")
+            continue
         print("  → a difference here changes which rows can coexist and which "
               "`ON CONFLICT` targets resolve. Reconcile before deploying code that "
               "upserts on them.\n")

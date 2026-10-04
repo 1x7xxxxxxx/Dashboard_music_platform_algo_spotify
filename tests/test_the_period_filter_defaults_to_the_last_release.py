@@ -25,6 +25,9 @@ EXEMPT = {
     "airflow_kpi.py": "ops : fenêtre de supervision des DAG, public exploitant",
     "revenue_forecast.py": "trésorerie : un cumul part du premier euro, une fenêtre le fausserait",
     "trigger_algo/_tab_budget_roi.py": "point mort : cumul depuis le premier euro, même raison",
+    # R368 — seen only once `_uses_the_layer` stopped counting an ACCOUNT-filter import.
+    "meta_cpr_optimizer.py": "coût par résultat sur TOUTE la vie de chaque campagne : une fenêtre tronquerait le CPR",
+    "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`_campaign_window`), pas une période libre",
 }
 
 
@@ -58,8 +61,25 @@ def _draws_daily_series(source: str) -> bool:
     return "charts.plotly_chart" in source and ("_daily" in source or "_timeline" in source)
 
 
+_PERIOD_CALLS = frozenset({"smart_period_filter", "span_period_filter", "entity_period_filter"})
+_FILTERS_ALIASES = frozenset({"period", "span", "entity"})
+
+
 def _uses_the_layer(source: str) -> bool:
-    return any(k in source for k in ("utils.filters", "utils import filters", "period_filter"))
+    """The view CALLS a period filter. R368 (2026-10-05): this read `"utils.filters" in
+    source`, so `from …filters import account_clause` — the Meta ACCOUNT, no period —
+    passed a view that never filtered its window. Pure, by the AST."""
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if isinstance(f, ast.Name) and f.id in _PERIOD_CALLS:
+            return True
+        if isinstance(f, ast.Attribute) and (f.attr in _PERIOD_CALLS or (
+                f.attr in _FILTERS_ALIASES and isinstance(f.value, ast.Name)
+                and f.value.id == "filters")):
+            return True
+    return False
 
 
 def test_every_view_drawing_a_daily_series_goes_through_the_shared_filter():
@@ -79,4 +99,8 @@ def test_the_detectors_see_the_defects_they_are_written_for():
     assert _redundant_defaults('f(db, default_override="all")') == 0
     drawing = 'db.fetch_df("SELECT * FROM v_meta_daily"); charts.plotly_chart(fig)'
     assert _draws_daily_series(drawing) and not _uses_the_layer(drawing)
-    assert _uses_the_layer("from src.dashboard.utils import filters\n" + drawing)
+    assert _uses_the_layer("from src.dashboard.utils import filters\nw = filters.period(db)\n" + drawing)
+    # R368 — importing the ACCOUNT filter is not filtering the period.
+    assert not _uses_the_layer(
+        "from src.dashboard.utils.filters import account_clause\n" + drawing)
+    assert not _uses_the_layer("from src.dashboard.utils import filters\n" + drawing)

@@ -35,6 +35,7 @@ import html as _html
 import streamlit as st
 
 from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
@@ -222,13 +223,13 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                 "**{seen}** depuis cette date, le reste précède notre première "
                 "mesure et aucune date ne peut le porter — c'est pourquoi la courbe "
                 "« par période » en montre moins.").format(
-                    since=_obs[0].strftime("%d/%m/%y"),
-                    seen=f"{int(_obs[1]):,}".replace(",", "\u202f"))
+                    since=format_date(_obs[0]),
+                    seen=num(_obs[1]))
         with col.container(border=True):
             st.metric(label, _n(value), delta=_delta(value, before), help=help_text)
             if not value and _last.get(key):
                 st.caption(t("home.tile_last_seen", "Dernier relevé : {d}").format(
-                    d=_last[key].strftime("%d/%m/%y")))
+                    d=format_date(_last[key])))
 
     # ── L'ORDRE SUIT LA DONNÉE — 2026-09-22 ────────────────────────────────
     #
