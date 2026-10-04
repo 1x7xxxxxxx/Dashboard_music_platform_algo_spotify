@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R348 — Meta Ads, retour d'écran du 2026-10-04 : « Tout mon funnel » (`meta_x_spotify`) quitte… (livrée 2026-10-04)
+
+- [x] **R348 — Meta Ads, retour d'écran du 2026-10-04 : « Tout mon funnel » (`meta_x_spotify`) quitte le menu et devient un onglet de la page Meta Ads — la route reste, les renvois (pitch, récap, PDF, texte de `meta_creatives`) pointent l'onglet** (P3) ✅ (2026-10-04, 8ebc873b, 9ec7cd46)
+  Mesuré par : `nav_sections` ne liste plus `meta_x_spotify` ; la page Meta Ads rend l'onglet (render smoke) <!-- critic: non — onglet d'interface, route et données inchangées --> <!-- scope: src/dashboard/views/, src/dashboard/utils/, tests/ -->
+  Funnel = onglet perf/funnel de Meta Ads, meta_x_spotify hors menu, route conservée ; CI verte 8ebc873b
+  Commits : 8ebc873b R348 : « Tout mon funnel » devient un onglet de la page Meta Ads · 9ec7cd46 Roadmap : portées R348-R351 déclarées (main rouge depuis a413a665) + j
+
 ## ✅ R360 — Écarts encore partiels du harnais (rapport R356) : REQ-HARN-09 manifeste de la boucle d… (livrée 2026-10-04)
 
 - [x] **R360 — Écarts encore partiels du harnais (rapport R356) : REQ-HARN-09 manifeste de la boucle d'ingénierie non testé ; -10 `suggest_sweep.py` sans test ; -11 `draft_rex.py` sans test ; -12 rules chargées 40/40 malgré `globs:` + 4 skills à 0 appel ; -17 `idle_containers.py` appelé par rien d'automatique ; -19 407 `seen_red` « self-proving » contre 14 datés** (P4) ✅ (2026-10-04, 62ab81ce, 65eca0d1)
