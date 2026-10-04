@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R344 — Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 sympt… (livrée 2026-10-04)
+
+- [x] **R344 — Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 symptômes rejoués, 0 écrit. Au PREMIER Stop d'une séance, une transcription > 2 Mo fait sauter `defect_capture` à la fin — or une séance `/goal` ou reprise après compaction fait un seul tour long, donc son premier Stop arrive tard et tout est perdu. Lire depuis le début quand la séance est née après R315 ; garde muté ; `--backfill` du jour** (P3) ✅ (2026-10-04, 481b8fac)
+  Mesuré par : rejouer la transcription du jour : les 24 évènements entrent dans `defects.jsonl`
+  premier tour d'une seance nee apres R315 lu depuis l'octet 0 ; garde mute rouge ; backfill du 2026-10-04 : 25 symptomes. CI forcee : 481b8fac rouge sur la seule ligne R344 rangee sous « En attente de toi », corrigee au commit suivant, CI verte
+  Commits : 481b8fac R344 : le journal des defauts lit depuis l'octet 0 le premier tour d'u
+
 ## ✅ R343 — /capitalise de la séance : `make audit-deps` auditait `-r requirements.txt` (planchers)… (livrée 2026-10-04)
 
 - [x] **R343 — /capitalise de la séance : `make audit-deps` auditait `-r requirements.txt` (planchers) — site vivant de `audit-reads-the-constraints-not-the-installed-set` que le garde ne voyait pas, il ne lit que `.github/workflows/`. Étendre le garde aux recettes du Makefile (`$(PIP_AUDIT)` compris) ; lignes `(récidive)` au catalogue pour cette classe et pour `a-status-screen-that-reads-half-its-source` (R339) — élargie au balayage du 2026-10-04 : `night_run._archived_ids` ne lit que `## ✅` (163 blocs `- [x] **Rnnn —` invisibles), `open_questions` garde PARQUÉE une tâche archivée sans `done`, et `night-check` rougit dessus** (P3) ✅ (2026-10-04, 251c5cde, ebc3a50a)

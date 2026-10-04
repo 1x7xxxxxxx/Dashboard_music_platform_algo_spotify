@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R344 | Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 symptômes rejoués, 0 écrit. Au PREMIER Stop d'une séance, une transcription > 2 Mo fait sauter `defect_capture` à la fin — or une séance `/goal` ou reprise après compaction fait un seul tour long, donc son premier Stop arrive tard et tout est perdu. Lire depuis le début quand la séance est née après R315 ; garde muté ; `--backfill` du jour <!-- critic: non — borne de lecture d'un hook d'observation, aucune surface produit --> <!-- scope: .claude/scripts/defect_capture.py, tests/test_defects_are_recorded_every_turn.py, .test_durations --> | P3 | rejouer la transcription du jour : les 24 évènements entrent dans `defects.jsonl` |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R344, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
