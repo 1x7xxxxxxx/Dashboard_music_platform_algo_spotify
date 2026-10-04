@@ -17,6 +17,7 @@ from src.dashboard.utils.formats import num
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils import filters
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.campaign_pair import pair_colors, second_campaign
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
 from src.dashboard.utils.creative_decisions import _a_couper, add_quadrants, by_creative, render_creative_gain  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
@@ -400,7 +401,7 @@ _RANG_PANNEAUX = [
 _RANG_MAX = 15
 
 
-def _render_ranking(df: pd.DataFrame) -> None:
+def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
     """Le classement des créatives — SIX cadres (quatre, plus CPM et CPC depuis R299), un par unité, noms en Y.
 
     ⚠️ Remplace un `st.dataframe` de huit colonnes, à la demande du propriétaire
@@ -438,7 +439,8 @@ def _render_ranking(df: pd.DataFrame) -> None:
     for i, (lab, col, fmt, couleur, _bas) in enumerate(_RANG_PANNEAUX, start=1):
         vals = d[col] if col in d.columns else pd.Series([float("nan")] * len(d))
         fig.add_trace(go.Bar(
-            x=vals, y=noms, orientation='h', marker={'color': couleur},
+            x=vals, y=noms, orientation='h',
+            marker={'color': couleur if pair is None else pair_colors(noms, df, *pair)},
             name=lab, showlegend=False,
             text=[fmt.format(v) if pd.notna(v) else "—" for v in vals],
             textposition='auto', cliponaxis=False,   # inside a long bar: never spills
@@ -459,6 +461,11 @@ def _render_ranking(df: pd.DataFrame) -> None:
                 "Seules les {n} créatives qui ont le plus dépensé sont tracées ; "
                 "le tableau replié plus bas les porte toutes.").format(n=_RANG_MAX)
         if tronque else ""))
+    if pair is not None:
+        st.caption(t("meta_creatives.pair_caption",
+                     "Bleu : « {a} » · orange : « {b} » · gris : une créative des deux campagnes. "
+                     "CPR, CTR, CPM et CPC sont des coûts et des taux : ils se comparent d'une "
+                     "campagne à l'autre, quel que soit le budget.").format(a=pair[0], b=pair[1]))
 
 
 def _render_hooks(df: pd.DataFrame) -> None:
@@ -1045,13 +1052,16 @@ def show() -> None:
         )
         # "Toutes" stays the internal sentinel value; only its display is translated.
         campaigns = ["Toutes"] + camp_order
-        col_filter, _ = st.columns([2, 4])
+        col_filter, col_second = st.columns([2, 4])
         selected_campaign = col_filter.selectbox(
             t("meta_creatives.filter_by_campaign", "Filtrer par campagne"), campaigns,
             format_func=lambda c: t("meta_creatives.all_campaigns", "Toutes") if c == "Toutes" else c)
+        with col_second:   # R350 — the shared second-campaign filter; None = page unchanged
+            second = second_campaign(camp_order, selected_campaign, key="creatives_second")
+        pair = (selected_campaign, second) if second else None
 
         if selected_campaign != "Toutes":
-            df = df[df['campaign_name'] == selected_campaign]
+            df = df[df['campaign_name'].isin(pair or (selected_campaign,))]
 
         if df.empty:
             st.warning(t("meta_creatives.no_creative_campaign", "Aucune créative pour cette campagne."))
@@ -1073,7 +1083,7 @@ def show() -> None:
         st.markdown("---")
 
         st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
-        _render_ranking(df)
+        _render_ranking(df, pair)
         _render_table(df)
 
         st.markdown("---")

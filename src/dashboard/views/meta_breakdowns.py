@@ -27,6 +27,7 @@ from src.dashboard.utils.filters import (
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.campaign_pair import render_share_pair, second_campaign, share_pair
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
@@ -216,6 +217,61 @@ def _render_engagement(df):
             charts.plotly_chart(fig, width="stretch")
 
 
+def _breakdown_frame(db, artist_id: int, family: str, grain_key: str, entity_col,
+                     entity_val, _acct: str, _acct_params: tuple) -> pd.DataFrame:
+    """The three breakdowns of ONE entity, in one round trip (R208) — extracted for R350,
+    which reads them a second time for the compared campaign."""
+    if family == "performance":
+        metrics = "SUM(spend) AS spend, SUM(results) AS results, " \
+                  "SUM(impressions) AS impressions, SUM(reach) AS reach"
+    else:
+        metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
+    # THE THREE BREAKDOWNS IN ONE ROUND TRIP (R208). Each table is normalised to
+    # (dim, k, platform, metrics…) and the three are stacked with UNION ALL: the
+    # round-trip ratchet refuses one query per panel, and the four panels are read
+    # together anyway.
+    #
+    # Les tables à la maille AD/ADSET n'ont pas `ad_account_id` (migration 076)
+    # et n'en ont pas besoin : leur clé est un id Meta, globalement unique, donc
+    # deux comptes ne peuvent pas y entrer en collision. Ajouter le prédicat
+    # quand même ferait échouer la requête sur « colonne inconnue ».
+    parts, params = [], []
+    for dim_key, dim_cols in _DIMS.items():
+        table = _table_name(family, grain_key, dim_key)
+        _acct_tbl = _acct if table_carries_account(table) else ""
+        k_expr = ("placement" if dim_key == "placement" else dim_cols[0])
+        p_expr = "platform" if dim_key == "placement" else "NULL::text"
+        where_entity = f" AND {entity_col} = %s" if entity_val is not None else ""
+        parts.append(
+            f"SELECT '{dim_key}'::text AS dim, {k_expr}::text AS k, {p_expr} AS platform, "
+            f"{metrics} FROM {table} "
+            f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {', '.join(dim_cols)}")
+        params += [artist_id, *(_acct_params if _acct_tbl else ())]
+        if entity_val is not None:
+            params.append(entity_val)
+    inner = " UNION ALL ".join(parts)
+    # La dépense TOTALE voyage dans la même requête, en sous-requête scalaire.
+    #
+    # Elle lit `v_meta_spend_totals` (migration 101), la définition OR de la
+    # dépense, et non la table brute — « combien a-t-on dépensé » est une règle
+    # métier. La sous-requête est posée AUTOUR des agrégats, pas dedans.
+    if family == "performance":
+        sql = (f"SELECT b.*, "
+               f"(SELECT COALESCE(SUM(spend), 0) FROM v_meta_spend_totals "
+               f" WHERE artist_id = %s{_acct}) AS _spend_total, "
+               f"(SELECT COALESCE(SUM(results), 0) FROM v_meta_spend_totals "
+               f" WHERE artist_id = %s{_acct}) AS _results_total "
+               f"FROM ({inner}) b")
+        # The two scalar subqueries come FIRST in the text, so their parameters do too.
+        # Appended last (until R350), they only lined up while every parameter was the
+        # artist id: choosing a campaign, adset or creative crashed the page.
+        args = ((artist_id, *_acct_params) + (artist_id, *_acct_params)
+                + tuple(params))
+    else:
+        sql, args = inner, tuple(params)
+    return db.fetch_df(sql, args)
+
+
 def show() -> None:
     # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
     # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
@@ -305,52 +361,15 @@ def show() -> None:
         ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key]),
                  entity=entity_label))
 
-        if family == "performance":
-            metrics = "SUM(spend) AS spend, SUM(results) AS results, " \
-                      "SUM(impressions) AS impressions, SUM(reach) AS reach"
-        else:
-            metrics = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
-        # THE THREE BREAKDOWNS IN ONE ROUND TRIP (R208). Each table is normalised to
-        # (dim, k, platform, metrics…) and the three are stacked with UNION ALL: the
-        # round-trip ratchet refuses one query per panel, and the four panels are read
-        # together anyway.
-        #
-        # Les tables à la maille AD/ADSET n'ont pas `ad_account_id` (migration 076)
-        # et n'en ont pas besoin : leur clé est un id Meta, globalement unique, donc
-        # deux comptes ne peuvent pas y entrer en collision. Ajouter le prédicat
-        # quand même ferait échouer la requête sur « colonne inconnue ».
-        parts, params = [], []
-        for dim_key, dim_cols in _DIMS.items():
-            table = _table_name(family, grain_key, dim_key)
-            _acct_tbl = _acct if table_carries_account(table) else ""
-            k_expr = ("placement" if dim_key == "placement" else dim_cols[0])
-            p_expr = "platform" if dim_key == "placement" else "NULL::text"
-            where_entity = f" AND {entity_col} = %s" if entity_val is not None else ""
-            parts.append(
-                f"SELECT '{dim_key}'::text AS dim, {k_expr}::text AS k, {p_expr} AS platform, "
-                f"{metrics} FROM {table} "
-                f"WHERE artist_id = %s{_acct_tbl}{where_entity} GROUP BY {', '.join(dim_cols)}")
-            params += [artist_id, *(_acct_params if _acct_tbl else ())]
-            if entity_val is not None:
-                params.append(entity_val)
-        inner = " UNION ALL ".join(parts)
-        # La dépense TOTALE voyage dans la même requête, en sous-requête scalaire.
-        #
-        # Elle lit `v_meta_spend_totals` (migration 101), la définition OR de la
-        # dépense, et non la table brute — « combien a-t-on dépensé » est une règle
-        # métier. La sous-requête est posée AUTOUR des agrégats, pas dedans.
-        if family == "performance":
-            sql = (f"SELECT b.*, "
-                   f"(SELECT COALESCE(SUM(spend), 0) FROM v_meta_spend_totals "
-                   f" WHERE artist_id = %s{_acct}) AS _spend_total, "
-                   f"(SELECT COALESCE(SUM(results), 0) FROM v_meta_spend_totals "
-                   f" WHERE artist_id = %s{_acct}) AS _results_total "
-                   f"FROM ({inner}) b")
-            args = (tuple(params) + (artist_id, *_acct_params)
-                    + (artist_id, *_acct_params))
-        else:
-            sql, args = inner, tuple(params)
-        df = db.fetch_df(sql, args)
+        df = _breakdown_frame(db, artist_id, family, grain_key, entity_col, entity_val,
+                              _acct, _acct_params)
+        # R350 — the shared second-campaign filter, offered at the CAMPAIGN grain only:
+        # an adset or a creative of campaign A has no counterpart in campaign B.
+        second = second_campaign(
+            camps['campaign_name'].tolist(),
+            camp_sel if adset_id is None and ad_id is None else None, key="bd_second")
+        df_b = (_breakdown_frame(db, artist_id, family, "campaign", "campaign_name", second,
+                                 _acct, _acct_params) if second else None)
 
     if df is None or df.empty:
         st.info(t(
@@ -368,6 +387,8 @@ def show() -> None:
             df.drop(columns=["_spend_total", "_results_total"], errors="ignore"))
     else:
         _render_engagement(df)
+    if df_b is not None:
+        _render_pair(df, df_b, family, camp_sel, second)
 
 
 def _render_coverage(df) -> None:
@@ -412,3 +433,38 @@ def _render_coverage(df) -> None:
         "ne sont dans aucune barre. L'écart n'est pas une donnée manquante de notre "
         "côté."
     ).format(parts=" et ".join(parts)))
+
+
+def _with_value(df: pd.DataFrame, family: str) -> pd.DataFrame:
+    """The compared quantity in `value`: the spend, or the interactions the page stacks."""
+    df = df.copy()
+    if family == "performance":
+        df['value'] = pd.to_numeric(df['spend'], errors='coerce')
+    else:
+        cols = {c: pd.to_numeric(df[c], errors='coerce').fillna(0) for c in _ENG_COLS}
+        df['value'] = sum(cols[c] for c in _ENG_STACK) + cols['post_likes']
+    return df
+
+
+def _render_pair(df_a: pd.DataFrame, df_b: pd.DataFrame, family: str, first: str,
+                 second: str) -> None:
+    """R350 — where each campaign's money (or interactions) went, as a share of ITS total.
+
+    Two campaigns of different budgets cannot share an absolute axis; their distributions
+    can. One breakdown is enough per panel — the four cover the same activity."""
+    st.markdown("---")
+    st.subheader(t("meta_breakdowns.pair_head", "⚖️ Les deux campagnes, en part de leur total"))
+    if df_b.empty:
+        st.info(t("meta_breakdowns.pair_empty",
+                  "Aucune ventilation collectée pour « {c} ».").format(c=second))
+        return
+    a, b = _with_value(df_a, family), _with_value(df_b, family)
+    panels = {t(f"meta_breakdowns.dim.{p}", lab):
+              share_pair(_panel(a, p), _panel(b, p), 'dim_label', 'value')
+              for p, lab in _PANELS if p != "placement"}
+    render_share_pair(panels, first, second)
+    st.caption(t("meta_breakdowns.pair_caption",
+                 "Chaque barre est la part de la {what} de SA campagne : deux budgets "
+                 "différents se comparent sur la même échelle (0–100 %).").format(
+                     what=t("meta_breakdowns.pair_spend", "dépense") if family == "performance"
+                     else t("meta_breakdowns.pair_interactions", "somme des interactions")))

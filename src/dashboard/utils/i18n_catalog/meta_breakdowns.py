@@ -57,4 +57,10 @@ EN = {
                                               "total that CONTAINS these actions (and others, "
                                               "such as video plays): it is not stacked, it "
                                               "would count them twice.",
+    # R350 — the two-campaign comparison, as shares of each campaign's own total.
+    "meta_breakdowns.pair_head": "⚖️ The two campaigns, as a share of their total",
+    "meta_breakdowns.pair_empty": "No breakdown collected for « {c} ».",
+    "meta_breakdowns.pair_caption": "Each bar is the share of ITS campaign's {what}: two different budgets compare on the same scale (0–100 %).",
+    "meta_breakdowns.pair_spend": "spend",
+    "meta_breakdowns.pair_interactions": "summed interactions",
 }

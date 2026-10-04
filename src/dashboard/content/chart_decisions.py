@@ -6,6 +6,12 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'utils/campaign_compare.py::_render_track_funnel#1': (
         'Choisir le titre qui transforme le mieux de la pub au clic, pour y mettre le budget.',
         'Choose the track that converts best from ad to click, to put the budget there.'),
+    'utils/campaign_pair.py::render_day0#1': (
+        'Comparer deux campagnes à âge égal (J0 = premier euro), pour décider laquelle refaire.',
+        'Compare two campaigns at equal age (day 0 = first euro), to decide which one to run again.'),
+    'utils/campaign_pair.py::render_share_pair#1': (
+        'Voir si deux campagnes ont touché le même public, en part de leur propre total, pour choisir quel ciblage garder.',
+        'See whether two campaigns reached the same audience, as a share of their own total, to choose which targeting to keep.'),
     'utils/ml_widgets.py::render_classification_scorecard#1': (
         'Savoir à quel point te fier au modèle avant de lancer une campagne sur sa probabilité.',
         'Know how far to trust the model before launching a campaign on its probability.'),

@@ -60,13 +60,14 @@ SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
          "seuils du second graphique ; ma reco : garder les valeurs, les jauges en survol",
          frozenset({_CAT + "1", _CAT + "2"})),
     frozenset({f"src/dashboard/views/meta_creatives.py::{fn}#1" for fn in (
-        "_render_ranking", "_render_hooks", "_render_creative_timeline", "_render_scatter",
+        "_render_hooks", "_render_creative_timeline", "_render_scatter",
         "_render_funnel", "_render_fatigue", "_render_activity")}):
-        ("à trancher pour UN couple : le nuage dépense × CPR redit deux cadres du classement "
-         "(ma reco : le garder replié, il montre les créas « à couper » d'un coup d'œil) ; "
-         "les cinq autres sont des faux doublons — par accroche, dans le temps, par étape, "
-         "par fréquence, par semaine active",
-         frozenset({_CR + "_render_ranking#1", _CR + "_render_scatter#1"})),
+        ("à trancher pour le nuage dépense × CPR : il redit deux cadres du classement, qui a "
+         "quitté ce groupe en R350 (il lit aussi la seconde campagne) — ma reco : le garder "
+         "replié, il montre les créas « à couper » d'un coup d'œil ; les cinq autres sont des "
+         "faux doublons — par accroche, dans le temps, par étape, par fréquence, par semaine "
+         "active",
+         frozenset({_CR + "_render_scatter#1"})),
 }
 
 #: Merged on 2026-09-28 (R299): the retired fiche, the fiche that now carries it, why.

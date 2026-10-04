@@ -1296,3 +1296,25 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_render_estimates#1:
   p: 5
   v: garder
   note: "Nouveau (R247, fiche 43) : médiane et P25–P75 des streams algorithmiques sur 28 jours, chez les titres DÉCLENCHÉS du jeu d'entraînement (seuils du modèle : DW>137, RR>130, Radio>639), à trois âges ; un panneau par algorithme, chacun à son échelle ; une case de moins de 10 titres est écrite « pas assez de titres » (1 an : refusé partout). Une estimation, pas une prévision pour le titre."
+src/dashboard/utils/campaign_pair.py::render_day0#1:
+  mq: M4
+  q: "Deux campagnes, au même âge, laquelle dépense, clique et coûte le mieux ?"
+  decision: "Comparer deux campagnes à âge égal (J0 = premier euro), pour décider laquelle refaire."
+  decision_en: "Compare two campaigns at equal age (day 0 = first euro), to decide which one to run again."
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R350, rendu le 2026-10-04 sur la base locale (artiste 1, les campagnes 1ʳᵉ et 3ᵉ par dépense). Cumuls depuis J0 + CPC = dépense cumulée ÷ clics cumulés ; on lit d'un coup d'œil que la seconde coûte ~0,18 € le clic contre ~0,13 €. Étiquettes du 1ᵉʳ cadre rognées (marge l=10) : corrigé avant la revue."
+src/dashboard/utils/campaign_pair.py::render_share_pair#1:
+  mq: M7
+  q: "Les deux campagnes ont-elles touché les mêmes pays, plateformes et âges ?"
+  decision: "Voir si deux campagnes ont touché le même public, en part de leur propre total, pour choisir quel ciblage garder."
+  decision_en: "See whether two campaigns reached the same audience, as a share of their own total, to choose which targeting to keep."
+  role: meta
+  d: 3
+  c: 3
+  p: 4
+  v: garder
+  note: "R350, rendu le 2026-10-04 sur la base locale (artiste 1, campagnes 1ʳᵉ et 3ᵉ par dépense, pays + âge réels). Parts de chaque total, même axe en % : on lit que l'une a payé le Mexique et la Colombie, l'autre la France et l'Allemagne. Deux défauts mineurs : les tranches d'âge sont triées par part et non dans leur ordre ; dans chaque groupe la 1ʳᵉ campagne est dessinée SOUS la seconde alors que la légende la nomme en premier."

@@ -10,6 +10,7 @@ from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0, second_campaign
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -426,6 +427,26 @@ def _add_streams_row(fig, db, artist_id: int, days) -> None:
     fig.update_yaxes(title_text=t("meta_ads_overview.streams_axis", "Écoutes"), row=2, col=1)
 
 
+def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> None:
+    """R350 — two campaigns at a comparable scale: each on ITS day 0 (first euro spent).
+
+    Totals of a 30 € test and a 750 € release cannot share a calendar or a bar; on one
+    clock, the cumulative spend, clicks and the running CPC read side by side. The whole
+    life of each campaign, NOT the period window: a window would cut one of them mid-run."""
+    acct, acct_params = account_clause(account)
+    daily = db.fetch_df(
+        "SELECT campaign_name, day, SUM(spend) AS spend, SUM(link_clicks) AS link_clicks "
+        f"FROM v_meta_campaign_daily WHERE artist_id = %s{acct} "
+        "AND campaign_name IN (%s, %s) GROUP BY campaign_name, day ORDER BY day",
+        (artist_id, *acct_params, first, second))
+    st.markdown(t("meta_ads_overview.pair_head", "##### ⏱️ Les deux campagnes sur la même horloge"))
+    st.caption(t("meta_ads_overview.pair_caption",
+                 "J0 = le premier jour où chaque campagne a dépensé. Toute la vie de chaque "
+                 "campagne, quel que soit le filtre de dates ; un jour de pause compte 0. Le CPC "
+                 "est la dépense cumulée divisée par les clics cumulés."))
+    render_day0(day0_cumulative(daily, first, second), first, second)
+
+
 def _show_meta_ads(db, artist_id):
     # Le compte AVANT les campagnes : deux comptes peuvent porter la même campagne
     # « Release FR », donc la liste offerte dépend du compte choisi, jamais l'inverse.
@@ -470,6 +491,12 @@ def _show_meta_ads(db, artist_id):
     # Values are always passed as %s parameters — never interpolated into the SQL string.
     # Validate that selected_campaigns is a subset of all_campaigns (allowlist check).
     selected_campaigns = [c for c in selected_campaigns if c in set(all_campaigns)]
+    # R350 — the shared « compare with » selector: its pick joins the scope, so the six
+    # frames below carry both campaigns; exactly two in scope also draws the day-0 clock.
+    second = second_campaign(all_campaigns, selected_campaigns[0] if len(selected_campaigns) == 1
+                             else None, key="meta_overview_second")
+    if second:
+        selected_campaigns = [*selected_campaigns, second]
     # Le filtre de compte se colle AVANT celui des campagnes : ses paramètres se
     # placent donc juste après `artist_id`.
     # R259 (notes L98, L511) — the shared period filter, like every other page that draws
@@ -518,6 +545,8 @@ def _show_meta_ads(db, artist_id):
                       "Une seule campagne a dépensé sur la période choisie : élargis la "
                       "période pour comparer tes campagnes entre elles."))
         _render_global_perf(df_perf)
+        if len(selected_campaigns) == 2:
+            _render_pair_day0(db, artist_id, _account, *selected_campaigns)
         _render_campaign_waves(db, artist_id)
 
         # Engagement

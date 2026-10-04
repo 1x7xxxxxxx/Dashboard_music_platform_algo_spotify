@@ -91,4 +91,10 @@ EN = {
         "100 = the average of the 28 days before the wave. A curve that rises BEFORE day 0 "
         "is a release, not the ads. {d} wave(s) with no measured baseline (under 10 streams "
         "a day before it) are not drawn: an index there would mean nothing."),
+    # R350 — two campaigns on the day-0 clock.
+    "meta_ads_overview.pair_head": "##### ⏱️ The two campaigns on the same clock",
+    "meta_ads_overview.pair_caption": (
+        "Day 0 = the first day each campaign spent. The whole life of each campaign, "
+        "whatever the date filter; a pause day counts 0. The CPC is the cumulative spend "
+        "divided by the cumulative clicks."),
 }

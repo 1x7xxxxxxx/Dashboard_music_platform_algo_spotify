@@ -149,4 +149,5 @@ EN = {
     "meta_creatives.col_outbound": "Platform clicks",
     "meta_creatives.col_cost_outbound": "€ / platform click",
     "meta_creatives.outbound_caption": "« Platform clicks »: clicks leaving the smart link for a platform, per creative ({m}/{n} measured). A creative without a measure shows « — »: Meta only returned this figure per campaign; it fills in creative by creative at the next full collection of your Meta account.",
+    "meta_creatives.pair_caption": "Blue: « {a} » · orange: « {b} » · grey: a creative of both campaigns. CPR, CTR, CPM and CPC are costs and rates: they compare from one campaign to the other, whatever the budget.",
 }

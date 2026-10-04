@@ -419,6 +419,10 @@ _WIDEN_AND_FILL: dict[str, int] = {
     # Moved out of the view on 2026-09-26 with the breakeven itself (the two zeros
     # feed the two cumsums, same reason as before).
     "src/dashboard/utils/roi_verdicts.py:cumulative_breakeven": 2,
+    # R350 — two campaigns on their own day-0 clock: a day without a row inside a
+    # campaign's life adds 0 € and 0 click, and the zero only feeds the two `cumsum`s
+    # (the running totals stay flat). The per-day value is never drawn.
+    "src/dashboard/utils/campaign_pair.py:day0_cumulative": 1,
     # ── Le zéro EST juste ici, et c'est le cas que le message de ce garde prévoit.
     #
     # `monthly_net` élargit au mois complet et remplit à zéro les mois sans ligne.
