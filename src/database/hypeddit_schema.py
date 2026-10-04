@@ -1,4 +1,10 @@
-"""Schéma PostgreSQL pour Hypeddit (saisie manuelle)."""
+"""Schéma PostgreSQL pour Hypeddit (saisie manuelle) — NON canonique.
+
+Nothing imports this module: the canonical schema is init_db.sql + migrations/. The
+trigger below lives in migrations/146_hypeddit_metrics_trigger.sql since R396; the
+indexes here exist only in databases this file was once run against (prod has none,
+and migration 099 drops redundant indexes on purpose). Edit the migration, not this.
+"""
 
 HYPEDDIT_SCHEMA = {
     'hypeddit_campaigns': """

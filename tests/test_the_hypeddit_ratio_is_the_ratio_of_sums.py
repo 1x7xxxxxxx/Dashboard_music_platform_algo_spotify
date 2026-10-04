@@ -15,7 +15,7 @@ arbitrage et l'écran.
 Les trois pièges, et pourquoi chacun a son test
 -----------------------------------------------
 1. **La colonne `ctr` de la table existe, et elle ment sur l'absence.** Son
-   déclencheur (`calculate_hypeddit_metrics`, `src/database/hypeddit_schema.py`)
+   déclencheur (`calculate_hypeddit_metrics`, `migrations/146_hypeddit_metrics_trigger.sql`)
    écrit `0` quand `visits = 0` : un jour non mesuré y est indiscernable d'un jour
    sans clic. L'accueil ne la lit pas — il recalcule sur `v_hypeddit_daily` avec
    `NULLIF`, qui rend `None`.
