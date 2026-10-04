@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R364 — Harnais — prouver les 42 exigences « verte, non prouvée » : 26 ont déjà une `mutation:`… (livrée 2026-10-04)
+
+- [x] **R364 — Harnais — prouver les 42 exigences « verte, non prouvée » : 26 ont déjà une `mutation:` déclarée (la jouer avec `mutate_guards.py`, vérifier que la ligne a changé, dater dans `SEEN_RED`) ; 16 n'en ont pas (FORMAT-01/03, UX-01/02, ONB-01, SEC-02/04/05/06, ERR-02/03/04, OBS-01/02…) — en écrire une qui incarne le défaut, puis la jouer. OBS-02 est un `test -f` : le remplacer par une preuve qui peut rougir** (P2) ✅ (2026-10-04, 9e0d2e54)
+  Mesuré par : `make harness-report` : « verte, non prouvée » 42 → 0, « active » 46 → 88
+  42 preuves mutées à la main : 38 vues rouges datées dans SEEN_RED, 4 aveugles réparées (GOLD-02, API-02, OBS-02, SEC-04) ; formes voisines → R368 (CI verte 9e0d2e54)
+  Commits : 9e0d2e54 R364 : les 42 preuves « verte, non prouvée » mutées à la main — 38 vue
+
 ## ✅ R365 — Harnais — 8 hooks sans aucune trace d'exécution (`check_error_class_evidence`, `lint_da… (livrée 2026-10-04)
 
 - [x] **R365 — Harnais — 8 hooks sans aucune trace d'exécution (`check_error_class_evidence`, `lint_dashboard_view`, `observe`, `pre_compact`, `require_roadmap_entry`, `require_sweep_before_catalogue`, `sensor`, `promote_rex`) et 2 outils nocturnes sans mesure d'activité (`idle_containers.py`, `nightly_guard_mutation.py`) : journaliser chaque appel (nom, durée, verdict) pour que « a tiré » soit mesuré et non supposé** (P2) ✅ (2026-10-04, ffcf4e9c)
