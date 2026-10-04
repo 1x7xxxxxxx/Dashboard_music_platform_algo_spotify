@@ -124,11 +124,12 @@ $("#hdr").textContent = (D.rejoue ? "preuves rejouées" : "preuves NON rejouées
   + " · " + (D.activite_mesuree ? `activité sur ${D.seances} séances` : "activité non mesurée");
 
 const E = P.resume.etats, comps = Object.entries(D.composants);
-const zero = comps.filter(([,c]) => c.activite && c.activite.n === 0 && !c.activite.note).length;
+const zero = comps.filter(([,c]) => c.activite && c.activite.n === 0 && !c.activite.note
+  && !(c.declencheurs && c.declencheurs.length)).length;
 const cards = [["active",E["active"]||0,"actives — vertes et vues rouges"],
   ["verte, non prouvée",E["verte, non prouvée"]||0,"vertes, jamais vues rouges"],
   ["rouge",E["rouge"]||0,"preuves rouges"],["trou",E["trou"]||0,"trous (à écrire)"],
-  [null,P.resume.generiques,"génériques → baseline v2"],[null,zero,"composants jamais invoqués"]];
+  [null,P.resume.generiques,"génériques → baseline v2"],[null,zero,"orphelins — 0 usage, aucun déclencheur"]];
 $("#cards").innerHTML = cards.map(([e,n,l]) =>
   `<div class="card"><b style="color:${e?COL[e]:"var(--ink)"}">${n}</b><span>${l}</span></div>`).join("");
 
@@ -192,7 +193,7 @@ $("#acts thead").onclick=e=>{const k=e.target.dataset.k;if(!k)return; sd = sk===
 $("#a-kind").oninput=drawAct; drawAct();
 
 // opportunities
-const OC={"preuve rouge":"s-rouge","trou":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","jamais invoqué":"s-na","hook lent":"s-na","défaut ouvert":"s-rouge","billet à répondre":"s-trou"};
+const OC={"preuve rouge":"s-rouge","trou":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","orphelin":"s-trou","dormant":"s-na","hook lent":"s-na","défaut ouvert":"s-rouge","billet à répondre":"s-trou"};
 $("#opps").innerHTML=P.opportunites.map(o=>`<div class="item"><div class="top"><span class="pill ${OC[o.type]||"s-na"}">${esc(o.type)}</span>
   <span class="id">${esc(o.ref)}</span></div><div class="meta" style="color:var(--ink)">${esc(o.texte)}</div></div>`).join("") || "<p class=note>Aucune.</p>";
 

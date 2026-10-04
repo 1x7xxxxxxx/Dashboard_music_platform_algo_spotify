@@ -64,14 +64,24 @@ def opportunities(data: dict) -> list[dict]:
             # A `note` says the counter cannot conclude « never » (a silent hook, a log
             # younger than the transcripts): such a 0 is not an opportunity.
             if a and a["kind"] in _INVOKED and a["n"] == 0 and not a.get("note"):
-                out.append({"rang": 4, "type": "jamais invoqué", "ref": comp,
-                            "texte": f"0 usage en {data.get('seances')} séances — le brancher "
-                                     "par une règle à flèche, ou le retirer vers archive/"})
+                out.append(_never_invoked(comp, c.get("declencheurs"), data.get("seances")))
             elif a and a["kind"] == "hook" and a.get("ms") and a["ms"] >= 1000:
                 out.append({"rang": 4, "type": "hook lent", "ref": comp,
                             "texte": f"{a['ms']} ms en moyenne sur {a['n']} passages"})
     out += defect_opportunities(data.get("defauts") or [])
     return sorted(out, key=lambda o: (o["rang"], o["ref"]))
+
+
+def _never_invoked(comp: str, triggers: list[str] | None, seances: int | None) -> dict:
+    """R366: a 0 is DORMANT when an imperative surface names it (its trigger has not come
+    yet) and ORPHAN when nothing does (it can never fire). Only the second is work."""
+    if triggers:
+        return {"rang": 5, "type": "dormant", "ref": comp,
+                "texte": f"0 usage en {seances} séances, déclencheur nommé ({', '.join(triggers[:2])}) "
+                         "— attendre qu'il tire, rien à faire"}
+    return {"rang": 4, "type": "orphelin", "ref": comp,
+            "texte": f"0 usage en {seances} séances et aucune surface impérative ne le nomme — "
+                     "le brancher par une règle à flèche, ou le retirer vers archive/"}
 
 
 def defect_opportunities(rows: list[dict]) -> list[dict]:

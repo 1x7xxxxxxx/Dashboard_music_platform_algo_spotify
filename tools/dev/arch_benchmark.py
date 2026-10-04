@@ -190,7 +190,52 @@ def _activity() -> dict:
         "usage_report", ROOT / ".claude" / "scripts" / "usage_report.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.read()
+    usage = mod.read()
+    usage["ci"] = {w.name: _ci_runs(w.name) for w in (ROOT / ".github" / "workflows").glob("*.yml")}
+    return usage
+
+
+def _ci_runs(workflow: str) -> dict | None:
+    """R366: a GitHub workflow runs on GitHub, not in a transcript — ask `gh`, None if it cannot."""
+    try:
+        out = subprocess.run(["gh", "run", "list", "--workflow", workflow, "--limit", "50",
+                              "--json", "createdAt,conclusion"], cwd=ROOT, capture_output=True,
+                             text=True, timeout=30)
+        runs = json.loads(out.stdout) if out.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        runs = None
+    if runs is None:
+        return None
+    return {"kind": "ci", "n": len(runs), "last": runs[0]["createdAt"][:10] if runs else None,
+            "echecs": sum(r["conclusion"] == "failure" for r in runs),
+            "note": "50 derniers runs GitHub"}
+
+
+# R366 — where a command or a skill can be TRIGGERED: the surfaces that act (hooks, scripts,
+# settings, rules, other commands/skills/agents/workflows, Makefile) and CLAUDE.md outside
+# its tables. A table row or tooling-reference.md documents; measured, it never fires.
+_IMPERATIVE_GLOBS = (".claude/hooks/*.py", ".claude/scripts/*.py", ".claude/settings.json",
+                     ".claude/rules/*.md", ".claude/commands/*.md", ".claude/skills/*/SKILL.md",
+                     ".claude/workflows/*", ".claude/agents/*.md", "Makefile")
+
+
+def imperative_surfaces(root: Path = ROOT) -> dict[str, str]:
+    out = {str(p.relative_to(root)): p.read_text(encoding="utf-8", errors="ignore")
+           for g in _IMPERATIVE_GLOBS for p in root.glob(g) if p.is_file()}
+    claude = root / "CLAUDE.md"
+    if claude.exists():
+        out["CLAUDE.md"] = "\n".join(ln for ln in claude.read_text(encoding="utf-8").splitlines()
+                                     if not ln.lstrip().startswith("|"))
+    return out
+
+
+def trigger_sites(comp: str, surfaces: dict[str, str]) -> list[str]:
+    """The imperative surfaces that name this command or skill — `/name`, `skills/name`,
+    `Skill(name` — never its own file, never the bare word. Pure."""
+    name = Path(comp).parent.name if comp.endswith("SKILL.md") else Path(comp).stem
+    pat = re.compile(rf"(?<![\w/-])/{re.escape(name)}(?![\w-])|skills/{re.escape(name)}\b"
+                     rf"|Skill\(\s*[\"']?{re.escape(name)}\b")
+    return sorted(f for f, text in surfaces.items() if f != comp and pat.search(text))
 
 
 def component_activity(comp: str, usage: dict) -> dict | None:
@@ -224,6 +269,9 @@ def component_activity(comp: str, usage: dict) -> dict | None:
     if "/commands/" in comp:
         return {"kind": "command", "n": usage["commands"].get(stem, 0) + usage["skills"].get(stem, 0),
                 "last": last.get(f"command:{stem}") or last.get(f"skill:{stem}")}
+    if comp.startswith(".github/workflows/"):
+        return usage.get("ci", {}).get(Path(comp).name) or {
+            "kind": "ci", "n": 0, "last": None, "note": "gh injoignable — non mesuré"}
     if "/workflows/" in comp:
         inj = usage.get("injections", {})
         rel = "workflows/" + Path(comp).name
@@ -266,7 +314,10 @@ def build(domains: dict, reqs: list[dict], proofs: dict | None, usage: dict | No
             "roadmap": r.get("roadmap"), "opportunite": r.get("opportunite"),
             "premisse_corrigee": r.get("premisse_corrigee"),
             "composants": r.get("composants") or [], **state})
-    components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage)}
+    surfaces = imperative_surfaces()
+    components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage),
+                      **({"declencheurs": trigger_sites(c, surfaces)}
+                         if "/commands/" in c or c.endswith("SKILL.md") else {})}
                   for c in sorted(comps | set(owners))}
     return {"genere_depuis": _commit(), "rejoue": proofs is not None,
             "activite_mesuree": bool(usage.get("found")),

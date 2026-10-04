@@ -49,6 +49,8 @@ def _data() -> dict:
                 ".claude/hooks/mute.py": {"exigences": ["R-OPP"],
                                           "activite": {"kind": "hook", "n": 0, "last": None,
                                                        "note": "aucune trace"}},
+                ".claude/commands/waits.md": {"exigences": ["R-OPP"], "declencheurs": [".claude/hooks/x.py"],
+                                              "activite": {"kind": "command", "n": 0, "last": None}},
                 ".claude/workflows/young.md": {"exigences": ["R-OPP"], "activite": {
                     "kind": "playbook", "n": 0, "last": None, "note": "journal depuis R357"}},
             }}
@@ -58,7 +60,8 @@ def test_every_state_becomes_an_opportunity() -> None:
     types = {(o["type"], o["ref"]) for o in hr.opportunities(_data())}
     for expected in [("preuve rouge", "R-RED"), ("trou", "R-HOLE"), ("mesurée", "R-OPP"),
                      ("vu rouge périmé", "R-STALE"), ("à muter", "1 exigences"),
-                     ("jamais invoqué", ".claude/agents/idle.md")]:
+                     ("orphelin", ".claude/agents/idle.md"),
+                     ("dormant", ".claude/commands/waits.md")]:
         assert expected in types, expected
     assert not any(ref in (".claude/hooks/mute.py", ".claude/workflows/young.md")
                    for _, ref in types)

@@ -17,7 +17,7 @@ just quietly stops matching the label.
 | 3 | Challenger | `code-critic` — mandatory for a contract, a gate, or a safety-adjacent path | playbook |
 | 4 | Structural review | `code-architecture-reviewer` — diagrams vs actual code drift | playbook |
 | 5 | Write the ADR | `/adr <title>` → a standalone file in `docs/adr/`. Rationale + rejected alternatives + the ship rule. | command |
-| 6 | Schema? → a forward migration | generated, then reviewed by hand. **Never a manual edit on a deployed target.** | playbook |
+| 6 | Schema? → a forward migration | load `.claude/skills/db-schema/SKILL.md` first (UNIQUE key, tenant column, upsert); generated, then reviewed by hand. **Never a manual edit on a deployed target.** | playbook |
 | 7 | Guard the new invariant | a test that fails if the structure regresses — then **mutation-verify it** | pytest |
 | 8 | Update the diagrams | solid = implemented, dashed = planned | playbook |
 | 9 | ROADMAP | status lives in ROADMAP and nowhere else as prose; `make roadmap-close` writes the delivery trace | playbook |

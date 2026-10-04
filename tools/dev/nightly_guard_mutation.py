@@ -187,6 +187,8 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — _reads_an_env_file rend None (guard_destructive.py:756) → 14 rouges sur test_a_read_of_a_dotenv_is_blocked",
     "tests/test_a_commit_stays_in_its_rows_scope.py":
         "2026-10-04 — out_of_scope rend [] sans condition (require_roadmap_id.py:91) → 1 rouge",
+    "tests/test_every_command_and_skill_has_a_trigger.py":
+        "2026-10-04 — /zz-ghost nommé seulement dans tooling-reference.md → 1 rouge ; `.claude/workflows/*` retiré des surfaces → 1 rouge (db-schema) ; lookbehind retiré du motif → 1 rouge",
 }
 
 

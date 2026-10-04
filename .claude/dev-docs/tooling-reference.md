@@ -27,9 +27,7 @@ Ce qui est ici : ce qui **documente**.
 | `/review-db-schema` | Audit schema coherence (UNIQUE, upsert_many, artist filter) |
 | `/review-dag` | Audit DAG conformity (sys.path, default_args, debug_dag coverage) |
 | `/review-architecture` | Audit Mermaid diagrams vs current codebase state |
-| `/logs-airflow` | Read + analyze recent Airflow container logs |
 | `/dev-docs <name>` | Generate plan/context/checklist trio for a large feature |
-| `/run-tests` | Execute pytest suite and analyze failures |
 | `/roadmap-done <id>` | Tick a roadmap task + retire its row from the top `## 📋 Tâches ouvertes` index into `## Completed` (run on every task completion) |
 
 ---

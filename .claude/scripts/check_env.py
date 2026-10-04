@@ -4,7 +4,7 @@ Environment prerequisite check.
 
 Verifies: Python version, ruff, pytest, .env, Docker, PostgreSQL port, host UTC sync, container TZ=UTC, test suite.
 Run manually: python3 .claude/scripts/check_env.py
-Or via:      /check-env
+Or via:      make check-env
 
 ---
 rex:

@@ -800,7 +800,7 @@
   statut: conforme
   methode: commit
   portee: generique
-  composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/check-env.md, .claude/commands/curator.md, .claude/commands/dev-docs.md, .claude/commands/logs-airflow.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/run-tests.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
+  composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/curator.md, .claude/commands/dev-docs.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
   preuve: {pytest: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves}
   opportunite: "capitalise 22 appels, roadmap-done 1, les 13 autres 0 : candidates au retrait ou à la fusion"
   mutation: "renommer un fichier cité par une commande"

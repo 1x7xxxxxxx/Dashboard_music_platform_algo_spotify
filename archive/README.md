@@ -101,3 +101,6 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/claude-config/hooks/draft_devlog.py` | `.claude/hooks/draft_devlog.py` | hook Stop qui écrivait le DEVLOG, retiré avec lui (R311) | 2026-09-28 |
 | `archive/claude-config/commands/devlog-promote.md` | `.claude/commands/devlog-promote.md` | commande de promotion vers le DEVLOG, retirée avec lui (R311) | 2026-09-28 |
 | `archive/claude-config/hooks/test_devlog_is_written_where_it_is_read.py` | `tests/test_devlog_is_written_where_it_is_read.py` | test du DEVLOG, archivé avec son sujet (R311) | 2026-09-28 |
+| `archive/claude-config/commands/check-env.md` | `.claude/commands/check-env.md` | commande orpheline : 0 invocation, `make check-env` fait la même chose et c'est lui que nomme la règle 10 (R366) | 2026-10-04 |
+| `archive/claude-config/commands/logs-airflow.md` | `.claude/commands/logs-airflow.md` | commande orpheline : 0 invocation, aucune surface impérative ne la nomme (R366) | 2026-10-04 |
+| `archive/claude-config/commands/run-tests.md` | `.claude/commands/run-tests.md` | commande orpheline qui contredisait la règle « jamais `pytest tests/` nu » — les cibles `make test*` la remplacent (R366) | 2026-10-04 |
