@@ -19,12 +19,28 @@ the first search and drops it after 10 idle minutes. What is ALREADY resident is
 out of `MemAvailable`; the reserve only has to cover what can still grow:
 
     base margin (VS Code, Claude sessions, page cache)          1 536 Mo, always
-    each knowledge-rag server whose model is not loaded        +1 600 Mo
+    each knowledge-rag server, up to its measured peak         +(2 300 − its RSS) Mo
     n8n-ollama up, or an ingestion process running             +3 600 Mo
+    swap below 1 Go free                                       +the deficit
 
 An ingestion that STARTS during the suite cannot be seen by this snapshot. That case is
 closed by exclusion, not detection: the test targets hold `~/.cache/heavy-memory.lock`,
 and the hourly ingestion crons skip their run while it is held.
+
+R352 (2026-10-04): the knowledge-rag figure was 1 600 Mo and wrong by 2.5×. VS Code Remote
+dropped three times during a `make test-changed` at 2 workers; `~/.cache/mem-trace.log`
+shows two `python3` processes at 3,2–4,0 Go next to workers at ~250 Mo, with swap full.
+A first `search_books` took the server from 113 Mo to 2 228 Mo (VmHWM, measured that day),
+the only peak ever MEASURED for it. A first version of this fix reserved 4 100 Mo, from a
+`python3:4049` line of the trace inferred to be a RAG server: it was the error-class-health
+replay (VmHWM 4 047 Mo measured once streamed, R352), run inside an xdist worker by
+`generated_cache` — the trace shows workers at 4 025-4 078 Mo since 2026-09-29. A server
+whose model is ALREADY loaded can still grow, so it reserves the rest of the way to the
+peak instead of nothing. Swap is counted too: MemAvailable says nothing about a swap that
+is already full, and that is when the kernel starts failing contiguous allocations.
+
+The worker count cannot make the machine safe by itself — at the floor of 2 it still
+froze. The suite is ALSO run in a capped systemd scope (Makefile `SUITE_SCOPE`).
 
 The 700 Mo divisor is unchanged: measured worker peaks (VmHWM, full suite, -n 3) are
 573 · 414 · 411 Mo.
@@ -38,10 +54,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 BASE_MB = 1536
-RAG_UNLOADED_MB = 1600
+RAG_PEAK_MB = 2300
+SWAP_FLOOR_MB = 1024
 HEAVY_MB = 3600
 PER_WORKER_MB = 700
-RAG_LOADED_RSS_MB = 800
 _INGEST_SCRIPTS = ("ingest.py", "ingest_drop.py", "mail_ingest.py")
 
 
@@ -66,14 +82,18 @@ def _is_ingestion(p: Proc) -> bool:
     return _is_python(p.argv) and any(Path(a).name in _INGEST_SCRIPTS for a in p.argv[1:])
 
 
-def workers(mem_available_mb: int, procs: list[Proc],
-            ollama_up: bool, ncpu: int) -> tuple[int, str]:
+def workers(mem_available_mb: int, procs: list[Proc], ollama_up: bool, ncpu: int,
+            swap_free_mb: int = SWAP_FLOOR_MB) -> tuple[int, str]:
     """(worker count, why) for the memory available NOW and what can still grow."""
     reserve, why = BASE_MB, [f"base {BASE_MB}"]
-    rag = [p for p in procs if _is_rag_server(p) and p.rss_mb < RAG_LOADED_RSS_MB]
-    if rag:
-        reserve += RAG_UNLOADED_MB * len(rag)
-        why.append(f"{len(rag)} knowledge-rag sans modèle chargé +{RAG_UNLOADED_MB * len(rag)}")
+    rag = [p for p in procs if _is_rag_server(p)]
+    rag_growth = sum(max(0, RAG_PEAK_MB - p.rss_mb) for p in rag)
+    if rag_growth:
+        reserve += rag_growth
+        why.append(f"{len(rag)} knowledge-rag jusqu'à leur pic {RAG_PEAK_MB} +{rag_growth}")
+    if swap_free_mb < SWAP_FLOOR_MB:
+        reserve += SWAP_FLOOR_MB - swap_free_mb
+        why.append(f"swap libre {swap_free_mb} Mo +{SWAP_FLOOR_MB - swap_free_mb}")
     ingest = any(_is_ingestion(p) for p in procs)
     if ollama_up or ingest:
         reserve += HEAVY_MB
@@ -83,11 +103,11 @@ def workers(mem_available_mb: int, procs: list[Proc],
                f"({' · '.join(why)}), {PER_WORKER_MB} Mo/worker, borné à [2, {ncpu}]")
 
 
-def _mem_available_mb() -> int:
+def _meminfo_mb(key: str, default: int) -> int:
     for line in Path("/proc/meminfo").read_text().splitlines():
-        if line.startswith("MemAvailable:"):
+        if line.startswith(f"{key}:"):
             return int(line.split()[1]) // 1024
-    return 4096
+    return default
 
 
 def _processes() -> list[Proc]:
@@ -118,7 +138,10 @@ def _ollama_up() -> bool:
 
 
 def main() -> int:
-    n, why = workers(_mem_available_mb(), _processes(), _ollama_up(), os.cpu_count() or 4)
+    swap_free = (_meminfo_mb("SwapFree", SWAP_FLOOR_MB)
+                 if _meminfo_mb("SwapTotal", 0) else SWAP_FLOOR_MB)
+    n, why = workers(_meminfo_mb("MemAvailable", 4096), _processes(), _ollama_up(),
+                     os.cpu_count() or 4, swap_free)
     print(why, file=sys.stderr)
     print(n)
     return 0

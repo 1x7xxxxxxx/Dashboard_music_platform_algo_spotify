@@ -480,3 +480,38 @@ pendant une suite. Porte de sécurité, trois suites complètes alternées :
 `select_tests.py`. Un `.md` de `.claude/dev-docs/` sélectionne 159 fichiers de test sur
 533, dont 30 seulement par la règle du dossier — sous le seuil de 50 % fixé avant de
 commencer, et resserrer aurait risqué un faux négatif (`code-critic`).
+
+## La suite a coupé VS Code — 2026-10-04 (R352)
+
+Pendant un `make test-changed` à 2 workers, VS Code Remote WSL s'est déconnecté trois fois
+en 20 min. Le journal noyau : échecs d'allocation d'ordre 7 (512 Kio contigus) dans
+`hvs_probe`, le socket Hyper-V par lequel VS Code parle à Windows. Swap plein, mémoire
+fragmentée. Ce n'était pas l'antivirus : aucune trace dans les journaux.
+
+**La cause n'était pas le nombre de workers, c'était UN worker à 4 Go.**
+`~/.cache/mem-trace.log` montre des workers xdist à 4 025–4 078 Mo depuis le 2026-09-29.
+C'était `error_class_health._observed()`, appelé par `generated_cache.health_payload()` :
+il chargeait les 583 révisions du catalogue (2,4 Mo aujourd'hui) dans un seul dict.
+
+| | avant | flux (`_catalogue_at` générateur) |
+|---|---|---|
+| VmHWM | **4 047 Mo** | **71 Mo** |
+| durée | 51 s | 17 s |
+| sortie | — | identique à l'octet |
+
+⚠️ Un premier jet a attribué ce pic à knowledge-rag (un `python3:4049` dans la trace) et
+réservé 4 100 Mo par serveur. Le seul pic MESURÉ du serveur est 2 228 Mo (VmHWM, premier
+`search_books`), d'où `RAG_PEAK_MB = 2300`.
+
+Trois remparts, du plus large au plus fin :
+- **Noyau** : `/etc/sysctl.d/60-wsl-memory-headroom.conf`. `vm.min_free_kbytes` passe de
+  45 056 à 131 072, `vm.compaction_proactiveness` de 0 à 20. Rechargé au boot par
+  `systemd-sysctl`.
+- **cgroup** : `SUITE_SCOPE` lance pytest sous `systemd-run --user --scope` avec
+  `MemoryHigh=4G MemoryMax=5G MemorySwapMax=1G` et `nice -n 10`. L'OOM killer choisit alors
+  DANS la suite, pas VS Code. Garde : `tests/test_the_suite_runs_in_a_capped_scope.py`.
+- **Workers** : `pytest_workers.py` réserve `RAG_PEAK_MB − RSS` par serveur, plus le
+  déficit de swap sous 1 Go.
+
+Garde du flux : `tests/test_the_catalogue_replay_holds_one_revision.py`, vu rouge sur une
+mutation qui recollecte dans un dict.

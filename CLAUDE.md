@@ -122,11 +122,11 @@ et un temps que rien ne produisait. Garde :
 
 ⚠️ **Depuis le 2026-09-25 la réserve n'est plus fixe.** n8n ne tourne que le dimanche,
 knowledge-rag décharge son modèle après 10 min : `tools/dev/pytest_workers.py` réserve
-1 536 Mo de base, +1 600 par serveur knowledge-rag dont le modèle peut encore charger,
+1 536 Mo de base, +(2 300 − RSS) par serveur knowledge-rag (R352),
 +3 600 si Ollama ou une ingestion tourne, et dit pourquoi sur stderr. Une ingestion qui
 démarrerait PENDANT la suite est exclue par un verrou (`~/.cache/heavy-memory.lock`) que
 les cibles de test tiennent et que les crons d'ingestion respectent. Mesuré en alternance
-4/2/4 workers : **179 · 269 · 180 s**, creux de `MemAvailable` **4 454 · 5 228 · 4 278 Mo**.
+4/2/4 workers : **179 · 269 · 180 s**, creux de `MemAvailable` **4 454 · 5 228 · 4 278 Mo**. Plafond cgroup : `SUITE_SCOPE` (R352).
 
 Les deux mesures du 2026-09-16 étaient du **même soir, même arbre, même verdict**
 (6 717 verts, 1 rouge) : `make test` **418 s** sur `/mnt/c`, la forme nue **1 146 s**.

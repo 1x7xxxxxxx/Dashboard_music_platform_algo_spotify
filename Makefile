@@ -119,7 +119,7 @@ logs:        ## Tail Airflow scheduler logs
 # ⚠️ 2026-09-25 : la réserve n'est PLUS fixe. n8n ne tourne plus que le dimanche et
 # knowledge-rag décharge son modèle après 10 min : les 5 120 Mo réservaient pour deux
 # croissances qui ne sont plus permanentes. `tools/dev/pytest_workers.py` réserve 1 536
-# de base, +1 600 par serveur knowledge-rag dont le modèle peut encore charger, +3 600
+# de base, +(2 300 − RSS) par serveur knowledge-rag (son pic mesuré, R352), +3 600
 # si Ollama ou une ingestion tourne — et imprime son raisonnement sur stderr. Une
 # ingestion qui DÉMARRERAIT pendant la suite est exclue par `HEAVY_LOCK` (ci-dessous),
 # pas détectée. Garde : tests/test_the_worker_count_follows_what_can_grow.py.
@@ -148,6 +148,18 @@ HOLD_HEAVY_LOCK = mkdir -p "$$HOME/.cache"; exec 9>>"$$HOME/.cache/heavy-memory.
   W=$${W:-$$($(PYTHON) tools/dev/pytest_workers.py 2>/dev/null || echo 2)}; \
   echo "$$W" > "$$HOME/.cache/pytest-last-workers"; $(TRACE_MEMORY)
 HEAVY_WAIT ?= 900
+# R352 (2026-10-04): VS Code Remote dropped three times during a 2-worker suite — the
+# kernel could not allocate the ring buffer of the Hyper-V socket VS Code talks through
+# (order-7 failures in hvs_probe), swap full, load 32. A worker count only ever reaches
+# its floor; it cannot stop a test, a worker or a server beside it from taking the rest.
+# So the suite runs in its own cgroup: past MemoryHigh it is throttled and reclaimed,
+# at MemoryMax the OOM killer picks inside the SUITE, never VS Code; `nice` keeps the
+# editor's heartbeats scheduled under load. Where no systemd user manager exists (CI,
+# a container) it degrades to `nice` alone. Guard: tests/test_the_suite_runs_in_a_capped_scope.py
+SUITE_MEM_HIGH ?= 4G
+SUITE_MEM_MAX ?= 5G
+SUITE_SCOPE = $(shell systemd-run --user --scope -q true >/dev/null 2>&1 && \
+  echo systemd-run --user --scope -q -p MemoryHigh=$(SUITE_MEM_HIGH) -p MemoryMax=$(SUITE_MEM_MAX) -p MemorySwapMax=1G --) nice -n 10
 # R330 (2026-09-29): WSL froze mid-suite and kept no kernel log across the restart — the
 # cause could only be inferred. Every target holding the lock also samples memory into
 # ~/.cache/mem-trace.log (fsync'd, survives a restart) until its shell exits. `9>&-`: the
@@ -187,13 +199,13 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	@# ⚠️ `$${PIPESTATUS[0]}` et bash EXPLICITE : `cmd | tee f` rend le code de `tee`,
 	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
 	@# vert serait infiniment pire que lente.
-	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
 	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
-	@bash -c '$(HOLD_HEAVY_LOCK) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)'
+	@bash -c '$(HOLD_HEAVY_LOCK) $(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) $(DOC_IGNORE)'
 
 test-docs:   ## [~38 s] Seulement les tests de documents — après avoir touché un document généré
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
@@ -249,7 +261,7 @@ test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE R
 	@# vérifier qu'il n'y en a qu'UN et que c'est celui-là, puis commiter.
 	@#
 	@# Coût sur ext4 : **297 s en série** pour 7 054 tests (1 146 s sur /mnt/c avant R117).
-	$(PYTHON) -m pytest tests/ -q --store-durations
+	$(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q --store-durations
 
 catalogue-sync: error-health test-durations-missing ## Ce qu'une édition du catalogue ou un test NEUF demande : rangement + durées (R345 : plus de documents à régénérer)
 	@# Le 2026-09-26, en /loop R169 : chaque lot touchait le catalogue et/ou ajoutait un
@@ -300,7 +312,7 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	    $(MAKE) --no-print-directory schema-check-shared || exit 1; \
 	  else echo "⚠ R228: local Postgres down — schema check skipped. Run: make up"; fi; fi
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } | tee .pytest-selected \
-	  | xargs -r $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	  | xargs -r $(SUITE_SCOPE) $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
 	    --changed 2>&1 | tee -a .pytest-last.log'

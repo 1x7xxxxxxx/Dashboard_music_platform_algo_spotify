@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import itertools
 import json
 import math
 import re
@@ -62,6 +63,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -658,32 +660,31 @@ def _recurrence_dates(body: str) -> list[str]:
     return sorted(d for d, kind in _HISTORY_MARKED.findall(body) if kind == "récidive")
 
 
-def _catalogue_at(shas: list[str]) -> dict[str, str]:
-    """{sha: the catalogue's text at that commit}, read through ONE `git cat-file --batch`.
+def _catalogue_at(shas: list[str]) -> "Iterator[tuple[str, str]]":
+    """(sha, the catalogue's text at that commit), STREAMED from ONE `git cat-file --batch`.
 
     R307 (2026-09-28) — measured: the replay spawned one `git show` per revision, 579 of
     them, 25 of the tool's 31 s. Same bytes, one process. The text is normalised the way
-    `_git` (`text=True`) did, so every downstream comparison sees what it saw before."""
+    `_git` (`text=True`) did, so every downstream comparison sees what it saw before.
+    R352 (2026-10-04) — measured: R307 read the whole batch into memory and kept every
+    decoded revision in a dict — 583 revisions of a catalogue now 2.4 MB, VmHWM 4 047 Mo,
+    the 4 GB xdist worker that starved WSL until VS Code Remote lost its socket. The
+    replay only ever needs the current and the previous revision: one blob at a time."""
     import tempfile
     if not shas:
-        return {}
+        return
     with tempfile.TemporaryFile() as queries:
         queries.write("".join(f"{sha}:{CAT_REL}\n" for sha in shas).encode())
         queries.seek(0)
-        proc = subprocess.run(["git", "cat-file", "--batch"], cwd=ROOT, stdin=queries,
-                              capture_output=True, timeout=300)
-    out, pos, texts = proc.stdout, 0, {}
-    for sha in shas:
-        nl = out.index(b"\n", pos)
-        header = out[pos:nl].split()
-        pos = nl + 1
-        if len(header) < 3 or header[1] != b"blob":
-            continue                                   # « <name> missing »: absent there
-        size = int(header[2])
-        raw = out[pos:pos + size].decode("utf-8", errors="replace")
-        texts[sha] = raw.replace("\r\n", "\n").replace("\r", "\n")
-        pos += size + 1                                # the blob, then its newline
-    return texts
+        with subprocess.Popen(["git", "cat-file", "--batch"], cwd=ROOT, stdin=queries,
+                              stdout=subprocess.PIPE) as proc:
+            for sha in shas:
+                header = proc.stdout.readline().split()
+                if len(header) < 3 or header[1] != b"blob":
+                    continue                           # « <name> missing »: absent there
+                raw = proc.stdout.read(int(header[2]) + 1)[:-1]   # the blob, then its newline
+                text = raw.decode("utf-8", errors="replace")
+                yield sha, text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def require_full_history(root: Path = ROOT) -> None:
@@ -715,10 +716,12 @@ def _observed() -> dict:
 
     per: dict[str, dict] = {}
     prev: dict[str, str] = {}
-    blobs = _catalogue_at([sha for sha, _ in revs if sha != WORKTREE])
-    for sha, day in revs:
-        text = (CATALOGUE.read_text(encoding="utf-8") if sha == WORKTREE
-                else blobs.get(sha, ""))
+    day_of = dict(revs)
+    stream = _catalogue_at([sha for sha, _ in revs if sha != WORKTREE])
+    if WORKTREE in day_of:
+        stream = itertools.chain(stream, [(WORKTREE, CATALOGUE.read_text(encoding="utf-8"))])
+    for sha, text in stream:
+        day = day_of[sha]
         if not text:
             continue
         cur = _blocks(text)
