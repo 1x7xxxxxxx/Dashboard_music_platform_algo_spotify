@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R353 — Journal des défauts, ce qu'il ne capte pas (mesuré le 2026-10-04) : (a) un rouge CI SAN… (livrée 2026-10-04)
+
+- [x] **R353 — Journal des défauts, ce qu'il ne capte pas (mesuré le 2026-10-04) : (a) un rouge CI SANS nœud de test (gates, setup — R347 `c8b60da2`) n'est qu'un avertissement → défaut `ci-step:<job>/<étape>`, clos par le vert CI suivant ; (b) une traceback ne se clôt JAMAIS (5 « ouvertes » depuis le 27/09, dont 2 corrigées) → close par un commit sur son fichier + un vert CI après, ou `make defect-close FP= NOTE=` ; (c) les crons du poste (mail RAG n8n, book_drop) échouent sans trace — « LLM indisponible » le 2026-10-04 11:46 → défaut `cron:<nom>` depuis leurs journaux (liste locale, gitignorée), clos par le `rc=0` suivant ; (d) rien ne le LIT : une ligne au démarrage de séance et dans `make night-status`** (P3) ✅ (2026-10-04, 0acedb6c, 7c76f8f0)
+  Mesuré par : tests : un run gates rouge produit `ci-step:` ; une traceback est close après commit+vert ; un `rc=3` de cron devient un défaut et le `rc=0` suivant le clôt
+  Journal des défauts : CI sans nœud de test (ci_step), crons du poste (cron_red/ok, 3 journaux), chaque type de défaut peut se clore (_closers), make defect-close, bannière en début de séance, ligne DÉFAUTS dans night-status. 7 tests, 5 mutations vues rouges. 1er constat réel : cron rag-mail ingest rc=3 depuis le 2026-08-20. CI verte 0acedb6c.
+  Commits : 0acedb6c R353 : durées connues des 4 tests paramétrés sur import_cron_logs.py · 7c76f8f0 R353 : le journal des défauts capte la CI sans nœud, les crons du post
+
 ## ⛔ R354 — Pre-commit `test-durations-known` : refus le plus répété encore actif (18 refus, dernier l… (abandonnée 2026-10-04)
 
 - [x] **R354 — ABANDONNÉE le 2026-10-04, sans livraison.** Pre-commit `test-durations-known` : refus le plus répété encore actif (18 refus, dernier le 2026-10-04) — il MESURE la durée manquante puis refuse pour qu'on indexe `.test_durations` à la main ; il l'indexe lui-même et laisse passer
