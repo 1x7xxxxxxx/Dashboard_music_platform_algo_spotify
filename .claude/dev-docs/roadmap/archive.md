@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R343 — /capitalise de la séance : `make audit-deps` auditait `-r requirements.txt` (planchers)… (livrée 2026-10-04)
+
+- [x] **R343 — /capitalise de la séance : `make audit-deps` auditait `-r requirements.txt` (planchers) — site vivant de `audit-reads-the-constraints-not-the-installed-set` que le garde ne voyait pas, il ne lit que `.github/workflows/`. Étendre le garde aux recettes du Makefile (`$(PIP_AUDIT)` compris) ; lignes `(récidive)` au catalogue pour cette classe et pour `a-status-screen-that-reads-half-its-source` (R339) — élargie au balayage du 2026-10-04 : `night_run._archived_ids` ne lit que `## ✅` (163 blocs `- [x] **Rnnn —` invisibles), `open_questions` garde PARQUÉE une tâche archivée sans `done`, et `night-check` rougit dessus** (P3) ✅ (2026-10-04, 251c5cde, ebc3a50a)
+  Mesuré par : garde muté rouge sur l'ancienne recette ; `audit_runner --admission` vert
+  garde d'audit etendu au Makefile, night_run lit l'archive sous ses deux ecritures et les parkings archives ; 3 mutations rouges ; 2 recidives au catalogue ; CI verte 251c5cde
+  Commits : 251c5cde R343 : documents generes du catalogue regeneres (error-health, error-f · ebc3a50a R343 : capitalisation de la seance - le garde d'audit lit aussi les re
+
+## ✅ R341 — pip-audit nocturne ROUGE (run 37190347865) : 18 avis non acceptés — pyjwt 2.13.0 (PYSEC… (livrée 2026-10-04)
+
+- [x] **R341 — pip-audit nocturne ROUGE (run 37190347865) : 18 avis non acceptés — pyjwt 2.13.0 (PYSEC-2026-4140..4152), urllib3 2.7.0 (PYSEC-2026-4175..4177), apache-airflow 2.11.2 (CVE-2026-59242, CVE-2026-68971). Monter pyjwt ≥ 2.15.1 et urllib3 ≥ 2.8.0 ; accepter avec raison ce qui n'a pas de correctif hors Airflow 3** (P1) ✅ (2026-10-04, bcbf8a72)
+  Mesuré par : `pip-audit` sur `uv export --frozen --no-dev` : 0 avis non accepté
+  pip-audit nocturne vert (run 37196178432) : lock 59 avis tous acceptes avec raison, image API 0 ; audit-deps et l'audit de l'image passent par pip_audit_gate ; aucun avis atteignable (security-specialist)
+  Commits : bcbf8a72 R341 : pip-audit nocturne vert - pyjwt 2.13.0 -> 2.15.1 et urllib3 2.7
+
 ## ✅ R342 — `make error-inbox-check` se périme par la seule HORLOGE : `error-inbox.md` porte des âg… (livrée 2026-10-04)
 
 - [x] **R342 — `make error-inbox-check` se périme par la seule HORLOGE : `error-inbox.md` porte des âges relatifs (« il y a N j ») et un horodatage de génération, donc l'arbre est sale à chaque séance sans qu'aucun défaut n'ait changé. Rendre le document fonction des données seules** (P4) ✅ (2026-10-04, 2d0affe3)

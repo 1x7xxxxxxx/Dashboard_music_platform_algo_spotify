@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R341 | pip-audit nocturne ROUGE (run 37190347865) : 18 avis non acceptés — pyjwt 2.13.0 (PYSEC-2026-4140..4152), urllib3 2.7.0 (PYSEC-2026-4175..4177), apache-airflow 2.11.2 (CVE-2026-59242, CVE-2026-68971). Monter pyjwt ≥ 2.15.1 et urllib3 ≥ 2.8.0 ; accepter avec raison ce qui n'a pas de correctif hors Airflow 3 <!-- critic: non — montée de version mineure + acceptation selon la procédure R267 existante --> <!-- scope: pyproject.toml, requirements.txt, requirements-api.txt, uv.lock, security/pip-audit-accepted.txt, .github/workflows/security-nightly.yml, Makefile, .gitignore --> | P1 | `pip-audit` sur `uv export --frozen --no-dev` : 0 avis non accepté |
-| R343 | /capitalise de la séance : `make audit-deps` auditait `-r requirements.txt` (planchers) — site vivant de `audit-reads-the-constraints-not-the-installed-set` que le garde ne voyait pas, il ne lit que `.github/workflows/`. Étendre le garde aux recettes du Makefile (`$(PIP_AUDIT)` compris) ; lignes `(récidive)` au catalogue pour cette classe et pour `a-status-screen-that-reads-half-its-source` (R339) <!-- critic: non — extension de portée d'un garde existant, même prédicat --> — élargie au balayage du 2026-10-04 : `night_run._archived_ids` ne lit que `## ✅` (163 blocs `- [x] **Rnnn —` invisibles), `open_questions` garde PARQUÉE une tâche archivée sans `done`, et `night-check` rougit dessus <!-- scope: tests/test_an_audit_reads_what_is_installed.py, .claude/dev-docs/error-classes.md, .test_durations, tools/dev/night_run.py, tests/test_the_status_screen_reads_all_its_source.py, tests/test_a_parked_question_its_task_answered_stops_asking.py --> | P3 | garde muté rouge sur l'ancienne recette ; `audit_runner --admission` vert |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R341, R343, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
