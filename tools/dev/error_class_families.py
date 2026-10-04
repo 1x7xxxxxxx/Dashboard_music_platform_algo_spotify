@@ -3,9 +3,9 @@
 
 Type: Utility
 Uses: re — rien d'autre. Pas de base, pas d'import de `src/`.
-Triggers: `make error-families`, CI step 8
+Triggers: `make error-families` (à la demande) ; `classify()` lu par le cliquet
 Depends on: .claude/dev-docs/error-classes.md
-Persists in: .claude/dev-docs/error-class-families.md
+Persists in: .claude/dev-docs/error-class-families.md — non versionné depuis R345
 
 Why this exists
 ---------------
@@ -36,10 +36,8 @@ du catalogue dehors décrit une opinion, pas le catalogue.
 from __future__ import annotations
 
 import argparse
-import difflib
 import hashlib
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -432,15 +430,13 @@ def _recurrence_by_class() -> dict:
     `first_seen`, c'est-à-dire une classe revenue après avoir été écrite. C'est la même
     définition que `ever_recurred_observed`, pour qu'un lecteur retrouve le même compte.
 
-    Rend un dict VIDE si l'instantané est absent ou illisible, et la colonne le dit.
+    R345 : calculé pour CET arbre (`generated_cache`), plus lu dans un JSON commité — et
+    une panne LÈVE : l'ancien `except Exception: return {}` vidait la colonne en silence,
+    une lecture ratée déguisée en « aucune récidive » (code-critic R345).
     """
-    import json
+    import generated_cache
 
-    path = ROOT / ".claude" / "dev-docs" / "error-class-health.json"
-    try:
-        classes = json.loads(path.read_text(encoding="utf-8"))["classes"]
-    except Exception:                                          # noqa: BLE001
-        return {}
+    classes = generated_cache.health_payload()["classes"]
     return {cid: bool(c.get("history_additions")) for cid, c in classes.items()}
 
 
@@ -532,20 +528,10 @@ def render() -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true")
-    args = ap.parse_args()
+    """Write the document — on demand, gitignored since R345 (no `--check`: nothing to
+    compare a generated, unversioned file against)."""
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
     fresh = render()
-    if args.check:
-        current = DOC.read_text(encoding="utf-8") if DOC.exists() else ""
-        if current == fresh:
-            return 0
-        diff = "".join(difflib.unified_diff(
-            current.splitlines(keepends=True), fresh.splitlines(keepends=True),
-            fromfile="sur le disque", tofile="ce que le catalogue dit", n=1))
-        sys.stderr.write("`.claude/dev-docs/error-class-families.md` est périmé.\n"
-                         "Remède : make error-families\n\n" + diff[:4000] + "\n")
-        return 1
     DOC.write_text(fresh, encoding="utf-8")
     print(f"écrit : {DOC.relative_to(ROOT)} ({len(fresh.splitlines())} lignes)")
     return 0

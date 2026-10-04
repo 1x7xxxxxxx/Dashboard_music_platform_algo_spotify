@@ -276,8 +276,9 @@ jobs:
           # sur le chemin critique. Pareil pour `check_config_refs.py`. Garde :
           # tests/test_a_gate_runs_each_check_once.py.
           #
-          # ⚠️ `error_class_families.py --check` reste hors d'ici : son cliquet dans la
-          # suite coûte 0,07 s, donc il n'y a rien à déplacer.
+          # ⚠️ R345 (2026-10-04) : les documents générés ne sont plus versionnés. Cette
+          # ligne ne juge plus que le RANGEMENT du catalogue (dormantes sous le
+          # séparateur) — le seul fichier suivi que `make error-health` écrit.
           uv run --frozen python tools/dev/error_class_health.py --check
 
   # ════════════════════════════════════════════════════════════════════════════

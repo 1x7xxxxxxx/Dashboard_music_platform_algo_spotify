@@ -150,3 +150,27 @@ def test_the_generator_concludes_on_a_dirty_catalogue(health, monkeypatch) -> No
         f"`--check` rend {code} sur un catalogue modifié. Le code 3 était le refus de "
         "conclure, et la cérémonie des deux commits revient avec lui : 48 % du journal "
         "du 2026-09-18.")
+
+
+def test_a_shallow_clone_is_refused_not_miscounted(health, tmp_path) -> None:
+    """R345 (critic) : la santé se calcule désormais à la demande, y compris sur la prod —
+    qui est un clone SUPERFICIEL (`.git/shallow`, 2026-10-04). Le rejeu y verrait une
+    histoire tronquée et rendrait des récidives fausses, plausibles et silencieuses. Il
+    doit refuser bruyamment.
+    """
+    import subprocess
+
+    src = tmp_path / "src"
+    src.mkdir()
+    def git(*a: str, cwd=src) -> None:
+        subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True)
+    git("init", "-q")
+    for i in range(2):
+        (src / "f").write_text(str(i))
+        git("add", "f")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", f"c{i}")
+    health.require_full_history(src)                      # histoire complète : accepté
+    shallow = tmp_path / "shallow"
+    git("clone", "-q", "--depth", "1", f"file://{src}", str(shallow), cwd=tmp_path)
+    with pytest.raises(RuntimeError):
+        health.require_full_history(shallow)

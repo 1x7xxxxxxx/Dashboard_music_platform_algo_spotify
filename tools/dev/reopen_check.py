@@ -34,7 +34,6 @@ jamais comme satisfaite.
 """
 from __future__ import annotations
 
-import json
 import os
 import pathlib
 import subprocess
@@ -42,7 +41,6 @@ import sys
 from typing import Callable, Optional
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-HEALTH = ROOT / ".claude" / "dev-docs" / "error-class-health.json"
 
 # ⚠️ Au niveau MODULE, pas dans `__main__`. Plusieurs évaluations importent
 # `src.database.postgres_handler` ; posé seulement sous `if __name__`, l'outil démarre
@@ -79,7 +77,10 @@ class Trigger:
 
 
 def _health() -> dict:
-    return json.loads(HEALTH.read_text(encoding="utf-8"))["aggregate"]
+    # R345: computed for this tree, never read from a committed snapshot.
+    sys.path.insert(0, str(ROOT / "tools" / "dev"))
+    import generated_cache
+    return generated_cache.health_payload()["aggregate"]
 
 
 # 48 → 53 le 2026-09-27 (R202) : a tiré à 49 puis 53 (récidives R190, R191 et la nuit du

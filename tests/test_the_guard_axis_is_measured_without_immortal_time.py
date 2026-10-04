@@ -42,6 +42,9 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
+import generated_cache  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 _GEN = ROOT / "tools" / "dev" / "error_class_health.py"
@@ -70,9 +73,7 @@ def test_the_split_stratum_is_published_with_its_interval(health) -> None:
     Sans elle, le document ne publie que la version confondue — et un lecteur qui
     compare deux nombres conclut à un effet qui n'est pas là.
     """
-    import json
-    payload = json.loads(
-        (ROOT / ".claude" / "dev-docs" / "error-class-health.json").read_text("utf-8"))
+    payload = generated_cache.health_payload()
     r = payload["aggregate"]["recurrence"]
     assert "by_guard_since" in r, (
         "la strate `by_guard_since` a disparu : il ne reste que `by_guard`, qui est "
@@ -90,7 +91,7 @@ def test_the_split_stratum_is_published_with_its_interval(health) -> None:
     # test vert, parce qu'il ne regardait que le JSON. Le tableau qui met les deux
     # mesures côte à côte est justement la seule chose qui rende le biais visible à la
     # lecture — l'omettre laisse un lecteur comparer 0,14 à 0,70 et conclure.
-    doc = (ROOT / ".claude" / "dev-docs" / "error-class-health.md").read_text("utf-8")
+    doc = generated_cache.health_doc()
     # ⚠️ ON ANCRE SUR LA LIGNE DU TABLEAU, pas sur le mot.
     #
     # La version précédente cherchait `"by_guard_since" in doc` et restait VERTE quand

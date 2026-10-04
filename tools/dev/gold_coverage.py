@@ -3,9 +3,9 @@
 
 Type: Utility
 Uses: ast, hashlib, re — nothing else. **No database, no import of `src/`.**
-Triggers: `make gold-coverage`, `make gold-coverage-check`, CI step 8
+Triggers: `make gold-coverage` (à la demande) ; `build()` lu par les cliquets via tools/dev/generated_cache.py
 Depends on: migrations/*.sql, init_db.sql, src/**/*.py
-Persists in: .claude/dev-docs/gold-coverage.md
+Persists in: .claude/dev-docs/gold-coverage.md — non versionné depuis R345 (2026-10-04)
 
 Why this exists
 ---------------
@@ -46,7 +46,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import difflib
 import hashlib
 import re
 import sys
@@ -2181,50 +2180,12 @@ def build() -> str:
     return render(*analyse())
 
 
-def fix_once(fresh: str, doc: Path | None = None) -> int:
-    """The commit hook (R320, 2026-09-29): 0 when the document is fresh, else rewrite it and
-    refuse ONCE, like `ruff --fix`.
-
-    `test_the_committed_document_describes_this_repository` went red 34 times in four days
-    (make defect-log), always on the same forgotten `make gold-coverage` — and a change
-    under `src/` does not even select it in `make test-changed`, so main's CI caught it.
-    Rewriting at COMMIT time, never mid-suite (code-critic R320: a suite must not see its
-    tree move), hides nothing: a hole counter that grew is refused by
-    `test_the_gold_coverage_only_improves.py`, which reads its ceilings from the TEST, not
-    from this document.
-    """
-    doc = doc or DOC
-    if doc.exists() and doc.read_text(encoding="utf-8") == fresh:
-        return 0
-    doc.parent.mkdir(parents=True, exist_ok=True)
-    doc.write_text(fresh, encoding="utf-8")
-    shown = doc.relative_to(ROOT) if doc.is_relative_to(ROOT) else doc
-    print(f"↻ {doc.name} était périmé : réécrit — `git add {shown}` puis "
-          "recommite (les cliquets de la carte restent jugés par leurs tests).")
-    return 1
-
-
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true",
-                    help="sort ≠ 0 si le document sur le disque n'est pas celui-ci")
-    ap.add_argument("--fix-once", action="store_true",
-                    help="commit hook (R320) : réécrit un document périmé puis refuse UNE fois")
-    args = ap.parse_args()
+    """Write the document — on demand, gitignored since R345. The R320 `--fix-once` commit
+    hook and `--check` are gone with the versioned file they kept fresh; the ratchets read
+    the counters of `build()` for this tree (`tools/dev/generated_cache.py`)."""
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
     fresh = build()
-    if args.fix_once:
-        return fix_once(fresh)
-    if args.check:
-        current = DOC.read_text(encoding="utf-8") if DOC.exists() else ""
-        if current == fresh:
-            return 0
-        diff = "".join(difflib.unified_diff(
-            current.splitlines(keepends=True), fresh.splitlines(keepends=True),
-            fromfile="sur le disque", tofile="ce que le dépôt dit", n=1))
-        sys.stderr.write(
-            "`.claude/dev-docs/gold-coverage.md` ne décrit plus le dépôt.\n"
-            "Remède : make gold-coverage\n\n" + diff[:8000] + "\n")
-        return 1
     DOC.parent.mkdir(parents=True, exist_ok=True)
     DOC.write_text(fresh, encoding="utf-8")
     print(f"écrit : {DOC.relative_to(ROOT)} ({len(fresh.splitlines())} lignes)")

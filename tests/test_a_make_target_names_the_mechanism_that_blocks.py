@@ -10,7 +10,7 @@ Error class `a-make-target-that-claims-a-barrier-it-does-not-hold`.
 
 Le defaut, mesure le 2026-09-17
 --------------------------------
-Trois cibles — `gold-coverage-check`, `error-families-check`, `error-health-check` —
+Trois cibles — `gold-coverage-check`, `error-families-check` (toutes deux retirées par R345), `error-health-check` —
 portaient la mention « (CI) » dans leur ligne d'aide. Verifie par `grep` sur
 `.github/workflows/` et `.pre-commit-config.yaml` : **zero occurrence**. Aucun workflow
 ne les lance.
@@ -117,13 +117,13 @@ def test_the_three_document_checks_point_at_their_real_guard():
     # qui bloque REELLEMENT, et ce mecanisme doit exister. Seule la NATURE du mecanisme
     # change — un pas de workflow au lieu d'un fichier de test — donc on verifie que le
     # workflow appelle bien la commande, pas seulement qu'il porte le mot « CI ».
+    # R345 (2026-10-04) : `gold-coverage-check` et `error-families-check` sont retirées avec
+    # les documents versionnés qu'elles gardaient frais ; `error-health-check` ne juge
+    # plus que le rangement du catalogue, toujours lancé par la CI.
     par_workflow = {
-        "gold-coverage-check": "tools/dev/gold_coverage.py --check",
         "error-health-check": "tools/dev/error_class_health.py --check",
     }
-    par_pytest = {
-        "error-families-check": "tests/test_the_error_class_families_only_improve.py",
-    }
+    par_pytest: dict[str, str] = {}
     seen = dict(_help_lines())
     ci = (_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 

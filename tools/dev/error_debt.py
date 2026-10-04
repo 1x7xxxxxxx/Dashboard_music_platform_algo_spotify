@@ -2,7 +2,7 @@
 """Which error classes to pay down first — and which ceilings could now be tightened.
 
 Type: Utility
-Uses: .claude/dev-docs/error-classes.md, .claude/dev-docs/error-class-health.json,
+Uses: .claude/dev-docs/error-classes.md, tools/dev/generated_cache.py (health, in memory — R345),
       tests/test_the_error_class_health_only_improves.py (its `_CEILINGS`, read by AST)
 Triggers: `make error-debt`
 Persists in: nothing — prints a work list
@@ -26,14 +26,12 @@ proposed instead of forgotten.
 from __future__ import annotations
 
 import ast
-import json
 import re
 import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 _CATALOGUE = _ROOT / ".claude/dev-docs/error-classes.md"
-_HEALTH = _ROOT / ".claude/dev-docs/error-class-health.json"
 _RATCHET = _ROOT / "tests/test_the_error_class_health_only_improves.py"
 _HEAD = re.compile(r"^## ([a-z0-9][a-z0-9-]+)\s*$", re.M)
 _RECUR = re.compile(r"^\s+- \d{4}-\d{2}-\d{2} \(récidive\):", re.M)
@@ -88,7 +86,9 @@ def ceilings() -> dict[str, int]:
 
 def main() -> int:
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 10
-    health = json.loads(_HEALTH.read_text(encoding="utf-8"))
+    sys.path.insert(0, str(_ROOT / "tools" / "dev"))
+    import generated_cache
+    health = generated_cache.health_payload()
     recur = recurrences(_CATALOGUE.read_text(encoding="utf-8"))
     todo = work_list(health["classes"], recur, n)
     print(f"▶ {len(todo)} classe(s) à traiter en premier (unité : 3 par séance)")

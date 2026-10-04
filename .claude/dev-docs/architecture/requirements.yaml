@@ -39,7 +39,7 @@
   priorite: P2
   statut: partiel
   preuve: {pytest: tests/test_the_bronze_boundary_only_tightens.py::test_the_bronze_boundary_never_loosens}
-  ecart: 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — gold-coverage.md
+  ecart: 18/64 figures et 44/162 tuiles lisent encore du brut (plafond de paires 66) — make gold-coverage (généré à la demande, R345)
   mutation: "ajouter une lecture de meta_insights_performance_day dans une vue → la frontière s'élargit"
   roadmap: R280
 

@@ -112,8 +112,6 @@ PROBES = [
     Probe("self-proof naming a missing test",
           {"seen_red": "self-proving (tests/test_nope.py::test_nope)"},
           guaranteed_by="test_a_self_proving_claim_names_a_real_test.py"),
-    Probe("generated documents left stale", {}, regenerate=False,
-          guaranteed_by="error_class_health --check (ci.yml) · error_class_families --check"),
     Probe("seen_red never, without a reason", {"seen_red": "never"},
           guaranteed_by="R185 — audit_runner --admission"),
     Probe("cause inferred, without file:line", {"cause_evidence": "inferred",
@@ -126,7 +124,6 @@ GATES = [
     ("admission", [PY, ".claude/scripts/audit_runner.py", "--admission"]),
     ("sweep-verdict", [PY, ".claude/scripts/audit_runner.py", "--sweep-verdict"]),
     ("health --check", [PY, "tools/dev/error_class_health.py", "--check"]),
-    ("families --check", [PY, "tools/dev/error_class_families.py", "--check"]),
     ("catalogue tests", [PY, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:randomly",
                          "tests/test_every_error_class_is_complete.py",
                          "tests/test_error_class_index_is_complete.py",
@@ -164,8 +161,10 @@ def insert_class(text: str, fields: dict) -> str:
 def run_gates(root: Path, regenerate: bool) -> dict[str, int]:
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     if regenerate:
-        for gen in ("tools/dev/error_class_health.py", "tools/dev/error_class_families.py"):
-            subprocess.run([PY, gen], cwd=root, capture_output=True, env=env, timeout=600)
+        # R345: only the health tool still writes a TRACKED file — the catalogue's ranking.
+        # The generated documents are no longer versioned, so nothing else can go stale.
+        subprocess.run([PY, "tools/dev/error_class_health.py"], cwd=root, capture_output=True,
+                       env=env, timeout=600)
     out = {}
     for label, argv in GATES:
         r = subprocess.run(argv, cwd=root, capture_output=True, text=True, env=env, timeout=900)

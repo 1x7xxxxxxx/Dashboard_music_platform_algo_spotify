@@ -2,7 +2,7 @@
 
 Type: Utility
 Uses: tools/dev/gold_coverage
-Triggers: `make test`, `make gold-coverage-check`
+Triggers: `make test`
 Depends on: src/utils/mrr.py, src/dashboard/views/billing.py
 Persists in: nothing
 
@@ -36,6 +36,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "dev"))
 
 import gold_coverage as gc  # noqa: E402
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
+import generated_cache  # noqa: E402
 
 
 def test_the_hop_exists_and_is_wired_into_every_sql_read() -> None:
@@ -91,7 +94,7 @@ def test_the_hop_resolves_the_helper_that_made_it_necessary() -> None:
 @pytest.mark.parametrize("motif", ["sql-dynamique", "portent une source établie"])
 def test_the_generated_map_still_publishes_what_the_ratchet_reads(motif: str) -> None:
     """Le cliquet lit le DOCUMENT : si la phrase disparaît, il devient vert sur rien."""
-    doc = (ROOT / ".claude" / "dev-docs" / "gold-coverage.md").read_text(encoding="utf-8")
+    doc = generated_cache.gold_doc()
     assert motif in doc, (
         f"« {motif} » a disparu de la carte générée. Le cliquet "
         "`test_no_counter_of_holes_ever_grows` lit ce document : sans cette phrase il "

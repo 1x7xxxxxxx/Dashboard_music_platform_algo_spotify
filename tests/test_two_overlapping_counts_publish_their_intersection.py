@@ -34,14 +34,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
+import generated_cache  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parents[1]
-_JSON = _ROOT / ".claude" / "dev-docs" / "error-class-health.json"
-_MD = _ROOT / ".claude" / "dev-docs" / "error-class-health.md"
 
 
 def _trous() -> dict:
-    return json.loads(_JSON.read_text(encoding="utf-8"))["aggregate"]["holes"]
+    return generated_cache.health_payload()["aggregate"]["holes"]
 
 
 def test_the_overlap_free_count_is_published() -> None:
@@ -77,7 +78,7 @@ def test_the_arithmetic_of_the_overlap_holds() -> None:
 
 
 def test_the_prose_says_the_two_counts_do_not_add_up() -> None:
-    corps = _MD.read_text(encoding="utf-8")
+    corps = generated_cache.health_doc()
     assert "NE S'ADDITIONNENT PAS" in corps, (
         "la prose générée ne dit plus que les deux populations se recouvrent. Publier "
         "deux nombres emboîtés dans deux paragraphes consécutifs SANS le dire est le "
@@ -97,7 +98,7 @@ def test_the_prose_does_not_degenerate_when_the_count_is_zero() -> None:
     `a-prose-claim-that-cannot-be-verified` dans un document GÉNÉRÉ, donc reproduit à
     chaque exécution.
     """
-    corps = _MD.read_text(encoding="utf-8")
+    corps = generated_cache.health_doc()
     import re
     for m in re.finditer(r"est donc \*\*(\d+)\*\*, et non (\d+)", corps):
         assert m.group(1) != m.group(2), (

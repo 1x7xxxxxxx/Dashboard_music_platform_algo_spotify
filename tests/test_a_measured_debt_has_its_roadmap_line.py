@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: tools/dev/error_debt.py, .claude/dev-docs/roadmap/checklist.md
-Depends on: the committed error-class-health.json — no database
+Depends on: tools/dev/generated_cache.py (the health payload computed for this tree, R345) — no database
 
 Measured 2026-09-25: nothing made an identified action ENTER the roadmap — the mechanisms
 handle the exit (rotation) and consistency, never the entry; ~9 actions identified that
@@ -14,6 +14,9 @@ import importlib.util
 import json
 import re
 from pathlib import Path
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
+import generated_cache  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CHECKLIST = _ROOT / ".claude/dev-docs/roadmap/checklist.md"
@@ -36,7 +39,7 @@ def _missing_line(open_items: int, checklist_text: str) -> bool:
 
 
 def test_the_measured_debt_is_on_the_roadmap() -> None:
-    health = json.loads((_ROOT / ".claude/dev-docs/error-class-health.json").read_text(encoding="utf-8"))
+    health = generated_cache.health_payload()
     items = debt.work_list(health["classes"],
                            debt.recurrences((_ROOT / ".claude/dev-docs/error-classes.md").read_text(encoding="utf-8")),
                            10_000)

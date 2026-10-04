@@ -238,5 +238,8 @@ echo "✅ deployed $after — $SERVICES healthy"
 # fatal: a deploy that succeeded is not undone by a missing metric. The directory is
 # created by the script — which assumes this deploy runs as root (`make deploy
 # PROD_SSH=root@…`); as another user, the warning below names the refusal.
+# R345 — the metrics are computed from the catalogue's FULL history (the JSON is no longer
+# versioned); a shallow clone would make that computation refuse. Unshallow once.
+[ "$(git rev-parse --is-shallow-repository)" = true ] && git fetch -q --unshallow origin
 python3 tools/dev/error_class_metrics.py /var/lib/node_exporter/textfile \
     || echo "⚠️  métriques du catalogue non écrites (le déploiement, lui, a réussi)"

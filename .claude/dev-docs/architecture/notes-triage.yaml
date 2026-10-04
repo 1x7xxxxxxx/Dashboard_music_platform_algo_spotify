@@ -79,7 +79,7 @@
   priorite: P4
   preuve_statut: R180 familles d'erreurs declarees et adossees a un garde (A:1062) ; --admission refuse une classe
     sans famille (A:1072) ; error-class-families.md genere
-  preuve_ciblee: tests/test_the_error_class_families_only_improve.py::test_the_document_still_describes_the_catalogue
+  preuve_ciblee: tests/test_the_error_class_families_only_improve.py::test_the_count_of_unclassified_classes_never_grows
 - ligne: 13
   resume: Architecture modulaire et scalable
   type: exigence-architecture
@@ -103,8 +103,8 @@
   domaine: tests-ci
   statut: livré
   priorite: P3
-  preuve_statut: make gold-coverage / gold-coverage-check bloque la CI si perime (CLAUDE.md:256) ; make error-health-check
-    idem ; R231 (A:206 'Mesure par make gold-coverage')
+  preuve_statut: make gold-coverage (à la demande, non versionné depuis R345, cliquets calculés sur l'arbre) ; make error-health-check
+    range le catalogue ; R231 (A:206 'Mesure par make gold-coverage')
   preuve_ciblee: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows
 - ligne: 15
   resume: Que optimiser sur le PC pour la rapidite ?
@@ -1463,7 +1463,7 @@
   statut: livré
   priorite: P3
   preuve_statut: R264 (archivée) — a1a94776
-  preuve_ciblee: 'test to write: chaque famille de error-class-families.md existe dans la baseline, on file .claude/dev-docs/error-class-families.md:1'
+  preuve_ciblee: 'test to write: chaque famille de error-class-families.md existe dans la baseline, on file tools/dev/error_class_families.py:1'
 - ligne: 165
   resume: Optimiser la roadmap et supprimer la gestion des livrables jugée trop lourde
   type: décision-requise
@@ -1547,7 +1547,7 @@
   statut: livré
   priorite: P3
   preuve_statut: R257 (archivée) — .claude/dev-docs/architecture/ + make arch-benchmark
-  preuve_ciblee: make gold-coverage-check
+  preuve_ciblee: tests/test_the_gold_coverage_only_improves.py::test_no_counter_of_holes_ever_grows
 - ligne: 172
   resume: 'Workflow de dev (garde de commit, CI, pkill, push) : identifier les manques'
   type: question

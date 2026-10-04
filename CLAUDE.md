@@ -250,9 +250,9 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 | `.claude/dev-docs/refactor-audit-2026-08.md` | Audit de refactor du 2026-08-20, commandé après les deux tests artiste ratés |
 | `.claude/dev-docs/coverage-themes.md` | Couverture thématique de l'app adossée au corpus `knowledge-rag`, chaque ligne avec livre + page |
 | `.claude/dev-docs/prod-health-monitoring.md` | Les 3 surfaces du contrôle de santé quotidien et pourquoi chacune vit où elle vit |
-| `.claude/dev-docs/gold-coverage.md` | **Généré** par `make gold-coverage`. La carte de la couche or : pour chaque figure, chaque tuile et chaque figure du PDF, quelle donnée elle dessine et si elle passe par une vue or. Sa dernière section — les tables brutes encore agrégées **hors de tout cliquet** — est la liste des prochaines divergences. `make gold-coverage-check` bloque la CI quand il est périmé |
+| `.claude/dev-docs/gold-coverage.md` | **Généré** par `make gold-coverage`. La carte de la couche or : pour chaque figure, chaque tuile et chaque figure du PDF, quelle donnée elle dessine et si elle passe par une vue or. Sa dernière section — les tables brutes encore agrégées **hors de tout cliquet** — est la liste des prochaines divergences. **Non versionné depuis R345** (ADR-031) |
 | `.claude/dev-docs/roadmap/night-run.md` | **Le protocole d'une séance longue** — à lire EN PREMIER à chaque réveil, AVANT la roadmap. Une séance de plusieurs heures est compactée plusieurs fois : la roadmap dit *quoi*, elle ne dit pas *où j'en étais*. `make night-status` répond à ça en un écran. Porte la règle qui compte — **bloqué ⇒ on PARQUE et on passe**, jamais on ne s'arrête — et la liste de ce qu'on ne fait pas sans un humain |
-| `.claude/dev-docs/error-class-health.md` | **Généré** par `make error-health`. La santé du catalogue : combien de classes ont une connaissance VÉRIFIABLE, et combien récidivent — mesuré depuis git, pas depuis un champ. Il porte une section « Ce que ce document corrige » qui liste les chiffres avancés avant vérification. Le JSON à côté est la donnée ; **son historique git EST la série temporelle**, lisible par `make error-health-history`. `make error-health-check` bloque quand il est périmé |
+| `.claude/dev-docs/error-class-health.md` | **Généré** par `make error-health`. La santé du catalogue : combien de classes ont une connaissance VÉRIFIABLE, et combien récidivent — mesuré depuis git, pas depuis un champ. Il porte une section « Ce que ce document corrige » qui liste les chiffres avancés avant vérification. Le JSON à côté est la donnée. **Non versionnés depuis R345** (ADR-031) : générés à la demande ; `make error-health-check` (CI) ne juge plus que le rangement |
 | `.claude/dev-docs/error-family-rules.md` | **Les 18 règles** — une par famille d'erreurs, chacune avec sa question et l'endroit où elle est attrapée : au **commit** (pytest qui lit le CODE) ou la **nuit** (sonde qui lit le MONDE : prod, CI, secrets). À lire AVANT d'écrire une classe : une classe neuve entre comme instance d'une famille |
 | `.claude/dev-docs/product-backlog.md` | Ce qui attend un **déclencheur produit** (des artistes à interroger, un lancement) — sorti de la roadmap le 2026-09-26 : R148, R163. Quand le déclencheur arrive, la tâche repart dans la roadmap |
 | `.claude/dev-docs/ops-mail-journal.md` | Les mails automatiques de streaMLytics (seuls ceux de `noreply@streamlytics.fr`), triés à chaque début de séance : réel / attendu / fausse alerte / test. `make night-status` dit quand il est périmé |
@@ -377,7 +377,8 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     On continue de dater `seen_red` — décision du propriétaire le 2026-09-18, motif
     explicite : le n est trop faible pour conclure, et remplir la colonne est ce qui
     fera converger l'intervalle. Ce n'est donc pas un acquis, c'est un pari déclaré.
-    Contrôle : `make error-health-check`. Évolution : `make error-health-history`.
+    Contrôle : les cliquets `tests/test_the_error_class_health_only_improves.py` (calculés
+    sur l'arbre depuis R345). Évolution : `make error-health-history`.
 
 15bis. **Séance longue sans interlocuteur — `/loop`, une consigne de nuit, ou plus de
     deux heures sans retour humain → lire `.claude/dev-docs/roadmap/night-run.md` et

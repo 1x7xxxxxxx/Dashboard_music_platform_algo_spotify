@@ -3,8 +3,10 @@
 
 Type: Utility
 Uses: .claude/scripts/audit_runner (parse), tools/dev/error_class_families (classify), git
-Triggers: make error-health / make error-health-check
-Persists in: .claude/dev-docs/error-class-health.{json,md} — versionnés ; et l'ORDRE des
+Triggers: make error-health (à la demande) ; `--check` en CI (rangement du catalogue seul) ;
+          tools/dev/generated_cache.py (cliquets et outils, en mémoire)
+Persists in: .claude/dev-docs/error-class-health.{json,md} — À LA DEMANDE, non versionnés
+             depuis R345 (2026-10-04) ; et l'ORDRE des
              blocs de .claude/dev-docs/error-classes.md (vivantes / dormantes, voir
              `rank_catalogue`) — le contenu d'aucun bloc n'est modifié
 
@@ -43,9 +45,11 @@ déclaratif porte la mention « ne pas comparer ».
 
 Ce qu'il ne stocke pas
 ----------------------
-Aucune série temporelle. Le JSON est un INSTANTANÉ, et **l'historique git EST la série** —
-c'est pourquoi les clés sont triées, un scalaire par ligne, et le bloc `aggregate` écrit
-en dernier et contigu : `git log -L` sur ce bloc sort l'histoire d'une métrique.
+Aucune série temporelle. Jusqu'au 2026-10-04 l'historique git du JSON versionné était la
+série ; R345 a cessé de le versionner (302 commits sur 652 le touchaient, personne ne le
+lisait). La série des TROUS se recalcule depuis l'historique du catalogue par `holes_of`
+(`make error-health-history`, `error_debt_trend.py`) ; l'histoire d'avant R345 reste
+lisible par `git log -- .claude/dev-docs/error-class-health.json`.
 """
 from __future__ import annotations
 
@@ -682,12 +686,29 @@ def _catalogue_at(shas: list[str]) -> dict[str, str]:
     return texts
 
 
+def require_full_history(root: Path = ROOT) -> None:
+    """Refuse a shallow clone — LOUDLY (R345, code-critic).
+
+    Until R345 a shallow clone turned the freshness comparison red (seven CI runs, see
+    ci.yml). With the documents no longer versioned there is no comparison left: a
+    truncated replay would yield fewer revisions, younger introductions, fewer
+    recurrences — and every ratchet would pass on numbers no work produced."""
+    r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=root,
+                       capture_output=True, text=True)
+    if r.stdout.strip() != "false":
+        raise RuntimeError(
+            f"{root} is a shallow clone (or not a git repository: {r.stderr.strip()!r}) — "
+            "the replay needs the full history of the catalogue. "
+            "CI: `fetch-depth: 0`; locally: `git fetch --unshallow`.")
+
+
 def _observed() -> dict:
     """Rejeu de toutes les révisions du catalogue : introduction et récidives.
 
     ⚠️ Le renommage est détecté par similarité : sans ça, une classe renommée se lit
     « ancien id disparu, nouvel id introduit » et sa récidive repart à zéro en silence.
     """
+    require_full_history()
     revs = _revisions()
     if not revs:
         return {"window_start": None, "as_of": None, "per_class": {}, "revisions": 0}
@@ -913,30 +934,11 @@ def _declarative(declared: dict, observed: dict) -> dict:
 
 # ── Assemblage ───────────────────────────────────────────────────────────────
 
-def build() -> tuple[str, str]:
-    text = CATALOGUE.read_text(encoding="utf-8")
-    declared = _declared(text)
-    observed = _observed()
-    per = observed["per_class"]
+def holes_of(classes: dict) -> dict:
+    """The hole counters — a function of the DECLARED fields alone, no git replay.
 
-    classes = {}
-    for cid in sorted(declared):
-        d, o = declared[cid], per.get(cid, {})
-        classes[cid] = {
-            **{k: d[k] for k in sorted(d)},
-            # ⚠️ Le SHA d'introduction a été RETIRÉ : `detect-secrets` voit une chaîne
-            # hexadécimale de 12 caractères comme un secret à haute entropie, et il a
-            # refusé le premier commit sur 89 lignes du JSON. Le marquer comme faux
-            # positif ferait enfler `.secrets.baseline` à chaque régénération — un
-            # document qui change tous les jours n'a rien à faire dans une liste
-            # d'exceptions. La DATE suffit à tout ce qui est calculé ici ; qui veut le
-            # commit le retrouve par `git log -S'## <id>' -- <catalogue>`.
-            "introduced_date": o.get("introduced_date"),
-            "revisions": o.get("revisions", 0),
-            "history_additions": o.get("history_additions", 0),
-            "renamed_from": o.get("renamed_from"),
-        }
-
+    R345: `error_debt_trend.py` rebuilds the series from past catalogue revisions with it,
+    now that the JSON whose git history was the series is no longer versioned."""
     # Combien de classes pointent chaque fichier de garde ? 50 sur 286 en portent
     # plusieurs, et c'est ce qui rend la question suivante necessaire.
     _shared: dict[str, int] = {}
@@ -944,7 +946,7 @@ def build() -> tuple[str, str]:
         if _c["guard_ref"]:
             _shared[_c["guard_ref"]] = _shared.get(_c["guard_ref"], 0) + 1
 
-    holes = {
+    return {
         # ── `self-proving` : un TROISIÈME état, mesuré le 2026-09-18 ────────────
         # `seen_red: <date>` dit « je l'ai vue rouge UNE fois, à la main ».
         # `seen_red: self-proving (<test>)` dit quelque chose de plus fort : le garde
@@ -1037,6 +1039,33 @@ def build() -> tuple[str, str]:
             if c["guard_scope_declared_family"]
             and c["guard_scope_declared_family"] not in _known_families()),
     }
+
+
+def build() -> tuple[str, str]:
+    text = CATALOGUE.read_text(encoding="utf-8")
+    declared = _declared(text)
+    observed = _observed()
+    per = observed["per_class"]
+
+    classes = {}
+    for cid in sorted(declared):
+        d, o = declared[cid], per.get(cid, {})
+        classes[cid] = {
+            **{k: d[k] for k in sorted(d)},
+            # ⚠️ Le SHA d'introduction a été RETIRÉ : `detect-secrets` voit une chaîne
+            # hexadécimale de 12 caractères comme un secret à haute entropie, et il a
+            # refusé le premier commit sur 89 lignes du JSON. Le marquer comme faux
+            # positif ferait enfler `.secrets.baseline` à chaque régénération — un
+            # document qui change tous les jours n'a rien à faire dans une liste
+            # d'exceptions. La DATE suffit à tout ce qui est calculé ici ; qui veut le
+            # commit le retrouve par `git log -S'## <id>' -- <catalogue>`.
+            "introduced_date": o.get("introduced_date"),
+            "revisions": o.get("revisions", 0),
+            "history_additions": o.get("history_additions", 0),
+            "renamed_from": o.get("renamed_from"),
+        }
+
+    holes = holes_of(classes)
     population = {
         "classes": len(classes),
         "with_signature": sum(1 for c in classes.values() if c["has_signature"]),
@@ -1295,7 +1324,7 @@ def _render(p: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true",
-                    help="sort ≠ 0 si les documents sur le disque ne sont pas ceux-ci")
+                    help="sort ≠ 0 si le catalogue n'est pas rangé (R345 : les documents ne sont plus comparés)")
     args = ap.parse_args()
 
     # ⚠️ LE REFUS A ÉTÉ RETIRÉ LE 2026-09-18, ET SA PRÉMISSE AVEC.
@@ -1318,19 +1347,16 @@ def main() -> int:
     text = CATALOGUE.read_text(encoding="utf-8")
     ranked = rank_catalogue(text, json.loads(js)["classes"])
     if args.check:
-        for path, fresh, remedy in ((CATALOGUE, ranked, "make error-health (rangement)"),
-                                    (DATA, js, "make error-health"),
-                                    (DOC, md, "make error-health")):
-            current = path.read_text(encoding="utf-8") if path.exists() else ""
-            if current == fresh:
-                continue
-            diff = "".join(difflib.unified_diff(
-                current.splitlines(keepends=True), fresh.splitlines(keepends=True),
-                fromfile="sur le disque", tofile="ce que le dépôt dit", n=1))
-            sys.stderr.write(f"`{path.relative_to(ROOT)}` ne décrit plus le catalogue.\n"
-                             f"Remède : {remedy}\n\n" + diff[:8000] + "\n")
-            return 1
-        return 0
+        # R345: the two documents are generated on demand and no longer versioned —
+        # only the CATALOGUE, which is, is still compared.
+        if text == ranked:
+            return 0
+        diff = "".join(difflib.unified_diff(
+            text.splitlines(keepends=True), ranked.splitlines(keepends=True),
+            fromfile="sur le disque", tofile="rangé", n=1))
+        sys.stderr.write(f"`{CAT_REL}` n'est pas rangé (classes dormantes sous le "
+                         "séparateur).\nRemède : make error-health\n\n" + diff[:8000] + "\n")
+        return 1
     if ranked != text:
         # L'instantané se CALCULE depuis le catalogue, et le rangement change le
         # catalogue (une révision en attente de plus) : on range, on recalcule, puis on

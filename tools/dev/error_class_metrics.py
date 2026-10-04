@@ -2,25 +2,25 @@
 """Export the health of the error-class catalogue as Prometheus metrics (textfile).
 
 Type: Utility
-Uses: .claude/dev-docs/error-class-health.json (written by tools/dev/error_class_health.py)
+Uses: tools/dev/generated_cache.py (error_class_health.build, in memory — R345; needs the
+      full git history: tools/deploy.sh unshallows the server's clone)
 Triggers: tools/deploy.sh (on the server, after the pull) ; `make error-class-metrics`
 Persists in: <dir>/streamlytics_error_classes.prom — read by node_exporter's textfile collector
 
 R264 (owner notes L60-65 : « suivre dans le temps la pertinence et les échecs de chaque
 classe »). Critic verdict (critic-2026-09-27.md, R264 b) : NOT a table in the tenants'
-database, and NOT a second parser — the JSON is the output of the one parser that defines
-« récidive », so this only re-reads it. Grafana then draws the series the git history of
-the JSON already holds, without anyone running `make error-health-history`.
+database, and NOT a second parser — the payload is the output of the one parser that
+defines « récidive », so this only re-reads it. Grafana then draws the series. R345: the
+payload is computed for the tree (`generated_cache.health_payload()`), no longer read from
+a versioned JSON — which is why `deploy.sh` unshallows the prod clone first.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / ".claude" / "dev-docs" / "error-class-health.json"
 FILENAME = "streamlytics_error_classes.prom"
 
 
@@ -62,10 +62,9 @@ def main() -> int:
     if len(sys.argv) != 2:
         print("usage: error_class_metrics.py <textfile-directory>", file=sys.stderr)
         return 2
-    if not SOURCE.is_file():
-        print(f"❌ {SOURCE.relative_to(ROOT)} absent — lancer : make error-health", file=sys.stderr)
-        return 1
-    target = write(Path(sys.argv[1]), json.loads(SOURCE.read_text(encoding="utf-8")))
+    sys.path.insert(0, str(ROOT / "tools" / "dev"))
+    import generated_cache
+    target = write(Path(sys.argv[1]), generated_cache.health_payload())
     print(f"écrit : {target}")
     return 0
 

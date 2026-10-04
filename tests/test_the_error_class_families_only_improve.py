@@ -44,7 +44,6 @@ import pytest
 pytestmark = pytest.mark.docs
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
-_DOC = _ROOT / ".claude" / "dev-docs" / "error-class-families.md"
 
 # Gelés le 2026-09-12, à la mesure du jour. 68 orphelines au premier jet, puis 3 :
 # les 65 rangées n'ont pas été « mieux classées », elles ont fait apparaître CINQ
@@ -75,19 +74,13 @@ def families():
 
 
 @pytest.fixture(scope="module")
-def counters() -> dict[str, int]:
-    text = _DOC.read_text(encoding="utf-8")
+def counters(families) -> dict[str, int]:
+    # R345 (2026-10-04) : le document n'est plus versionné — le bloc de chiffres est lu
+    # dans le rendu calculé pour CET arbre, exactement ce que `make error-families` écrit.
+    text = families.render()
     m = re.search(r"<!-- error-class-families: ((?:\w+=\d+\s*)+)-->", text)
     assert m, "le document ne porte plus son bloc de chiffres gelés"
     return {k: int(v) for k, v in re.findall(r"(\w+)=(\d+)", m.group(1))}
-
-
-def test_the_document_still_describes_the_catalogue(families) -> None:
-    current = _DOC.read_text(encoding="utf-8") if _DOC.exists() else ""
-    assert current == families.render(), (
-        "`.claude/dev-docs/error-class-families.md` ne décrit plus "
-        "`error-classes.md`.\nRemède : make error-families"
-    )
 
 
 def test_the_count_of_unclassified_classes_never_grows(counters) -> None:

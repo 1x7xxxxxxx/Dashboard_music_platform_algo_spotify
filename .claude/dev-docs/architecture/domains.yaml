@@ -38,9 +38,9 @@ silver:
 gold:
   nom: Or — une définition par KPI
   perimetre: vues or v_*/gold_*, registre des métriques (sens flux/cumul/niveau), carte de couverture des figures et tuiles
-  fichiers: [src/utils/metric_registry.py, tools/dev/gold_coverage.py, .claude/dev-docs/gold-coverage.md]
+  fichiers: [src/utils/metric_registry.py, tools/dev/gold_coverage.py, tools/dev/generated_cache.py]
   gardes: [tests/test_every_metric_is_registered.py, tests/test_the_gold_coverage_only_improves.py, tests/test_the_gold_layer_agrees_with_itself.py, tests/test_a_gold_view_is_blind_to_another_tenants_rows.py, tests/test_a_gold_rule_is_declarative.py]
-  mesures: [make gold-coverage, make gold-coverage-check]
+  mesures: [make gold-coverage]
 
 data-quality:
   nom: Qualité et observabilité des données
@@ -136,7 +136,7 @@ roadmap-gov:
 error-classes:
   nom: Classes d'erreur et registre applicatif
   perimetre: catalogue avec billet d'admission, signature vue rouge, familles, balayage ; app_error_log par empreinte
-  fichiers: [.claude/dev-docs/error-classes.md, .claude/dev-docs/error-class-families.md, .claude/scripts/audit_runner.py, src/utils/error_registry.py]
+  fichiers: [.claude/dev-docs/error-classes.md, tools/dev/error_class_families.py, .claude/scripts/audit_runner.py, src/utils/error_registry.py]
   gardes: [tests/test_every_error_class_is_complete.py, tests/test_error_class_index_is_complete.py, tests/test_the_error_class_health_only_improves.py, tests/test_the_error_class_families_only_improve.py]
   mesures: [make error-health, make error-families, make error-inbox]
 

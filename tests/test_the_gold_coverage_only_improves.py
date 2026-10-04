@@ -52,7 +52,6 @@ import pytest
 pytestmark = pytest.mark.docs
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
-_DOC = _ROOT / ".claude" / "dev-docs" / "gold-coverage.md"
 
 
 
@@ -75,13 +74,17 @@ def gc():
 
 @pytest.fixture(scope="module")
 def counters() -> dict[str, int]:
-    """Les compteurs que la MACHINE a écrits dans le document.
+    """Les compteurs que la MACHINE écrit dans le document.
 
-    Lus dans le document et non recalculés : c'est le document que le cliquet
-    garde, et un compteur qu'on recalcule pour le comparer à lui-même ne garde
-    rien.
+    R345 (2026-10-04) : le document n'est plus versionné. Les compteurs sont lus dans
+    le rendu calculé pour CET arbre (`generated_cache.gold_doc()`, une fois par arbre
+    pour tous les workers) — le texte exact que `make gold-coverage` écrirait. Le
+    cliquet compare toujours ces compteurs à des plafonds écrits À LA MAIN ci-dessous,
+    jamais à eux-mêmes.
     """
-    text = _DOC.read_text(encoding="utf-8")
+    sys.path.insert(0, str(_ROOT / "tools" / "dev"))
+    import generated_cache
+    text = generated_cache.gold_doc()
     out: dict[str, int] = {}
     for block, body in re.findall(r"<!-- gold-coverage-([a-z-]+): ([^>]+) -->", text):
         for key, value in re.findall(r"(\w+)=(\d+)", body):
@@ -333,10 +336,9 @@ _FLOOR: dict[str, int] = {
 # octet. Les onze autres tests de ce fichier lisent le JSON déjà sur disque et coûtent
 # ensemble moins de 0,2 s.
 #
-# Or `make gold-coverage-check` fait exactement cela, et n'était lancé par AUCUN
-# workflow — le commentaire de `Makefile:290` le dit lui-même. La propriété est donc
-# déplacée dans `.github/workflows/ci.yml`, étape « Portes statiques », où elle est
-# payée une fois par commit au lieu d'une fois par exécution locale.
+# Elle a ensuite vécu dans la CI (`gold-coverage-check`), puis a disparu avec R345
+# (2026-10-04) : le document n'est plus versionné, il n'y a plus d'état commité à
+# comparer. Les compteurs ci-dessus sont calculés pour l'arbre (`generated_cache`).
 #
 # Elle est MIEUX gardée qu'avant, pas moins : jusqu'ici elle ne bloquait qu'un
 # développeur qui lançait la suite entière ; elle bloque désormais la CI.

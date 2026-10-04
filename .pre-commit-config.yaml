@@ -31,16 +31,8 @@ repos:
       # R250 — a new test committed without its duration turned main red three times on
       # 2026-09-27 (pytest-split gives it an AVERAGE and the CI gate refuses it). ~8 s of
       # collection, and only when a test file is staged.
-      # R320 (2026-09-29): the gold map went stale 34 times in four days, caught by main's
-      # CI because a change under `src/` does not select its test locally. Rewritten at
-      # commit time and refused once; its ratchets stay judged by their own tests.
-      - id: gold-coverage-fresh
-        name: gold map — .claude/dev-docs/gold-coverage.md describes this tree (make gold-coverage)
-        language: system
-        entry: .venv/bin/python tools/dev/gold_coverage.py
-        args: [--fix-once]
-        files: ^(src/.*\.py|tests/test_[^/]*\.py|\.claude/dev-docs/error-classes\.md|\.github/workflows/ci\.yml|migrations/.*\.sql)$
-        pass_filenames: false
+      # R345 (2026-10-04): the `gold-coverage-fresh` hook (R320) is gone with the versioned
+      # gold map — the document is generated on demand, its ratchets compute on the tree.
       - id: test-durations-known
         name: tests — every staged test has a recorded duration (make test-durations-missing)
         language: system

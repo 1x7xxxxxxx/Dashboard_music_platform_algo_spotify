@@ -65,8 +65,6 @@ pytestmark = pytest.mark.docs
 _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 
-_DATA = _ROOT / ".claude" / "dev-docs" / "error-class-health.json"
-_DOC = _ROOT / ".claude" / "dev-docs" / "error-class-health.md"
 
 # ── Gelé à la MESURE du 2026-09-16, jamais à une estimation ──────────────────
 # Ces plafonds ne peuvent que BAISSER. Les faire baisser demande soit de renseigner un
@@ -652,7 +650,10 @@ _EXPOSURE_FLOOR = 7628
 
 
 def _payload() -> dict:
-    return json.loads(_DATA.read_text(encoding="utf-8"))
+    """R345 : calculé pour CET arbre (cache partagé entre workers), plus lu sur disque."""
+    sys.path.insert(0, str(_ROOT / "tools" / "dev"))
+    import generated_cache
+    return generated_cache.health_payload()
 
 
 # LA FRAÎCHEUR DE L'INSTANTANÉ EST VÉRIFIÉE EN CI, PLUS DANS LA SUITE — 2026-09-18.

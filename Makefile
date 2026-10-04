@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: chart-decisions select-audit defect-log inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage gold-coverage-check error-families error-families-check help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark duplicates error-class-metrics recap charts-dossier charts-review
+.PHONY: chart-decisions select-audit defect-log inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark duplicates error-class-metrics recap charts-dossier charts-review
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -251,7 +251,7 @@ test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE R
 	@# Coût sur ext4 : **297 s en série** pour 7 054 tests (1 146 s sur /mnt/c avant R117).
 	$(PYTHON) -m pytest tests/ -q --store-durations
 
-catalogue-sync: error-health error-families gold-coverage test-durations-missing ## Tout ce qu'une édition du catalogue ou un test NEUF périme, en une commande (~60 s)
+catalogue-sync: error-health test-durations-missing ## Ce qu'une édition du catalogue ou un test NEUF demande : rangement + durées (R345 : plus de documents à régénérer)
 	@# Le 2026-09-26, en /loop R169 : chaque lot touchait le catalogue et/ou ajoutait un
 	@# test, et chacun des quatre documents générés a fait rougir la CI ou la porte au
 	@# moins une fois, un par un — santé, familles, carte or, durées. Les régénérer
@@ -371,26 +371,12 @@ error-inbox: check-db ## Registre des erreurs applicatives → .claude/dev-docs/
 error-inbox-check: ## Le registre décrit-il encore la base ? 0 à jour · 1 périmé · 2 RIEN vérifié (base injoignable) — le blocage hors-base vient de tests/test_the_error_inbox_and_its_pointer_agree.py
 	@python3 tools/error_inbox.py --check
 
-gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md
+gold-coverage: ## Carte de la couche or → .claude/dev-docs/gold-coverage.md (à la demande, non versionnée — R345)
 	@python3 tools/dev/gold_coverage.py
 
-# ⚠️ CE COMMENTAIRE A ÉTÉ CORRIGÉ LE 2026-09-18, ET L'HISTOIRE VAUT D'ÊTRE LUE.
-#
-# Il disait, à juste titre au 2026-09-17, que les trois cibles `*-check` n'étaient
-# lancées par AUCUN workflow et que le blocage réel passait par les tests pytest.
-# C'était vrai, et c'était le problème : les deux tests qui tenaient la fraîcheur
-# RÉGÉNÉRAIENT le document entier à chaque exécution locale — 23,06 s et 6,97 s, soit
-# **30,0 s de la suite** pour deux assertions.
-#
-# Depuis le 2026-09-18, `gold-coverage-check` et `error-health-check` sont lancées par
-# `.github/workflows/ci.yml` (étape « Portes statiques »), et les deux tests coûteux
-# sont retirés de la suite. La propriété est payée une fois par commit, et elle bloque
-# la CI au lieu de ne bloquer que le développeur qui lançait la suite complète.
-#
-# `error-families-check` reste un geste manuel : son cliquet dans la suite coûte 0,07 s,
-# il n'y avait rien à déplacer.
-gold-coverage-check: ## Échoue si la carte ne décrit plus le dépôt — LANCÉE EN CI (étape « Portes statiques ») depuis le 2026-09-18
-	@python3 tools/dev/gold_coverage.py --check
+# R345 (2026-10-04) : `gold-coverage-check` et `error-families-check` sont RETIRÉES avec
+# les documents qu'elles gardaient frais — plus versionnés, générés à la demande. Les
+# cliquets lisent les compteurs calculés pour l'arbre (tools/dev/generated_cache.py).
 
 # ── R133 : les figures qu'un daltonien ne peut pas attribuer ──────────────────
 # Stdlib seule (la colorimétrie est dans `src/dashboard/utils/colorimetry.py`, pas de
@@ -422,7 +408,7 @@ figure-contrast: ## Rapport des figures sous le plancher d'attribution — NE BL
 figure-contrast-baseline: ## Régénère le plafond après une CORRECTION de figure
 	@python3 tools/dev/figure_contrast_report.py --baseline
 
-error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md
+error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class-families.md (à la demande, non versionné — R345)
 	@python3 tools/dev/error_class_families.py
 
 # ── Séance longue ─────────────────────────────────────────────────────────────
@@ -512,16 +498,13 @@ night-note: ## Un fait à ne pas perdre — make night-note TASK=R122 W="…"
 	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
 	@python3 tools/dev/night_run.py note "$(TASK)" "$(W)"
 
-error-families-check: ## Échoue si la taxonomie ne décrit plus le catalogue — geste MANUEL ; le blocage vient de tests/test_the_error_class_families_only_improve.py
-	@python3 tools/dev/error_class_families.py --check
-
 error-debt: ## Les classes à payer d'abord (récidivées sans garde auto-prouvant, puis cause inconnue) + plafonds resserrables
 	@# La dette du catalogue était FIGÉE : 306 gardes non prouvés et 140 causes inconnues,
 	@# inchangés sur six commits (mesuré 2026-09-25). Les cliquets empêchent la hausse ;
 	@# ceci propose la baisse. Aucun plafond n'est resserré automatiquement (code-critic).
 	@python3 tools/dev/error_debt.py $(or $(N),10)
 
-error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class-health.{json,md}
+error-health: ## Santé du catalogue → .claude/dev-docs/error-class-health.{json,md} (à la demande, non versionnés — R345) + range le catalogue
 	@# UN SEUL COMMIT depuis le 2026-09-18 — et ce qui a change vaut d'etre lu.
 	@#
 	@# Ce bloc disait « DEUX COMMITS, et ce n'est pas un defaut » : le document tirant
@@ -537,20 +520,21 @@ error-health: ## Santé du catalogue de classes → .claude/dev-docs/error-class
 	@#
 	@# Garde : tests/test_a_snapshot_survives_the_commit_of_its_source.py, trois
 	@# mutations vues rouges.
-	@# L'historique GIT de ce JSON EST la série temporelle — rien de temporel n'est
-	@# stocké dedans. Il rejoue les révisions du catalogue et compte les commits qui
-	@# AJOUTENT une ligne d'historique à une classe : une récidive mesurée, qu'aucun
-	@# champ tenu à la main ne peut contredire.
+	@# Il rejoue les révisions du catalogue et compte les commits qui AJOUTENT une ligne
+	@# d'historique à une classe : une récidive mesurée, qu'aucun champ tenu à la main ne
+	@# peut contredire. R345 : les deux documents ne sont plus versionnés ; le seul fichier
+	@# suivi que la cible écrit est l'ORDRE des blocs de `error-classes.md`.
 	@$(PYTHON) tools/dev/error_class_health.py
 
-error-health-check: ## Échoue si l'instantané de santé ne décrit plus le catalogue — LANCÉE EN CI (étape « Portes statiques ») depuis le 2026-09-18
+error-health-check: ## Échoue si le catalogue n'est pas rangé (dormantes sous le séparateur) — LANCÉE EN CI ; ne compare plus les documents (R345)
 	@$(PYTHON) tools/dev/error_class_health.py --check
 
-error-health-history: ## L'évolution d'une métrique, lue dans l'historique git du JSON
-	@# Ne stocke RIEN : stocker la série créerait une seconde définition de la même
-	@# grandeur, et ce dépôt sait ce que ça coûte.
-	@git log -L '/"recurrence": {/','/^    }/':.claude/dev-docs/error-class-health.json \
-	  --format='%C(yellow)%h %ad%Creset' --date=short | head -200
+error-health-history: ## L'évolution des trous du catalogue, recalculée depuis son historique git
+	@# Ne stocke RIEN. R345 : la série était l'historique git du JSON versionné ; elle se
+	@# recalcule depuis les révisions du catalogue (`holes_of`, champs déclarés seuls). La
+	@# série de RÉCIDIVE d'avant le 2026-10-04 reste dans
+	@# `git log -p -- .claude/dev-docs/error-class-health.json`.
+	@python3 tools/dev/error_debt_trend.py --series $(or $(N),60)
 
 error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="..."
 	@test -n "$(FP)" || { echo "❌ FP manquant. Ex: make error-resolve FP=a1b2c3d4e5f6 NOTE=\"corrigé par …\""; exit 1; }
@@ -714,11 +698,6 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@python3 .claude/scripts/usage_report.py --check
 	@python3 .claude/scripts/audit_runner.py --prose
 	@python3 .claude/scripts/audit_runner.py --coverage
-	@# ⚠️ Ajoute le 2026-09-16 : le plan de R122 disait « `error-health-check`
-	@# entre dans `make config-check` pour la boucle locale », et il n'y etait pas.
-	@# Une etape annoncee et non cablee se lit comme une etape qui tourne — c'est
-	@# `a-runbook-that-names-a-command-nobody-can-run`, un cran plus haut.
-	@python3 tools/dev/error_class_health.py --check
 	@# ⚠️ `audit_runner --fields` a ete RETIRE d'ici le 2026-09-16, et pas rendu vert.
 	@# Le commentaire qui le justifiait (« RED on 29/29 legacy classes ») etait PERIME :
 	@# le catalogue porte `<!-- fields-ratchet: 0 -->` depuis longtemps, la dette est a
@@ -731,6 +710,8 @@ config-check: ## Check the .claude/ config itself: dangling paths, class schema,
 	@# ecrire, par `tests/test_every_error_class_is_complete.py`.
 	@#
 	@# `--fields --strict` reste disponible a la main.
+	@# Rangement du catalogue (R345 : ne compare plus de documents — ils ne sont plus
+	@# versionnes). Un seul appel : il y en avait deux, dont un sous python3 nu.
 	@$(PYTHON) tools/dev/error_class_health.py --check
 
 # Prod connection for schema-check (override on the CLI; not committed to keep the

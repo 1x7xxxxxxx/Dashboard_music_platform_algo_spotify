@@ -2,7 +2,8 @@
 """Has the error-class debt moved in the last N days? Exit 1 when it has not.
 
 Type: Utility
-Uses: git history of .claude/dev-docs/error-class-health.json (its history IS the series)
+Uses: git history of .claude/dev-docs/error-classes.md + error_class_health.holes_of (R345:
+      the series is recomputed from the catalogue, the JSON is no longer versioned)
 Triggers: .github/workflows/security-nightly.yml, job `debt-trend`
 Persists in: nothing
 
@@ -13,28 +14,30 @@ of the tracked counters fell over the window, the debt is frozen, and a frozen d
 state R169 was opened to end.
 
     python3 tools/dev/error_debt_trend.py [days]     (default 14)
+    python3 tools/dev/error_debt_trend.py --series [N]   the holes at the last N catalogue
+                                                         revisions (make error-health-history)
 """
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
-_FILE = ".claude/dev-docs/error-class-health.json"
+_FILE = ".claude/dev-docs/error-classes.md"
 TRACKED = ("guard_does_not_prove_itself", "cause_unknown", "seen_red_unknown")
 
 
 def _holes_at(rev: str) -> dict | None:
+    """The hole counters of the catalogue AS IT WAS at `rev` — declared fields only, no
+    replay. ⚠️ `guards_ref_missing` reads guard files on TODAY's disk: it is not tracked."""
     r = subprocess.run(["git", "-C", str(_ROOT), "show", f"{rev}:{_FILE}"],
                        capture_output=True, text=True)
     if r.returncode != 0:
         return None
-    try:
-        return json.loads(r.stdout).get("aggregate", {}).get("holes") or None
-    except ValueError:
-        return None
+    sys.path.insert(0, str(_ROOT / "tools" / "dev"))
+    import error_class_health as h
+    return h.holes_of(h._declared(r.stdout.replace("\r\n", "\n"))) or None
 
 
 def _rev_before(days: int) -> str | None:
@@ -60,7 +63,20 @@ def frozen(then: dict, now: dict) -> bool:
     return bool(common) and all(now[k] >= then[k] for k in common)
 
 
+def series(n: int) -> int:
+    """One line per catalogue revision, newest first: the tracked holes as they were."""
+    r = subprocess.run(["git", "-C", str(_ROOT), "log", f"-{n}", "--format=%h %ad",
+                        "--date=short", "--", _FILE], capture_output=True, text=True, check=True)
+    for line in r.stdout.splitlines():
+        rev = line.split()[0]
+        holes = _holes_at(rev) or {}
+        print(line, "  ".join(f"{k}={holes.get(k)}" for k in TRACKED))
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--series":
+        return series(int(sys.argv[2]) if len(sys.argv) > 2 else 60)
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 14
     rev = _rev_before(days)
     then, now = (_holes_at(rev) if rev else None), _holes_at("HEAD")

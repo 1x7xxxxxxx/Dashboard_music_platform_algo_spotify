@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: json, re
-Depends on: .claude/dev-docs/error-classes.md, error-class-health.json
+Depends on: .claude/dev-docs/error-classes.md, tools/dev/generated_cache.py (R345)
 Persists in: rien
 
 Ce qui a été mesuré (2026-09-18)
@@ -39,12 +39,19 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _CAT = ROOT / ".claude" / "dev-docs" / "error-classes.md"
-_SANTE = ROOT / ".claude" / "dev-docs" / "error-class-health.json"
+
+
+def _sante() -> dict:
+    """R345 : la santé calculée pour CET arbre (cache partagé), plus un JSON versionné."""
+    sys.path.insert(0, str(ROOT / "tools" / "dev"))
+    import generated_cache
+    return generated_cache.health_payload()["classes"]
 _HEAD = re.compile(r"^## ([a-z0-9][a-z0-9-]+)\s*$")
 _SEP = "## 💤 Classes DORMANTES"
 
@@ -74,7 +81,7 @@ def _dormante(c: dict) -> bool:
 def test_no_identifier_was_lost_in_the_move() -> None:
     """La peur d'un déplacement de 206 blocs, et la seule qui compte."""
     du_catalogue = {cid for cid, _ in _blocs()}
-    de_la_sante = set(json.loads(_SANTE.read_text(encoding="utf-8"))["classes"])
+    de_la_sante = set(_sante())
     perdues = de_la_sante - du_catalogue
     assert not perdues, (
         f"{len(perdues)} classe(s) présentes dans l'instantané de santé et ABSENTES du "
@@ -101,12 +108,12 @@ def test_every_class_after_the_separator_still_meets_the_criterion() -> None:
     """Le critère reste MÉCANIQUE — il ne devient pas un tiroir où l'on range à la main.
 
     C'est le risque réel d'une section « dormantes » : qu'on y pousse une classe gênante
-    plutôt qu'une classe endormie. Le verdict vient de `error-class-health.json`, que
-    personne ne rédige.
+    plutôt qu'une classe endormie. Le verdict vient de la santé calculée (`make error-health`),
+    que personne ne rédige.
     """
     texte = _CAT.read_text(encoding="utf-8")
     apres = texte[texte.index(_SEP):]
-    sante = json.loads(_SANTE.read_text(encoding="utf-8"))["classes"]
+    sante = _sante()
     rangees = [m.group(1) for b in re.split(r"(?m)^(?=## )", apres)[1:]
                for m in [_HEAD.match(b.split("\n", 1)[0])] if m]
     assert rangees, "la section dormante est vide"
@@ -223,7 +230,7 @@ def test_the_ranking_is_a_fixed_point() -> None:
     une = outil.rank_catalogue(_catalogue_jouet(), _RECS)
     assert outil.rank_catalogue(une, _RECS) == une
     reel = _CAT.read_text(encoding="utf-8")
-    sante = json.loads(_SANTE.read_text(encoding="utf-8"))["classes"]
+    sante = _sante()
     assert outil.rank_catalogue(reel, sante) == reel, (
         "le catalogue versionné n'est pas rangé selon l'instantané versionné. "
         "Remède : make error-health.")
@@ -271,7 +278,7 @@ def test_the_header_counts_are_the_measured_counts() -> None:
 def test_no_class_above_the_separator_meets_the_criterion() -> None:
     """(d) Le sens qui manquait : une classe qui s'ENDORT doit descendre."""
     texte = _CAT.read_text(encoding="utf-8")
-    sante = json.loads(_SANTE.read_text(encoding="utf-8"))["classes"]
+    sante = _sante()
     endormies = [c for c in _ids(texte[:texte.index(_SEP)])
                  if c in sante and _dormante(sante[c])]
     assert not endormies, (

@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "dev"))
+import generated_cache  # noqa: E402
 
 _GEN = Path(__file__).resolve().parents[1] / "tools" / "dev" / "error_class_health.py"
-_DOC = Path(__file__).resolve().parents[1] / ".claude" / "dev-docs" / "error-class-health.md"
 
 
 def test_the_generator_computes_the_covered_population() -> None:
@@ -63,7 +65,7 @@ def test_the_generator_computes_the_covered_population() -> None:
 
 def test_the_document_declares_the_population_of_its_rate() -> None:
     """L'EFFET : le document rendu doit porter la déclaration, pas seulement le code."""
-    doc = _DOC.read_text(encoding="utf-8")
+    doc = generated_cache.health_doc()
     assert "% du catalogue" in doc and "by_scope" in doc, (
         "`error-class-health.md` ne déclare plus sur quelle part du catalogue porte la "
         "strate `by_scope`. Le taux redevient citable comme s'il décrivait toutes les "

@@ -107,3 +107,5 @@ logs/
 
 # Archived legacy code (not part of the build)
 archive/
+
+.generated-cache/

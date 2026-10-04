@@ -134,3 +134,12 @@ docs/streamlytics-architecture-et-qualite-des-donnees.pdf
 # R203 (2026-09-26): review dossiers built on real artist data — local only, never committed.
 revue/
 .claude/dev-docs/architecture/benchmark.md
+
+# R345 (2026-10-04): generated measurement documents — generated on demand, never versioned
+# (make error-health / error-families / gold-coverage). Guard:
+# tests/test_generated_documents_are_not_versioned.py
+.claude/dev-docs/error-class-health.md
+.claude/dev-docs/error-class-health.json
+.claude/dev-docs/error-class-families.md
+.claude/dev-docs/gold-coverage.md
+.generated-cache/
