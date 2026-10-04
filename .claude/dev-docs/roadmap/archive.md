@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R345 — Documents générés À LA DEMANDE, plus versionnés : `error-class-health.{md,json}`, `erro… (livrée 2026-10-04)
+
+- [x] **R345 — Documents générés À LA DEMANDE, plus versionnés : `error-class-health.{md,json}`, `error-class-families.md`, `gold-coverage.md`. Mesuré le 2026-10-04 : 302 commits sur 652 depuis le 20/09 (46 %) en touchent un, 15 646 lignes de churn, AUCUN hook/commande/agent ne les lit, et leur péremption est le premier rouge récurrent du journal des défauts (15, 8, 2 retours). Les cliquets restent — calculés sur l'arbre au lieu d'un fichier commité ; la série temporelle d'`error-health` se recalcule depuis l'historique du catalogue. `error-inbox.md` reste (3 commits, source = base)** (P4) ✅ (2026-10-04, 235d9b84, b7cb7183)
+  Mesuré par : `git ls-files .claude/dev-docs/ \
+  4 documents de mesure sortis de git (ADR-031) ; cliquets calcules sur l'arbre via generated_cache.py ; 2 cibles --check, 1 hook pre-commit et 2 tests de fraicheur retires ; check_config_refs juge ce que git versionne. CI verte 235d9b84.
+  Commits : 235d9b84 R345 : check_config_refs juge ce que git versionne, pas le disque · b7cb7183 R345 : documents de mesure generes a la demande, non versionnes (ADR-0
+
 ## ✅ R344 — Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 sympt… (livrée 2026-10-04)
 
 - [x] **R344 — Le journal des défauts (R315) n'a rien enregistré de la séance du 2026-10-04 : 24 symptômes rejoués, 0 écrit. Au PREMIER Stop d'une séance, une transcription > 2 Mo fait sauter `defect_capture` à la fin — or une séance `/goal` ou reprise après compaction fait un seul tour long, donc son premier Stop arrive tard et tout est perdu. Lire depuis le début quand la séance est née après R315 ; garde muté ; `--backfill` du jour** (P3) ✅ (2026-10-04, 481b8fac)

@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R345 | Documents générés À LA DEMANDE, plus versionnés : `error-class-health.{md,json}`, `error-class-families.md`, `gold-coverage.md`. Mesuré le 2026-10-04 : 302 commits sur 652 depuis le 20/09 (46 %) en touchent un, 15 646 lignes de churn, AUCUN hook/commande/agent ne les lit, et leur péremption est le premier rouge récurrent du journal des défauts (15, 8, 2 retours). Les cliquets restent — calculés sur l'arbre au lieu d'un fichier commité ; la série temporelle d'`error-health` se recalcule depuis l'historique du catalogue. `error-inbox.md` reste (3 commits, source = base) <!-- critic: requis — retire des barrières CI (gate) ; BUILD-MODIFIED 2026-10-04 : clone superficiel = erreur levée (plus de comparaison pour le rendre rouge), cache de calcul clé par l'arbre (xdist), `except` de `_recurrence_by_class` retiré, signatures du catalogue lisant le JSON réécrites --> <!-- scope: .gitignore, Makefile, CLAUDE.md, .pre-commit-config.yaml, .github/workflows/ci.yml, .github/workflows/security-nightly.yml, tools/dev/error_class_health.py, tools/dev/error_class_families.py, tools/dev/gold_coverage.py, tools/dev/error_class_metrics.py, tools/dev/error_debt.py, tools/dev/error_debt_trend.py, tools/dev/reopen_check.py, tools/dev/night_run.py, tests/, .claude/dev-docs/, docs/adr/, src/utils/metric_registry.py, .test_durations, tools/dev/probe_error_management.py, tools/dev/generated_cache.py, .claude/scripts/, tools/deploy.sh, .dockerignore --> | P4 | `git ls-files .claude/dev-docs/ \| grep -cE 'error-class-(health\|families)\|gold-coverage'` = 0 ; cliquets mutés rouges ; CI verte |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-09-25 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R345, R283, R275 -->
+<!-- reprise: open=R283, R275 -->
 
 **État au 2026-09-26** : les tâches ouvertes sont celles de l'index ci-dessus ; R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
