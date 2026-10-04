@@ -46,6 +46,12 @@ def test_the_hook_is_registered_and_prints_the_banner(tmp_path) -> None:
     settings = json.loads((_ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
     commands = [h["command"] for e in settings["hooks"]["SessionStart"] for h in e["hooks"]]
     assert any("session_start.py" in c for c in commands)
-    out = subprocess.run([sys.executable, str(_HOOK)], cwd=_ROOT, capture_output=True,
-                         text=True, timeout=30).stdout
+    # R363: run in a throwaway root — with cwd=_ROOT the hook overwrote the real session
+    # marker (`.session-start-ts`) and imported the cron logs into the real defect log.
+    journal = tmp_path / ".claude" / "dev-docs" / "ops-mail-journal.md"
+    journal.parent.mkdir(parents=True)
+    journal.write_text("| 2026-10-04 | a |\n", encoding="utf-8")
+    out = subprocess.run([sys.executable, str(_HOOK)], cwd=tmp_path, capture_output=True,
+                         text=True, timeout=30, stdin=subprocess.DEVNULL).stdout
     assert "from:noreply@streamlytics.fr" in out
+    assert (tmp_path / ".claude" / "sessions" / ".session-start-ts").exists()

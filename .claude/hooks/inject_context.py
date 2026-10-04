@@ -179,8 +179,10 @@ def main() -> None:
         if content:
             blocks.append(content)
             injected.append(f"{folder}/{filename}")
-    if injected:
-        log_injection(injected, str(data.get("session_id", "")))
+    # R363: Claude Code always sends a session_id. A payload without one is a test or a
+    # hand run — logging it counted fake injections as real usage (3 pairs, 2026-10-04).
+    if injected and data.get("session_id"):
+        log_injection(injected, str(data["session_id"]))
 
     if blocks:
         print("\n".join(blocks))

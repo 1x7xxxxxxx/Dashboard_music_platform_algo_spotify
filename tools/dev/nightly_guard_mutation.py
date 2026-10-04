@@ -95,6 +95,10 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — `_answer` sans la date du dernier retour propre → 1 rouge ; padding CLI d'origine → 1 rouge",
     "tests/test_rex_validation_reads_only_tracked_files.py":
         "2026-10-04 — filtre `visible` retiré de `_iter_files` → 1 rouge ; `_git_visible` rendant set() hors dépôt → 1 rouge",
+    "tests/test_tests_never_write_the_real_measurement_logs.py":
+        "2026-10-04 — condition `session_id` retirée d'inject_context.main → 1 rouge ; `nr.JOURNAL` rétabli dans close_night_unit → 1 rouge",
+    "tests/test_every_session_starts_by_reading_the_ops_mails.py":
+        "2026-10-04 — hook relancé avec cwd=_ROOT → 1 rouge (marqueur absent du tmp)",
 }
 
 

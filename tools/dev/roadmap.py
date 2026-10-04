@@ -166,7 +166,9 @@ def close_night_unit(tid: str, note: str | None, journal: Path | None = None) ->
         "night_run", Path(__file__).resolve().parent / "night_run.py")
     nr = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(nr)
-    path = journal or nr.JOURNAL
+    # R363: the journal follows ROOT (moved by ROADMAP_ROOT in tests); `nr.JOURNAL` did
+    # not, so a test closing R900 would have appended to the real night journal.
+    path = journal or ROOT / ".claude" / "dev-docs" / "roadmap" / "night-run.jsonl"
     entries = []
     if path.exists():
         entries = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
