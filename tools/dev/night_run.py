@@ -47,6 +47,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 ROADMAP = REPO / ".claude" / "dev-docs" / "roadmap" / "checklist.md"
+ARCHIVE = REPO / ".claude" / "dev-docs" / "roadmap" / "archive.md"
 JOURNAL = REPO / ".claude" / "dev-docs" / "roadmap" / "night-run.jsonl"
 PROTOCOL = REPO / ".claude" / "dev-docs" / "roadmap" / "night-run.md"
 
@@ -152,15 +153,26 @@ def _open_tasks() -> list[tuple[str, str, str]]:
     return rows
 
 
+def _archived_ids() -> set[str]:
+    """Les tâches archivées (`## ✅ Rnnn`) — closes, quel que soit le geste qui les a closes."""
+    if not ARCHIVE.exists():
+        return set()
+    return set(re.findall(r"^## ✅ (R\d+)", ARCHIVE.read_text(encoding="utf-8"), re.M))
+
+
 def _current_unit(entries: list[dict]) -> dict | None:
     """La dernière unité `start` qu'aucun `done`/`park` DE LA MÊME TÂCHE n'a refermée.
+
+    R339 (2026-10-04) : une tâche ARCHIVÉE n'est plus en cours, `done` ou pas. Une
+    fermeture par lot (71f7fd08, R321-R334) ne passe pas par `roadmap-close`, n'écrit
+    donc pas de `done`, et R323 s'est affichée « EN COURS » cinq jours après sa livraison.
 
     ⚠️ Ceci sortait au premier `done`/`park` rencontré, **quelle que soit sa tâche**.
     `start R124` puis `done R99` rendait « aucune unité ouverte » alors que R124
     courait toujours — et l'invariant des 3 h de `night-check` ne pouvait plus
     la voir. Le journal porte un champ `task` ; il suffisait de le lire.
     """
-    closed: set[str] = set()
+    closed: set[str] = set(_archived_ids())
     for entry in reversed(entries):
         task = entry.get("task")
         kind = entry.get("kind")

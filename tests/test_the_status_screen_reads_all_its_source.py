@@ -90,15 +90,33 @@ def test_the_section_slice_is_anchored_at_a_line_start() -> None:
         f"(vu {ids}) — c'est `a-document-slice-bounded-by-the-wrong-heading-level`")
 
 
-def test_a_closing_entry_only_closes_its_own_task() -> None:
+def test_a_closing_entry_only_closes_its_own_task(tmp_path, monkeypatch) -> None:
     """`start R1` puis `done R2` laisse R1 ouverte."""
     mod = _night_run()
+    monkeypatch.setattr(mod, "ARCHIVE", tmp_path / "absent.md")
     journal = [{"kind": "start", "task": "R1", "what": "en cours"},
                {"kind": "done", "task": "R2", "what": "autre tache"}]
     unit = mod._current_unit(journal)
     assert unit is not None and unit["task"] == "R1", (
         "un `done` sur une AUTRE tâche referme l'unité ouverte : l'invariant des 3 h "
         f"de `night-check` ne la voit plus (vu {unit})")
+
+
+def test_an_archived_task_is_not_in_progress(tmp_path, monkeypatch) -> None:
+    """R339 : `start R323` sans `done`, mais R323 archivée — pas « EN COURS ».
+
+    Une fermeture par lot ne passe pas par `roadmap-close` et n'écrit pas de `done` ;
+    R323 s'est affichée en cours cinq jours après sa livraison.
+    """
+    mod = _night_run()
+    archive = tmp_path / "archive.md"
+    archive.write_text("## ✅ R323 — x (livrée 2026-09-29)\n", encoding="utf-8")
+    monkeypatch.setattr(mod, "ARCHIVE", archive)
+    journal = [{"kind": "start", "task": "R322", "what": "ouverte"},
+               {"kind": "start", "task": "R323", "what": "livrée par lot"}]
+    unit = mod._current_unit(journal)
+    assert unit is not None and unit["task"] == "R322", (
+        f"une tâche archivée reste affichée en cours (vu {unit})")
 
 
 def test_git_unavailable_is_not_a_clean_tree() -> None:

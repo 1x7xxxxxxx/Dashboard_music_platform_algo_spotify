@@ -10967,6 +10967,7 @@
     "tests/test_the_spotify_page_shows_and_says_less.py::test_the_wrapped_reads_as_a_folded_yearly_table_not_charts": 0.08130936196539551,
     "tests/test_the_spotify_page_shows_and_says_less.py::test_what_is_read_together_sits_together": 0.006835908001448843,
     "tests/test_the_status_screen_reads_all_its_source.py::test_a_closing_entry_only_closes_its_own_task": 0.002113264999934472,
+    "tests/test_the_status_screen_reads_all_its_source.py::test_an_archived_task_is_not_in_progress": 0.08638089100003299,
     "tests/test_the_status_screen_reads_all_its_source.py::test_an_index_row_without_a_priority_is_still_seen": 0.002017468998019467,
     "tests/test_the_status_screen_reads_all_its_source.py::test_an_unreadable_timestamp_does_not_disarm_the_thresholds": 0.002426445998935378,
     "tests/test_the_status_screen_reads_all_its_source.py::test_every_roadmap_reader_names_both_index_tables": 0.001781519998985459,
