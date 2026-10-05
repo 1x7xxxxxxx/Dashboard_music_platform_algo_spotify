@@ -2154,3 +2154,19 @@ de test ; seul le coupon live va en prod.
 
 **Vérification live** : au premier vrai parrainage, dans « 📊 Referral KPIs », la ligne du parrain passe `pending` →
 `applied` ; sur sa facture suivante dans Stripe, la remise de 100 % apparaît.
+
+## 40. R406 — Deux décisions de tarif (Vue croisée, aperçu algo) · P3
+
+**Pourquoi** : deux demandes de ta revue d'écrans du 2026-10-05 déplaceraient une
+fonction Premium vers le plan gratuit. Le reste de R399 et de R381 se construit sans elles.
+
+- **(1) La tranche d'âge qui clique le moins cher** — aujourd'hui dans l'Optimiseur CPR
+  (Premium). La rapatrier dans la Vue croisée la rend gratuite. Ma reco : **oui**, c'est
+  une lecture de tes propres pubs, pas une prédiction du modèle.
+- **(2) Un SHAP des valeurs imputées dans l'aperçu gratuit** — montre quelles valeurs le
+  modèle a dû deviner faute de saisie. Ma reco : **oui, sans les contributions** (la liste
+  des valeurs manquantes seulement), ce qui pousse à la saisie sans donner le verdict.
+
+1. Réponds dans le fil : « 1 oui, 2 non », par exemple.
+
+**Vérification** : ta réponse dans le fil ; une ligne Rnnn par « oui ».
