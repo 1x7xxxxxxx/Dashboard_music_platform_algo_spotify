@@ -89,10 +89,12 @@ def show():
               "(Chaque nouvel inscrit reçoit aussi **30 jours de Premium** "
               "automatiquement, parrainage ou non.)")
         )
-        with st.expander(t("referral.code_alone", "Juste le code, pour le dire à l'oral")):
-            st.code(code, language=None)
-            st.caption(t("referral.code_caption",
-                         "Code **unique** et permanent attribué à ton compte."))
+        # V88 (2026-10-05) : le code se lit sous le lien, sans dépliant — replié, il
+        # fallait savoir qu'il existait pour aller le chercher.
+        st.caption(t("referral.code_alone", "Ou juste le code, pour le dire à l'oral :"))
+        st.code(code, language=None)
+        st.caption(t("referral.code_caption",
+                     "Code **unique** et permanent attribué à ton compte."))
 
         st.markdown("---")
 

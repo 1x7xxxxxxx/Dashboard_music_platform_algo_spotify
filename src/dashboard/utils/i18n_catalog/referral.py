@@ -7,7 +7,7 @@ EN = {
         "referee gets **20% off their first paid month**, and you earn **1 free "
         "month** when they subscribe. (Every new signup also gets **30 days of "
         "Premium** automatically, referral or not.)"),
-    "referral.code_alone": "Just the code, to say out loud",
+    "referral.code_alone": "Or just the code, to say out loud:",
     "referral.title": "🎁 Referral Program",
     "referral.caption": "Share your code — earn 1 free month for each artist who "
                         "subscribes with it.",
