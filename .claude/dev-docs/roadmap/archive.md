@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R405 — Vue algo — 4/4 (V73, V74) : la page absorbe Paramètres de mes campagnes et Prévisions r… (livrée 2026-10-05)
+
+- [x] **R405 — Vue algo — 4/4 (V73, V74) : la page absorbe Paramètres de mes campagnes et Prévisions revenus (+ « où j'en suis vs somme des dépenses ») — anciennes clés gardées en ALIAS vers leur section (liens de mails/PDF) ; « Résultats réalisés » et « Le pari du modèle » PARTAGÉS par module (la saisie S4A est Free, la vue algo Premium — ne pas les enfermer derrière le paywall) ; section Premium = Aperçu + cette vue ; le plafond de `revenue_forecast.py` (15) retiré, pas transféré** (P3) ✅ (2026-10-05, ed7bd948, 42560c61, 72656ca7)
+  Mesuré par : section Premium = 2 entrées ; `test_every_route_resolves` vert sur chaque ancienne clé ; un lien profond par ancienne clé ouvre sa section
+  Vue algo 4/4 : argent et réglages Meta absorbés (sections), 9 liens d'alias réparés (resolve_alias dans app.py ET goto, garde muté 4×), MRR → Facturation, LTV admin seulement, figure V73 retirée, résultats réalisés partagés avec Saisie S4A (Free), CPR Premium jusqu'à R381/R406. CI verte sur ed7bd948.
+  Commits : ed7bd948 R405 : le rendu « montre ou dit pourquoi » vise trigger_algo, plus rev · 42560c61 R405 : vue algo 4/4 — argent et réglages Meta absorbés, liens d'alias  · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R404 — Vue algo — 3/4 (V65, V67-V69) : Budget & ROI en graphiques ; « valeurs qui déclencherai… (livrée 2026-10-05)
 
 - [x] **R404 — Vue algo — 3/4 (V65, V67-V69) : Budget & ROI en graphiques ; « valeurs qui déclencheraient » sur 2 titres en graphiques ; noms de playlist en pastilles** (P3) ✅ (2026-10-05, bea715b0, 72656ca7)
