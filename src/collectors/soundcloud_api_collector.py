@@ -169,17 +169,14 @@ class SoundCloudCollector:
         new_rt = data.get('refresh_token')
         if new_rt and new_rt != self.refresh_token:
             self.refresh_token = new_rt
-            try:
-                from src.utils.credential_loader import update_platform_secret
-                update_platform_secret(
-                    self.artist_id, 'soundcloud', 'refresh_token', new_rt
-                )
-                logger.info("SoundCloud refresh_token rotated and persisted.")
-            except Exception as e:
-                logger.warning(
-                    "SoundCloud refresh_token rotated but NOT persisted (%s) — "
-                    "next run will fail until re-connected.", safe_error(e)
-                )
+            # R398 (c): RAISE, never warn. SoundCloud revoked the old token when it
+            # issued this one; a token not stored is the connection lost. The warning
+            # left the task green and the NEXT run failed, pointing nowhere. The error
+            # is a PermanentFailure, so `@retry` does not rerun — a retry would succeed
+            # on the in-memory token and hide the loss again.
+            from src.utils.credential_loader import update_platform_secret
+            update_platform_secret(self.artist_id, 'soundcloud', 'refresh_token', new_rt)
+            logger.info("SoundCloud refresh_token rotated and persisted.")
         logger.info("SoundCloud user token obtained (expires in %ds).", expires_in)
 
     def _ensure_token(self) -> None:

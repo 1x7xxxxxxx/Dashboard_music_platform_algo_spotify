@@ -219,6 +219,8 @@ _RAISING_IO_BOUNDARIES = frozenset({
     "load_platform_credentials",   # CredentialLoadError — le magasin est illisible
     "get_active_artists",          # même module, même mode d'échec
     "resolve_kwargs",              # pg_connect — configuration de connexion absente
+    "update_platform_secret",      # R398 : un secret non stocké lève ; meta_token_refresh
+                                   # l'ajoute à `failed` par artiste puis lève en fin de tâche
 })
 
 

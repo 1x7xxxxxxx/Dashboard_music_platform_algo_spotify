@@ -19,7 +19,7 @@ from typing import Optional
 import jwt
 from passlib.context import CryptContext
 
-from src.utils.login_lockout import LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, record_password_failure
+from src.utils.login_lockout import LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, claim_login_attempt
 
 _env_secret = os.getenv("API_SECRET_KEY", "")
 if len(_env_secret) >= 32:
@@ -110,8 +110,11 @@ def authenticate_api_user(db, username: str, password: str):
     if pw_hash is None:
         return None, "invalid_credentials"
 
+    # R398 (a): counted BEFORE bcrypt, atomically, only while unlocked — the read above
+    # came with the user row, and a parallel burst all read « not locked ».
+    if not claim_login_attempt(db, uid):
+        return None, "locked"
     if not verify_password(password, pw_hash):
-        record_password_failure(db, uid)
         return None, "invalid_credentials"
 
     # R370 (audit) : avec la 2FA, le mot de passe seul ne remet PAS le compteur à zéro —

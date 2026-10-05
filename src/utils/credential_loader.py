@@ -11,6 +11,7 @@ import logging
 import os
 
 from src.utils.tenant_kind import EXCLUDE_NON_HUMAN
+from src.utils.failure_kinds import PermanentFailure
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,10 @@ def load_platform_credentials(artist_id: int, platform: str) -> dict:
         ) from e
 
 
+class SecretNotPersistedError(PermanentFailure, RuntimeError):
+    """`update_platform_secret` could not store the new secret (R398 c)."""
+
+
 def update_platform_secret(artist_id: int, platform: str,
                            secret_key: str, new_value: str,
                            expires_at=None) -> None:
@@ -159,7 +164,11 @@ def update_platform_secret(artist_id: int, platform: str,
 
     Decrypts the existing blob, updates secret_key with new_value, re-encrypts,
     and writes back. Optionally updates expires_at.
-    Requires FERNET_KEY in environment. No-op if row does not exist.
+
+    Raises SecretNotPersistedError on EVERY refusal — no FERNET_KEY, no row, an
+    unreadable blob, a lock timeout. It used to log a warning and return None, so a
+    SoundCloud refresh_token (rotated on each use, the old one revoked) was lost while
+    the task stayed green; the next run failed with nothing pointing here (R398 c).
 
     Usage (e.g. after auto-refreshing a Meta access_token):
         update_platform_secret(1, 'meta', 'access_token', new_token,
@@ -167,62 +176,64 @@ def update_platform_secret(artist_id: int, platform: str,
     """
     import json
 
+    where = f"artist={artist_id} platform={platform}"
     fernet_key = os.getenv('FERNET_KEY', '')
     if not fernet_key:
-        logger.warning("update_platform_secret: FERNET_KEY not set — skipping.")
-        return
+        raise SecretNotPersistedError(f"update_platform_secret: FERNET_KEY not set ({where})")
 
+    from cryptography.fernet import Fernet
+    f = Fernet(fernet_key.encode())
+
+    # R370 (c): read, change one key and write back in ONE transaction, the row
+    # locked `FOR UPDATE`. In autocommit, the Meta token refresh and the Instagram
+    # rotation each wrote a blob holding only their own key — the other was lost.
     try:
-        from cryptography.fernet import Fernet
-        f = Fernet(fernet_key.encode())
-
-        # R370 (c): read, change one key and write back in ONE transaction, the row
-        # locked `FOR UPDATE`. In autocommit, the Meta token refresh and the Instagram
-        # rotation each wrote a blob holding only their own key — the other was lost.
         conn = _connect(autocommit=False)
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SET LOCAL lock_timeout = '10s'")
-                cur.execute(
-                    "SELECT token_encrypted FROM artist_credentials "
-                    "WHERE artist_id = %s AND platform = %s FOR UPDATE",
-                    (artist_id, platform)
-                )
-                row = cur.fetchone()
-                if not row:
-                    logger.warning(f"update_platform_secret: no row for artist={artist_id} platform={platform}")
-                    conn.rollback()
-                    return
-                secrets = {}
-                if row[0]:
-                    try:
-                        secrets = json.loads(f.decrypt(row[0].encode()).decode())
-                    except Exception:
-                        # ABORT, never `secrets = {}`: rewriting an unreadable blob as
-                        # `{key: value}` erased every other secret of the row.
-                        logger.warning(
-                            "update_platform_secret: stored blob unreadable for "
-                            f"artist={artist_id} platform={platform} — not overwritten")
-                        conn.rollback()
-                        return
-                secrets[secret_key] = new_value
-                new_blob = f.encrypt(json.dumps(secrets).encode()).decode()
-                cur.execute(
-                    "UPDATE artist_credentials SET token_encrypted = %s, "
-                    "expires_at = COALESCE(%s, expires_at), updated_at = NOW() "
-                    "WHERE artist_id = %s AND platform = %s",
-                    (new_blob, expires_at, artist_id, platform)
-                )
-            conn.commit()
-        finally:
-            conn.close()  # an uncommitted transaction is rolled back by close()
-        # INFO-02: use DEBUG to avoid leaking secret key names in shared Airflow logs
-        logger.debug(
-            f"update_platform_secret: token updated for artist={artist_id} platform={platform}"
-            + (f" expires_at={expires_at}" if expires_at else "")
-        )
     except Exception as e:
-        logger.warning(f"update_platform_secret: failed — {e}")
+        raise SecretNotPersistedError(
+            f"update_platform_secret: DB unreachable ({where}) — {type(e).__name__}") from e
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET LOCAL lock_timeout = '10s'")
+            cur.execute(
+                "SELECT token_encrypted FROM artist_credentials "
+                "WHERE artist_id = %s AND platform = %s FOR UPDATE",
+                (artist_id, platform)
+            )
+            row = cur.fetchone()
+            if not row:
+                raise SecretNotPersistedError(f"update_platform_secret: no row ({where})")
+            secrets = {}
+            if row[0]:
+                try:
+                    secrets = json.loads(f.decrypt(row[0].encode()).decode())
+                except Exception as e:
+                    # ABORT, never `secrets = {}`: rewriting an unreadable blob as
+                    # `{key: value}` erased every other secret of the row.
+                    raise SecretNotPersistedError(
+                        f"update_platform_secret: stored blob unreadable ({where}) "
+                        "— not overwritten") from e
+            secrets[secret_key] = new_value
+            new_blob = f.encrypt(json.dumps(secrets).encode()).decode()
+            cur.execute(
+                "UPDATE artist_credentials SET token_encrypted = %s, "
+                "expires_at = COALESCE(%s, expires_at), updated_at = NOW() "
+                "WHERE artist_id = %s AND platform = %s",
+                (new_blob, expires_at, artist_id, platform)
+            )
+        conn.commit()
+    except SecretNotPersistedError:
+        raise
+    except Exception as e:  # lock_timeout, a dropped connection: the write did not happen
+        raise SecretNotPersistedError(
+            f"update_platform_secret: write failed ({where}) — {type(e).__name__}") from e
+    finally:
+        conn.close()  # an uncommitted transaction is rolled back by close()
+    # INFO-02: use DEBUG to avoid leaking secret key names in shared Airflow logs
+    logger.debug(
+        f"update_platform_secret: token updated for {where}"
+        + (f" expires_at={expires_at}" if expires_at else "")
+    )
 
 
 def save_platform_credentials(artist_id: int, platform: str, extra_updates: dict) -> None:

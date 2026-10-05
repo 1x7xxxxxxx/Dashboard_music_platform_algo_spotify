@@ -220,7 +220,12 @@ SEEN_RED: dict[str, str] = {
         "(« home.py calls render_meta_advice again »)",
     "tests/test_the_login_lockout_counts_every_failure.py":
         "2026-10-05 — record_password_failure en lecture-puis-écriture (mise à jour perdue) "
-        "→ rouge (« 1 comptés + 0 refusés verrouillés ≠ 8 »)",
+        "→ rouge (« 1 comptés + 0 refusés verrouillés ≠ 8 ») ; remplacé par "
+        "claim_login_attempt (R398)",
+    "tests/test_a_locked_account_checks_nothing.py":
+        "2026-10-05 — claim_login_attempt sans la clause `locked_until` du WHERE → rouge "
+        "(« ran bcrypt 12 times ») ; le contrôle du verrou retiré de _show_totp_challenge "
+        "→ rouge (« cleared the lock ») ; le `raise` du collecteur rendu en warning → rouge",
 }
 
 

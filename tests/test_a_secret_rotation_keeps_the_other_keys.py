@@ -103,12 +103,14 @@ def test_two_concurrent_rotations_keep_both_keys(tenant_row, monkeypatch) -> Non
 
 
 def test_an_undecryptable_blob_is_never_overwritten(tenant_row) -> None:
-    from src.utils.credential_loader import update_platform_secret
+    from src.utils.credential_loader import SecretNotPersistedError, update_platform_secret
 
     aid, _secrets, cur = tenant_row
     cur.execute("UPDATE artist_credentials SET token_encrypted = 'not-a-fernet-token' "
                 "WHERE artist_id = %s AND platform = 'meta'", (aid,))
-    update_platform_secret(aid, "meta", "access_token", "new")
+    # R398 (c): the refusal is RAISED — a None here left the caller believing it stored.
+    with pytest.raises(SecretNotPersistedError):
+        update_platform_secret(aid, "meta", "access_token", "new")
     cur.execute("SELECT token_encrypted FROM artist_credentials "
                 "WHERE artist_id = %s AND platform = 'meta'", (aid,))
     assert cur.fetchone()[0] == "not-a-fernet-token", (

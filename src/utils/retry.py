@@ -5,6 +5,7 @@ import functools
 from typing import Tuple, Type
 
 import psycopg2
+from src.utils.failure_kinds import PermanentFailure  # noqa: F401 — re-exported
 from src.utils.safe_error import safe_error
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ def retry(max_attempts: int = 3, backoff: str = "exponential", base_delay: float
 
     Les exceptions ValueError, KeyError, TypeError (erreurs de données) ne déclenchent PAS de retry.
     """
-    NON_RETRIABLE = (ValueError, KeyError, TypeError, AttributeError)
+    NON_RETRIABLE = (ValueError, KeyError, TypeError, AttributeError, PermanentFailure)
 
     def _http_verdict(exc):
         """(rejouable ?, délai imposé par le serveur) — ou (None, None) si pas du HTTP.

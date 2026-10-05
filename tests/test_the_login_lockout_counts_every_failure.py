@@ -47,7 +47,7 @@ def test_no_login_path_rewrites_the_counter_from_python() -> None:
            if (lines := rewritten_counters(p.read_text(encoding="utf-8")))}
     assert not bad, (
         f"{bad}: the failure counter is written from a value read earlier — two "
-        "concurrent wrong passwords count as one. Call record_password_failure().")
+        "concurrent wrong passwords count as one. Call claim_login_attempt().")
 
 
 def test_the_detector_sees_a_rewritten_counter() -> None:

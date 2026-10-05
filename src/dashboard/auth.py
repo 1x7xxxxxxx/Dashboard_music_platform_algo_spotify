@@ -20,7 +20,8 @@ from typing import Optional
 import bcrypt
 import streamlit as st
 from src.dashboard.utils.ui import flash
-from src.utils.login_lockout import LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, record_password_failure
+from src.utils.login_lockout import (LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, claim_login_attempt,
+                                     minutes_left)
 
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
@@ -288,9 +289,16 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
         return None, _t("auth.invalid_credentials",
                         "Identifiant ou mot de passe invalide.")
 
+    # R398 (a): the attempt is counted BEFORE bcrypt, atomically, and only while the
+    # account is unlocked. The `locked_until` read above came with the user row: a
+    # parallel burst all read « not locked » and all reached bcrypt. The claim is what
+    # bounds them; the read above only spares a locked account the UPDATE.
+    if not claim_login_attempt(db, uid):
+        return None, _t("auth.locked",
+                        "Compte verrouillé après trop de tentatives échouées. "
+                        "Réessayez dans {m} minute(s).").format(m=minutes_left(db, uid))
+
     if not verify_password(password, pw_hash):
-        # Increment failure counter; lock if threshold reached
-        record_password_failure(db, uid)
         return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
 
     # Reset the failure counter only when the password was the LAST factor owed.
@@ -413,25 +421,6 @@ def _hydrate_session(user: dict) -> None:
 # TOTP 2FA challenge (Brick 28)
 # ─────────────────────────────────────────────
 
-def _record_second_factor_failure(db, username: str) -> None:
-    """Count a wrong TOTP code against the account's lockout, like a wrong password.
-
-    The lockout in `_authenticate_user` is the only counter that survives a new
-    browser session. Leaving the second factor out of it meant an attacker holding
-    the password had unlimited attempts at the code (R26) — the account never locked,
-    because from the database's point of view nothing had failed.
-    """
-    if not username:
-        return
-    db.execute_query(
-        "UPDATE saas_users SET failed_login_attempts = failed_login_attempts + 1, "
-        "locked_until = CASE WHEN failed_login_attempts + 1 >= %s "
-        "                    THEN NOW() + make_interval(mins => %s) ELSE locked_until END "
-        "WHERE username = %s",
-        (_MAX_LOGIN_ATTEMPTS, _LOCKOUT_MINUTES, username),
-    )
-
-
 def _show_totp_challenge(db) -> None:
     """Render the TOTP verification step after password auth succeeds."""
     pending = st.session_state.get('_totp_pending')
@@ -481,6 +470,16 @@ def _show_totp_challenge(db) -> None:
                         "Trop de tentatives échouées. Réessayez dans {s} secondes."
                         ).format(s=retry_after))
             return
+        # R398 (b): the code is an attempt on the ACCOUNT too, claimed before it is
+        # checked. The challenge never re-read `locked_until`: wrong codes locked the
+        # account, yet the same pending session kept submitting, and the right code
+        # cleared the lock. A locked account now ends the challenge.
+        if not claim_login_attempt(db, pending['id']):
+            st.session_state.pop('_totp_pending', None)
+            st.error(_t("auth.locked",
+                        "Compte verrouillé après trop de tentatives échouées. "
+                        "Réessayez dans {m} minute(s).").format(m=minutes_left(db, pending['id'])))
+            return
         try:
             import pyotp
             totp = pyotp.TOTP(pending['totp_secret'])
@@ -505,10 +504,7 @@ def _show_totp_challenge(db) -> None:
             else:
                 # Le budget a déjà été consommé plus haut, avant la vérification.
                 _rate_record_failure()
-                # A wrong code is a failed login for the ACCOUNT too, so it walks
-                # toward the same 5-attempt lockout a wrong password does. Without
-                # this the only counter that moved was the one in this session.
-                _record_second_factor_failure(db, pending.get('username', ''))
+                # The ACCOUNT counter already moved: the claim above counted this code.
                 st.error(_t("auth.totp_invalid", "Code d'authentification invalide. Réessayez."))
         except ImportError:
             st.error(_t("auth.totp_missing_dep",

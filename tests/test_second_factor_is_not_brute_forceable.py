@@ -21,6 +21,8 @@ import pytest
 
 from tests.db_gate import requires_live_db
 
+from src.utils.login_lockout import claim_login_attempt
+
 pytestmark = requires_live_db()
 
 
@@ -89,10 +91,12 @@ def test_the_password_does_not_refund_the_lockout_budget_when_2fa_is_owed(totp_a
     db.close()
 
     assert user is not None and user["totp_enabled"], f"password step failed: {err}"
-    assert _failed_attempts(totp_account["user_id"]) == 3, (
-        "the correct password zeroed the account's failure counter while a second "
-        "factor was still owed — every wrong code could then be followed by one "
-        "cheap re-login to clear the slate"
+    # R398 (a): the password attempt is CLAIMED before bcrypt, so it is counted (3 → 4)
+    # until the code verifies; what must never happen is a reset while a code is owed.
+    assert _failed_attempts(totp_account["user_id"]) == 4, (
+        "the correct password zeroed (or refunded) the account's failure counter while "
+        "a second factor was still owed — every wrong code could then be followed by "
+        "one cheap re-login to clear the slate"
     )
 
 
@@ -103,7 +107,7 @@ def test_a_wrong_code_counts_against_the_account_not_just_the_tab(totp_account):
 
     before = _failed_attempts(totp_account["user_id"])
     db = get_db_connection()
-    dash_auth._record_second_factor_failure(db, totp_account["username"])
+    assert claim_login_attempt(db, totp_account["user_id"])
     db.close()
 
     assert _failed_attempts(totp_account["user_id"]) == before + 1, (
@@ -118,7 +122,9 @@ def test_enough_wrong_codes_lock_the_account(totp_account):
 
     db = get_db_connection()
     for _ in range(dash_auth._MAX_LOGIN_ATTEMPTS):
-        dash_auth._record_second_factor_failure(db, totp_account["username"])
+        assert claim_login_attempt(db, totp_account["user_id"])
+    assert not claim_login_attempt(db, totp_account["user_id"]), (
+        "a locked account still accepted an attempt — its code would be checked")
     locked = db.fetch_query(
         "SELECT locked_until FROM saas_users WHERE id = %s",
         (totp_account["user_id"],),
