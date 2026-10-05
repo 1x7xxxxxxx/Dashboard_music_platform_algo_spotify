@@ -3372,18 +3372,18 @@
   resume: Garder « évolution de la chaîne ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R384
+  preuve_statut: R384 (archivée) — 6e51afab
 - ligne: 53
   source: revue/notes-vocales-2026-10-05.md
   note: V39
   resume: Retirer le texte explicatif et tout texte inutile.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R384
+  preuve_statut: R384 (archivée) — 6e51afab
 - ligne: 54
   source: revue/notes-vocales-2026-10-05.md
   note: V40
@@ -3391,18 +3391,18 @@
     vidéo si obtenable.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R384
+  preuve_statut: R384 (archivée) — 6e51afab
 - ligne: 55
   source: revue/notes-vocales-2026-10-05.md
   note: V41
   resume: Proposer des graphiques YouTube plus pertinents (données sous-exploitées).
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R384
+  preuve_statut: R384 (archivée) — 6e51afab
 - ligne: 57
   source: revue/notes-vocales-2026-10-05.md
   note: V42

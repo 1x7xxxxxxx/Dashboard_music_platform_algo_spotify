@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R384 — YouTube (V38-V41) : « Évolution de la chaîne » gardée, textes explicatifs retirés ; la… (livrée 2026-10-05)
+
+- [x] **R384 — YouTube (V38-V41) : « Évolution de la chaîne » gardée, textes explicatifs retirés ; la bulle vues × likes devient un classement par ratio like/vue ; 2-3 figures de plus sur les données déjà collectées (vues gagnées par vidéo entre relevés, commentaires par vue, âge vs vues). Les abonnés gagnés PAR VIDÉO ne sont pas collectés : Data API v3 seulement — l'inventaire de l'Analytics API est R394** (P3) ✅ (2026-10-05, 6e51afab, deba6e23)
+  Mesuré par : AppTest : classement trié par ratio ; aucune figure ne somme un cumul (`cumulative-counter-drawn-as-its-own-history`)
+  CI verte sur 6e51afab — classement par ratio like/vue, vues gagnées par vidéo (dernier − premier relevé de la période), âge × vues ; étiquettes distinctes par unique_short_labels
+  Commits : 6e51afab R384 : lignes de décision régénérées pour les trois figures YouTube (m · deba6e23 R384 : YouTube — classement par ratio like/vue, vues gagnées par vidéo
+
 ## ✅ R382 — Spotify + S4A (V27, V28, V31-V34) : dépense Meta en courbe CUMULÉE sur son propre axe (… (livrée 2026-10-05)
 
 - [x] **R382 — Spotify + S4A (V27, V28, V31-V34) : dépense Meta en courbe CUMULÉE sur son propre axe (au lieu de €/jour) ; sélecteur « titres » limité à ceux qui bougent ; légende de l'indice de popularité sur le graphique ; axe secondaire de popularité borné au max observé arrondi (0-20 ici, 60 ailleurs), au lieu de 0-100 fixe ; « sorties à J égal » et Wrapped inchangés** (P3) ✅ (2026-10-05, e17bd83d)
