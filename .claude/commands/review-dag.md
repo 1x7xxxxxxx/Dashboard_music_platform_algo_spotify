@@ -1,4 +1,5 @@
 ---
+invocation: "manual — /review-* : audit lancé à la main par le propriétaire, nommé par CLAUDE.md (response-protocol) ; décidé R413, gardé"
 rex: []
 ---
 

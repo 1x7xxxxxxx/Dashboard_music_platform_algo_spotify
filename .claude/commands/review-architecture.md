@@ -1,4 +1,5 @@
 ---
+invocation: "manual — /review-* : audit lancé à la main par le propriétaire, nommé par CLAUDE.md (response-protocol) ; décidé R413, gardé"
 rex:
   - date: 2026-08-20
     issue: "Copied verbatim from the MSDR repo: it read two UNRENDERED bootstrap templates, listed modules absent here (acquisition.py, fanuc_reader.py), diffed Alembic revisions (ADR-002 rejects Alembic) and audited QuestDB measurements. No QuestDB here — it could not produce a true statement."

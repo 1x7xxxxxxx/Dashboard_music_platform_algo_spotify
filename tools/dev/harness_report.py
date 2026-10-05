@@ -64,7 +64,8 @@ def opportunities(data: dict) -> list[dict]:
             # A `note` says the counter cannot conclude « never » (a silent hook, a log
             # younger than the transcripts): such a 0 is not an opportunity.
             if a and a["kind"] in _INVOKED and a["n"] == 0 and not a.get("note"):
-                out.append(_never_invoked(comp, c.get("declencheurs"), data.get("seances")))
+                out.append(_never_invoked(comp, c.get("declencheurs"), data.get("seances"),
+                                          c.get("manuel")))
             elif a and a["kind"] == "hook" and a.get("ms") and a["ms"] >= 1000:
                 out.append({"rang": 4, "type": "hook lent", "ref": comp,
                             "texte": f"{a['ms']} ms en moyenne sur {a['n']} passages"})
@@ -72,9 +73,14 @@ def opportunities(data: dict) -> list[dict]:
     return sorted(out, key=lambda o: (o["rang"], o["ref"]))
 
 
-def _never_invoked(comp: str, triggers: list[str] | None, seances: int | None) -> dict:
+def _never_invoked(comp: str, triggers: list[str] | None, seances: int | None,
+                   manual: str | None = None) -> dict:
     """R366: a 0 is DORMANT when an imperative surface names it (its trigger has not come
-    yet) and ORPHAN when nothing does (it can never fire). Only the second is work."""
+    yet) and ORPHAN when nothing does (it can never fire). Only the second is work.
+    R413: a component declared `invocation: manual` is neither — its trigger is the owner."""
+    if manual:
+        return {"rang": 5, "type": "manuel", "ref": comp,
+                "texte": f"0 usage en {seances} séances, invoqué à la main par décision : {manual}"}
     if triggers:
         return {"rang": 5, "type": "dormant", "ref": comp,
                 "texte": f"0 usage en {seances} séances, déclencheur nommé ({', '.join(triggers[:2])}) "

@@ -1,4 +1,5 @@
 ---
+invocation: "manual — /review-* : audit lancé à la main par le propriétaire, nommé par CLAUDE.md (response-protocol) ; décidé R413, gardé"
 rex:
   - date: 2026-06-13
     issue: "Column migration (youtube views->view_count, ml dropped 'score') left API router kpis.py stale -> /kpis 500 in prod"

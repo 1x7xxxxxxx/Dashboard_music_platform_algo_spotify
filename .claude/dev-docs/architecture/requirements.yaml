@@ -782,7 +782,11 @@
   portee: generique
   composants: [.claude/hooks/draft_rex.py, .claude/scripts/promote_rex.py, .claude/rules/rex-format.md, .claude/commands/rex-promote.md, .claude/commands/retro.md, .claude/skills/continuous-learning/SKILL.md]
   preuve: {pytest: tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses}
-  opportunite: "3 surfaces (draft_rex, /retro, continuous-learning — 0 appel) pour un même geste : en garder une. draft_rex écrasait à chaque Stop un pending-rex.md rempli par un humain — corrigé R360, gardé par tests/test_draft_rex_drafts_from_the_session.py"
+  # Décidé R413 (2026-10-05) : les trois surfaces sont GARDÉES, chacune a son rôle —
+  # draft_rex = le brouillon automatique (31 passages) ; /retro et /rex-promote = la
+  # validation humaine que l'exigence demande ; continuous-learning = nommée par le hook
+  # session_summary et par CLAUDE.md. draft_rex écrasait pending-rex.md — corrigé R360,
+  # gardé par tests/test_draft_rex_drafts_from_the_session.py.
   mutation: "faire accepter une date YYYY-MM par validate_rex.py"
 - id: REQ-HARN-12
   domaine: claude-wsl
@@ -806,7 +810,10 @@
   portee: generique
   composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/curator.md, .claude/commands/dev-docs.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
   preuve: {pytest: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves}
-  opportunite: "capitalise 22 appels, roadmap-done 1, les 13 autres 0 : candidates au retrait ou à la fusion"
+  # Décidé R413 (2026-10-05) : rien n'est retiré. Les commandes à 0 appel ont un
+  # déclencheur nommé (dormantes, R366) ; les trois /review-* portent
+  # `invocation: manual` dans leur frontmatter, lu par le test des déclencheurs ET par
+  # le rapport du harnais (type « manuel », rien à faire).
   mutation: "renommer un fichier cité par une commande"
 - id: REQ-HARN-14
   domaine: claude-wsl

@@ -245,6 +245,24 @@ def trigger_sites(comp: str, surfaces: dict[str, str]) -> list[str]:
     return sorted(f for f, text in surfaces.items() if f != comp and pat.search(text))
 
 
+def manual_invocation(comp: str, root: Path = ROOT) -> str | None:
+    """The reason a command or skill is invoked by hand only — its frontmatter
+    `invocation: manual — <why>` (R413). One source: the trigger test and the harness
+    report both read it, so an exception cannot be recorded in one and missed in the other."""
+    p = root / comp
+    if not p.is_file():
+        return None
+    text = p.read_text(encoding="utf-8", errors="ignore")
+    if not text.startswith("---\n"):
+        return None
+    try:
+        front = yaml.safe_load(text[4:].split("\n---", 1)[0]) or {}
+    except yaml.YAMLError:
+        return None
+    m = re.match(r"manual\b\s*(?:—|-)?\s*(.*)", str(front.get("invocation") or ""), re.S)
+    return (m.group(1).strip() or "manual") if m else None
+
+
 def component_activity(comp: str, usage: dict) -> dict | None:
     """{'n': runs, 'last': date, 'kind': …} from the transcripts; None where unmeasurable."""
     if not usage.get("found"):
@@ -323,7 +341,8 @@ def build(domains: dict, reqs: list[dict], proofs: dict | None, usage: dict | No
             "composants": r.get("composants") or [], **state})
     surfaces = imperative_surfaces()
     components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage),
-                      **({"declencheurs": trigger_sites(c, surfaces)}
+                      **({"declencheurs": trigger_sites(c, surfaces),
+                          "manuel": manual_invocation(c)}
                          if "/commands/" in c or c.endswith("SKILL.md") else {})}
                   for c in sorted(comps | set(owners))}
     return {"genere_depuis": _commit(), "rejoue": proofs is not None,
