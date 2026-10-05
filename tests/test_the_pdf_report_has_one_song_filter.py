@@ -57,6 +57,9 @@ def _app():
 
 def _songs(at):
     pickers = [m for m in at.multiselect if m.label == "Chansons"]
+    if not pickers and any("Aucune donnée S4A" in (c.value or "") for c in at.caption):
+        # The CI tenant has no S4A song: the form says so instead of offering a picker.
+        pytest.skip("the first artist has no S4A song — the form shows its empty state")
     assert len(pickers) == 1, (
         f"expected ONE song filter, got {[m.label for m in at.multiselect]}")
     return pickers[0]
@@ -93,8 +96,6 @@ def test_three_filters_on_one_row_then_the_button() -> None:
 def test_all_songs_feed_both_song_sections_the_same_titles() -> None:
     at = _app()
     picker = _songs(at)
-    if not picker.options:
-        pytest.skip("the first artist has no S4A song — nothing to hand over")
     assert picker.value == [], "the song filter does not default to « toutes »"
     next(b for b in at.button if "Générer" in b.label).click().run(timeout=120)
     assert not at.exception, at.exception
