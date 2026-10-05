@@ -2149,8 +2149,14 @@ de test ; seul le coupon live va en prod.
    alors mis de côté (`stripe_unmatched_events`) et rejoué par le checkout — dans les deux
    ordres, la ligne du parrain doit finir `applied`. Un évènement resté de côté plus d'une
    heure apparaît dans le mail du soir (« client Stripe cus_… »).
-8. Sur le serveur, dans le `.env` de production : `STRIPE_REFERRAL_COUPON_ID=<identifiant
-   live>`, puis `make deploy PROD_SSH=root@… SERVICE=api`.
+8. Sur le serveur, dans `/opt/streamlytics/.env` (compose lit `.env`, PAS `.env.local`) :
+   `STRIPE_REFERRAL_COUPON_ID=<identifiant live>`, puis
+   `make deploy PROD_SSH=root@167.233.92.1 SERVICE="api dashboard"`.
+   ⚠️ Jusqu'au 2026-10-05 ce geste ne pouvait PAS marcher : la variable n'était câblée à
+   aucun conteneur (R408). Elle l'est depuis 2d0d87e9 — et le contrôle de ce jour-là
+   rendait encore `coupon_set=False` dans les deux : la valeur n'est pas (ou est vide)
+   dans ce `.env`-là. Preuve que c'est fait, sans afficher la valeur :
+   `ssh root@167.233.92.1 'docker exec streamlytics_api python3 -c "import os;print(bool(os.getenv(\"STRIPE_REFERRAL_COUPON_ID\")))"'` → `True`.
 
 **Vérification live** : au premier vrai parrainage, dans « 📊 Referral KPIs », la ligne du parrain passe `pending` →
 `applied` ; sur sa facture suivante dans Stripe, la remise de 100 % apparaît.
