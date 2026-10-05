@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R416 — Harnais : le rapport ne compte comme opportunité que ce qui appelle un geste — trous di… (livrée 2026-10-05)
+
+- [x] **R416 — Harnais : le rapport ne compte comme opportunité que ce qui appelle un geste — trous différés par ADR rangés « différé » avec leur déclencheur, opportunités mesurées closes retirées du catalogue, dormants et manuels sortis en inventaire, et un dormant dont la surface déclencheuse a tiré sans lui signalé « suivi manqué »** (P4) ✅ (2026-10-05, 9224f601)
+  Mesuré par : garde muté rouge sur chacune des quatre règles
+  Rapport du harnais : 10 opportunités (contre 27), 13 en inventaire (dormants, manuels, différés), suggestions de hook comptées sous la forme /slash. FORCE_CI : le run de 9224f601 n'a jamais obtenu de runner pour 6 jobs (panne GitHub Actions du 2026-10-05, annulés à 0 étape) ; le même code est vert sur son descendant 52e8a904 (run 37374560335, 10/10 jobs).
+  Commits : 9224f601 R416 : le rapport du harnais ne compte comme opportunité que ce qui ap
+
 ## ✅ R414 — Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (nig… (livrée 2026-10-05)
 
 - [x] **R414 — Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (night-status écrit dans le fichier de séance)** (P4) ✅ (2026-10-05, 6be25f4c, 996857e7)
