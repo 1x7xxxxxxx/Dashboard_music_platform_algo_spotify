@@ -119,19 +119,19 @@ def _section_label(key: str) -> str:
     }[key]
 
 
-def arrival_section(page: str | None, arrived_from: str | None) -> str | None:
-    """The section an alias opens — only on the run that ARRIVES on it. Pure."""
-    if page in ALIAS_SECTION and arrived_from != page:
-        return ALIAS_SECTION[page]
-    return None
+def arrival_section(alias: str | None) -> str | None:
+    """The section an old page key opens — app.py sets the alias on the arriving run only,
+    so a click on the control afterwards is never overridden."""
+    return ALIAS_SECTION.get(alias) if alias else None
 
 
 def show(section: str | None = None):
     """`section` opens that section on a fresh session — the former pages' `show()`."""
     st.title(t("meta_ads_overview.title_cross",
                "🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam"))
-    landing = arrival_section(st.session_state.get("_page_rendered_last"),
-                              st.session_state.get("_page_arrived_from"))
+    from src.dashboard.routes import ALIAS_ARRIVAL_KEY
+
+    landing = arrival_section(st.session_state.get(ALIAS_ARRIVAL_KEY))
     # The default goes through the state, not `default=`: a widget given both warns on
     # screen (« created with a default value but also had its value set »).
     if landing:

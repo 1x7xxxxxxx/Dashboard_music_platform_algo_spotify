@@ -25,7 +25,6 @@
     "src/dashboard/views/meta_ads_overview.py": 6,
     "src/dashboard/views/meta_breakdowns.py": 7,
     "src/dashboard/views/meta_creatives.py": 7,
-    "src/dashboard/views/revenue_forecast.py": 15,
     "src/dashboard/views/soundcloud.py": 7,
     "src/dashboard/views/trigger_algo/_tab_budget_roi.py": 8,
     "src/dashboard/views/usage_analytics.py": 4,

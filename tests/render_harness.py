@@ -54,13 +54,13 @@ from functools import lru_cache
 # personne — c'est arrivé jusqu'au 2026-08-20 pour les trois que rencontre d'abord un
 # artiste neuf (`onboarding`, `onboarding_health`, `register`), ajoutées depuis.
 VIEWS = [
-    "meta_campaign_settings", "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
+    "admin", "account", "airflow_kpi", "alerts", "apple_music", "billing",
     "credentials", "data_wrapped", "db_health", "etl_logs", "export_csv",
     "export_pdf", "home", "hypeddit", "imusician", "instagram", "meta_ads_overview",
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance",
     "promo_admin", "referral", "referral_admin",
-    "revenue_forecast", "sacem", "saisie_s4a", "soundcloud",
+    "sacem", "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
     "useful_links", "youtube",
     "onboarding", "onboarding_health", "register",
@@ -68,6 +68,8 @@ VIEWS = [
     # without a render, like the two older ones. Guard:
     # tests/test_every_routed_view_is_rendered.py
     "algo_preview", "platform_status", "privacy",
+    # R405: `meta_campaign_settings` and `revenue_forecast` left — no `show()` any more,
+    # both are sections of `trigger_algo` (rendered above), like `upload_csv` in 2026-09.
 ]
 
 # Les vues rendues sous un locataire NEUF ET VIDE — l'état du premier jour, où la

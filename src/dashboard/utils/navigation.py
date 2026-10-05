@@ -37,7 +37,11 @@ _PAGE_KEY = "_nav_page"
 
 def goto(page_key: str) -> None:
     """Navigue vers `page_key` et relance le script. Ne revient jamais."""
-    st.session_state[_PAGE_KEY] = page_key
+    # An old key (`upload_csv`…) is translated here as in app.py's URL handler:
+    # `resolve_nav_page` sends any key outside the menu home (R405).
+    from src.dashboard.routes import resolve_alias
+
+    st.session_state[_PAGE_KEY] = resolve_alias(page_key)[0]
 
     # Aucune écriture sur les radios de section ici — voir la docstring. Elles sont déjà
     # instanciées quand une vue appelle `goto`, et `app.resolve_nav_page` les accorde à

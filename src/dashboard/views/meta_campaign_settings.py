@@ -3,7 +3,8 @@
 Type: Feature
 Uses: meta_campaigns, meta_adsets, meta_ads (the SETTINGS — attributes, never summed),
       v_meta_campaign_daily (the OUTCOME — gold), utils.ratios, utils.filters.account
-Triggers: app routing (`meta_campaign_settings`) — Premium
+Triggers: views/trigger_algo/router.py (« 💰 Budget & ROI », folded) — the old route key
+          `meta_campaign_settings` is an ALIAS of the algo page since R405
 Persists in: nothing
 
 R272 (owner notes L129, L134 : « une vue qui regroupe les paramètres de campagne et les
@@ -21,7 +22,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import formats, view_session
+from src.dashboard.utils import formats
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ratios import per_series
 
@@ -64,15 +65,21 @@ def campaign_table(settings: pd.DataFrame, outcome: pd.DataFrame) -> pd.DataFram
     return df.sort_values("depense", ascending=False, na_position="last")
 
 
-def show() -> None:
-    st.title(t("meta_campaign_settings.title", "⚙️ Paramètres de mes campagnes"))
+def render(db, artist_id) -> None:
+    """The settings list, under the algo page's budget (R405, V72) — one row per campaign.
+
+    The table is a DETAIL of the settings chart above it (`_tab_reglages`), so it sits in a
+    fold (`trigger_algo/_sections.detail`); the connection is the page's (rule 9).
+    """
+    from src.dashboard.views.trigger_algo._sections import detail
+
+    st.subheader(t("meta_campaign_settings.title", "⚙️ Paramètres de mes campagnes"))
     st.caption(t("meta_campaign_settings.intro",
                  "Comment chaque campagne a été réglée — objectif, budget, audience, "
                  "emplacements, bouton — à côté de ce qu'elle a produit. La question : "
                  "quel réglage a le mieux marché ?"))
-    with view_session() as (db, artist_id):
-        settings = db.fetch_df(_SETTINGS, (artist_id,))
-        outcome = db.fetch_df(_OUTCOME, (artist_id,))
+    settings = db.fetch_df(_SETTINGS, (artist_id,))
+    outcome = db.fetch_df(_OUTCOME, (artist_id,))
     if settings is None or settings.empty:
         st.info(t("meta_campaign_settings.empty",
                   "Aucune campagne Meta collectée pour l'instant. Elles arrivent avec la "
@@ -99,12 +106,9 @@ def show() -> None:
         "cpr": t("meta_campaign_settings.col_cpr", "Coût / clic sortant (€)"),
         "cpc": t("meta_campaign_settings.col_cpc", "Coût / clic (€)"),
     }
-    formats.table(df[list(labels)].rename(columns=labels))
+    with detail(t("meta_campaign_settings.detail", "📋 Le réglage de chaque campagne")):
+        formats.table(df[list(labels)].rename(columns=labels))
     st.caption(t("meta_campaign_settings.note",
                  "Les réglages sont ceux de Meta, tels quels ; la dépense et les coûts "
                  "viennent de la couche or, la même que « Publicité Meta Ads ». Un coût "
                  "« — » : la campagne n'a eu aucun clic de ce type."))
-
-
-if __name__ == "__main__":
-    show()

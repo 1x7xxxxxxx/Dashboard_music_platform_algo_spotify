@@ -16,10 +16,8 @@ from ._tab_titre import _show_tab_titre
 from ._tab_budget_roi import _show_tab_budget_roi
 from ._tab_catalogue import _show_tab_catalogue
 from ._tab_lifecycle import _show_tab_lifecycle
-from ._outcome_entry import render_outcome_custom_grid, render_outcome_grid
-from ._sections import guide_sections_md, section_labels
-from src.dashboard.utils.s4a_entry_insight import (
-    load_entry_tracks, render_prediction_vs_reality)
+from ._outcome_entry import render_outcomes
+from ._sections import arrival_section, guide_sections_md, section_label
 
 
 def show():
@@ -86,7 +84,11 @@ def show():
         # announced seven tabs for four, after two hand rewrites.
         st.markdown(guide_sections_md())
 
-    with view_session() as (db, artist_id):
+    _say_where_the_alias_lands()
+    from src.dashboard.utils.fragment_db import page_db_scope
+
+    # `page_db_scope` : the money section's fragments borrow this connection (rule 9).
+    with view_session() as (db, artist_id), page_db_scope(db, artist_id):
         # Track list — ordered by release_date DESC from tracks table.
         # S4A CSVs replace '?' with '_' in song names, so the JOIN uses REPLACE().
         try:
@@ -182,12 +184,11 @@ def show():
         # R403 (V59, V69) : la page se lit de HAUT EN BAS — quatre sections séparées,
         # plus quatre onglets. Le libellé de chaque section vient de `PAGE_SECTIONS`,
         # le même tuple que lit le guide.
-        catalogue, titre, realise, budget = section_labels()
-        _section(catalogue, first=True)
+        _section("catalogue", first=True)
         _show_tab_catalogue(db, artist_id)
-        _section(titre)
+        _section("titre")
         _show_tab_titre(db, selected_track, artist_id, ml_pred)
-        _section(realise)
+        _section("realise")
         # « Ce qui s'est vraiment passé » : les streams réellement produits par
         # chaque playlist, puis le cycle de vie replié. La seule section qui parle
         # d'un fait CONSTATÉ — et la seule qui puisse un jour fermer la boucle
@@ -200,18 +201,34 @@ def show():
                                 benchmark_df=benchmark_df)
         # R376 : le pari du modèle et la saisie des résultats réalisés, venus de
         # « 📝 Saisie S4A » — un label se saisit à côté de la prédiction qu'il juge.
-        render_prediction_vs_reality(db, artist_id)
-        _entry_tracks = load_entry_tracks(db, artist_id)
-        if _entry_tracks:
-            render_outcome_grid(db, artist_id, _entry_tracks)
-            render_outcome_custom_grid(db, artist_id, _entry_tracks)
-        _section(budget)
+        # R405 : le MÊME module est rendu par « 📝 Saisie S4A » (Free) — la saisie
+        # nourrit le modèle, elle ne s'enferme pas derrière le paywall.
+        render_outcomes(db, artist_id)
+        _section("budget")
         _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
                              ml_pred=ml_pred)
+        # R405 (V72) : « ⚙️ Paramètres de mes campagnes » — la liste, sous le budget.
+        from src.dashboard.views.meta_campaign_settings import render as render_settings
+        render_settings(db, artist_id)
+        _section("argent")
+        from src.dashboard.views.revenue_forecast import render_money
+        render_money(artist_id)
 
 
-def _section(label: str, *, first: bool = False) -> None:
-    """One part of the page: a separator, then its title."""
+def _section(key: str, *, first: bool = False) -> None:
+    """One part of the page: a separator, then its title — anchored by its key."""
     if not first:
         st.divider()
-    st.header(label)
+    st.header(section_label(key), anchor=key)
+
+
+def _say_where_the_alias_lands() -> None:
+    """A former page's link (mail, PDF) lands here: say where its content now is."""
+    from src.dashboard.routes import ALIAS_ARRIVAL_KEY
+
+    key = arrival_section(st.session_state.get(ALIAS_ARRIVAL_KEY))
+    if key:
+        st.info(t("trigger_algo.alias_landing",
+                  "Cette page fait désormais partie de « Prédiction déclenchement » : "
+                  "[↓ aller à la section {section}](#{anchor})").format(
+            section=section_label(key), anchor=key))

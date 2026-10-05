@@ -150,9 +150,6 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/revenue_forecast.py::_tab_ltv#1': (
         "Savoir combien vaut un abonné, pour fixer ce qu'une campagne d'acquisition peut coûter par artiste.",
         'Know what a subscriber is worth, to set what an acquisition campaign may cost per artist.'),
-    'views/revenue_forecast.py::_tab_mrr#1': (
-        "Suivre le revenu récurrent des abonnements, pour dimensionner le budget d'acquisition d'artistes.",
-        'Follow recurring subscription revenue, to size the artist acquisition budget.'),
     'views/sacem.py::show#1': (
         "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition.",
         'See what deductions take from your SACEM royalties, to plan the real net of a distribution.'),

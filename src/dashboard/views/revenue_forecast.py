@@ -1,11 +1,13 @@
-"""Revenue Forecast — SaaS projections + artistic revenue forecast.
+"""Revenue Forecast — « 💶 Mon argent », a section of the algo page (R405).
 
-Type: Feature
-Depends on: artist_subscriptions, subscription_plans, imusician_monthly_revenue, saas_artists
-Persists in: read-only (no writes)
+Type: Sub
+Depends on: v_artist_monthly_cashflow, artist_subscriptions, ml_song_predictions
+Triggers: views/trigger_algo/router.py (`render_money`); the route key `revenue_forecast`
+          is an ALIAS of the algo page that opens this section (mail/PDF links)
+Persists in: artist_costs (the cost entry)
 
-Admin : 4 tabs (MRR actuel, Projection MRR, LTV & Churn, Projection Artistique)
-Artist: 1 tab (Projection Artistique — own data only)
+Artist: where the money stands, what it cost, and when it breaks even.
+Admin : the same, any artist, plus the subscriber LTV — folded.
 """
 import sys
 from pathlib import Path
@@ -18,13 +20,13 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from src.dashboard.utils import get_db_connection, charts, require_db
+from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
-from src.dashboard.auth import get_artist_id, is_admin
+from src.dashboard.auth import is_admin
 from src.dashboard.utils.revenue_forecast import (
     load_subscriptions as _load_subscriptions,
     load_artist_revenues as _load_artist_revenues,
@@ -44,11 +46,6 @@ from src.utils.algo_order import ALGO_ORDER
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
 # (refactor R6 — calc/UI split). Imported above; call sites unchanged via aliases.
-
-
-# ─────────────────────────────────────────────
-# Tab 1 — MRR Actuel
-# ─────────────────────────────────────────────
 
 
 def _format_ml_table(ml_df: pd.DataFrame) -> pd.DataFrame:
@@ -74,68 +71,10 @@ def _format_ml_table(ml_df: pd.DataFrame) -> pd.DataFrame:
             out[col] = [format_proba(algo, v, decimals=1) for v in out[col]]
     return out
 
-def _tab_mrr(db) -> None:
-    st.subheader(t("revenue_forecast.mrr_header", "MRR actuel"))
 
-    df = _load_subscriptions(db)
-    if df.empty:
-        st.info(t("revenue_forecast.no_subscriptions",
-                  "Aucun abonnement trouvé dans la base. Connectez Stripe pour alimenter ces données."))
-        return
-
-    active = df[df['status'].isin(MRR_STATUSES)]
-    paying = active[active['price'] > 0]
-
-    total_mrr = float(paying['price'].sum())
-    nb_paying  = len(paying)
-    arpu       = total_mrr / nb_paying if nb_paying else 0.0
-    nb_cancel  = int(active['cancel_at_period_end'].sum())
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("revenue_forecast.mrr_total", "MRR total"), f"{total_mrr:,.2f} €")
-    c2.metric("ARPU", f"{arpu:,.2f} €")
-    c3.metric(t("revenue_forecast.paying_artists", "Artistes payants"), nb_paying)
-    c4.metric(t("revenue_forecast.pending_cancellations", "Annulations en attente"),
-              nb_cancel, delta=f"-{nb_cancel}" if nb_cancel else None,
-              delta_color="inverse")
-
-    st.markdown("---")
-
-    # MRR par plan
-    mrr_by_plan = (
-        paying.groupby('plan')['price']
-        .agg(['sum', 'count'])
-        .reset_index()
-        .rename(columns={'sum': 'mrr', 'count': 'artistes'})
-    )
-    if not mrr_by_plan.empty:
-        fig = px.bar(
-            mrr_by_plan, x='plan', y='mrr',
-            text='mrr', color='plan',
-            labels={'plan': 'Plan', 'mrr': 'MRR (€)'},
-            color_discrete_sequence=list(DISTINCT[:3]),
-        )
-        fig.update_traces(texttemplate='%{text:.2f} €', textposition='outside')
-        fig.update_layout(showlegend=False, yaxis_title='MRR (€)')
-        charts.plotly_chart(fig, width='stretch')
-
-    st.markdown("---")
-    st.subheader(t("revenue_forecast.subs_detail", "Détail des abonnements"))
-    display = active[['artist_name', 'plan', 'price', 'status', 'cancel_at_period_end',
-                       'current_period_end']].copy()
-    display['current_period_end'] = pd.to_datetime(display['current_period_end']).dt.strftime('%Y-%m-%d')
-    st.dataframe(
-        display.rename(columns={
-            'artist_name': t("common.artist", "Artiste"),
-            'plan': 'Plan',
-            'price': t("revenue_forecast.col_price", "Prix (€/mois)"),
-            'status': t("revenue_forecast.col_status", "Statut"),
-            'cancel_at_period_end': t("revenue_forecast.col_cancel", "Annulation fin période"),
-            'current_period_end': t("revenue_forecast.col_period_end", "Fin de période"),
-        }),
-        width='stretch', hide_index=True,
-    )
-
+# R405 : the « MRR actuel » tab is gone. It recomputed the MRR in pandas — the third
+# definition R140 had already named — beside « 💳 Facturation », which reads the single
+# one (`src.utils.mrr`). The page itself is now a section of the algo page.
 
 # R249 (fiche 61, owner 2026-09-27 : « à retirer ») : the MRR growth simulation tab is gone.
 
@@ -164,84 +103,85 @@ def _frag_ltv() -> None:
 
 
 def _tab_ltv(db) -> None:
-    st.subheader(t("revenue_forecast.ltv_header", "LTV & Churn"))
+    """Admin only, FOLDED: the SaaS value of a subscriber — not the artist's question."""
+    with secondary_analyses(t("revenue_forecast.ltv_header", "LTV & Churn")):
 
-    df = _load_subscriptions(db)
-    active = df[df['status'].isin(MRR_STATUSES)]
-    paying = active[active['price'] > 0]
+        df = _load_subscriptions(db)
+        active = df[df['status'].isin(MRR_STATUSES)]
+        paying = active[active['price'] > 0]
 
-    total_mrr = float(paying['price'].sum()) if not paying.empty else 0.0
-    nb_paying  = len(paying)
-    arpu       = total_mrr / nb_paying if nb_paying else 0.0
-    nb_cancel  = int(active['cancel_at_period_end'].sum()) if not active.empty else 0
-    nb_total   = len(active)
-    churn_from_db = (nb_cancel / nb_total * 100) if nb_total > 0 else 0.0
+        total_mrr = float(paying['price'].sum()) if not paying.empty else 0.0
+        nb_paying  = len(paying)
+        arpu       = total_mrr / nb_paying if nb_paying else 0.0
+        nb_cancel  = int(active['cancel_at_period_end'].sum()) if not active.empty else 0
+        nb_total   = len(active)
+        churn_from_db = (nb_cancel / nb_total * 100) if nb_total > 0 else 0.0
 
-    st.markdown(t("revenue_forecast.ltv_classic_header", "#### LTV classique (ARPU ÷ churn mensuel)"))
+        st.markdown(t("revenue_forecast.ltv_classic_header", "#### LTV classique (ARPU ÷ churn mensuel)"))
 
-    if churn_from_db < 0.5:
-        st.info(t("revenue_forecast.churn_low",
-                  "Taux de churn détecté < 0.5% (peu d'annulations en attente). Ajustez manuellement :"))
-        churn_rate = st.slider(t("revenue_forecast.churn_estimated", "Taux de churn mensuel estimé (%)"),
-                               1.0, 20.0, 5.0, step=0.5)
-    else:
-        churn_rate = st.slider(
-            t("revenue_forecast.churn_monthly", "Taux de churn mensuel (%)"),
-            1.0, 20.0, round(churn_from_db, 1), step=0.5,
-            help=t("revenue_forecast.churn_help",
-                   "Valeur estimée depuis les annulations en attente : {churn:.1f}%").format(churn=churn_from_db),
+        if churn_from_db < 0.5:
+            st.info(t("revenue_forecast.churn_low",
+                      "Taux de churn détecté < 0.5% (peu d'annulations en attente). Ajustez manuellement :"))
+            churn_rate = st.slider(t("revenue_forecast.churn_estimated", "Taux de churn mensuel estimé (%)"),
+                                   1.0, 20.0, 5.0, step=0.5)
+        else:
+            churn_rate = st.slider(
+                t("revenue_forecast.churn_monthly", "Taux de churn mensuel (%)"),
+                1.0, 20.0, round(churn_from_db, 1), step=0.5,
+                help=t("revenue_forecast.churn_help",
+                       "Valeur estimée depuis les annulations en attente : {churn:.1f}%").format(churn=churn_from_db),
+            )
+
+        ltv_val = ltv_global(arpu, churn_rate)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("ARPU", f"{arpu:,.2f} €")
+        c2.metric(t("revenue_forecast.churn_monthly_metric", "Churn mensuel"), f"{churn_rate:.1f}%")
+        c3.metric(t("revenue_forecast.ltv_global", "LTV globale"), f"{ltv_val:,.2f} €")
+
+        st.markdown("---")
+        st.markdown(t("revenue_forecast.ltv_scenario_header", "#### LTV par scénario de durée de rétention"))
+
+        plans = [('premium', _CAT['premium']['price_eur'])]
+        durations = [6, 12, 24, 36]
+        ltv_df = pd.DataFrame(ltv_scenarios(plans, durations))
+
+        fig = px.bar(
+            ltv_df, x='LTV (€)', y='Durée (mois)', color='Plan',
+            orientation='h', barmode='group',
+            color_discrete_sequence=list(DISTINCT[:2]),
+            labels={'LTV (€)': 'LTV estimée (€)', 'Durée (mois)': 'Rétention'},
+            text='LTV (€)',
         )
+        fig.update_traces(texttemplate='%{text:.0f} €', textposition='outside')
+        fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+        charts.plotly_chart(fig, width='stretch')
 
-    ltv_val = ltv_global(arpu, churn_rate)
+        st.markdown("---")
+        st.markdown(t("revenue_forecast.ltv_artistic_header", "#### LTV artistique (revenus musicaux × durée)"))
+        st.caption(t("revenue_forecast.ltv_artistic_caption",
+                     "Proxy : valeur musicale moyenne d'un artiste, basée sur l'historique distributeurs + SACEM."))
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("ARPU", f"{arpu:,.2f} €")
-    c2.metric(t("revenue_forecast.churn_monthly_metric", "Churn mensuel"), f"{churn_rate:.1f}%")
-    c3.metric(t("revenue_forecast.ltv_global", "LTV globale"), f"{ltv_val:,.2f} €")
+        avg_row = db.fetch_query("""
+            SELECT AVG(monthly_avg) FROM (
+                SELECT artist_id, AVG(month_total) AS monthly_avg FROM (
+                    SELECT artist_id, year, month, SUM(revenue_eur) AS month_total
+                    FROM v_artist_monthly_revenue GROUP BY artist_id, year, month
+                ) m GROUP BY artist_id
+            ) t
+        """)
+        avg_music = float(avg_row[0][0]) if avg_row and avg_row[0][0] else 0.0
 
-    st.markdown("---")
-    st.markdown(t("revenue_forecast.ltv_scenario_header", "#### LTV par scénario de durée de rétention"))
+        retention = st.select_slider(
+            t("revenue_forecast.retention_hypothetical", "Durée de rétention hypothétique (mois)"),
+            options=[6, 12, 24, 36], value=12, key='ltv_retention',
+        )
+        ltv_music = avg_music * retention
 
-    plans = [('premium', _CAT['premium']['price_eur'])]
-    durations = [6, 12, 24, 36]
-    ltv_df = pd.DataFrame(ltv_scenarios(plans, durations))
-
-    fig = px.bar(
-        ltv_df, x='LTV (€)', y='Durée (mois)', color='Plan',
-        orientation='h', barmode='group',
-        color_discrete_sequence=list(DISTINCT[:2]),
-        labels={'LTV (€)': 'LTV estimée (€)', 'Durée (mois)': 'Rétention'},
-        text='LTV (€)',
-    )
-    fig.update_traces(texttemplate='%{text:.0f} €', textposition='outside')
-    fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-    charts.plotly_chart(fig, width='stretch')
-
-    st.markdown("---")
-    st.markdown(t("revenue_forecast.ltv_artistic_header", "#### LTV artistique (revenus musicaux × durée)"))
-    st.caption(t("revenue_forecast.ltv_artistic_caption",
-                 "Proxy : valeur musicale moyenne d'un artiste, basée sur l'historique distributeurs + SACEM."))
-
-    avg_row = db.fetch_query("""
-        SELECT AVG(monthly_avg) FROM (
-            SELECT artist_id, AVG(month_total) AS monthly_avg FROM (
-                SELECT artist_id, year, month, SUM(revenue_eur) AS month_total
-                FROM v_artist_monthly_revenue GROUP BY artist_id, year, month
-            ) m GROUP BY artist_id
-        ) t
-    """)
-    avg_music = float(avg_row[0][0]) if avg_row and avg_row[0][0] else 0.0
-
-    retention = st.select_slider(
-        t("revenue_forecast.retention_hypothetical", "Durée de rétention hypothétique (mois)"),
-        options=[6, 12, 24, 36], value=12, key='ltv_retention',
-    )
-    ltv_music = avg_music * retention
-
-    mc1, mc2 = st.columns(2)
-    mc1.metric(t("revenue_forecast.avg_music_revenue", "Revenu musical moyen / mois / artiste"), f"{avg_music:,.2f} €")
-    mc2.metric(t("revenue_forecast.ltv_artistic_metric", "LTV artistique sur {months} mois").format(months=retention),
-               f"{ltv_music:,.2f} €")
+        mc1, mc2 = st.columns(2)
+        mc1.metric(t("revenue_forecast.avg_music_revenue", "Revenu musical moyen / mois / artiste"), f"{avg_music:,.2f} €")
+        mc2.metric(t("revenue_forecast.ltv_artistic_metric", "LTV artistique sur {months} mois").format(months=retention),
+                   f"{ltv_music:,.2f} €")
 
 
 # ─────────────────────────────────────────────
@@ -773,6 +713,15 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                t("revenue_forecast.be_no_date", "hors d'atteinte")),
         delta_color="off")
 
+    # R405 (V73) : « où j'en suis vs somme des dépenses ». The two cumuls are ALREADY
+    # drawn by « Budget & ROI », one section up on the same page
+    # (`_tab_budget_roi`, breakeven chart): a second figure of them was drawn here and
+    # removed after reading its PNG — same curves, and its fill coloured the deficit
+    # green. The tiles above give the gap, the pace and the date; this line points up.
+    st.caption(t("revenue_forecast.position_caption",
+                 "La courbe « tout ce qui rentre contre tout ce qui sort » est dans "
+                 "[↑ Budget & ROI](#budget) : l'écart entre les deux cumuls est ce qu'il "
+                 "reste à rembourser, et ils se croisent au point mort."))
     _render_ledger(db, target_id, cashflow, mensuel)
     _render_money_chart(cashflow, mensuel, pm, horizon)
     _render_cost_entry(db, target_id)
@@ -931,38 +880,13 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
     # sort du MÊME calcul que le point mort (`artist_cashflow.project`).
 
 
-def show() -> None:
-    from src.dashboard.auth import require_plan
-    if not is_admin() and not require_plan('premium'):
-        return
+def render_money(artist_id: int | None) -> None:
+    """« 💶 Mon argent » — a section of the algo page since R405 (V73, V74).
 
-    st.title(t("revenue_forecast.title", "📈 Prévisions revenus"))
-
-    db = require_db(get_db_connection())
-    # Les fragments de cette page REUTILISENT cette connexion pendant un rendu
-    # complet (~13 ms de poignee SCRAM economises chacun) et n'en ouvrent une que
-    # lors d'un rerun de fragment. Libere AVANT `close()` : entre les deux, un
-    # fragment verrait une connexion fermee dans la fente.
-    from src.dashboard.utils.fragment_db import declare_page_db, release_page_db
-
-    declare_page_db(db)
-    try:
-        if is_admin():
-            tab_mrr, tab_ltv, tab_artist = st.tabs([
-                t("revenue_forecast.tab_mrr", "📊 MRR Actuel"),
-                t("revenue_forecast.tab_ltv", "💎 LTV & Churn"),
-                t("revenue_forecast.tab_artist", "🎵 Projection Artistique"),
-            ])
-            with tab_mrr:
-                _tab_mrr(db)
-            with tab_ltv:
-                _frag_ltv()
-            with tab_artist:
-                _frag_artist_forecast(artist_id=None)
-        else:
-            st.caption(t("revenue_forecast.artist_caption",
-                         "Revenus, dépenses et point mort — tout sur une figure."))
-            _frag_artist_forecast(artist_id=get_artist_id())
-    finally:
-        release_page_db()
-        db.close()
+    The page « 📈 Prévisions revenus » is gone; its key is an alias that opens this
+    section. The admin keeps the subscriber LTV, folded under the artist's answer.
+    Both are fragments: the caller declares its connection (`page_db_scope`).
+    """
+    _frag_artist_forecast(artist_id)
+    if is_admin():
+        _frag_ltv()

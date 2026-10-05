@@ -42,9 +42,15 @@ def test_every_alias_opens_the_section_it_named() -> None:
     assert set(ALIAS_SECTION) == set(_ABSORBED)
     for key, section in _EXPECTED.items():
         assert section in SECTIONS, section
-        assert arrival_section(key, arrived_from="home") == section
+        assert arrival_section(key) == section
 
 
 def test_an_alias_does_not_override_a_later_click() -> None:
-    assert arrival_section("meta_creatives", arrived_from="meta_creatives") is None
-    assert arrival_section("meta_ads_overview", arrived_from="home") is None
+    # R405: app.py sets the alias on the ARRIVING run only (the URL mirror then rewrites
+    # `?page=`); a later run carries no alias, so the control is never overridden.
+    from src.dashboard.routes import resolve_alias
+
+    assert resolve_alias("meta_creatives") == ("meta_ads_overview", "meta_creatives")
+    assert resolve_alias("meta_ads_overview") == ("meta_ads_overview", None)
+    assert arrival_section(None) is None
+    assert arrival_section("meta_ads_overview") is None

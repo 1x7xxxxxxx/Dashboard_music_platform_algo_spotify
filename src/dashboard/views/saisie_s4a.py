@@ -225,9 +225,9 @@ def show():
         # relèvent une fois par mois, les résultats ~4 semaines APRÈS la prédiction.
         # Le remède garde cette séparation, mais par PAGE plutôt que par onglet :
         #
-        #   · les résultats réalisés et « Le pari du modèle » vivent dans Road to Algo,
-        #     onglet « Ce qui s'est vraiment passé » — à côté de la prédiction qu'ils
-        #     jugent (`views/trigger_algo/_outcome_entry.py`) ;
+        #   · les résultats réalisés et « Le pari du modèle » vivent dans un module
+        #     PARTAGÉ (`views/trigger_algo/_outcome_entry.render_outcomes`), rendu en bas
+        #     de cette page ET dans Road to Algo, à côté de la prédiction qu'ils jugent ;
         #   · la fraîcheur des saisies est un contrôle d'exploitation : page admin,
         #     Santé → « Fraîcheur des saisies S4A » ;
         #   · ici restent les signaux du mois, puis les titres qu'ils couvrent.
@@ -236,5 +236,11 @@ def show():
         _render_custom_grid(db, artist_id, tracks)
         st.markdown("---")
         render_completeness(db, artist_id, tracks)
+        # R405 (V74) : les résultats réalisés et « Le pari du modèle » sont REVENUS ici,
+        # par le même module que la page algo — la saisie est Free, la page algo Premium,
+        # et ce qui nourrit le modèle ne s'enferme pas derrière le paywall.
+        st.markdown("---")
+        from src.dashboard.views.trigger_algo._outcome_entry import render_outcomes
+        render_outcomes(db, artist_id)
         # R249 (fiche 59, owner 2026-09-27 : « retire ») : l'historique des ajouts en
         # playlist est parti — la complétude juste au-dessus dit déjà ce qui manque.

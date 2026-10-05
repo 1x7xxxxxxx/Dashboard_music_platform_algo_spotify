@@ -562,7 +562,7 @@ def _show_cookie_notice():
     ))
 
 
-from src.dashboard.routes import ROUTES  # noqa: E402 — THE route table (R261)
+from src.dashboard.routes import ROUTES, ALIAS_ARRIVAL_KEY, resolve_alias  # noqa: E402 — THE route table (R261)
 
 
 def _render_page(page):
@@ -735,6 +735,10 @@ def _main_body():
     # dans `resolve_nav_page`. Elle est idempotente : le deuxième appel ne fait rien.
     arm_first_run_once(st.session_state.get('role', 'artist'))
 
+    # An old page key (a mail's or a PDF's link) becomes the page that holds it now,
+    # BEFORE the menu filter below — which drops any key not in the menu. Set on every
+    # run, so it is true on the arriving run only: the URL mirror rewrites `?page=`.
+    _page_param, st.session_state[ALIAS_ARRIVAL_KEY] = resolve_alias(_page_param)
     if _page_param:
         _nav_keys = {key for _, _, items in _NAV_SECTIONS for _, key in items}
         # Une première arrivée va sur son assistant, sauf si le paramètre vient d'un

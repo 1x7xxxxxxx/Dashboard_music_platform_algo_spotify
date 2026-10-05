@@ -59,9 +59,10 @@ _PDF_MAP = {
     "hypeddit":             "hypeddit",
     "trigger_algo":         "songs",
     "meta_ads_overview":    "meta",
-    "meta_campaign_settings": None,  # R272 — settings table, the PDF carries the Meta outcome
     "imusician":            "roi",
-    "revenue_forecast":     "revenue_forecast",
+    # R405 (2026-10-05): `meta_campaign_settings` and `revenue_forecast` left the menu —
+    # sections of the algo page (`trigger_algo`), their keys kept as aliases. The PDF
+    # section `revenue_forecast` stays in ALL_SECTIONS.
     # Deliberate exclusions (covered elsewhere or not report-shaped):
     "sacem":                None,   # small account-ledger; royalties already in the ROI section
     "saisie_s4a":           None,   # data-entry form, not a report

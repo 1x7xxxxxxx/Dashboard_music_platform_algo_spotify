@@ -316,7 +316,9 @@ _FLOOR: dict[str, int] = {
     # three facts, written under the card they describe.
     # 2026-10-05 (R402) : 150 → 149 — the risk-adjusted cost tile is gone: it priced a
     # steady-state playlist volume as streams to buy (no honest replacement figure).
-    "tiles.total": 149,
+    # 2026-10-05 (R405) : 149 → 145 — the « MRR Actuel » tab of revenue_forecast is gone
+    # (4 tiles): a third MRR definition beside billing's, which keeps the single one.
+    "tiles.total": 145,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

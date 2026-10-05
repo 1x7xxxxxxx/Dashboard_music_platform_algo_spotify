@@ -11,6 +11,12 @@ unreachable, and tests read the chain as TEXT. Values are imported as `views.<na
 (app.py runs from src/dashboard). An alias — a retired page still routed so that old
 links are not dead ends — is a second key pointing to a live module.
 Guard: tests/test_every_route_resolves.py.
+
+An alias must ALSO be named in `PAGE_ALIASES`: the URL handler of app.py only accepts a
+`?page=` that is in the menu, so an alias known to `ROUTES` alone was routable from
+nowhere — the R378 and R405 aliases (mails, PDFs) landed on the home page, and so did
+`goto("upload_csv")`, the « add my S4A numbers » button (2026-10-05).
+Guard: tests/test_an_alias_link_lands_on_its_section.py.
 """
 
 ROUTES: dict[str, str] = {
@@ -43,7 +49,7 @@ ROUTES: dict[str, str] = {
     "useful_links": "views.useful_links",
     "service": "views.service",
     "billing": "views.billing",
-    "revenue_forecast": "views.revenue_forecast",
+    "revenue_forecast": "views.trigger_algo",  # alias — R405 made it a section of the algo page, which points to it
     "sacem": "views.sacem",
     "meta_mapping": "views.meta_mapping",
     "admin": "views.admin",
@@ -58,5 +64,29 @@ ROUTES: dict[str, str] = {
     "usage_analytics": "views.usage_analytics",
     "alerts": "views.alerts",
     "recap": "views.home",  # alias — R379 retired the Récap page; old links land home
-    "meta_campaign_settings": "views.meta_campaign_settings",  # R272 — Premium
+    "meta_campaign_settings": "views.trigger_algo",  # alias — R405 made it a section of the algo page, which points to it
 }
+
+
+# Old page key → the menu page that holds it now. app.py translates a `?page=` alias
+# BEFORE its menu filter, and leaves the alias in `ALIAS_ARRIVAL_KEY` for one run so the
+# page can open the section the old key named.
+PAGE_ALIASES: dict[str, str] = {
+    "meta_x_spotify": "meta_ads_overview",
+    "instagram": "meta_ads_overview",
+    "meta_creatives": "meta_ads_overview",
+    "meta_breakdowns": "meta_ads_overview",
+    "revenue_forecast": "trigger_algo",
+    "meta_campaign_settings": "trigger_algo",
+    "recap": "home",
+    "upload_csv": "credentials",
+    "process_guide": "onboarding_health",
+}
+ALIAS_ARRIVAL_KEY = "_alias_arrival"
+
+
+def resolve_alias(page_param: str | None) -> tuple[str | None, str | None]:
+    """`?page=` → (the page to open, the alias it came by or None). Pure."""
+    if page_param in PAGE_ALIASES:
+        return PAGE_ALIASES[page_param], page_param
+    return page_param, None

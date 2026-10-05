@@ -7,6 +7,7 @@ EN = {
                                      "The question: which setting worked best?"),
     "meta_campaign_settings.empty": ("No Meta campaign collected yet. They arrive with the "
                                      "morning Meta collection, once your ad account is connected."),
+    "meta_campaign_settings.detail": "📋 Each campaign's settings",
     "meta_campaign_settings.col_campaign": "Campaign",
     "meta_campaign_settings.col_objective": "Objective",
     "meta_campaign_settings.col_status": "Status",

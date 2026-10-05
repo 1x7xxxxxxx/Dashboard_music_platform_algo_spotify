@@ -755,19 +755,6 @@ src/dashboard/utils/s4a_entry_insight.py::render_prediction_vs_reality#1:
   owner: "Je ne comprends pas la plus-value ni la décision."
   note: "R247 : ce que la figure vérifie, écrit au-dessus ; la décision dessous — trop tôt sous 10 titres, sinon « le modèle attendait n déclenchements, aucun n'est arrivé : choisis sur les leviers »."
 # ── Revenus et abonnement ────────────────────────────────────────────────────
-src/dashboard/views/revenue_forecast.py::_tab_mrr#1:
-  q: "(MRR — onglet non atteint)"
-  decision: "Suivre le revenu récurrent des abonnements, pour dimensionner le budget d'acquisition d'artistes."
-  decision_en: "Follow recurring subscription revenue, to size the artist acquisition budget."
-  role: business
-  d: 3
-  c: 3
-  p: 3
-  v: a-trancher
-  owner_v: corriger
-  owner: "Non rendu."
-  absent: "donnée absente — aucun abonnement payant actif dans la base : le MRR est nul, rien à tracer"
-  note: "Non rendu par défaut."
 src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   q: "Combien vaut un abonné selon sa rétention ?"
   decision: "Savoir combien vaut un abonné, pour fixer ce qu'une campagne d'acquisition peut coûter par artiste."
@@ -779,7 +766,7 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   v: a-trancher
   owner_v: garder
   owner: "Intègre-le et on garde en admin, pas pour l'artiste, c'est pour les plans premium. Non garanti couche : règle-moi ce problème."
-  note: "R249 : déjà en admin — onglet « LTV & Churn » de Prévisions revenus, visible des seuls administrateurs ; le MRR est calculé dans l'onglet voisin « MRR Actuel ». Le coût de distribution par titre se saisit dans Mes revenus (R248)."
+  note: "R405 : admin seulement, REPLIÉ sous « 💶 Mon argent » de la page algo (Prévisions revenus en est devenue une section) ; le MRR se lit dans « 💳 Facturation », sa seule définition. Le coût de distribution par titre se saisit dans Mes revenus (R248)."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
   decision: "Chiffrer ce que vaut un déclenchement d'algorithme, pour savoir combien dépenser pour l'obtenir."

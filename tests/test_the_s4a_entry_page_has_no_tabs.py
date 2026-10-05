@@ -10,6 +10,12 @@ saisie » at its end; « Résultats réalisés » and « Le pari du modèle, et 
 arrivé » go to the algo view, beside the prediction they judge; « Fraîcheur des
 saisies » goes to the admin page. A move is two properties — gone from here AND present
 there — so each destination is rendered, not only the source.
+
+R405 (V74, 2026-10-05) revised the first move: « Résultats réalisés » and « Le pari du
+modèle » are SHARED by one module (`trigger_algo/_outcome_entry.render_outcomes`), drawn
+on both pages — the S4A entry page is Free and the algo view Premium, and the outcome
+entry must not sit behind the paywall. They come AFTER the coverage, which closes the
+entry proper; « Fraîcheur » stays on the admin page only.
 """
 from __future__ import annotations
 
@@ -67,9 +73,14 @@ def test_the_entry_page_is_signals_then_coverage(data: dict) -> None:
     at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="saisie_s4a", artist_id=1))
     heads = _subheaders(at)
     assert not at.tabs, f"the S4A entry page has tabs again: {[t.label for t in at.tabs]}"
-    gone = [h for h in heads if any(k in h for k in (_BET, _OUTCOMES, _FRESH))]
+    gone = [h for h in heads if _FRESH in h]
     assert not gone, f"a section moved by R376 is back on the entry page: {gone}"
-    assert heads and _COVERED in heads[-1], f"coverage is not the last section: {heads}"
+    covered = next((i for i, h in enumerate(heads) if _COVERED in h), None)
+    assert covered is not None, f"no coverage section: {heads}"
+    for want in (_BET, _OUTCOMES):
+        at_ = [i for i, h in enumerate(heads) if want in h]
+        assert at_ and at_[0] > covered, (
+            f"« {want} » (shared, R405) is not after the coverage on the Free page: {heads}")
 
 
 def test_the_algo_view_carries_the_bet_and_the_outcome_entry(data: dict) -> None:

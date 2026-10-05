@@ -84,6 +84,7 @@ def test_the_guide_names_only_the_parts_the_page_has() -> None:
     assert [line for line in md.splitlines() if line.startswith("- ")] == [
         f"- **{fr}** — {dfr}" for _k, _key, fr, _dk, dfr in PAGE_SECTIONS]
     src = Path(router.__file__).read_text(encoding="utf-8")
-    assert "st.tabs(section_labels())" in src or "section_labels()" in src, (
+    # R405: each section header is drawn by `section_label(key)`, one per PAGE_SECTIONS row.
+    assert "section_label(" in src, (
         "the layout no longer reads the parts the guide lists")
     assert "onglet" not in md.lower()

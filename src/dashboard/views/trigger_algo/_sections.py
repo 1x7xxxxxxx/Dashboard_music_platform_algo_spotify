@@ -27,7 +27,26 @@ PAGE_SECTIONS = (
     ("budget", "trigger_algo.tab_budget", "💰 Budget & ROI",
      "trigger_algo.guide_section_budget",
      "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),
+    ("argent", "trigger_algo.tab_argent", "💶 Mon argent : où j'en suis",
+     "trigger_algo.guide_section_argent",
+     "ce qui est rentré face à la somme de tes dépenses, et la date du point mort."),
 )
+
+# R405 (V73, V74) : two former pages are sections of this one. Their keys stay routed —
+# mails and PDFs link to them — and open the page on THEIR section.
+ALIAS_SECTION = {
+    "meta_campaign_settings": "budget",
+    "revenue_forecast": "argent",
+}
+
+
+def arrival_section(alias: str | None) -> str | None:
+    """The section an old page key names — app.py sets the alias on the arriving run only."""
+    return ALIAS_SECTION.get(alias) if alias else None
+
+
+def section_label(key: str) -> str:
+    return next(t(k, fr) for sk, k, fr, _dk, _dfr in PAGE_SECTIONS if sk == key)
 
 
 def detail(label: str | None = None):
@@ -38,6 +57,10 @@ def detail(label: str | None = None):
     refuses a `st.dataframe` rendered outside an expander.
     """
     return st.expander(label or t("trigger_algo.detail", "📋 Détail chiffré"))
+
+
+def section_keys() -> list[str]:
+    return [k for k, *_ in PAGE_SECTIONS]
 
 
 def section_labels() -> list[str]:

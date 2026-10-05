@@ -2,7 +2,8 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, src.dashboard.utils.ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« 📈 Ce qui s'est vraiment passé »)
+Triggers: views/trigger_algo/router.py (« 📈 Ce qui s'est vraiment passé ») AND
+          views/saisie_s4a.py (Free) — `render_outcomes`, shared since R405
 Persists in: s4a_song_algo_outcomes
 
 R376 (2026-10-05, owner's screen review): the S4A entry page carried three tabs —
@@ -132,3 +133,19 @@ def render_outcome_custom_grid(db, artist_id, tracks) -> None:
             st.rerun()
         except Exception as exc:
             st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
+
+
+def render_outcomes(db, artist_id) -> None:
+    """The model's bet against what happened, then the entry of the real outcome.
+
+    SHARED (R405) by the algo page (Premium) and « 📝 Saisie S4A » (Free): the entry
+    feeds the model, so it is never locked behind the paywall.
+    """
+    from src.dashboard.utils.s4a_entry_insight import (
+        load_entry_tracks, render_prediction_vs_reality)
+
+    render_prediction_vs_reality(db, artist_id)
+    tracks = load_entry_tracks(db, artist_id)
+    if tracks:
+        render_outcome_grid(db, artist_id, tracks)
+        render_outcome_custom_grid(db, artist_id, tracks)

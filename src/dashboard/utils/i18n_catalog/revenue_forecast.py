@@ -10,8 +10,6 @@ EN = {
         "All your money on one chart: distributors (iMusician, DistroKid), SACEM "
         "royalties, Meta advertising and your release costs. The lower curve "
         "crosses zero the day you break even."),
-    "revenue_forecast.artist_caption":
-        "Revenue, spend and break-even — all on one chart.",
     "revenue_forecast.no_money_yet": (
         "No money movement on record. Import a sales report from **CSV import**, "
         "or connect Meta in **🔑 API Credentials**."),
@@ -139,21 +137,7 @@ EN = {
     "revenue_forecast.ml_expander":
         "🤖 Which of my tracks is closest — ML scores",
     # Entry point
-    "revenue_forecast.title": "📈 Revenue forecast",
-    "revenue_forecast.tab_mrr": "📊 Current MRR",
-    "revenue_forecast.tab_ltv": "💎 LTV & churn",
-    "revenue_forecast.tab_artist": "🎵 Artist projection",
     # Tab 1 — Current MRR
-    "revenue_forecast.mrr_header": "Current MRR",
-    "revenue_forecast.no_subscriptions": "No subscription found in the database. Connect Stripe to feed this data.",
-    "revenue_forecast.mrr_total": "Total MRR",
-    "revenue_forecast.paying_artists": "Paying artists",
-    "revenue_forecast.pending_cancellations": "Pending cancellations",
-    "revenue_forecast.subs_detail": "Subscription details",
-    "revenue_forecast.col_price": "Price (€/month)",
-    "revenue_forecast.col_status": "Status",
-    "revenue_forecast.col_cancel": "Cancel at period end",
-    "revenue_forecast.col_period_end": "Period end",
     # Tab 2 — MRR projection
     "revenue_forecast.ltv_header": "LTV & churn",
     "revenue_forecast.ltv_classic_header": "#### Classic LTV (ARPU ÷ monthly churn)",
@@ -203,4 +187,9 @@ EN = {
     "revenue_forecast.be_short_too_short": "too early to date",
     "revenue_forecast.be_too_short": ("⏳ {c:,.0f} € to go — only {n} month(s) known:<br>"
                                       "too early to date the break-even point"),
+    # R405 (V73)
+    "revenue_forecast.position_caption": ("The « everything in against everything out » curve "
+                                          "is in [↑ Budget & ROI](#budget): the gap between the "
+                                          "two cumuls is what is left to recover, and they "
+                                          "cross at break-even."),
 }
