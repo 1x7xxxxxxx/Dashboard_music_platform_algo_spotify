@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R407 | Un verdict CI lu sur une API servie en retard (mail ops 2026-10-05 15:18, fausse alerte « CI (main) ROUGE depuis le 2026-09-20 ») : `nightly_recap.fetch_runs` lit `/actions/workflows/…/runs` sans contrôle de fraîcheur — un run plus vieux que le dernier commit de main doit rendre « illisible », jamais « rouge ». Balayage fait (sibling-sweeper) : 4 sites frères vivants — `tools/dev/night_run.py` (`_main_ci_runs`/`red_main`), `tools/dev/ci_break_mail.py` (`previous_conclusion`), `tests/test_the_monitor_itself_still_runs.py` (âge, série d'échecs) ; `arch_benchmark._ci_runs` est une statistique, à trancher. Sûrs : lectures indexées par sha <!-- critic: non — contrôle de fraîcheur sans changement de contrat --> <!-- scope: src/utils/nightly_recap.py, tools/dev/night_run.py, tools/dev/ci_break_mail.py, tools/dev/github_nightly_recap.py, airflow/dags/alert_monitor.py, tests/, .test_durations, .claude/dev-docs/ --> | P3 | un test : une liste de runs dont le plus récent précède le commit de tête rend « illisible » ; muté (contrôle retiré → rouge) |
 | R395 | Déploiement prod en FIN de nuit (autorisé 2026-10-05) : CI verte sur le commit déployé, sauvegarde de la base, migration 145 puis les additives en attente, `deploy.sh` (api + dashboard), `git pull` pour les DAG ; puis contrôles post-déploiement (`/health`, accueil rendu, mails ops) — jamais un DAG déclenché à la main, jamais `tasks test` <!-- critic: non — procédure existante, autorisée --> <!-- scope: .claude/dev-docs/ --> | P2 | HEAD prod = commit déployé ; `/health` 200 ; aucune empreinte neuve dans `app_error_log` 30 min après |
 
 ---
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R407, R395, R283, R406 -->
+<!-- reprise: open=R395, R283, R406 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

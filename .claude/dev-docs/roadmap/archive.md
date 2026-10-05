@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R407 — Un verdict CI lu sur une API servie en retard (mail ops 2026-10-05 15:18, fausse alerte… (livrée 2026-10-05)
+
+- [x] **R407 — Un verdict CI lu sur une API servie en retard (mail ops 2026-10-05 15:18, fausse alerte « CI (main) ROUGE depuis le 2026-09-20 ») : `nightly_recap.fetch_runs` lit `/actions/workflows/…/runs` sans contrôle de fraîcheur — un run plus vieux que le dernier commit de main doit rendre « illisible », jamais « rouge ». Balayage fait (sibling-sweeper) : 4 sites frères vivants — `tools/dev/night_run.py` (`_main_ci_runs`/`red_main`), `tools/dev/ci_break_mail.py` (`previous_conclusion`), `tests/test_the_monitor_itself_still_runs.py` (âge, série d'échecs) ; `arch_benchmark._ci_runs` est une statistique, à trancher. Sûrs : lectures indexées par sha** (P3) ✅ (2026-10-05, bf9a0085, e2940d32)
+  Mesuré par : un test : une liste de runs dont le plus récent précède le commit de tête rend « illisible » ; muté (contrôle retiré → rouge)
+  Une liste de runs sans le commit de tête rend « illisible » (nightly_recap.is_fresh, night_run.fresh_runs, ci_break_mail.judge) ; 3 gardes mutés. Planifiés (prod-health, security) : non couverts, jugés par l'âge. CI verte sur bf9a0085.
+  Commits : bf9a0085 R407 : un verdict CI lu sur une liste qui ne porte pas le commit de tê · e2940d32 Roadmap : R405 close (CI verte sur ed7bd948)
+
 ## ✅ R381 — Vue algo — le contenu qui décide (V56, V64, V66, V71) : SHAP par playlist décroissant,… (livrée 2026-10-05)
 
 - [x] **R381 — Vue algo — le contenu qui décide (V56, V64, V66, V71) : SHAP par playlist décroissant, les playlists au plancher `proba_affichable` EXCLUES (un plancher n'est pas une mesure) ; valeur atteinte vs seuil d'ENTRÉE (130/137/639, `ml_outcome_labeling.TARGET_THRESHOLDS` — le seul jeu qui soit un seuil) ; coût Meta pour combler l'écart en FOURCHETTE meilleur CPR ↔ CPR moyen, dit « ordre de grandeur » ; recommandations du CPR Optimizer pour la dernière sortie RÉUTILISÉES depuis `meta_cpr_optimizer.py`, pas recalculées. ÉCARTÉ (critic DO-NOT-BUILD) : « réglages recommandés tirés des campagnes au meilleur CPR » — le minimum est la statistique la plus bruitée, 19 campagnes liées ; à rouvrir avec un plancher calibré sur la prod et un n affiché. Aperçu gratuit d'un SHAP des valeurs imputées → R406 (tarif)** (P3) ✅ (2026-10-05, 3346a4df, 42560c61, 72656ca7)
