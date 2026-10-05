@@ -2,13 +2,9 @@
 
 EN = {
     "service.title": "🎯 Have my campaigns run for me",
-    "service.intro": (
-        "The tool tells you where your money goes. If you want **someone to run the "
-        "campaigns themselves**, that is a separate service — and we talk before "
-        "starting."),
-    "service.prices_missing": (
-        "⚙️ **The three prices are not set**: the grid is hidden from artists. Fill "
-        "them in **⚙️ Admin → Settings** — they apply straight away, no redeploy."),
+    "service.pitch": (
+        "I run your campaigns **end to end**, to your budget and your goals: Meta Ads, "
+        "creatives, PDF wrap-up, daily files."),
     "service.no_calendly": (
         "⚙️ No booking link: the button is hidden. Set it in **⚙️ Admin → Settings**."),
     "service.book": "📅 Book a call",
