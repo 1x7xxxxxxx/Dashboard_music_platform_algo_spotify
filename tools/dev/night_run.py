@@ -526,6 +526,102 @@ def _main_ci_runs() -> "list[dict] | None":
         return None
 
 
+_CRON = re.compile(r"""^\s*-\s*cron:\s*["']([^"']+)["']""", re.M)
+
+
+def cron_period_hours(expr: str) -> "float | None":
+    """The nominal period of a 5-field cron, in hours — None when it is not one this
+    check can reason about (lists, ranges). Pure.
+
+    Only the coarse shape matters here: the alarm fires after TWO periods, and GitHub
+    starts a scheduled run hours late (measured 2026-10-05: 06:17 cron, 14:36 start)."""
+    f = expr.split()
+    if len(f) != 5 or any(("," in x or "-" in x) for x in f):
+        return None
+    minute, hour, dom, _month, dow = f
+    if dom != "*":
+        return 31 * 24.0
+    if dow != "*":
+        return 7 * 24.0
+    if hour == "*":
+        return 1.0
+    if hour.startswith("*/") and hour[2:].isdigit():
+        return float(hour[2:])
+    return 24.0 if hour.isdigit() and minute != "*" else None
+
+
+def scheduled_workflows(root: Path = REPO) -> "dict[str, float]":
+    """{workflow file name: shortest period in hours} for every `schedule:` workflow."""
+    out: dict[str, float] = {}
+    for wf in sorted((root / ".github" / "workflows").glob("*.y*ml")):
+        periods = [p for c in _CRON.findall(wf.read_text(encoding="utf-8"))
+                   if (p := cron_period_hours(c)) is not None]
+        if periods:
+            out[wf.name] = min(periods)
+    return out
+
+
+def stale_schedules(periods: "dict[str, float]", last: "dict[str, str | None]",
+                    now: datetime) -> "list[str]":
+    """The scheduled workflows whose newest scheduled run is older than two periods. Pure.
+
+    R415 (2026-10-05): a GitHub cron that stops — workflow disabled after 60 days without
+    activity, a YAML that no longer parses, a schedule removed by a merge — fails by
+    SILENCE: no red run, no mail. Only the age of the last run says it. A workflow absent
+    from `last` was not measured and is not judged."""
+    out = []
+    for wf, period in sorted(periods.items()):
+        if wf not in last:
+            continue
+        at = last[wf]
+        if at is None:
+            out.append(f"workflow planifié {wf} : aucun run planifié connu — le cron ne tourne pas")
+            continue
+        age_h = (now - datetime.fromisoformat(at.replace("Z", "+00:00"))).total_seconds() / 3600
+        if age_h > 2 * period:
+            out.append(f"workflow planifié {wf} : dernier run planifié il y a {age_h:.0f} h "
+                       f"(période {period:.0f} h) — `gh workflow view {wf}` : désactivé ?")
+    return out
+
+
+class _GhSilent(Exception):
+    """`gh` could not say — unknown, never « no run »."""
+
+
+def _last_scheduled_run(wf: str) -> "str | None":
+    """createdAt of the newest SCHEDULED run; None when there is none; raises _GhSilent
+    when `gh` could not say. Read per workflow from the API: `gh run list` is served by an
+    index that lagged a month on 2026-10-05 (R407's class) while this endpoint was current."""
+    try:
+        r = subprocess.run(
+            ["gh", "api", f"repos/{{owner}}/{{repo}}/actions/workflows/{wf}/runs"
+             "?event=schedule&per_page=1", "--jq", "[.workflow_runs[].created_at]"],
+            capture_output=True, text=True, timeout=30, cwd=str(REPO))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise _GhSilent(type(exc).__name__) from exc
+    if r.returncode != 0:
+        raise _GhSilent(f"exit {r.returncode}")
+    try:
+        runs = json.loads(r.stdout or "[]")
+    except ValueError as exc:
+        raise _GhSilent("unreadable") from exc
+    return runs[0] if runs else None
+
+
+def _schedule_problems() -> "list[str]":
+    periods = scheduled_workflows()
+    last: dict[str, str | None] = {}
+    for wf in periods:
+        try:
+            last[wf] = _last_scheduled_run(wf)
+        except _GhSilent:
+            continue
+    if len(last) < len(periods):
+        print(f"ℹ️  workflows planifiés : {len(periods) - len(last)} non vérifié(s) — `gh` "
+              "absent ou muet ; ce contrôle n'a rien dit de leur fraîcheur")
+    return stale_schedules(periods, last, datetime.now(timezone.utc))
+
+
 def cmd_check(_args) -> int:
     """Les invariants d'une séance longue. Sort ≠ 0 quand il y a à redire."""
     problems = _reopening_conditions_met()
@@ -580,6 +676,7 @@ def cmd_check(_args) -> int:
         rouge = red_main(runs)
         if rouge:
             problems.append(rouge)
+    problems += _schedule_problems()  # R415 — a cron that stopped fails by silence
 
     # ── UNE FERMETURE SANS OUVERTURE ────────────────────────────────────────────
     #
