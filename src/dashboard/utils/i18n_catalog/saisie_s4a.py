@@ -56,7 +56,4 @@ EN = {
     # Shared
     "saisie_s4a.error": "Error: {exc}",
     # Les trois onglets (2026-09-22) — la page empilait quatre grilles.
-    "saisie_s4a.tab_signals": "📊 This month's signals",
-    "saisie_s4a.tab_outcomes": "🎯 Recorded outcomes",
-    "saisie_s4a.tab_insight": "📈 What it adds up to",
 }

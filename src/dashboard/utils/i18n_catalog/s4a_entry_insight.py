@@ -3,6 +3,7 @@
 EN = {
     # ── Fraîcheur ────────────────────────────────────────────────────────────
     "s4a_insight.fresh_header": "🕐 How fresh are your entries?",
+    "s4a_insight.fresh_header_admin": "🕐 How fresh are this artist's S4A entries?",
     "s4a_insight.stale": (
         "**{n} block(s) no longer describe today.** The model still reads them as if "
         "they were current: a value entered once keeps feeding this month's prediction."),
@@ -30,7 +31,7 @@ EN = {
         "the same as « no prediction »."),
     "s4a_insight.bet_none": (
         "No track has BOTH a prediction and a recorded outcome. Fill in the recorded "
-        "outcomes (previous tab) so the comparison can exist."),
+        "outcomes just below so the comparison can exist."),
     "s4a_insight.panel_pred": "Predicted probability",
     "s4a_insight.panel_real": "Algorithmic streams recorded (28 d)",
     "s4a_insight.bet_plain": (

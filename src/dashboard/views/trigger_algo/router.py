@@ -16,6 +16,9 @@ from ._tab_titre import _show_tab_titre
 from ._tab_budget_roi import _show_tab_budget_roi
 from ._tab_catalogue import _show_tab_catalogue
 from ._tab_lifecycle import _show_tab_lifecycle
+from ._outcome_entry import render_outcome_custom_grid, render_outcome_grid
+from src.dashboard.utils.s4a_entry_insight import (
+    load_entry_tracks, render_prediction_vs_reality)
 
 
 def show():
@@ -207,6 +210,16 @@ def show():
                 _show_tab_lifecycle(db, selected_track, artist_id,
                                     release_date=track_release_date,
                                     benchmark_df=benchmark_df)
+            # R376 : le pari du modèle et la saisie des résultats réalisés, venus de
+            # « 📝 Saisie S4A » — un label se saisit à côté de la prédiction qu'il juge.
+            st.markdown("---")
+            render_prediction_vs_reality(db, artist_id)
+            st.markdown("---")
+            _entry_tracks = load_entry_tracks(db, artist_id)
+            if _entry_tracks:
+                render_outcome_grid(db, artist_id, _entry_tracks)
+                st.markdown("---")
+                render_outcome_custom_grid(db, artist_id, _entry_tracks)
         with tab4:
             _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
                                  ml_pred=ml_pred)

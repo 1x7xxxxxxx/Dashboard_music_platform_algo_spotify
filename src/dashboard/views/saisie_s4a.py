@@ -22,37 +22,14 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.entry_period import entry_period_selector
 from src.dashboard.utils.s4a_entry_insight import (
+    load_entry_tracks,
     render_completeness,
-    render_freshness,
-    render_prediction_vs_reality,
 )
 from src.dashboard.utils.i18n import t
 
 from src.dashboard.utils.ui import flash
-from src.utils.artist_name_filter import (
-    ARTIST_NAME_LIKE as _ARTIST_FILTER,
-)
 
 _WINDOWS = [("Playlist 7j", "7d"), ("Playlist 28j", "28d"), ("Playlist 12 mois", "12m")]
-
-
-def _load_tracks(db, artist_id) -> list[str]:
-    if artist_id:
-        rows = db.fetch_df(
-            """SELECT t.song FROM (SELECT song FROM s4a_song_timeline
-                 WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song) t
-               LEFT JOIN tracks tk ON REPLACE(tk.track_name,'?','_') = t.song
-                                      AND tk.saas_artist_id = %s
-               ORDER BY tk.release_date DESC NULLS LAST, t.song""",
-            (_ARTIST_FILTER, artist_id, artist_id))
-    else:
-        rows = db.fetch_df(
-            """SELECT t.song FROM (SELECT song FROM s4a_song_timeline
-                 WHERE song NOT ILIKE %s GROUP BY song) t
-               LEFT JOIN tracks tk ON REPLACE(tk.track_name,'?','_') = t.song
-               ORDER BY tk.release_date DESC NULLS LAST, t.song""",
-            (_ARTIST_FILTER,))
-    return rows["song"].tolist() if rows is not None and not rows.empty else []
 
 
 def _latest_windowed(db, artist_id) -> dict:
@@ -90,18 +67,6 @@ def _latest_radio_count(db, artist_id) -> int:
            WHERE artist_id = %s ORDER BY recorded_at DESC LIMIT 1""",
         (artist_id,)) if artist_id else []
     return int(rows[0][0]) if rows and rows[0][0] is not None else 0
-
-
-def _latest_algo_outcomes(db, artist_id, time_window) -> dict:
-    """{song: {dw, rr, radio}} latest realized algo-stream snapshot per song for one window."""
-    rows = db.fetch_query(
-        """SELECT DISTINCT ON (song) song, dw_streams, rr_streams, radio_streams
-           FROM s4a_song_algo_outcomes
-           WHERE artist_id = %s AND time_window = %s
-           ORDER BY song, recorded_at DESC""",
-        (artist_id, time_window)) if artist_id else []
-    return {r[0]: {"dw": int(r[1] or 0), "rr": int(r[2] or 0), "radio": int(r[3] or 0)}
-            for r in rows} if rows else {}
 
 
 def _render_fixed_grid(db, artist_id, tracks) -> None:
@@ -208,106 +173,6 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
         st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
-def _render_outcome_grid(db, artist_id, tracks) -> None:
-    st.subheader(t("saisie_s4a.outcome_header",
-                   "🎯 Streams algorithmiques réalisés (28j) — entraînement du modèle"))
-    st.caption(t("saisie_s4a.outcome_caption",
-                 "Par titre, les streams **réellement obtenus** sur 28 jours via Discover Weekly, "
-                 "Release Radar et Radio. Ces valeurs deviennent les **labels** qui apprennent au "
-                 "modèle s'il avait raison (boucle d'apprentissage live, alimente ml_prediction_outcomes)."))
-
-    with st.expander(t("saisie_s4a.outcome_howto_header",
-                       "ℹ️ Où lire les streams DW / RR / Radio dans Spotify for Artists ?")):
-        st.markdown(t("saisie_s4a.outcome_howto",
-            "**Musique → Titres → un titre → Source de streams**, active le filtre **28 derniers "
-            "jours**, puis reporte les lignes **Discover Weekly**, **Release Radar** et **Radio** de la "
-            "segmentation « Source de streams ». Saisis ces valeurs **~4 semaines après** la prédiction "
-            "pour que la fenêtre de 28 jours soit complète — c'est ce délai qui rend le label honnête."))
-
-    out7 = _latest_algo_outcomes(db, artist_id, "7d")
-    out28 = _latest_algo_outcomes(db, artist_id, "28d")
-    df = pd.DataFrame([{
-        "Titre": s,
-        "DW 7j": out7.get(s, {}).get("dw", 0), "DW 28j": out28.get(s, {}).get("dw", 0),
-        "RR 7j": out7.get(s, {}).get("rr", 0), "RR 28j": out28.get(s, {}).get("rr", 0),
-        "Radio 7j": out7.get(s, {}).get("radio", 0), "Radio 28j": out28.get(s, {}).get("radio", 0),
-    } for s in tracks])
-
-    _num = st.column_config.NumberColumn(min_value=0, step=1)
-    edited = st.data_editor(
-        df, hide_index=True, width="stretch", num_rows="fixed",
-        column_config={
-            "Titre": st.column_config.TextColumn(disabled=True),
-            "DW 7j": _num,
-            "DW 28j": st.column_config.NumberColumn(
-                min_value=0, step=1,
-                help=t("saisie_s4a.outcome_help",
-                       "Streams Discover Weekly / Release Radar / Radio réels. Le 28j alimente les "
-                       "labels d'entraînement du modèle (seuils 137 / 130 / 639) ; le 7j sert au suivi.")),
-            "RR 7j": _num, "RR 28j": _num, "Radio 7j": _num, "Radio 28j": _num,
-        },
-        key=f"grid_outcome_{artist_id}",
-    )
-
-    if st.button(t("saisie_s4a.save_outcomes", "💾 Enregistrer les outcomes (7j + 28j)"),
-                 type="primary", key=f"save_outcomes_{artist_id}"):
-        today = date.today()
-        rows = []
-        for _, r in edited.iterrows():
-            rows.append({"artist_id": artist_id, "song": r["Titre"], "time_window": "7d",
-                         "recorded_at": today, "dw_streams": int(r["DW 7j"] or 0),
-                         "rr_streams": int(r["RR 7j"] or 0), "radio_streams": int(r["Radio 7j"] or 0)})
-            rows.append({"artist_id": artist_id, "song": r["Titre"], "time_window": "28d",
-                         "recorded_at": today, "dw_streams": int(r["DW 28j"] or 0),
-                         "rr_streams": int(r["RR 28j"] or 0), "radio_streams": int(r["Radio 28j"] or 0)})
-        try:
-            db.upsert_many("s4a_song_algo_outcomes", rows,
-                           ["artist_id", "song", "time_window", "recorded_at"],
-                           ["dw_streams", "rr_streams", "radio_streams"])
-            flash(t("saisie_s4a.saved_outcomes",
-                         "Outcomes réalisés enregistrés (7j + 28j) pour {n} titres.").format(n=len(tracks)))
-            st.rerun()
-        except Exception as exc:
-            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
-
-
-def _render_outcome_custom_grid(db, artist_id, tracks) -> None:
-    st.markdown("**" + t("saisie_s4a.outcome_custom_header",
-                         "📅 Autre fenêtre (streams DW/RR/Radio générés)") + "**")
-    # ⚠️ DES RACCOURCIS, PAS DEUX DATES À TAPER — 2026-09-22.
-    # « début fin avec des valeurs à rentrer c'est pas très agréable ». Et le fond
-    # dépasse le confort : les seules fenêtres pour lesquelles S4A affiche un chiffre
-    # sont 7 j, 28 j et 12 mois. Une paire de dates libres invite à saisir une période
-    # dont la source ne produit aucune valeur. Détail : `utils/entry_period.py`.
-    fenetre = entry_period_selector(key=f"algo_custom_{artist_id}")
-    start, end = fenetre.start, fenetre.end
-
-    df = pd.DataFrame([{"Titre": s, "DW": 0, "RR": 0, "Radio": 0} for s in tracks])
-    _num = st.column_config.NumberColumn(min_value=0, step=1)
-    edited = st.data_editor(
-        df, hide_index=True, width="stretch", num_rows="fixed",
-        column_config={"Titre": st.column_config.TextColumn(disabled=True),
-                       "DW": _num, "RR": _num, "Radio": _num},
-        key=f"grid_outcome_custom_{artist_id}",
-    )
-    if st.button(t("saisie_s4a.outcome_custom_save", "💾 Enregistrer la période (algos)"),
-                 type="primary", key=f"save_outcome_custom_{artist_id}"):
-        rows = [{"artist_id": artist_id, "song": r["Titre"], "time_window": "custom",
-                 "recorded_at": end, "dw_streams": int(r["DW"] or 0), "rr_streams": int(r["RR"] or 0),
-                 "radio_streams": int(r["Radio"] or 0), "period_start": start, "period_end": end}
-                for _, r in edited.iterrows()]
-        try:
-            db.upsert_many("s4a_song_algo_outcomes", rows,
-                           ["artist_id", "song", "time_window", "recorded_at"],
-                           ["dw_streams", "rr_streams", "radio_streams", "period_start", "period_end"])
-            flash(t("saisie_s4a.outcome_custom_saved",
-                         "Période {start} → {end} enregistrée pour {n} titres.")
-                       .format(start=start, end=end, n=len(rows)))
-            st.rerun()
-        except Exception as exc:
-            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
-
-
 def _render_custom_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.custom_header",
                    "📅 Autre fenêtre (ex. premiers jours post-release)"))
@@ -349,46 +214,27 @@ def show():
         if not artist_id:
             st.error(t("saisie_s4a.invalid_session", "Session invalide."))
             return
-        tracks = _load_tracks(db, artist_id)
+        tracks = load_entry_tracks(db, artist_id)
         if not tracks:
             st.warning(t("saisie_s4a.no_tracks", "Aucun titre disponible (timeline S4A vide)."))
             return
-        # ⚠️ TROIS ONGLETS, ET C'EST UNE CORRECTION DE LISIBILITÉ, PAS DE GOÛT.
+        # ⚠️ PLUS D'ONGLETS — R376 (2026-10-05, revue d'écran du propriétaire).
         #
-        # La page empilait QUATRE grilles de saisie à la file, toutes de la même
-        # forme et toutes pré-remplies avec le dernier instantané. Deux conséquences
-        # mesurées le 2026-09-22 :
+        # La page portait trois onglets (signaux / résultats réalisés / ce que ça
+        # donne) parce que les deux moitiés n'ont pas le même rythme : les signaux se
+        # relèvent une fois par mois, les résultats ~4 semaines APRÈS la prédiction.
+        # Le remède garde cette séparation, mais par PAGE plutôt que par onglet :
         #
-        #   · on ne sait pas où on en est — une grille remplie a la même allure
-        #     qu'on l'ait enregistrée hier ou il y a cent jours ;
-        #   · les deux moitiés n'ont pas le même rythme. Les signaux se relèvent une
-        #     fois par mois, les résultats réalisés ~4 semaines APRÈS la prédiction.
-        #     Les empiler invite à tout ressaisir en même temps, ce qui rend le label
-        #     malhonnête.
-        #
-        # Un onglet BORNE un écran — c'est aussi ce que le cliquet de figures de
-        # premier écran reconnaît comme un repli structurel.
-        onglet_signaux, onglet_resultats, onglet_bilan = st.tabs([
-            t("saisie_s4a.tab_signals", "📊 Signaux du mois"),
-            t("saisie_s4a.tab_outcomes", "🎯 Résultats réalisés"),
-            t("saisie_s4a.tab_insight", "📈 Ce que ça donne"),
-        ])
-
-        with onglet_signaux:
-            _render_fixed_grid(db, artist_id, tracks)
-            st.markdown("---")
-            _render_custom_grid(db, artist_id, tracks)
-
-        with onglet_resultats:
-            _render_outcome_grid(db, artist_id, tracks)
-            st.markdown("---")
-            _render_outcome_custom_grid(db, artist_id, tracks)
-
-        with onglet_bilan:
-            render_freshness(db, artist_id)
-            st.markdown("---")
-            render_prediction_vs_reality(db, artist_id)
-            st.markdown("---")
-            render_completeness(db, artist_id, tracks)
-            # R249 (fiche 59, owner 2026-09-27 : « retire ») : l'historique des ajouts en
-            # playlist est parti — la complétude juste au-dessus dit déjà ce qui manque.
+        #   · les résultats réalisés et « Le pari du modèle » vivent dans Road to Algo,
+        #     onglet « Ce qui s'est vraiment passé » — à côté de la prédiction qu'ils
+        #     jugent (`views/trigger_algo/_outcome_entry.py`) ;
+        #   · la fraîcheur des saisies est un contrôle d'exploitation : page admin,
+        #     Santé → « Fraîcheur des saisies S4A » ;
+        #   · ici restent les signaux du mois, puis les titres qu'ils couvrent.
+        _render_fixed_grid(db, artist_id, tracks)
+        st.markdown("---")
+        _render_custom_grid(db, artist_id, tracks)
+        st.markdown("---")
+        render_completeness(db, artist_id, tracks)
+        # R249 (fiche 59, owner 2026-09-27 : « retire ») : l'historique des ajouts en
+        # playlist est parti — la complétude juste au-dessus dit déjà ce qui manque.

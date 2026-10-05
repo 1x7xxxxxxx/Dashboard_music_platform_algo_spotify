@@ -203,6 +203,9 @@ EN = {
     "admin.s_airflow": "\U0001F6A6 Pipelines",
     "admin.s_alerts": "\U0001F514 Alerts",
     "admin.s_platforms": "\U0001F4E1 Freshness per platform",
+    "admin.s_s4a_fresh": "\U0001F4DD S4A entry freshness",
+    "admin.s4a_fresh_none": "No active artist.",
+    "admin.s4a_fresh_artist": "Artist",
     "admin.s_usage": "\U0001F4C8 App usage",
     "admin.s_ml": "\U0001F916 ML performance",
 }

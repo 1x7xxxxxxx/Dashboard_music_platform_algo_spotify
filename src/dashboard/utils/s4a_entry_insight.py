@@ -4,7 +4,8 @@ Type: Sub
 Uses: streamlit, pandas, plotly, src.dashboard.utils.semantic_colors
 Depends on: s4a_song_playlist_adds, s4a_song_discovery_mode, s4a_song_nonalgo_streams,
   s4a_artist_radio_count, s4a_song_algo_outcomes, ml_song_predictions
-Triggers: views/saisie_s4a.py (onglet « Ce que ça donne »)
+Triggers: views/saisie_s4a.py (complétude), views/trigger_algo/router.py (le pari),
+  views/admin.py (fraîcheur) — R376
 Persists in: nothing
 
 Pourquoi ces trois surfaces, et pas d'autres — MESURÉ EN PRODUCTION LE 2026-09-22
@@ -58,6 +59,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils import charts
+from src.utils.artist_name_filter import ARTIST_NAME_LIKE as _ARTIST_FILTER
 
 # Au-delà, une valeur ne décrit plus la situation d'aujourd'hui. 35 jours = la fenêtre
 # de 28 jours de S4A plus une semaine de battement : on ne crie pas parce qu'une
@@ -72,6 +74,27 @@ _BLOCS = [
     ("s4a_artist_radio_count", "Titres en Radio"),
     ("s4a_song_algo_outcomes", "Résultats réalisés"),
 ]
+
+
+
+def load_entry_tracks(db, artist_id) -> list[str]:
+    """The tenant's S4A titles, newest release first — the rows of every entry grid."""
+    if artist_id:
+        rows = db.fetch_df(
+            """SELECT t.song FROM (SELECT song FROM s4a_song_timeline
+                 WHERE song NOT ILIKE %s AND artist_id = %s GROUP BY song) t
+               LEFT JOIN tracks tk ON REPLACE(tk.track_name,'?','_') = t.song
+                                      AND tk.saas_artist_id = %s
+               ORDER BY tk.release_date DESC NULLS LAST, t.song""",
+            (_ARTIST_FILTER, artist_id, artist_id))
+    else:
+        rows = db.fetch_df(
+            """SELECT t.song FROM (SELECT song FROM s4a_song_timeline
+                 WHERE song NOT ILIKE %s GROUP BY song) t
+               LEFT JOIN tracks tk ON REPLACE(tk.track_name,'?','_') = t.song
+               ORDER BY tk.release_date DESC NULLS LAST, t.song""",
+            (_ARTIST_FILTER,))
+    return rows["song"].tolist() if rows is not None and not rows.empty else []
 
 
 def _age_rows(db, artist_id: int) -> list[dict]:
@@ -118,10 +141,15 @@ def _pastille(ligne: dict) -> str:
     return "🟠" if ligne["jours"] >= _TIEDE_JOURS else "🟢"
 
 
-def render_freshness(db, artist_id: int) -> None:
-    """Quand chaque bloc a été saisi pour la dernière fois."""
+def render_freshness(db, artist_id: int, *, for_admin: bool = False) -> None:
+    """Quand chaque bloc a été saisi pour la dernière fois.
+
+    R376 : appelée depuis la page admin (Santé), qui regarde UN artiste choisi —
+    `for_admin` change seulement le titre, « tes saisies » n'y serait pas vrai.
+    """
     lignes = _age_rows(db, artist_id)
-    st.subheader(t("s4a_insight.fresh_header", "🕐 Fraîcheur de tes saisies"))
+    st.subheader(t("s4a_insight.fresh_header_admin", "🕐 Fraîcheur des saisies S4A de cet artiste")
+                 if for_admin else t("s4a_insight.fresh_header", "🕐 Fraîcheur de tes saisies"))
 
     perimes = [ln for ln in lignes
                if not ln["illisible"] and ln["jours"] is not None
@@ -241,7 +269,7 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     if not rows:
         st.info(t("s4a_insight.bet_none",
                   "Aucun titre n'a À LA FOIS une prédiction et un résultat saisi. "
-                  "Saisis les résultats réalisés (onglet précédent) pour que la "
+                  "Saisis les résultats réalisés juste en dessous pour que la "
                   "comparaison existe."))
         return
 

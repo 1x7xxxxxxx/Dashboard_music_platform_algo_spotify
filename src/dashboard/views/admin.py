@@ -762,6 +762,26 @@ def signups_sql() -> str:
             f"WHERE u.role <> 'admin' AND NOT {NON_HUMAN_TENANT}")
 
 
+def _render_s4a_freshness(db) -> None:
+    """R376 — la fraîcheur des saisies S4A, sortie de la page de saisie de l'artiste.
+
+    C'est un contrôle d'exploitation (un bloc saisi en juin alimente encore la
+    prédiction d'octobre), pas un écran de saisie : il vit ici, pour un artiste choisi.
+    """
+    from src.dashboard.utils.s4a_entry_insight import render_freshness
+
+    rows = db.fetch_query(
+        "SELECT id, name FROM saas_artists WHERE active ORDER BY name") or []
+    if not rows:
+        st.info(t("admin.s4a_fresh_none", "Aucun artiste actif."))
+        return
+    noms = {r[0]: r[1] for r in rows}
+    choisi = st.selectbox(t("admin.s4a_fresh_artist", "Artiste"), list(noms),
+                          format_func=lambda i: f"{noms[i]} (#{i})",
+                          key="_admin_s4a_fresh_artist")
+    render_freshness(db, choisi, for_admin=True)
+
+
 def show():
     _guard()
 
@@ -791,8 +811,9 @@ def show():
             ("airflow_kpi", t("admin.s_airflow", "🚦 Pipelines")),
             ("alerts", t("admin.s_alerts", "🔔 Alertes")),
             ("technique", t("admin.s_platforms", "📡 Fraîcheur par plateforme")),
+            ("s4a_fresh", t("admin.s_s4a_fresh", "📝 Fraîcheur des saisies S4A")),
         ])
-        if choix != "technique":
+        if choix not in ("technique", "s4a_fresh"):
             _deleguer(choix)
             return
     elif _groupe == "usage":
@@ -823,7 +844,7 @@ def show():
         if _groupe == "business":
             _render_supervision(db)
         elif _groupe == "sante":
-            _render_technique(db)
+            (_render_s4a_freshness if choix == "s4a_fresh" else _render_technique)(db)
         elif _groupe == "comptes":
             {"artistes": lambda: _tab_artists(db),
              "utilisateurs": lambda: _tab_users(db),
