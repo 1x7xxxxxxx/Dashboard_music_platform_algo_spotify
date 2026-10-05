@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R372 — Accueil — bloc « Dernière sortie » sans filtre (V5) : nommer la sortie et dire que c'es… (livrée 2026-10-05)
+
+- [x] **R372 — Accueil — bloc « Dernière sortie » sans filtre (V5) : nommer la sortie et dire que c'est la dernière ; % par playlist (existe, `home_tiles.py:457`) + BUDGET Meta nécessaire = écart au seuil × coût AGRÉGÉ par écoute (ordre de grandeur) — la même fonction que la vue algo, pas une seconde formule** (P3) ✅ (2026-10-05, e02047c6, 27c2ad43)
+  Mesuré par : un test : le budget de l'accueil et celui de la vue algo sortent du même appel pour le même titre ; titre = dernière sortie de `v_s4a_song_measured_span`
+  CI verte sur e02047c6 : budget_declenchement() — un appel pour l'accueil et la vue algo ; la dernière sortie mesurée nommée partout (portes, Shazam, budget)
+  Commits : e02047c6 R372 : accueil — la dernière sortie nommée, et son budget Meta par le  · 27c2ad43 Roadmap : R373 close (CI verte sur 69ff0ace) ; R372 décision critic co
+
 ## ✅ R373 — Accueil — retirer « Ce que ta publicité a appris », le bouton PDF, « Statut des pipelin… (livrée 2026-10-05)
 
 - [x] **R373 — Accueil — retirer « Ce que ta publicité a appris », le bouton PDF, « Statut des pipelines » et « Ce qui alimente tes chiffres » (V6) ; chaque bloc va où il n'est pas déjà : conseil Meta → vue croisée (R378) ; fraîcheur → Santé onboarding (vérifié 2026-10-05 : seule Alertes, admin, la montrait — la grille avec ses heures part donc dans `utils/source_freshness.py`, appelée par Santé onboarding pour l'artiste) ; conseil Meta, en attendant R378 → page Publicité Meta Ads ; pipelines → Monitoring ETL (admin) ; PDF → entrée de menu sous l'accueil (R386). Le `</div>` (V7) est déjà corrigé par 0d90552d, pas encore en prod** (P3) ✅ (2026-10-05, 69ff0ace)

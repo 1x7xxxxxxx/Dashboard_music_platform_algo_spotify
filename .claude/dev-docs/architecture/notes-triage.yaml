@@ -3064,9 +3064,9 @@
     chaque playlist + budget Meta nécessaire (meilleur CPR traduit en écoutes).'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R372
+  preuve_statut: R372 (archivée) — e02047c6
 - ligne: 10
   source: revue/notes-vocales-2026-10-05.md
   note: V6
