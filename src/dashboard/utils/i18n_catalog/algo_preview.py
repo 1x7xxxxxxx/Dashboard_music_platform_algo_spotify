@@ -15,6 +15,11 @@ EN = {
                            "**≈ {b} € of ads**.",
     "algo_preview.no_cost": "No Meta spend over the last 90 days: no way to estimate what a "
                             "stream costs, hence the budget.",
+    "algo_preview.guessed_header": "##### 🧩 What the computation had to guess ({n})",
+    "algo_preview.guessed_caption": "Without data, these criteria take a neutral value: the "
+                                    "estimate describes a track only partly measured. Drop "
+                                    "your exports on **📝 Saisie S4A** to fill them. The "
+                                    "weight of each one in the score → Premium.",
     "algo_preview.open": "🚀 Open Road to Algo",
     "algo_preview.upgrade": "🔒 Whole catalogue, simulations and detailed budget → Premium",
     "nav.item.algo_preview": "Preview: trigger the algorithms",

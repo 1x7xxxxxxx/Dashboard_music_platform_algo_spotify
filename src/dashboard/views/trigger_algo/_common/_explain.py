@@ -109,26 +109,36 @@ def _show_key_factors(features_json):
 _DM_KEY = "IsThisSongOptedIntoSpotifyDiscoveryMode"
 
 
-def _show_imputation_caveat(feats: dict, feature_columns) -> None:
-    """Warn which model inputs are imputed/absent → probabilities are indicative."""
+def imputed_features(feats: dict, feature_columns) -> list[str]:
+    """Model inputs the score had to guess: absent, or an imputable one left at 0 — minus
+    the manual-source ones the tenant DID enter (migration 052; even a genuine 0 is real
+    data). Sorted. Pure — Premium's caveat and the free preview read this one list (R410)."""
     missing = [f for f in feature_columns if f not in feats]
     zeroed = [f for f in feature_columns
               if f in feats and f in _IMPUTED_FEATURES and float(feats.get(f, 0.0)) == 0.0]
     flagged = set(missing) | set(zeroed)
-    # Manual-source features (migration 052): a value the tenant entered — even a
-    # genuine 0 — is real data, not imputation. Drop it from the warning when known.
+    for known, key in (("discovery_mode_known", _DM_KEY),
+                       ("nonalgo_known", "NonAlgoStreams28Days_log"),
+                       ("radio_known", "HowManySongsDoYouHaveInRadioRightNow")):
+        if feats.get(known):
+            flagged.discard(key)
+    return sorted(flagged)
+
+
+def imputed_labels(feats: dict, feature_columns) -> list[str]:
+    """`imputed_features`, as the labels the artist reads."""
+    return [t(f"algo.label.{f}", _FEATURE_LABELS.get(f, (f, True))[0])
+            for f in imputed_features(feats, feature_columns)]
+
+
+def _show_imputation_caveat(feats: dict, feature_columns) -> None:
+    """Warn which model inputs are imputed/absent → probabilities are indicative."""
+    flagged = imputed_features(feats, feature_columns)
     dm_known = bool(feats.get("discovery_mode_known"))
     nonalgo_known = bool(feats.get("nonalgo_known"))
     radio_known = bool(feats.get("radio_known"))
-    if dm_known:
-        flagged.discard(_DM_KEY)
-    if nonalgo_known:
-        flagged.discard("NonAlgoStreams28Days_log")
-    if radio_known:
-        flagged.discard("HowManySongsDoYouHaveInRadioRightNow")
     if flagged:
-        labels = [t(f"algo.label.{f}", _FEATURE_LABELS.get(f, (f, True))[0])
-                  for f in sorted(flagged)]
+        labels = imputed_labels(feats, feature_columns)
         st.warning(t(
             "trigger_algo.common.imputation_warning",
             "⚠️ **{n}/{total} variables imputées à 0/neutre** "

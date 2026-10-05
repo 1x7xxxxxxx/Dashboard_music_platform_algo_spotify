@@ -21,6 +21,9 @@ CE QU'IL MONTRE, ET CE QU'IL REFUSE DE MONTRER (code-critic, même jour)
 - Le budget est un ORDRE DE GRANDEUR (coût par stream agrégé sur tous les titres ×
   écart de streams 7 j — le même chemin que le panneau Premium, un seul chiffre par titre),
   et la page le dit. Sans dépense Meta, pas de chiffre : dit aussi.
+- R410 (propriétaire, 2026-10-05) : la LISTE des critères que le modèle a dû deviner
+  (absents, ou imputés à 0) — sans leur contribution SHAP, réservée à Premium. Elle pousse
+  à la saisie sans livrer le verdict ; c'est la même liste que l'avertissement Premium.
 - L'état vide (aucune prédiction) sera le cas le plus fréquent tant que l'activation n'est
   pas réglée (ADR-028) : il nomme le geste qui le lève.
 """
@@ -72,7 +75,10 @@ def compose(pred: dict | None, feats: dict, eur_per_stream: float | None,
             "worth": worth.get(code),
         })
     gap = max(gaps) if gaps else None
+    from src.dashboard.views.trigger_algo._common._explain import imputed_features
+    from src.utils.ml_inference import FEATURE_COLUMNS
     return {"rows": rows, "streams_gap": gap,
+            "guessed": imputed_features(feats or {}, FEATURE_COLUMNS) if pred else [],
             "budget": budget_pour_streams(gap, eur_per_stream) if gap is not None else None}
 
 
@@ -94,6 +100,22 @@ def _worth(db, artist_id, song) -> dict[str, float]:
     if df is None or df.empty:
         return {}
     return {r["algo"]: float(r["valeur_eur"]) for _, r in df.iterrows()}
+
+
+def _render_guessed(guessed: list[str]) -> None:
+    """The criteria the score had to guess — names only, never their weight (R410)."""
+    if not guessed:
+        return
+    from src.dashboard.views.trigger_algo._common._explain import _FEATURE_LABELS
+    labels = [t(f"algo.label.{f}", _FEATURE_LABELS.get(f, (f, True))[0]) for f in guessed]
+    st.markdown(t("algo_preview.guessed_header",
+                  "##### 🧩 Ce que le calcul a dû deviner ({n})").format(n=len(labels)))
+    st.markdown("\n".join(f"- {lab}" for lab in labels))
+    st.caption(t("algo_preview.guessed_caption",
+                 "Faute de donnée, ces critères valent une valeur neutre : l'estimation "
+                 "décrit un titre dont on ne mesure qu'une partie. Dépose tes exports sur "
+                 "**📝 Saisie S4A** pour les remplir. Le poids de chacun dans le score "
+                 "→ Premium."))
 
 
 def show() -> None:
@@ -149,6 +171,7 @@ def show() -> None:
                                  "la cohorte, pas un gain garanti).")
                                .format(name=row["name"], w=_n(row["worth"])))
 
+        _render_guessed(view["guessed"])
         st.markdown("---")
         if view["budget"] is not None and view["streams_gap"]:
             st.markdown(t("algo_preview.budget",
