@@ -97,13 +97,15 @@ SEEN_RED: dict[str, str] = {
         "(le run annulé non compté) → 1 rouge",
     "tests/test_the_precompact_hook_saves_the_state.py":
         "2026-10-04 — court-circuit `_same_state` retiré (second instantané identique écrit) "
-        "→ 1 rouge",
+        "→ 1 rouge ; 2026-10-05 — R414 : bloc night-status gardé dans la comparaison, plafond "
+        "de lignes retiré, `status` → `check` → 1 rouge chacun",
     "tests/test_every_defect_kind_can_close.py":
         "2026-10-04 — un cron clos par le rc=0 de n'importe quelle étape → 1 rouge",
     "tests/test_every_harness_component_has_a_requirement.py":
         "2026-10-04 — vérification de couverture des composants retirée → 1 rouge",
     "tests/test_the_harness_report_renders_every_state.py":
-        "2026-10-04 — branche « verte, non prouvée » retirée des opportunités → 1 rouge",
+        "2026-10-04 — branche « verte, non prouvée » retirée des opportunités → 1 rouge ; "
+        "2026-10-05 — R413 : _never_invoked ignorant `manual` → 1 rouge",
     "tests/test_a_governance_commit_runs_its_readers.py":
         "2026-10-04 — `|| exit 1` retiré de roadmap-close → 1 rouge ; scénario R356 rejoué → rouge",
     "tests/test_a_recurrence_ticket_can_be_answered.py":
@@ -125,7 +127,8 @@ SEEN_RED: dict[str, str] = {
     "tests/test_containers_are_on_demand.py":
         "2026-10-04 — exemption élargie à AutoRemove seul → rouge ; ligne idle_containers retirée de night-status → 1 rouge",
     "tests/test_new_guards_are_mutated_every_night.py":
-        "2026-10-04 — record_red écrivant aussi une mutation verte → 1 rouge ; rotation figée (`start = 0`) → 1 rouge",
+        "2026-10-04 — record_red écrivant aussi une mutation verte → 1 rouge ; rotation figée (`start = 0`) → 1 rouge ; "
+        "2026-10-05 — re-muté après R412 : garde `source` de record_red neutralisée → 1 rouge",
     # R364 — the 42 « verte, non prouvée » proofs, mutated by hand on 2026-10-04.
     "tests/test_every_metric_is_registered.py":
         "2026-10-04 — formula de v_s4a_song_daily vidée (metric_registry.py:50) → 1 rouge ; entrée v_spotify_followers_daily commentée → 1 rouge",
