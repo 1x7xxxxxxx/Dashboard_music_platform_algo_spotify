@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R403 — Vue algo — 2/4 (V18, V20, V57-V63) : les 4 onglets de « Prédiction déclenchement » → un… (livrée 2026-10-05)
+
+- [x] **R403 — Vue algo — 2/4 (V18, V20, V57-V63) : les 4 onglets de « Prédiction déclenchement » → une page lue de haut en bas, séparateurs ; retirer « prochain geste titre par titre » et « vrai pour tout ton catalogue » ; jauges 0-100 gardées ; chaque nouveau module de section sous le plafond dur de 5 figures** (P3) ✅ (2026-10-05, fd551731, 72656ca7)
+  Mesuré par : AppTest : aucun `st.tabs`, aucun `st.dataframe` hors expander de détail ; plafonds de premier écran verts
+  La page algo se lit de haut en bas : quatre sections séparées, tableaux repliés ; CI verte sur fd551731.
+  Commits : fd551731 R403 : la page algo se lit de haut en bas — quatre sections séparées,  · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R399 — Vue croisée — UN jeu de filtres (suite de R378) : compte, campagne, période en tête de… (livrée 2026-10-05)
 
 - [x] **R399 — Vue croisée — UN jeu de filtres (suite de R378) : compte, campagne, période en tête de page, lus par chaque section ; la période SUIT la campagne quand une campagne est choisie (`_campaign_window`), libre sur « toutes » ; Instagram organique hors compte/campagne, dit à l'écran ; filtre de données = widget dont la valeur atteint SQL ou `.isin`, tout autre widget allowlisté par clé avec raison ; la période est `Window** (None` : partagée par perf et visuels, remplacée par `_campaign_window` pour l'entonnoir (une seule campagne, sinon « choisis une campagne »), « toute la période » grisé pour « qui a vu tes pubs », Instagram garde ses deux périodes (allowlist) ; UNE connexion ouverte par `show()` et passée aux sections. Le rapatriement de la tranche d'âge (Premium → Free) sort vers R406 (décision de tarif) <!-- critic: requis — fait 2026-10-05 avec R378, refait 2026-10-05 (BUILD-MODIFIED : période non uniforme, cardinalité de campagne, une connexion) --> <!-- scope: src/dashboard/views/meta_ads_overview.py, src/dashboard/views/meta_x_spotify.py, src/dashboard/views/meta_creatives.py, src/dashboard/views/meta_breakdowns.py, src/dashboard/views/instagram.py, src/dashboard/views/meta_cpr_optimizer.py, src/dashboard/views/home_meta_advice.py, src/dashboard/utils/, src/dashboard/content/chart_decisions.py, tools/dev/charts_dossier/, docs/adr/, .claude/dev-docs/, tests/, .test_durations -->) ✅ (2026-10-05, 627a960c, 7c02a42c)
