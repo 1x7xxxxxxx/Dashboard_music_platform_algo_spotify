@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R367 — Harnais — les 4 trous (ORCH-01, ORCH-03, RUN-04, RUN-06) renvoient vers R284, qui vit d… (livrée 2026-10-05)
+
+- [x] **R367 — Harnais — les 4 trous (ORCH-01, ORCH-03, RUN-04, RUN-06) renvoient vers R284, qui vit dans `product-backlog.md` derrière un déclencheur de charge : écrire leurs SONDES maintenant (elles rendent l'état mesuré, pas un échec), garder le code de scalabilité derrière le déclencheur **Critic 2026-10-05 : BUILD-MODIFIED** — ORCH-01 (boucles par locataire lues en AST dans `airflow/dags/*_daily.py` contre un ensemble accepté) et RUN-06 (`enable_pool(maxconn=8)` ≥ concurrence déclarée, lu en AST) en `pytest:`, pas en `cmd:` (sinon jamais « active ») ; RUN-04 reste `absent` (sans navigateur, aucune mesure honnête) ; ORCH-03 DO-NOT-BUILD (aucun compteur à mesurer) ; chaque sonde rougit si son prédicat ne voit aucun site.** (P3) ✅ (2026-10-05, f7a59a82, 53641f33)
+  Mesuré par : `make harness-report` : trous 4 → 2 (ORCH-01, RUN-06 mesurés ; RUN-04, ORCH-03 restent des trous déclarés)
+  CI verte sur f7a59a82 (run 37246371515) — REQ-ORCH-01 et REQ-RUN-06 ont une preuve AST vue rouge ; trous 4 → 2 (ORCH-03, RUN-04 restent sous R284)
+  Commits : f7a59a82 R367 : sondes ORCH-01 et RUN-06 lues en AST — trous 4 → 2 · 53641f33 Roadmap : R371-R393 inscrites (notes vocales V1-V88 du 2026-10-05) ; c
+
 ## ✅ R397 — Facturation admin — `billing.py:327` appelle `x.strftime` si `x` est vrai : `NaT` (péri… (livrée 2026-10-05)
 
 - [x] **R397 — Facturation admin — `billing.py:327` appelle `x.strftime` si `x` est vrai : `NaT` (période de fin NULL, laissée par la session Stripe de test) est VRAI → ValueError, la page admin billing plante (2 rouges de `make test-changed` du 2026-10-05) ; + `test_a_first_payment_earns_once_and_the_coupon_lands` rouge sous xdist, vert seul (dépendance d'ordre à trouver)** (P2) ✅ (2026-10-05, 30437fc6, 54ef4a1c, 51beaacd)

@@ -620,3 +620,14 @@
 {"at": "2026-10-04T18:48:32+00:00", "head": "9a41b8ad", "kind": "done", "task": "R360", "what": "CI verte, close"}
 {"at": "2026-10-04T20:24:03+00:00", "head": "036307fb", "kind": "start", "task": "R364", "what": "prouver les 42 sondes vertes non prouvées"}
 {"at": "2026-10-04T20:56:15+00:00", "kind": "done", "task": "R364", "what": "fermée par roadmap-close — 42 preuves mutées à la main : 38 vues rouges datées dans SEEN_RED, 4 aveugles réparées (GOLD-02, API-02, OBS-02, SEC-04) ; formes voisines → R368 (CI verte 9e0d2e54)"}
+{"at": "2026-10-04T23:00:23+00:00", "head": "073ba2d2", "kind": "start", "task": "R368", "what": "formes voisines des gardes R364"}
+{"at": "2026-10-04T23:33:28+00:00", "kind": "done", "task": "R368", "what": "fermée par roadmap-close — CI verte sur 54ef4a1c (run 37244008144). Dates à 4 chiffres (3 sites), triggers comparés par schema-check (trouve la DDL hypeddit → R396), sorties de main() gardées, FILTER-04 en AST avec 2 exemptions motivées. 3 rouges locaux hors périmètre → R397."}
+{"at": "2026-10-04T23:35:11+00:00", "head": "49a162ae", "kind": "done", "task": "R368", "what": ""}
+{"at": "2026-10-04T23:35:11+00:00", "head": "49a162ae", "kind": "start", "task": "R396", "what": ""}
+{"at": "2026-10-04T23:49:23+00:00", "kind": "done", "task": "R396", "what": "fermée par roadmap-close — CI verte sur b5cace9a (run 37244772976). Migration 146 additive (fonction au corps de la prod + trigger) ; 10 index locaux non ajoutés (099) ; garde test_every_trigger_is_created_by_a_migration muté. À appliquer en prod avec R395."}
+{"at": "2026-10-04T23:53:22+00:00", "head": "ec99d403", "kind": "done", "task": "R396", "what": ""}
+{"at": "2026-10-04T23:53:22+00:00", "head": "ec99d403", "kind": "start", "task": "R397", "what": ""}
+{"at": "2026-10-04T23:59:25+00:00", "kind": "done", "task": "R397", "what": "fermée par roadmap-close — CI verte sur 30437fc6 (run 37245510910) : billing admin rend « — » sur une fin de période NULL au lieu de lever ValueError NaTType (_admin_frame, garde muté rouge) ; le test de parrainage efface STRIPE_REFERRAL_COUPON_ID"}
+{"at": "2026-10-05T00:01:06+00:00", "head": "5d442cae", "kind": "done", "task": "R397", "what": ""}
+{"at": "2026-10-05T00:01:06+00:00", "head": "5d442cae", "kind": "start", "task": "R367", "what": ""}
+{"at": "2026-10-05T00:12:59+00:00", "kind": "done", "task": "R367", "what": "fermée par roadmap-close — CI verte sur f7a59a82 (run 37246371515) — REQ-ORCH-01 et REQ-RUN-06 ont une preuve AST vue rouge ; trous 4 → 2 (ORCH-03, RUN-04 restent sous R284)"}
