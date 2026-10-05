@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R401 — Constat MEDIUM préexistant de la revue sécurité de R398 (2026-10-05) : un identifiant I… (livrée 2026-10-05)
+
+- [x] **R401 — Constat MEDIUM préexistant de la revue sécurité de R398 (2026-10-05) : un identifiant INCONNU rend sans bcrypt (`dashboard/auth.py` `if not rows`, `api/auth.py` idem), un compte existant paie bcrypt + l'UPDATE du verrou — le temps de réponse du formulaire public et de `POST /auth/token` dit quels identifiants existent. Remède déjà présent dans la branche Google : `verify_password(password, _CONDENSAT_LEURRE)` avant le `return`.** (P3) ✅ (2026-10-05, 611315e2)
+  Mesuré par : un identifiant inconnu appelle bcrypt exactement une fois, dashboard et API (compteur sur `verify_password`)
+  CI verte sur 611315e2 — un identifiant inconnu et un compte sans mot de passe paient chacun un bcrypt sur un condensat leurre ; 3 mutations rouges
+  Commits : 611315e2 R401 : un identifiant inconnu paie le même bcrypt qu'un compte réel
+
 ## ✅ R398 — Constats MEDIUM de l'audit sécurité de R370 (2026-10-05) : (a) `locked_until` lu AVANT… (livrée 2026-10-05)
 
 - [x] **R398 — Constats MEDIUM de l'audit sécurité de R370 (2026-10-05) : (a) `locked_until` lu AVANT bcrypt → une rafale parallèle obtient 4 + N essais par fenêtre — prendre la tentative atomiquement avant bcrypt (`UPDATE … WHERE locked_until IS NULL OR <= NOW() RETURNING id`), dashboard et API ; (b) le défi TOTP du dashboard ne relit pas `locked_until` — un code juste lève le verrou ; (c) `update_platform_secret` rend None en silence quand il refuse d'écrire (blob illisible, lock_timeout) — un refresh_token SoundCloud neuf est perdu alors que l'ancien est révoqué : lever, et faire échouer la tâche appelante** (P2) ✅ (2026-10-05, 611315e2, 7c4f6fac, d8e6929b)

@@ -675,3 +675,24 @@
 {"at": "2026-10-05T10:51:34+00:00", "head": "e17bd83d", "kind": "start", "task": "R384", "what": ""}
 {"at": "2026-10-05T10:55:41+00:00", "kind": "done", "task": "R382", "what": "fermée par roadmap-close — CI verte sur e17bd83d — Meta en cumulé par titre, sélecteur limité aux titres qui bougent (≥28 streams sur 28 j), axe de popularité borné au max observé arrondi à la dizaine ; 4 mutations rouges"}
 {"at": "2026-10-05T10:58:25+00:00", "head": "1939143d", "kind": "done", "task": "R382", "what": ""}
+{"at": "2026-10-05T11:15:36+00:00", "head": "6e51afab", "kind": "start", "task": "R385", "what": ""}
+{"at": "2026-10-05T11:21:16+00:00", "kind": "done", "task": "R384", "what": "fermée par roadmap-close — CI verte sur 6e51afab — classement par ratio like/vue, vues gagnées par vidéo (dernier − premier relevé de la période), âge × vues ; étiquettes distinctes par unique_short_labels"}
+{"at": "2026-10-05T11:22:56+00:00", "head": "f7ae50de", "kind": "done", "task": "R384", "what": ""}
+{"at": "2026-10-05T11:38:33+00:00", "head": "9079fd70", "kind": "start", "task": "R386", "what": ""}
+{"at": "2026-10-05T11:40:57+00:00", "kind": "done", "task": "R385", "what": "fermée par roadmap-close — CI verte sur 9079fd70 — SoundCloud : 4 compteurs sur une ligne, titres comparés en tête, comparaison à âge égal par age_aligned_traces partagé avec Spotify"}
+{"at": "2026-10-05T11:42:57+00:00", "head": "0e9ed7f7", "kind": "done", "task": "R385", "what": ""}
+{"at": "2026-10-05T11:50:16+00:00", "head": "0a243bf9", "kind": "start", "task": "R388", "what": ""}
+{"at": "2026-10-05T12:01:32+00:00", "kind": "done", "task": "R386", "what": "fermée par roadmap-close — CI verte sur 288f86b9 — un seul filtre « Chansons » à côté d'Artiste et Période, bouton dernière sortie, Générer après les filtres, menu de tête Accueil · Rapport · Faire piloter"}
+{"at": "2026-10-05T12:06:40+00:00", "head": "90ae54a9", "kind": "done", "task": "R386", "what": ""}
+{"at": "2026-10-05T12:14:06+00:00", "head": "2b91e215", "kind": "start", "task": "R391", "what": ""}
+{"at": "2026-10-05T12:22:59+00:00", "kind": "done", "task": "R388", "what": "fermée par roadmap-close — CI verte sur 2b91e215 — page Distributeur lue de haut en bas : saisie, évolution empilée par distributeur + cumul (lu dans v_artist_monthly_revenue), point mort ; onglets et tableau de détail retirés"}
+{"at": "2026-10-05T12:24:59+00:00", "head": "1f909c57", "kind": "done", "task": "R388", "what": ""}
+{"at": "2026-10-05T12:35:37+00:00", "kind": "done", "task": "R391", "what": "fermée par roadmap-close — CI verte sur 705adc3b (contient f0ac6264 ; le run de f0ac6264 annulé par le push suivant) — Free et Premium côte à côte, l'inactif barré, l'actif fléché ; bouton de service puis Nos offres ; 5 mutations rouges"}
+{"at": "2026-10-05T12:40:47+00:00", "head": "26e549a0", "kind": "done", "task": "R391", "what": ""}
+{"at": "2026-10-05T12:41:41+00:00", "head": "84e3efac", "kind": "start", "task": "R398", "what": ""}
+{"at": "2026-10-05T12:59:35+00:00", "head": "fd723ab6", "kind": "start", "task": "R401", "what": ""}
+{"at": "2026-10-05T13:09:57+00:00", "head": "ab739067", "kind": "done", "task": "R393", "what": ""}
+{"at": "2026-10-05T13:14:08+00:00", "kind": "done", "task": "R398", "what": "fermée par roadmap-close — CI verte sur 7c4f6fac — verrou réservé avant bcrypt (rafale de 12 : ≤5 bcrypt), défi TOTP relit le verrou, secret non stocké lève PermanentFailure ; 4 mutations rouges"}
+{"at": "2026-10-05T13:14:55+00:00", "head": "72656ca7", "kind": "start", "task": "R402", "what": ""}
+{"at": "2026-10-05T13:16:45+00:00", "head": "1503696b", "kind": "done", "task": "R398", "what": ""}
+{"at": "2026-10-05T13:24:16+00:00", "kind": "done", "task": "R401", "what": "fermée par roadmap-close — CI verte sur 611315e2 — un identifiant inconnu et un compte sans mot de passe paient chacun un bcrypt sur un condensat leurre ; 3 mutations rouges"}
