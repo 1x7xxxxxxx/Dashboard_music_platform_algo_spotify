@@ -217,6 +217,12 @@ DECISIONS: dict[str, tuple[str, str]] = {
         "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo.",
         'Judge whether your YouTube channel gains views and subscribers, to decide whether to run a video campaign.'),
     'views/youtube.py::show#2': (
-        'Repérer les vidéos qui marchent, à réutiliser comme créas de pub.',
-        'Spot the videos that work, to reuse as ad creatives.'),
+        'Voir quelles vidéos ont pris des vues sur la période, pour savoir lesquelles relancer ou mettre en avant.',
+        'See which videos gained views over the period, to know which ones to push again.'),
+    'views/youtube.py::show#3': (
+        'Repérer les vidéos qui plaisent le plus pour 1 000 vues, à réutiliser comme créas de pub.',
+        'Spot the videos people like most per 1,000 views, to reuse as ad creatives.'),
+    'views/youtube.py::show#4': (
+        "Distinguer une vidéo qui accumule avec le temps d'une vidéo qui part vite, avant d'en promouvoir une.",
+        'Tell a video that accumulates over time from one that takes off fast, before promoting one.'),
 }
