@@ -42,6 +42,7 @@ from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
 from src.dashboard.utils.algo_knowledge import nearest_gate
 from ._pareto import LEVIERS_CHIFFRES, pareto
+from ._sections import detail
 
 _NOMS = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
 
@@ -119,13 +120,6 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
     st.subheader(t("trigger_algo.titre.pareto_header", "🪜 Ce qu'il te reste à faire"))
     _render_pareto(plan["leviers"], valeur_algo)
 
-    if plan["artiste"]:
-        txt = " · ".join(f"**{a['label']}** {a['current']:,.0f}/{a['target']:,.0f} {a['unit']}"
-                         .replace(",", " ") for a in plan["artiste"][:3])
-        st.info(t("trigger_algo.titre.artist_levers",
-                  "🎤 **Valable pour tout ton catalogue**, pas seulement ce titre : "
-                  "{levers}").format(levers=txt))
-
     _render_money_note(valeurs, source_taux, eur_stream)
 
 
@@ -170,7 +164,8 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
                      .replace(",", " ")),
             t("trigger_algo.titre.col_cohort", "Cohorte"): int(r["n"]),
         })
-    st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
+    with detail():
+        st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
 
     # ── OÙ METTRE L'EFFORT : la meilleure espérance, nommée ─────────────────
     # Trois lignes de chiffres laissent l'arbitrage au lecteur. Mesuré sur la
@@ -235,13 +230,14 @@ def _render_pareto(leviers: list[dict], valeur_algo: float | None) -> None:
             else f"+{a['valeur_eur']:,.2f} €".replace(",", " ") for a in leviers],
         t("trigger_algo.titre.col_how", "Comment"): [a["lever"] for a in leviers],
     })
-    st.dataframe(
-        aff, hide_index=True, width="stretch",
-        column_config={
-            t("trigger_algo.titre.col_progress", "Avancement"):
-                st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
-        },
-    )
+    with detail():
+        st.dataframe(
+            aff, hide_index=True, width="stretch",
+            column_config={
+                t("trigger_algo.titre.col_progress", "Avancement"):
+                    st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
+            },
+        )
     st.caption(t(
         "trigger_algo.titre.pareto_note",
         "⚠️ **Ce tableau est trié par EFFORT, pas par impact** — le levier le plus "

@@ -33,7 +33,8 @@ from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 
 from src.dashboard.utils.algo_preview_data import format_proba
 
-from ._catalogue import _feats as _feats_json, construire, leviers_artiste
+from ._sections import detail
+from ._catalogue import _feats as _feats_json, construire
 from src.dashboard.utils import charts
 
 _Q_CATALOGUE = """
@@ -156,7 +157,6 @@ def _show_tab_catalogue(db, artist_id) -> None:
                       "passe à 80 % de chances."))
         charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers),
                             width="stretch")
-        _render_next_steps(db, artist_id, choix, feats_of)
         st.markdown(t("trigger_algo.cat.values_head",
                       "**Les valeurs qui déclencheraient** — ta valeur (barre) et, pour "
                       "chaque algorithme, la valeur visée (trait). Trait vif : calculée par "
@@ -168,16 +168,6 @@ def _show_tab_catalogue(db, artist_id) -> None:
                      "il ne varie que de quelques centièmes de point d'un titre à l'autre (il "
                      "est posé sur le plancher de la calibration) — il ne dirait rien. Le "
                      "chemin parcouru, lui, bouge quand tu agis."))
-
-    # ── Les leviers d'artiste, UNE fois ─────────────────────────────────────
-    artiste = leviers_artiste(df)
-    if artiste:
-        lignes_txt = " · ".join(
-            f"**{a['label']}** {a['current']:,.0f}/{a['target']:,.0f} {a['unit']}"
-            .replace(",", " ") for a in artiste[:3])
-        st.info(t("trigger_algo.cat.artist_levers",
-                  "🎤 **Vrai pour tout ton catalogue** (ces leviers sont les mêmes "
-                  "sur chaque titre) : {levers}").format(levers=lignes_txt))
 
     # ── Le tableau comparatif ───────────────────────────────────────────────
     _render_table(df)
@@ -202,13 +192,14 @@ def _render_table(df: pd.DataFrame) -> None:
         "Radio %": [_proba("radio", v) for v in df["radio_probability"]],
         "RR %": [_proba("rr", v) for v in df["rr_probability"]],
     })
-    st.dataframe(
-        aff, hide_index=True, width="stretch",
-        column_config={
-            t("trigger_algo.cat.col_progress", "Avancement"):
-                st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
-        },
-    )
+    with detail(t("trigger_algo.cat.detail", "📋 Le tableau complet")):
+        st.dataframe(
+            aff, hide_index=True, width="stretch",
+            column_config={
+                t("trigger_algo.cat.col_progress", "Avancement"):
+                    st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
+            },
+        )
     st.caption(t(
         "trigger_algo.cat.table_note",
         "⚠️ **« pas d'estimation fiable »** remplace une probabilité dont le score "
@@ -220,43 +211,3 @@ def _render_table(df: pd.DataFrame) -> None:
 def _proba(algo: str, valeur) -> str:
     """REFUSE, not mark (2026-09-26): one policy for every surface — the shared door."""
     return format_proba(algo, valeur, decimals=1)
-
-
-def _render_next_steps(db, artist_id, tracks: list[str], feats_of: dict) -> None:
-    """R263 — under the gauges: per track, the next step and what it is worth in €.
-
-    Budget: one `pareto` per track priced on its FIRST lever only (2 model calls), and
-    one gate-value read per track — five tracks at most, so ≤ 10 model calls.
-    """
-    import pandas as pd
-    from src.dashboard.utils import formats
-    from src.dashboard.utils.formats import eur, num
-    from ._pareto import next_step_rows, pareto
-    from ._tab_titre import _NOMS, _valeur_de, _valeur_porte
-    from src.dashboard.utils.algo_knowledge import nearest_gate
-
-    plans = []
-    for song in tracks:
-        feats = feats_of.get(song) or {}
-        porte = nearest_gate(feats)
-        if not porte:
-            continue
-        valeurs, _, _ = _valeur_porte(db, artist_id, song)
-        valeur = _valeur_de(valeurs, porte["algo"])
-        plans.append((song, pareto(feats, valeur_porte=valeur, chiffrer=1), valeur))
-    rows = next_step_rows(plans)
-    if not rows:
-        return
-    st.markdown(t("trigger_algo.cat.next_head",
-                  "**Le prochain geste, titre par titre** — la porte la plus proche, le "
-                  "levier le moins coûteux pour s'en approcher, et ce qu'il rapporte."))
-    formats.table(pd.DataFrame({
-        t("trigger_algo.cat.next_track", "Titre"): [r["song"] for r in rows],
-        t("trigger_algo.cat.next_gate", "Porte"): [_NOMS.get(r["algo"], r["algo"]) for r in rows],
-        t("trigger_algo.cat.next_lever", "Levier"): [r["lever"] for r in rows],
-        t("trigger_algo.cat.col_from_to", "Aujourd'hui → objectif"): [
-            f"{num(r['current'], 0)} → {num(r['target'], 0)} {r['unit']}" for r in rows],
-        t("trigger_algo.cat.col_gate_eur", "La porte vaut"): [eur(r["gate_eur"], 0) for r in rows],
-        t("trigger_algo.cat.col_step_eur", "Ce geste rapporte"): [
-            "—" if r["step_eur"] is None else "+" + eur(r["step_eur"], 2) for r in rows],
-    }))

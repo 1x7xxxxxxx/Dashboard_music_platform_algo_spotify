@@ -2,7 +2,6 @@
 
 Type: Test
 Uses: src/dashboard/views/trigger_algo/_release_targets.py (by_proximity),
-      src/dashboard/views/trigger_algo/_pareto.py (next_step_rows),
       src/dashboard/views/trigger_algo/_tab_titre.py (one pareto call)
 
 Critic verdicts (critic-2026-09-27.md, R263) : a table of the next step and its € under
@@ -15,7 +14,6 @@ step rendered 0.0 → red ; the second `pareto` call put back in the title tab �
 import ast
 from pathlib import Path
 
-from src.dashboard.views.trigger_algo._pareto import next_step_rows
 from src.dashboard.views.trigger_algo._release_targets import by_proximity
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,15 +24,6 @@ def test_the_closest_track_leads_the_gauges():
               "near": {("RR", "saves"): {"progress": 0.9}},
               "none": {}}
     assert by_proximity(["far", "none", "near"], levers) == ["near", "far", "none"]
-
-
-def test_the_next_step_carries_its_euros_and_never_invents_them():
-    plan = {"algo": "DW", "leviers": [{"label": "Saves", "current": 24, "target": 165,
-                                       "unit": "saves", "valeur_eur": None}]}
-    rows = next_step_rows([("a", plan, 32.8), ("b", None, None),
-                           ("c", {"algo": "RR", "leviers": []}, 9.7)])
-    assert [r["song"] for r in rows] == ["a"]
-    assert rows[0]["step_eur"] is None and rows[0]["gate_eur"] == 32.8
 
 
 def test_the_title_tab_replays_the_model_once_not_twice():

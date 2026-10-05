@@ -9,6 +9,8 @@ R380 (2026-10-05): « Comment lire cette page » listed seven tabs for a page th
 four — it had been rewritten twice by hand and drifted twice. The layout and the guide
 now read this tuple, so a part cannot be added, renamed or removed in one of them only.
 """
+import streamlit as st
+
 from src.dashboard.utils.i18n import t
 
 # (key, label i18n key, FR label, description i18n key, FR description)
@@ -26,6 +28,16 @@ PAGE_SECTIONS = (
      "trigger_algo.guide_section_budget",
      "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),
 )
+
+
+def detail(label: str | None = None):
+    """The one place a table may sit on this page: folded, under « Détail chiffré ».
+
+    R403 (V59): the page is read top to bottom, figures first; a raw table is the
+    detail behind a figure, never the figure. `tests/test_the_algo_page_reads_top_to_bottom.py`
+    refuses a `st.dataframe` rendered outside an expander.
+    """
+    return st.expander(label or t("trigger_algo.detail", "📋 Détail chiffré"))
 
 
 def section_labels() -> list[str]:

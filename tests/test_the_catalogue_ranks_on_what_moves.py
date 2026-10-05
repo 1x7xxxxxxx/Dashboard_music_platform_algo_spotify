@@ -35,7 +35,6 @@ import pytest
 from src.dashboard.views.trigger_algo._catalogue import (
     BRUT_NEGLIGEABLE,
     construire,
-    leviers_artiste,
     sur_le_plancher,
 )
 
@@ -116,19 +115,6 @@ def test_a_track_with_no_gate_sinks_without_claiming_zero():
         f"avancement={ligne['avancement']!r} — un titre sans porte affiche un chiffre"
     )
     assert df["song"].iloc[-1] == "rien en zone malus", "il n'est pas descendu"
-
-
-def test_artist_levers_are_listed_once_for_the_whole_catalogue():
-    """Le « regrouper les panneaux » demandé, énoncé en une assertion.
-
-    Trois titres, les mêmes leviers d'artiste : ils ne doivent apparaître qu'une
-    fois. Les répéter par titre ferait passer un conseil pour trois.
-    """
-    df = construire([_PROCHE, _LOIN, {**_PROCHE, "song": "troisième"}])
-    leviers = leviers_artiste(df)
-    noms = [a["feature"] for a in leviers]
-    assert len(noms) == len(set(noms)), f"leviers d'artiste répétés : {noms}"
-    assert noms, "aucun levier d'artiste — le cas de test ne couvre rien"
 
 
 def test_the_gate_names_a_unit_a_human_can_act_on():

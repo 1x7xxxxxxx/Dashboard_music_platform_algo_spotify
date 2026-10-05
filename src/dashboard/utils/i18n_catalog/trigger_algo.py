@@ -761,9 +761,8 @@ EN = {
         "hundredths of a point from one track to the next (it sits on the floor of the "
         "calibration) — it would say nothing. The distance covered does move when you act."),
     "trigger_algo.rel.current": "Your value",
-    "trigger_algo.cat.artist_levers": (
-        "🎤 **True for your whole catalogue** (these levers are the same on every "
-        "track): {levers}"),
+    "trigger_algo.detail": "📋 The figures in detail",
+    "trigger_algo.cat.detail": "📋 The full table",
     "trigger_algo.cat.col_track": "Track",
     "trigger_algo.cat.col_age": "Age",
     "trigger_algo.cat.col_gate": "Closest gate",
@@ -801,8 +800,6 @@ EN = {
         "on this catalogue, the closest lever already turned out to be **thirty times "
         "less rewarding** than the furthest one. Only the first {n} levers are priced "
         "— each one means replaying the model."),
-    "trigger_algo.titre.artist_levers": (
-        "🎤 **True for your whole catalogue**, not just this track: {levers}"),
     "trigger_algo.titre.money_header": "💶 Where these euros come from",
     "trigger_algo.titre.rate": "Rate used: **{taux:.6f} € / stream** ({origine}).",
     "trigger_algo.titre.rate_track": "measured on THIS track",
@@ -887,12 +884,4 @@ EN = {
         "The **{n} playlists ask for the SAME thing** here: **{manque} streams** over "
         "7 days, i.e. **{budget}**. That is not three budgets to add up — it is one, "
         "and it unlocks the stream condition of all three."),
-    "trigger_algo.cat.next_head": "**The next step, track by track** — the closest gate, the "
-                                  "cheapest lever towards it, and what it is worth.",
-    "trigger_algo.cat.next_track": "Track",
-    "trigger_algo.cat.next_gate": "Gate",
-    "trigger_algo.cat.next_lever": "Lever",
-    "trigger_algo.cat.col_from_to": "Today → target",
-    "trigger_algo.cat.col_gate_eur": "The gate is worth",
-    "trigger_algo.cat.col_step_eur": "This step brings",
 }

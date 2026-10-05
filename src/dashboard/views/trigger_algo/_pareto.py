@@ -84,26 +84,6 @@ def _delta_proba(algo: str, feature: str, feats: dict,
     return max(0.0, b - a)
 
 
-def next_step_rows(plans: list[tuple[str, dict | None, float | None]]) -> list[dict]:
-    """One row per track: its nearest gate and the FIRST lever of its plan. Pure.
-
-    R263 (owner note L132 : « probabilité par titre d'un coup d'œil, leviers en Pareto
-    avec leur équivalent en euros »). `plans` = [(song, pareto(...), gate value €)]. The
-    lever is the first of the plan — least effort — and its € is what that step is worth;
-    an unpriced step says « — », never 0.
-    """
-    rows = []
-    for song, plan, valeur in plans:
-        if not plan or not plan["leviers"]:
-            continue
-        lev = plan["leviers"][0]
-        rows.append({"song": song, "algo": plan["algo"], "lever": lev["label"],
-                     "current": lev.get("current"), "target": lev.get("target"),
-                     "unit": lev.get("unit", ""), "gate_eur": valeur,
-                     "step_eur": lev.get("valeur_eur")})
-    return rows
-
-
 def pareto(feats: dict, valeur_porte: float | None = None,
            chiffrer: int = LEVIERS_CHIFFRES) -> dict | None:
     """Le plan d'action du titre : la porte la plus proche et ses leviers, ordonnés.

@@ -60,11 +60,16 @@ _DB_HOST, _DB_PORT = "127.0.0.1", 5433
 # Ce garde a rougi et il a dit exactement la bonne chose : « admin renders no tabs at
 # all — is it still a tabbed view? ». La réponse est non. Sa propriété — le contenu
 # d'un onglet se rend DANS son onglet — reste vraie et garde désormais
-# `trigger_algo`, qui porte quatre vrais `st.tabs`.
+# `trigger_algo`, qui portait quatre vrais `st.tabs`.
+#
+# ⚠️ `trigger_algo` L'A QUITTÉE À SON TOUR LE 2026-10-05 (R403, V59) : la page se lit
+# de haut en bas, quatre sections séparées. La propriété garde désormais `useful_links`,
+# cinq onglets statiques — aucune donnée requise, donc jamais sautée.
+# `tests/test_the_algo_page_reads_top_to_bottom.py` refuse le retour des onglets.
 #
 # Ce que l'admin garde à la place : `test_the_admin_page_renders_one_section_at_a_time`,
 # qui refuse le retour à `st.tabs` et vérifie que chaque section rend quelque chose.
-TABBED_VIEWS = ["trigger_algo"]
+TABBED_VIEWS = ["useful_links"]
 
 # Element kinds that count as "this tab rendered something".
 _PROBES = ("button", "dataframe", "selectbox", "text_input", "subheader", "checkbox",
@@ -143,32 +148,17 @@ def test_the_detector_sees_the_defect_it_is_written_for():
 
 
 def _the_view_has_data_to_tab(view: str) -> bool:
-    """Vrai si la vue a de quoi dessiner ses onglets — lu dans la base, pas supposé."""
-    assert view == "trigger_algo", f"condition de données inconnue pour {view}"
-    from src.database.postgres_handler import PostgresHandler
-    from tests.db_gate import dsn
-
-    db = PostgresHandler(**dsn())
-    try:
-        # La requête du rôle admin de `views/trigger_algo/router.py` (tous les titres).
-        rows = db.fetch_query(
-            "SELECT 1 FROM s4a_song_timeline WHERE song NOT ILIKE %s LIMIT 1",
-            ("%1x7xxxxxxx%",))
-    finally:
-        db.close()
-    return bool(rows)
+    """Vrai si la vue a de quoi dessiner ses onglets — lu, pas supposé."""
+    assert view == "useful_links", f"condition de données inconnue pour {view}"
+    return True     # five static tabs: nothing to wait for
 
 
 @pytest.mark.parametrize("view", TABBED_VIEWS)
 def test_no_tab_renders_empty(view):
     counts = elements_per_tab(view)
     if not counts and not _the_view_has_data_to_tab(view):
-        # Sans titre à suivre, `trigger_algo` s'arrête sur « Aucune donnée de timeline
-        # disponible » AVANT ses onglets : la question « le contenu d'un onglet se
-        # rend-il dans son onglet » n'a pas d'objet. C'est le cas de la base NEUVE de
-        # la CI (un canari, aucune collecte), où ce test était rouge depuis le
-        # 2026-09-22. La condition est LUE dans la base — la même requête que la vue —
-        # et non supposée : avec des données, zéro onglet reste un échec.
+        # A view that stops before its tabs when its base is empty (the case of
+        # `trigger_algo` on the CI's fresh base, red from 2026-09-22) says so here.
         pytest.skip(f"{view} : aucune donnée à répartir en onglets dans cette base")
     assert counts, f"{view} renders no tabs at all — is it still a tabbed view?"
     empty = [i for i, n in enumerate(counts) if n == 0]

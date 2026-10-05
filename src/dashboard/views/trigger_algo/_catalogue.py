@@ -44,7 +44,7 @@ import json
 
 import pandas as pd
 
-from src.dashboard.utils.algo_knowledge import nearest_gate, split_coach_actions
+from src.dashboard.utils.algo_knowledge import nearest_gate
 from src.dashboard.utils.algo_preview_data import BRUT_NEGLIGEABLE, sur_le_plancher  # noqa: F401,E402 — moved (R193)
 
 #: Les colonnes de la trame, dans l'ordre d'affichage. La probabilité vient EN
@@ -87,8 +87,6 @@ def construire(lignes: list[dict]) -> pd.DataFrame:
         feats = _feats(ligne.get("features_json"))
         porte = nearest_gate(feats)
         action = porte["action"] if porte else None
-        _titre, artiste = (split_coach_actions(porte["algo"], feats)
-                           if porte else ([], []))
         out.append({
             "song": ligne.get("song"),
             "days_since_release": ligne.get("days_since_release"),
@@ -104,7 +102,6 @@ def construire(lignes: list[dict]) -> pd.DataFrame:
             "dw_probability": ligne.get("dw_probability"),
             "rr_probability": ligne.get("rr_probability"),
             "radio_probability": ligne.get("radio_probability"),
-            "_leviers_artiste": artiste,
         })
     if not out:
         return pd.DataFrame(columns=COLONNES)
@@ -115,19 +112,3 @@ def construire(lignes: list[dict]) -> pd.DataFrame:
         ["avancement", "n_leviers", "streams_28d"],
         ascending=[False, True, False], na_position="last",
     ).reset_index(drop=True)
-
-
-def leviers_artiste(df: pd.DataFrame) -> list[dict]:
-    """Les leviers valables pour TOUT le catalogue, dédoublonnés.
-
-    Ils sont identiques sur chaque titre par construction ; les afficher une fois
-    est exactement le « regrouper les panneaux » demandé, et c'est aussi ce qui
-    empêche un conseil répété dix fois de passer pour dix conseils.
-    """
-    vus, out = set(), []
-    for lot in df.get("_leviers_artiste", []):
-        for a in lot or []:
-            if a["feature"] not in vus:
-                vus.add(a["feature"])
-                out.append(a)
-    return sorted(out, key=lambda a: a["urgency"])

@@ -42,6 +42,7 @@ from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
 
 from ._reglages import classer, recommandation
+from ._sections import detail
 
 # ⚠️ LES TROIS AXES LISENT `v_meta_ad_daily` (migration 138), plus la jointure
 # `meta_ads × meta_insights` sur `ad_id` SEUL. Celle-ci ne nommait le locataire que
@@ -111,7 +112,8 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
         t("trigger_algo.reg.col_ctr", "Taux de clic"): [
             "—" if pd.isna(v) else f"{v:.2f} %" for v in df["ctr"]],
     })
-    st.dataframe(aff, hide_index=True, width="stretch")
+    with detail():
+        st.dataframe(aff, hide_index=True, width="stretch")
     reco = recommandation(df)
     if reco:
         # ⚠️ L'espacement des milliers s'applique au NOMBRE, pas à la phrase.
@@ -209,7 +211,8 @@ def _budget_declenchement(budget: dict | None) -> None:
             "des trois."
         ).format(n=len(lignes), manque=manque, budget=budget))
     else:
-        st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
+        with detail():
+            st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
     st.caption(t(
         "trigger_algo.reg.budget_caveat",
         "⚠️ **Un ordre de grandeur, pas un devis.** Le coût par écoute est agrégé sur "

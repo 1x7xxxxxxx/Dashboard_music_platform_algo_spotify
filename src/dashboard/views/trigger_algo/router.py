@@ -179,32 +179,39 @@ def show():
         # par construction sur ce catalogue (`streams_7d = 0` sur les dix titres).
         # Le coach et la sensibilité locale, eux, sont REMONTÉS en première ligne de
         # « Ce titre » — c'est ce qu'un artiste vient chercher.
-        tab1, tab2, tab3, tab4 = st.tabs(section_labels())
-        with tab1:
-            _show_tab_catalogue(db, artist_id)
-        with tab2:
-            _show_tab_titre(db, selected_track, artist_id, ml_pred)
-        with tab3:
-            # « Ce qui s'est vraiment passé » : les streams réellement produits par
-            # chaque playlist, puis le cycle de vie replié. Le seul onglet qui parle
-            # d'un fait CONSTATÉ — et le seul qui puisse un jour fermer la boucle
-            # d'apprentissage, aujourd'hui vide (`s4a_song_algo_outcomes` : 0 ligne).
-            _show_tab_algo_streams(db, selected_track, artist_id)
-            with secondary_analyses(t("trigger_algo.lifecycle_folded",
-                                      "📉 Cycle de vie & benchmark de cohorte")):
-                _show_tab_lifecycle(db, selected_track, artist_id,
-                                    release_date=track_release_date,
-                                    benchmark_df=benchmark_df)
-            # R376 : le pari du modèle et la saisie des résultats réalisés, venus de
-            # « 📝 Saisie S4A » — un label se saisit à côté de la prédiction qu'il juge.
-            st.markdown("---")
-            render_prediction_vs_reality(db, artist_id)
-            st.markdown("---")
-            _entry_tracks = load_entry_tracks(db, artist_id)
-            if _entry_tracks:
-                render_outcome_grid(db, artist_id, _entry_tracks)
-                st.markdown("---")
-                render_outcome_custom_grid(db, artist_id, _entry_tracks)
-        with tab4:
-            _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
-                                 ml_pred=ml_pred)
+        # R403 (V59, V69) : la page se lit de HAUT EN BAS — quatre sections séparées,
+        # plus quatre onglets. Le libellé de chaque section vient de `PAGE_SECTIONS`,
+        # le même tuple que lit le guide.
+        catalogue, titre, realise, budget = section_labels()
+        _section(catalogue, first=True)
+        _show_tab_catalogue(db, artist_id)
+        _section(titre)
+        _show_tab_titre(db, selected_track, artist_id, ml_pred)
+        _section(realise)
+        # « Ce qui s'est vraiment passé » : les streams réellement produits par
+        # chaque playlist, puis le cycle de vie replié. La seule section qui parle
+        # d'un fait CONSTATÉ — et la seule qui puisse un jour fermer la boucle
+        # d'apprentissage, aujourd'hui vide (`s4a_song_algo_outcomes` : 0 ligne).
+        _show_tab_algo_streams(db, selected_track, artist_id)
+        with secondary_analyses(t("trigger_algo.lifecycle_folded",
+                                  "📉 Cycle de vie & benchmark de cohorte")):
+            _show_tab_lifecycle(db, selected_track, artist_id,
+                                release_date=track_release_date,
+                                benchmark_df=benchmark_df)
+        # R376 : le pari du modèle et la saisie des résultats réalisés, venus de
+        # « 📝 Saisie S4A » — un label se saisit à côté de la prédiction qu'il juge.
+        render_prediction_vs_reality(db, artist_id)
+        _entry_tracks = load_entry_tracks(db, artist_id)
+        if _entry_tracks:
+            render_outcome_grid(db, artist_id, _entry_tracks)
+            render_outcome_custom_grid(db, artist_id, _entry_tracks)
+        _section(budget)
+        _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
+                             ml_pred=ml_pred)
+
+
+def _section(label: str, *, first: bool = False) -> None:
+    """One part of the page: a separator, then its title."""
+    if not first:
+        st.divider()
+    st.header(label)
