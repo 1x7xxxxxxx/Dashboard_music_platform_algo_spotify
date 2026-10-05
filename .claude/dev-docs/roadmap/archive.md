@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R398 — Constats MEDIUM de l'audit sécurité de R370 (2026-10-05) : (a) `locked_until` lu AVANT… (livrée 2026-10-05)
+
+- [x] **R398 — Constats MEDIUM de l'audit sécurité de R370 (2026-10-05) : (a) `locked_until` lu AVANT bcrypt → une rafale parallèle obtient 4 + N essais par fenêtre — prendre la tentative atomiquement avant bcrypt (`UPDATE … WHERE locked_until IS NULL OR <= NOW() RETURNING id`), dashboard et API ; (b) le défi TOTP du dashboard ne relit pas `locked_until` — un code juste lève le verrou ; (c) `update_platform_secret` rend None en silence quand il refuse d'écrire (blob illisible, lock_timeout) — un refresh_token SoundCloud neuf est perdu alors que l'ancien est révoqué : lever, et faire échouer la tâche appelante** (P2) ✅ (2026-10-05, 611315e2, 7c4f6fac, d8e6929b)
+  Mesuré par : (a) test de rafale : 8 essais parallèles, ≤ 5 vérifications bcrypt ; (b) code juste pendant le verrou → refusé ; (c) un refus d'écriture fait échouer l'appelant
+  CI verte sur 7c4f6fac — verrou réservé avant bcrypt (rafale de 12 : ≤5 bcrypt), défi TOTP relit le verrou, secret non stocké lève PermanentFailure ; 4 mutations rouges
+  Commits : 611315e2 R401 : un identifiant inconnu paie le même bcrypt qu'un compte réel · 7c4f6fac R398 : un compte verrouillé ne vérifie plus rien ; un secret non stock · d8e6929b R370 : check-then-insert — verrouillage, revendication d'identité, rot
+
 ## ✅ R393 — Parrainage (V88) : le code de parrainage affiché en clair sous le lien d'activation (au… (livrée 2026-10-05)
 
 - [x] **R393 — Parrainage (V88) : le code de parrainage affiché en clair sous le lien d'activation (aujourd'hui replié dans un expander) ; **pas** de code promo Stripe (reco retenue 2026-10-05 : un code promo se partage hors parrainage, exige une table code→parrain et ouvre une remise au checkout sans inscription) ; à la place, un champ « code de parrainage » FACULTATIF à l'inscription qui rattache le filleul exactement comme le lien — même table, même récompense, mêmes gardes. Suite de R283** (P3) ✅ (2026-10-05, ef7e2e89, 53641f33)
