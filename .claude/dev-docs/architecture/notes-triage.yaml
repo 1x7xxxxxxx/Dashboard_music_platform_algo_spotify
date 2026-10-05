@@ -3224,18 +3224,18 @@
   resume: Garder la saisie.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R377
+  preuve_statut: R377 (archivée) — 5e057f09
 - ligne: 32
   source: revue/notes-vocales-2026-10-05.md
   note: V23
   resume: 'Expander « comment récupérer les données sur Hypeddit » : procédure précise, actions seulement.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R377
+  preuve_statut: R377 (archivée) — 5e057f09
 - ligne: 33
   source: revue/notes-vocales-2026-10-05.md
   note: V24
@@ -3243,27 +3243,27 @@
     KPI visites/clics + Meta Ads.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R377
+  preuve_statut: R377 (archivée) — 5e057f09
 - ligne: 34
   source: revue/notes-vocales-2026-10-05.md
   note: V25
   resume: Historique dans un expander fermé par défaut.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R377
+  preuve_statut: R377 (archivée) — 5e057f09
 - ligne: 36
   source: revue/notes-vocales-2026-10-05.md
   note: V26
   resume: Supprimer la vue Récap.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R379
+  preuve_statut: R379 (archivée) — e30e2263
 - ligne: 38
   source: revue/notes-vocales-2026-10-05.md
   note: V27

@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R379 — Retirer la page « 📌 Récap » (V26) : elle ne dessine rien, elle liste dix liens ; route… (livrée 2026-10-05)
+
+- [x] **R379 — Retirer la page « 📌 Récap » (V26) : elle ne dessine rien, elle liste dix liens ; route gardée en alias vers l'accueil (des liens la visent)** (P3) ✅ (2026-10-05, e30e2263, 8e80823b)
+  Mesuré par : `test_every_route_resolves` vert ; « recap » absent de `NAV_SECTIONS`
+  Page Récap retirée : route gardée en alias vers l'accueil, vue/générateur/contenu archivés, garde test_the_recap_page_is_retired. CI verte sur a2072e3b.
+  Commits : e30e2263 R379 : le garde du retrait cherche le module, pas l'ancien chemin (le  · 8e80823b R379 : page « 📌 Récap » retirée — route gardée en alias vers l'accueil
+
+## ✅ R377 — Hypeddit (V22-V25) : saisie gardée ; expander « Récupérer tes chiffres sur Hypeddit » —… (livrée 2026-10-05)
+
+- [x] **R377 — Hypeddit (V22-V25) : saisie gardée ; expander « Récupérer tes chiffres sur Hypeddit » — étapes d'action seulement ; statistiques avec un filtre CAMPAGNE (défaut : les deux dernières sorties) qui compare visites, clics et dépense Meta ; historique replié par défaut** (P3) ✅ (2026-10-05, 5e057f09, fb897e69)
+  Mesuré par : AppTest : filtre campagne présent, deux sorties par défaut ; l'historique est dans un expander fermé
+  Hypeddit compare des CAMPAGNES (deux dernières par défaut), étapes de récupération en expander, historique replié ; détecteur de chevauchement des anneaux corrigé (ligne la plus large d'une étiquette <br>). CI verte sur a2072e3b.
+  Commits : 5e057f09 R377 : le contrôle de chevauchement mesure la ligne la plus large d'un · fb897e69 R377 : Hypeddit compare des campagnes (deux dernières par défaut), éta
+
 ## ✅ R376 — Saisie S4A — une seule sous-vue (V17-V21) : « Signaux du mois » gardé, « Titres couvert… (livrée 2026-10-05)
 
 - [x] **R376 — Saisie S4A — une seule sous-vue (V17-V21) : « Signaux du mois » gardé, « Titres couverts par la saisie » à sa fin ; « Résultats réalisés » et « Le pari du modèle, et ce qui est arrivé » → vue algo unique (R380) ; « Fraîcheur des saisies » → page admin** (P3) ✅ (2026-10-05, fc6cf545, e31dc86e, f69f1318)
