@@ -153,18 +153,15 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/sacem.py::show#1': (
         "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition.",
         'See what deductions take from your SACEM royalties, to plan the real net of a distribution.'),
+    'views/soundcloud.py::_render_age_comparison#1': (
+        'Comparer tes titres au même âge, pour savoir lequel continue de gagner et mérite une relance.',
+        'Compare your tracks at the same age, to know which one keeps gaining and deserves a push.'),
     'views/soundcloud.py::_render_catalog_series#1': (
         "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo.",
         'Know whether SoundCloud plays and engagement grow together, to decide whether to invest promo time there.'),
     'views/soundcloud.py::_render_top_chart#1': (
         'Choisir les titres SoundCloud qui engagent le plus, à mettre en avant dans tes campagnes.',
         'Pick the SoundCloud tracks that engage most, to feature in your campaigns.'),
-    'views/soundcloud.py::show#1': (
-        'Suivre ta croissance SoundCloud pour juger si une promo y a un effet.',
-        'Track your SoundCloud growth to judge whether a promo has an effect there.'),
-    'views/soundcloud.py::show#2': (
-        'Voir quelle métrique SoundCloud réagit après une sortie, pour savoir quoi pousser en campagne.',
-        'See which SoundCloud metric reacts after a release, to know what to push in a campaign.'),
     'views/spotify_s4a_combined.py::_render_momentum#1': (
         'Repérer le titre qui prend en ce moment, pour choisir lequel promouvoir en priorité.',
         'Spot the track that is taking off right now, to choose which one to promote first.'),

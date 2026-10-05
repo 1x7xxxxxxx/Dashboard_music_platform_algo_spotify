@@ -1,7 +1,7 @@
 """SoundCloud — le catalogue dans le temps, et la collecte qui a menti.
 
 Type: Feature
-Uses: view_session, entity_period_filter, platform_colors, i18n
+Uses: view_session, age_aligned (shared with Spotify), platform_colors, i18n
 Depends on: v_soundcloud_catalog_daily / v_soundcloud_track_daily (132),
             v_soundcloud_track_latest (107), soundcloud_tracks_daily
 Persists in: — (lecture seule)
@@ -25,11 +25,11 @@ toutes les surfaces à la fois. Mesuré : **19 jours de collecte, 1 écarté**.
 ET « LE MÊME COMPTE DE STREAM » N'EST PAS UN BUG
 -------------------------------------------------
 « Chokbar de bezed » porte **4 écoutes** et n'en gagne pas. Ce qui était un défaut,
-c'est qu'il soit le titre sélectionné D'OFFICE : `entity_period_filter` triait sur
+c'est qu'il soit le titre sélectionné D'OFFICE : le sélecteur triait sur
 `track_created_at`, la date d'upload SoundCloud, et ce titre est le plus récemment
 uploadé du compte. La page s'ouvrait donc sur le titre le plus vide du catalogue —
-4 écoutes, 0 like, 0 repost, 0 commentaire — ce qui explique aussi le message
-« pas assez d'historique » : les trois quarts des métriques y valent zéro partout.
+4 écoutes, 0 like, 0 repost, 0 commentaire. Depuis R385 la comparaison à âge égal
+s'ouvre sur les deux titres les plus ÉCOUTÉS.
 
 LE TOTAL DES QUATRE COMPTEURS SUR UN AXE TEMPOREL
 ---------------------------------------------------
@@ -40,14 +40,13 @@ d'une même nuit ne sont pas écrits au même instant (317 horodatages pour 19 j
 mesuré).
 """
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.age_aligned import age_aligned_traces
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.platform_colors import DISTINCT, PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
@@ -133,19 +132,16 @@ def show():
                 # timestamptz across a DST change → mixed offsets (utils/tz.py).
                 last_date_str = format_date(to_local_datetime(df_latest['collected_at']).max())
 
-                # Affichage sur 2 lignes
-                c1, c2, c3 = st.columns(3)
-                c1.metric(t("soundcloud.kpi_plays", "🎧 Total Écoutes"), f"{int(total_plays):,}")
-                c2.metric(t("soundcloud.kpi_likes", "❤️ Total Likes"), f"{int(total_likes):,}")
-                c3.metric(t("soundcloud.kpi_reposts", "🔄 Total Reposts"), f"{int(total_reposts):,}")
-
                 # ⚠️ QUATRE TUILES, PAS SIX — 2026-09-21, à la demande du
                 # propriétaire. « 🎵 Titres en ligne » et « 📅 Dernière mise à
                 # jour » ne décident rien : le nombre de titres se lit dans le
                 # classement juste en dessous, et une date de collecte est un
-                # fait de PLOMBERIE. Elle n'est pas perdue pour autant — elle
-                # descend dans la légende, avec ce qu'elle veut dire.
-                c4, = st.columns(1)
+                # fait de PLOMBERIE. Elle descend dans la légende.
+                # R385 (V42) : les quatre sur UNE ligne — elles étaient sur deux.
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric(t("soundcloud.kpi_plays", "🎧 Total Écoutes"), f"{int(total_plays):,}")
+                c2.metric(t("soundcloud.kpi_likes", "❤️ Total Likes"), f"{int(total_likes):,}")
+                c3.metric(t("soundcloud.kpi_reposts", "🔄 Total Reposts"), f"{int(total_reposts):,}")
                 c4.metric(t("soundcloud.kpi_comments", "💬 Total Commentaires"),
                           f"{int(total_comments):,}")
 
@@ -177,164 +173,35 @@ def show():
 
         st.markdown("---")
 
+        # R385 (V46) : peu de figures, la plus utile en haut — comparer les sorties,
+        # puis les comparer à âge égal, puis le catalogue dans le temps.
         # =========================================================================
-        # 1bis. LE CATALOGUE DANS LE TEMPS — les quatre compteurs, une horloge
+        # 1. LES SORTIES COMPARÉES SUR LES QUATRE COMPTEURS (V43, V45)
+        # =========================================================================
+        st.subheader(t("soundcloud.top_tracks", "🏆 Mes titres comparés"))
+        df_top = _with_engagement(df_latest)
+        _metrics = _metric_labels()
+        sort_by = st.segmented_control(
+            t("soundcloud.sort_by", "Comparer sur"), list(_metrics.values()),
+            default=_metrics["playback_count"], key="sc_sort",
+        ) or _metrics["playback_count"]
+        sort_col = next(c for c, lbl in _metrics.items() if lbl == sort_by)
+        df_top = df_top.sort_values(by=sort_col, ascending=False)
+        _render_top_chart(df_top, sort_col, sort_by, _metrics["playback_count"])
+
+        st.markdown("---")
+
+        # =========================================================================
+        # 2. TOUT LE CATALOGUE, À ÂGE ÉGAL (V44)
+        # =========================================================================
+        _render_age_comparison(db, artist_id, df_top)
+
+        st.markdown("---")
+
+        # =========================================================================
+        # 3. LE CATALOGUE DANS LE TEMPS — les quatre compteurs, une horloge
         # =========================================================================
         _render_catalog_series(db, artist_id)
-
-        st.markdown("---")
-
-        # =========================================================================
-        # 2. ANALYSE TEMPORELLE (Filtres Dynamiques)
-        # =========================================================================
-        st.subheader(t("soundcloud.plays_evolution", "📈 Évolution des écoutes"))
-
-        # --- FILTRES --- (entity + smart period, factorisés)
-        # LE TITRE PROPOSÉ D'OFFICE NE PEUT PAS ÊTRE LE PLUS VIDE — 2026-09-21.
-        #
-        # `entity_period_filter` classe par date de sortie décroissante, et sur
-        # SoundCloud cette date est `track_created_at`, l'UPLOAD. La page s'ouvrait
-        # donc sur « Chokbar de bezed » — **4 écoutes, 0 like, 0 repost,
-        # 0 commentaire** — le titre le plus récemment uploadé et le plus vide du
-        # catalogue. Trois des quatre courbes y sont nulles partout, d'où le
-        # message « pas assez d'historique » que l'artiste a rapporté : il
-        # accusait l'historique quand la vérité est « ce titre n'a rien à
-        # montrer ».
-        #
-        # On pré-remplit donc la sélection avec le titre LE PLUS ÉCOUTÉ, une seule
-        # fois. Un choix ultérieur de l'artiste persiste en session — c'est le même
-        # geste que la page Apple pour sa dernière sortie.
-        #
-        # ⚠️ Il passe par `preferred_default=`, PAS par `st.session_state` : le
-        # widget reçoit déjà un `default=`, et poser les deux déclenche
-        # l'avertissement Streamlit « created with a default value but also had
-        # its value set via the Session State API ». Vu au premier rendu.
-        _defaut = (df_latest.sort_values("playback_count", ascending=False)
-                   .iloc[0]["title"]) if not df_latest.empty else None
-
-        with st.expander(t("soundcloud.chart_filters", "⚙️ Filtres du graphique"), expanded=True):
-            selected_tracks, window = entity_period_filter(
-                db,
-                spec=EntitySpec("soundcloud_tracks_daily", "title", "collected_at",
-                                multi=True, default_count=1,
-                                release_column="track_created_at"),
-                artist_id=artist_id, key_prefix="sc",
-                label=t("soundcloud.filter_by_tracks", "Filtrer par titres"),
-                preferred_default=_defaut,
-            )
-
-        # --- REQUÊTE & AFFICHAGE ---
-        try:
-            start_d, end_d = window.start, window.end
-
-            # On récupère l'historique large (on filtre en Pandas pour plus de souplesse UI)
-            df_history = _track_history(db, artist_id)
-
-            if not df_history.empty:
-                # APPLICATION DES FILTRES
-                mask_date = (df_history['day'] >= start_d) & (df_history['day'] <= end_d)
-                mask_track = df_history['title'].isin(selected_tracks)
-
-                df_filtered = df_history[mask_date & mask_track]
-
-                if not df_filtered.empty:
-                    # Graphique linéaire
-                    # DES NUANCES D'ORANGE, PAS UNE PALETTE QUALITATIVE.
-                    #
-                    # `px.line(color='title')` tirait des teintes arbitraires dans
-                    # la palette Plotly par défaut : un titre en bleu, un autre en
-                    # rouge, sur une page SoundCloud. Ici toutes les séries sont
-                    # de la MÊME plateforme — leur donner des familles de teinte
-                    # différentes invente une distinction qui n'existe pas.
-                    #
-                    # Elles se distinguent donc par la CLARTÉ à l'intérieur de la
-                    # famille orange, ce qui survit en plus à la deutéranopie là
-                    # où une différence de teinte ne survit pas.
-                    fig = px.line(
-                        df_filtered,
-                        x='day',
-                        y='playback_count',
-                        color='title',
-                        color_discrete_sequence=_nuances(
-                            df_filtered['title'].nunique()),
-                        title=t("soundcloud.growth_title", "Croissance ({start} - {end})").format(
-                            start=start_d.strftime('%d/%m'), end=end_d.strftime('%d/%m')),
-                        markers=True
-                    )
-                    fig.update_layout(
-                        xaxis_title=t("common.date", "Date"),
-                        yaxis_title=t("soundcloud.cumulative_plays", "Écoutes Cumulées"),
-                        hovermode="x unified",
-                        legend=dict(orientation="h", y=-0.2)  # Légende en bas pour ne pas cacher
-                    )
-                    charts.plotly_chart(fig, width="stretch")
-
-                    # Secondaire : compare des métriques entre elles — n'ouvre pas d'action.
-                    # ⚠️ LE `st.plotly_chart` EST LEXICALEMENT DANS LE `with`.
-                    #
-                    # Ce n'est pas un détail de style : `test_chart_budget` et
-                    # `test_a_view_opens_on_one_decision` lisent la STRUCTURE du
-                    # fichier pour compter ce qui s'affiche au premier écran. Une
-                    # figure tracée dans une fonction APPELÉE depuis le `with`
-                    # leur est indistinguable d'une figure principale — et ils ont
-                    # raison de refuser : un lecteur du code ne peut pas le savoir
-                    # non plus.
-                    #
-                    # Le premier jet de cette réécriture faisait exactement ça, et
-                    # les deux cliquets l'ont attrapé. `_render_base100` RETOURNE
-                    # donc sa figure ; c'est la même règle que
-                    # `spotify_s4a_combined._render_secondary`, dont le docstring
-                    # l'annonçait déjà.
-                    with secondary_analyses(t("soundcloud.base100_header",
-                                              "📈 Évolution des métriques (base 100)")):
-                        _fig_b100, _note_b100 = _base100_figure(
-                            db, artist_id, selected_tracks, window)
-                        if _fig_b100 is not None:
-                            charts.plotly_chart(_fig_b100, width="stretch")
-                            st.caption(_note_b100)
-                        elif _note_b100:
-                            st.info(_note_b100)
-
-                else:
-                    st.info(t("soundcloud.no_data_selection",
-                              "Aucune donnée pour cette sélection (Vérifiez les dates ou les titres)."))
-            else:
-                st.info(t("soundcloud.empty_history", "Historique vide pour le moment."))
-
-        except Exception as e:
-            st.error(t("soundcloud.history_error", "Erreur historique : {err}").format(err=e))
-
-        st.markdown("---")
-
-        # =========================================================================
-        # 3. TOP TITRES (Tableau épuré)
-        # =========================================================================
-        st.subheader(t("soundcloud.top_tracks", "🏆 Top Titres"))
-        if not df_latest.empty:
-            df_top = df_latest.copy()
-            # Coerce to numeric first: a NULL in any count makes the column object dtype,
-            # so the raw arithmetic + .round(1) raised "Expected numeric dtype, got object".
-            _likes = pd.to_numeric(df_top['likes_count'], errors='coerce').fillna(0)
-            _reposts = pd.to_numeric(df_top['reposts_count'], errors='coerce').fillna(0)
-            _comments = pd.to_numeric(df_top['comment_count'], errors='coerce').fillna(0)
-            _pc = pd.to_numeric(df_top['playback_count'], errors='coerce')
-            _eng = _likes + _reposts + _comments
-            df_top['eng_total'] = _eng.astype(int)
-            df_top['eng_rate'] = (_eng / _pc.where(_pc != 0) * 100).round(1)
-            df_top['days_since'] = (
-                pd.Timestamp.now() - pd.to_datetime(df_top['track_created_at'])
-            ).dt.days
-
-            _plays_lbl = t("soundcloud.plays", "Écoutes")
-            _eng_lbl = t("soundcloud.engagement", "Engagement")
-            sort_by = st.segmented_control(
-                t("soundcloud.sort_by", "Trier par"), [_plays_lbl, _eng_lbl],
-                default=_plays_lbl, key="sc_sort",
-            ) or _plays_lbl
-            sort_col = 'playback_count' if sort_by == _plays_lbl else 'eng_total'
-            df_top = df_top.sort_values(by=sort_col, ascending=False)
-
-            _render_top_chart(df_top, sort_col, sort_by, _plays_lbl)
 
         # Les titres sortis sous le compte d'un label ou d'un collectif — déclarés
         # ICI depuis le 2026-09-04, et plus dans Credentials. C'est en lisant ce
@@ -348,25 +215,113 @@ if __name__ == "__main__":
     show()
 
 
-def _track_history(db, artist_id) -> "pd.DataFrame":
-    """Per-track cumulative plays, one row per (track, day) — READABLE days only.
+def _metric_labels() -> dict[str, str]:
+    """{column of `v_soundcloud_track_latest`: label} — the four counters, in order."""
+    return {"playback_count": t("soundcloud.plays", "Écoutes"),
+            "likes_count": t("soundcloud.likes", "Likes"),
+            "reposts_count": t("soundcloud.reposts", "Reposts"),
+            "comment_count": t("soundcloud.comments", "Commentaires")}
 
-    ⚠️ This chart read BRONZE `soundcloud_tracks_daily` until 2026-09-26 and was
-    the only SoundCloud figure left drawing the failed collection of 2026-06-01:
-    19 tracks written at 0 that day, which the gold view already marks
-    `lisible = FALSE` and every other figure of the page already skips. A reader
-    that goes around an existing verdict redraws the defect the verdict was
-    written for. The column is `day` — a DATE, never the `collected_at` timestamptz.
-    """
-    df = db.fetch_df("""
-        SELECT day, title, plays AS playback_count
-          FROM v_soundcloud_track_daily
-         WHERE artist_id = %s AND lisible
-         ORDER BY day ASC
-    """, (artist_id,))
-    if not df.empty:
-        df["day"] = pd.to_datetime(df["day"]).dt.date
+
+# The same counters in `v_soundcloud_track_daily`, with the flag that says a reading
+# of THAT counter is readable (migration 138).
+_DAILY = {"playback_count": ("plays", "lisible"),
+          "likes_count": ("likes", "likes_lisibles"),
+          "reposts_count": ("reposts", "reposts_lisibles"),
+          "comment_count": ("comments", "comments_lisibles")}
+
+
+def _with_engagement(df_latest: pd.DataFrame) -> pd.DataFrame:
+    """The latest counters, numeric, plus the engagement rate (%) and the age in days."""
+    df = df_latest.copy()
+    # Coerce to numeric first: a NULL in any count makes the column object dtype,
+    # so the raw arithmetic + .round(1) raised "Expected numeric dtype, got object".
+    for col in _DAILY:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    eng = df["likes_count"] + df["reposts_count"] + df["comment_count"]
+    plays = df["playback_count"]
+    df["eng_rate"] = (eng / plays.where(plays != 0) * 100).round(1)
+    df["days_since"] = (pd.Timestamp.now()
+                        - pd.to_datetime(df["track_created_at"])).dt.days
     return df
+
+
+def _age_frame(db, artist_id, chosen: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """(title, age, value): each chosen title's READABLE readings of `metric`, placed
+    at the title's age in days since upload. Pure past the one read."""
+    col, flag = _DAILY[metric]
+    df = db.fetch_df("""
+        SELECT track_id, day, plays, likes, reposts, comments,
+               lisible, likes_lisibles, reposts_lisibles, comments_lisibles
+          FROM v_soundcloud_track_daily
+         WHERE artist_id = %s AND track_id = ANY(%s)
+         ORDER BY track_id, day
+    """, (artist_id, [str(x) for x in chosen["track_id"]]))
+    return age_aligned_readings(df, chosen, col, flag)
+
+
+def age_aligned_readings(daily: pd.DataFrame, chosen: pd.DataFrame, col: str,
+                         flag: str) -> pd.DataFrame:
+    """Pure: the readings of `col` that are readable, with `age` = days since upload,
+    in the order of `chosen` (so colours and legend follow the picker).
+
+    No reading is invented: SoundCloud only gives today's counter, so a curve starts
+    at the title's age on its first COLLECTED day — never at a made-up (0, 0)."""
+    if daily.empty:
+        return pd.DataFrame(columns=["title", "day", "age", "value"])
+    ok = daily[daily["lisible"].fillna(False).astype(bool)
+               & daily[flag].fillna(True).astype(bool)]
+    meta = chosen[["track_id", "title", "track_created_at"]].astype({"track_id": str})
+    out = ok.astype({"track_id": str}).merge(meta, on="track_id", validate="many_to_one")
+    upload = pd.to_datetime(out["track_created_at"]).dt.normalize()
+    out["age"] = (pd.to_datetime(out["day"]) - upload).dt.days
+    out["value"] = pd.to_numeric(out[col], errors="coerce")
+    order = {title: i for i, title in enumerate(chosen["title"])}
+    out = out.dropna(subset=["value", "age"]).assign(_o=out["title"].map(order))
+    return out.sort_values(["_o", "age"])[["title", "day", "age", "value"]]
+
+
+def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
+    """Choose titles, compare their cumulative counter at EQUAL AGE (R385, V44).
+
+    The drawing is Spotify's « Mes sorties, à âge égal » — the same function,
+    `age_aligned_traces`, not a copy. The default is the two most-PLAYED titles, not
+    the two latest uploads: the latest is « Chokbar de bezed », 4 plays, and a page
+    that opens on its emptiest title says « nothing here » when there is.
+    """
+    st.subheader(t("soundcloud.age_header", "📈 Tout le catalogue, à âge égal"))
+    by_plays = df_top.sort_values("playback_count", ascending=False)
+    titles = by_plays["title"].tolist()
+    metrics = _metric_labels()
+    c1, c2 = st.columns([3, 1])
+    picked = c1.multiselect(t("soundcloud.age_pick", "Titres à comparer"), titles,
+                            default=titles[:2], key=f"sc_age_pick_{artist_id}")
+    metric_lbl = c2.selectbox(t("soundcloud.age_metric", "Compteur"),
+                              list(metrics.values()), key=f"sc_age_metric_{artist_id}")
+    metric = next(c for c, lbl in metrics.items() if lbl == metric_lbl)
+    if not picked:
+        st.info(t("soundcloud.age_pick_one", "Choisis au moins un titre."))
+        return
+    chosen = by_plays.set_index("title").loc[picked].reset_index()
+    frame = _age_frame(db, artist_id, chosen, metric)
+    if frame.empty:
+        st.info(t("soundcloud.age_empty",
+                  "Aucun relevé lisible de ce compteur pour ces titres."))
+        return
+    colour = dict(zip(picked, _nuances(len(picked))))
+    fig = go.Figure(age_aligned_traces(frame, x="age", y="value", series="title",
+                                       colour=colour, markers=True))
+    fig.update_layout(height=420, margin=dict(r=90, t=30),
+                      legend=dict(orientation="h", y=-0.2, x=0),
+                      xaxis_title=t("soundcloud.age_axis", "Jours depuis la mise en ligne"),
+                      yaxis_title=t("soundcloud.age_value_axis", "{m} cumulés")
+                      .format(m=metric_lbl))
+    fig.update_yaxes(tickformat="~s", rangemode="tozero")
+    charts.plotly_chart(fig, width="stretch")
+    st.caption(t("soundcloud.age_caption",
+                 "SoundCloud ne donne que le compteur du jour : chaque courbe commence à "
+                 "l'âge qu'avait le titre au premier relevé collecté, pas à sa mise en "
+                 "ligne. Deux titres se comparent là où leurs courbes se recouvrent."))
 
 
 def _render_catalog_series(db, artist_id) -> None:
@@ -559,115 +514,6 @@ def _render_top_chart(df_top, sort_col: str, sort_by: str, plays_lbl: str) -> No
                     t("soundcloud.col_days_since", "📅 Sorti il y a (j)"), format="%d"),
             },
             hide_index=True, width="stretch")
-
-
-def _base100_figure(db, artist_id, selected_tracks, window):
-    """(figure, légende) des quatre métriques ramenées à 100 — ou (None, message).
-
-    ⚠️ ELLE REND une figure, elle ne la POSE pas : son appelant l'affiche dans le
-    `with secondary_analyses(...)`, lexicalement, pour que les cliquets de budget
-    puissent la compter comme abritée. Voir le commentaire du site d'appel.
-
-
-    ⚠️ CETTE FIGURE PORTAIT SA PROPRE RÈGLE, EN PANDAS, ET ELLE ÉTAIT FAUSSE POUR
-    TROIS MÉTRIQUES SUR QUATRE. Elle écartait tout point dont la valeur passait
-    sous le maximum déjà vu (`s[s.cummax() == s]`) — juste pour des ÉCOUTES, qui
-    ne décroissent pas, et faux pour les likes, reposts et commentaires, qui se
-    retirent. Mesuré le 2026-09-21 sur le titre le plus écouté : les likes passent
-    de 179 à 178, un désabonnement ordinaire, et ce seul recul disqualifiait tous
-    les points suivants — **10 relevés écartés sur 18**, plus de la moitié de la
-    série, avec une légende qui annonçait fièrement le nettoyage.
-
-    La règle vit maintenant dans `v_soundcloud_track_daily` (migration 132), par
-    MÉTRIQUE : un compteur à vie qui vaut exactement 0 après avoir été positif est
-    une lecture ratée ; un compteur qui recule d'une unité est un auditeur qui a
-    changé d'avis. Deux faits différents, deux traitements.
-
-    Et elle y vit UNE fois : la figure principale, les tuiles et le classement
-    lisent la même définition. C'est ce que « couche or » veut dire.
-    """
-    if not selected_tracks:
-        return None, None
-    frag, params = window.sql_between("day")
-    df = db.fetch_df(f"""
-        SELECT day, plays, likes, reposts, comments,
-               lisible, likes_lisibles, reposts_lisibles, comments_lisibles
-          FROM v_soundcloud_track_daily
-         WHERE artist_id = %s AND title = ANY(%s) {frag}
-         ORDER BY day
-    """, (artist_id, list(selected_tracks), *params))
-    if df.empty:
-        return None, t("soundcloud.base100_empty",
-                       "Aucun relevé sur cette période pour la sélection.")
-
-    # Plusieurs titres sélectionnés : on somme le jour, en ne gardant que les
-    # relevés lisibles de chaque métrique.
-    _M = (("plays", t("soundcloud.plays", "Écoutes"), "lisible"),
-          ("likes", t("soundcloud.likes", "Likes"), "likes_lisibles"),
-          ("reposts", t("soundcloud.reposts", "Reposts"), "reposts_lisibles"),
-          ("comments", t("soundcloud.comments", "Commentaires"), "comments_lisibles"))
-
-    lignes, ecartes = [], 0
-    total_points = 0
-    for col, lbl, flag in _M:
-        ok = df[df["lisible"] & df[flag]]
-        total_points += len(df["day"].unique())
-        serie = ok.groupby("day")[col].sum().sort_index()
-        serie = serie[serie > 0]
-        ecartes += len(df["day"].unique()) - len(serie)
-        if len(serie) < 2 or not serie.iloc[0]:
-            continue
-        base = float(serie.iloc[0])
-        for d, v in serie.items():
-            lignes.append({"date": d, "Métrique": lbl,
-                           "Base 100": round(float(v) / base * 100, 2)})
-
-    if not lignes:
-        # DEUX SILENCES, DEUX GESTES OPPOSÉS — et le garde
-        # `test_a_silence_names_its_own_cause` a raison de l'exiger.
-        #
-        # « Rien dans CETTE fenêtre » fait ÉLARGIR ; « ce titre n'a rien à
-        # montrer » fait CHANGER DE TITRE. Les confondre envoie chercher le
-        # mauvais geste. On relit donc la même série SANS la fenêtre — deux
-        # lectures au lieu d'une, et seulement dans la branche vide, où l'on a le
-        # temps de le dire juste.
-        hors = db.fetch_df("""
-            SELECT MAX(day) AS last FROM v_soundcloud_track_daily
-             WHERE artist_id = %s AND title = ANY(%s) AND lisible
-        """, (artist_id, list(selected_tracks)))
-        dernier = None if hors.empty else hors.iloc[0]["last"]
-        if dernier is not None and (window.is_all_history or dernier < window.start):
-            return None, t(
-                "soundcloud.base100_out_of_window",
-                "Aucun relevé de **{tracks}** dans cette fenêtre. Le dernier "
-                "remonte au **{last}** — élargis la période pour revoir "
-                "l'historique."
-            ).format(tracks=", ".join(selected_tracks),
-                     last=format_date(pd.to_datetime(dernier)))
-        # LE MESSAGE NOMME LA VRAIE CAUSE. Celui d'avant accusait l'historique
-        # (« ≥2 collectes par métrique ») alors que, sur le titre proposé
-        # d'office, trois métriques sur quatre valaient ZÉRO partout.
-        return None, t("soundcloud.base100_nothing",
-                       "Rien à normaliser pour **{tracks}** : il faut au moins deux "
-                       "relevés avec une valeur non nulle sur une même métrique. Un "
-                       "titre sans like n'a pas d'évolution de likes.")\
-            .format(tracks=", ".join(selected_tracks))
-
-    fig = px.line(pd.DataFrame(lignes), x="date", y="Base 100", color="Métrique",
-                  markers=True,
-                  title=t("soundcloud.base100_title",
-                          "Évolution des métriques — base 100 ({label})")
-                  .format(label=window.label))
-    fig.update_layout(hovermode="x unified",
-                      yaxis_title=t("soundcloud.base100_axis",
-                                    "Base 100 (1er pt = 100)"))
-    return fig, t("soundcloud.base100_caption",
-                 "Chaque métrique vaut 100 à son premier relevé lisible : c'est ce "
-                 "qui permet de comparer des écoutes en milliers à des commentaires "
-                 "en dizaines. Les relevés dont un compteur vaut 0 APRÈS avoir été "
-                 "positif sont écartés — c'est une lecture ratée, pas une "
-                  "désaffection. Un simple recul, lui, est CONSERVÉ : un like se "
-                  "retire.")
 
 
 def _nuances(n: int) -> list[str]:

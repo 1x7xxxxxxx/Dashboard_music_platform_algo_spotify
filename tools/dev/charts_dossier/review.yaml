@@ -126,32 +126,16 @@ src/dashboard/views/apple_music.py::_render_shazam_launches#1:
   p: 3
   v: garder
   note: "R351. Cumul depuis J0, jamais un « par jour » ; ancre J0 = 0 en point creux (pas une mesure). Peu de relevés : la courbe est faite de paliers entre exports."
-src/dashboard/views/soundcloud.py::show#1:
-  q: "Mes écoutes SoundCloud croissent-elles ?"
-  decision: "Suivre ta croissance SoundCloud pour juger si une promo y a un effet."
-  decision_en: "Track your SoundCloud growth to judge whether a promo has an effect there."
+src/dashboard/views/soundcloud.py::_render_age_comparison#1:
+  q: "Mes titres SoundCloud progressent-ils autant, à âge égal ?"
+  decision: "Comparer tes titres au même âge, pour savoir lequel continue de gagner et mérite une relance."
+  decision_en: "Compare your tracks at the same age, to know which one keeps gaining and deserves a push."
   role: plateforme
-  d: 2
-  c: 1
-  p: 3
-  v: corriger
-  owner_v: corriger
-  owner: "Garantis que la couche or soit OK. On avait déjà fait le travail avec la couche or et on n'a plus le bump, je pense que c'est réglé. Pourquoi c'est toujours à corriger ?"
-  cause: absence-ecrite-zero
-  note: "Un cumul qui tombe à 0 un jour de juin puis remonte — un relevé manquant écrit comme zéro. Classe « l'absence devient un pixel », à balayer."
-src/dashboard/views/soundcloud.py::show#2:
-  q: "Quelle métrique SoundCloud bouge depuis la sortie ?"
-  decision: "Voir quelle métrique SoundCloud réagit après une sortie, pour savoir quoi pousser en campagne."
-  decision_en: "See which SoundCloud metric reacts after a release, to know what to push in a campaign."
-  role: plateforme
-  d: 2
+  d: 3
   c: 3
-  p: 2
-  v: retirer
-  owner_v: garder
-  owner: "On garde."
-  cause: graphique-sans-decision
-  note: "Base 100 sur des cumuls quasi plats (99,5–100,5) : rien à décider. Le top titres en dit plus."
+  p: 3
+  v: garder
+  note: "R385 (V44) : remplace la croissance datée et la base 100 ; même tracé que « Mes sorties, à âge égal » de Spotify (age_aligned_traces). La collecte par titre commence 420 à 2 258 jours après l'upload : chaque courbe ne couvre que ses âges mesurés, sans origine (0, 0) inventée."
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   q: "Mes écoutes et mon engagement SoundCloud progressent-ils ?"
   decision: "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo."
@@ -176,7 +160,7 @@ src/dashboard/views/soundcloud.py::_render_top_chart#1:
   v: garder
   owner_v: garder
   owner: "On garde."
-  note: "Volume et taux d'engagement côte à côte, noms complets — lisible."
+  note: "Volume et taux d'engagement côte à côte, noms complets — lisible. R385 (V43) : le volume se choisit parmi les quatre compteurs ; passé en tête de page."
 src/dashboard/views/youtube.py::show#1:
   q: "Ma chaîne gagne-t-elle abonnés et vues ?"
   decision: "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo."

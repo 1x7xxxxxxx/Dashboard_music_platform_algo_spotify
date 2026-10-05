@@ -303,12 +303,17 @@ def _days(today, offsets):
 @requires_live_db()
 @pytest.mark.xdist_group("soundcloud-gold-views")
 def test_the_per_track_chart_reads_only_readable_days(zeroed_tenant) -> None:
-    from src.dashboard.views.soundcloud import _track_history
+    from src.dashboard.views.soundcloud import _age_frame
 
     db, tenant, today = zeroed_tenant
-    df = _track_history(db, tenant)
+    # R385: the per-track chart is the equal-age comparison; uploads a year back.
+    chosen = _pd.DataFrame({"track_id": [str(987650 + i) for i in range(_TRACKS)],
+                            "title": [f"zeroed track {i}" for i in range(_TRACKS)],
+                            "track_created_at": [today - _dt.timedelta(days=365)] * _TRACKS})
+    df = _age_frame(db, tenant, chosen, "playback_count").rename(
+        columns={"value": "playback_count"})
     assert not df.empty, "the seeded tenant must have a history — else this is vacuous"
-    drawn = set(df["day"])
+    drawn = set(_pd.to_datetime(df["day"]).dt.date)
     failed = _days(today, (-2, 0))
     assert not (drawn & failed), (
         f"the per-track chart draws the failed collections {sorted(drawn & failed)}; "

@@ -30,6 +30,8 @@ EXEMPT = {
     "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`_campaign_window`), pas une période libre",
     # R377 (V24) — the default « depuis la dernière sortie » hid the previous campaign.
     "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
+    # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
+    "soundcloud.py": "titres comparés à âge égal (jours depuis l'upload) ; le catalogue montre ses 19 relevés, toute la collecte",
 }
 
 

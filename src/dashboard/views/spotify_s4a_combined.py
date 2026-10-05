@@ -62,6 +62,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.dashboard.auth import artist_id_sql_filter
+from src.dashboard.utils.age_aligned import age_aligned_traces
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.platform_colors import DISTINCT, platform_color
 from src.dashboard.utils import project_db, charts
@@ -382,21 +383,11 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.06,
                         row_heights=[0.6] + [0.4 / (rows - 1)] * (rows - 1) if rows > 1 else [1])
     colour = {t_: DISTINCT[i % len(DISTINCT)] for i, t_ in enumerate(cohort["title"].unique())}
-    for title, grp in cohort.groupby("title", sort=False):
-        # L'ÉTIQUETTE DE VALEUR EST AU DERNIER POINT, ET NULLE PART AILLEURS.
-        # C'est la seule abscisse où deux sorties se comparent — le bout de
-        # l'horizon commun — donc la seule où un nombre décide quelque chose.
-        # Étiqueter chaque point écrirait plusieurs centaines de nombres les uns
-        # sur les autres et rendrait la courbe illisible, ce qui est l'inverse de
-        # ce qu'on vient chercher.
-        labels = [""] * len(grp)
-        if len(labels):
-            labels[-1] = num(int(grp['streams_cumulative'].iloc[-1]), 0)
-        fig.add_trace(go.Scatter(
-            x=grp["day_index"], y=grp["streams_cumulative"],
-            mode="lines+text", name=str(title), line=dict(width=2.5, color=colour[title]),
-            text=labels, textposition="middle left", legendgroup=str(title),
-            textfont=dict(size=13), cliponaxis=False), row=1, col=1)
+    # R385 — the drawing rule (value label at the last point only) is shared with the
+    # SoundCloud catalogue comparison: one function, two callers.
+    for trace in age_aligned_traces(cohort, x="day_index", y="streams_cumulative",
+                                    series="title", colour=colour):
+        fig.add_trace(trace, row=1, col=1)
     row = 2
     if not meta.empty:
         for trace in meta_spend_traces(meta, colour):
