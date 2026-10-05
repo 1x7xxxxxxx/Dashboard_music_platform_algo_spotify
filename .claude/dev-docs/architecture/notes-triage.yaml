@@ -3074,9 +3074,9 @@
     PDF : chaque élément déplacé dans une autre vue s''il n''y est pas déjà, sinon supprimé.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R373
+  preuve_statut: R373 (archivée) — 69ff0ace
 - ligne: 11
   source: revue/notes-vocales-2026-10-05.md
   note: V7

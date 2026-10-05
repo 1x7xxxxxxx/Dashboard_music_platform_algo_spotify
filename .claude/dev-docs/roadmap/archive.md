@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R373 — Accueil — retirer « Ce que ta publicité a appris », le bouton PDF, « Statut des pipelin… (livrée 2026-10-05)
+
+- [x] **R373 — Accueil — retirer « Ce que ta publicité a appris », le bouton PDF, « Statut des pipelines » et « Ce qui alimente tes chiffres » (V6) ; chaque bloc va où il n'est pas déjà : conseil Meta → vue croisée (R378) ; fraîcheur → Santé onboarding (vérifié 2026-10-05 : seule Alertes, admin, la montrait — la grille avec ses heures part donc dans `utils/source_freshness.py`, appelée par Santé onboarding pour l'artiste) ; conseil Meta, en attendant R378 → page Publicité Meta Ads ; pipelines → Monitoring ETL (admin) ; PDF → entrée de menu sous l'accueil (R386). Le `</div>` (V7) est déjà corrigé par 0d90552d, pas encore en prod** (P3) ✅ (2026-10-05, 69ff0ace)
+  Mesuré par : AppTest de l'accueil : aucun des quatre titres rendu ; un test par bloc déplacé qui le trouve dans sa page d'arrivée
+  Accueil allégé (V6) : conseil Meta → Publicité Meta Ads, grille des sources → Santé onboarding (utils/source_freshness.py), statut DAG → Monitoring ETL, bouton PDF → menu. Garde tests/test_the_home_stops_at_the_numbers.py (AST + rendu), muté rouge. CI verte sur 69ff0ace.
+  Commits : 69ff0ace R373 : accueil — conseil Meta, bouton PDF, statut des pipelines et gri
+
 ## ✅ R371 — Accueil — mise en forme (notes V1-V4 du 2026-10-05) : total des écoutes en plus grand ;… (livrée 2026-10-05)
 
 - [x] **R371 — Accueil — mise en forme (notes V1-V4 du 2026-10-05) : total des écoutes en plus grand ; camembert des parts par plateforme (Spotify, YouTube, Apple, SoundCloud) avec valeurs, lu par `v_platform_totals` (la porte des totaux — jamais un cumul sommé) ; tuiles Meta Ads + Hypeddit sur une ligne, Shazam + Instagram sur une autre ; légende « prédites maximum atteintes » → « maximales » (aucune faute trouvée sur les noms DW / Radio / RR dans le code — vérifier au rendu)** (P3) ✅ (2026-10-05, d887ca11, 53641f33)
