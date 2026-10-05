@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R414 | Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (night-status écrit dans le fichier de séance) <!-- critic: requis — touche le chemin de chaque édition --> <!-- scope: .claude/hooks/, .claude/settings.json, tools/dev/, tests/, .test_durations, .claude/dev-docs/ --> | P4 | latence mesurée avant/après, en alternance |
 | R416 | Harnais : le rapport ne compte comme opportunité que ce qui appelle un geste — trous différés par ADR rangés « différé » avec leur déclencheur, opportunités mesurées closes retirées du catalogue, dormants et manuels sortis en inventaire, et un dormant dont la surface déclencheuse a tiré sans lui signalé « suivi manqué » <!-- critic: non — vue d'un rapport généré, aucun chemin d'exécution --> <!-- scope: tools/dev/, tests/, .test_durations, .claude/dev-docs/ --> | P4 | garde muté rouge sur chacune des quatre règles |
 
 ---
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R414, R416 -->
+<!-- reprise: open=R416 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R414 — Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (nig… (livrée 2026-10-05)
+
+- [x] **R414 — Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (night-status écrit dans le fichier de séance)** (P4) ✅ (2026-10-05, 6be25f4c, 996857e7)
+  Mesuré par : latence mesurée avant/après, en alternance
+  REQ-HARN-04 refusé (fusion des hooks PostToolUse : gain non mesurable), REQ-HARN-06 re-daté vu rouge. FORCE_CI : le run de 6be25f4c n'a jamais obtenu de runner (panne GitHub Actions du 2026-10-05, jobs annulés à 0 étape) ; le même code est vert sur son descendant 52e8a904 (run 37374560335, 10/10 jobs).
+  Commits : 6be25f4c R414 : preuves « vu rouge » re-datées (HARN-06, HARN-19, HARN-24) aprè · 996857e7 R414 : le fichier de séance porte night-status (HARN-06) ; la fusion d
+
 ## ✅ R415 — Harnais : fraîcheur des workflows planifiés (voisin de R407) — un cron GitHub qui ne to… (livrée 2026-10-05)
 
 - [x] **R415 — Harnais : fraîcheur des workflows planifiés (voisin de R407) — un cron GitHub qui ne tourne plus se voit dans night-check** (P4) ✅ (2026-10-05, 7b8fe088)
