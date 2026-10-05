@@ -105,9 +105,6 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/meta_breakdowns.py::_render_performance#2': (
         'Voir où ta pub a dépensé dans le monde, pour couper les pays qui coûtent sans rendre.',
         'See where your ads spent worldwide, to cut countries that cost without returning.'),
-    'views/meta_cpr_optimizer.py::_render_age_panel#1': (
-        "Choisir la tranche d'âge qui coûte le moins cher par résultat, pour ajuster le ciblage.",
-        'Choose the age band with the lowest cost per result, to adjust targeting.'),
     'views/meta_creatives.py::_render_activity#1': (
         'Voir quelle créa a tourné quand, pour relier tes résultats à la bonne créa.',
         'See which creative ran when, to tie your results to the right creative.'),

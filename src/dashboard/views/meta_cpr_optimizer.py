@@ -11,10 +11,9 @@ Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
        see `_ml_factor` / `_compute_scores` (2026-09-26).
 """
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import view_session
 from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
 from src.dashboard.utils.filters import account_clause, account_scope
@@ -353,15 +352,23 @@ def show() -> None:
         ))
         return
 
-    cpr_median, k_conf, ages = (df.attrs["cpr_median"], df.attrs["k_conf"],
-                                df.attrs["ages"])
+    cpr_median, k_conf = df.attrs["cpr_median"], df.attrs["k_conf"]
     if not df.attrs.get('ml_in_score'):
         st.caption(t(
             "meta_cpr_optimizer.ml_neutral",
             "ℹ️ Le facteur ML est **neutre** dans ce score : au moins une campagne "
             "porte un titre sans estimation fiable (probabilités au plancher de la "
             "calibration). Le classement repose sur le CPR, la confiance et l'âge."))
-    _render_age_panel(ages, k_conf)
+    # R409 — the age finding left for the free breakdowns (« Qui a vu tes pubs »):
+    # Meta Ads shows that data for free. The affinity stays in this score.
+    st.caption(t("meta_cpr_optimizer.age_moved",
+                 "🎂 La tranche d'âge qui clique le moins cher est dans **🔀 Vue croisée "
+                 "→ Qui a vu tes pubs**. Ce score en tient compte."))
+    st.caption(t("meta_cpr_optimizer.confidence_note",
+                 "Le score pondère aussi par la CONFIANCE : une campagne est crue à "
+                 "moitié à **{k:.0f} résultats**, et presque pas en dessous de "
+                 "quelques dizaines. Un CPR flatteur sur dix euros de dépense ne "
+                 "remonte plus le classement.").format(k=k_conf))
 
     st.markdown(t("meta_cpr_optimizer.account_median",
                   "CPR médian du compte : **{v}€**").format(v=f"{cpr_median:.2f}"))
@@ -397,24 +404,24 @@ def recommendations(db, artist_id, account: str | None = None) -> pd.DataFrame:
     R381 (V71): « Recommandations détaillées » are shown on the algo page for the
     latest release. Before, the pipeline lived inside `show()` next to the `st.*`
     calls, so a second surface could only recompute it — and two computations of
-    one recommendation diverge. `df.attrs` carries `cpr_median`, `k_conf` and the
-    age table, which the CPR page displays. Three reads, on the caller's connection.
+    one recommendation diverge. `df.attrs` carries `cpr_median` and `k_conf`, which
+    the CPR page displays. Three reads, on the caller's connection.
     """
     acct, acct_p = account_clause(account)
     df = db.fetch_df(_QUERY_OPTIMIZER.format(acct=acct),
                      (artist_id, *acct_p, artist_id, artist_id))
     cpr_all = db.fetch_df(_QUERY_ALL_CAMPAIGN_CPR.format(acct=acct), (artist_id, *acct_p))
-    affinite, ages = _affinite_age(db, artist_id, acct, acct_p)
+    affinite, _ages = _affinite_age(db, artist_id, acct, acct_p)
     if df is None or df.empty:
         out = pd.DataFrame() if df is None else df
-        out.attrs.update(cpr_median=None, k_conf=_K_DEFAUT, ages=ages)
+        out.attrs.update(cpr_median=None, k_conf=_K_DEFAUT)
         return out
     cpr_median = float(cpr_all['cpr'].median()) if not cpr_all.empty else 1.0
     k_conf = (float(cpr_all['cpr'].notna().sum()) and
               float(df['total_results'].median()) if 'total_results' in df.columns
               else _K_DEFAUT) or _K_DEFAUT
     out = _compute_scores(df, cpr_median, affinite_age=affinite, k_confiance=k_conf)
-    out.attrs.update(cpr_median=cpr_median, k_conf=k_conf, ages=ages)
+    out.attrs.update(cpr_median=cpr_median, k_conf=k_conf)
     return out
 
 
@@ -453,30 +460,15 @@ def _affinite_age(db, artist_id, acct: str, acct_p: tuple):
     """, (artist_id, *acct_p))
     if ages is None or ages.empty:
         return {}, pd.DataFrame()
-
+    # R409 — the brackets are computed in ONE place, read by this score and by the
+    # free age finding (meta_breakdowns): the bracket called cheapest there is the
+    # one rewarded here. A bracket without spend AND results has no CPR.
+    from src.dashboard.utils.age_brackets import brackets
     ages = ages.copy()
     ages['spend'] = pd.to_numeric(ages['spend'], errors='coerce').fillna(0.0)
-    ages['results'] = pd.to_numeric(ages['results'], errors='coerce').fillna(0)
-
-    par_tranche = ages.groupby('age_range', as_index=False)[['spend', 'results']].sum()
-    # ⚠️ IL FAUT UNE DÉPENSE **ET** DES RÉSULTATS — vu au premier rendu.
-    #
-    # La tranche « Unknown » porte 0,00 € de dépense et 7 résultats : le rapport
-    # vaut 0, et le panneau l'a proclamée « ta tranche la plus efficace : 0,0000 €
-    # par résultat ». Un coût nul n'est pas un coût bas, c'est une absence de
-    # coût — le même zéro inventé que cette session poursuit partout ailleurs.
-    #
-    # Une tranche sans dépense mesurée n'a pas de CPR : elle sort du calcul plutôt
-    # que d'être proclamée gratuite.
-    from src.dashboard.utils.ratios import per_series      # R258 — one definition
-    par_tranche['cpr'] = per_series(par_tranche['spend'].where(par_tranche['spend'] > 0),
-                                    par_tranche['results'])
-    # ⚠️ Une tranche sans CPR calculable sort du calcul : elle ne vaut ni 0 (« elle
-    # convertit gratuitement ») ni 1 (« elle est moyenne »), elle est inconnue.
-    mediane = par_tranche['cpr'].median()
-    if pd.isna(mediane) or mediane <= 0:
+    par_tranche = brackets(ages)
+    if 'efficacite' not in par_tranche:
         return {}, par_tranche
-    par_tranche['efficacite'] = mediane / par_tranche['cpr']
 
     eff = dict(zip(par_tranche['age_range'], par_tranche['efficacite']))
     affinite = {}
@@ -489,52 +481,3 @@ def _affinite_age(db, artist_id, acct: str, acct_p: tuple):
                      if pd.notna(eff.get(row['age_range'], 1.0)))
         affinite[camp] = valeur / poids
     return affinite, par_tranche
-
-
-def _render_age_panel(par_tranche, k_conf: float) -> None:
-    """Le panneau d'âge : ce que la donnée dit, y compris quand elle surprend."""
-    if par_tranche is None or par_tranche.empty or 'efficacite' not in par_tranche:
-        return
-    d = par_tranche.dropna(subset=['cpr'])
-    d = d[d['cpr'] > 0].sort_values('cpr')
-    if len(d) < 2:
-        st.caption(t("meta_cpr_optimizer.age_thin",
-                     "Pas assez de tranches d'âge mesurées (dépense ET résultats) "
-                     "pour comparer."))
-        return
-    meilleure, pire = d.iloc[0], d.iloc[-1]
-    part_chere = (d[d['efficacite'] < 1]['spend'].sum()
-                  / d['spend'].sum() * 100) if d['spend'].sum() else 0
-
-    # « convertit vraiment » affirmait une conversion réelle sur un compte de clics
-    # sortants — c'était le site le plus trompeur du balayage R146, parce que
-    # l'adverbe même prétendait trancher entre le proxy et la chose.
-    st.subheader(t("meta_cpr_optimizer.age_header",
-                   "🎂 Quelle tranche d'âge clique le moins cher"))
-    fig = go.Figure(go.Bar(
-        x=d['age_range'], y=d['cpr'], marker_color='#2a78d6', opacity=0.85,
-        text=[f"{v:.3f} €" for v in d['cpr']], textposition='outside',
-        cliponaxis=False,
-        customdata=d['spend'],
-        hovertemplate="%{x}<br>CPR %{y:.4f} €<br>%{customdata:,.0f} € dépensés"
-                      "<extra></extra>"))
-    fig.update_layout(height=360, margin=dict(t=40),
-                      yaxis_title=t("meta_cpr_optimizer.age_axis", "CPR (€)"))
-    charts.plotly_chart(fig, width="stretch", pareto=True)   # R243 — fiche 28
-    st.info(t(
-        "meta_cpr_optimizer.age_finding",
-        "**{best}** est ta tranche la plus efficace : **{cb:.4f} €** par résultat, "
-        "contre **{cw:.4f} €** pour **{worst}** — soit **{ratio:.0f} %** moins "
-        "cher. Et **{part:.0f} %** de ta dépense part sur des tranches qui "
-        "convertissent MOINS bien que la médiane.\n\n"
-        "⚠️ Ce panneau est mesuré, pas supposé. L'intuition courante — « les jeunes "
-        "cliquent plus » — n'est pas ce que dit ce compte : c'est le score qui "
-        "s'aligne sur la donnée, jamais l'inverse."
-    ).format(best=meilleure['age_range'], cb=meilleure['cpr'],
-             worst=pire['age_range'], cw=pire['cpr'],
-             ratio=(1 - meilleure['cpr'] / pire['cpr']) * 100, part=part_chere))
-    st.caption(t("meta_cpr_optimizer.confidence_note",
-                 "Le score pondère aussi par la CONFIANCE : une campagne est crue à "
-                 "moitié à **{k:.0f} résultats**, et presque pas en dessous de "
-                 "quelques dizaines. Un CPR flatteur sur dix euros de dépense ne "
-                 "remonte plus le classement.").format(k=k_conf))

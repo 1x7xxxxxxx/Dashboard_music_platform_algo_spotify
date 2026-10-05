@@ -64,20 +64,10 @@ EN = {
         "Reduce the budget by 30% or rework the creative and targeting."
     ),
 
-    # Le panneau d'âge et la confiance (2026-09-21).
-    "meta_cpr_optimizer.age_header": "🎂 Which age band clicks cheapest",
-    "meta_cpr_optimizer.age_axis": "CPR (€ per outbound click)",
-    "meta_cpr_optimizer.age_thin": "Not enough age bands measured (spend AND results) to "
-                                   "compare.",
-    "meta_cpr_optimizer.age_finding": "**{best}** is your most efficient band: **{cb:.4f} "
-                                      "€** per result, against **{cw:.4f} €** for "
-                                      "**{worst}** — **{ratio:.0f} %** cheaper. And "
-                                      "**{part:.0f} %** of your spend goes to bands that "
-                                      "convert WORSE than the median.\n\n"
-                                      "⚠️ This panel is measured, not assumed. The common "
-                                      "intuition — « young people click more » — is not "
-                                      "what this account says: the score follows the "
-                                      "data, never the other way round.",
+    # The confidence note (2026-09-21); the age panel left for meta_breakdowns (R409).
+    "meta_cpr_optimizer.age_moved": "🎂 The age band that clicks cheapest is in **🔀 Cross "
+                                    "view → Who saw your ads**. This score takes it into "
+                                    "account.",
     "meta_cpr_optimizer.confidence_note": "The score also weights by CONFIDENCE: a "
                                           "campaign is half-believed at **{k:.0f} "
                                           "results**, and barely at all below a few "

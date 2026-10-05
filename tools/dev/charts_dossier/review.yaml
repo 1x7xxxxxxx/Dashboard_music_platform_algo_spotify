@@ -387,19 +387,6 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
   owner_v: corriger
   owner: "Pareil, pas de rendu."
   note: "Non rendu : autre choix du sélecteur."
-src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
-  q: "Quelle tranche d'âge coûte le moins cher par résultat ?"
-  decision: "Choisir la tranche d'âge qui coûte le moins cher par résultat, pour ajuster le ciblage."
-  decision_en: "Choose the age band with the lowest cost per result, to adjust targeting."
-  role: meta
-  mq: M7
-  d: 4
-  c: 3
-  p: 4
-  v: garder
-  owner_v: corriger
-  owner: "Tri Pareto : la valeur la plus haute à gauche."
-  note: "35-44 à 0,088 € contre 25-34 à 0,147 € — décision directe de ciblage. Or 25-34 est la tranche la plus dépensée (1 398 €)."
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   mq: M2
   q: "Quelle créa coûte le moins cher, et engage le plus ?"

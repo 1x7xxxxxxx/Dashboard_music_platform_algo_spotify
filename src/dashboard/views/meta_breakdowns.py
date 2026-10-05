@@ -26,7 +26,7 @@ from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_pair import render_share_pair, share_pair
-from src.dashboard.utils.formats import num
+from src.dashboard.utils.formats import eur, num, pct
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
 
@@ -378,9 +378,38 @@ def _render_frames(df, family) -> bool:
         _render_coverage(df[df['dim'] == "country"])
         _render_performance(
             df.drop(columns=["_spend_total", "_results_total"], errors="ignore"))
+        _render_age_finding(df)
     else:
         _render_engagement(df)
     return True
+
+
+def _render_age_finding(df) -> None:
+    """R409 — the cheapest age bracket, said in words under the grid (free tier).
+
+    It lived in the Premium CPR Optimizer; the owner moved it here (2026-10-05):
+    Meta Ads shows this data for free. Same computation as the score's affinity
+    (`age_brackets`), on the rows of the current grain and campaign.
+    """
+    from src.dashboard.utils.age_brackets import brackets, finding
+
+    rows = _panel(df, "age").rename(columns={"k": "age_range"})
+    f = finding(brackets(rows[["age_range", "spend", "results"]]))
+    st.markdown("**" + t("meta_breakdowns.age_header",
+                         "🎂 Quelle tranche d'âge clique le moins cher") + "**")
+    if f is None:
+        st.caption(t("meta_breakdowns.age_thin",
+                     "Pas assez de tranches d'âge mesurées (dépense ET clics) pour comparer."))
+        return
+    st.info(t(
+        "meta_breakdowns.age_finding",
+        "**{best}** est ta tranche la plus efficace : **{cb}** par clic sortant, "
+        "contre **{cw}** pour **{worst}** — soit **{ratio}** moins cher. "
+        "Et **{part}** de ta dépense part sur des tranches plus chères que la "
+        "médiane.\n\n⚠️ Mesuré sur ce compte, pas supposé : l'intuition « les jeunes "
+        "cliquent plus » n'est pas forcément ce qu'il dit.").format(
+            best=f["best"], worst=f["worst"], cb=eur(f["cb"], 3), cw=eur(f["cw"], 3),
+            ratio=pct(f["ratio"]), part=pct(f["part"])))
 
 
 def _render_coverage(df) -> None:

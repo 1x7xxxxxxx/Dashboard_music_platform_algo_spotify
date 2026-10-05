@@ -62,4 +62,13 @@ EN = {
     "meta_breakdowns.pair_caption": "Each bar is the share of ITS campaign's {what}: two different budgets compare on the same scale (0–100 %).",
     "meta_breakdowns.pair_spend": "spend",
     "meta_breakdowns.pair_interactions": "summed interactions",
+    # R409 — the age finding, moved from the CPR Optimizer (2026-10-05).
+    "meta_breakdowns.age_header": "🎂 Which age band clicks cheapest",
+    "meta_breakdowns.age_thin": "Not enough age bands measured (spend AND clicks) to compare.",
+    "meta_breakdowns.age_finding": "**{best}** is your most efficient band: **{cb}** per "
+                                   "outbound click, against **{cw}** for **{worst}** — "
+                                   "**{ratio}** cheaper. And **{part}** of your spend "
+                                   "goes to bands dearer than the median.\n\n⚠️ Measured on this "
+                                   "account, not assumed: the intuition « young people click "
+                                   "more » is not necessarily what it says.",
 }
