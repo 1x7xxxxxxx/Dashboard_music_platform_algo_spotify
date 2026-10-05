@@ -696,3 +696,6 @@
 {"at": "2026-10-05T13:14:55+00:00", "head": "72656ca7", "kind": "start", "task": "R402", "what": ""}
 {"at": "2026-10-05T13:16:45+00:00", "head": "1503696b", "kind": "done", "task": "R398", "what": ""}
 {"at": "2026-10-05T13:24:16+00:00", "kind": "done", "task": "R401", "what": "fermée par roadmap-close — CI verte sur 611315e2 — un identifiant inconnu et un compte sans mot de passe paient chacun un bcrypt sur un condensat leurre ; 3 mutations rouges"}
+{"at": "2026-10-05T13:28:43+00:00", "head": "d1ad3304", "kind": "done", "task": "R401", "what": ""}
+{"at": "2026-10-05T13:28:43+00:00", "head": "d1ad3304", "kind": "start", "task": "R380", "what": ""}
+{"at": "2026-10-05T13:46:13+00:00", "kind": "done", "task": "R402", "what": "fermée par roadmap-close — L'onglet Budget & ROI ne chiffre plus l'achat de streams jusqu'aux volumes stabilisés (417/1333/8423) ni la porte 28 j sans source ; un seul jeu de seuils (TARGET_THRESHOLDS). Garde tests/test_no_view_buys_streams_up_to_a_threshold.py, rouge sur l'ancien arbre."}

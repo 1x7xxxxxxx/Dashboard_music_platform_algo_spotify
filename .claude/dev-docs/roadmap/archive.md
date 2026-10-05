@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R402 — DÉFAUT (trouvé par le critic de R380/R381, 2026-10-05) : l'onglet Budget & ROI (`trigge… (livrée 2026-10-05)
+
+- [x] **R402 — DÉFAUT (trouvé par le critic de R380/R381, 2026-10-05) : l'onglet Budget & ROI (`trigger_algo/_tab_budget_roi.py:42`, `:183-190`) achète des streams jusqu'à 417/1333/8423 — le volume STABILISÉ une fois la playlist installée (`pdf_exporter/_report.py:388`), que le code lui-même dit « pas un objectif » — sous une légende « Volumes de déclenchement SHAP » sans source ; un troisième jeu `_GATE_28D` (9200/4100…) n'est justifié nulle part. Les montants € affichés reposent sur un seuil détourné** (P2) ✅ (2026-10-05, 4c58856b, 72656ca7)
+  Mesuré par : un test : aucune vue ne multiplie un seuil (130/137/639 ni 417/1333/8423) par un coût par stream ; 417/1333/8423 nommés `STEADY_*` et lus d'un seul endroit
+  L'onglet Budget & ROI ne chiffre plus l'achat de streams jusqu'aux volumes stabilisés (417/1333/8423) ni la porte 28 j sans source ; un seul jeu de seuils (TARGET_THRESHOLDS). Garde tests/test_no_view_buys_streams_up_to_a_threshold.py, rouge sur l'ancien arbre.
+  Commits : 4c58856b R402 : l'onglet Budget & ROI n'achète plus des streams jusqu'au volume · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R401 — Constat MEDIUM préexistant de la revue sécurité de R398 (2026-10-05) : un identifiant I… (livrée 2026-10-05)
 
 - [x] **R401 — Constat MEDIUM préexistant de la revue sécurité de R398 (2026-10-05) : un identifiant INCONNU rend sans bcrypt (`dashboard/auth.py` `if not rows`, `api/auth.py` idem), un compte existant paie bcrypt + l'UPDATE du verrou — le temps de réponse du formulaire public et de `POST /auth/token` dit quels identifiants existent. Remède déjà présent dans la branche Google : `verify_password(password, _CONDENSAT_LEURRE)` avant le `return`.** (P3) ✅ (2026-10-05, 611315e2)
