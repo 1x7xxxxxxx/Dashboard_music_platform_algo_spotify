@@ -61,6 +61,12 @@ def truncated_titles(figs: tuple[Fig, ...]) -> list[str]:
     return out
 
 
+def _widest(text: str) -> int:
+    """Characters on the widest line: a `<br>` label is as wide as its longest line, not
+    as its whole text (R377 — three-line ring labels 460 px apart read as colliding)."""
+    return max(len(line) for line in text.split("<br>"))
+
+
 def overlapping_labels(figs: tuple[Fig, ...]) -> list[tuple[str, str]]:
     """Two annotations on the same line whose x distance is shorter than their text."""
     out = []
@@ -73,7 +79,7 @@ def overlapping_labels(figs: tuple[Fig, ...]) -> list[tuple[str, str]]:
         for xs in by_line.values():
             xs.sort()
             for (fa, ta), (fb, tb) in zip(xs, xs[1:]):
-                if (fb - fa) * plot_w < (len(ta) + len(tb)) / 2 * CHAR_PX:
+                if (fb - fa) * plot_w < (_widest(ta) + _widest(tb)) / 2 * CHAR_PX:
                     out.append((ta, tb))
                     break
     return out
@@ -131,6 +137,14 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     stacked = bands._replace(annotations=((0.40, "y domain:1", "Campagne printemps"),
                                           (0.43, "y domain:0.9", "Relance été")))
     assert not overlapping_labels((stacked,)), "labels on two lines do not collide"
+    # The labels the Hypeddit rings drew on 2026-10-05: ~85 characters each, 27 per line.
+    multi = _fig(annotations=(
+        (0.22, "paper", "Ô Chiotte<br>l'arbitre tucome…<br>7 828 visites · 3 581 clics<br>"
+                        "pub Meta ±14 j : 817 €"),
+        (0.78, "paper", "Kimono à semelle<br>de fer remix<br>3 651 visites · 596 clics<br>"
+                        "pub Meta ±14 j : 0 €")))
+    assert not overlapping_labels((multi,)), "a <br> label is as wide as its widest line"
+    assert overlapping_labels((multi._replace(width=0.25),)), "…and still collides when narrow"
 
     top = _fig(width=0.5, legend_top=9, legend_chars=59)
     assert legend_on_modebar((top,))
