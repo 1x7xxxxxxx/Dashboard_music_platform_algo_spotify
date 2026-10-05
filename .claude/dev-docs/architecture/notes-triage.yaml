@@ -3026,9 +3026,9 @@
   resume: Police du total des écoutes plus grande.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R371
+  preuve_statut: R371 (archivée) — d887ca11
 - ligne: 6
   source: revue/notes-vocales-2026-10-05.md
   note: V2
@@ -3036,27 +3036,27 @@
     valeur.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R371
+  preuve_statut: R371 (archivée) — d887ca11
 - ligne: 7
   source: revue/notes-vocales-2026-10-05.md
   note: V3
   resume: Meta Ads + Hypeddit sur une ligne ; nombre de Shazam + Instagram sur une autre.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R371
+  preuve_statut: R371 (archivée) — d887ca11
 - ligne: 8
   source: revue/notes-vocales-2026-10-05.md
   note: V4
   resume: 'Typo : apostrophe / é manquants sur Discover Weekly, Radio, Release Radar.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R371
+  preuve_statut: R371 (archivée) — d887ca11
 - ligne: 9
   source: revue/notes-vocales-2026-10-05.md
   note: V5
