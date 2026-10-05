@@ -35,6 +35,8 @@ EXEMPT = {
     "trigger_algo/_tab_reglages.py": "réglages comparés sur TOUTE la vie du compte : une fenêtre ferait tomber chaque réglage sous le seuil d'annonces fiable",
     "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
     # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
+    # R381 (V66) — SHAP bars per playlist; the CPR range reads each campaign's whole life.
+    "trigger_algo/_playlist_detail.py": "barres SHAP par playlist, pas une série temporelle ; le CPR lit toute la vie des campagnes",
     "soundcloud.py": "titres comparés à âge égal (jours depuis l'upload) ; le catalogue montre ses 19 relevés, toute la collecte",
 }
 

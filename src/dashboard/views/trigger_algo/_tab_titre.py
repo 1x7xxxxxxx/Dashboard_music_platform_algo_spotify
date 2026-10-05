@@ -116,6 +116,11 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
     # 3,4 entre la première et la dernière, que la seule porte proche masquait.
     _render_trois_portes(valeurs, ml_pred, feats)
 
+    # R381 (V56, V64, V66) — playlist by playlist: what weighs, where the title stands
+    # against the entry threshold, and the cost range to close the gap.
+    from ._playlist_detail import render_ce_qui_pese
+    render_ce_qui_pese(db, track, artist_id, ml_pred, feats)
+
     # ── Le Pareto ────────────────────────────────────────────────────────────
     st.subheader(t("trigger_algo.titre.pareto_header", "🪜 Ce qu'il te reste à faire"))
     _render_pareto(plan["leviers"], valeur_algo)

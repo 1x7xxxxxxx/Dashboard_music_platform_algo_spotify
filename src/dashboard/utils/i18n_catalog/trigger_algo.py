@@ -888,4 +888,28 @@ EN = {
         "The **{n} playlists ask for the SAME thing** here: **{manque} streams** over "
         "7 days, i.e. **{budget}**. That is not three budgets to add up — it is one, "
         "and it unlocks the stream condition of all three."),
+    "trigger_algo.detail.header": "🔬 Playlist by playlist",
+    "trigger_algo.detail.shap_head": (
+        "**What weighs most**, from the heaviest criterion to the lightest. "
+        "Green: it pushes toward the playlist; red: it holds back."),
+    "trigger_algo.detail.shap_floor": (
+        "No explanation for {names}: the model does not tell this track apart there "
+        "(probability at the floor) — detailing what it does not say would teach nothing."),
+    "trigger_algo.detail.missing": (
+        "⚠ **Missing criterion**: the data was not received, the model read it as 0. "
+        "Upload your Spotify for Artists CSVs to fill it."),
+    "trigger_algo.detail.cost_note": (
+        "Entry threshold: the algo streams over 28 days above which a track counts as "
+        "entered (the model's training threshold). Cost: the 7-day stream gap × your best "
+        "CPR ↔ your average CPR — an **order of magnitude**, assuming one click is one play."),
+    "trigger_algo.detail.not_entered": "achieved: not entered yet (below, « What really happened »)",
+    "trigger_algo.detail.reached": "achieved **{v:,.0f}** / threshold {s}",
+    "trigger_algo.detail.cost_shared": (
+        "The {n} playlists ask for **the same thing**: closing the gap costs "
+        "**{lo} to {hi}** — one budget, not three."),
+    "trigger_algo.detail.cost": "closing the gap: **{lo} to {hi}**",
+    "trigger_algo.detail.recos_head": "**🃏 Detailed recommendations — {song}** (your latest release)",
+    "trigger_algo.detail.recos_none": (
+        "No campaign linked to this track — link it in 🔗 Cross-platform mapping to get "
+        "a recommendation."),
 }

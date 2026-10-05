@@ -210,6 +210,9 @@ def show():
         # R405 (V72) : « ⚙️ Paramètres de mes campagnes » — la liste, sous le budget.
         from src.dashboard.views.meta_campaign_settings import render as render_settings
         render_settings(db, artist_id)
+        # R381 (V71) : les recommandations détaillées du CPR Optimizer, dernière sortie.
+        from ._playlist_detail import render_recos_derniere_sortie
+        render_recos_derniere_sortie(db, artist_id)
         _section("argent")
         from src.dashboard.views.revenue_forecast import render_money
         render_money(artist_id)

@@ -171,6 +171,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/spotify_s4a_combined.py::_render_secondary#1': (
         'Savoir si un titre vit encore et si ton audience suit, pour décider de relancer sa promo ou de passer au suivant.',
         'Know whether a track is still alive and your audience follows, to decide whether to relaunch its promo or move on.'),
+    'views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1': (
+        'Voir, pour chaque playlist, le critère qui retient le plus ton titre, pour savoir quoi travailler en premier.',
+        'See, for each playlist, the criterion holding your track back the most, to know what to work on first.'),
     'views/trigger_algo/_tab_algo_streams.py::_render_estimates#1': (
         "Estimer ce qu'un déclenchement d'algorithme rapporte, pour chiffrer le budget qui vaut la peine.",
         'Estimate what an algorithm trigger brings, to size the budget worth spending.'),

@@ -157,6 +157,63 @@ def cout_par_stream(db, artist_id, date_from, date_to) -> float | None:
     return depense / streams if depense > 0 and streams > 0 else None
 
 
+#: R381 (V66) — the campaign query behind the CPR range. One row per campaign with
+#: results; spend and results are summed so the mean is weighted, never a mean of ratios.
+_CPR_SQL = """
+    SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results
+      FROM v_meta_campaign_daily
+     WHERE artist_id = %s AND results > 0
+     GROUP BY campaign_name
+"""
+
+
+def cpr_bornes(campagnes: list[tuple]) -> tuple[float, float] | None:
+    """(best CPR, mean CPR) over `(name, spend, results)` rows — or `None`. Pure.
+
+    The mean is weighted (total spend ÷ total results). The best is the lowest CPR
+    among campaigns that carry AT LEAST the median spend: measured on artist 1 on
+    2026-10-05, the raw lowest is a 18 € post boost at 0,011 € — six times below the
+    best real campaign (0,0685 € on 353 €). A CPR bought with a few euros is luck,
+    and the range would start from it.
+    """
+    rows = [(float(s), float(r)) for _n, s, r in campagnes
+            if s is not None and r is not None and float(s) > 0 and float(r) > 0]
+    if not rows:
+        return None
+    spends = sorted(s for s, _r in rows)
+    mid = len(spends) // 2
+    median = spends[mid] if len(spends) % 2 else (spends[mid - 1] + spends[mid]) / 2
+    best = min(s / r for s, r in rows if s >= median)
+    mean = sum(s for s, _r in rows) / sum(r for _s, r in rows)
+    return best, max(best, mean)
+
+
+def lire_cpr_bornes(db, artist_id) -> tuple[float, float] | None:
+    """The artist's cost-per-outbound-click range. A failed read raises, never « no ads »."""
+    if not artist_id:
+        return None
+    return cpr_bornes(db.fetch_query(_CPR_SQL, (artist_id,)) or [])
+
+
+def budget_fourchette(gap: float | None,
+                      bornes: tuple[float, float] | None) -> tuple[float, float] | None:
+    """THE cost range to close a gap: (at the best CPR, at the mean CPR) — or `None`.
+
+    Both bounds go through `budget_pour_streams`, the one euro formula (R372). The
+    gap is a GAP (the coach's streams lever), never a threshold — see
+    `tests/test_no_view_buys_streams_up_to_a_threshold.py`. CPR is a cost per CLICK:
+    pricing streams with it assumes one click ≈ one stream, which is why the view
+    says « ordre de grandeur » next to it.
+    """
+    if gap is None or not bornes:
+        return None
+    bas = budget_pour_streams(gap, bornes[0])
+    haut = budget_pour_streams(gap, bornes[1])
+    if bas is None or haut is None:
+        return None
+    return bas, haut
+
+
 #: The three algorithmic playlists, in the order every surface lists them.
 PORTES = named_algos()
 

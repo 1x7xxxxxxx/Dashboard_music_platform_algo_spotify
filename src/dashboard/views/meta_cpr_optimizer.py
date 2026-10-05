@@ -339,23 +339,10 @@ def show() -> None:
         # Un nom de campagne peut exister dans DEUX comptes publicitaires : sans ce
         # filtre, la sous-requête `mip` additionnerait leurs dépenses et le CPR
         # affiché ne serait celui d'aucun des deux (R53 / ADR-013).
-        _acct, _acct_params = account_clause(
-            account_scope(db, artist_id, key="meta_cpr_acct"))
-        df = db.fetch_df(
-            _QUERY_OPTIMIZER.format(acct=_acct),
-            (artist_id, *_acct_params, artist_id, artist_id),
-        )
-        cpr_all = db.fetch_df(
-            _QUERY_ALL_CAMPAIGN_CPR.format(acct=_acct), (artist_id, *_acct_params))
-        # ⚠️ LA TROISIÈME LECTURE EST **DANS** LE `with`, et c'est une correction.
-        #
-        # Elle vivait dix lignes plus bas, hors du bloc : `view_session()` avait
-        # déjà fermé la connexion, et `PostgresHandler._ensure_connection()` la
-        # rouvrait en silence. La page marchait, ouvrait DEUX connexions par
-        # rendu contre la règle #9, et rien ne le disait —
-        # `test_a_render_opens_one_connection` l'a nommé. C'est mot pour mot le
-        # défaut que `hypeddit.py` documente depuis le 2026-08-21.
-        affinite, ages = _affinite_age(db, artist_id, _acct, _acct_params)
+        # ⚠️ Les lectures restent DANS le `with` (règle #9) : `recommendations`
+        # les fait toutes, la connexion n'est rouverte par personne.
+        df = recommendations(db, artist_id,
+                             account_scope(db, artist_id, key="meta_cpr_acct"))
 
     if df.empty:
         st.info(t(
@@ -366,16 +353,8 @@ def show() -> None:
         ))
         return
 
-    # CPR médian global (toutes campagnes avec données)
-    cpr_median = float(cpr_all['cpr'].median()) if not cpr_all.empty else 1.0
-
-    # L'affinité d'âge est LUE plus haut, dans le bloc de connexion ; elle est
-    # APPLIQUÉE ici. Le détail du raisonnement, et les chiffres qui réfutent
-    # « les jeunes cliquent plus », sont dans le docstring de `_compute_scores`.
-    k_conf = (float(cpr_all['cpr'].notna().sum()) and
-              float(df['total_results'].median()) if 'total_results' in df.columns
-              else _K_DEFAUT) or _K_DEFAUT
-    df = _compute_scores(df, cpr_median, affinite_age=affinite, k_confiance=k_conf)
+    cpr_median, k_conf, ages = (df.attrs["cpr_median"], df.attrs["k_conf"],
+                                df.attrs["ages"])
     if not df.attrs.get('ml_in_score'):
         st.caption(t(
             "meta_cpr_optimizer.ml_neutral",
@@ -397,12 +376,7 @@ def show() -> None:
     ])
 
     with tab_cards:
-        # Sort: increase first, then neutral, then reduce
-        order = {'+30%': 0, '+10%': 1, '=': 2, '-30%': 3}
-        df_sorted = df.assign(
-            _order=df['budget_delta'].map(order)
-        ).sort_values('_order').drop(columns='_order')
-        _render_detail_cards(df_sorted)
+        render_cards(df)
 
     with tab_table:
         _render_table(df.sort_values('score_10', ascending=False))
@@ -415,6 +389,50 @@ def show() -> None:
         "plus il y a de jours de collecte, plus le score est fiable."
     ))
 
+
+
+def recommendations(db, artist_id, account: str | None = None) -> pd.DataFrame:
+    """THE campaign recommendations, without a widget — the CPR page and the algo page.
+
+    R381 (V71): « Recommandations détaillées » are shown on the algo page for the
+    latest release. Before, the pipeline lived inside `show()` next to the `st.*`
+    calls, so a second surface could only recompute it — and two computations of
+    one recommendation diverge. `df.attrs` carries `cpr_median`, `k_conf` and the
+    age table, which the CPR page displays. Three reads, on the caller's connection.
+    """
+    acct, acct_p = account_clause(account)
+    df = db.fetch_df(_QUERY_OPTIMIZER.format(acct=acct),
+                     (artist_id, *acct_p, artist_id, artist_id))
+    cpr_all = db.fetch_df(_QUERY_ALL_CAMPAIGN_CPR.format(acct=acct), (artist_id, *acct_p))
+    affinite, ages = _affinite_age(db, artist_id, acct, acct_p)
+    if df is None or df.empty:
+        out = pd.DataFrame() if df is None else df
+        out.attrs.update(cpr_median=None, k_conf=_K_DEFAUT, ages=ages)
+        return out
+    cpr_median = float(cpr_all['cpr'].median()) if not cpr_all.empty else 1.0
+    k_conf = (float(cpr_all['cpr'].notna().sum()) and
+              float(df['total_results'].median()) if 'total_results' in df.columns
+              else _K_DEFAUT) or _K_DEFAUT
+    out = _compute_scores(df, cpr_median, affinite_age=affinite, k_confiance=k_conf)
+    out.attrs.update(cpr_median=cpr_median, k_conf=k_conf, ages=ages)
+    return out
+
+
+def for_track(df: pd.DataFrame, song: str | None) -> pd.DataFrame:
+    """The recommendations of ONE title (canonical match, as the SQL join does). Pure."""
+    from src.utils.track_matching import canonical_song
+    if df is None or df.empty or not song:
+        return df.iloc[0:0] if df is not None else pd.DataFrame()
+    key = canonical_song(song).lower()
+    keep = df['track_name'].map(lambda n: canonical_song(str(n)).lower() == key)
+    return df[keep]
+
+
+def render_cards(df: pd.DataFrame) -> None:
+    """The detailed cards, increase first — the CPR page and the algo page."""
+    order = {'+30%': 0, '+10%': 1, '=': 2, '-30%': 3}
+    _render_detail_cards(df.assign(_order=df['budget_delta'].map(order))
+                         .sort_values('_order').drop(columns='_order'))
 
 def _affinite_age(db, artist_id, acct: str, acct_p: tuple):
     """(affinité par campagne, table des tranches) — MESURÉE, jamais supposée.

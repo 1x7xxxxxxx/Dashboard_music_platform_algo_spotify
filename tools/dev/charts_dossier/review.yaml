@@ -658,6 +658,16 @@ src/dashboard/views/trigger_algo/_tab_reglages.py::_budget_declenchement#1:
   p: 3
   v: garder
   note: "R404 (V68) : dessinée seulement quand les playlists demandent des budgets DIFFÉRENTS — sinon un seul encadré dit que c'est un budget, pas trois. Un ordre de grandeur, la légende le dit."
+src/dashboard/views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1:
+  q: "Qu'est-ce qui pèse le plus, playlist par playlist, sur les chances de ce titre ?"
+  decision: "Voir, pour chaque playlist, le critère qui retient le plus ton titre, pour savoir quoi travailler en premier."
+  decision_en: "See, for each playlist, the criterion holding your track back the most, to know what to work on first."
+  role: prediction
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R381 (V56, V64) : un panneau par playlist, empilés DW → Radio → RR (côte à côte, les noms d'un panneau recouvraient le suivant — vu sur le PNG), critères triés du plus lourd au plus léger, vert pousse / rouge retient, « ⚠ manquant » sur une donnée non reçue ; une playlist au plancher n'est pas expliquée."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
   decision: "Vérifier si le volume prédit colle au réel, pour savoir si tu peux budgéter une campagne dessus."
