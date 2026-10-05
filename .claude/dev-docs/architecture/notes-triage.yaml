@@ -3793,9 +3793,9 @@
   resume: Renommer Facturation / Abonnement.
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R391
+  preuve_statut: R391 (archivée) — f0ac6264
 - ligne: 111
   source: revue/notes-vocales-2026-10-05.md
   note: V85
@@ -3803,18 +3803,18 @@
     chacun.
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R391
+  preuve_statut: R391 (archivée) — f0ac6264
 - ligne: 112
   source: revue/notes-vocales-2026-10-05.md
   note: V86
   resume: Bouton « Faire piloter mes campagnes » entre les plans et « nos offres ».
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R391
+  preuve_statut: R391 (archivée) — f0ac6264
 - ligne: 114
   source: revue/notes-vocales-2026-10-05.md
   note: V87

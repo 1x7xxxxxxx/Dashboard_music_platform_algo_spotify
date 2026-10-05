@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R391 — Facturation (V84-V86) : menu « 💳 Facturation / Abonnement » ; cartes Free et Premium cô… (livrée 2026-10-05)
+
+- [x] **R391 — Facturation (V84-V86) : menu « 💳 Facturation / Abonnement » ; cartes Free et Premium côte à côte, l'inactive barrée, l'active marquée d'une flèche verte, prix mensuel et statut sous chacune ; bouton « Faire piloter mes campagnes » entre les plans et « nos offres »** (P3) ✅ (2026-10-05, f0ac6264)
+  Mesuré par : AppTest pour un locataire free puis premium : la bonne carte barrée
+  CI verte sur 705adc3b (contient f0ac6264 ; le run de f0ac6264 annulé par le push suivant) — Free et Premium côte à côte, l'inactif barré, l'actif fléché ; bouton de service puis Nos offres ; 5 mutations rouges
+  Commits : f0ac6264 R391 : Facturation / Abonnement — Free et Premium côte à côte, l'inact
+
 ## ✅ R388 — Distributeurs (V75-V78) : une seule sous-vue — saisie en haut, toutes années / mois par… (livrée 2026-10-05)
 
 - [x] **R388 — Distributeurs (V75-V78) : une seule sous-vue — saisie en haut, toutes années / mois par défaut avec un filtre refait, graphique d'évolution au lieu du tableau détail, point mort en bas, sur la même figure que les prédictions si elle reste lisible** (P3) ✅ (2026-10-05, 2b91e215)
