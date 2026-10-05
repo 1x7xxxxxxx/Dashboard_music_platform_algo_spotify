@@ -6,14 +6,6 @@ EN = {
     "account.twofa": "2FA",
     "account.on": "🔐 Enabled",
     "account.off": "—",
-    "account.connected_header": "**🔌 My connected accounts**",
-    "account.connected_none": (
-        "No account connected. This is what fills your pages: open "
-        "**🔑 API Credentials** in the sidebar."),
-    "account.connected_caption": (
-        "{n} account(s) declared. This list says what is **saved**, not what "
-        "**answers**: a key may have expired since. The test lives in "
-        "**🔑 API Credentials**."),
     "account.title": "👤 My Account",
     "account.session_expired": "Session expired. Please log in again.",
     "account.user_not_found": "User not found.",
@@ -76,10 +68,13 @@ EN = {
     "account.totp_invalid_code": "Invalid code. Make sure your device clock is correct and try again.",
     # Account deletion
     "account.delete_header": "🗑️ Delete my account (GDPR Art. 17)",
-    "account.delete_warning": "Account deletion is handled by the administrator. "
-                              "Send a request to **1x7xxxxxxx@gmail.com** with the subject "
-                              "**'Delete my account — [your username]'**. "
-                              "Your data will be deleted within 30 days.",
+    "account.delete_what_happens": (
+        "This button sends your request to the administrator. Next: they confirm by "
+        "email, then your account and all your data are deleted **within 30 days**. "
+        "Nothing is deleted until then."),
+    "account.delete_btn": "📨 Request deletion of my account",
+    "account.delete_sent": "✅ Request sent. You will receive a confirmation by email.",
+    "account.delete_failed": "The request could not be sent ({reason}). Try again later.",
     # ── Compte cr\u00e9\u00e9 par Google : poser un PREMIER mot de passe (2026-09-22) ──
     "account.set_pw_header": "\U0001F512 Set a password",
     "account.set_pw_help":

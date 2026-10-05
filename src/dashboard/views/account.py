@@ -3,9 +3,10 @@
 Type: Feature
 Uses: get_db_connection, verify_password, hash_password
 Depends on: saas_users, saas_artists
-RGPD: covers Art. 15 (access), Art. 16 (rectification), Art. 17 (partial — deletion via admin),
+RGPD: covers Art. 15 (access), Art. 16 (rectification), Art. 17 (request mailed to the admin, R390),
       Art. 21 (opposition marketing).
 """
+import html
 from datetime import datetime, timezone
 
 import streamlit as st
@@ -62,15 +63,8 @@ def _get_user_row(db, username: str) -> dict | None:
 # Sections
 # ─────────────────────────────────────────────
 
-_Q_BRANCHEES = """
-SELECT platform, MAX(updated_at)::date AS depuis
-FROM artist_credentials WHERE artist_id = %s
-GROUP BY platform ORDER BY platform
-"""
-
-
 def _section_profile(db, user: dict) -> None:
-    """Le compte en un écran : qui je suis, ce que j'ai, ce qui est branché.
+    """Le compte en un écran : qui je suis, ce que j'ai.
 
     ⚠️ DEUX CORRECTIONS DE FOND le 2026-09-21, pas une réorganisation.
 
@@ -111,47 +105,8 @@ def _section_profile(db, user: dict) -> None:
     if joined:
         st.caption(t("account.member_since", "Membre depuis : {date}").format(
             date=to_local_datetime(joined).strftime('%d %B %Y')))
-
-    _section_connected(db, user)
-
-
-def _section_connected(db, user: dict) -> None:
-    """Ce qui est branché — la question qu'on vient poser ici, et qui était ailleurs.
-
-    « Est-ce que mon Spotify est bien connecté ? » se répondait en trois clics,
-    sur une autre page. Elle a sa place sur la page du compte : c'est un état du
-    compte, pas un réglage.
-
-    ⚠️ Cette section ne dit PAS si la connexion FONCTIONNE — une clé enregistrée
-    peut être expirée, et Meta répond `code-190` sur ce dépôt depuis des semaines.
-    Elle dit ce qui est DÉCLARÉ, et renvoie à la page qui teste. Confondre les
-    deux enverrait l'artiste se rassurer sur une pastille verte.
-    """
-    artiste = st.session_state.get("artist_id")
-    if not artiste:
-        return
-    try:
-        df = db.fetch_df(_Q_BRANCHEES, (artiste,))
-    except Exception:
-        return
-    st.markdown("---")
-    st.markdown(t("account.connected_header", "**🔌 Mes comptes branchés**"))
-    if df is None or df.empty:
-        st.info(t("account.connected_none",
-                  "Aucun compte branché. C'est ce qui remplit tes pages : "
-                  "ouvre **🔑 Credentials API** dans la barre latérale."))
-        return
-
-    from src.dashboard.views.credentials._render import platform_label
-    lignes = " · ".join(
-        f"**{platform_label(r['platform'])}** ({r['depuis']:%m/%Y})"
-        for _i, r in df.iterrows())
-    st.markdown(lignes)
-    st.caption(t(
-        "account.connected_caption",
-        "{n} compte(s) déclaré(s). Cette liste dit ce qui est **enregistré**, pas "
-        "ce qui **répond** : une clé peut avoir expiré depuis. Le test vit dans "
-        "**🔑 Credentials API**.").format(n=len(df)))
+    # R390 (V81) : « Mes comptes branchés » retiré — ils vivent dans 🔑 Credentials API,
+    # la seule page qui sait aussi s'ils RÉPONDENT.
 
 
 def _section_set_first_password(db, user: dict) -> None:
@@ -429,15 +384,47 @@ def _section_totp(db, user: dict) -> None:
                        "Code invalide. Vérifiez que l'horloge de votre appareil est correcte et réessayez."))
 
 
-def _section_delete_account() -> None:
+def _deletion_request_body(user: dict) -> str:
+    return (f"<p>Demande de suppression de compte (RGPD Art. 17) envoyée depuis "
+            f"la page Mon compte.</p><ul><li>Utilisateur : <b>{html.escape(str(user['username']))}</b></li>"
+            f"<li>Email : {html.escape(str(user.get('email') or '—'))}</li>"
+            f"<li>Artiste : {html.escape(str(user.get('artist_name') or '—'))}</li>"
+            f"<li>Le : {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC</li></ul>")
+
+
+def _section_delete_account(user: dict) -> None:
+    """R390 (V82-V83) : le bouton ENVOIE la demande à l'admin — plus d'adresse à copier.
+
+    L'envoi passe par `EmailAlert.send_alert`, donc vers `ALERT_EMAIL` : la même boîte
+    que les alertes de prod, que l'admin lit chaque jour. Un échec se DIT, avec la
+    raison (`last_error`) — un « envoyé » affiché sur un mail jamais parti laisserait
+    l'artiste attendre une suppression que personne n'a demandée.
+    """
     st.subheader(t("account.delete_header", "🗑️ Supprimer mon compte (RGPD Art. 17)"))
-    st.warning(
-        t("account.delete_warning",
-          "La suppression de compte est gérée par l'administrateur. "
-          "Envoyez une demande à **1x7xxxxxxx@gmail.com** avec l'objet "
-          "**'Supprimer mon compte — [votre nom d'utilisateur]'**. "
-          "Vos données seront supprimées sous 30 jours.")
-    )
+    st.markdown(t("account.delete_what_happens",
+                  "Ce bouton envoie ta demande à l'administrateur. Ensuite : il te "
+                  "confirme par mail, puis ton compte et toutes tes données sont "
+                  "supprimés **sous 30 jours**. Rien n'est supprimé tant que ce n'est "
+                  "pas fait."))
+    if st.session_state.get("_account_delete_sent"):
+        st.success(t("account.delete_sent",
+                     "✅ Demande envoyée. Tu recevras une confirmation par mail."))
+        return
+    if not st.button(t("account.delete_btn", "📨 Demander la suppression de mon compte"),
+                     key=f"account_delete_request_{user['username']}"):
+        return
+    from src.utils.email_alerts import EmailAlert
+
+    alert = EmailAlert()
+    if alert.send_alert(f"Demande de suppression de compte — {user['username']}",
+                        _deletion_request_body(user)):
+        st.session_state["_account_delete_sent"] = True
+        st.success(t("account.delete_sent",
+                     "✅ Demande envoyée. Tu recevras une confirmation par mail."))
+    else:
+        st.error(t("account.delete_failed",
+                   "La demande n'a pas pu partir ({reason}). Réessaie plus tard.")
+                 .format(reason=alert.last_error or "raison inconnue"))
 
 
 # ─────────────────────────────────────────────
@@ -471,7 +458,7 @@ def show() -> None:
             # Data-export tab removed (redundant with the Export CSV page); the
             # RGPD account-deletion path stays here so it remains reachable.
             st.markdown("---")
-            _section_delete_account()
+            _section_delete_account(user)
 
         with tab_password:
             _section_change_password(db, user)
