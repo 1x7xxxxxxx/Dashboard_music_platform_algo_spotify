@@ -55,9 +55,11 @@ _needs_db = pytest.mark.skipif(not _db_ready(), reason="needs the provisioned DB
 # regardées ici.** Chaque entrée coûte un sous-processus Streamlit complet, d'où
 # l'énumération ; ce qui n'est pas négociable, c'est que le lecteur sache que 11
 # n'est pas 45.
+# R405: `revenue_forecast` has no `show()` any more — its money section lives in
+# `trigger_algo`, which takes its place.
 _VIEWS = [
     "home", "spotify_s4a_combined", "apple_music", "youtube", "soundcloud",
-    "instagram", "meta_ads_overview", "revenue_forecast", "imusician",
+    "instagram", "meta_ads_overview", "trigger_algo", "imusician",
     "onboarding_health", "data_wrapped",
 ]
 
