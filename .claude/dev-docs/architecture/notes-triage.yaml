@@ -3122,18 +3122,18 @@
     disponible.'
   type: action-produit
   domaine: onboarding
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R374
+  preuve_statut: R374 (archivée) — 7fcd5d8c
 - ligne: 18
   source: revue/notes-vocales-2026-10-05.md
   note: V12
   resume: Les deux autres graphiques (prédiction algo, optimisation campagne) de même taille et ordonnés.
   type: action-produit
   domaine: onboarding
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R374
+  preuve_statut: R374 (archivée) — 7fcd5d8c
 - ligne: 19
   source: revue/notes-vocales-2026-10-05.md
   note: V13
@@ -3528,9 +3528,9 @@
   resume: 'Aucun graphique DW/RR/Radio : réutiliser le graphique de l''étape 1 de la mise en route.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R374
+  preuve_statut: R374 (archivée) — 7fcd5d8c
 - ligne: 74
   source: revue/notes-vocales-2026-10-05.md
   note: V56

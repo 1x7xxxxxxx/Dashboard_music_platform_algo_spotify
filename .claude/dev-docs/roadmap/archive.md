@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R374 — Mise en route — « 1 streaMLytics en bref » (V11, V12, V55) : un graphique GÉNÉRIQUE, ét… (livrée 2026-10-05)
+
+- [x] **R374 — Mise en route — « 1 streaMLytics en bref » (V11, V12, V55) : un graphique GÉNÉRIQUE, étiqueté « exemple », jamais tiré des données de l'artiste (R347 avait retiré celui qui l'était), puis les deux promesses (prédiction algo, optimisation campagne) en deux graphiques de même taille, dans l'ordre ; un seul module de figures d'exemple, réutilisé par l'aperçu algo (DW / RR / Radio n'y a aucun graphique)** (P3) ✅ (2026-10-05, 7fcd5d8c)
+  Mesuré par : AppTest mise en route sur un locataire VIDE : 3 figures rendues, toutes portant « exemple » ; l'aperçu algo rend la même figure
+  CI verte sur 7fcd5d8c : utils/example_figures.py — vue d'ensemble + deux promesses de même hauteur, toutes étiquetées « Exemple » ; l'aperçu algo rend la même prédiction
+  Commits : 7fcd5d8c R374 : mise en route — figures d'exemple génériques (vue d'ensemble + 
+
 ## ✅ R372 — Accueil — bloc « Dernière sortie » sans filtre (V5) : nommer la sortie et dire que c'es… (livrée 2026-10-05)
 
 - [x] **R372 — Accueil — bloc « Dernière sortie » sans filtre (V5) : nommer la sortie et dire que c'est la dernière ; % par playlist (existe, `home_tiles.py:457`) + BUDGET Meta nécessaire = écart au seuil × coût AGRÉGÉ par écoute (ordre de grandeur) — la même fonction que la vue algo, pas une seconde formule** (P3) ✅ (2026-10-05, e02047c6, 27c2ad43)

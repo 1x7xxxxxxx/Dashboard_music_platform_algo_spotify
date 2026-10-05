@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R374 | Mise en route — « 1 streaMLytics en bref » (V11, V12, V55) : un graphique GÉNÉRIQUE, étiqueté « exemple », jamais tiré des données de l'artiste (R347 avait retiré celui qui l'était), puis les deux promesses (prédiction algo, optimisation campagne) en deux graphiques de même taille, dans l'ordre ; un seul module de figures d'exemple, réutilisé par l'aperçu algo (DW / RR / Radio n'y a aucun graphique) <!-- critic: non — figures d'exemple étiquetées, aucune donnée lue --> <!-- scope: src/dashboard/views/onboarding.py, src/dashboard/views/algo_preview.py, src/dashboard/utils/, tests/, .test_durations, src/dashboard/utils/i18n_catalog/, tools/dev/make_example_charts.py, src/dashboard/assets/examples/ --> | P3 | AppTest mise en route sur un locataire VIDE : 3 figures rendues, toutes portant « exemple » ; l'aperçu algo rend la même figure |
 | R375 | Mapping cross-plateforme (V16) : les deux parcours « Titres et couverture » puis « Campagnes Meta » en deux grands titres, chacun dans son expander, l'un sous l'autre (aujourd'hui deux onglets) <!-- critic: non — mise en page --> <!-- scope: src/dashboard/views/meta_mapping/, tests/, .test_durations, src/dashboard/utils/i18n_catalog/ --> | P3 | AppTest : deux expanders dans cet ordre, plus de `st.tabs` sur la page |
 | R376 | Saisie S4A — une seule sous-vue (V17-V21) : « Signaux du mois » gardé, « Titres couverts par la saisie » à sa fin ; « Résultats réalisés » et « Le pari du modèle, et ce qui est arrivé » → vue algo unique (R380) ; « Fraîcheur des saisies » → page admin <!-- critic: non — déplacements, les fonctions de `s4a_entry_insight` ne changent pas --> <!-- scope: src/dashboard/views/saisie_s4a.py, src/dashboard/utils/s4a_entry_insight.py, src/dashboard/views/trigger_algo/, src/dashboard/views/admin.py, src/dashboard/views/admin/, tests/, .test_durations, src/dashboard/utils/i18n_catalog/ --> | P3 | AppTest : saisie_s4a n'a plus de `st.tabs` ; chaque section déplacée trouvée dans sa page d'arrivée |
 | R377 | Hypeddit (V22-V25) : saisie gardée ; expander « Récupérer tes chiffres sur Hypeddit » — étapes d'action seulement ; statistiques avec un filtre CAMPAGNE (défaut : les deux dernières sorties) qui compare visites, clics et dépense Meta ; historique replié par défaut <!-- critic: non — filtre et mise en page --> <!-- scope: src/dashboard/views/hypeddit.py, src/dashboard/utils/, tests/, .test_durations, src/dashboard/utils/i18n_catalog/ --> | P3 | AppTest : filtre campagne présent, deux sorties par défaut ; l'historique est dans un expander fermé |
@@ -108,7 +107,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R374, R375, R376, R377, R378, R379, R380, R381, R382, R383, R384, R385, R386, R387, R388, R389, R390, R391, R392, R393, R394, R395, R398, R283 -->
+<!-- reprise: open=R375, R376, R377, R378, R379, R380, R381, R382, R383, R384, R385, R386, R387, R388, R389, R390, R391, R392, R393, R394, R395, R398, R283 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
