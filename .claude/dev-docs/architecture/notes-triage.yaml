@@ -3093,9 +3093,9 @@
   resume: Déplacer tout son contenu dans les vues concernées (par plateforme, ML…) ; la vue disparaît.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 15
   source: revue/notes-vocales-2026-10-05.md
   note: V9
@@ -3289,18 +3289,18 @@
     texte + graphique.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 41
   source: revue/notes-vocales-2026-10-05.md
   note: V30
   resume: 'Entonnoir à suivre : Insta → Hypeddit → Spotify, Insta Ads, impact sur Insta et Shazam.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 42
   source: revue/notes-vocales-2026-10-05.md
   note: V31
@@ -3343,9 +3343,9 @@
   resume: Garder séparées Spotify+S4A, Apple Music, YouTube, SoundCloud.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 48
   source: revue/notes-vocales-2026-10-05.md
   note: V36
@@ -3354,9 +3354,9 @@
     de refactor.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 50
   source: revue/notes-vocales-2026-10-05.md
   note: V37
@@ -3665,9 +3665,9 @@
   resume: « Quelle tranche d'âge clique le moins » → vue croisée Meta× (donnée Meta gratuite).
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R378
+  preuve_statut: R378 (archivée) — 04546147
 - ligne: 91
   source: revue/notes-vocales-2026-10-05.md
   note: V71

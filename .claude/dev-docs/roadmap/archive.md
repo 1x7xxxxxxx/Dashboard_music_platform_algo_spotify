@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R378 — Vue croisée — LA PAGE (V8, V29, V30, V35, V36, V70) : « Publicité Meta Ads » devient «… (livrée 2026-10-05)
+
+- [x] **R378 — Vue croisée — LA PAGE (V8, V29, V30, V35, V36, V70) : « Publicité Meta Ads » devient « 🔀 Vue croisée » en tête d'Analytics, et porte en sections (sélecteur segmenté, une section rendue à la fois) l'entonnoir « Tout mon funnel » (tel quel), la performance des campagnes, les visuels, « qui a vu tes pubs » et Instagram ; anciennes routes `meta_x_spotify`, `meta_creatives`, `meta_breakdowns`, `instagram` → alias vers elle, qui ouvrent la section qu'elles nommaient ; clé de page `meta_ads_overview` gardée (plan Free inchangé, aucune migration). **Découpée le 2026-10-05 sur avis code-critic (BUILD-MODIFIED)** : les filtres partagés sont R399** (P3) ✅ (2026-10-05, 04546147, 69ff0ace)
+  Mesuré par : menu Analytics = Spotify+S4A, Vue croisée, Apple, YouTube, SoundCloud (+ PDF, service) ; `test_every_route_resolves` vert sur les 4 alias ; un test : chaque alias ouvre sa section
+  Vue croisée : une page, cinq sections (funnel, performance, visuels, qui a vu tes pubs, Instagram), alias vers leur section ; CI verte sur 04546147
+  Commits : 04546147 R378 : « 🔀 Vue croisée » — une page, cinq sections (funnel, performanc · 69ff0ace R373 : accueil — conseil Meta, bouton PDF, statut des pipelines et gri
+
 ## ✅ R379 — Retirer la page « 📌 Récap » (V26) : elle ne dessine rien, elle liste dix liens ; route… (livrée 2026-10-05)
 
 - [x] **R379 — Retirer la page « 📌 Récap » (V26) : elle ne dessine rien, elle liste dix liens ; route gardée en alias vers l'accueil (des liens la visent)** (P3) ✅ (2026-10-05, e30e2263, 8e80823b)
