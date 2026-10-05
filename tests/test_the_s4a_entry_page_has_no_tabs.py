@@ -28,6 +28,27 @@ _FRESH = "Fraîcheur"
 _COVERED = "Titres couverts par la saisie"
 
 
+@pytest.fixture(scope="module")
+def data() -> dict:
+    """What artist 1 has in this database. The CI database is schema-only: without S4A
+    titles both pages stop on their empty state, and there is no layout to judge."""
+    from src.dashboard.utils import get_db_connection
+    from src.dashboard.utils.s4a_entry_insight import load_entry_tracks
+
+    db = get_db_connection()
+    try:
+        return {"tracks": bool(load_entry_tracks(db, 1)),
+                "artists": bool(db.fetch_query(
+                    "SELECT 1 FROM saas_artists WHERE active LIMIT 1"))}
+    finally:
+        db.close()
+
+
+def _need(data: dict, key: str) -> None:
+    if not data[key]:
+        pytest.skip(f"no {key} in this database — the page renders its empty state")
+
+
 def _run(script: str):
     from streamlit.testing.v1 import AppTest
 
@@ -41,7 +62,8 @@ def _subheaders(at) -> list[str]:
     return [s.value for s in at.subheader]
 
 
-def test_the_entry_page_is_signals_then_coverage() -> None:
+def test_the_entry_page_is_signals_then_coverage(data: dict) -> None:
+    _need(data, "tracks")
     at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="saisie_s4a", artist_id=1))
     heads = _subheaders(at)
     assert not at.tabs, f"the S4A entry page has tabs again: {[t.label for t in at.tabs]}"
@@ -50,14 +72,16 @@ def test_the_entry_page_is_signals_then_coverage() -> None:
     assert heads and _COVERED in heads[-1], f"coverage is not the last section: {heads}"
 
 
-def test_the_algo_view_carries_the_bet_and_the_outcome_entry() -> None:
+def test_the_algo_view_carries_the_bet_and_the_outcome_entry(data: dict) -> None:
+    _need(data, "tracks")
     at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="trigger_algo", artist_id=1))
     heads = _subheaders(at)
     for want in (_BET, _OUTCOMES):
         assert any(want in h for h in heads), f"« {want} » is not on the algo view: {heads}"
 
 
-def test_the_admin_health_group_carries_the_entry_freshness() -> None:
+def test_the_admin_health_group_carries_the_entry_freshness(data: dict) -> None:
+    _need(data, "artists")
     script = SCRIPT.format(root=os.getcwd(), view="admin").replace(
         "from src.dashboard.views.admin import show",
         'st.session_state["_admin_groupe"] = "sante"\n'
