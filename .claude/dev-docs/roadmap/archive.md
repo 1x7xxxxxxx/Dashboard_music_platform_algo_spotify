@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R410 — R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contri… (livrée 2026-10-05)
+
+- [x] **R410 — R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contributions SHAP (réservées Premium)** (P3) ✅ (2026-10-05, 9f69e184)
+  Mesuré par : AppTest free/premium : aucune contribution chiffrée en free
+  L'aperçu algo gratuit liste les critères devinés (imputed_features, même définition que l'avertissement Premium), sans aucune contribution SHAP ; garde AST + AppTest muté 3 sens. Artiste 1 : rien de deviné, section absente comme prévu. CI verte sur 9f69e184.
+  Commits : 9f69e184 R410 : l'aperçu algo gratuit nomme les critères devinés, sans leur poi
+
 ## ✅ R411 — Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `… (livrée 2026-10-05)
 
 - [x] **R411 — Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `render_harness` ouvert**
