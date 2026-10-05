@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R411 — Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `… (livrée 2026-10-05)
+
+- [x] **R411 — Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `render_harness` ouvert**
+  Mesuré par : `make defect-log` à 0 ouvert
+  379 défauts, 0 ouvert (133 green, 240 transient, 5 fixed, 1 closed) : les test_red périmés sont repassés verts sans geste ; le traceback AttributeError@tests/render_harness.py (2026-09-26) est classé fixed, le harnais ayant été réécrit depuis (R379, R405) avec ses rendus AppTest verts.
+  Commits : aucun — un tri, pas une livraison de code
+
 ## ✅ R408 — R283 en prod : `STRIPE_REFERRAL_COUPON_ID` posé dans `.env` n'atteint ni l'api ni le da… (livrée 2026-10-05)
 
 - [x] **R408 — R283 en prod : `STRIPE_REFERRAL_COUPON_ID` posé dans `.env` n'atteint ni l'api ni le dashboard — le compose ne le passe pas (`environment:` explicite, pas d'`env_file`). Le câbler (modèle versionné + prod), balayer les autres variables lues et jamais passées, et un garde qui rapproche `os.getenv` du compose** (P2) ✅ (2026-10-05, 77dfbd77)

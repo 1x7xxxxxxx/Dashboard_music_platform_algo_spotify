@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R410 | R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contributions SHAP (réservées Premium) <!-- critic: non — filtrage d'un rendu existant --> <!-- scope: src/dashboard/views/trigger_algo/, src/dashboard/views/algo_preview.py, src/dashboard/utils/, tests/, .test_durations, .claude/dev-docs/ --> | P3 | AppTest free/premium : aucune contribution chiffrée en free |
-| R411 | Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `render_harness` ouvert <!-- critic: non — tri --> <!-- scope: .claude/dev-docs/, tools/dev/, tests/, .test_durations --> | P4 | `make defect-log` à 0 ouvert, ou chacun nommé |
 | R412 | Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jamais vu rouge) <!-- critic: non — mesure --> <!-- scope: .claude/dev-docs/, tools/dev/, tests/, .test_durations, .claude/scripts/ --> | P4 | `make harness-report` : 0 périmée, 0 vert-jamais-rouge |
 | R413 | Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-schema`) archivées ou nommées par un déclencheur ; REQ-HARN-11/13 tranchés <!-- critic: non — rangement --> <!-- scope: .claude/commands/, archive/, .claude/dev-docs/, tools/dev/, tests/, .test_durations --> | P4 | `make harness-report` : 0 orpheline |
 | R414 | Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (night-status écrit dans le fichier de séance) <!-- critic: requis — touche le chemin de chaque édition --> <!-- scope: .claude/hooks/, .claude/settings.json, tools/dev/, tests/, .test_durations, .claude/dev-docs/ --> | P4 | latence mesurée avant/après, en alternance |
@@ -91,7 +90,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R410, R411, R412, R413, R414, R415, R283, R406 -->
+<!-- reprise: open=R410, R412, R413, R414, R415, R283, R406 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
