@@ -18,16 +18,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import charts
 from src.dashboard.utils.filters import (
-    account_clause,
-    account_scope,
     table_carries_account,
 )
 from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.campaign_pair import render_share_pair, second_campaign, share_pair
+from src.dashboard.utils.campaign_pair import render_share_pair, share_pair
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
@@ -273,9 +271,16 @@ def _breakdown_frame(db, artist_id: int, family: str, grain_key: str, entity_col
 
 
 def show() -> None:
-    # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
-    # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
+    # R399 — the breakdowns are a section of the cross view, under its one filter bar.
+    from src.dashboard.views.meta_ads_overview import show as show_cross_view
+    show_cross_view("breakdowns")
 
+
+def render(db, artist_id, bar) -> None:
+    """The breakdowns section — account and campaign from the page's bar (R399).
+
+    The period is greyed in the bar: Meta breakdowns carry no date dimension.
+    """
     st.subheader(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
     st.caption(t(
         "meta_breakdowns.subtitle",
@@ -285,99 +290,87 @@ def show() -> None:
     ))
 
     family_label = st.selectbox(
-        t("meta_breakdowns.metric", "Métrique"), list(_FAMILIES.keys()),
+        t("meta_breakdowns.metric", "Métrique"), list(_FAMILIES.keys()), key="bd_family",
         format_func=lambda lbl: t(f"meta_breakdowns.family.{_FAMILIES[lbl]}", lbl))
     family = _FAMILIES[family_label]
+    _acct, _acct_params = bar.acct()
+    camp_sel = bar.campaign or "Toutes"
+    adset_id, adset_sel, ad_id, ad_sel = _drill_down(db, artist_id, bar, _acct_params)
 
-    with view_session() as (db, artist_id):
-        _acct, _acct_params = account_clause(
-            account_scope(db, artist_id, key="meta_breakdowns_acct"))
+    # Grain = deepest specific level chosen.
+    if ad_id is not None:
+        grain_key, entity_col, entity_val, entity_label = "ad", "ad_id", ad_id, ad_sel
+    elif adset_id is not None:
+        grain_key, entity_col, entity_val, entity_label = "adset", "adset_id", adset_id, adset_sel
+    elif bar.campaign:
+        grain_key, entity_col, entity_val, entity_label = "campaign", "campaign_name", camp_sel, camp_sel
+    else:
+        grain_key, entity_col, entity_val, entity_label = (
+            "campaign", None, None, t("meta_breakdowns.all_campaigns", "Toutes campagnes"))
 
-        # Entities listed most-recent-first (last launched on top), via each table's
-        # recency column — start_time for campaigns/adsets, created_time for ads.
-        camps = db.fetch_df(
-            "SELECT campaign_id, campaign_name FROM meta_campaigns "
-            f"WHERE artist_id = %s{_acct} AND campaign_name IS NOT NULL "
-            "ORDER BY start_time DESC NULLS LAST, campaign_name",
-            (artist_id, *_acct_params),
-        )
-        adsets = db.fetch_df(
-            "SELECT adset_id, adset_name, campaign_id FROM meta_adsets "
-            f"WHERE artist_id = %s{_acct} AND adset_name IS NOT NULL "
-            "ORDER BY start_time DESC NULLS LAST, adset_name",
-            (artist_id, *_acct_params),
-        )
-        ads = db.fetch_df(
-            "SELECT ad_id, ad_name, adset_id, campaign_id FROM meta_ads "
-            f"WHERE artist_id = %s{_acct} AND ad_name IS NOT NULL "
-            "ORDER BY created_time DESC NULLS LAST, ad_name",
-            (artist_id, *_acct_params),
-        )
+    st.caption(t(
+        "meta_breakdowns.grain_caption",
+        "Grain courant : **{grain}** ({entity}) · données agrégées sur tout "
+        "l'historique (pas de filtre par période)."
+    ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key]),
+             entity=entity_label))
 
-        # Cascade : Campagne → Adset → Créative. Each level is scoped to the one above.
-        # "Toutes"/"Tous" stay internal sentinel values; only their display is translated.
-        _all_f = lambda c: t("meta_breakdowns.all_f", "Toutes") if c == "Toutes" else c  # noqa: E731
-        f1, f2, f3 = st.columns(3)
-        camp_sel = f1.selectbox(t("meta_breakdowns.campaign", "Campagne"),
-                                ["Toutes"] + camps['campaign_name'].tolist(), key="bd_camp",
-                                format_func=_all_f)
-        camp_ids = (camps[camps['campaign_name'] == camp_sel]['campaign_id'].tolist()
-                    if camp_sel != "Toutes" else None)
+    df = _breakdown_frame(db, artist_id, family, grain_key, entity_col, entity_val,
+                          _acct, _acct_params)
+    # R350 — the bar's second campaign, read at the CAMPAIGN grain only: an adset or a
+    # creative of campaign A has no counterpart in campaign B.
+    second = bar.second if adset_id is None and ad_id is None else None
+    df_b = (_breakdown_frame(db, artist_id, family, "campaign", "campaign_name", second,
+                             _acct, _acct_params) if second else None)
+    # The pair is drawn HERE, one call from its frames: the gold-coverage tracer follows
+    # three hops from a figure back to its source (`gold_coverage._MAX_HOPS`).
+    if _render_frames(df, family) and df_b is not None:
+        _render_pair(df, df_b, family, camp_sel, second)
 
-        adsets_f = adsets if camp_ids is None else adsets[adsets['campaign_id'].isin(camp_ids)]
-        adset_sel = f2.selectbox(t("meta_breakdowns.adset", "Adset"),
-                                 ["Tous"] + adsets_f['adset_name'].tolist(), key="bd_adset",
-                                 format_func=lambda c: t("meta_breakdowns.all_m", "Tous") if c == "Tous" else c)
-        adset_id = (adsets_f[adsets_f['adset_name'] == adset_sel]['adset_id'].iloc[0]
-                    if adset_sel != "Tous" else None)
 
-        if adset_id is not None:
-            ads_f = ads[ads['adset_id'] == adset_id]
-        elif camp_ids is not None:
-            ads_f = ads[ads['campaign_id'].isin(camp_ids)]
-        else:
-            ads_f = ads
-        ad_sel = f3.selectbox(t("meta_breakdowns.creative", "Créative"),
-                              ["Toutes"] + ads_f['ad_name'].tolist(), key="bd_ad",
-                              format_func=_all_f)
-        ad_id = (ads_f[ads_f['ad_name'] == ad_sel]['ad_id'].iloc[0]
-                 if ad_sel != "Toutes" else None)
+def _drill_down(db, artist_id, bar, _acct_params) -> tuple:
+    """Adset → creative, inside the bar's campaign — the grains only breakdowns have."""
+    adsets = db.fetch_df(
+        "SELECT a.adset_id, a.adset_name, c.campaign_name FROM meta_adsets a "
+        "JOIN meta_campaigns c ON c.campaign_id = a.campaign_id AND c.artist_id = a.artist_id "
+        f"WHERE a.artist_id = %s{bar.acct('a.')[0]} AND a.adset_name IS NOT NULL "
+        "ORDER BY a.start_time DESC NULLS LAST, a.adset_name",
+        (artist_id, *_acct_params),
+    )
+    ads = db.fetch_df(
+        "SELECT d.ad_id, d.ad_name, d.adset_id, c.campaign_name FROM meta_ads d "
+        "JOIN meta_campaigns c ON c.campaign_id = d.campaign_id AND c.artist_id = d.artist_id "
+        f"WHERE d.artist_id = %s{bar.acct('d.')[0]} AND d.ad_name IS NOT NULL "
+        "ORDER BY d.created_time DESC NULLS LAST, d.ad_name",
+        (artist_id, *_acct_params),
+    )
+    if bar.campaign:
+        adsets = adsets[adsets['campaign_name'] == bar.campaign]
+        ads = ads[ads['campaign_name'] == bar.campaign]
+    f2, f3 = st.columns(2)
+    adset_sel = f2.selectbox(t("meta_breakdowns.adset", "Adset"),
+                             ["Tous"] + adsets['adset_name'].tolist(), key="bd_adset",
+                             format_func=lambda c: t("meta_breakdowns.all_m", "Tous") if c == "Tous" else c)
+    adset_id = (adsets[adsets['adset_name'] == adset_sel]['adset_id'].iloc[0]
+                if adset_sel != "Tous" else None)
+    if adset_id is not None:
+        ads = ads[ads['adset_id'] == adset_id]
+    _all_f = lambda c: t("meta_breakdowns.all_f", "Toutes") if c == "Toutes" else c  # noqa: E731
+    ad_sel = f3.selectbox(t("meta_breakdowns.creative", "Créative"),
+                          ["Toutes"] + ads['ad_name'].tolist(), key="bd_ad", format_func=_all_f)
+    ad_id = ads[ads['ad_name'] == ad_sel]['ad_id'].iloc[0] if ad_sel != "Toutes" else None
+    return adset_id, adset_sel, ad_id, ad_sel
 
-        # Grain = deepest specific level chosen.
-        if ad_id is not None:
-            grain_key, entity_col, entity_val, entity_label = "ad", "ad_id", ad_id, ad_sel
-        elif adset_id is not None:
-            grain_key, entity_col, entity_val, entity_label = "adset", "adset_id", adset_id, adset_sel
-        elif camp_sel != "Toutes":
-            grain_key, entity_col, entity_val, entity_label = "campaign", "campaign_name", camp_sel, camp_sel
-        else:
-            grain_key, entity_col, entity_val, entity_label = (
-                "campaign", None, None, t("meta_breakdowns.all_campaigns", "Toutes campagnes"))
 
-        st.caption(t(
-            "meta_breakdowns.grain_caption",
-            "Grain courant : **{grain}** ({entity}) · données agrégées sur tout "
-            "l'historique (pas de filtre par période)."
-        ).format(grain=t(f"meta_breakdowns.grain.{grain_key}", _GRAIN_FR[grain_key]),
-                 entity=entity_label))
-
-        df = _breakdown_frame(db, artist_id, family, grain_key, entity_col, entity_val,
-                              _acct, _acct_params)
-        # R350 — the shared second-campaign filter, offered at the CAMPAIGN grain only:
-        # an adset or a creative of campaign A has no counterpart in campaign B.
-        second = second_campaign(
-            camps['campaign_name'].tolist(),
-            camp_sel if adset_id is None and ad_id is None else None, key="bd_second")
-        df_b = (_breakdown_frame(db, artist_id, family, "campaign", "campaign_name", second,
-                                 _acct, _acct_params) if second else None)
-
+def _render_frames(df, family) -> bool:
+    """Draw the section's frames; False when there is nothing to draw."""
     if df is None or df.empty:
         st.info(t(
             "meta_breakdowns.no_data",
             "Aucune donnée pour cette sélection. Si le grain est Adset/Créative, "
             "vérifiez qu'une collecte complète a bien tourné."
         ))
-        return
+        return False
 
     if family == "performance":
         # Coverage is judged on ONE breakdown (country): every panel covers the same
@@ -387,8 +380,7 @@ def show() -> None:
             df.drop(columns=["_spend_total", "_results_total"], errors="ignore"))
     else:
         _render_engagement(df)
-    if df_b is not None:
-        _render_pair(df, df_b, family, camp_sel, second)
+    return True
 
 
 def _render_coverage(df) -> None:

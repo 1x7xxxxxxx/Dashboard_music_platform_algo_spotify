@@ -75,10 +75,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.filters import account_clause, account_scope
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
@@ -93,12 +92,6 @@ from src.dashboard.utils.date_format import format_date
 # plateforme. Elle n'est utilisée par aucune série de l'axe principal : c'est ce
 # qui permet de voir, sans lire la légende, quelle marque se lit à droite.
 _CROSS_INK = "#6d4c41"
-
-# La rémanence se juge sur 28 jours — la fenêtre de Spotify for Artists elle-même,
-# déjà reprise par `spotify_s4a_combined`. On parle la langue de la source plutôt
-# que d'inventer un horizon.
-_TAIL_DAYS = 28
-
 
 def _palette() -> dict:
     """La palette du thème du VISITEUR, avec un repli clair — jamais une exception.
@@ -741,55 +734,27 @@ def _render_listener_verdict(db, artist_id) -> None:
                  "par auditeur-jour gagné à ce que tu es prêt à payer — en dessous, relance."))
 
 
-def _show_body(db, artist_id) -> None:
-    """Le corps — `db.close()` est tenu par `show()`."""
-    # Compte publicitaire d'abord : le même nom de campagne peut exister dans deux
-    # comptes, et cette page raconte l'histoire d'UNE campagne (R53 / ADR-013).
-    acct, acct_p = account_clause(
-        account_scope(db, artist_id, key="meta_x_spotify_acct"))
-
-    camps = _df(db, f"""
-        SELECT campaign_name FROM meta_insights_performance_day
-         WHERE artist_id = %s{acct}
-         GROUP BY campaign_name ORDER BY MAX(day_date) DESC NULLS LAST
-    """, (artist_id, *acct_p))
-    available = camps["campaign_name"].tolist() if not camps.empty else []
-    if not available:
+def _show_body(db, artist_id, bar) -> None:
+    """Le corps — la connexion est tenue par la page, les filtres par sa barre (R399)."""
+    # Le compte et la campagne viennent de la barre : le même nom de campagne peut
+    # exister dans deux comptes, et cette page raconte l'histoire d'UNE campagne.
+    acct, acct_p = bar.acct()
+    campaign = bar.campaign
+    if not bar.campaigns:
         st.info(t("meta_x_spotify.no_campaign",
                   "Aucune campagne Meta Ads sur ce compte. Branche-le depuis "
                   "**🔑 Credentials API + imports CSV**."))
         return
-
-    col_camp, col_date = st.columns([1, 2])
-    with col_camp:
-        campaign = st.selectbox(
-            t("meta_x_spotify.choose_campaign", "Choisir la campagne"),
-            options=available, index=0)
-
-    display_track, s4a_song = _resolve_track(db, artist_id, campaign)
-
-    bornes = _df(db, f"""
-        SELECT MIN(day_date) AS d, MAX(day_date) AS f
-          FROM meta_insights_performance_day
-         WHERE artist_id = %s{acct} AND campaign_name = %s
-    """, (artist_id, *acct_p, campaign))
-    # ⚠️ PAS de `rename(columns={"f": "d"})` ici : `bornes` porte DÉJÀ une colonne
-    # `d`, donc le renommage en créait une seconde du même nom et `iloc[0]["d"]`
-    # rendait une Series — « The truth value of a Series is ambiguous », levé au
-    # rendu le 2026-09-21. On lit chaque colonne par son nom.
-    camp_start = _day_of(bornes, "d")
-    camp_end = _day_of(bornes, "f")
-    if camp_start is None or camp_end is None:
-        st.info(t("meta_x_spotify.no_data", "Aucune donnée sur cette période."))
+    if campaign is None or bar.window is None:
+        st.info(t("meta_x_spotify.pick_one_campaign",
+                  "Le parcours se lit campagne par campagne : choisis-en une dans la barre "
+                  "de filtres ci-dessus."))
         return
 
-    with col_date:
-        d0, d1, fenetre = _campaign_window(camp_start, camp_end, campaign)
-        st.caption(t("meta_x_spotify.window_caption",
-                     "{f} — campagne du {a} au {b}, {n} jour(s) de diffusion.")
-                   .format(f=fenetre, a=format_date(camp_start),
-                           b=format_date(camp_end),
-                           n=(camp_end - camp_start).days + 1))
+    display_track, s4a_song = _resolve_track(db, artist_id, campaign)
+    # La fenêtre SUIT la campagne (`meta_filter_bar.campaign_window`) : jamais un
+    # préréglage qui finit aujourd'hui sur une campagne de 31 jours.
+    d0, d1 = bar.window.start, bar.window.end
 
     # LE TITRE LIÉ, ET SUR QUELLE PLATEFORME — demandé le 2026-09-21. « Titre
     # lié » seul ne disait pas de quel catalogue venait ce nom, alors que c'est
@@ -857,62 +822,18 @@ def show():
     # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
     # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
-    st.title(t("meta_x_spotify.title",
-               "🔀 Tout mon funnel — de la pub à l'écoute"))
-    st.markdown("---")
-
-    with view_session() as (db, artist_id):
-        render_funnel(db, artist_id)
+    # R399 — the funnel is a section of the cross view, under its one filter bar.
+    from src.dashboard.views.meta_ads_overview import show as show_cross_view
+    show_cross_view("funnel")
 
 
-def render_funnel(db, artist_id) -> None:
-    """The funnel without its title — the standalone route and the Meta Ads tab (R348)."""
+def render_funnel(db, artist_id, bar) -> None:
+    """The funnel section of the cross view (R348), read through its filter bar (R399)."""
     # En TÊTE, au-dessus du sélecteur de campagne (R195) : elle juge la dernière
     # campagne de tous les comptes, pas celle qu'on choisit plus bas.
     _render_listener_verdict(db, artist_id)
     st.markdown("---")
-    _show_body(db, artist_id)
-
-
-def _campaign_window(camp_start, camp_end, campaign: str) -> tuple:
-    """La fenêtre de CETTE campagne — pas une période générique.
-
-    ⚠️ `smart_period_filter` a été retiré d'ici le 2026-09-21, et c'est une
-    correction, pas une simplification. Tous ses préréglages se terminent
-    AUJOURD'HUI (`_resolve_window` : `return PeriodWindow(start, today, …)`), et
-    « depuis la dernière release » était ancré au début de la campagne. Mesuré ce
-    jour-là sur « O chiotte l'arbitre Tucome Back » : l'axe couvrait **662 jours**
-    pour une campagne de **31** — les séries Meta occupaient 5 % de la largeur, et
-    les deux tuiles croisées divisaient 31 jours de dépense par 646 jours
-    d'écoutes. Le chiffre affiché, « 0,057 € le stream », ne décrivait rien.
-
-    Une page qui raconte UNE campagne a besoin de la fenêtre de cette campagne.
-    Les trois choix ci-dessous sont ceux qu'on se pose réellement, et le défaut
-    est le deuxième : ce qui compte n'est pas ce que la campagne a fait pendant
-    qu'elle payait, c'est ce qui RESTE quand elle s'arrête.
-
-    ⚠️ Cette fonction est nommée dans `_MAKERS` de
-    `tests/test_a_chart_is_bounded_by_the_period_it_announces.py` : sans ça, ce
-    fichier cesserait d'avoir une « fenêtre » aux yeux du garde, et ses requêtes
-    ne seraient plus vérifiées comme bornées. Retirer un sélecteur ne doit pas
-    retirer un contrôle.
-    """
-    choix = {
-        "tail": t("meta_x_spotify.win_tail", "📈 Campagne + {n} j (rémanence)")
-                .format(n=_TAIL_DAYS),
-        "camp": t("meta_x_spotify.win_camp", "🎯 La campagne seule"),
-        "all": t("meta_x_spotify.win_all", "♾️ Jusqu'à aujourd'hui"),
-    }
-    key = st.segmented_control(
-        t("meta_x_spotify.window", "Fenêtre"), list(choix),
-        key=f"mxs_win_{campaign}", format_func=lambda k: choix[k],
-        default="tail") or "tail"
-
-    if key == "camp":
-        return camp_start, camp_end, choix["camp"]
-    if key == "all":
-        return camp_start, _dt.date.today(), choix["all"]
-    return camp_start, camp_end + _dt.timedelta(days=_TAIL_DAYS), choix["tail"]
+    _show_body(db, artist_id, bar)
 
 
 # ── Le funnel, rapatrié de « Publicité Meta Ads » et CORRIGÉ ───────────────────

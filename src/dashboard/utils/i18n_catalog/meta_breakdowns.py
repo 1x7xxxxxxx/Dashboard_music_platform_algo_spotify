@@ -17,7 +17,6 @@ EN = {
     "meta_breakdowns.map_engagement": "🗺️ Map of interactions by country",
     "meta_breakdowns.family.performance": "Performance",
     "meta_breakdowns.family.engagement": "Engagement",
-    "meta_breakdowns.campaign": "Campaign",
     "meta_breakdowns.adset": "Adset",
     "meta_breakdowns.creative": "Creative",
     "meta_breakdowns.all_f": "All",

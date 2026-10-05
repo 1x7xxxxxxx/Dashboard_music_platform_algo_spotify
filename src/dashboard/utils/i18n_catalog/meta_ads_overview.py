@@ -35,9 +35,6 @@ EN = {
     "meta_ads_overview.section_instagram": "📸 Instagram",
     "meta_ads_overview.title_cross": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam",
     "meta_ads_overview.section_funnel": "🔀 My whole funnel — from the ad to the stream",
-    "meta_ads_overview.db_error": "DB connection error: {e}",
-    "meta_ads_overview.scope": "🎯 Analysis Scope",
-    "meta_ads_overview.select_campaigns": "Select the campaigns to analyse:",
     "meta_ads_overview.global_perf": "### 🚀 Overall Performance",
     "meta_ads_overview.capi_required": (
         "CPR empty: it requires CAPI (server-side events) — no custom "

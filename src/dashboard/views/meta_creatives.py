@@ -12,12 +12,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import charts
 from src.dashboard.utils.formats import num
-from src.dashboard.utils.filters import account_clause, account_scope
-from src.dashboard.utils import filters
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.campaign_pair import pair_colors, second_campaign
+from src.dashboard.utils.campaign_pair import pair_colors
 from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
 from src.dashboard.utils.creative_decisions import _a_couper, add_quadrants, by_creative, render_creative_gain  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
@@ -658,7 +656,8 @@ def _prepare_timeline(tsf: pd.DataFrame) -> tuple[pd.DataFrame, int, bool]:
 
 
 @st.fragment
-def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: tuple = ()) -> None:
+def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: tuple = (),
+                           window=None) -> None:
     """La chronologie d'une créative — rejoué SEUL quand son sélecteur change.
 
     @st.fragment (R118, 2026-09-16). Bouger le sélecteur rejouait tout le script : les
@@ -673,11 +672,11 @@ def _tab_creative_timeline(selected_campaign: str, acct: str = "", acct_params: 
     from src.dashboard.utils.fragment_db import fragment_db
 
     with fragment_db() as (db, artist_id):
-        _render_creative_timeline(db, artist_id, selected_campaign, acct, acct_params)
+        _render_creative_timeline(db, artist_id, selected_campaign, acct, acct_params, window)
 
 
 def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
-                              acct: str = "", acct_params: tuple = ()) -> None:
+                              acct: str = "", acct_params: tuple = (), window=None) -> None:
     """Per-creative multi-metric timeline (one Y-axis per metric, legend toggle).
 
     The creative list honours the page's campaign filter. The period filter is
@@ -720,9 +719,9 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         return
     ts['date'] = pd.to_datetime(ts['date'])
 
-    window = filters.span(ts['date'].min(), ts['date'].max(), key="tl", artist_id=artist_id,
-                          latest_release_resolver=lambda: filters.latest_release_date(db, artist_id))
-    d_from, d_to = window.start, window.end
+    # R399 — the page's period (the filter bar), not a second one drawn here.
+    d_from, d_to = ((window.start, window.end) if window is not None
+                    else (ts['date'].min().date(), ts['date'].max().date()))
     mask = (ts['date'] >= pd.Timestamp(d_from)) & (ts['date'] <= pd.Timestamp(d_to))
     tsf = ts.loc[mask].copy()
     if tsf.empty:
@@ -998,109 +997,98 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
 
 
 def show() -> None:
-    # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
-    # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
+    # R399 — the creatives are a section of the cross view, under its one filter bar.
+    from src.dashboard.views.meta_ads_overview import show as show_cross_view
+    show_cross_view("creatives")
 
+
+def render(db, artist_id, bar) -> None:
+    """The creatives section — connection, fragments' slot and filters held by the page."""
     st.subheader(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
     st.caption(t("meta_creatives.subtitle",
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
     # R146 — toute la page classe des créatives sur un coût par CLIC SORTANT.
     st.caption(disclosure_caption())
+    _render_body(db, artist_id, bar)
 
-    # La connexion vivante est DECLAREE pour les fragments de cette page : dans un
-    # rendu complet ils la reutilisent au lieu d'en ouvrir une (~13 ms la poignee
-    # SCRAM, mesure) ; lors d'un rerun de fragment la fente est vide et ils rouvrent
-    # proprement. Voir `src/dashboard/utils/fragment_db.py`.
-    from src.dashboard.utils.fragment_db import page_db_scope
 
-    with view_session() as (db, artist_id), page_db_scope(db, artist_id):
-        # Toutes les requêtes de cette page s'ancrent sur `meta_ads` ou
-        # `meta_campaigns`, qui portent `ad_account_id` — `meta_insights` est à la
-        # maille ad_id, globalement unique, donc filtrer l'ancre suffit.
-        _account = account_scope(db, artist_id, key="meta_creatives_acct")
-        # PAS d'alias : `_QUERY_CREATIVES` lit `v_meta_creative_daily`, une seule
-        # relation. Un fragment ` AND ma.ad_account_id = %s` y lève
-        # `missing FROM-clause entry for table "ma"` — j'ai introduit ce défaut le
-        # 2026-09-12 en repointant la requête sans regarder l'alias que son appelant
-        # lui passait, c'est-à-dire la MÊME erreur que celle que le repointage
-        # corrigeait, dans sa troisième forme.
-        _acct_ma, _acct_params = account_clause(_account)
-        _acct_mc, _ = account_clause(_account, "mc.")
-        _acct_bare, _ = account_clause(_account)
-        df = db.fetch_df(_QUERY_CREATIVES.format(acct=_acct_ma),
+def _render_body(db, artist_id, bar) -> None:
+    # Toutes les requêtes de cette page s'ancrent sur `meta_ads` ou
+    # `meta_campaigns`, qui portent `ad_account_id` — `meta_insights` est à la
+    # maille ad_id, globalement unique, donc filtrer l'ancre suffit.
+    # PAS d'alias : `_QUERY_CREATIVES` lit `v_meta_creative_daily`, une seule
+    # relation. Un fragment ` AND ma.ad_account_id = %s` y lève
+    # `missing FROM-clause entry for table "ma"` — j'ai introduit ce défaut le
+    # 2026-09-12 en repointant la requête sans regarder l'alias que son appelant
+    # lui passait, c'est-à-dire la MÊME erreur que celle que le repointage
+    # corrigeait, dans sa troisième forme.
+    _acct_ma, _acct_params = bar.acct()
+    _acct_mc, _ = bar.acct("mc.")
+    _acct_bare, _ = bar.acct()
+    # R399 — the period of the bar bounds the ranking, as it bounds « Performance ».
+    _win, _win_params = bar.window.sql_between("day")
+    df = db.fetch_df(_QUERY_CREATIVES.format(acct=_acct_ma + _win),
+                     (artist_id, *_acct_params, *_win_params))
+    uncollected = db.fetch_df(
+        _QUERY_UNCOLLECTED.format(acct=_acct_bare, acct_mc=_acct_mc),
+        (artist_id, *_acct_params, artist_id, *_acct_params))
+
+    _render_uncollected_notice(uncollected)
+
+    if df.empty:
+        st.info(t(
+            "meta_creatives.no_data",
+            "Aucune donnée de créative. Vérifie que Meta Ads est connecté dans "
+            "**🔑 Credentials API** — la collecte démarre toute seule à l'enregistrement, "
+            "et son état s'affiche dans la barre latérale."
+        ))
+        return
+
+    selected_campaign = bar.campaign or "Toutes"   # « Toutes » = the fragments' sentinel
+    second = bar.second
+    pair = (selected_campaign, second) if second else None
+
+    if bar.scope:
+        df = df[df['campaign_name'].isin(bar.scope)]
+
+    if df.empty:
+        st.warning(t("meta_creatives.no_creative_campaign", "Aucune créative pour cette campagne."))
+        return
+
+    # ── UNE SEULE PAGE, et c'est une demande explicite du 2026-09-21 :
+    # « regroupe-moi tout en 1 seule page ».
+    #
+    # ⚠️ Les six onglets n'ont pas été dépliés tels quels. `st.tabs` BORNE un
+    # écran — c'est écrit dans `first-screen-ceilings.json` — donc tout aplatir
+    # aurait fait passer cette vue de 8 figures de premier écran à quatorze. Le
+    # remplacement n'est pas l'onglet, c'est le DÉPLIANT : la page se lit d'un
+    # bout à l'autre en scrollant, la décision est en haut, et chaque analyse
+    # qui ne fait que raffiner cette décision se replie elle-même.
+    #
+    # Reste donc à l'écran, dans cet ordre : la décision, le classement, les
+    # hooks, la fatigue, l'évolution. Cinq blocs, quatre figures.
+    _render_decision_banner(df)
+    st.markdown("---")
+
+    st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
+    _render_ranking(df, pair)
+    _render_table(df)
+
+    st.markdown("---")
+    st.subheader(t("meta_creatives.section_hooks", "🎣 Quelle accroche convertit"))
+    _render_hooks(df)
+
+    st.markdown("---")
+    st.subheader(t("meta_creatives.section_fatigue", "🪫 Une audience saturée ?"))
+    _tab_fatigue(_acct_ma, _acct_params)
+
+    _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params, bar.window)
+
+    st.markdown("---")
+    st.subheader(t("meta_creatives.section_details", "🔬 Pour creuser"))
+    from src.dashboard.utils.campaign_compare import creative_gains
+    _render_funnel(df, creative_gains(db, artist_id, _acct_bare, _acct_params))   # R246 fiche 34
+    _render_scatter(df)
+    ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
                          (artist_id, *_acct_params))
-        uncollected = db.fetch_df(
-            _QUERY_UNCOLLECTED.format(acct=_acct_bare, acct_mc=_acct_mc),
-            (artist_id, *_acct_params, artist_id, *_acct_params))
-
-        _render_uncollected_notice(uncollected)
-
-        if df.empty:
-            st.info(t(
-                "meta_creatives.no_data",
-                "Aucune donnée de créative. Vérifie que Meta Ads est connecté dans "
-                "**🔑 Credentials API** — la collecte démarre toute seule à l'enregistrement, "
-                "et son état s'affiche dans la barre latérale."
-            ))
-            return
-
-        # Filtres — campagnes les plus récentes en haut (par start_time desc).
-        camp_order = (
-            df.dropna(subset=['campaign_name'])
-              .sort_values('campaign_start', ascending=False, na_position='last')
-              ['campaign_name'].drop_duplicates().tolist()
-        )
-        # "Toutes" stays the internal sentinel value; only its display is translated.
-        campaigns = ["Toutes"] + camp_order
-        col_filter, col_second = st.columns([2, 4])
-        selected_campaign = col_filter.selectbox(
-            t("meta_creatives.filter_by_campaign", "Filtrer par campagne"), campaigns,
-            format_func=lambda c: t("meta_creatives.all_campaigns", "Toutes") if c == "Toutes" else c)
-        with col_second:   # R350 — the shared second-campaign filter; None = page unchanged
-            second = second_campaign(camp_order, selected_campaign, key="creatives_second")
-        pair = (selected_campaign, second) if second else None
-
-        if selected_campaign != "Toutes":
-            df = df[df['campaign_name'].isin(pair or (selected_campaign,))]
-
-        if df.empty:
-            st.warning(t("meta_creatives.no_creative_campaign", "Aucune créative pour cette campagne."))
-            return
-
-        # ── UNE SEULE PAGE, et c'est une demande explicite du 2026-09-21 :
-        # « regroupe-moi tout en 1 seule page ».
-        #
-        # ⚠️ Les six onglets n'ont pas été dépliés tels quels. `st.tabs` BORNE un
-        # écran — c'est écrit dans `first-screen-ceilings.json` — donc tout aplatir
-        # aurait fait passer cette vue de 8 figures de premier écran à quatorze. Le
-        # remplacement n'est pas l'onglet, c'est le DÉPLIANT : la page se lit d'un
-        # bout à l'autre en scrollant, la décision est en haut, et chaque analyse
-        # qui ne fait que raffiner cette décision se replie elle-même.
-        #
-        # Reste donc à l'écran, dans cet ordre : la décision, le classement, les
-        # hooks, la fatigue, l'évolution. Cinq blocs, quatre figures.
-        _render_decision_banner(df)
-        st.markdown("---")
-
-        st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
-        _render_ranking(df, pair)
-        _render_table(df)
-
-        st.markdown("---")
-        st.subheader(t("meta_creatives.section_hooks", "🎣 Quelle accroche convertit"))
-        _render_hooks(df)
-
-        st.markdown("---")
-        st.subheader(t("meta_creatives.section_fatigue", "🪫 Une audience saturée ?"))
-        _tab_fatigue(_acct_ma, _acct_params)
-
-        _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params)
-
-        st.markdown("---")
-        st.subheader(t("meta_creatives.section_details", "🔬 Pour creuser"))
-        from src.dashboard.utils.campaign_compare import creative_gains
-        _render_funnel(df, creative_gains(db, artist_id, _acct_bare, _acct_params))   # R246 fiche 34
-        _render_scatter(df)
-        ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
-                             (artist_id, *_acct_params))
-        _render_activity(ts_all)
+    _render_activity(ts_all)

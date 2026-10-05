@@ -37,7 +37,7 @@ page disait « posts de plus de 90 jours, pas un défaut de collecte » — une 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from src.dashboard.utils import view_session, charts
+from src.dashboard.utils import charts
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import (
     latest_release_date,
@@ -60,310 +60,316 @@ _IG = platform_color("instagram", default=UNMEASURED_BRAND["instagram"])
 _IG_DEEP = "#833AB4"   # R290 — engagement per post, the deeper Instagram ink
 
 def show():
+    # R399 — Instagram is a section of the cross view; it sits OUTSIDE the Meta filter
+    # bar (no ad account, no campaign) and the page says so.
+    from src.dashboard.views.meta_ads_overview import show as show_cross_view
+    show_cross_view("instagram")
+
+
+def render(db, artist_id) -> None:
     # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que sur Apple,
     # YouTube et SoundCloud : « 📸 Instagram - Performance » répétait l'entrée de
     # menu qu'on vient de cliquer.
 
-    with view_session() as (db, artist_id):
-        # 1. KPIs (Dernier Snapshot)
-        try:
-            df_latest = db.fetch_df("""
-                SELECT DISTINCT ON (ig_user_id)
-                    ig_user_id, username, followers_count, follows_count,
-                    media_count, collected_at
-                FROM instagram_daily_stats
-                WHERE artist_id = %s
-                ORDER BY ig_user_id, collected_at DESC
-            """, (artist_id,))
+    # 1. KPIs (Dernier Snapshot)
+    try:
+        df_latest = db.fetch_df("""
+            SELECT DISTINCT ON (ig_user_id)
+                ig_user_id, username, followers_count, follows_count,
+                media_count, collected_at
+            FROM instagram_daily_stats
+            WHERE artist_id = %s
+            ORDER BY ig_user_id, collected_at DESC
+        """, (artist_id,))
 
-            if not df_latest.empty:
-                followers = int(df_latest['followers_count'].iloc[0] or 0)
-                follows = int(df_latest['follows_count'].iloc[0] or 0)
-                media = int(df_latest['media_count'].iloc[0] or 0)
-                username = df_latest['username'].iloc[0]
-                last_date = format_date(pd.to_datetime(df_latest['collected_at'].iloc[0]))
+        if not df_latest.empty:
+            followers = int(df_latest['followers_count'].iloc[0] or 0)
+            follows = int(df_latest['follows_count'].iloc[0] or 0)
+            media = int(df_latest['media_count'].iloc[0] or 0)
+            username = df_latest['username'].iloc[0]
+            last_date = format_date(pd.to_datetime(df_latest['collected_at'].iloc[0]))
 
-                st.subheader(t("instagram.account", "Compte : @{username}").format(username=username))
+            st.subheader(t("instagram.account", "Compte : @{username}").format(username=username))
 
-                # ⚠️ TROIS TUILES, PAS QUATRE — « 📅 Mise à jour » est partie le
-                # 2026-09-21. Une date de collecte est un fait de PLOMBERIE : elle
-                # ne décide rien et occupait le quart du bandeau. Elle descend dans
-                # la légende, avec ce qu'elle veut dire.
-                c1, c2, c3 = st.columns(3)
-                c1.metric(t("instagram.kpi_followers", "👥 Abonnés"), f"{followers:,}")
-                c2.metric(t("instagram.kpi_follows", "➡️ Abonnements"), f"{follows:,}")
-                c3.metric(t("instagram.kpi_media", "📸 Publications"), f"{media:,}")
-            else:
-                st.warning(t("instagram.no_data", "Aucune donnée Instagram. Lancez le collecteur."))
-                return
-
-        except Exception as e:
-            st.error(e)
+            # ⚠️ TROIS TUILES, PAS QUATRE — « 📅 Mise à jour » est partie le
+            # 2026-09-21. Une date de collecte est un fait de PLOMBERIE : elle
+            # ne décide rien et occupait le quart du bandeau. Elle descend dans
+            # la légende, avec ce qu'elle veut dire.
+            c1, c2, c3 = st.columns(3)
+            c1.metric(t("instagram.kpi_followers", "👥 Abonnés"), f"{followers:,}")
+            c2.metric(t("instagram.kpi_follows", "➡️ Abonnements"), f"{follows:,}")
+            c3.metric(t("instagram.kpi_media", "📸 Publications"), f"{media:,}")
+        else:
+            st.warning(t("instagram.no_data", "Aucune donnée Instagram. Lancez le collecteur."))
             return
 
-        st.markdown("---")
+    except Exception as e:
+        st.error(e)
+        return
 
-        # 2. GRAPHIQUE D'ÉVOLUTION
-        st.subheader(t("instagram.community_growth", "📈 Croissance de la communauté"))
+    st.markdown("---")
 
-        # DÉFAUT « DEPUIS LA DERNIÈRE SORTIE » — 2026-09-21, appliqué à toute
-        # l'app. « En cours » (l'année civile) est un cadre de calendrier posé sur
-        # une donnée qui suit des SORTIES : en janvier, il rend une page quasi vide
-        # pour un artiste dont la dernière sortie date de novembre.
-        window = smart_period_filter(
-            db, table="instagram_daily_stats", date_column="collected_at",
-            artist_id=artist_id, key="ig_community",
-            latest_release_resolver=lambda: latest_release_date(db, artist_id),
-        )
+    # 2. GRAPHIQUE D'ÉVOLUTION
+    st.subheader(t("instagram.community_growth", "📈 Croissance de la communauté"))
 
-        try:
-            frag, frag_params = window.sql_between("collected_at")
-            query = f"""
-                SELECT collected_at, followers_count, follows_count, media_count
-                FROM instagram_daily_stats
-                WHERE artist_id = %s {frag}
-                ORDER BY collected_at ASC
-            """
-            df_hist = db.fetch_df(query, (artist_id, *frag_params))
+    # DÉFAUT « DEPUIS LA DERNIÈRE SORTIE » — 2026-09-21, appliqué à toute
+    # l'app. « En cours » (l'année civile) est un cadre de calendrier posé sur
+    # une donnée qui suit des SORTIES : en janvier, il rend une page quasi vide
+    # pour un artiste dont la dernière sortie date de novembre.
+    window = smart_period_filter(
+        db, table="instagram_daily_stats", date_column="collected_at",
+        artist_id=artist_id, key="ig_community",
+        latest_release_resolver=lambda: latest_release_date(db, artist_id),
+    )
 
-            if df_hist.empty:
-                # DEUX SILENCES, DEUX GESTES. « Rien dans CETTE fenêtre » fait
-                # élargir ; « aucun relevé » fait brancher le collecteur. Le
-                # message d'avant disait « aucune donnée d'historique pour cette
-                # période » — une phrase qui mélange les deux, et le garde
-                # `test_a_silence_names_its_own_cause` la refuse à raison.
-                _tout = db.fetch_df(
-                    "SELECT MAX(collected_at) AS last FROM instagram_daily_stats "
-                    "WHERE artist_id = %s", (artist_id,))
-                _last = None if _tout.empty else _tout.iloc[0]["last"]
-                say_why_it_is_empty(
-                    None if _last is None else to_local_naive(
-                        pd.Series([_last])).iloc[0].date(),
-                    window,
-                    empty_window=t(
-                        "instagram.nothing_in_window",
-                        "Aucun relevé Instagram sur cette période. Le dernier "
-                        "remonte au **{last}** — élargis la fenêtre pour revoir "
-                        "l'historique."
-                    ).format(last="—" if _last is None else format_date(_last)),
-                    no_history=t(
-                        "instagram.not_enough_history",
-                        "Aucun relevé Instagram pour ce compte. Branche-le depuis "
-                        "**🔑 Credentials API + imports CSV**."))
-            else:
-                # timestamptz across a DST change → mixed offsets (utils/tz.py).
-                df_hist['collected_at'] = to_local_naive(df_hist['collected_at'])
-                _render_community(df_hist, window, last_date)
+    try:
+        frag, frag_params = window.sql_between("collected_at")
+        query = f"""
+            SELECT collected_at, followers_count, follows_count, media_count
+            FROM instagram_daily_stats
+            WHERE artist_id = %s {frag}
+            ORDER BY collected_at ASC
+        """
+        df_hist = db.fetch_df(query, (artist_id, *frag_params))
 
-        except Exception as e:
-            st.error(t("instagram.history_error", "Erreur historique : {err}").format(err=e))
+        if df_hist.empty:
+            # DEUX SILENCES, DEUX GESTES. « Rien dans CETTE fenêtre » fait
+            # élargir ; « aucun relevé » fait brancher le collecteur. Le
+            # message d'avant disait « aucune donnée d'historique pour cette
+            # période » — une phrase qui mélange les deux, et le garde
+            # `test_a_silence_names_its_own_cause` la refuse à raison.
+            _tout = db.fetch_df(
+                "SELECT MAX(collected_at) AS last FROM instagram_daily_stats "
+                "WHERE artist_id = %s", (artist_id,))
+            _last = None if _tout.empty else _tout.iloc[0]["last"]
+            say_why_it_is_empty(
+                None if _last is None else to_local_naive(
+                    pd.Series([_last])).iloc[0].date(),
+                window,
+                empty_window=t(
+                    "instagram.nothing_in_window",
+                    "Aucun relevé Instagram sur cette période. Le dernier "
+                    "remonte au **{last}** — élargis la fenêtre pour revoir "
+                    "l'historique."
+                ).format(last="—" if _last is None else format_date(_last)),
+                no_history=t(
+                    "instagram.not_enough_history",
+                    "Aucun relevé Instagram pour ce compte. Branche-le depuis "
+                    "**🔑 Credentials API + imports CSV**."))
+        else:
+            # timestamptz across a DST change → mixed offsets (utils/tz.py).
+            df_hist['collected_at'] = to_local_naive(df_hist['collected_at'])
+            _render_community(df_hist, window, last_date)
 
-        # 3. ENGAGEMENT & PUBLICATIONS
-        st.markdown("---")
-        st.subheader(t("instagram.engagement_header", "📝 Engagement & publications"))
+    except Exception as e:
+        st.error(t("instagram.history_error", "Erreur historique : {err}").format(err=e))
 
-        win_m = smart_period_filter(
-            db, table="instagram_media", date_column="timestamp",
-            artist_id=artist_id, key="ig_media",
-            latest_release_resolver=lambda: latest_release_date(db, artist_id),
-        )
-        try:
-            frag_m, params_m = win_m.sql_between("timestamp")
-            # La requête d'engagement lit `v_instagram_media_monthly`, dont la colonne
-            # de date s'appelle `month` — la table, elle, a `timestamp`, et le second
-            # usage de `frag_m` plus bas la lit encore. Deux fragments, une seule
-            # fenêtre : c'est la même période, exprimée dans les deux vocabulaires.
-            frag_month, params_month = win_m.sql_between("month")
+    # 3. ENGAGEMENT & PUBLICATIONS
+    st.markdown("---")
+    st.subheader(t("instagram.engagement_header", "📝 Engagement & publications"))
 
-            # CE N'EST PAS UN ENGAGEMENT PAR MOIS. C'EST UNE COHORTE DE PUBLICATION.
-            #
-            # `like_count` est le compteur CUMULÉ d'un post, tel qu'il est aujourd'hui ;
-            # `timestamp` est sa date de PUBLICATION. Grouper l'un par l'autre range donc
-            # les likes dans le mois où le post est SORTI, quelle que soit la date à
-            # laquelle ils ont été donnés. Un post de janvier qui décolle en juin met ses
-            # likes de juin dans la barre de janvier.
-            #
-            # Il n'existe aucun flux mensuel à calculer, et c'est mesuré, pas supposé :
-            # `instagram_media` porte **51 lignes pour 51 posts** — un instantané par
-            # post, pas un historique — et `instagram_media_insights` est **vide**.
-            # Fabriquer une courbe d'engagement mensuel demanderait d'inventer une
-            # répartition que personne n'a mesurée.
-            #
-            # Le correctif est donc de NOMMER ce que la barre porte, comme pour Apple :
-            # un chiffre juste sous un mauvais titre est un chiffre faux.
-            df_eng = db.fetch_df(f"""
-                SELECT month AS mois,
-                       SUM(likes) AS likes,
-                       SUM(comments) AS comments,
-                       SUM(posts) AS posts
-                FROM v_instagram_media_monthly
-                WHERE artist_id = %s {frag_month}
-                GROUP BY 1 ORDER BY 1
-            """, (artist_id, *params_month))
+    win_m = smart_period_filter(
+        db, table="instagram_media", date_column="timestamp",
+        artist_id=artist_id, key="ig_media",
+        latest_release_resolver=lambda: latest_release_date(db, artist_id),
+    )
+    try:
+        frag_m, params_m = win_m.sql_between("timestamp")
+        # La requête d'engagement lit `v_instagram_media_monthly`, dont la colonne
+        # de date s'appelle `month` — la table, elle, a `timestamp`, et le second
+        # usage de `frag_m` plus bas la lit encore. Deux fragments, une seule
+        # fenêtre : c'est la même période, exprimée dans les deux vocabulaires.
+        frag_month, params_month = win_m.sql_between("month")
 
-            # ⚠️ LE SILENCE NOMME SA CAUSE — 2026-09-21, rapporté par l'artiste :
-            # « pour engagement et publi je n'ai aucune data ». Le message disait
-            # « Aucun post sur cette période » et s'arrêtait là. Mesuré : le
-            # compte porte **51 publications**, la dernière du **07/11/2025**. Il
-            # n'y a donc pas « aucun post » — il n'y en a aucun DANS CETTE
-            # FENÊTRE, ce qui appelle un geste tout différent : élargir la
-            # période, ou publier.
-            if df_eng.empty:
-                _dernier = db.fetch_df(
-                    "SELECT MAX(timestamp) AS last, COUNT(*) AS n "
-                    "FROM instagram_media WHERE artist_id = %s", (artist_id,))
-                _last = None if _dernier.empty else _dernier.iloc[0]["last"]
-                if _last is not None:
-                    _jours = (pd.Timestamp.now() - pd.to_datetime(_last)).days
-                    st.info(t(
-                        "instagram.no_posts_in_window",
-                        "Aucune publication dans cette fenêtre. Le compte en porte "
-                        "**{n}** au total, la dernière du **{d}** — il y a "
-                        "**{j} jours**. Élargis la période pour revoir "
-                        "l'historique."
-                    ).format(n=int(_dernier.iloc[0]["n"]),
-                             d=format_date(pd.to_datetime(_last)), j=_jours))
-                else:
-                    st.info(t("instagram.no_posts",
-                              "Aucune publication collectée pour ce compte."))
-            else:
-                df_eng['mois'] = pd.to_datetime(df_eng['mois'])
-                # R290 (owner, fiche 15, 2026-09-28 : « l'ergonomie n'est pas ouf ») — the
-                # decision is « publish MORE or publish BETTER »: bars = how many posts that
-                # month (a volume, left), line = engagement PER POST (a ratio, right). Two
-                # natures, declared in the visual-rules gate; likes and comments stay in
-                # the hover, where the per-post ratio comes from.
-                from plotly.subplots import make_subplots
+        # CE N'EST PAS UN ENGAGEMENT PAR MOIS. C'EST UNE COHORTE DE PUBLICATION.
+        #
+        # `like_count` est le compteur CUMULÉ d'un post, tel qu'il est aujourd'hui ;
+        # `timestamp` est sa date de PUBLICATION. Grouper l'un par l'autre range donc
+        # les likes dans le mois où le post est SORTI, quelle que soit la date à
+        # laquelle ils ont été donnés. Un post de janvier qui décolle en juin met ses
+        # likes de juin dans la barre de janvier.
+        #
+        # Il n'existe aucun flux mensuel à calculer, et c'est mesuré, pas supposé :
+        # `instagram_media` porte **51 lignes pour 51 posts** — un instantané par
+        # post, pas un historique — et `instagram_media_insights` est **vide**.
+        # Fabriquer une courbe d'engagement mensuel demanderait d'inventer une
+        # répartition que personne n'a mesurée.
+        #
+        # Le correctif est donc de NOMMER ce que la barre porte, comme pour Apple :
+        # un chiffre juste sous un mauvais titre est un chiffre faux.
+        df_eng = db.fetch_df(f"""
+            SELECT month AS mois,
+                   SUM(likes) AS likes,
+                   SUM(comments) AS comments,
+                   SUM(posts) AS posts
+            FROM v_instagram_media_monthly
+            WHERE artist_id = %s {frag_month}
+            GROUP BY 1 ORDER BY 1
+        """, (artist_id, *params_month))
 
-                from src.dashboard.utils.ratios import per_series
-                _pct_of_followers = 100 / followers if followers else float("nan")
-                _rate_hover = ("<br>≈ %{customdata[2]:.2f} % des abonnés actuels (indicatif)"
-                               if followers else "")
-                df_eng['per_post'] = per_series(df_eng['likes'] + df_eng['comments'],
-                                                df_eng['posts'])
-                fig_e = make_subplots(specs=[[{"secondary_y": True}]])
-                fig_e.add_trace(go.Bar(
-                    x=df_eng['mois'], y=df_eng['posts'], marker_color=_IG, opacity=0.35,
-                    name=t("instagram.posts_per_month", "Publications du mois")),
-                    secondary_y=False)
-                fig_e.add_trace(go.Scatter(
-                    # POINTS, not a line: a month without a post has no engagement per
-                    # post, and a line would draw one through it.
-                    x=df_eng['mois'], y=df_eng['per_post'], mode="markers+text",
-                    marker=dict(color=_IG_DEEP, size=11),
-                    text=[f"{v:.0f}" if pd.notna(v) else "" for v in df_eng['per_post']],
-                    textposition="top center", textfont=dict(color=_IG_DEEP),
-                    name=t("instagram.engagement_per_post", "Engagement par publication"),
-                    customdata=df_eng[['likes', 'comments']].assign(rate=df_eng['per_post']
-                                                                    * _pct_of_followers).values,
-                    hovertemplate="%{y:.0f} par publication<br>%{customdata[0]:,.0f} likes · "
-                                  "%{customdata[1]:,.0f} commentaires" + _rate_hover
-                                  + "<extra></extra>"),
-                    secondary_y=True)
-                fig_e.update_layout(
-                    title=t("instagram.engagement_by_cohort",
-                            "Likes et commentaires ACQUIS À CE JOUR, par mois de "
-                            "publication ({label})").format(label=win_m.label),
-                    hovermode="x unified",
-                    legend=dict(orientation="h", y=-0.2, x=0))
-                fig_e.update_yaxes(title_text=t("instagram.posts_axis", "Publications"),
-                                   title_font_color=_IG, secondary_y=False,
-                                   dtick=1, tickformat="d")
-                fig_e.update_yaxes(title_text=t("instagram.per_post_axis",
-                                                "Likes + commentaires par publication"),
-                                   title_font_color=_IG_DEEP, rangemode="tozero",
-                                   secondary_y=True)
-                charts.plotly_chart(fig_e, width="stretch")
-                # R299 — the « taux d'engagement » chart that followed was the per-post line
-                # divided by ONE constant (the latest follower count): same shape, same
-                # measure. It lives in the hover above (`_rate_hover`), not in a second chart.
-                st.caption(t(
-                    "instagram.engagement_cohort_note",
-                    "Chaque barre regroupe les posts **publiés** ce mois-là et montre "
-                    "les likes qu'ils ont accumulés **jusqu'à aujourd'hui** — pas ceux "
-                    "reçus pendant ce mois. Instagram ne nous donne qu'un compteur "
-                    "courant par post : il n'y a pas d'historique d'où tirer un "
-                    "engagement mensuel, et l'inventer serait pire que de ne pas le "
-                    "montrer. Le filtre de période porte donc sur la date de "
-                    "**publication**."))
-
-            # Publications récentes — insights indispo ⇒ note + colonnes masquées
-            st.markdown(t("instagram.recent_posts", "#### Publications récentes"))
-            _ins = db.fetch_query(
-                "SELECT COUNT(*) FROM instagram_media_insights WHERE artist_id = %s",
-                (artist_id,),
-            )
-            insights_empty = not _ins or (_ins[0][0] or 0) == 0
-
-            base_cfg = {
-                "media_url": st.column_config.ImageColumn(t("instagram.col_preview", "Aperçu")),
-                "permalink": st.column_config.LinkColumn(
-                    t("instagram.col_link", "Lien"),
-                    display_text=t("instagram.col_open", "Ouvrir")),
-                "caption": st.column_config.TextColumn(t("instagram.col_caption", "Légende"), width="medium"),
-                "timestamp": st.column_config.DatetimeColumn(
-                    t("instagram.col_published", "Publié le"), format="DD/MM/YYYY"),
-                "like_count": "❤️ Likes",
-                "comments_count": t("instagram.col_comments", "💬 Comm."),
-            }
-
-            if insights_empty:
-                # R273 (2026-09-27) — ce message affirmait « Meta ne les sert que pour
-                # les posts de moins de 90 jours ; ce n'est pas un défaut de collecte ».
-                # C'en était un : la collecte demandait `impressions`, retirée par Meta
-                # le 2025-04-21, et une seule métrique retirée fait refuser TOUTE la
-                # requête — 51 publications sur 51, en local comme en production. La
-                # collecte demande désormais `views`/`total_interactions`, et lève si
-                # toutes les publications sont refusées : le silence ne dit plus rien.
+        # ⚠️ LE SILENCE NOMME SA CAUSE — 2026-09-21, rapporté par l'artiste :
+        # « pour engagement et publi je n'ai aucune data ». Le message disait
+        # « Aucun post sur cette période » et s'arrêtait là. Mesuré : le
+        # compte porte **51 publications**, la dernière du **07/11/2025**. Il
+        # n'y a donc pas « aucun post » — il n'y en a aucun DANS CETTE
+        # FENÊTRE, ce qui appelle un geste tout différent : élargir la
+        # période, ou publier.
+        if df_eng.empty:
+            _dernier = db.fetch_df(
+                "SELECT MAX(timestamp) AS last, COUNT(*) AS n "
+                "FROM instagram_media WHERE artist_id = %s", (artist_id,))
+            _last = None if _dernier.empty else _dernier.iloc[0]["last"]
+            if _last is not None:
+                _jours = (pd.Timestamp.now() - pd.to_datetime(_last)).days
                 st.info(t(
-                    "instagram.insights_pending",
-                    "**Vues, portée, interactions, enregistrements et partages par "
-                    "publication** ne sont pas encore collectés. Ils arrivent avec la "
-                    "prochaine collecte Instagram ; si Meta les refuse, la collecte "
-                    "échoue et l'administrateur est prévenu."))
-                q_media = f"""
-                    SELECT media_url, caption, media_type, permalink,
-                           timestamp, like_count, comments_count
-                    FROM instagram_media
-                    WHERE artist_id = %s {frag_m}
-                    ORDER BY timestamp DESC
-                """
-                cfg = base_cfg
+                    "instagram.no_posts_in_window",
+                    "Aucune publication dans cette fenêtre. Le compte en porte "
+                    "**{n}** au total, la dernière du **{d}** — il y a "
+                    "**{j} jours**. Élargis la période pour revoir "
+                    "l'historique."
+                ).format(n=int(_dernier.iloc[0]["n"]),
+                         d=format_date(pd.to_datetime(_last)), j=_jours))
             else:
-                q_media = f"""
-                    SELECT m.media_url, m.caption, m.media_type, m.permalink,
-                           m.timestamp, m.like_count, m.comments_count,
-                           i.impressions, i.reach, i.engagement, i.saved, i.shares
-                    FROM instagram_media m
-                    LEFT JOIN LATERAL (
-                        SELECT impressions, reach, engagement, saved, shares
-                        FROM instagram_media_insights ii
-                        WHERE ii.artist_id = m.artist_id
-                          AND ii.media_id = m.media_id
-                        ORDER BY ii.date DESC LIMIT 1
-                    ) i ON TRUE
-                    WHERE m.artist_id = %s {frag_m}
-                    ORDER BY m.timestamp DESC
-                """
-                # `impressions` carries Meta's `views`, `engagement` its
-                # `total_interactions` since R273 — the labels say what the numbers are.
-                cfg = {**base_cfg,
-                       "impressions": t("instagram.col_views", "👁️ Vues"),
-                       "reach": t("instagram.col_reach", "Portée"),
-                       "engagement": t("instagram.col_interactions", "Interactions"),
-                       "saved": t("instagram.col_saved", "Enregistrés"),
-                       "shares": t("instagram.col_shares", "Partages")}
+                st.info(t("instagram.no_posts",
+                          "Aucune publication collectée pour ce compte."))
+        else:
+            df_eng['mois'] = pd.to_datetime(df_eng['mois'])
+            # R290 (owner, fiche 15, 2026-09-28 : « l'ergonomie n'est pas ouf ») — the
+            # decision is « publish MORE or publish BETTER »: bars = how many posts that
+            # month (a volume, left), line = engagement PER POST (a ratio, right). Two
+            # natures, declared in the visual-rules gate; likes and comments stay in
+            # the hover, where the per-post ratio comes from.
+            from plotly.subplots import make_subplots
 
-            df_media = db.fetch_df(q_media, (artist_id, *params_m))
-            if not show_empty_state(
-                df_media, t("instagram.no_media", "Aucune publication collectée pour cette période.")
-            ):
-                st.dataframe(
-                    df_media, width="stretch", hide_index=True,
-                    column_config=cfg,
-                )
-        except Exception as e:
-            st.error(t("instagram.media_error", "Erreur publications : {err}").format(err=e))
+            from src.dashboard.utils.ratios import per_series
+            _pct_of_followers = 100 / followers if followers else float("nan")
+            _rate_hover = ("<br>≈ %{customdata[2]:.2f} % des abonnés actuels (indicatif)"
+                           if followers else "")
+            df_eng['per_post'] = per_series(df_eng['likes'] + df_eng['comments'],
+                                            df_eng['posts'])
+            fig_e = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_e.add_trace(go.Bar(
+                x=df_eng['mois'], y=df_eng['posts'], marker_color=_IG, opacity=0.35,
+                name=t("instagram.posts_per_month", "Publications du mois")),
+                secondary_y=False)
+            fig_e.add_trace(go.Scatter(
+                # POINTS, not a line: a month without a post has no engagement per
+                # post, and a line would draw one through it.
+                x=df_eng['mois'], y=df_eng['per_post'], mode="markers+text",
+                marker=dict(color=_IG_DEEP, size=11),
+                text=[f"{v:.0f}" if pd.notna(v) else "" for v in df_eng['per_post']],
+                textposition="top center", textfont=dict(color=_IG_DEEP),
+                name=t("instagram.engagement_per_post", "Engagement par publication"),
+                customdata=df_eng[['likes', 'comments']].assign(rate=df_eng['per_post']
+                                                                * _pct_of_followers).values,
+                hovertemplate="%{y:.0f} par publication<br>%{customdata[0]:,.0f} likes · "
+                              "%{customdata[1]:,.0f} commentaires" + _rate_hover
+                              + "<extra></extra>"),
+                secondary_y=True)
+            fig_e.update_layout(
+                title=t("instagram.engagement_by_cohort",
+                        "Likes et commentaires ACQUIS À CE JOUR, par mois de "
+                        "publication ({label})").format(label=win_m.label),
+                hovermode="x unified",
+                legend=dict(orientation="h", y=-0.2, x=0))
+            fig_e.update_yaxes(title_text=t("instagram.posts_axis", "Publications"),
+                               title_font_color=_IG, secondary_y=False,
+                               dtick=1, tickformat="d")
+            fig_e.update_yaxes(title_text=t("instagram.per_post_axis",
+                                            "Likes + commentaires par publication"),
+                               title_font_color=_IG_DEEP, rangemode="tozero",
+                               secondary_y=True)
+            charts.plotly_chart(fig_e, width="stretch")
+            # R299 — the « taux d'engagement » chart that followed was the per-post line
+            # divided by ONE constant (the latest follower count): same shape, same
+            # measure. It lives in the hover above (`_rate_hover`), not in a second chart.
+            st.caption(t(
+                "instagram.engagement_cohort_note",
+                "Chaque barre regroupe les posts **publiés** ce mois-là et montre "
+                "les likes qu'ils ont accumulés **jusqu'à aujourd'hui** — pas ceux "
+                "reçus pendant ce mois. Instagram ne nous donne qu'un compteur "
+                "courant par post : il n'y a pas d'historique d'où tirer un "
+                "engagement mensuel, et l'inventer serait pire que de ne pas le "
+                "montrer. Le filtre de période porte donc sur la date de "
+                "**publication**."))
+
+        # Publications récentes — insights indispo ⇒ note + colonnes masquées
+        st.markdown(t("instagram.recent_posts", "#### Publications récentes"))
+        _ins = db.fetch_query(
+            "SELECT COUNT(*) FROM instagram_media_insights WHERE artist_id = %s",
+            (artist_id,),
+        )
+        insights_empty = not _ins or (_ins[0][0] or 0) == 0
+
+        base_cfg = {
+            "media_url": st.column_config.ImageColumn(t("instagram.col_preview", "Aperçu")),
+            "permalink": st.column_config.LinkColumn(
+                t("instagram.col_link", "Lien"),
+                display_text=t("instagram.col_open", "Ouvrir")),
+            "caption": st.column_config.TextColumn(t("instagram.col_caption", "Légende"), width="medium"),
+            "timestamp": st.column_config.DatetimeColumn(
+                t("instagram.col_published", "Publié le"), format="DD/MM/YYYY"),
+            "like_count": "❤️ Likes",
+            "comments_count": t("instagram.col_comments", "💬 Comm."),
+        }
+
+        if insights_empty:
+            # R273 (2026-09-27) — ce message affirmait « Meta ne les sert que pour
+            # les posts de moins de 90 jours ; ce n'est pas un défaut de collecte ».
+            # C'en était un : la collecte demandait `impressions`, retirée par Meta
+            # le 2025-04-21, et une seule métrique retirée fait refuser TOUTE la
+            # requête — 51 publications sur 51, en local comme en production. La
+            # collecte demande désormais `views`/`total_interactions`, et lève si
+            # toutes les publications sont refusées : le silence ne dit plus rien.
+            st.info(t(
+                "instagram.insights_pending",
+                "**Vues, portée, interactions, enregistrements et partages par "
+                "publication** ne sont pas encore collectés. Ils arrivent avec la "
+                "prochaine collecte Instagram ; si Meta les refuse, la collecte "
+                "échoue et l'administrateur est prévenu."))
+            q_media = f"""
+                SELECT media_url, caption, media_type, permalink,
+                       timestamp, like_count, comments_count
+                FROM instagram_media
+                WHERE artist_id = %s {frag_m}
+                ORDER BY timestamp DESC
+            """
+            cfg = base_cfg
+        else:
+            q_media = f"""
+                SELECT m.media_url, m.caption, m.media_type, m.permalink,
+                       m.timestamp, m.like_count, m.comments_count,
+                       i.impressions, i.reach, i.engagement, i.saved, i.shares
+                FROM instagram_media m
+                LEFT JOIN LATERAL (
+                    SELECT impressions, reach, engagement, saved, shares
+                    FROM instagram_media_insights ii
+                    WHERE ii.artist_id = m.artist_id
+                      AND ii.media_id = m.media_id
+                    ORDER BY ii.date DESC LIMIT 1
+                ) i ON TRUE
+                WHERE m.artist_id = %s {frag_m}
+                ORDER BY m.timestamp DESC
+            """
+            # `impressions` carries Meta's `views`, `engagement` its
+            # `total_interactions` since R273 — the labels say what the numbers are.
+            cfg = {**base_cfg,
+                   "impressions": t("instagram.col_views", "👁️ Vues"),
+                   "reach": t("instagram.col_reach", "Portée"),
+                   "engagement": t("instagram.col_interactions", "Interactions"),
+                   "saved": t("instagram.col_saved", "Enregistrés"),
+                   "shares": t("instagram.col_shares", "Partages")}
+
+        df_media = db.fetch_df(q_media, (artist_id, *params_m))
+        if not show_empty_state(
+            df_media, t("instagram.no_media", "Aucune publication collectée pour cette période.")
+        ):
+            st.dataframe(
+                df_media, width="stretch", hide_index=True,
+                column_config=cfg,
+            )
+    except Exception as e:
+        st.error(t("instagram.media_error", "Erreur publications : {err}").format(err=e))
 
 if __name__ == "__main__":
     show()

@@ -215,7 +215,7 @@ src/dashboard/views/instagram.py::_render_community#1:
   owner_v: garder
   owner: "On garde."
   note: "Abonnés 1 605 → 1 520 en neuf mois : la baisse se voit d'un coup d'œil. Au niveau du COMPTE."
-src/dashboard/views/instagram.py::show#1:
+src/dashboard/views/instagram.py::render#1:
   q: "Quels mois de publication ont le plus engagé ?"
   decision: "Voir quels mois de publication ont le plus engagé, pour décider quoi publier et booster."
   decision_en: "See which publishing months engaged most, to decide what to post and boost."

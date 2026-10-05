@@ -3,14 +3,14 @@ import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.platform_colors import platform_color
-from src.dashboard.utils import filters
-from src.dashboard.utils.filters import account_clause, account_scope
+from src.dashboard.utils.filters import account_clause
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
-from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0, second_campaign
+from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0
+from src.dashboard.utils.meta_filter_bar import MetaFilters, filter_bar, say_instagram_is_outside
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -100,7 +100,7 @@ def _render_scope_notice(db, artist_id) -> None:
 # (`stripe_schema._FREE_FEATURES`), so no plan or migration moves. A segmented control
 # rather than `st.tabs`: tabs run every body on each rerun, and these five sections are
 # ~4,500 lines of queries — one is rendered at a time. The old routes are aliases to this
-# page and open the section they named. One shared filter set is R399.
+# page and open the section they named. One shared filter set (R399): `meta_filter_bar`.
 SECTIONS = ("funnel", "perf", "creatives", "breakdowns", "instagram")
 # The old page key → the section it used to be. Read on arrival only, so a click on the
 # control afterwards is never overridden.
@@ -126,7 +126,8 @@ def arrival_section(page: str | None, arrived_from: str | None) -> str | None:
     return None
 
 
-def show():
+def show(section: str | None = None):
+    """`section` opens that section on a fresh session — the former pages' `show()`."""
     st.title(t("meta_ads_overview.title_cross",
                "🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam"))
     landing = arrival_section(st.session_state.get("_page_rendered_last"),
@@ -135,37 +136,43 @@ def show():
     # screen (« created with a default value but also had its value set »).
     if landing:
         st.session_state[SECTION_KEY] = landing
-    st.session_state.setdefault(SECTION_KEY, "funnel")
+    st.session_state.setdefault(SECTION_KEY, section or "funnel")
     section = st.segmented_control(
         t("meta_ads_overview.section", "Vue"), list(SECTIONS),
         format_func=_section_label, key=SECTION_KEY) or "funnel"
 
-    # The three sections below are whole former pages: each opens its own session (and
-    # the creatives declare it for their fragments, `fragment_db`), so none is opened
-    # here — rule 9, one connection per render.
-    if section == "creatives":
-        from src.dashboard.views.meta_creatives import show as show_creatives
-        return show_creatives()
-    if section == "breakdowns":
-        from src.dashboard.views.meta_breakdowns import show as show_breakdowns
-        return show_breakdowns()
-    if section == "instagram":
-        from src.dashboard.views.instagram import show as show_instagram
-        return show_instagram()
+    # R399 — ONE connection, opened here and handed to the section (rule 9); declared for
+    # the creatives' fragments (`fragment_db`). ONE filter bar, read by every section.
+    from src.dashboard.utils.fragment_db import page_db_scope
 
-    with view_session() as (db, artist_id):
-        if section == "funnel":
-            from src.dashboard.views.meta_x_spotify import render_funnel
-            render_funnel(db, artist_id)
-            return
-        _render_scope_notice(db, artist_id)
-        _show_meta_ads(db, artist_id)
-        # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
-        # Credentials : cette page répond à « que veux-tu suivre », l'autre à
-        # « comment te connecter ». Même mouvement que les titres SoundCloud
-        # hébergés ailleurs, partis sur leur page de performance le 2026-09-04.
-        from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
-        render_extra_ad_accounts(db, artist_id)
+    with view_session() as (db, artist_id), page_db_scope(db, artist_id):
+        if section == "instagram":
+            say_instagram_is_outside()
+            from src.dashboard.views.instagram import render as render_instagram
+            return render_instagram(db, artist_id)
+        bar = filter_bar(db, artist_id, section)
+        st.markdown("---")
+        _render_section(db, artist_id, section, bar)
+
+
+def _render_section(db, artist_id, section: str, bar: MetaFilters) -> None:
+    if section == "funnel":
+        from src.dashboard.views.meta_x_spotify import render_funnel
+        return render_funnel(db, artist_id, bar)
+    if section == "creatives":
+        from src.dashboard.views.meta_creatives import render as render_creatives
+        return render_creatives(db, artist_id, bar)
+    if section == "breakdowns":
+        from src.dashboard.views.meta_breakdowns import render as render_breakdowns
+        return render_breakdowns(db, artist_id, bar)
+    _render_scope_notice(db, artist_id)
+    _show_meta_ads(db, artist_id, bar)
+    # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
+    # Credentials : cette page répond à « que veux-tu suivre », l'autre à
+    # « comment te connecter ». Même mouvement que les titres SoundCloud
+    # hébergés ailleurs, partis sur leur page de performance le 2026-09-04.
+    from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
+    render_extra_ad_accounts(db, artist_id)
 
 
 def _nan(v):
@@ -490,68 +497,15 @@ def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> N
     render_day0(day0_cumulative(daily, first, second), first, second)
 
 
-def _show_meta_ads(db, artist_id):
-    # Le compte AVANT les campagnes : deux comptes peuvent porter la même campagne
-    # « Release FR », donc la liste offerte dépend du compte choisi, jamais l'inverse.
-    _account = account_scope(db, artist_id, key="meta_overview_acct")
-    _acct, _acct_params = account_clause(_account)
-    _acct_s, _ = account_clause(_account, "s.")
-    try:
-        # Sort campaigns by launch date (MIN(day_date)) descending — most recent release first.
-        # LEFT JOIN keeps campaigns without day-level data, sorted to the end via NULLS LAST.
-        # `v_meta_campaign_daily` (migration 109) porte déjà le jour : la jointure
-        # vers la table quotidienne servait uniquement à le retrouver.
-        df_list = db.fetch_df(
-            """
-            SELECT campaign_name, MIN(day) AS first_day
-            FROM v_meta_campaign_daily
-            WHERE artist_id = %s"""
-            f"{_acct}"
-            """
-            GROUP BY campaign_name
-            ORDER BY first_day DESC NULLS LAST, campaign_name DESC
-            """,
-            (artist_id, *_acct_params)
-        )
-        all_campaigns = df_list['campaign_name'].dropna().tolist()
-    except Exception as e:
-        st.error(t("meta_ads_overview.db_error", "Erreur connexion BDD: {e}").format(e=e))
-        return
-
-    # Default selection: latest release (most recently launched campaign).
-    default_main = all_campaigns[:1]
-
-    # --- FILTRE PRINCIPAL ---
-    st.subheader(t("meta_ads_overview.scope", "🎯 Périmètre d'Analyse"))
-    selected_campaigns = st.multiselect(
-        t("meta_ads_overview.select_campaigns", "Sélectionnez les campagnes à analyser :"),
-        options=all_campaigns,
-        default=default_main
-    )
-
-    # CRITICAL-04: selected_campaigns values come from a DB-sourced multiselect.
-    # The IN-clause placeholder count is derived from len() (code-controlled).
-    # Values are always passed as %s parameters — never interpolated into the SQL string.
-    # Validate that selected_campaigns is a subset of all_campaigns (allowlist check).
-    selected_campaigns = [c for c in selected_campaigns if c in set(all_campaigns)]
-    # R350 — the shared « compare with » selector: its pick joins the scope, so the six
-    # frames below carry both campaigns; exactly two in scope also draws the day-0 clock.
-    second = second_campaign(all_campaigns, selected_campaigns[0] if len(selected_campaigns) == 1
-                             else None, key="meta_overview_second")
-    if second:
-        selected_campaigns = [*selected_campaigns, second]
-    # Le filtre de compte se colle AVANT celui des campagnes : ses paramètres se
-    # placent donc juste après `artist_id`.
-    # R259 (notes L98, L511) — the shared period filter, like every other page that draws
-    # time. « Depuis la dernière sortie » means, here, since the selected campaigns were
-    # launched: the release a campaign analysis is about. Appended LAST to the clause, so
-    # its two dates follow the campaign parameters in every query that carries it.
-    _launch = df_list.loc[df_list['campaign_name'].isin(selected_campaigns), 'first_day'] \
-        if selected_campaigns else df_list['first_day']
-    _launch = pd.to_datetime(_launch).min() if not _launch.dropna().empty else None
-    window = filters.period(db, table="v_meta_campaign_daily", date_column="day",
-                            artist_id=artist_id, key="meta_overview_period",
-                            latest_release=_launch.date() if _launch is not None else None)
+def _show_meta_ads(db, artist_id, bar: MetaFilters):
+    # R399 — account, campaigns and period come from the page's one filter bar. The
+    # campaign values were offered from the database and are re-checked against that
+    # list (CRITICAL-04: they reach SQL only as `%s` parameters, never interpolated).
+    _account = bar.account
+    _acct, _acct_params = bar.acct()
+    _acct_s, _ = bar.acct("s.")
+    selected_campaigns = [c for c in bar.scope if c in set(bar.campaigns)]
+    window = bar.window
     _win_sql, _win_params = window.sql_between("day")
     _campaign_in = _acct + (
         " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected_campaigns)))

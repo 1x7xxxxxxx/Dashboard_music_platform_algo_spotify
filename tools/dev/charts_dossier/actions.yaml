@@ -76,7 +76,7 @@ src/dashboard/views/youtube.py::show#2:
 src/dashboard/views/instagram.py::_render_community#1:
   valide: true
   actions: []
-src/dashboard/views/instagram.py::show#1:
+src/dashboard/views/instagram.py::render#1:
   valide: false
   actions:
   - qui: moi

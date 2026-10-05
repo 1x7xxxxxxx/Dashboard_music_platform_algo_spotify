@@ -75,7 +75,7 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/instagram.py::_render_community#1': (
         'Suivre ta communauté Instagram pour savoir si tes campagnes la font grandir.',
         'Track your Instagram community to know whether your campaigns grow it.'),
-    'views/instagram.py::show#1': (
+    'views/instagram.py::render#1': (
         'Voir quels mois de publication ont le plus engagé, pour décider quoi publier et booster.',
         'See which publishing months engaged most, to decide what to post and boost.'),
     'views/meta_ads_overview.py::_render_campaign_waves#1': (

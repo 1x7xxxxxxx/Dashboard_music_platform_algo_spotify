@@ -27,7 +27,9 @@ EXEMPT = {
     "trigger_algo/_tab_budget_roi.py": "point mort : cumul depuis le premier euro, même raison",
     # R368 — seen only once `_uses_the_layer` stopped counting an ACCOUNT-filter import.
     "meta_cpr_optimizer.py": "coût par résultat sur TOUTE la vie de chaque campagne : une fenêtre tronquerait le CPR",
-    "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`_campaign_window`), pas une période libre",
+    "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`campaign_window` de la barre, R399), pas une période libre",
+    # R399 — the page's one filter bar draws the period; the section reads `bar.window`.
+    "meta_creatives.py": "la fenêtre vient de la barre de filtres unique de la page Meta (R399)",
     # R377 (V24) — the default « depuis la dernière sortie » hid the previous campaign.
     "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
     # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
@@ -65,7 +67,9 @@ def _draws_daily_series(source: str) -> bool:
     return "charts.plotly_chart" in source and ("_daily" in source or "_timeline" in source)
 
 
-_PERIOD_CALLS = frozenset({"smart_period_filter", "span_period_filter", "entity_period_filter"})
+_PERIOD_CALLS = frozenset({"smart_period_filter", "span_period_filter", "entity_period_filter",
+                           # R399 — the Meta page's one bar; held below to call the layer.
+                           "filter_bar"})
 _FILTERS_ALIASES = frozenset({"period", "span", "entity"})
 
 
@@ -84,6 +88,13 @@ def _uses_the_layer(source: str) -> bool:
                 and f.value.id == "filters")):
             return True
     return False
+
+
+def test_the_meta_filter_bar_itself_calls_the_layer():
+    """`filter_bar` counts as a period filter only while it really calls one."""
+    bar = ROOT / "src" / "dashboard" / "utils" / "meta_filter_bar.py"
+    src = bar.read_text(encoding="utf-8").replace("def filter_bar(", "def _bar(")
+    assert _uses_the_layer(src), "meta_filter_bar no longer calls the shared period filter"
 
 
 def test_every_view_drawing_a_daily_series_goes_through_the_shared_filter():

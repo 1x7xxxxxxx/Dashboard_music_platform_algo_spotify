@@ -34,7 +34,8 @@ red tests below are the ones OBSERVED, not predicted:
     `test_a_pick_outside_the_list_is_refused`.
   - `{first, second} <= own` branch removed from `pair_colors` → RED
     `test_a_creative_of_both_campaigns_is_grey`.
-  - the `second_campaign(...)` call replaced by a no-op in meta_breakdowns.show → RED
+  - the `second_campaign(...)` call replaced by a no-op in meta_breakdowns.show (since R399:
+    the filter bar holds the one call) → RED
     `test_the_three_pages_call_the_one_selector` and both breakdowns render tests (they
     SKIPPED on the first run: `_pick_second` now fails when the page lists ≥2 campaigns).
   - `second = None and second_campaign(...)` in meta_creatives (the call still EXISTS, so
@@ -160,14 +161,21 @@ def test_a_creative_of_both_campaigns_is_grey() -> None:
 
 
 def test_the_three_pages_call_the_one_selector() -> None:
-    """One helper, not three copies: each page calls `second_campaign` inside its code."""
+    """One helper, called ONCE: the page's filter bar (R399) — no section draws its own."""
+    from src.dashboard.utils import meta_filter_bar
     from src.dashboard.views import meta_ads_overview, meta_breakdowns, meta_creatives
-    for mod in (meta_ads_overview, meta_creatives, meta_breakdowns):
-        calls = [n for n in ast.walk(ast.parse(inspect.getsource(mod)))
-                 if isinstance(n, ast.Call)
-                 and getattr(n.func, "id", getattr(n.func, "attr", "")) == "second_campaign"]
-        assert calls, f"{mod.__name__} has no call to the shared second-campaign selector"
 
+    def calls(mod) -> list:
+        return [n for n in ast.walk(ast.parse(inspect.getsource(mod)))
+                if isinstance(n, ast.Call)
+                and getattr(n.func, "id", getattr(n.func, "attr", "")) == "second_campaign"]
+
+    assert calls(meta_filter_bar), "the filter bar no longer offers the second campaign"
+    for mod in (meta_ads_overview, meta_creatives, meta_breakdowns):
+        assert not calls(mod), f"{mod.__name__} draws its own second-campaign selector again"
+        read = {n.attr for n in ast.walk(ast.parse(inspect.getsource(mod)))
+                if isinstance(n, ast.Attribute)}
+        assert read & {"second", "scope"}, f"{mod.__name__} ignores the bar's pick"
 
 
 class _SpyDb:
@@ -244,7 +252,7 @@ def _specs(at) -> list[dict]:
 
 @_needs_db
 def test_the_overview_draws_two_campaigns_on_the_day0_clock() -> None:
-    at = _pick_second(_app("meta_ads_overview"), "meta_overview_second")
+    at = _pick_second(_app("meta_ads_overview"), "meta_second")
     day0 = [s for s in _specs(at)
             if "J0" in str(((s.get("layout") or {}).get("xaxis") or {}).get("title", ""))]
     assert day0, "two campaigns chosen and no figure on the day-0 clock"
@@ -257,12 +265,12 @@ def test_the_overview_draws_two_campaigns_on_the_day0_clock() -> None:
 @_needs_db
 def test_the_creatives_page_colours_the_ranking_by_campaign() -> None:
     at = _app("meta_creatives")
-    first = [s for s in at.selectbox if s.key is None and len(s.options) > 2]
+    first = [s for s in at.selectbox if s.key == "meta_campaign" and len(s.options) > 2]
     if not first:
         pytest.skip("artist 1 has fewer than two campaigns with creatives")
     first[0].select_index(1).run(timeout=180)
     _clean(at)
-    at = _pick_second(at, "creatives_second", offered=len(first[0].options) - 1)
+    at = _pick_second(at, "meta_second", offered=len(first[0].options) - 1)
     colours = set()
     for s in _specs(at):
         for tr in s["data"]:
@@ -277,14 +285,14 @@ def test_the_creatives_page_colours_the_ranking_by_campaign() -> None:
 def test_the_breakdowns_page_compares_two_campaigns_as_shares(family_index: int) -> None:
     at = _app("meta_breakdowns")
     if family_index:
-        at.selectbox[0].select_index(family_index).run(timeout=180)
+        next(s for s in at.selectbox if s.key == "bd_family").select_index(family_index).run(timeout=180)
         _clean(at)
-    camp = [s for s in at.selectbox if s.key == "bd_camp"][0]
+    camp = [s for s in at.selectbox if s.key == "meta_campaign"][0]
     if len(camp.options) < 2:   # only « Toutes »: the CI seed carries no Meta campaign
-        pytest.skip("artist 1 has no campaign under bd_camp")
+        pytest.skip("artist 1 has no campaign under meta_campaign")
     camp.select_index(1).run(timeout=180)
     _clean(at)
-    at = _pick_second(at, "bd_second", offered=len(camp.options) - 1)   # minus « Toutes »
+    at = _pick_second(at, "meta_second", offered=len(camp.options) - 1)   # minus « Toutes »
     pair = [s for s in _specs(at) if (s.get("layout") or {}).get("barmode") == "group"
             and (s["layout"].get("xaxis") or {}).get("ticksuffix") == " %"]
     if not pair:

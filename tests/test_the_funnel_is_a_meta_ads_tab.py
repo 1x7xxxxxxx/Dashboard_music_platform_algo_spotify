@@ -28,7 +28,9 @@ def test_the_menu_no_longer_lists_the_funnel() -> None:
 
 
 def test_the_meta_ads_page_renders_the_funnel() -> None:
+    # R399 — `show()` draws the filter bar and hands the section to `_render_section`.
     tree = ast.parse(OVERVIEW.read_text(encoding="utf-8"))
-    show = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "show")
-    calls = {getattr(c.func, "id", "") for c in ast.walk(show) if isinstance(c, ast.Call)}
+    route = next(n for n in tree.body
+                 if isinstance(n, ast.FunctionDef) and n.name == "_render_section")
+    calls = {getattr(c.func, "id", "") for c in ast.walk(route) if isinstance(c, ast.Call)}
     assert "render_funnel" in calls, "the Meta Ads page no longer offers the funnel tab (R348)"

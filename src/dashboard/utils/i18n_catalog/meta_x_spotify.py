@@ -1,17 +1,16 @@
 """EN strings for the cross-platform campaign impact view (route key `meta_x_spotify`)."""
 
 EN = {
-    "meta_x_spotify.title": "🔀 My whole funnel — from the ad to the stream",
 
     # Campaign + window pickers
-    "meta_x_spotify.choose_campaign": "Pick the campaign",
     "meta_x_spotify.no_campaign": "No Meta Ads campaign on this account. Connect it "
                                   "from **🔑 API credentials + CSV imports**.",
     "meta_x_spotify.window": "Window",
+    "meta_x_spotify.pick_one_campaign": "The funnel reads one campaign at a time: pick one "
+                                        "in the filter bar above.",
     "meta_x_spotify.win_tail": "📈 Campaign + {n} d (afterglow)",
     "meta_x_spotify.win_camp": "🎯 The campaign only",
     "meta_x_spotify.win_all": "♾️ Up to today",
-    "meta_x_spotify.window_caption": "{f} — campaign from {a} to {b}, {n} day(s) on air.",
 
     # The linked track
     "meta_x_spotify.linked_track": "🎵 Track linked on Spotify: **{track}**",
