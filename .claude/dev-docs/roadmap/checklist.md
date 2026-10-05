@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R417 | Harnais : les 6 suggestions de hook jamais suivies (48 séances, 0 invocation) — `/retro` 2018×, `continuous-learning` 1796×, `/rex-promote` 927× (`session_summary.py`, `draft_rex.py`), `/adr` 198×, `/curator` 116× (`session_summary.py:450`), `/dev-docs` 39× (playbooks injectés) : pour chacune, la suivre ou retirer la suggestion du hook qui l'imprime — règle « un déclencheur qui ne se produit jamais ⇒ retirer » ; décision du propriétaire attendue par suggestion <!-- critic: non — texte de hooks, aucun chemin produit --> <!-- scope: .claude/hooks/, .claude/workflows/, .claude/commands/, tests/, .claude/dev-docs/ --> | P4 | `make harness-report` : 0 « suivi manqué » |
 
 ---
 
@@ -85,9 +86,9 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R417 -->
 
-**État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
+**État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
