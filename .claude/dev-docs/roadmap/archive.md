@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R412 — Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jama… (livrée 2026-10-05)
+
+- [x] **R412 — Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jamais vu rouge)** (P4) ✅ (2026-10-05, 47d41844)
+  Mesuré par : `make harness-report` : 0 périmée, 0 vert-jamais-rouge
+  CI verte sur 47d41844 ; plus aucune preuve « vu rouge périmé », REQ-BRONZE-02 créditée (schema-check-local exit 2)
+  Commits : 47d41844 R412 : une preuve vue rouge est datée par sa DERNIÈRE mutation ; 4 gar
+
 ## ✅ R406 — Deux décisions de TARIF sorties de R399 et R381 (2026-10-05) : (1) « quelle tranche d'âge cliqu… (livrée 2026-10-05)
 
 - [x] **R406 — Deux décisions de TARIF sorties de R399 et R381 (2026-10-05) : (1) « quelle tranche d'âge clique le moins cher » quitte le CPR Optimizer (Premium) pour la Vue croisée (Free) ? (2) l'aperçu gratuit montre-t-il un SHAP des valeurs imputées (expose une partie du modèle Premium) ?**

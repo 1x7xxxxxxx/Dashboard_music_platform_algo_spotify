@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R412 | Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jamais vu rouge) <!-- critic: non — mesure --> <!-- scope: .claude/dev-docs/, tools/dev/, tests/, .test_durations, .claude/scripts/ --> | P4 | `make harness-report` : 0 périmée, 0 vert-jamais-rouge |
 | R413 | Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-schema`) archivées ou nommées par un déclencheur ; REQ-HARN-11/13 tranchés <!-- critic: non — rangement --> <!-- scope: .claude/commands/, archive/, .claude/dev-docs/, tools/dev/, tests/, .test_durations --> | P4 | `make harness-report` : 0 orpheline |
 | R414 | Harnais : REQ-HARN-04 (hooks PostToolUse fusionnés en un processus) et REQ-HARN-06 (night-status écrit dans le fichier de séance) <!-- critic: requis — touche le chemin de chaque édition --> <!-- scope: .claude/hooks/, .claude/settings.json, tools/dev/, tests/, .test_durations, .claude/dev-docs/ --> | P4 | latence mesurée avant/après, en alternance |
 | R415 | Harnais : fraîcheur des workflows planifiés (voisin de R407) — un cron GitHub qui ne tourne plus se voit dans night-check <!-- critic: non — contrôle additif --> <!-- scope: tools/dev/, .github/workflows/, tests/, .test_durations, .claude/dev-docs/ --> | P4 | garde muté rouge sur un run vieux de > 2 périodes |
@@ -89,7 +88,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R412, R413, R414, R415, R283 -->
+<!-- reprise: open=R413, R414, R415, R283 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
