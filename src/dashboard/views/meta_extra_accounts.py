@@ -28,8 +28,10 @@ import streamlit as st
 
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import flash
+from src.dashboard.views.credentials._core import find_identity_conflict
 from src.utils.tenant_identity import (
     META_ACCOUNTS_FIELD,
+    identity_claim,
     malformed_meta_accounts,
     with_meta_accounts,
 )
@@ -93,13 +95,23 @@ def render_extra_ad_accounts(db, artist_id: int) -> None:
             ).format(bad=", ".join(bad)))
             return
         try:
-            # Fusion JSONB : on ne réécrit QUE les deux clés de comptes. Un `SET
-            # extra_config = %s` effacerait `ig_user_id`, qui vit dans la même ligne.
-            db.execute_query(
-                "UPDATE artist_credentials SET extra_config = extra_config || %s "
-                "WHERE artist_id = %s AND platform = 'meta'",
-                (json.dumps({META_ACCOUNTS_FIELD: merged[META_ACCOUNTS_FIELD],
-                             "account_id": merged["account_id"]}), artist_id))
+            # R370 (audit) : un compte publicitaire est une IDENTITÉ — sans ce contrôle,
+            # taper l'`act_…` d'un autre locataire suffisait à collecter ses dépenses.
+            # Contrôle et écriture sous le même verrou que l'onglet Credentials.
+            with identity_claim(db, merged, ["meta"]):
+                if find_identity_conflict(db, artist_id, "meta", merged) is not None:
+                    st.error(t(
+                        "meta.extra_accounts_taken",
+                        "❌ Un de ces comptes est déjà rattaché à un autre artiste. "
+                        "Si c'est une erreur, contacte l'administrateur."))
+                    return
+                # Fusion JSONB : on ne réécrit QUE les deux clés de comptes. Un `SET
+                # extra_config = %s` effacerait `ig_user_id`, qui vit dans la même ligne.
+                db.execute_query(
+                    "UPDATE artist_credentials SET extra_config = extra_config || %s "
+                    "WHERE artist_id = %s AND platform = 'meta'",
+                    (json.dumps({META_ACCOUNTS_FIELD: merged[META_ACCOUNTS_FIELD],
+                                 "account_id": merged["account_id"]}), artist_id))
         except Exception:  # noqa: BLE001 — un échec d'écriture n'est pas une page morte
             st.error(t("meta.extra_accounts_failed",
                        "Enregistrement impossible — réessaie dans un instant."))

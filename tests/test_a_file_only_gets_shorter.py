@@ -56,7 +56,7 @@ FROZEN = {
     # 1268 → 1203 le 2026-09-11 : le sujet « encodage et séparateur » est sorti
     # dans utils/csv_serialization.py, comme le message de ce cliquet le demande.
     "src/dashboard/views/upload_csv.py": 1203,
-    "src/dashboard/views/credentials/_render.py": 1229,
+    "src/dashboard/views/credentials/_render.py": 1216,
     # 1073 → 997 le 2026-09-12 : `_NAV_SECTIONS` est sortie dans
     # `utils/nav_sections.py`. Le cliquet a PROVOQUÉ ce découpage — le fichier
     # était exactement à son plafond, donc ajouter une entrée de menu avec son

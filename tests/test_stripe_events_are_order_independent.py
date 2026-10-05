@@ -312,3 +312,32 @@ def test_the_detector_sees_the_defect_it_is_written_for(db, stripe_env, monkeypa
     assert _state(cur, referrer, referred)["rewards"] == [], (
         "with `park` disabled, an invoice.paid before its checkout must be lost — "
         "otherwise the order test above proves nothing")
+
+
+@pytest.mark.parametrize("kind", ["customer.subscription.deleted", "invoice.payment_failed",
+                                  "customer.subscription.updated"])
+def test_an_event_for_a_previous_subscription_leaves_the_current_one_alone(db, stripe_env,
+                                                                            kind):
+    """R370 d — a customer resubscribed (new subscription id); a late cancellation or
+    payment failure of the OLD subscription must not touch the current row."""
+    cur, made = db
+    t = _tenant(cur, made, "reabonne")
+    client = _client()
+    _send(client, "checkout.session.completed", t)
+    old = f"{t['sub']}_old"
+    obj = ({"id": old, "customer": t["cus"], "status": "canceled"}
+           if kind.startswith("customer.")
+           else {"customer": t["cus"],
+                 "parent": {"subscription_details": {"subscription": old}}})
+    evt = {"id": f"evt_{uuid.uuid4().hex}", "type": kind, "created": 1,
+           "data": {"object": obj}}
+    assert client.post("/webhooks/stripe", json=evt).status_code == 200
+    cur.execute("SELECT status FROM artist_subscriptions WHERE artist_id = %s", (t["id"],))
+    assert cur.fetchone()[0] == "active", (
+        f"a {kind} for the customer's PREVIOUS subscription changed the current one")
+    evt["id"] = f"evt_{uuid.uuid4().hex}"
+    evt["data"]["object"] = {**obj, "id": t["sub"]} if kind.startswith("customer.") else {
+        "customer": t["cus"], "subscription": t["sub"]}
+    assert client.post("/webhooks/stripe", json=evt).status_code == 200
+    cur.execute("SELECT status FROM artist_subscriptions WHERE artist_id = %s", (t["id"],))
+    assert cur.fetchone()[0] != "active", f"a {kind} for the CURRENT subscription was ignored"

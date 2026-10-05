@@ -22,7 +22,8 @@ endpoint commits once per event.
     invoice.payment_failed          → mark past_due
     invoice.paid                    → referral reward: earned on a first payment, applied
                                       as a coupon (src/utils/referral_rewards.py, R272)
-    charge.refunded / charge.dispute.created → that reward taken back
+    charge.refunded / charge.dispute.created → a pending reward dropped; an applied one
+                                      KEPT and journaled with the reason (R370 g)
 """
 import logging
 import os
@@ -111,9 +112,11 @@ def _upsert_subscription(cur, data: dict, fill_only: bool = False) -> None:
             cancel_at_period_end = %s,
             updated_at = NOW()
         WHERE stripe_customer_id = %s
+          AND (stripe_subscription_id IS NULL OR stripe_subscription_id = %s)
         """,
         (data.get("id"), data.get("status", "active"), p_start, p_end,
-         data.get("cancel_at_period_end", False), data.get("customer")),
+         data.get("cancel_at_period_end", False), data.get("customer"),
+         data.get("id")),
     )
 
 
@@ -231,7 +234,7 @@ def _dispatch(conn, event_type: str, data: dict, event_id: str, created) -> None
             stripe_unmatched.lock_customer(cur, data.get("customer"))
             _handle_resolvable(cur, event_type, data, event_id, created)
         elif event_type == "customer.subscription.deleted":
-            _mark_status(cur, data.get("customer"), "canceled", event_type)
+            _mark_status(cur, data.get("customer"), data.get("id"), "canceled", event_type)
         elif event_type in ("charge.refunded", "charge.dispute.created"):
             # A refund or a chargeback on the referred artist's payment revokes the reward it
             # earned (security-specialist, R272): pending → deleted, applied → KEPT with the
@@ -241,22 +244,33 @@ def _dispatch(conn, event_type: str, data: dict, event_id: str, created) -> None
             from src.utils.referral_rewards import revoke, stripe_remove
             revoke(cur, data.get("customer"), stripe_remove)
         elif event_type == "invoice.payment_failed":
-            _mark_status(cur, data.get("customer"), "past_due", event_type)
+            _mark_status(cur, data.get("customer"), _invoice_subscription(data), "past_due",
+                         event_type)
     finally:
         cur.close()
 
 
-def _mark_status(cur, customer, status: str, event_type: str) -> None:
+def _invoice_subscription(invoice: dict):
+    """The subscription an invoice bills: `parent.subscription_details.subscription` since
+    API 2025-03-31.basil, `invoice.subscription` before it."""
+    details = (invoice.get("parent") or {}).get("subscription_details") or {}
+    return details.get("subscription") or invoice.get("subscription")
+
+
+def _mark_status(cur, customer, subscription, status: str, event_type: str) -> None:
     """customer.subscription.deleted / invoice.payment_failed — NOT parked: replaying a
     cancellation or a failure after the checkout would undo the checkout. A 0-row update is
-    said, never silent. (Still keyed by customer, not by subscription id: a known gap.)"""
+    said, never silent. Keyed by SUBSCRIPTION (R370 d): a late `deleted` for a customer's
+    previous subscription must not cancel the one they took since. The customer alone
+    matches only a row whose subscription id is not known yet."""
     cur.execute("UPDATE artist_subscriptions SET status = %s, updated_at = NOW() "
-                "WHERE stripe_customer_id = %s", (status, customer))
+                "WHERE stripe_customer_id = %s AND (stripe_subscription_id IS NULL "
+                "OR stripe_subscription_id = %s)", (status, customer, subscription))
     if cur.rowcount == 0:
-        logger.warning("Stripe %s: customer %s matches no subscription row — ignored",
-                       event_type, customer)
+        logger.warning("Stripe %s: customer %s / subscription %s matches no subscription "
+                       "row — ignored", event_type, customer, subscription)
     else:
-        logger.info(f"Stripe {event_type}: customer={customer} → {status}")
+        logger.info(f"Stripe {event_type}: customer={customer} sub={subscription} → {status}")
 
 
 def _handle_resolvable(cur, event_type: str, data: dict, event_id: str, created) -> None:

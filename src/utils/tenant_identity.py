@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import NamedTuple
+from contextlib import contextmanager
+from typing import Iterable, Iterator, NamedTuple
 
 class PlatformIdentity(NamedTuple):
     """How one logical platform's tenant identity is named and stored.
@@ -202,6 +203,48 @@ def write_platform_identity(db, artist_id: int, platform: str, extra: dict) -> N
             f"UPDATE saas_artists SET {mirror_col} = %s WHERE id = %s",  # noqa: S608
             (value, artist_id),
         )
+
+
+def identity_lock_keys(extra: dict, logicals: Iterable[str]) -> list[str]:
+    """The advisory-lock keys of every identity `extra` claims, normalised and sorted.
+
+    Sorted so two writers claiming overlapping sets take the locks in the same order
+    and cannot deadlock. Meta is plural (ADR-013): one key per ad account.
+    """
+    keys = set()
+    for logical in logicals:
+        spec = PLATFORM_IDENTITIES[logical]
+        if logical == "meta":
+            keys.update(f"meta:account:{a}" for a in meta_ad_account_ids(extra))
+            continue
+        value = str((extra or {}).get(spec.field) or "").strip()
+        if value:
+            keys.add(f"{spec.storage}:{spec.field}:{value}")
+    return sorted(keys)
+
+
+@contextmanager
+def identity_claim(db, extra: dict, logicals: Iterable[str]) -> Iterator[None]:
+    """Run « is it free? » and « write it » as ONE transaction, serialised per identity.
+
+    R370 (b), class `check-then-insert-loses-the-race`. `find_identity_conflict` is a
+    check with no unique constraint behind it (Meta is plural, sandboxes are exempt:
+    no index can say it). Two tenants saving the same profile at once both read
+    « free » and both wrote — two dashboards on one artist's data. The caller does
+    the check AND the write inside this block; a second claimant waits on the lock,
+    then sees the first one's row. `lock_timeout` bounds the wait.
+
+    A test double without `_atomic` runs the block unlocked: production always has it.
+    """
+    atomic = getattr(db, "_atomic", None)
+    if atomic is None:
+        yield
+        return
+    with atomic():
+        db.execute_query("SET LOCAL lock_timeout = '10s'")
+        for key in identity_lock_keys(extra, logicals):
+            db.execute_query("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
+        yield
 
 
 def clear_platform_identities(db, artist_id: int) -> None:

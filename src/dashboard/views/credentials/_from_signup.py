@@ -129,6 +129,7 @@ def materialise(db, artist_id: int) -> list:
 
     from ._core import _load_credentials, find_identity_conflict
     from src.utils.tenant_identity import (
+        identity_claim,
         identity_is_well_formed,
         write_platform_identity,
     )
@@ -178,31 +179,34 @@ def materialise(db, artist_id: int) -> list:
         extra = dict(row_extra)
         extra[field] = identifier
         try:
-            # LE MÊME contrôle que le formulaire. Sans lui, deux comptes pourraient
-            # déclarer le même profil et lire les chiffres l'un de l'autre.
-            if find_identity_conflict(db, artist_id, platform, extra):
-                logger.info("signup link for %s already belongs to another tenant",
-                            platform)
-                continue
-            # `write_platform_identity` et NON `_save_credentials`, depuis le
-            # 2026-09-18. Trois raisons, dans cet ordre :
-            #
-            # 1. Lui seul écrit le MIROIR (`saas_artists.spotify_artist_id`), que
-            #    `spotify_api_daily` lit pour choisir ses locataires. Sans lui, ce
-            #    chemin produisait un artiste « connecté » sur tous les écrans et
-            #    jamais collecté — le scénario exact du canari du 2026-08-21, rejoué
-            #    par un chemin d'écriture né APRÈS lui.
-            # 2. Son `INSERT … ON CONFLICT` fusionne `extra_config` par `||` au lieu
-            #    de le REMPLACER, ce qui donne gratuitement la propriété que le
-            #    commentaire ci-dessus protège à la main.
-            # 3. Il ne nomme jamais `token_encrypted`, donc il ne peut pas l'écraser —
-            #    la convention de la chaîne vide devient inutile plutôt que subtile.
-            #
-            # ⚠️ `platform` et non `row` : il lui faut la plateforme LOGIQUE. Lui
-            # passer `storage_platform(...)` ferait chercher `account_id` pour un lien
-            # Instagram et interrogerait le mauvais miroir — correct aujourd'hui par
-            # pure chance, `meta` n'ayant pas de miroir.
-            write_platform_identity(db, artist_id, platform, extra)
+            # R370 (b) : le contrôle ET l'écriture dans UNE transaction, sous verrou
+            # par identité — deux inscriptions simultanées ne lisent plus « libre » toutes les deux.
+            with identity_claim(db, extra, [platform]):
+                # LE MÊME contrôle que le formulaire. Sans lui, deux comptes pourraient
+                # déclarer le même profil et lire les chiffres l'un de l'autre.
+                if find_identity_conflict(db, artist_id, platform, extra):
+                    logger.info("signup link for %s already belongs to another tenant",
+                                platform)
+                    continue
+                # `write_platform_identity` et NON `_save_credentials`, depuis le
+                # 2026-09-18. Trois raisons, dans cet ordre :
+                #
+                # 1. Lui seul écrit le MIROIR (`saas_artists.spotify_artist_id`), que
+                #    `spotify_api_daily` lit pour choisir ses locataires. Sans lui, ce
+                #    chemin produisait un artiste « connecté » sur tous les écrans et
+                #    jamais collecté — le scénario exact du canari du 2026-08-21, rejoué
+                #    par un chemin d'écriture né APRÈS lui.
+                # 2. Son `INSERT … ON CONFLICT` fusionne `extra_config` par `||` au lieu
+                #    de le REMPLACER, ce qui donne gratuitement la propriété que le
+                #    commentaire ci-dessus protège à la main.
+                # 3. Il ne nomme jamais `token_encrypted`, donc il ne peut pas l'écraser —
+                #    la convention de la chaîne vide devient inutile plutôt que subtile.
+                #
+                # ⚠️ `platform` et non `row` : il lui faut la plateforme LOGIQUE. Lui
+                # passer `storage_platform(...)` ferait chercher `account_id` pour un lien
+                # Instagram et interrogerait le mauvais miroir — correct aujourd'hui par
+                # pure chance, `meta` n'ayant pas de miroir.
+                write_platform_identity(db, artist_id, platform, extra)
             connected.append(platform)
         except Exception as exc:  # noqa: BLE001 — une plateforme n'en perd pas quatre
             logger.warning("could not materialise %s for %s: %s",

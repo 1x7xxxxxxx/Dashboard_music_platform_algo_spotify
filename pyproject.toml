@@ -57,7 +57,7 @@ dependencies = [
     "bcrypt>=4.0,<4.1",
     "python-multipart>=0.0.9",
     # Stripe billing (Brick 21)
-    "stripe>=8.0.0",
+    "stripe>=15.6.1,<16",
     # TOTP 2FA (Brick 28)
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",

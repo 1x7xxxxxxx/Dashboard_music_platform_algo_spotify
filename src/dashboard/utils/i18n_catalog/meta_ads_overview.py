@@ -26,6 +26,7 @@ EN = {
         "`act_`, one per line."
     ),
     "meta.extra_accounts_failed": "Could not save — try again in a moment.",
+    "meta.extra_accounts_taken": "❌ One of these accounts is already linked to another artist. If this is a mistake, contact the administrator.",
     "meta.extra_accounts_saved": "✅ {n} account(s) tracked.",
     "meta_ads_overview.title": "📱 Meta Ads - Strategic Analysis",
     "meta_ads_overview.section": "View",

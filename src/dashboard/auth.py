@@ -20,6 +20,7 @@ from typing import Optional
 import bcrypt
 import streamlit as st
 from src.dashboard.utils.ui import flash
+from src.utils.login_lockout import LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, record_password_failure
 
 _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
@@ -214,8 +215,8 @@ def _user_table_empty(db) -> bool:
     return len(rows) == 0
 
 
-_MAX_LOGIN_ATTEMPTS = 5
-_LOCKOUT_MINUTES    = 15
+_MAX_LOGIN_ATTEMPTS = MAX_LOGIN_ATTEMPTS
+_LOCKOUT_MINUTES    = LOCKOUT_MINUTES
 
 
 #: Un condensat bcrypt jetable, pour égaliser le temps de réponse quand le compte
@@ -289,18 +290,7 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
 
     if not verify_password(password, pw_hash):
         # Increment failure counter; lock if threshold reached
-        new_fail = (fail_count or 0) + 1
-        if new_fail >= _MAX_LOGIN_ATTEMPTS:
-            db.execute_query(
-                "UPDATE saas_users SET failed_login_attempts = %s, "
-                "locked_until = NOW() + INTERVAL '%s minutes' WHERE id = %s",
-                (new_fail, _LOCKOUT_MINUTES, uid)
-            )
-        else:
-            db.execute_query(
-                "UPDATE saas_users SET failed_login_attempts = %s WHERE id = %s",
-                (new_fail, uid)
-            )
+        record_password_failure(db, uid)
         return None, _t("auth.invalid_credentials", "Nom d'utilisateur ou mot de passe invalide.")
 
     # Reset the failure counter only when the password was the LAST factor owed.

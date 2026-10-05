@@ -19,6 +19,8 @@ from typing import Optional
 import jwt
 from passlib.context import CryptContext
 
+from src.utils.login_lockout import LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS, record_password_failure
+
 _env_secret = os.getenv("API_SECRET_KEY", "")
 if len(_env_secret) >= 32:
     SECRET_KEY: str = _env_secret
@@ -58,8 +60,8 @@ def decode_token(token: str) -> dict:
 
 # Shared with the dashboard login (src/dashboard/auth.py) — same DB columns, so an
 # API brute-force counts toward the SAME lockout as the dashboard.
-_MAX_LOGIN_ATTEMPTS = 5
-_LOCKOUT_MINUTES = 15
+_MAX_LOGIN_ATTEMPTS = MAX_LOGIN_ATTEMPTS
+_LOCKOUT_MINUTES = LOCKOUT_MINUTES
 
 
 def authenticate_api_user(db, username: str, password: str):
@@ -109,24 +111,16 @@ def authenticate_api_user(db, username: str, password: str):
         return None, "invalid_credentials"
 
     if not verify_password(password, pw_hash):
-        new_fail = (fail_count or 0) + 1
-        if new_fail >= _MAX_LOGIN_ATTEMPTS:
-            db.execute_query(
-                "UPDATE saas_users SET failed_login_attempts = %s, "
-                "locked_until = NOW() + make_interval(mins => %s) WHERE id = %s",
-                (new_fail, _LOCKOUT_MINUTES, uid),
-            )
-        else:
-            db.execute_query(
-                "UPDATE saas_users SET failed_login_attempts = %s WHERE id = %s",
-                (new_fail, uid),
-            )
+        record_password_failure(db, uid)
         return None, "invalid_credentials"
 
-    db.execute_query(
-        "UPDATE saas_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = %s",
-        (uid,),
-    )
+    # R370 (audit) : avec la 2FA, le mot de passe seul ne remet PAS le compteur à zéro —
+    # il est partagé avec les codes TOTP, et le remettre ici rouvrait 4 essais de code
+    # à chaque appel. Même porte que le dashboard (src/dashboard/auth.py, R26).
+    if not totp_enabled:
+        db.execute_query(
+            "UPDATE saas_users SET failed_login_attempts = 0, locked_until = NULL "
+            "WHERE id = %s", (uid,))
     if not verified:
         return None, "unverified"
     if totp_enabled:

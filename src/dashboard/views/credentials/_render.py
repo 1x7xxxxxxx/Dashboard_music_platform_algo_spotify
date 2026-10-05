@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 from src.dashboard.content.credential_guides_st import (
     guide_screenshots, render_credential_guide_for,
 )
-from src.utils.tenant_identity import mirrored_columns, write_platform_identity
+from src.utils.tenant_identity import identity_claim, mirrored_columns, write_platform_identity
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.auth import is_admin
 from src.dashboard.utils.date_format import format_date, format_datetime
@@ -811,28 +811,9 @@ def _saved_meta_accounts(db, artist_id: int) -> list:
     page Meta Ads, alors que la valeur, elle, est restée dans la même ligne. Sans
     cette relecture, réenregistrer les credentials les effacerait — un déplacement de
     champ deviendrait une suppression de données.
+    Même lecture que `_saved_row_extra` (un échec est journalisé, jamais muet).
     """
-    import json as _json
-
-    try:
-        rows = db.fetch_query(
-            "SELECT extra_config FROM artist_credentials "
-            "WHERE artist_id = %s AND platform = 'meta'", (artist_id,))
-    except Exception as exc:  # noqa: BLE001 — le contrat est « ne lève jamais »
-        # Le docstring ci-dessus le dit : sans cette relecture, réenregistrer un champ
-        # « deviendrait une suppression de données ». Un échec muet produisait ça.
-        logger.warning("comptes meta illisibles pour %s : %s",
-                       artist_id, type(exc).__name__)
-        return []
-    if not rows or not rows[0][0]:
-        return []
-    extra = rows[0][0]
-    if isinstance(extra, str):
-        try:
-            extra = _json.loads(extra)
-        except ValueError:
-            return []
-    return list(extra.get("account_ids") or [])
+    return list(_saved_row_extra(db, artist_id, "meta").get("account_ids") or [])
 
 
 def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_values):
@@ -1037,60 +1018,66 @@ def _handle_save(db, platform_key, fields_def, artist_id, form_values, existing_
         # present, derived, tested, and unreachable from the one call site that
         # matters. The test passed because it called with the logical name, which
         # the save path never does.
-        for logical, spec in PLATFORM_IDENTITIES.items():
-            if spec.storage != platform_key or not extra.get(spec.field):
-                continue
-            conflict = find_identity_conflict(db, artist_id, logical, extra)
-            if not conflict:
-                continue
-            # `_other` is the tenant holding it — never rendered, see _core.py.
-            field, value, _other = conflict
-            st.error(t(
-                "credentials.identity_taken",
-                "❌ **{field} = {value}** est déjà rattaché à un autre compte. "
-                "Un identifiant de plateforme ne peut appartenir qu'à un seul "
-                "artiste — vérifie que c'est bien le tien. Si tu penses qu'il "
-                "s'agit d'une erreur, contacte l'administrateur."
-            ).format(field=field, value=value))
-            # L'artiste ne doit pas apprendre qui d'autre existe sur la plateforme ;
-            # l'admin, lui, doit pouvoir trancher sans ouvrir psql — c'est lui que
-            # le message ci-dessus invite à contacter.
-            if is_admin():
-                st.caption(t("credentials.identity_taken_admin",
-                             "🛠️ Détenu par l'artiste #{other}.").format(other=_other))
-            return
+        # R370 (b) : le contrôle d'unicité ET l'écriture dans UNE transaction, sous
+        # verrou par identité — deux enregistrements simultanés du même profil ne
+        # lisent plus « libre » tous les deux.
+        _claimed = [lg for lg, sp in PLATFORM_IDENTITIES.items()
+                    if sp.storage == platform_key]
+        with identity_claim(db, extra, _claimed):
+            for logical, spec in PLATFORM_IDENTITIES.items():
+                if spec.storage != platform_key or not extra.get(spec.field):
+                    continue
+                conflict = find_identity_conflict(db, artist_id, logical, extra)
+                if not conflict:
+                    continue
+                # `_other` is the tenant holding it — never rendered, see _core.py.
+                field, value, _other = conflict
+                st.error(t(
+                    "credentials.identity_taken",
+                    "❌ **{field} = {value}** est déjà rattaché à un autre compte. "
+                    "Un identifiant de plateforme ne peut appartenir qu'à un seul "
+                    "artiste — vérifie que c'est bien le tien. Si tu penses qu'il "
+                    "s'agit d'une erreur, contacte l'administrateur."
+                ).format(field=field, value=value))
+                # L'artiste ne doit pas apprendre qui d'autre existe sur la plateforme ;
+                # l'admin, lui, doit pouvoir trancher sans ouvrir psql — c'est lui que
+                # le message ci-dessus invite à contacter.
+                if is_admin():
+                    st.caption(t("credentials.identity_taken_admin",
+                                 "🛠️ Détenu par l'artiste #{other}.").format(other=_other))
+                return
 
-        # `''` means "do not touch the stored secret", NOT "erase it" — see the
-        # contract in `_save_credentials`. The soundcloud and meta tabs declare no
-        # secret field at all, so they ALWAYS land here with an empty blob while
-        # their rows hold a rotated refresh_token / the System User token.
-        encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
-        # L'onglet et la LIGNE ne sont plus la même chose depuis que 📸 Instagram est
-        # séparé de 📱 Meta Ads : les deux onglets écrivent dans la ligne `meta`
-        # (`storage_platform`). Or `_save_credentials` REMPLACE `extra_config` —
-        # enregistrer Instagram effacerait donc le compte publicitaire, et
-        # réciproquement. On fusionne : on repart de ce que la ligne porte, on retire
-        # les clés que CET onglet possède (pour qu'un champ vidé soit vraiment vidé),
-        # puis on applique la saisie.
-        from src.utils.tenant_identity import storage_platform as _storage_of
-        _row = _storage_of(platform_key)
-        if _row != platform_key or _row in SHARED_ROWS:
-            _owned = ({f['key'] for f in fields_def}
-                      | DERIVED_KEYS.get(platform_key, set()))
-            # Relu en BASE, pas depuis `existing_values` : celui-ci est filtré par
-            # les champs de CET onglet, donc il ne contient jamais ceux de l'autre —
-            # la fusion n'aurait rien à fusionner.
-            extra = merge_into_row(_saved_row_extra(db, artist_id, _row),
-                                   extra, _owned)
-        _save_credentials(db, artist_id, _row, encrypted_blob, extra)
+            # `''` means "do not touch the stored secret", NOT "erase it" — see the
+            # contract in `_save_credentials`. The soundcloud and meta tabs declare no
+            # secret field at all, so they ALWAYS land here with an empty blob while
+            # their rows hold a rotated refresh_token / the System User token.
+            encrypted_blob = _encrypt_secrets(secrets) if any(secrets.values()) else ''
+            # L'onglet et la LIGNE ne sont plus la même chose depuis que 📸 Instagram est
+            # séparé de 📱 Meta Ads : les deux onglets écrivent dans la ligne `meta`
+            # (`storage_platform`). Or `_save_credentials` REMPLACE `extra_config` —
+            # enregistrer Instagram effacerait donc le compte publicitaire, et
+            # réciproquement. On fusionne : on repart de ce que la ligne porte, on retire
+            # les clés que CET onglet possède (pour qu'un champ vidé soit vraiment vidé),
+            # puis on applique la saisie.
+            from src.utils.tenant_identity import storage_platform as _storage_of
+            _row = _storage_of(platform_key)
+            if _row != platform_key or _row in SHARED_ROWS:
+                _owned = ({f['key'] for f in fields_def}
+                          | DERIVED_KEYS.get(platform_key, set()))
+                # Relu en BASE, pas depuis `existing_values` : celui-ci est filtré par
+                # les champs de CET onglet, donc il ne contient jamais ceux de l'autre —
+                # la fusion n'aurait rien à fusionner.
+                extra = merge_into_row(_saved_row_extra(db, artist_id, _row),
+                                       extra, _owned)
+            _save_credentials(db, artist_id, _row, encrypted_blob, extra)
 
-        # Spotify's identity is mirrored on saas_artists.spotify_artist_id, which is
-        # what spotify_api_daily reads. The mirror list lives in one module so a second
-        # writer cannot miss it — tools/create_canary.py did, and produced a tenant that
-        # looked connected everywhere and collected nothing (2026-08-21).
-        _mirror = mirrored_columns().get(platform_key)
-        if _mirror:
-            write_platform_identity(db, artist_id, platform_key, extra)
+            # Spotify's identity is mirrored on saas_artists.spotify_artist_id, which is
+            # what spotify_api_daily reads. The mirror list lives in one module so a second
+            # writer cannot miss it — tools/create_canary.py did, and produced a tenant that
+            # looked connected everywhere and collected nothing (2026-08-21).
+            _mirror = mirrored_columns().get(platform_key)
+            if _mirror:
+                write_platform_identity(db, artist_id, platform_key, extra)
 
         # No Meta token expiry probe here — deliberately.
         #
