@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R393 — Parrainage (V88) : le code de parrainage affiché en clair sous le lien d'activation (au… (livrée 2026-10-05)
+
+- [x] **R393 — Parrainage (V88) : le code de parrainage affiché en clair sous le lien d'activation (aujourd'hui replié dans un expander) ; **pas** de code promo Stripe (reco retenue 2026-10-05 : un code promo se partage hors parrainage, exige une table code→parrain et ouvre une remise au checkout sans inscription) ; à la place, un champ « code de parrainage » FACULTATIF à l'inscription qui rattache le filleul exactement comme le lien — même table, même récompense, mêmes gardes. Suite de R283** (P3) ✅ (2026-10-05, ef7e2e89, 53641f33)
+  Mesuré par : AppTest : le code est visible hors expander ; un test : le code saisi à l'inscription crée la même ligne de parrainage que le lien ; un code inconnu ou le sien propre est refusé
+  CI verte sur fd4054b3 (contient ef7e2e89). Le code de parrainage se lit en clair sous le lien, sans dépliant ; prémisse périmée : le champ d'inscription OPTIONNEL prérempli par ?ref= existait déjà (register.py) et lie le filleul par _apply_referral — le garde tient les deux bouts. 3 mutations rouges.
+  Commits : ef7e2e89 R393 : Parrainage — le code se lit en clair sous le lien d'invitation · 53641f33 Roadmap : R371-R393 inscrites (notes vocales V1-V88 du 2026-10-05) ; c
+
 ## ✅ R391 — Facturation (V84-V86) : menu « 💳 Facturation / Abonnement » ; cartes Free et Premium cô… (livrée 2026-10-05)
 
 - [x] **R391 — Facturation (V84-V86) : menu « 💳 Facturation / Abonnement » ; cartes Free et Premium côte à côte, l'inactive barrée, l'active marquée d'une flèche verte, prix mensuel et statut sous chacune ; bouton « Faire piloter mes campagnes » entre les plans et « nos offres »** (P3) ✅ (2026-10-05, f0ac6264)

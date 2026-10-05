@@ -3831,6 +3831,6 @@
     alternative).
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R393
+  preuve_statut: R393 (archivée) — ef7e2e89
