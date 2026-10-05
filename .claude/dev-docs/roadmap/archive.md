@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R406 — Deux décisions de TARIF sorties de R399 et R381 (2026-10-05) : (1) « quelle tranche d'âge cliqu… (livrée 2026-10-05)
+
+- [x] **R406 — Deux décisions de TARIF sorties de R399 et R381 (2026-10-05) : (1) « quelle tranche d'âge clique le moins cher » quitte le CPR Optimizer (Premium) pour la Vue croisée (Free) ? (2) l'aperçu gratuit montre-t-il un SHAP des valeurs imputées (expose une partie du modèle Premium) ?**
+  Mesuré par : ta réponse dans le fil ; une ligne Rnnn par « oui »
+  Réponse du propriétaire le 2026-10-05 : (1) oui — « des données déjà accessibles sur Meta Ads, on va pas faire payer un truc gratuit de base » → R409 ; (2) oui sans les contributions → R410. Runbook § 40 barré.
+  Commits : aucun — une décision ; livrée par fe001392 (R409) et 9f69e184 (R410)
+
 ## ✅ R410 — R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contri… (livrée 2026-10-05)
 
 - [x] **R410 — R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contributions SHAP (réservées Premium)** (P3) ✅ (2026-10-05, 9f69e184)

@@ -89,7 +89,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R412, R413, R414, R415, R283, R406 -->
+<!-- reprise: open=R412, R413, R414, R415, R283 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
@@ -170,4 +170,3 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
 | R283 | Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test | P2 | ta vérification — runbook § 39. **Reste un seul geste (2026-10-05)** : le câblage est réparé (R408, déployé) mais le conteneur lit encore un coupon VIDE — poser la valeur dans `/opt/streamlytics/.env` (pas `.env.local`) puis redéployer api+dashboard |
-| R406 | Deux décisions de TARIF sorties de R399 et R381 (2026-10-05) : (1) « quelle tranche d'âge clique le moins cher » quitte le CPR Optimizer (Premium) pour la Vue croisée (Free) ? (2) l'aperçu gratuit montre-t-il un SHAP des valeurs imputées (expose une partie du modèle Premium) ? | P3 | ta réponse dans le fil — runbook § 40 |

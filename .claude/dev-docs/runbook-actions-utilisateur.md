@@ -2161,7 +2161,7 @@ de test ; seul le coupon live va en prod.
 **Vérification live** : au premier vrai parrainage, dans « 📊 Referral KPIs », la ligne du parrain passe `pending` →
 `applied` ; sur sa facture suivante dans Stripe, la remise de 100 % apparaît.
 
-## 40. R406 — Deux décisions de tarif (Vue croisée, aperçu algo) · P3
+## 40. ~~R406 — Deux décisions de tarif (Vue croisée, aperçu algo)~~ · ✅ FAIT le 2026-10-05 — « 1 oui, 2 oui sans contributions », livrés par R409 et R410
 
 **Pourquoi** : deux demandes de ta revue d'écrans du 2026-10-05 déplaceraient une
 fonction Premium vers le plan gratuit. Le reste de R399 et de R381 se construit sans elles.
