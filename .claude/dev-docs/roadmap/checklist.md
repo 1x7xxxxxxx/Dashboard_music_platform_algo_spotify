@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R395 | Déploiement prod en FIN de nuit (autorisé 2026-10-05) : CI verte sur le commit déployé, sauvegarde de la base, migration 145 puis les additives en attente, `deploy.sh` (api + dashboard), `git pull` pour les DAG ; puis contrôles post-déploiement (`/health`, accueil rendu, mails ops) — jamais un DAG déclenché à la main, jamais `tasks test` <!-- critic: non — procédure existante, autorisée --> <!-- scope: .claude/dev-docs/ --> | P2 | HEAD prod = commit déployé ; `/health` 200 ; aucune empreinte neuve dans `app_error_log` 30 min après |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R395, R283, R406 -->
+<!-- reprise: open=R283, R406 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

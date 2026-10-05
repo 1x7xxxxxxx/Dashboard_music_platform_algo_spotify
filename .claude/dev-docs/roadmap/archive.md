@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R395 — Déploiement prod en FIN de nuit (autorisé 2026-10-05) (livrée 2026-10-05)
+
+- [x] **R395 — Déploiement prod en FIN de nuit (autorisé 2026-10-05) : CI verte sur le commit déployé, sauvegarde, migrations 145 + additives, `deploy.sh` (api + dashboard), `git pull` pour les DAG, contrôles post-déploiement**
+  Mesuré par : HEAD prod = commit déployé ; `/health` 200 ; aucune empreinte neuve dans `app_error_log` 30 min après
+  Prod 4f422e52 → b9d4966a (CI verte, run 37343104822) le 2026-10-05 16:52 UTC : sauvegarde 16:44, migrations 145 (stripe_unmatched_events) + 146 (trigger hypeddit, CREATE OR REPLACE) appliquées par `make deploy MIGRATE=1`, api + dashboard sains, DAG au même commit (bind-mount). `/health` 200, accueil rendu sans erreur console ; à +30 min (17:22 UTC) aucune empreinte neuve dans `app_error_log`, aucun mail ops. ⚠ le déploiement signale 106 et 125 éditées après application (non rejouées) — `make schema-check` à lancer.
+  Commits : aucun — une livraison d'exploitation ; commit déployé b9d4966a
+
 ## ✅ R407 — Un verdict CI lu sur une API servie en retard (mail ops 2026-10-05 15:18, fausse alerte… (livrée 2026-10-05)
 
 - [x] **R407 — Un verdict CI lu sur une API servie en retard (mail ops 2026-10-05 15:18, fausse alerte « CI (main) ROUGE depuis le 2026-09-20 ») : `nightly_recap.fetch_runs` lit `/actions/workflows/…/runs` sans contrôle de fraîcheur — un run plus vieux que le dernier commit de main doit rendre « illisible », jamais « rouge ». Balayage fait (sibling-sweeper) : 4 sites frères vivants — `tools/dev/night_run.py` (`_main_ci_runs`/`red_main`), `tools/dev/ci_break_mail.py` (`previous_conclusion`), `tests/test_the_monitor_itself_still_runs.py` (âge, série d'échecs) ; `arch_benchmark._ci_runs` est une statistique, à trancher. Sûrs : lectures indexées par sha** (P3) ✅ (2026-10-05, bf9a0085, e2940d32)
