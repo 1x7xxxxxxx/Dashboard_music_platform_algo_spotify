@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R408 | R283 en prod : `STRIPE_REFERRAL_COUPON_ID` posé dans `.env` n'atteint ni l'api ni le dashboard — le compose ne le passe pas (`environment:` explicite, pas d'`env_file`). Le câbler (modèle versionné + prod), balayer les autres variables lues et jamais passées, et un garde qui rapproche `os.getenv` du compose <!-- critic: non — câblage de configuration, garde neuf muté --> <!-- scope: docker-compose.example.yml, .env.example, src/utils/referral_rewards.py, deploy/, tests/, .test_durations, .claude/dev-docs/ --> | P2 | `coupon_set= True` dans les deux conteneurs ; garde rouge sur le modèle d'avant |
 | R410 | R406(2) : l'aperçu algo gratuit liste les critères manquants / imputés, sans les contributions SHAP (réservées Premium) <!-- critic: non — filtrage d'un rendu existant --> <!-- scope: src/dashboard/views/trigger_algo/, src/dashboard/utils/, tests/, .test_durations, .claude/dev-docs/ --> | P3 | AppTest free/premium : aucune contribution chiffrée en free |
 | R411 | Harnais : fermer les défauts `test_red` périmés (tests re-rejoués verts) et lire le traceback `render_harness` ouvert <!-- critic: non — tri --> <!-- scope: .claude/dev-docs/, tools/dev/, tests/, .test_durations --> | P4 | `make defect-log` à 0 ouvert, ou chacun nommé |
 | R412 | Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jamais vu rouge) <!-- critic: non — mesure --> <!-- scope: .claude/dev-docs/, tools/dev/, tests/, .test_durations, .claude/scripts/ --> | P4 | `make harness-report` : 0 périmée, 0 vert-jamais-rouge |
@@ -92,7 +91,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R408, R410, R411, R412, R413, R414, R415, R283, R406 -->
+<!-- reprise: open=R410, R411, R412, R413, R414, R415, R283, R406 -->
 
 **État au 2026-10-04** : index vide ; seule R283 attend ton geste (🙋). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

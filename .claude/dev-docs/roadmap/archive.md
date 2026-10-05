@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R408 — R283 en prod : `STRIPE_REFERRAL_COUPON_ID` posé dans `.env` n'atteint ni l'api ni le da… (livrée 2026-10-05)
+
+- [x] **R408 — R283 en prod : `STRIPE_REFERRAL_COUPON_ID` posé dans `.env` n'atteint ni l'api ni le dashboard — le compose ne le passe pas (`environment:` explicite, pas d'`env_file`). Le câbler (modèle versionné + prod), balayer les autres variables lues et jamais passées, et un garde qui rapproche `os.getenv` du compose** (P2) ✅ (2026-10-05, 77dfbd77)
+  Mesuré par : `coupon_set= True` dans les deux conteneurs ; garde rouge sur le modèle d'avant
+  Câblage livré et déployé (2d0d87e9) : STRIPE_REFERRAL_COUPON_ID vers api+dashboard, 3 lectures dashboard câblées avec le défaut du code ; garde ouvert test_every_env_read_reaches_its_container (fermeture d'imports, muté 2 sens). Prod : SESSION_IDLE_TIMEOUT arrive ; le coupon se résout VIDE — la valeur manque dans /opt/streamlytics/.env (R283, geste du propriétaire).
+  Commits : 77dfbd77 R408 : le coupon de parrainage — et trois autres lectures — atteignent
+
 ## ✅ R409 — R406(1) : le panneau « 🎂 Quelle tranche d'âge clique le moins cher » quitte le CPR Opti… (livrée 2026-10-05)
 
 - [x] **R409 — R406(1) : le panneau « 🎂 Quelle tranche d'âge clique le moins cher » quitte le CPR Optimizer (Premium) pour la Vue croisée (Free) — donnée déjà visible dans Meta Ads, décision du propriétaire 2026-10-05. L'affinité d'âge reste dans le score Premium** (P3) ✅ (2026-10-05, fe001392)
