@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from src.dashboard.utils.meta_filter_bar import PERIOD_KEY
 from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
 
@@ -115,8 +116,10 @@ def test_each_section_renders_the_one_bar() -> None:
         at.segmented_control(key="meta_overview_section").set_value(section).run(timeout=180)
         assert not at.exception, (section, at.exception)
         keys = [getattr(w, "key", None) for w in _walk(at._tree)]
+        # The bar's own free period (`meta_period_*`) is drawn when no campaign is
+        # chosen — the CI's empty base, red on 7c02a42c when it was counted as a stray.
         periods = sorted(k for k in keys if k and k.endswith("_preset")
-                         and not k.startswith("ig_"))
+                         and not k.startswith(("ig_", PERIOD_KEY)))
         assert not periods, f"« {section} » draws a period of its own: {periods}"
         campaign = keys.count("meta_campaign")
         if section == "instagram":
@@ -125,3 +128,21 @@ def test_each_section_renders_the_one_bar() -> None:
                 "Instagram does not say it is outside the bar")
         else:
             assert campaign == 1, f"« {section} » shows the campaign filter {campaign} times"
+
+
+@pytest.mark.skipif(not db_ready(), reason="renders the Meta page against the live DB")
+def test_the_bars_free_period_is_not_a_stray() -> None:
+    """« Toutes » draws the bar's free period — the CI's empty base does it by default."""
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
+                                                  artist_id=1))
+    at.run(timeout=180)
+    at.segmented_control(key="meta_overview_section").set_value("perf").run(timeout=180)
+    at.selectbox(key="meta_campaign").set_value("Toutes").run(timeout=180)
+    assert not at.exception, at.exception
+    keys = [getattr(w, "key", None) for w in _walk(at._tree)]
+    assert any(k and k.startswith(PERIOD_KEY) for k in keys), "the free period is not drawn"
+    strays = [k for k in keys if k and k.endswith("_preset")
+              and not k.startswith(("ig_", PERIOD_KEY))]
+    assert not strays, strays
