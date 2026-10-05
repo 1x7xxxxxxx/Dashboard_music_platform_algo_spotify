@@ -112,7 +112,8 @@
   sources: [{notes: L72}, {notes: L80}, {theorie: "Kleppmann, Designing Data-Intensive Applications p.39 (repenser à chaque ordre de grandeur)"}, {theorie: "Golding, Multi-Tenant SaaS p.449 (noisy neighbor)"}]
   priorite: P2
   statut: partiel
-  a_ecrire: "test qui refuse, dans airflow/dags/*_daily.py, une boucle `for` sur les locataires à l'intérieur d'un seul PythonOperator (exiger .expand() ou une tâche par locataire)"
+  preuve: {pytest: tests/test_the_tenant_loops_are_the_accepted_ones.py::test_every_tenant_loop_is_an_accepted_one}
+  mutation: "ajouter une boucle `for artist_id in artists` dans un DAG *_daily.py (vu rouge 2026-10-05)"
   ecart: "différé par ADR-030 derrière un déclencheur surveillé chaque nuit (reopen_check « fan-out par locataire ») : meta p95 636 s sur 30 jours = 6 % de son timeout de 3 h, 5 locataires ; le chiffre de 1 953 s précédait R266"
   roadmap: R284
 
@@ -577,7 +578,8 @@
   priorite: P3
   statut: partiel
   ecart: "replis directs surveillés (alerte ConnectionPoolExhausted ; son seul déclenchement, 2026-09-26/27, était la fuite de /health corrigée par R215 — 0 emprunt sur 24 h ensuite) ; pool de 8 par instance, 15 connexions sur 100 en prod — agrandi quand l'usage passe 50 % (ADR-030)"
-  a_ecrire: "test qui lit la taille du pool et le nombre de connexions par rendu, et exige pool ≥ connexions × concurrence déclarée"
+  preuve: {pytest: tests/test_the_pool_covers_the_declared_concurrency.py::test_every_pool_covers_the_declared_concurrency_and_stays_bounded}
+  mutation: "maxconn=4 dans src/api/main.py, ou maxconn=60 dans src/dashboard/utils/__init__.py (vus rouges 2026-10-05)"
   roadmap: R284
 - id: REQ-API-02
   domaine: api

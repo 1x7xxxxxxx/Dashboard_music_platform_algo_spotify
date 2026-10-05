@@ -152,6 +152,10 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_number_is_written_one_way.py":
         "2026-10-04 — st.dataframe(df) brut ajouté à recap.py:37 → 1 rouge ; .style.map retiré (meta_mapping/_tracks.py:341) → 1 rouge"
         " ; 2026-10-05 — R368 : _SEPARATORS réduit à l'espace seul → 1 rouge (16 hacks à espace fine insécable)",
+    "tests/test_the_tenant_loops_are_the_accepted_ones.py":
+        "2026-10-05 — R367 : boucle `for artist_id` ajoutée à youtube_daily.py → 1 rouge ; cible renommée a_id (meta_ads_api_daily.py:68) → 1 rouge",
+    "tests/test_the_pool_covers_the_declared_concurrency.py":
+        "2026-10-05 — R367 : maxconn=4 (api/main.py:104) → 1 rouge ; maxconn=60 (dashboard/utils/__init__.py:72) → 1 rouge",
     "tests/test_views_render_smoke.py":
         "2026-10-04 — raise RuntimeError en tête de privacy.show() → 1 rouge",
     "tests/test_fleet_state_never_reaches_a_tenant_surface.py":
