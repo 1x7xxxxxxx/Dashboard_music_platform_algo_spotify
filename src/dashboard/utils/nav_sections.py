@@ -118,8 +118,14 @@ NAV_SECTIONS: list = [
     # ⚠️ R348 (2026-10-04, retour d'écran) : « Tout mon funnel » REDESCEND, en onglet de
     # « 📣 Publicité Meta Ads » — « normalement on a des onglets à disposition pour ça ».
     # La route survit pour les liens (pitch, récap, PDF).
+    # R386 (V47, 2026-10-05, retour d'écran) : la tête du menu porte les trois gestes
+    # qui ne demandent aucune lecture préalable — l'accueil, le rapport qui résume tout,
+    # et qui peut s'en occuper. Ils quittent la fin d'« Analytics », où il fallait
+    # dérouler six plateformes pour les trouver.
     ("start",     "",
-     [("🏠 Accueil", "home")]),
+     [("🏠 Accueil", "home"),
+      ("📄 Rapport de carrière PDF", "export_pdf"),
+      ("🎯 Faire piloter mes campagnes", "service")]),
     ("data",      "⚙️ Configuration de streaMLytics",
      [("🚀 Mise en route (assistant)", "onboarding"),
       ("🚦 Santé onboarding", "onboarding_health"),
@@ -159,8 +165,7 @@ NAV_SECTIONS: list = [
       # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS, donc des
       # chiffres Spotify. Une entrée par SOURCE DE SAISIE éparpillait une seule
       # histoire. La route reste valide — des liens la visent.
-      ("📄 Rapport de carrière PDF", "export_pdf"),
-      ("🎯 Faire piloter mes campagnes", "service")]),
+      ]),
     # ── CE QUI SE VEND, RASSEMBLÉ — 2026-09-21, complété le 2026-09-22 ─────────
     #
     # Les six pages Premium étaient dispersées dans CINQ sections, chacune au

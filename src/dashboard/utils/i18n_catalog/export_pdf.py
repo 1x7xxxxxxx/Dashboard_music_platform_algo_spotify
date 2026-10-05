@@ -15,7 +15,6 @@ EN = {
         "**since the beginning**; the period above only filters streaming "
         "(S4A, YouTube, etc.). “Since the track's release” uses the release "
         "date of the selected song (the earliest if several)."),
-    "export_pdf.dates_header": "**📅 Dates**",
     "export_pdf.date_from": "From",
     "export_pdf.date_to": "To",
     # Sections
@@ -25,25 +24,16 @@ EN = {
         "Premium plan — locked below."),
     "export_pdf.premium_section_help": (
         "Premium section — upgrade to the Premium plan to include it."),
-    # S4A song selector
-    "export_pdf.s4a_songs_header": "**🎵 S4A — Songs to include** (leave empty = all)",
-    "export_pdf.s4a_songs_label": "S4A songs",
-    "export_pdf.s4a_songs_placeholder": "All songs (default top 15)…",
-    "export_pdf.all_songs": "All",
+    # Song filter (one for every section, R386)
+    "export_pdf.songs_header": "**🎵 Songs**",
+    "export_pdf.songs_label": "Songs",
+    "export_pdf.songs_placeholder": "All songs",
+    "export_pdf.latest_btn": "🆕 Latest release",
     "export_pdf.no_s4a_data": "No S4A data available for this artist.",
-    # ML song selector
-    "export_pdf.ml_songs_header": "**🔬 ML Focus — Songs to include**",
-    "export_pdf.ml_songs_label": "ML songs",
-    "export_pdf.ml_songs_placeholder": "Choose one or more songs…",
-    "export_pdf.ml_songs_warning": (
-        "Select at least one song to enable the ML Focus section."),
     # Period resolution / summary
     "export_pdf.no_release_date": (
         "No known release date for the selection — the report will cover the "
         "full history. Select a song that has a release date."),
-    "export_pdf.report_summary": (
-        "Report for **{name}** · Period: {period} · Sections: {sections}"),
-    "export_pdf.no_sections": "⚠️ none",
     "export_pdf.check_one_section": (
         "Check at least one section to generate the report."),
     # Generation + download

@@ -165,10 +165,10 @@ def test_the_report_opens_what_the_subscription_sells() -> None:
         f"la section Premium ne s'ouvre plus sur l'aperçu puis Road to Algo : {p}")
     assert "export_pdf" not in p, (
         f"le rapport PDF est revenu dans Premium : {p} — ADR-029 l'a rendu gratuit")
-    a = _items("analytics")
-    assert a[-2:] == ["export_pdf", "service"], (
-        f"le rapport ne clôt plus les analyses, juste avant « Faire piloter mes "
-        f"campagnes » : {a[-2:]}")
+    # R386 (V47, 2026-10-05) : le rapport et « Faire piloter » montent en tête du menu,
+    # sous l'accueil — `test_the_home_heads_the_three_gestures_that_need_no_reading`.
+    assert "export_pdf" not in _items("analytics"), (
+        "le rapport est retourné en fin d'« Analytics » — il est en tête depuis R386")
 
 
 def test_the_raw_export_is_an_account_gesture() -> None:
@@ -180,7 +180,7 @@ def test_the_raw_export_is_an_account_gesture() -> None:
         "par facturation plutôt que par usage.")
 
 
-def test_the_home_stands_alone_at_the_top() -> None:
+def test_the_home_heads_the_three_gestures_that_need_no_reading() -> None:
     """Trois gestes y étaient empilés — l'accueil, l'assistant et les deux exports.
 
     Une seule exception, décidée par le propriétaire le 2026-09-26 (R213) : « Tout mon
@@ -188,10 +188,13 @@ def test_the_home_stands_alone_at_the_top() -> None:
     produit, ce sont les données jointes ». Rien d'autre n'y remonte, et l'accueil reste
     premier. R348 (2026-10-04) la redescend en onglet de la page Meta Ads : « normalement on
     a des onglets à disposition pour ça ».
+
+    R386 (V47, 2026-10-05) : la tête porte l'accueil, le rapport de carrière et « Faire
+    piloter mes campagnes » — trois gestes qui ne demandent de lire aucune plateforme.
     """
-    assert _items("start") == ["home"], (
-        f"la tête du menu porte autre chose que l'accueil : {_items('start')} — « Tout mon "
-        "funnel » est un onglet de « 📣 Publicité Meta Ads » depuis R348 (2026-10-04).")
+    assert _items("start") == ["home", "export_pdf", "service"], (
+        f"la tête du menu n'est plus Accueil · Rapport PDF · Faire piloter : "
+        f"{_items('start')}")
 
 
 # ══════════════════════════════════════════════════════════════════════════
