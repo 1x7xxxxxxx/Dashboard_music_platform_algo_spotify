@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R380 — Vue algo — 1/4 : ordre DW → Radio → RR PARTOUT lu d'UNE constante `ALGO_ORDER` (aujourd… (livrée 2026-10-05)
+
+- [x] **R380 — Vue algo — 1/4 : ordre DW → Radio → RR PARTOUT lu d'UNE constante `ALGO_ORDER` (aujourd'hui DW·RR·Radio au verdict, RR·DW·Radio au budget) ; « Comment lire » réécrit (il décrit 7 onglets qui n'existent plus — défaut trouvé)** (P3) ✅ (2026-10-05, 3595244a, d1ad3304, 72656ca7)
+  Mesuré par : un test : aucune figure n'itère un tuple d'algos écrit à la main ; « Comment lire » ne nomme que des sections existantes
+  ALGO_ORDER (src/utils/algo_order.py) = DW → Radio → RR, lu par ~20 sites (vues, PDF, i18n) ; garde tests/test_the_algos_are_listed_in_one_order.py, muté dans les deux sens ; CI verte sur 3595244a
+  Commits : 3595244a R380 : les trois algos se lisent DW → Radio → RR partout, depuis une s · d1ad3304 Roadmap : R401 close (CI verte sur 611315e2) ; R380 — périmètre élargi · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R402 — DÉFAUT (trouvé par le critic de R380/R381, 2026-10-05) : l'onglet Budget & ROI (`trigge… (livrée 2026-10-05)
 
 - [x] **R402 — DÉFAUT (trouvé par le critic de R380/R381, 2026-10-05) : l'onglet Budget & ROI (`trigger_algo/_tab_budget_roi.py:42`, `:183-190`) achète des streams jusqu'à 417/1333/8423 — le volume STABILISÉ une fois la playlist installée (`pdf_exporter/_report.py:388`), que le code lui-même dit « pas un objectif » — sous une légende « Volumes de déclenchement SHAP » sans source ; un troisième jeu `_GATE_28D` (9200/4100…) n'est justifié nulle part. Les montants € affichés reposent sur un seuil détourné** (P2) ✅ (2026-10-05, 4c58856b, 72656ca7)

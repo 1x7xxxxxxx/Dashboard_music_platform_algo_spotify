@@ -699,3 +699,6 @@
 {"at": "2026-10-05T13:28:43+00:00", "head": "d1ad3304", "kind": "done", "task": "R401", "what": ""}
 {"at": "2026-10-05T13:28:43+00:00", "head": "d1ad3304", "kind": "start", "task": "R380", "what": ""}
 {"at": "2026-10-05T13:46:13+00:00", "kind": "done", "task": "R402", "what": "fermée par roadmap-close — L'onglet Budget & ROI ne chiffre plus l'achat de streams jusqu'aux volumes stabilisés (417/1333/8423) ni la porte 28 j sans source ; un seul jeu de seuils (TARGET_THRESHOLDS). Garde tests/test_no_view_buys_streams_up_to_a_threshold.py, rouge sur l'ancien arbre."}
+{"at": "2026-10-05T13:48:00+00:00", "head": "5c077676", "kind": "done", "task": "R402", "what": ""}
+{"at": "2026-10-05T13:48:07+00:00", "head": "5c077676", "kind": "start", "task": "R399", "what": ""}
+{"at": "2026-10-05T13:49:43+00:00", "kind": "done", "task": "R380", "what": "fermée par roadmap-close — ALGO_ORDER (src/utils/algo_order.py) = DW → Radio → RR, lu par ~20 sites (vues, PDF, i18n) ; garde tests/test_the_algos_are_listed_in_one_order.py, muté dans les deux sens ; CI verte sur 3595244a"}

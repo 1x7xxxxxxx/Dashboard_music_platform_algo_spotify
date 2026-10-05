@@ -3188,9 +3188,9 @@
   resume: « Résultats réalisés / ce que ça donne » → vue Prédiction déclenchement algos.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 27
   source: revue/notes-vocales-2026-10-05.md
   note: V19
@@ -3206,9 +3206,9 @@
   resume: « Le pari du modèle / ce qui est arrivé » → Prédiction déclenchement (ML).
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 29
   source: revue/notes-vocales-2026-10-05.md
   note: V21
@@ -3546,63 +3546,63 @@
   resume: Garder « comment lire ».
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 77
   source: revue/notes-vocales-2026-10-05.md
   note: V58
   resume: Sélection automatique de la dernière sortie.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 78
   source: revue/notes-vocales-2026-10-05.md
   note: V59
   resume: 'Séparateurs : la page se lit de haut en bas.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 79
   source: revue/notes-vocales-2026-10-05.md
   note: V60
   resume: Garder les jauges 0-100 %.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 80
   source: revue/notes-vocales-2026-10-05.md
   note: V61
   resume: Noms des playlists en petites boîtes lisibles.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 81
   source: revue/notes-vocales-2026-10-05.md
   note: V62
   resume: Retirer « prochain geste titre par titre ».
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 82
   source: revue/notes-vocales-2026-10-05.md
   note: V63
   resume: '« Valeurs qui déclencheraient » : 2 au lieu de 5, graphiques au lieu de tableaux.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 83
   source: revue/notes-vocales-2026-10-05.md
   note: V64
@@ -3619,9 +3619,9 @@
   resume: Retirer « le vrai pour tout ton catalogue ».
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 85
   source: revue/notes-vocales-2026-10-05.md
   note: V66
@@ -3638,27 +3638,27 @@
   resume: '« Ce qui s''est vraiment passé » : bien, à réorganiser.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 87
   source: revue/notes-vocales-2026-10-05.md
   note: V68
   resume: 'Budget & ROI : graphiques, pas tableaux.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 88
   source: revue/notes-vocales-2026-10-05.md
   note: V69
   resume: Fusionner les quatre sous-vues en UNE, simplifiée, dédoublonnée.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 90
   source: revue/notes-vocales-2026-10-05.md
   note: V70
@@ -3693,9 +3693,9 @@
   resume: Graphique « où j'en suis vs somme des dépenses ».
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 96
   source: revue/notes-vocales-2026-10-05.md
   note: V74
@@ -3703,9 +3703,9 @@
     de prédiction × revenus), simple.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R380
+  preuve_statut: R380 (archivée) — 3595244a
 - ligne: 98
   source: revue/notes-vocales-2026-10-05.md
   note: V75
