@@ -19,6 +19,7 @@ from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.example_figures import OVERVIEW, PROMISES, render_example
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -160,10 +161,24 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # même endroit, récupérées chaque jour automatiquement — pas de blabla inutile ».
     # Les chiffres de l'artiste vivent sur l'accueil ; l'offre, juste en dessous, dit
     # ce que Premium prédit.
+    #
+    # R374 (2026-10-05, V11 · V12) : les figures reviennent, mais GÉNÉRIQUES — jamais
+    # tirées des données du locataire, qui n'en a pas le premier jour. Une vue d'ensemble
+    # sous la phrase, puis les deux promesses côte à côte, même hauteur, dans l'ordre :
+    # prédiction des algos, puis campagnes. Chaque image porte « Exemple ».
     st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
     st.markdown(t("onboarding.brief_1",
                   "**Toutes tes données au même endroit, récupérées chaque jour, "
                   "automatiquement.**"))
+    render_example(OVERVIEW)
+    for col, name, line in zip(st.columns(2), PROMISES, (
+            t("onboarding.promise_algo",
+              "**Prédire Discover Weekly, Release Radar et Radio**"),
+            t("onboarding.promise_campaign",
+              "**Savoir quel euro de pub a produit quelles écoutes**"))):
+        with col:
+            st.markdown(line)
+            render_example(name)
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",

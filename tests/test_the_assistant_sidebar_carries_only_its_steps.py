@@ -37,7 +37,7 @@ green again:
   `test_connect_my_sources_opens_step_two_and_stays` RED;
 * a plotly figure, then (separately) a numpy `st.image`, added under the « en bref »
   sentence: `test_the_brief_calls_no_figure` and
-  `test_the_welcome_step_draws_no_figure` RED for both. The image mutation first
+  `test_the_welcome_step_draws_no_figure` (now `..._draws_only_example_figures`, R374) RED for both. The image mutation first
   stayed GREEN on the rendered test — AppTest reports `image`, not `imgs`.
 """
 from __future__ import annotations
@@ -167,15 +167,25 @@ def test_the_brief_calls_no_figure() -> None:
              for s in _brief_statements() for c in ast.walk(s)
              if isinstance(c, ast.Call)}
     assert "markdown" in calls, "CONTROL: the « en bref » slice holds no call at all"
+    # R374 (V11 · V12): figures came back, but ONLY as labelled examples through the
+    # shared module — never a chart drawn here from the tenant's data.
+    assert "render_example" in calls, "CONTROL: the example figures left « en bref »"
     assert not calls & _FIGURE_CALLS, (
-        f"« streaMLytics en bref » draws {sorted(calls & _FIGURE_CALLS)} again — it "
-        "keeps one sentence, no figure, no legend (R347)")
+        f"« streaMLytics en bref » draws {sorted(calls & _FIGURE_CALLS)} itself — only "
+        "render_example may draw there, and only fictional data (R347, R374)")
 
 
 @requires_live_db()
-def test_the_welcome_step_draws_no_figure() -> None:
-    """The rendered side: whatever function draws it, step 1 shows no figure."""
+def test_the_welcome_step_draws_only_example_figures() -> None:
+    """The rendered side: whatever function draws it, step 1 shows only labelled examples.
+
+    R347 said « no figure »; R374 (owner, V11) brought back generic ones. The property
+    that survives both: nothing on step 1 is a chart of the tenant's data.
+    """
     at = _render("onboarding")
     assert at.session_state["_onboarding_step"] == 1, "CONTROL: not on the welcome step"
-    drawn = {kind: len(at.main.get(kind)) for kind in _FIGURES}
-    assert not any(drawn.values()), f"the welcome step draws figures: {drawn}"
+    drawn = {kind: len(at.main.get(kind)) for kind in _FIGURES if kind != "image"}
+    assert not any(drawn.values()), f"the welcome step draws charts: {drawn}"
+    captions = [img.caption for el in at.main.get("image") for img in el.proto.imgs]
+    assert captions and all("Exemple" in c for c in captions), (
+        f"an image on the welcome step is not labelled as an example: {captions}")

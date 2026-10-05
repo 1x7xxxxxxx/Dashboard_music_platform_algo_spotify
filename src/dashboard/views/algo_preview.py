@@ -1,7 +1,7 @@
 """Aperçu : déclencher les algos — ce que Road to Algo fait, pour ta dernière sortie. GRATUIT.
 
 Type: Feature
-Uses: view_session, algo_preview_data (load_ml_pred, proba_affichable, cout_par_stream,
+Uses: view_session, example_figures (ALGO_PREDICTION), algo_preview_data (load_ml_pred, proba_affichable, cout_par_stream,
       budget_pour_streams), algo_knowledge (split_coach_actions), artist_cashflow
       (trigger_value, track_stream_rate), plan_gate.bouton_vers, i18n
 Depends on: ml_song_predictions, v_meta_daily, v_s4a_song_daily
@@ -34,6 +34,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.algo_knowledge import split_coach_actions
 from src.dashboard.utils.algo_preview_data import (
     budget_pour_streams, cout_par_stream, load_ml_pred, proba_affichable)
+from src.dashboard.utils.example_figures import ALGO_PREDICTION, render_example
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.plan_gate import bouton_vers
 
@@ -99,6 +100,10 @@ def _worth(db, artist_id, song) -> dict[str, float]:
 def show() -> None:
     with view_session() as (db, artist_id):
         st.subheader(t("algo_preview.title", "Aperçu : déclencher les algos Spotify"))
+        # R374 (V55) : la page n'avait aucun graphique. La même figure d'exemple que la
+        # mise en route, étiquetée comme telle — affichée avant l'état vide aussi, qui
+        # est le cas le plus fréquent tant que l'activation n'est pas réglée.
+        render_example(ALGO_PREDICTION)
         song = _latest_scored_song(db, artist_id) if artist_id else None
         if song is None:
             st.info(t("trigger_algo.cat.empty",

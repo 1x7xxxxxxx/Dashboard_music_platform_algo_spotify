@@ -282,7 +282,7 @@ def meta_x_s4a() -> Path:
     forecast = streams[-1] + (trigger_level * 1.04 - streams[-1]) * reach ** 0.8
 
     fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(9, 5.0), sharex=True,
+        2, 1, figsize=(9, 3.85), sharex=True,
         gridspec_kw={"height_ratios": [1, 1.5], "hspace": 0.28})
 
     ax1.bar(days, spend, color=ORANGE, width=0.75)

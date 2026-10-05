@@ -101,6 +101,8 @@ def _strings_and_names(path: Path) -> set[str]:
 
 def test_the_welcome_block_is_one_sentence() -> None:
     seen = _strings_and_names(ONB)
+    # R374 brought the figures back as GENERIC examples (shared module, no tenant data —
+    # tests/test_the_welcome_figures_are_examples.py); the long filler sentences stay out.
     back = {"onboarding.brief_2", "onboarding.brief_3", "_example_chart"} & seen
     assert not back, f"{back} is back in the welcome step (R347: no filler)"
     assert "onboarding.brief_1" in seen, "the one sentence that stays is gone too"
