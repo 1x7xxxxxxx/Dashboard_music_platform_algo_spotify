@@ -19,7 +19,26 @@ from src.utils import nightly_recap as nr
 
 def _run(conclusion: str, day: str) -> dict:
     return {"conclusion": conclusion, "status": "completed", "created_at": f"2026-09-{day}T02:00:00Z",
-            "html_url": f"https://github.com/x/runs/{day}"}
+            "html_url": f"https://github.com/x/runs/{day}", "head_sha": f"sha{day}"}
+
+
+class _Resp(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _github(runs_body: dict, head: str):
+    """A fake opener: the runs page, and the branch's head commit."""
+    def fake(req, timeout):
+        if "/commits/" in req.full_url:
+            return _Resp(json.dumps({"sha": head}).encode())
+        # R316: the completed filter runs on the runs, not in a lagging server-side index
+        assert "status=completed" not in req.full_url and "branch=main" in req.full_url
+        return _Resp(json.dumps(runs_body).encode())
+    return fake
 
 
 def test_the_detector_sees_the_defect_it_is_written_for() -> None:
@@ -55,27 +74,26 @@ def test_an_unreachable_github_reads_as_unreadable_not_green() -> None:
 
 def test_the_fetch_parses_the_public_api_shape() -> None:
     done, running = _run("success", "26"), dict(_run("failure", "27"), status="in_progress")
-    payload = {"workflow_runs": [running, done]}
-
-    class _Resp(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-    def fake(req, timeout):
-        # R316: the completed filter runs on the runs, not in a lagging server-side index
-        assert "status=completed" not in req.full_url and "branch=main" in req.full_url
-        return _Resp(json.dumps(body).encode())
-
-    body = payload
+    fake = _github({"workflow_runs": [running, done]}, head="sha27")
     assert nr.fetch_runs("ci.yml", "main", opener=fake) == [done], (
         "a run still in progress is not a verdict")
-    body = {"message": "API rate limit exceeded"}
+    fake = _github({"message": "API rate limit exceeded"}, head="sha27")
     assert nr.fetch_runs("ci.yml", "main", opener=fake) is None, (
         "an error body is « unreadable », not an empty list read as « unknown »")
     assert "illisible" in nr.describe(None) and "success" in nr.describe([done])
+
+
+def test_a_list_without_the_head_commit_is_stale_not_red() -> None:
+    """R407 — mail ops 2026-10-05 15:18: « CI (main) ROUGE depuis le 2026-09-20 », read
+    on a lagging page whose newest run predated main's head. Mutation 2026-10-05: the
+    `is_fresh` check removed from `fetch_runs` → RED."""
+    stale = {"workflow_runs": [_run("failure", "21"), _run("failure", "20")]}
+    runs = nr.fetch_runs("ci.yml", "main", opener=_github(stale, head="sha30"))
+    assert runs is None, "a page without main's head run was judged — stale read as a verdict"
+    assert nr.verdict(runs)["state"] == "unreadable"
+    assert nr.fetch_runs("ci.yml", "main", opener=_github(stale, head=None)) is None, (
+        "an unknown head cannot vouch for the list")
+    assert nr.fetch_runs("ci.yml", "main", opener=_github(stale, head="sha21")) is not None
 
 
 def test_a_quiet_recap_says_that_silence_would_mean_a_dead_monitor() -> None:

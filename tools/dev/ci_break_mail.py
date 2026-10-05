@@ -57,8 +57,19 @@ def previous_conclusion(env: dict) -> str | None:
         return None
     if not isinstance(runs, list):
         return None
-    done = [run for run in runs if run.get("status") == "completed"]
-    return last_verdict(done, str(env.get("GITHUB_RUN_ID", "")))
+    return judge(runs, str(env.get("GITHUB_RUN_ID", "")))
+
+
+def judge(runs: list[dict], me: str) -> str | None:
+    """The previous verdict, or None when the page does not carry this very run. Pure.
+
+    R407 (2026-10-05): the runs page is served by an index that can lag by days. A page
+    without THIS run is stale — its « last verdict » is an old main's, and reading an
+    old red as « already red » would swallow the break mail. None mails: the safe side.
+    """
+    if not me or not any(str(run.get("id")) == me for run in runs):
+        return None
+    return last_verdict([run for run in runs if run.get("status") == "completed"], me)
 
 
 def last_verdict(runs: list[dict], me: str) -> str | None:

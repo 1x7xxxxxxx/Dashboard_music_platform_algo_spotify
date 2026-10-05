@@ -48,3 +48,14 @@ def test_a_cancelled_run_is_not_a_red_main() -> None:
             {"id": 1, "conclusion": "failure"}, {"id": 0, "conclusion": "success"}]
     assert cbm.last_verdict(runs, "3") == "failure", "the cancelled run hid a red main"
     assert cbm.last_verdict([{"id": 1, "conclusion": "cancelled"}], "9") is None
+
+
+def test_a_page_without_this_run_is_stale_and_mails() -> None:
+    """R407 (2026-10-05): a lagging runs page judged an old main. A page that does not
+    carry THIS run says nothing about the previous one — None, so the break is mailed.
+    Mutation 2026-10-05: the presence check dropped from `judge` → RED."""
+    old = [{"id": 1, "status": "completed", "conclusion": "failure"}]
+    assert cbm.judge(old, "9") is None, "a stale red page swallowed the break mail"
+    assert cbm.judge(old, "") is None
+    fresh = [{"id": 9, "status": "in_progress", "conclusion": None}] + old
+    assert cbm.judge(fresh, "9") == "failure"

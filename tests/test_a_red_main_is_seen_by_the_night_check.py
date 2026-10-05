@@ -43,6 +43,16 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert night_run.red_main(running) is None
 
 
+def test_a_list_without_main_s_head_is_not_judged() -> None:
+    """R407 (2026-10-05): `gh run list --branch main` returned 2026-09-04 as newest while
+    main's head was green — a lagging index. Without the head's run, no verdict.
+    Mutation 2026-10-05: `fresh_runs` returning `runs` unconditionally → RED."""
+    old = [dict(_run("2026-09-04T10:00", "failure"), headSha="aaa")]
+    assert night_run.fresh_runs(old, "bbb") is None, "a stale list was judged"
+    assert night_run.fresh_runs(old, None) is None, "an unknown head vouched for the list"
+    assert night_run.fresh_runs(old, "aaa") == old
+
+
 def test_a_stale_mail_journal_is_seen() -> None:
     """The owner does not read the automated mails; the journal's age is what tells a
     session to go read them. Newest row wins; no row at all is unknown, not fresh."""

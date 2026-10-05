@@ -486,18 +486,42 @@ def red_main(runs: list[dict]) -> "str | None":
             "(`gh run view <id> --log-failed`) AVANT l'unité suivante")
 
 
+def fresh_runs(runs: list[dict], head: "str | None") -> "list[dict] | None":
+    """The runs when they include main's head commit, else None (stale). Pure.
+
+    R407 (2026-10-05): `gh run list --branch main` returned 2026-09-04 as its newest
+    run the evening a run for main's head was green — the list is served by an index
+    that can lag. Every push to main starts CI, so a list without the head's run judges
+    an old main: « non vérifiée », never « rouge ».
+    """
+    if not head or not any(r.get("headSha") == head for r in runs):
+        return None
+    return runs
+
+
+def _main_head() -> "str | None":
+    try:
+        r = subprocess.run(["git", "rev-parse", "origin/main"], capture_output=True,
+                           text=True, timeout=10, cwd=str(REPO))
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout.strip() or None
+
+
 def _main_ci_runs() -> "list[dict] | None":
     try:
         r = subprocess.run(
             ["gh", "run", "list", "--branch", "main", "--limit", "30", "--json",
-             "status,conclusion,createdAt,displayTitle"],
+             "status,conclusion,createdAt,displayTitle,headSha"],
             capture_output=True, text=True, timeout=30, cwd=str(REPO))
     except (OSError, subprocess.TimeoutExpired):
         return None
     if r.returncode != 0:
         return None
     try:
-        return json.loads(r.stdout)
+        return fresh_runs(json.loads(r.stdout), _main_head())
     except ValueError:
         return None
 
@@ -550,8 +574,8 @@ def cmd_check(_args) -> int:
     # compte est celui de la CI : on le lit ici, à chaque fin d'unité.
     runs = _main_ci_runs()
     if runs is None:
-        print("ℹ️  CI de main non vérifiée — `gh` absent ou muet ; ce contrôle n'a rien "
-              "dit de la CI")
+        print("ℹ️  CI de main non vérifiée — `gh` absent, muet, ou sa liste ne porte pas "
+              "le commit de tête (index en retard, R407) ; ce contrôle n'a rien dit de la CI")
     else:
         rouge = red_main(runs)
         if rouge:

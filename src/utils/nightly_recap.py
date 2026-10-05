@@ -55,7 +55,35 @@ def fetch_runs(workflow: str, branch: "str | None", repo: str = REPO,
         return None
     if not isinstance(runs, list):
         return None
+    if branch and not is_fresh(runs, fetch_head(branch, repo, opener)):
+        return None
     return [run for run in runs if run.get("status") == "completed"]
+
+
+def fetch_head(branch: str, repo: str = REPO, opener=urllib.request.urlopen) -> "str | None":
+    """The sha at the tip of `branch`, or None when it cannot be read."""
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/commits/{branch}",
+                                 headers={"Accept": "application/vnd.github+json",
+                                          "User-Agent": "streamlytics-recap"})
+    try:
+        with opener(req, timeout=20) as r:
+            sha = json.load(r).get("sha")
+    except Exception:  # noqa: BLE001 — an unknown head makes the runs unreadable
+        return None
+    return sha if isinstance(sha, str) and sha else None
+
+
+def is_fresh(runs: list, head_sha: "str | None") -> bool:
+    """Do the runs include one for the branch's head commit? Pure.
+
+    R407 (2026-10-05): the runs list is served by an index that can lag by DAYS — the
+    15:18 recap said « CI (main) ROUGE depuis le 2026-09-20 » from a page whose newest
+    run was weeks old, and `gh run list --branch main` returned 2026-09-04 as newest the
+    same evening. Every push to main starts CI, so a list without the head's run is a
+    stale list: « unreadable », never a verdict. Any status counts — the head's run may
+    still be running; the completed filter comes after.
+    """
+    return bool(head_sha) and any(r.get("head_sha") == head_sha for r in runs)
 
 
 def describe(runs: "list[dict] | None", n: int = 3) -> str:
