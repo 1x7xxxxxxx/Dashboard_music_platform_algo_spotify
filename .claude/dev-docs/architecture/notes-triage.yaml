@@ -3712,36 +3712,36 @@
   resume: Par défaut toutes années/mois, filtre refait.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R388
+  preuve_statut: R388 (archivée) — 2b91e215
 - ligne: 99
   source: revue/notes-vocales-2026-10-05.md
   note: V76
   resume: Graphique d'évolution au lieu du tableau détail.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R388
+  preuve_statut: R388 (archivée) — 2b91e215
 - ligne: 100
   source: revue/notes-vocales-2026-10-05.md
   note: V77
   resume: Saisie tout en haut.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R388
+  preuve_statut: R388 (archivée) — 2b91e215
 - ligne: 101
   source: revue/notes-vocales-2026-10-05.md
   note: V78
   resume: 'Une seule sous-vue : données + ROI point mort en bas, éventuellement un graphique avec les prédictions.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R388
+  preuve_statut: R388 (archivée) — 2b91e215
 - ligne: 103
   source: revue/notes-vocales-2026-10-05.md
   note: V79

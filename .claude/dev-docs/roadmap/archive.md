@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R388 — Distributeurs (V75-V78) : une seule sous-vue — saisie en haut, toutes années / mois par… (livrée 2026-10-05)
+
+- [x] **R388 — Distributeurs (V75-V78) : une seule sous-vue — saisie en haut, toutes années / mois par défaut avec un filtre refait, graphique d'évolution au lieu du tableau détail, point mort en bas, sur la même figure que les prédictions si elle reste lisible** (P3) ✅ (2026-10-05, 2b91e215)
+  Mesuré par : AppTest : plus de `st.tabs` ; le formulaire est le premier widget de la page
+  CI verte sur 2b91e215 — page Distributeur lue de haut en bas : saisie, évolution empilée par distributeur + cumul (lu dans v_artist_monthly_revenue), point mort ; onglets et tableau de détail retirés
+  Commits : 2b91e215 R388 : Distributeur — une page lue de haut en bas : saisie, évolution 
+
 ## ✅ R386 — Rapport de carrière PDF (V47-V51) : section de tête = Accueil, Rapport PDF, Faire pilot… (livrée 2026-10-05)
 
 - [x] **R386 — Rapport de carrière PDF (V47-V51) : section de tête = Accueil, Rapport PDF, Faire piloter mes campagnes ; un filtre « chansons » aligné avec Artiste et Période, défaut toutes, qui remplace « S4A chansons à inclure » et « Focus ML chansons à inclure » ; bouton « dernière sortie » ; bouton Générer juste après les trois filtres ; retirer « Rapport pour … »** (P3) ✅ (2026-10-05, 288f86b9, 0a243bf9)
