@@ -115,14 +115,43 @@ def _build_content(timestamp: str, branch: str, git_str: str, devlog: str, wip: 
         f"After /clear or session restart:\n"
         f"1. Run `/resume` to reload sprint + WIP state\n"
         f"2. Check `.claude/sessions/session-{timestamp}.md` for pre-compaction context\n"
-        f"3. Re-run `python3 -m pytest tests/ -q` to confirm test state\n\n"
+        f"3. Run `make test-changed` to confirm test state (never bare pytest)\n\n"
         f"## Notes\n"
         f"*(Add any in-progress context here manually if needed)*\n"
     )
 
 
+_NIGHT_HEADER = "## Night status (tools/dev/night_run.py status)"
+_NIGHT_MAX_LINES, _NIGHT_MAX_CHARS = 40, 3000
+
+
+def _night_status(repo_root: Path, timeout: float = 10.0) -> str:
+    """Where a long session stood — `night_run.py status`, the screen a resume needs
+    (REQ-HARN-06, R414). A subprocess, never `make` (3 scripts) nor `check` (it calls
+    `gh`). Bounded, and soft: a failure is one note line, never a lost snapshot."""
+    script = repo_root / "tools" / "dev" / "night_run.py"
+    if not script.exists():
+        return "(night_run.py absent)"
+    try:
+        r = subprocess.run([sys.executable, str(script), "status"], capture_output=True,
+                           text=True, cwd=repo_root, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"(night-status unavailable: {type(exc).__name__})"
+    if r.returncode != 0 or not r.stdout.strip():
+        return f"(night-status unavailable: exit {r.returncode})"
+    lines = r.stdout.rstrip().splitlines()
+    out = "\n".join(lines[:_NIGHT_MAX_LINES])[:_NIGHT_MAX_CHARS]
+    return out + ("\n(… truncated)" if len(lines) > _NIGHT_MAX_LINES or len(out) == _NIGHT_MAX_CHARS else "")
+
+
+def _with_night_status(content: str, status: str) -> str:
+    return f"{content}\n{_NIGHT_HEADER}\n```\n{status}\n```\n"
+
+
 def _strip_timestamps(text: str) -> str:
-    """The snapshot minus the two lines that carry its own timestamp."""
+    """The snapshot minus the lines that carry a clock: its own timestamp, and the whole
+    night-status block (a clock and unit ages — it would differ on every call, R414)."""
+    text = text.split(f"\n{_NIGHT_HEADER}\n", 1)[0]
     return "\n".join(
         ln for ln in text.splitlines()
         if not ln.startswith("# Session State — ")
@@ -157,7 +186,8 @@ def main() -> None:
     wip_dir = repo_root / ".claude" / "dev-docs" / "work-in-progress"
     wip = _get_wip_summary(wip_dir)
 
-    content = _build_content(timestamp, branch, git_str, devlog, wip)
+    content = _with_night_status(_build_content(timestamp, branch, git_str, devlog, wip),
+                                 _night_status(repo_root))
 
     # Retention keeps the last 10 snapshots, so an identical rewrite is not free:
     # it evicts a genuinely different one. Measured 2026-07-27 — this hook fired

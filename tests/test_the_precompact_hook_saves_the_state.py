@@ -15,6 +15,13 @@ had no test, so a crash there would cost the resume context silently. What must 
 Mutation record (2026-10-04): seen red with the hook unregistered, with the
 `_same_state` short-circuit removed (a second identical snapshot), and with the
 git status lines dropped from the content.
+
+R414 (REQ-HARN-06): the snapshot also carries `night_run.py status` — where a long session
+stood, the one thing a resume after compaction lacked. The block carries a clock, so it
+is outside the state comparison; it is bounded; a failure is one note line; and it is the
+`status` subcommand only (`check` calls `gh`). Mutations (2026-10-05): block kept in
+`_strip_timestamps` → RED (a second snapshot for one state); the line cap removed → RED;
+`status` → `check` → RED.
 """
 from __future__ import annotations
 
@@ -76,3 +83,50 @@ def test_a_dirty_tree_is_saved_once_per_state(tmp_path: Path) -> None:
     time.sleep(1.1)  # the snapshot name has 1 s resolution
     _run(repo)
     assert len(_snapshots(repo)) == 2
+
+
+_FAKE = """import sys, time
+open(".claude/sessions/argv.txt", "w").write(" ".join(sys.argv[1:]))  # gitignored, like the snapshots
+print("OÙ J'EN SUIS — " + repr(time.time()))
+for i in range(80):
+    print(f"line {i}")
+"""
+
+
+def _fake_night_run(repo: Path, body: str = _FAKE) -> Path:
+    target = repo / "tools" / "dev" / "night_run.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body)
+    return target
+
+
+def test_the_snapshot_carries_a_bounded_night_status_outside_the_state(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fake_night_run(repo)
+    (repo / "a.py").write_text("x = 2\n")
+    _run(repo)
+    text = (repo / ".claude" / "sessions" / "latest.md").read_text(encoding="utf-8")
+    assert "## Night status" in text and "OÙ J'EN SUIS" in text
+    assert "line 39" not in text and "(… truncated)" in text, "the block is not bounded"
+    assert (repo / ".claude" / "sessions" / "argv.txt").read_text() == "status", "only `status` — `check` calls gh"
+
+    time.sleep(1.1)
+    _run(repo)  # the fake prints a new clock: same state, different block
+    assert len(_snapshots(repo)) == 1, "a night-status clock made a second snapshot"
+
+
+def _hook_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("pre_compact_r414", HOOK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_a_failing_or_slow_night_status_is_one_note_line(tmp_path: Path) -> None:
+    hook = _hook_module()
+    assert hook._night_status(tmp_path) == "(night_run.py absent)"
+    _fake_night_run(tmp_path, "import sys; sys.exit(3)")
+    assert hook._night_status(tmp_path) == "(night-status unavailable: exit 3)"
+    _fake_night_run(tmp_path, "import time; time.sleep(5)")
+    assert hook._night_status(tmp_path, timeout=0.5) == "(night-status unavailable: TimeoutExpired)"

@@ -697,7 +697,11 @@
   composants: [.claude/hooks/check_python_syntax.py, .claude/hooks/lint_dashboard_view.py, .claude/hooks/observe.py, .claude/hooks/check_prod_sync.py, .claude/hooks/check_error_class_evidence.py]
   preuve: {pytest: tests/test_the_prose_gate_and_the_evidence_hook_see_their_defect.py::test_the_evidence_hook_names_a_class_without_its_proofs}
   ecart: "observe.py et lint_dashboard_view.py n'ont qu'une preuve indirecte (tests qui lisent leur sortie)"
-  opportunite: "une seule invocation PostToolUse qui appelle les 5 contrôles en séquence : 5 processus Python par écriture → 1"
+  # Refusé R414 (2026-10-05), sur mesure : Claude Code lance en PARALLÈLE les hooks d'un
+  # même évènement — 5 processus = 84 ms médiane, les mêmes en série 236 ms (20 tirages
+  # alternés, suite de tests en cours). Un répartiteur en un processus serait en série :
+  # plus lent, et il effacerait la trace par hook de R365 (_hook_trace n'écrit que pour
+  # __main__). code-critic : DO-NOT-BUILD.
   mutation: "faire accepter une classe sans seen_red par check_error_class_evidence.py"
 - id: REQ-HARN-05
   domaine: claude-wsl
@@ -720,8 +724,9 @@
   portee: generique
   composants: [.claude/hooks/pre_compact.py]
   preuve: {pytest: tests/test_the_precompact_hook_saves_the_state.py::test_a_dirty_tree_is_saved_once_per_state}
-  ecart: "le contexte de reprise ne porte ni l'unité de nuit ouverte ni les tâches de fond en cours ; night-status y répond, le hook ne l'appelle pas"
-  opportunite: "faire écrire `make night-status` dans le fichier de séance : une reprise après compaction en un seul fichier"
+  # R414 (2026-10-05) : le fichier de séance porte `night_run.py status` (unité ouverte,
+  # arbre, index, parqués), borné à 40 lignes, hors de la comparaison d'état, une ligne
+  # de note en cas d'échec. Gardé par test_the_precompact_hook_saves_the_state.py.
   mutation: "neutraliser _same_state (deux instantanés pour un même état)"
 - id: REQ-HARN-07
   domaine: claude-wsl
