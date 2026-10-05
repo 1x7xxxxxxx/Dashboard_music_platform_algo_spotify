@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R409 — R406(1) : le panneau « 🎂 Quelle tranche d'âge clique le moins cher » quitte le CPR Opti… (livrée 2026-10-05)
+
+- [x] **R409 — R406(1) : le panneau « 🎂 Quelle tranche d'âge clique le moins cher » quitte le CPR Optimizer (Premium) pour la Vue croisée (Free) — donnée déjà visible dans Meta Ads, décision du propriétaire 2026-10-05. L'affinité d'âge reste dans le score Premium** (P3) ✅ (2026-10-05, fe001392)
+  Mesuré par : AppTest des deux vues + PNG regardé ; `chart_decisions` à jour
+  Constat d'âge rendu en Free par Vue croisée → Qui a vu tes pubs ; le score Premium garde l'affinité ; un seul calcul (utils/age_brackets.py). CI verte sur fe001392.
+  Commits : fe001392 R409 : la tranche d'âge la moins chère passe en Free (Vue croisée → Qu
+
 ## ✅ R395 — Déploiement prod en FIN de nuit (autorisé 2026-10-05) (livrée 2026-10-05)
 
 - [x] **R395 — Déploiement prod en FIN de nuit (autorisé 2026-10-05) : CI verte sur le commit déployé, sauvegarde, migrations 145 + additives, `deploy.sh` (api + dashboard), `git pull` pour les DAG, contrôles post-déploiement**
