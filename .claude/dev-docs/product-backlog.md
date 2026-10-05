@@ -27,6 +27,13 @@ attend un geste, l'index sinon).
 
 ---
 
+**En attente d'un choix du propriétaire — les données YouTube Analytics (R394, V40, V41).**
+Les abonnés gagnés par vidéo, la durée de visionnage, la rétention et les sources de
+trafic ne sont pas dans la Data API v3 que l'app lit. L'inventaire de ce que l'Analytics
+API exposerait, avec son geste de branchement et cinq métriques recommandées, est
+`.claude/dev-docs/youtube-analytics-inventory.md`. Ce que le propriétaire en retient
+repart dans la roadmap comme une tâche de collecte.
+
 ## 📚 R148, R150, R151 — ce que les dix livres du 2026-09-22 ont changé
 
 Dix livres ingérés (11 939 passages) en trois domaines : `business-offre` (6),
