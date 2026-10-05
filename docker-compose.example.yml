@@ -306,6 +306,12 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_CHECKOUT_URL: ${STRIPE_CHECKOUT_URL}
       STRIPE_PORTAL_URL: ${STRIPE_PORTAL_URL}
+      # R408 — read by the dashboard but never wired until 2026-10-05: R283 had set the
+      # coupon in .env and it never reached a container (no env_file, explicit map).
+      STRIPE_REFERRAL_COUPON_ID: ${STRIPE_REFERRAL_COUPON_ID:-}   # referral_rewards.py
+      SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-60}   # auth.py — int() of an empty string crashes the import
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8502}   # views/useful_links.py — same default as the code
+      DISTROKID_USD_EUR_RATE: ${DISTROKID_USD_EUR_RATE:-0.92}   # distrokid_rollup.py via the upload page
       TZ: Europe/Paris
     ports:
       # Loopback-only: Caddy (app.<domain>) terminates TLS and proxies to this.
@@ -408,6 +414,7 @@ services:
       API_AUTH_RATE_LIMIT_WINDOW_SECS: ${API_AUTH_RATE_LIMIT_WINDOW_SECS:-300}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET} # webhook returns 503 if unset (intended)
+      STRIPE_REFERRAL_COUPON_ID: ${STRIPE_REFERRAL_COUPON_ID:-}   # R408 — referral reward on the webhook
       TZ: Europe/Paris
     ports:
       - '127.0.0.1:8502:8502'
