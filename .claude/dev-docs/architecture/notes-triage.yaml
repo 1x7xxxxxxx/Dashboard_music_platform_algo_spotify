@@ -3537,9 +3537,9 @@
   resume: Plus de graphiques de valeur, dont SHAP identifiant les valeurs manquantes sur les critères les plus importants.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R381
+  preuve_statut: R381 (archivée) — 3346a4df
 - ligne: 76
   source: revue/notes-vocales-2026-10-05.md
   note: V57
@@ -3610,9 +3610,9 @@
     ; DW puis Radio puis RR ; seuils Spotify.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R381
+  preuve_statut: R381 (archivée) — 3346a4df
 - ligne: 84
   source: revue/notes-vocales-2026-10-05.md
   note: V65
@@ -3629,9 +3629,9 @@
     tableaux.'
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R381
+  preuve_statut: R381 (archivée) — 3346a4df
 - ligne: 86
   source: revue/notes-vocales-2026-10-05.md
   note: V67
@@ -3674,9 +3674,9 @@
   resume: « Recommandations détaillées » → Prédiction déclenchement, dernière sortie.
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R381
+  preuve_statut: R381 (archivée) — 3346a4df
 - ligne: 93
   source: revue/notes-vocales-2026-10-05.md
   note: V72
@@ -3684,9 +3684,9 @@
     au meilleur CPR (âge, placement…).
   type: action-produit
   domaine: ml
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R381
+  preuve_statut: R381 (archivée) — 3346a4df
 - ligne: 95
   source: revue/notes-vocales-2026-10-05.md
   note: V73

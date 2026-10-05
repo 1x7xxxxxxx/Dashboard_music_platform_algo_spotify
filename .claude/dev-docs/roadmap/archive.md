@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R381 — Vue algo — le contenu qui décide (V56, V64, V66, V71) : SHAP par playlist décroissant,… (livrée 2026-10-05)
+
+- [x] **R381 — Vue algo — le contenu qui décide (V56, V64, V66, V71) : SHAP par playlist décroissant, les playlists au plancher `proba_affichable` EXCLUES (un plancher n'est pas une mesure) ; valeur atteinte vs seuil d'ENTRÉE (130/137/639, `ml_outcome_labeling.TARGET_THRESHOLDS` — le seul jeu qui soit un seuil) ; coût Meta pour combler l'écart en FOURCHETTE meilleur CPR ↔ CPR moyen, dit « ordre de grandeur » ; recommandations du CPR Optimizer pour la dernière sortie RÉUTILISÉES depuis `meta_cpr_optimizer.py`, pas recalculées. ÉCARTÉ (critic DO-NOT-BUILD) : « réglages recommandés tirés des campagnes au meilleur CPR » — le minimum est la statistique la plus bruitée, 19 campagnes liées ; à rouvrir avec un plancher calibré sur la prod et un n affiché. Aperçu gratuit d'un SHAP des valeurs imputées → R406 (tarif)** (P3) ✅ (2026-10-05, 3346a4df, 42560c61, 72656ca7)
+  Mesuré par : un test : seuils lus d'UNE constante ; le coût sort d'une fonction partagée et rend deux bornes ; recommandations calculées sur un jeu de campagnes figé (fixture), rouges si le meilleur CPR change
+  Vue algo : par playlist, SHAP trié (plancher exclu, critère manquant signalé), réalisé vs TARGET_THRESHOLDS, fourchette meilleur↔moyen CPR (une seule ligne quand commune), recos CPR Optimizer de la dernière sortie. CI verte sur 3346a4df.
+  Commits : 3346a4df R381 : vue algo — playlist par playlist, ce qui pèse, le seuil d'entré · 42560c61 R405 : vue algo 4/4 — argent et réglages Meta absorbés, liens d'alias  · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R405 — Vue algo — 4/4 (V73, V74) : la page absorbe Paramètres de mes campagnes et Prévisions r… (livrée 2026-10-05)
 
 - [x] **R405 — Vue algo — 4/4 (V73, V74) : la page absorbe Paramètres de mes campagnes et Prévisions revenus (+ « où j'en suis vs somme des dépenses ») — anciennes clés gardées en ALIAS vers leur section (liens de mails/PDF) ; « Résultats réalisés » et « Le pari du modèle » PARTAGÉS par module (la saisie S4A est Free, la vue algo Premium — ne pas les enfermer derrière le paywall) ; section Premium = Aperçu + cette vue ; le plafond de `revenue_forecast.py` (15) retiré, pas transféré** (P3) ✅ (2026-10-05, ed7bd948, 42560c61, 72656ca7)
