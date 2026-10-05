@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R387 — Faire piloter mes campagnes (V52-V54) : texte concis « je gère tes campagnes de A à Z s… (livrée 2026-10-05)
+
+- [x] **R387 — Faire piloter mes campagnes (V52-V54) : texte concis « je gère tes campagnes de A à Z selon ton budget et tes objectifs (Meta Ads, créatives, bilan PDF, fichiers quotidiens) », sans durée ni prix ; deux boutons : m'écrire (mail) et réserver un rendez-vous — l'URL de RDV (Calendly ou autre) viendra du propriétaire plus tard : le bouton lit `service_calendly_url`, caché tant qu'elle est vide, tout le reste est livré sans elle** (P3) ✅ (2026-10-05, 1bd8ea71)
+  Mesuré par : AppTest : deux boutons, aucun montant ni durée rendus
+  Faire piloter mes campagnes : une phrase (A à Z, budget, objectifs), M'écrire + Prendre rendez-vous (caché sans service_calendly_url), ni prix ni durée ; garde tests/test_the_service_page_is_one_sentence_and_two_buttons.py (2 mutations rouges). CI verte sur 1bd8ea71.
+  Commits : 1bd8ea71 R387 : Faire piloter mes campagnes — une phrase, deux boutons, ni prix
+
 ## ✅ R389 — SACEM (V79, V80) : graphiques au lieu des tuiles brut / charges / net ; dire que l'impo… (livrée 2026-10-05)
 
 - [x] **R389 — SACEM (V79, V80) : graphiques au lieu des tuiles brut / charges / net ; dire que l'import est un fichier `.xlsx` (pas un CSV) et y mener par un bouton vers l'onglet d'import des Credentials** (P3) ✅ (2026-10-05, 76d0912c)

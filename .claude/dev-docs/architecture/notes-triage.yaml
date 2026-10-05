@@ -3501,27 +3501,27 @@
   resume: Texte concis « je gère vos campagnes de A à Z… » sans durée ni prix.
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R387
+  preuve_statut: R387 (archivée) — 1bd8ea71
 - ligne: 70
   source: revue/notes-vocales-2026-10-05.md
   note: V53
   resume: 'Deux CTA : m''écrire (mail) et réserver un rendez-vous (Calendly ou alternative).'
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R387
+  preuve_statut: R387 (archivée) — 1bd8ea71
 - ligne: 71
   source: revue/notes-vocales-2026-10-05.md
   note: V54
   resume: Retirer le blabla, click-to-action.
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R387
+  preuve_statut: R387 (archivée) — 1bd8ea71
 - ligne: 73
   source: revue/notes-vocales-2026-10-05.md
   note: V55
