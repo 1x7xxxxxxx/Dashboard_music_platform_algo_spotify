@@ -125,7 +125,7 @@ EN = {
         "One bubble = one creative. Low = efficient CPR; size = impressions, colour = CTR. "
         "Creatives without a result (no CPR) are not drawn. CPR counts CLICKS to the "
         "platforms, not streams: « cut » means « expensive per click » — confirm it in "
-        "📣 Meta Ads › 🔀 My whole funnel › Compare my campaigns."),
+        "🔀 Cross view › My whole funnel › Compare my campaigns."),
     "meta_creatives.q_push": "▶ Push: much spent, cheap result",
     "meta_creatives.q_cut": "✂ Cut: much spent, expensive result",
     # Efficiency / funnel / fatigue / activity

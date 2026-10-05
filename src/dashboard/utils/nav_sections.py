@@ -147,16 +147,13 @@ NAV_SECTIONS: list = [
     ("analytics", "📊 Analytics plateformes",
      # R379 (V26) — « 📌 Récap » retired: it drew nothing, it listed ten links.
      [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
-      ("📣 Publicité Meta Ads", "meta_ads_overview"),
-      # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces
-      # pages lisent tes données, elles ne prédisent rien. « Tout mon funnel »
-      # (`meta_x_spotify`) est un onglet de « 📣 Publicité Meta Ads » depuis R348.
-      ("🎨 Visuels de campagne", "meta_creatives"),
-      ("🌍 Qui a vu tes pubs (pays, âge, placement)", "meta_breakdowns"),
+      # R378 (V8, V29, V30, V35, V36, V70) — ONE cross view replaces « Publicité Meta
+      # Ads », « Visuels de campagne », « Qui a vu tes pubs » and « Instagram »: they are
+      # its sections. Their routes stay as aliases (`routes.py`). Free (ADR-029).
+      ("🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam", "meta_ads_overview"),
       ("🎎 Apple Music", "apple_music"),
       ("🎬 YouTube", "youtube"),
       ("☁️ SoundCloud", "soundcloud"),
-      ("📸 Instagram", "instagram"),
       # ⚠️ « 🎁 Data Wrapped » a quitté le menu le 2026-09-21, et sa ROUTE survit.
       # Son contenu est rendu par « 🎵 Spotify + Spotify for Artists », replié : ce
       # qu'on y saisit sont les chiffres du Spotify Wrapped FOR ARTISTS, donc des

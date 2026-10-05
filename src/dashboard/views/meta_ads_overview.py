@@ -93,24 +93,67 @@ def _render_scope_notice(db, artist_id) -> None:
     st.caption(f"ⓘ {period}{answer}")
 
 
+# R378 (V8, V29, V30, V35, V36, V70 — owner's screen review, 2026-10-05): ONE page, the
+# « 🔀 Vue croisée », carries every Meta-and-Instagram reading as a section — the funnel
+# (Insta → Hypeddit → Spotify, Shazam), the campaign performance, the creatives, who saw
+# the ads, and Instagram. The page key stays `meta_ads_overview`: it is the Free-plan key
+# (`stripe_schema._FREE_FEATURES`), so no plan or migration moves. A segmented control
+# rather than `st.tabs`: tabs run every body on each rerun, and these five sections are
+# ~4,500 lines of queries — one is rendered at a time. The old routes are aliases to this
+# page and open the section they named. One shared filter set is R399.
+SECTIONS = ("funnel", "perf", "creatives", "breakdowns", "instagram")
+# The old page key → the section it used to be. Read on arrival only, so a click on the
+# control afterwards is never overridden.
+ALIAS_SECTION = {"meta_x_spotify": "funnel", "meta_creatives": "creatives",
+                 "meta_breakdowns": "breakdowns", "instagram": "instagram"}
+SECTION_KEY = "meta_overview_section"
+
+
 def _section_label(key: str) -> str:
-    if key == "funnel":
-        return t("meta_ads_overview.section_funnel", "🔀 Tout mon funnel — de la pub à l'écoute")
-    return t("meta_ads_overview.section_perf", "📣 Performance des campagnes")
+    return {
+        "funnel": t("meta_ads_overview.section_funnel", "🔀 Tout mon funnel — de la pub à l'écoute"),
+        "perf": t("meta_ads_overview.section_perf", "📣 Performance des campagnes"),
+        "creatives": t("meta_ads_overview.section_creatives", "🎨 Visuels de campagne"),
+        "breakdowns": t("meta_ads_overview.section_breakdowns", "🌍 Qui a vu tes pubs"),
+        "instagram": t("meta_ads_overview.section_instagram", "📸 Instagram"),
+    }[key]
+
+
+def arrival_section(page: str | None, arrived_from: str | None) -> str | None:
+    """The section an alias opens — only on the run that ARRIVES on it. Pure."""
+    if page in ALIAS_SECTION and arrived_from != page:
+        return ALIAS_SECTION[page]
+    return None
 
 
 def show():
-    st.title(t("meta_ads_overview.title", "📱 Méta Ads - Analyse Stratégique"))
+    st.title(t("meta_ads_overview.title_cross",
+               "🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam"))
+    landing = arrival_section(st.session_state.get("_page_rendered_last"),
+                              st.session_state.get("_page_arrived_from"))
+    # The default goes through the state, not `default=`: a widget given both warns on
+    # screen (« created with a default value but also had its value set »).
+    if landing:
+        st.session_state[SECTION_KEY] = landing
+    st.session_state.setdefault(SECTION_KEY, "funnel")
+    section = st.segmented_control(
+        t("meta_ads_overview.section", "Vue"), list(SECTIONS),
+        format_func=_section_label, key=SECTION_KEY) or "funnel"
 
-    # --- 1. CONNEXION & FILTRES ---
+    # The three sections below are whole former pages: each opens its own session (and
+    # the creatives declare it for their fragments, `fragment_db`), so none is opened
+    # here — rule 9, one connection per render.
+    if section == "creatives":
+        from src.dashboard.views.meta_creatives import show as show_creatives
+        return show_creatives()
+    if section == "breakdowns":
+        from src.dashboard.views.meta_breakdowns import show as show_breakdowns
+        return show_breakdowns()
+    if section == "instagram":
+        from src.dashboard.views.instagram import show as show_instagram
+        return show_instagram()
+
     with view_session() as (db, artist_id):
-        # R348 (2026-10-04, owner's screen review): « Tout mon funnel » left the menu and
-        # is a tab of this page. A segmented control rather than `st.tabs`: `st.tabs` runs
-        # every body on each rerun, and the funnel already runs four tabs of its own.
-        section = st.segmented_control(
-            t("meta_ads_overview.section", "Vue"), ["perf", "funnel"],
-            format_func=_section_label,
-            default="perf", key="meta_overview_section") or "perf"
         if section == "funnel":
             from src.dashboard.views.meta_x_spotify import render_funnel
             render_funnel(db, artist_id)

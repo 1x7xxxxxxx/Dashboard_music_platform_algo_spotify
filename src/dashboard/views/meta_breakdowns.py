@@ -276,7 +276,7 @@ def show() -> None:
     # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
     # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
-    st.title(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
+    st.subheader(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
     st.caption(t(
         "meta_breakdowns.subtitle",
         "Pays, placement, plateforme et âge côte à côte, à tous les grains (campagne · adset · créative). "

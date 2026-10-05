@@ -112,7 +112,10 @@ def widen_every_filter(at) -> int:
     """Select every option of every multiselect; how many were actually widened."""
     widened = 0
     for widget in at.multiselect:
-        options = list(widget.options)
+        # Up to the widget's own cap: a click cannot pick more than `max_selections`, so
+        # widening past it raises a state no artist reaches (R378 — the funnel's
+        # `cmp_funnel`, capped at 5, became the cross view's default section).
+        options = list(widget.options)[:widget.proto.max_selections or None]
         if len(options) > len(widget.value):
             widget.set_value(options)
             widened += 1
@@ -134,12 +137,29 @@ def test_the_population_is_not_empty() -> None:
         "ajouter à la liste rendue, soit rendre le module parent qui les appelle.")
 
 
+def _cases() -> list[tuple[str, str | None]]:
+    """(view, section) — a view that renders ONE section at a time (`SECTIONS` +
+    `SECTION_KEY`, the R378 cross view) is widened in each: its default section hides
+    the others' filters, exactly as a partial default hides a block."""
+    import importlib
+
+    cases: list[tuple[str, str | None]] = []
+    for view in _views_with_a_partial_default():
+        mod = importlib.import_module(f"src.dashboard.views.{view}")
+        cases += [(view, s) for s in getattr(mod, "SECTIONS", (None,))]
+    return cases
+
+
 @_needs_db
-@pytest.mark.parametrize("view", _views_with_a_partial_default())
-def test_widening_every_filter_does_not_raise(view: str) -> None:
+@pytest.mark.parametrize(("view", "section"), _cases())
+def test_widening_every_filter_does_not_raise(view: str, section: str | None) -> None:
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_string(SCRIPT.format(root=os.getcwd(), view=view))
+    if section is not None:
+        import importlib
+        at.session_state[importlib.import_module(
+            f"src.dashboard.views.{view}").SECTION_KEY] = section
     at.run(timeout=120)
     if at.exception:                                     # pragma: no cover
         detail = getattr(at.exception[0], "value", at.exception[0])

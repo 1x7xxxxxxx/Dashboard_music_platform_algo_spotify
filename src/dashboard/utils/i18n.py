@@ -76,7 +76,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.hypeddit": "📱 Hypeddit",
         "nav.item.saisie_s4a": "📝 S4A entry (playlist & Discovery)",
         "nav.item.trigger_algo": "🚀 Discover Weekly prediction",
-        "nav.item.meta_ads_overview": "📱 Overview",
+        "nav.item.meta_ads_overview": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam",
         "nav.item.meta_creatives": "🎨 Creatives",
         "nav.item.meta_breakdowns": "🌍 Meta breakdowns",
         "nav.item.meta_cpr_optimizer": "📊 CPR Optimizer",

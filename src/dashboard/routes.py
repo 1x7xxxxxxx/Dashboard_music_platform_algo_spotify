@@ -19,13 +19,13 @@ ROUTES: dict[str, str] = {
     "trigger_algo": "views.trigger_algo",
     "algo_preview": "views.algo_preview",
     "meta_ads_overview": "views.meta_ads_overview",
-    "meta_x_spotify": "views.meta_x_spotify",
+    "meta_x_spotify": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "spotify_s4a_combined": "views.spotify_s4a_combined",
     "hypeddit": "views.hypeddit",
     "apple_music": "views.apple_music",
     "youtube": "views.youtube",
     "soundcloud": "views.soundcloud",
-    "instagram": "views.instagram",
+    "instagram": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "data_wrapped": "views.data_wrapped",
     "imusician": "views.imusician",
     "credentials": "views.credentials",
@@ -48,8 +48,8 @@ ROUTES: dict[str, str] = {
     "meta_mapping": "views.meta_mapping",
     "admin": "views.admin",
     "account": "views.account",
-    "meta_creatives": "views.meta_creatives",
-    "meta_breakdowns": "views.meta_breakdowns",
+    "meta_creatives": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
+    "meta_breakdowns": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "meta_cpr_optimizer": "views.meta_cpr_optimizer",
     "referral": "views.referral",
     "referral_kpi": "views.referral_admin",

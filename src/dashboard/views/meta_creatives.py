@@ -825,7 +825,7 @@ def _render_scatter(df: pd.DataFrame) -> None:
                      "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
                      "Les créatives sans résultat (CPR absent) ne sont pas tracées. Le CPR compte des "
                      "CLICS vers les plateformes, pas des écoutes : « à couper » veut dire « cher par "
-                     "clic » — à confirmer dans 📣 Publicité Meta Ads › 🔀 Tout mon funnel › Comparer mes campagnes."))
+                     "clic » — à confirmer dans 🔀 Vue croisée › Tout mon funnel › Comparer mes campagnes."))
 
 
 
@@ -1001,7 +1001,7 @@ def show() -> None:
     # Gratuite depuis le 2026-09-26 (ADR-029) : cette page lit tes données, elle ne prédit
     # rien. Le verrou `require_plan('premium')` est retiré avec la ligne de `_FREE_FEATURES`.
 
-    st.title(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
+    st.subheader(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
     st.caption(t("meta_creatives.subtitle",
                  "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
     # R146 — toute la page classe des créatives sur un coût par CLIC SORTANT.

@@ -50,14 +50,15 @@ _PDF_MAP = {
     "spotify_s4a_combined": "s4a_songs",
     # `meta_x_spotify` left the menu (R348, 2026-10-04): it is the « Tout mon funnel » tab
     # of `meta_ads_overview`. Its PDF section `meta_x_spotify` stays in ALL_SECTIONS.
+    # R378 (2026-10-05): `instagram`, `meta_breakdowns` and `meta_creatives` left it too —
+    # sections of the cross view (`meta_ads_overview`). Their PDF sections `instagram` and
+    # `meta_breakdowns` stay in ALL_SECTIONS; the creatives stay summarised by 'meta'.
     "apple_music":          "apple",
     "youtube":              "youtube",
     "soundcloud":           "soundcloud_detail",
-    "instagram":            "instagram",
     "hypeddit":             "hypeddit",
     "trigger_algo":         "songs",
     "meta_ads_overview":    "meta",
-    "meta_breakdowns":      "meta_breakdowns",
     "meta_campaign_settings": None,  # R272 — settings table, the PDF carries the Meta outcome
     "imusician":            "roi",
     "revenue_forecast":     "revenue_forecast",
@@ -69,7 +70,6 @@ _PDF_MAP = {
                                     # pas un rapport. Entré dans la navigation le
                                     # 2026-08-23 — il n'était joignable que depuis
                                     # l'e-mail de vérification.
-    "meta_creatives":       None,   # creative-level detail, summarised by 'meta'
     "meta_cpr_optimizer":   None,   # interactive optimiser tool
     "algo_preview":         None,   # free preview of Road to Algo (R193), not a report
 }
