@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R385 — SoundCloud (V42-V46) : écoutes, likes, reposts, commentaires sur une ligne ; graphique… (livrée 2026-10-05)
+
+- [x] **R385 — SoundCloud (V42-V46) : écoutes, likes, reposts, commentaires sur une ligne ; graphique comparant les sorties sur ces métriques ; « tout le catalogue » : choisir un ou plusieurs titres, comparés en cumulé à âge égal (réutiliser le composant de « sorties à J égal ») ; expliquer le taux d'engagement = (likes + reposts + commentaires) / écoutes ; peu de figures, alignées, la plus utile en haut** (P3) ✅ (2026-10-05, 9079fd70)
+  Mesuré par : AppTest : 4 métriques dans un `st.columns(4)` ; le multi-titres réutilise la fonction de Spotify (un appel, pas une copie)
+  CI verte sur 9079fd70 — SoundCloud : 4 compteurs sur une ligne, titres comparés en tête, comparaison à âge égal par age_aligned_traces partagé avec Spotify
+  Commits : 9079fd70 R385 : SoundCloud — 4 compteurs sur une ligne, titres comparés en tête
+
 ## ✅ R384 — YouTube (V38-V41) : « Évolution de la chaîne » gardée, textes explicatifs retirés ; la… (livrée 2026-10-05)
 
 - [x] **R384 — YouTube (V38-V41) : « Évolution de la chaîne » gardée, textes explicatifs retirés ; la bulle vues × likes devient un classement par ratio like/vue ; 2-3 figures de plus sur les données déjà collectées (vues gagnées par vidéo entre relevés, commentaires par vue, âge vs vues). Les abonnés gagnés PAR VIDÉO ne sont pas collectés : Data API v3 seulement — l'inventaire de l'Analytics API est R394** (P3) ✅ (2026-10-05, 6e51afab, deba6e23)

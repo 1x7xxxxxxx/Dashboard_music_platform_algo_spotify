@@ -3409,18 +3409,18 @@
   resume: Écoutes, likes, reposts, commentaires sur une ligne.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R385
+  preuve_statut: R385 (archivée) — 9079fd70
 - ligne: 58
   source: revue/notes-vocales-2026-10-05.md
   note: V43
   resume: Graphique comparant chaque sortie sur ces métriques.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R385
+  preuve_statut: R385 (archivée) — 9079fd70
 - ligne: 59
   source: revue/notes-vocales-2026-10-05.md
   note: V44
@@ -3428,27 +3428,27 @@
     J égal ».'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R385
+  preuve_statut: R385 (archivée) — 9079fd70
 - ligne: 60
   source: revue/notes-vocales-2026-10-05.md
   note: V45
   resume: Expliquer « taux d'engagement ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R385
+  preuve_statut: R385 (archivée) — 9079fd70
 - ligne: 61
   source: revue/notes-vocales-2026-10-05.md
   note: V46
   resume: Peu de graphiques simples, côte à côte, alignés, le plus pertinent en haut.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R385
+  preuve_statut: R385 (archivée) — 9079fd70
 - ligne: 63
   source: revue/notes-vocales-2026-10-05.md
   note: V47
