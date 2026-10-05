@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R376 — Saisie S4A — une seule sous-vue (V17-V21) : « Signaux du mois » gardé, « Titres couvert… (livrée 2026-10-05)
+
+- [x] **R376 — Saisie S4A — une seule sous-vue (V17-V21) : « Signaux du mois » gardé, « Titres couverts par la saisie » à sa fin ; « Résultats réalisés » et « Le pari du modèle, et ce qui est arrivé » → vue algo unique (R380) ; « Fraîcheur des saisies » → page admin** (P3) ✅ (2026-10-05, fc6cf545, e31dc86e, f69f1318)
+  Mesuré par : AppTest : saisie_s4a n'a plus de `st.tabs` ; chaque section déplacée trouvée dans sa page d'arrivée
+  Saisie S4A sans onglets ; résultats réalisés et pari du modèle dans Road to Algo, fraîcheur des saisies en Admin → Santé. CI verte sur fb897e69.
+  Commits : fc6cf545 R376 : le garde de la page S4A ne compte que les locataires nés avant  · e31dc86e R376 : les rendus du garde se sautent sans titres S4A ni artiste actif · f69f1318 R376 : saisie S4A sans onglets — résultats réalisés et pari du modèle 
+
+## ✅ R375 — Mapping cross-plateforme (V16) : les deux parcours « Titres et couverture » puis « Camp… (livrée 2026-10-05)
+
+- [x] **R375 — Mapping cross-plateforme (V16) : les deux parcours « Titres et couverture » puis « Campagnes Meta » en deux grands titres, chacun dans son expander, l'un sous l'autre (aujourd'hui deux onglets)** (P3) ✅ (2026-10-05, 2849a088, 8a5c3c22)
+  Mesuré par : AppTest : deux expanders dans cet ordre, plus de `st.tabs` sur la page
+  Mapping cross-plateforme en deux expanders (titres puis campagnes Meta), plus aucun onglet ; rendu sauté sur une base sans référence. CI verte sur fb897e69.
+  Commits : 2849a088 R375 : le rendu du mapping se saute sur une base sans référence de tit · 8a5c3c22 R375 : mapping cross-plateforme — « Titres & couverture » puis « Campa
+
 ## ✅ R374 — Mise en route — « 1 streaMLytics en bref » (V11, V12, V55) : un graphique GÉNÉRIQUE, ét… (livrée 2026-10-05)
 
 - [x] **R374 — Mise en route — « 1 streaMLytics en bref » (V11, V12, V55) : un graphique GÉNÉRIQUE, étiqueté « exemple », jamais tiré des données de l'artiste (R347 avait retiré celui qui l'était), puis les deux promesses (prédiction algo, optimisation campagne) en deux graphiques de même taille, dans l'ordre ; un seul module de figures d'exemple, réutilisé par l'aperçu algo (DW / RR / Radio n'y a aucun graphique)** (P3) ✅ (2026-10-05, 7fcd5d8c)

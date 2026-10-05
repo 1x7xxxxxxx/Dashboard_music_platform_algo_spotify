@@ -3170,18 +3170,18 @@
     distincts).
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R375
+  preuve_statut: R375 (archivée) — 2849a088
 - ligne: 25
   source: revue/notes-vocales-2026-10-05.md
   note: V17
   resume: Garder « signaux du mois ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R376
+  preuve_statut: R376 (archivée) — fc6cf545
 - ligne: 26
   source: revue/notes-vocales-2026-10-05.md
   note: V18
@@ -3197,9 +3197,9 @@
   resume: « Fraîcheur des saisies » → vue admin.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R376
+  preuve_statut: R376 (archivée) — fc6cf545
 - ligne: 28
   source: revue/notes-vocales-2026-10-05.md
   note: V20
@@ -3215,9 +3215,9 @@
   resume: « Titres couverts par la saisie » tout en bas de « signaux du mois ». Une seule sous-vue au final.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R376
+  preuve_statut: R376 (archivée) — fc6cf545
 - ligne: 31
   source: revue/notes-vocales-2026-10-05.md
   note: V22
