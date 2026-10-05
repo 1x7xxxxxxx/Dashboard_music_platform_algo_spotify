@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R283 — Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une… (livrée 2026-10-05)
+
+- [x] **R283 — Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test** (P2) ✅ (2026-10-05, 716431d2, 77dfbd77, 093aa3cf, 017b1be8, 59412a9e, d07a10b8, 1ba8f4a9)
+  Mesuré par : ta vérification — runbook § 39. **Reste un seul geste (2026-10-05)** : le câblage est réparé (R408, déployé) mais le conteneur lit encore un coupon VIDE — poser la valeur dans `/opt/streamlytics/.env` (pas `.env.local`) puis redéployer api+dashboard
+  Coupon live PARRAINAGE-1MOIS (100 %, une fois) créé le 2026-10-05, posé dans /opt/streamlytics/.env par le propriétaire, deploy.sh api+dashboard sur 9224f601 : les deux conteneurs lisent la variable (SET, 16 car.). Webhook live : 8 évènements dont invoice.paid, charge.refunded, charge.dispute.created, customer.subscription.created. Parrainage en mode test rejoué par le propriétaire le 2026-10-04.
+  Commits : 716431d2 Roadmap : R283 — il ne reste que la valeur du coupon dans le .env de p · 77dfbd77 R408 : le coupon de parrainage — et trois autres lectures — atteignent · 093aa3cf Roadmap : R275 retirée (suivie hors dépôt) ; l'actif ne porte plus que · 017b1be8 Roadmap : R338 livree (CI verte) - restent R283 et R275, qui attendent · 59412a9e Roadmap : R301 et R282 livrees (deploye 37e2fb5e) - restent R283 et R2 · d07a10b8 Runbook 39 (R283) : le mode test Stripe se joue en local avec les cles · 1ba8f4a9 Roadmap : R283 en attente de toi - verifier le parrainage Stripe en mo
+
 ## ✅ R413 — Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-s… (livrée 2026-10-05)
 
 - [x] **R413 — Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-schema`) archivées ou nommées par un déclencheur ; REQ-HARN-11/13 tranchés** (P4) ✅ (2026-10-05, 70010e30)

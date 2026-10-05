@@ -2112,7 +2112,7 @@ ailleurs ») : colle dans le fil ceux qui t'inspirent, avec la page où tu les v
 
 **Vérification** : ta réponse dans le fil ; une ligne Rnnn par proposition retenue.
 
-## 39. R283 — Vérifier le parrainage Stripe en mode test · P2
+## 39. ~~R283 — Vérifier le parrainage Stripe en mode test~~ · ✅ FAIT le 2026-10-05, coupon live `PARRAINAGE-1MOIS` + webhook à 8 évènements
 
 **Pourquoi** : R272 applique le mois offert du parrain par un coupon Stripe, actif en
 production (ta décision du 2026-09-27). Trois réglages vivent dans TON compte Stripe et sur
