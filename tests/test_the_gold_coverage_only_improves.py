@@ -137,7 +137,10 @@ _CEILING: dict[str, int] = {
     # et `_u_meta`/`_u_hypeddit` se déclaraient « hors base » en lisant la base. Le
     # document, périmé depuis, cachait la régression ; la CI rougissait sur sa
     # fraîcheur, que personne ne lisait.
-    "tiles.unknown": 10,
+    # 10 → 7 le 2026-10-05 (R388) : les trois tuiles d'évolution de la page
+    # Distributeur, indéterminées, deviennent une phrase sous un graphique qui lit
+    # `v_artist_monthly_revenue` (or) au lieu d'unir les tables brutes.
+    "tiles.unknown": 7,
     # 5 → 7 le 2026-09-24, et c'est une correction de MESURE, pas une régression :
     # trois figures du PDF (SoundCloud, entonnoir Meta, engagement Instagram)
     # étaient classées « hors base » alors qu'elles lisent la base. Le même
@@ -305,7 +308,10 @@ _FLOOR: dict[str, int] = {
     # compact HTML boxes now (owner: the `st.metric` font was too big); same figures.
     # 2026-10-05 (R389) : 161 → 158 — the SACEM gross / charges / net tiles became ONE
     # waterfall (owner, V79); same three figures, drawn as a step.
-    "tiles.total": 158,
+    # 2026-10-05 (R388) : 158 → 153 — the distributor page loses its tabs (owner,
+    # V75-V78); its three evolution tiles become one sentence above the chart, and the
+    # three branches of the ROI tile one call (same figure, written once).
+    "tiles.total": 153,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

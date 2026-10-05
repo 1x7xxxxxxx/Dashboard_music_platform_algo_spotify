@@ -2,27 +2,9 @@
 
 EN = {
     "imusician.title": "💰 Distributor — Monthly revenue",
-    "imusician.intro": (
-        "Visualisation of the revenue generated through your distributors "
-        "(iMusician, DistroKid). Imports (iMusician CSV, DistroKid TSV/CSV) are "
-        "done from the **📂 Add my Spotify for Artists & Apple figures** page; a manual "
-        "monthly entry is also "
-        "possible below."
-    ),
-    "imusician.tab_data": "📊 Data",
-    "imusician.tab_roi": "💹 ROI Breakheaven",
     "imusician.distributor": "Distributor",
     # Data tab
-    "imusician.no_revenue": (
-        "No revenue recorded for this selection. Import an iMusician or DistroKid "
-        "export (**📂 Add my Spotify for Artists & Apple figures** page) or enter a "
-        "revenue manually below."
-    ),
-    "imusician.select_year_month": "Select at least one year and one month.",
-    "imusician.kpi_total": "Cumulative total",
-    "imusician.kpi_avg": "Monthly average",
-    "imusician.kpi_months": "Months recorded",
-    "imusician.detail_header": "Detail",
+    "imusician.evolution_summary": "Total {total} · average {avg} per month · {n} months recorded",
     "imusician.delete_expander": "🗑️ Delete an entry",
     "imusician.entry_deleted": "Entry deleted: {distributor} — {month} {year}",
     # Manual entry form
@@ -36,15 +18,9 @@ EN = {
     "imusician.save_btn": "💾 Save",
     "imusician.entry_saved": "{distributor} — {month} {year}: {revenue:,.2f} € saved.",
     # ROI tab
-    "imusician.roi_header": "💹 ROI Breakheaven",
     "imusician.roi_caption": (
         "Net revenue (iMusician + DistroKid + SACEM royalties) versus all spend "
         "(Meta Ads + entered costs) over the selected period"
-    ),
-    "imusician.roi_no_data": (
-        "No distributor revenue or Meta Ads spend data for this artist. "
-        "Import an iMusician export (CSV Import page), enter a revenue in the "
-        "Data tab, or launch the Meta collection from the home page."
     ),
     "imusician.roi_revenue": "💰 Revenue (distrib. + SACEM)",
     "imusician.roi_spend": "📱 Meta spend",
@@ -63,6 +39,27 @@ EN = {
     "imusician.roi_unavailable_help": (
         "Figures unavailable — the read failed. This is not \u201cno spend\u201d."),
     "imusician.roi_empty_period": "No revenue or spend data over this period.",
-    "imusician.sales_in_treasury": "📊 The chart of these sales is in the ROI tab, with SACEM and spend on one treasury.",
     "imusician.trigger_point": "One Discover Weekly trigger is worth",
+    # R388 — one page: entry, evolution, break-even
+    "imusician.intro": (
+        "iMusician and DistroKid exports are imported from the **📂 Add my Spotify for "
+        "Artists & Apple figures** page; a month can also be entered by hand here."
+    ),
+    "imusician.no_revenue": (
+        "No revenue recorded for this selection. Import an iMusician or DistroKid "
+        "export (**📂 Add my Spotify for Artists & Apple figures** page) or enter a "
+        "revenue manually above."
+    ),
+    "imusician.roi_header": "💹 Break-even",
+    "imusician.roi_no_data": (
+        "No distributor revenue or Meta Ads spend data for this artist. "
+        "Import an iMusician export (CSV Import page), enter a revenue above, "
+        "or launch the Meta collection from the home page."
+    ),
+    "imusician.evolution_header": "📈 Sales over time",
+    "imusician.all_years": "All years",
+    "imusician.all_months": "All months",
+    "imusician.cumulative": "Running total",
+    "imusician.monthly_axis": "€ per month",
+    "imusician.cumulative_axis": "€ cumulated",
 }

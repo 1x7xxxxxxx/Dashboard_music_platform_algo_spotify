@@ -66,7 +66,10 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/hypeddit.py::_render_campaign_series#1': (
         "Juger si ton smart link convertit les visites en clics vers les plateformes, et combien de pub l'a nourri.",
         'Judge whether your smart link turns visits into platform clicks, and how much ad spend fed it.'),
-    'views/imusician.py::show#1': (
+    'views/imusician.py::_render_evolution#1': (
+        "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus.",
+        'See whether your sales rise or fall month to month, to judge what your latest release did to your revenue.'),
+    'views/imusician.py::_render_roi#1': (
         'Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne.',
         "See where your cash stands, sales against spend, to set your next campaign's budget."),
     'views/instagram.py::_render_community#1': (

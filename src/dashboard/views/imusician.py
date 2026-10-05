@@ -1,6 +1,8 @@
 """Vue Distributeur — revenus mensuels iMusician + DistroKid (saisie manuelle, import, ROI)."""
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import date, datetime, timezone
 import sys
 from pathlib import Path
@@ -82,28 +84,26 @@ def _get_artist_filter():
     return aid, f"Artiste {aid}"
 
 
+_SOURCE_LABELS = {'imusician': 'iMusician', 'distrokid': 'DistroKid'}
+
+_REVENUES_SQL = """
+    SELECT source, year, month, revenue_eur
+      FROM v_artist_monthly_revenue
+     WHERE source = ANY(%s) AND (%s::int IS NULL OR artist_id = %s)
+"""
+
+
 def _load_revenues(db, artist_id, tables):
-    """Charge les revenus des distributeurs sélectionnés ({label: table}) en une requête."""
-    parts, params = [], []
-    for label, table in tables.items():
-        validate_table(table)
-        if artist_id is None:
-            parts.append(
-                f"""SELECT %s AS distributor, r.year, r.month, r.revenue_eur, r.notes,
-                           s.name AS artist_name
-                    FROM {table} r
-                    JOIN saas_artists s ON s.id = r.artist_id"""
-            )
-            params.append(label)
-        else:
-            parts.append(
-                f"""SELECT %s AS distributor, year, month, revenue_eur, notes
-                    FROM {table}
-                    WHERE artist_id = %s"""
-            )
-            params.extend([label, artist_id])
-    query = " UNION ALL ".join(parts) + " ORDER BY year DESC, month DESC"
-    return db.fetch_df(query, tuple(params))
+    """Monthly distributor revenue, read from the gold view (R388).
+
+    `v_artist_monthly_revenue` is the one definition the treasury and the forecast
+    read too; the raw tables are only ever unioned there. `tables` ({label: table})
+    names the distributors kept; SACEM, also in the view, is not a distributor.
+    """
+    wanted = [src for src, label in _SOURCE_LABELS.items() if label in tables]
+    df = db.fetch_df(_REVENUES_SQL, (wanted, artist_id, artist_id))
+    df['distributor'] = df['source'].map(_SOURCE_LABELS)
+    return df
 
 
 def _delete_revenue(db, table, artist_id, year, month):
@@ -138,7 +138,6 @@ def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
 
 def _render_entry_form(db, artist_id):
     """Formulaire de saisie manuelle d'un revenu mensuel (par distributeur)."""
-    st.markdown("---")
     st.subheader(t("imusician.entry_header", "✍️ Saisie manuelle"))
     st.caption(t(
         "imusician.entry_caption",
@@ -208,266 +207,234 @@ def _render_entry_form(db, artist_id):
 
 
 def show():
+    # R388 (V75-V78, 2026-10-05, retour d'écran) : UNE page lue de haut en bas — la
+    # saisie en tête (c'est le geste qu'on vient faire ici), puis l'évolution des ventes,
+    # puis le point mort. Les onglets « Données » / « ROI » cachaient l'un à l'autre deux
+    # lectures d'une même question : est-ce que ça rapporte ?
     st.title(t("imusician.title", "💰 Distributeur — Revenus mensuels"))
-    st.markdown(t(
+    st.caption(t(
         "imusician.intro",
-        "Visualisation des revenus générés via vos distributeurs (iMusician, DistroKid). "
-        "L'import des exports (CSV iMusician, TSV/CSV DistroKid) se fait depuis la page "
-        "**📂 Ajouter mes chiffres Spotify for Artists & Apple** ; une saisie manuelle par mois est aussi "
-        "possible ci-dessous."
+        "Les exports iMusician et DistroKid s'importent depuis la page **📂 Ajouter mes "
+        "chiffres Spotify for Artists & Apple** ; un mois se saisit aussi à la main ici."
     ))
-
-    tab_data, tab_roi = st.tabs([
-        t("imusician.tab_data", "📊 Données"),
-        t("imusician.tab_roi", "💹 ROI Breakheaven"),
-    ])
-
     db = require_db(get_db_connection())
     try:
         artist_id, _ = _get_artist_filter()
-
-        # ── Onglet : Données + graphique ────────────────────────────────────
-        with tab_data:
-            selected = st.segmented_control(
-                t("imusician.distributor", "Distributeur"),
-                options=[_ALL_DISTRIBUTORS] + list(DISTRIBUTOR_TABLES.keys()),
-                default=_ALL_DISTRIBUTORS,
-                format_func=lambda d: t("common.all", "Tous") if d == _ALL_DISTRIBUTORS else d,
-                key="distributor_filter",
-            ) or _ALL_DISTRIBUTORS
-            tables = (
-                DISTRIBUTOR_TABLES if selected == _ALL_DISTRIBUTORS
-                else {selected: DISTRIBUTOR_TABLES[selected]}
-            )
-
-            df = _load_revenues(db, artist_id, tables)
-
-            if df.empty:
-                st.info(t(
-                    "imusician.no_revenue",
-                    "Aucun revenu enregistré pour cette sélection. Importez un export "
-                    "iMusician ou DistroKid (page **📂 Ajouter mes chiffres Spotify for Artists & Apple**) "
-                    "ou saisissez un revenu "
-                    "manuellement ci-dessous."
-                ))
-            else:
-                # Colonne lisible mois/année
-                df['period'] = df.apply(
-                    lambda r: f"{_month_name(int(r['month']))} {int(r['year'])}", axis=1
-                )
-                df['date_sort'] = pd.to_datetime(
-                    df.apply(lambda r: f"{int(r['year'])}-{int(r['month']):02d}-01", axis=1)
-                )
-
-                # ── Filtres année / mois ─────────────────────────────────────
-                available_years = sorted(df['year'].astype(int).unique(), reverse=True)
-                available_months = sorted(df['month'].astype(int).unique())
-
-                fcol1, fcol2 = st.columns(2)
-                with fcol1:
-                    selected_years = st.multiselect(
-                        t("common.filter_by_year", "Filtrer par année"),
-                        options=available_years,
-                        default=available_years,
-                        format_func=str,
-                    )
-                with fcol2:
-                    selected_months = st.multiselect(
-                        t("common.filter_by_month", "Filtrer par mois"),
-                        options=available_months,
-                        default=available_months,
-                        format_func=_month_name,
-                    )
-
-                if not selected_years or not selected_months:
-                    st.warning(t("imusician.select_year_month",
-                                 "Sélectionnez au moins une année et un mois."))
-                else:
-                    mask = (
-                        df['year'].astype(int).isin(selected_years)
-                        & df['month'].astype(int).isin(selected_months)
-                    )
-                    df = df[mask]
-
-                    if df.empty:
-                        st.info(t("common.no_data", "Aucune donnée pour cette sélection."))
-                    else:
-
-                        # KPI total
-                        total = df['revenue_eur'].sum()
-                        avg = df.groupby('date_sort')['revenue_eur'].sum().mean()
-                        col1, col2, col3 = st.columns(3)
-                        col1.metric(t("imusician.kpi_total", "Total cumulé"), f"{total:,.2f} €")
-                        col2.metric(t("imusician.kpi_avg", "Moyenne mensuelle"), f"{avg:,.2f} €")
-                        col3.metric(t("imusician.kpi_months", "Mois renseignés"),
-                                    df['date_sort'].nunique())
-
-                        st.markdown("---")
-
-                        # R212 — the sales-per-month chart merged into the treasury (tab
-                        # « ROI »): the same months, NET of distributor fees, beside SACEM and
-                        # the spend. The figures and the table below stay.
-                        st.caption(t("imusician.sales_in_treasury",
-                                     "📊 Le graphique de ces ventes est dans l'onglet ROI, "
-                                     "avec la SACEM et les dépenses sur une même trésorerie."))
-
-                        st.markdown("---")
-                        st.subheader(t("imusician.detail_header", "Détail"))
-
-                        # Tableau affiché
-                        display_cols = ['period', 'revenue_eur', 'notes']
-                        if len(tables) > 1:
-                            display_cols = ['distributor'] + display_cols
-                        if is_admin() and 'artist_name' in df.columns:
-                            display_cols = ['artist_name'] + display_cols
-                        st.dataframe(
-                            df[display_cols].rename(columns={
-                                'artist_name': t("common.artist", "Artiste"),
-                                'distributor': t("imusician.distributor", "Distributeur"),
-                                'period': t("common.period", "Période"),
-                                'revenue_eur': t("common.revenue_eur", "Revenus (€)"),
-                                'notes': t("common.notes", "Notes")
-                            }),
-                            width="stretch",
-                            hide_index=True
-                        )
-
-                        # Suppression d'une entrée
-                        with st.expander(t("imusician.delete_expander", "🗑️ Supprimer une entrée")):
-                            del_distributor = st.selectbox(
-                                t("imusician.distributor", "Distributeur"),
-                                list(DISTRIBUTOR_TABLES.keys()),
-                                key="del_distributor"
-                            )
-                            del_target_id = artist_id
-                            if is_admin():
-                                artists_df2 = db.fetch_df(
-                                    "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name"
-                                )
-                                artist_opts2 = {row['name']: row['id'] for _, row in artists_df2.iterrows()}
-                                del_name = st.selectbox(t("common.artist", "Artiste"),
-                                                        list(artist_opts2.keys()), key="del_artist")
-                                del_target_id = artist_opts2[del_name]
-
-                            del_year = st.number_input(
-                                t("common.year", "Année"), min_value=2015,
-                                max_value=date.today().year + 1,
-                                value=date.today().year, step=1, key="del_year"
-                            )
-                            del_month = st.selectbox(
-                                t("common.month", "Mois"), options=list(MONTHS_FR.keys()),
-                                format_func=_month_name,
-                                index=0, key="del_month"
-                            )
-                            if st.button(t("common.delete", "🗑️ Supprimer"), type="secondary"):
-                                try:
-                                    _delete_revenue(
-                                        db, DISTRIBUTOR_TABLES[del_distributor],
-                                        del_target_id, int(del_year), int(del_month)
-                                    )
-                                    flash(t(
-                                        "imusician.entry_deleted",
-                                        "Entrée supprimée : {distributor} — {month} {year}"
-                                    ).format(
-                                        distributor=del_distributor,
-                                        month=_month_name(del_month), year=del_year
-                                    ))
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(t("common.error", "Erreur : {err}").format(err=e))
-
-            # Saisie manuelle (toujours accessible, même sans données)
-            _render_entry_form(db, artist_id)
-
-        # ── Onglet : ROI Breakheaven ────────────────────────────────────────
-        with tab_roi:
-            st.subheader(t("imusician.roi_header", "💹 ROI Breakheaven"))
-            st.caption(t(
-                "imusician.roi_caption",
-                "Revenus nets (iMusician + DistroKid + royalties SACEM) contre toutes les "
-                "dépenses (Meta Ads + coûts saisis) sur la période sélectionnée"
-            ))
-
-            span_min, span_max = _roi_data_span(db, artist_id)
-            if span_min is None or span_max is None:
-                st.info(t(
-                    "imusician.roi_no_data",
-                    "Aucune donnée de revenus distributeur ni de dépenses Meta Ads pour cet artiste. "
-                    "Importez un export iMusician (page Import CSV), saisissez un revenu dans "
-                    "l'onglet Données, ou lancez la collecte Meta depuis l'accueil."
-                ))
-            else:
-                # R259 — the shared selector (same presets, « depuis la dernière sortie »).
-                window = filters.span(span_min, span_max, key="imusician_roi",
-                                      artist_id=artist_id,
-                                      latest_release_resolver=lambda: filters.latest_release_date(
-                                          db, artist_id))
-                from_date, to_date = window.start, window.end
-                roi = get_roi_data(db, artist_id, from_date, to_date)
-
-                c1, c2, c3 = st.columns(3)
-                # `fmt_eur` rend « — » sur None : le revenu est mensuel, la fenêtre
-                # est élargie aux mois entiers (`effective_from`/`effective_to`), et
-                # une lecture qui échoue ne s'affiche plus « 0,00 € ».
-                from src.dashboard.utils.kpi_helpers import fmt_eur
-                c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
-                          fmt_eur(roi['revenue_eur']))
-                c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
-                          fmt_eur(roi['meta_spend']))
-                st.caption(t("imusician.roi_effective_window",
-                             "Période réellement couverte : {a} → {b} — le revenu est "
-                             "mensuel, la fenêtre est donc arrondie aux mois entiers."
-                             ).format(a=roi['effective_from'], b=roi['effective_to']))
-
-                if roi['roi_pct'] is not None:
-                    roi_label = f"{roi['roi_pct']:.1f} %"
-                    roi_delta = (t("imusician.roi_profitable", "✅ Rentable")
-                                 if roi['profitable']
-                                 else t("imusician.roi_unprofitable", "⚠️ Déficitaire"))
-                    c3.metric(
-                        "📊 ROI", roi_label, roi_delta,
-                        delta_color="normal" if roi['profitable'] else "inverse",
-                        help=t("imusician.roi_total_help",
-                               "ROI sur toutes les dépenses (Meta Ads + coûts saisis) = {total}").format(
-                                   total=fmt_eur(roi['total_spend']))
-                    )
-                elif roi['unreadable']:
-                    # Le TROISIÈME état, demandé par la revue du design : une panne de
-                    # lecture ne doit pas emprunter le texte d'une absence légitime.
-                    c3.metric("📊 ROI", "—",
-                              help=t("imusician.roi_unavailable_help",
-                                     "Chiffres indisponibles — la lecture a échoué. "
-                                     "Ce n'est pas « aucune dépense »."))
-                else:
-                    c3.metric("📊 ROI", "—",
-                              help=t("imusician.roi_no_spend_help",
-                                     "Aucune dépense promo sur la période — élargissez le filtre"))
-
-                # R212 — the ONE treasury figure (shared with « Mes revenus » and SACEM):
-                # sales, SACEM, Meta and entered costs on one ledger, from the same door
-                # as the tiles above.
-                from src.dashboard.utils.artist_cashflow import break_even, monthly_net
-                from src.dashboard.utils.treasury_chart import (
-                    add_trigger_point, breakeven_text, load_cashflow, treasury_figure,
-                    within)
-                cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
-                mensuel = monthly_net(cashflow)
-                if not mensuel.empty:
-                    # R262 (notes L128, L538) — the break-even DURATION written on the
-                    # figure, and what one algorithm trigger is worth as a point above
-                    # the balance (code-critic a/a' : here, not on the forecast page).
-                    fig = treasury_figure(cashflow, mensuel,
-                                          verdict=breakeven_text(break_even(mensuel)))
-                    trigger = _trigger_point(db, artist_id)
-                    if trigger:
-                        add_trigger_point(fig, mensuel, *trigger)
-                    charts.plotly_chart(fig, width="stretch")
-                else:
-                    st.info(t("imusician.roi_empty_period",
-                              "Aucune donnée de revenus ou dépenses sur cette période."))
-
+        _render_entry_form(db, artist_id)
+        st.markdown("---")
+        _render_evolution(db, artist_id)
+        st.markdown("---")
+        _render_roi(db, artist_id)
     finally:
         db.close()
+
+
+def _revenue_filters(db, artist_id):
+    """Distributor · years · months on ONE row, everything selected by default."""
+    c_dist, c_year, c_month = st.columns([2, 2, 3])
+    with c_dist:
+        selected = st.segmented_control(
+            t("imusician.distributor", "Distributeur"),
+            options=[_ALL_DISTRIBUTORS] + list(DISTRIBUTOR_TABLES.keys()),
+            default=_ALL_DISTRIBUTORS,
+            format_func=lambda d: t("common.all", "Tous") if d == _ALL_DISTRIBUTORS else d,
+            key="distributor_filter",
+        ) or _ALL_DISTRIBUTORS
+    tables = (DISTRIBUTOR_TABLES if selected == _ALL_DISTRIBUTORS
+              else {selected: DISTRIBUTOR_TABLES[selected]})
+    df = _load_revenues(db, artist_id, tables)
+    if df.empty:
+        return df
+    years = sorted(df['year'].astype(int).unique(), reverse=True)
+    months = sorted(df['month'].astype(int).unique())
+    with c_year:
+        sel_years = st.multiselect(t("common.filter_by_year", "Filtrer par année"),
+                                   options=years, default=years, format_func=str,
+                                   placeholder=t("imusician.all_years", "Toutes les années"))
+    with c_month:
+        sel_months = st.multiselect(t("common.filter_by_month", "Filtrer par mois"),
+                                    options=months, default=months, format_func=_month_name,
+                                    placeholder=t("imusician.all_months", "Tous les mois"))
+    # An emptied picker means « all », like the placeholder says — never an empty page.
+    mask = (df['year'].astype(int).isin(sel_years or years)
+            & df['month'].astype(int).isin(sel_months or months))
+    return df[mask]
+
+
+def evolution_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Monthly revenue per distributor, plus the running total across distributors."""
+    out = df.assign(month_start=pd.to_datetime(
+        dict(year=df['year'].astype(int), month=df['month'].astype(int), day=1)))
+    out = (out.groupby(['month_start', 'distributor'], as_index=False)['revenue_eur']
+              .sum().sort_values('month_start'))
+    totals = out.groupby('month_start')['revenue_eur'].sum().cumsum()
+    return out.merge(totals.rename('cumulative').reset_index(), on='month_start',
+                     validate='many_to_one')
+
+
+def _evolution_figure(evo: pd.DataFrame) -> go.Figure:
+    """Two panels on one time axis — small multiples, never a second y axis.
+
+    The monthly bars and the running total are two magnitudes (a month, a sum of
+    months); sharing one frame would make the bars read as tiny next to the total.
+    """
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        row_heights=[0.6, 0.4])
+    for name, grp in evo.groupby('distributor', sort=False):
+        fig.add_trace(go.Bar(x=grp['month_start'], y=grp['revenue_eur'],
+                             name=str(name)), row=1, col=1)
+    cum = evo.drop_duplicates('month_start')
+    fig.add_trace(go.Scatter(x=cum['month_start'], y=cum['cumulative'],
+                             mode='lines+markers', line=dict(color='#2E7D32', width=2.5),
+                             name=t("imusician.cumulative", "Cumul")), row=2, col=1)
+    fig.update_yaxes(title_text=t("imusician.monthly_axis", "€ par mois"), row=1, col=1)
+    fig.update_yaxes(title_text=t("imusician.cumulative_axis", "€ cumulés"),
+                     rangemode='tozero', row=2, col=1)
+    fig.update_layout(barmode='stack', hovermode='x unified', height=460,
+                      legend=dict(orientation='h', y=1.08), margin=dict(t=40))
+    return fig
+
+
+def _render_evolution(db, artist_id):
+    """What the distributors paid, month by month — a chart, not a ledger (V77)."""
+    st.subheader(t("imusician.evolution_header", "📈 Évolution des ventes"))
+    df = _revenue_filters(db, artist_id)
+    if df.empty:
+        st.info(t(
+            "imusician.no_revenue",
+            "Aucun revenu enregistré pour cette sélection. Importez un export "
+            "iMusician ou DistroKid (page **📂 Ajouter mes chiffres Spotify for Artists & Apple**) "
+            "ou saisissez un revenu manuellement ci-dessus."
+        ))
+        return
+    evo = evolution_frame(df)
+    # The three figures read as one sentence above the chart, not as three tiles:
+    # the first screen holds the gesture (the form) and one chart (R388).
+    st.caption(t("imusician.evolution_summary",
+                 "Total {total} · moyenne {avg} par mois · {n} mois renseignés").format(
+        total=f"{df['revenue_eur'].sum():,.2f} €",
+        avg=f"{evo.groupby('month_start')['revenue_eur'].sum().mean():,.2f} €",
+        n=evo['month_start'].nunique()))
+    charts.plotly_chart(_evolution_figure(evo), width="stretch")
+    _render_delete(db, artist_id)
+
+
+def _render_delete(db, artist_id):
+    """Remove one month of one distributor — the correction a wrong entry needs."""
+    with st.expander(t("imusician.delete_expander", "🗑️ Supprimer une entrée")):
+        del_distributor = st.selectbox(
+            t("imusician.distributor", "Distributeur"),
+            list(DISTRIBUTOR_TABLES.keys()), key="del_distributor")
+        del_target_id = artist_id
+        if is_admin():
+            artists_df2 = db.fetch_df(
+                "SELECT id, name FROM saas_artists WHERE active = TRUE ORDER BY name")
+            artist_opts2 = {row['name']: row['id'] for _, row in artists_df2.iterrows()}
+            del_name = st.selectbox(t("common.artist", "Artiste"),
+                                    list(artist_opts2.keys()), key="del_artist")
+            del_target_id = artist_opts2[del_name]
+        del_year = st.number_input(
+            t("common.year", "Année"), min_value=2015, max_value=date.today().year + 1,
+            value=date.today().year, step=1, key="del_year")
+        del_month = st.selectbox(
+            t("common.month", "Mois"), options=list(MONTHS_FR.keys()),
+            format_func=_month_name, index=0, key="del_month")
+        if st.button(t("common.delete", "🗑️ Supprimer"), type="secondary"):
+            try:
+                _delete_revenue(db, DISTRIBUTOR_TABLES[del_distributor],
+                                del_target_id, int(del_year), int(del_month))
+                flash(t("imusician.entry_deleted",
+                        "Entrée supprimée : {distributor} — {month} {year}").format(
+                    distributor=del_distributor, month=_month_name(del_month),
+                    year=del_year))
+                st.rerun()
+            except Exception as e:
+                st.error(t("common.error", "Erreur : {err}").format(err=e))
+
+
+def _render_roi(db, artist_id):
+    """The break-even, at the bottom: revenue against every spend, on one treasury."""
+    st.subheader(t("imusician.roi_header", "💹 Point mort"))
+    st.caption(t(
+        "imusician.roi_caption",
+        "Revenus nets (iMusician + DistroKid + royalties SACEM) contre toutes les "
+        "dépenses (Meta Ads + coûts saisis) sur la période sélectionnée"
+    ))
+    span_min, span_max = _roi_data_span(db, artist_id)
+    if span_min is None or span_max is None:
+        st.info(t(
+            "imusician.roi_no_data",
+            "Aucune donnée de revenus distributeur ni de dépenses Meta Ads pour cet artiste. "
+            "Importez un export iMusician (page Import CSV), saisissez un revenu "
+            "ci-dessus, ou lancez la collecte Meta depuis l'accueil."
+        ))
+        return
+    # R259 — the shared selector (same presets, « depuis la dernière sortie »).
+    window = filters.span(span_min, span_max, key="imusician_roi",
+                          artist_id=artist_id,
+                          latest_release_resolver=lambda: filters.latest_release_date(
+                              db, artist_id))
+    from_date, to_date = window.start, window.end
+    roi = get_roi_data(db, artist_id, from_date, to_date)
+
+    c1, c2, c3 = st.columns(3)
+    # `fmt_eur` rend « — » sur None : le revenu est mensuel, la fenêtre
+    # est élargie aux mois entiers (`effective_from`/`effective_to`), et
+    # une lecture qui échoue ne s'affiche plus « 0,00 € ».
+    from src.dashboard.utils.kpi_helpers import fmt_eur
+    c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
+              fmt_eur(roi['revenue_eur']))
+    c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
+              fmt_eur(roi['meta_spend']))
+    st.caption(t("imusician.roi_effective_window",
+                 "Période réellement couverte : {a} → {b} — le revenu est "
+                 "mensuel, la fenêtre est donc arrondie aux mois entiers."
+                 ).format(a=roi['effective_from'], b=roi['effective_to']))
+
+    if roi['roi_pct'] is not None:
+        roi_label = f"{roi['roi_pct']:.1f} %"
+        roi_delta = (t("imusician.roi_profitable", "✅ Rentable")
+                     if roi['profitable']
+                     else t("imusician.roi_unprofitable", "⚠️ Déficitaire"))
+        roi_help = t("imusician.roi_total_help",
+                     "ROI sur toutes les dépenses (Meta Ads + coûts saisis) = {total}").format(
+                         total=fmt_eur(roi['total_spend']))
+    elif roi['unreadable']:
+        # Le TROISIÈME état, demandé par la revue du design : une panne de
+        # lecture ne doit pas emprunter le texte d'une absence légitime.
+        roi_label, roi_delta = "—", None
+        roi_help = t("imusician.roi_unavailable_help",
+                     "Chiffres indisponibles — la lecture a échoué. "
+                     "Ce n'est pas « aucune dépense ».")
+    else:
+        roi_label, roi_delta = "—", None
+        roi_help = t("imusician.roi_no_spend_help",
+                     "Aucune dépense promo sur la période — élargissez le filtre")
+    c3.metric("📊 ROI", roi_label, roi_delta, help=roi_help,
+              delta_color="normal" if roi['profitable'] else "inverse")
+
+    # R212 — the ONE treasury figure (shared with « Mes revenus » and SACEM):
+    # sales, SACEM, Meta and entered costs on one ledger, from the same door
+    # as the tiles above.
+    from src.dashboard.utils.artist_cashflow import break_even, monthly_net
+    from src.dashboard.utils.treasury_chart import (
+        add_trigger_point, breakeven_text, load_cashflow, treasury_figure,
+        within)
+    cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
+    mensuel = monthly_net(cashflow)
+    if not mensuel.empty:
+        # R262 (notes L128, L538) — the break-even DURATION written on the
+        # figure, and what one algorithm trigger is worth as a point above
+        # the balance (code-critic a/a' : here, not on the forecast page).
+        fig = treasury_figure(cashflow, mensuel,
+                              verdict=breakeven_text(break_even(mensuel)))
+        trigger = _trigger_point(db, artist_id)
+        if trigger:
+            add_trigger_point(fig, mensuel, *trigger)
+        charts.plotly_chart(fig, width="stretch")
+    else:
+        st.info(t("imusician.roi_empty_period",
+                  "Aucune donnée de revenus ou dépenses sur cette période."))
 
 
 def _trigger_point(db, artist_id: int):

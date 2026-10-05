@@ -251,7 +251,17 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   owner_v: corriger
   owner: "OK. Sur la fiche 17, le logo en carré dans le titre du rond n'a pas pris. Trouve pourquoi et fais l'analyse de tous les logos qui sont des carrés."
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée. R301 (ta R282, proposition D) : sous chaque anneau, la pub Meta dépensée à ±14 jours de la sortie — regardée le 2026-09-28 (« pub Meta ±14 j : 817 € » sous Ô Chiotte)."
-src/dashboard/views/imusician.py::show#1:
+src/dashboard/views/imusician.py::_render_evolution#1:
+  q: "Combien mes distributeurs m'ont-ils versé, mois par mois, et où en est le cumul ?"
+  decision: "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus."
+  decision_en: "See whether your sales rise or fall month to month, to judge what your latest release did to your revenue."
+  role: business
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "R388 (V77, retour d'écran 2026-10-05) : remplace le tableau « Détail » — barres mensuelles empilées par distributeur, cumul sur l'axe de droite. Le tableau répétait les mêmes montants ligne à ligne sans montrer le sens."
+src/dashboard/views/imusician.py::_render_roi#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
   decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
   decision_en: "See where your cash stands, sales against spend, to set your next campaign's budget."
@@ -262,7 +272,7 @@ src/dashboard/views/imusician.py::show#1:
   v: garder
   owner_v: fusionner
   owner: "Tout regrouper sur un même graphique, avec des cumuls qui retracent l'évolution."
-  note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible."
+  note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible. R388 : descend en bas de la page unique (plus d'onglets), et porte déjà la prédiction — la valeur d'un déclenchement Discover Weekly — comme point au-dessus du solde ; la prévision de revenus ne s'y ajoute pas, deux courbes projetées de plus rendraient le point mort illisible."
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   mq: M2
   q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"
