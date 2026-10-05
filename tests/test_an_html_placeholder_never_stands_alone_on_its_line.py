@@ -21,7 +21,7 @@ placeholder empty and look for a blank line. A placeholder glued to a tag
 Sweep (2026-10-04, R346): 19 `unsafe_allow_html=True` markdown calls in src/dashboard
 → 15 excluded (single-line HTML from concatenation, a helper or a constant: no newline
 literal) → 4 multi-line f-strings → 1 live (home.py freshness tile, fixed and now a pure
-single-line builder `views.home.freshness_tile_html`), 3 with every placeholder glued
+single-line builder `utils.source_freshness.freshness_tile_html`), 3 with every placeholder glued
 inside a tag (home.py DAG grid, home_tiles.py total banner, useful_links.py `_card`).
 
 Mutation record (2026-10-04): the pre-R346 tile (`{_divergence}` alone on its line) put

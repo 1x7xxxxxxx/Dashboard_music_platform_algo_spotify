@@ -107,13 +107,14 @@ def test_the_view_passes_the_contract_to_the_scale() -> None:
     et dans les commentaires voisins, et le cliquet du dépôt refuse les gardes
     textuels.
     """
-    tree = ast.parse((_ROOT / "src/dashboard/views/home.py").read_text(encoding="utf-8"))
+    tree = ast.parse((_ROOT / "src/dashboard/utils/source_freshness.py").read_text(
+        encoding="utf-8"))  # R373: the grid left home.py for Santé onboarding
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and getattr(n.func, "id", "") == "freshness_status"]
-    assert calls, "`home.py` n'appelle plus `freshness_status`"
+    assert calls, "`source_freshness.py` n'appelle plus `freshness_status`"
     with_kind = [n for n in calls if len(n.args) >= 2 or any(k.arg == "kind"
                                                              for k in n.keywords)]
     assert with_kind, (
-        "aucun appel de `freshness_status` dans l'accueil ne transmet le contrat de "
+        "aucun appel de `freshness_status` de la grille des sources ne transmet le contrat de "
         "la source : les deux barèmes existent et la grille retombe en silence sur "
         "celui des API, donc un CSV de trois jours est de nouveau rouge.")

@@ -129,16 +129,17 @@ def test_the_home_page_reads_kind_and_at_rather_than_restating_them() -> None:
     listing which sources were automatic. That sentence is a third place to keep
     in sync, and the one nobody updates.
     """
-    home = (_ROOT / "src" / "dashboard" / "views" / "home.py").read_text(encoding="utf-8")
+    home = (_ROOT / "src" / "dashboard" / "utils" / "source_freshness.py").read_text(
+        encoding="utf-8")  # R373: the grid left home.py for Santé onboarding
     fn = next(
         n for n in ast.walk(ast.parse(home))
-        if isinstance(n, ast.FunctionDef) and n.name == "_section_freshness"
+        if isinstance(n, ast.FunctionDef) and n.name == "render_source_freshness"
     )
     body = ast.unparse(fn)
     assert '"kind"' in body or "'kind'" in body, (
-        "_section_freshness no longer reads `kind` — the grouping has been hard-coded "
+        "render_source_freshness no longer reads `kind` — the grouping has been hard-coded "
         "somewhere else, and SOURCES_CONFIG is no longer the single declaration."
     )
     assert '"at"' in body or "'at'" in body, (
-        "_section_freshness no longer reads `at` — the announced hour is hard-coded."
+        "render_source_freshness no longer reads `at` — the announced hour is hard-coded."
     )

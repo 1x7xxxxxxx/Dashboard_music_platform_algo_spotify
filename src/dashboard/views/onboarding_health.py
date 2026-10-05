@@ -147,6 +147,13 @@ def show():
         # atterrissent ICI parce que c'est ici qu'on est quand on se demande ce qui
         # manque : « ajouter le lien de téléchargement du guide dans l'onglet santé
         # onboarding, je pense que c'est le plus pertinent » (2026-09-06).
+        # R373 (2026-10-05, V6) — la grille des sources a quitté l'accueil. Pour
+        # l'artiste seulement : l'admin a Alertes, qui lit la même fraîcheur sur
+        # la flotte, et dérouler une grille par locataire ici la répéterait.
+        if not is_admin():
+            from src.dashboard.utils.source_freshness import render_source_freshness
+            render_source_freshness(db, artists[0][0])
+
         st.markdown("---")
         _render_credentials_pdf()
         _render_csv_definitions()

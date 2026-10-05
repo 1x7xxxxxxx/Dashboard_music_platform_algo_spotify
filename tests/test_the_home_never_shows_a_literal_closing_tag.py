@@ -3,7 +3,7 @@
 Type: Test
 Uses: markdown_it (CommonMark, the grammar Streamlit's markdown follows), ast,
       streamlit.testing.v1.AppTest, src.dashboard.views.home / home_meta_advice
-Depends on: views.home.freshness_tile_html, utils.stat_boxes, views.home_meta_advice;
+Depends on: utils.source_freshness.freshness_tile_html, utils.stat_boxes, views.home_meta_advice;
             the full-home render needs a provisioned Postgres on 5433 (skipped otherwise)
 Persists in: nothing
 
@@ -64,7 +64,7 @@ def _commonmark(html_src: str) -> str:
 
 
 def _tile(**over) -> str:
-    from src.dashboard.views.home import freshness_tile_html
+    from src.dashboard.utils.source_freshness import freshness_tile_html
     args = dict(color="#2ecc71", icon="🎧", label="Spotify for Artists", emoji="🟢",
                 age_label="il y a 2 h", date_str="04/10/2026", when="chaque jour à 06:00",
                 written="")

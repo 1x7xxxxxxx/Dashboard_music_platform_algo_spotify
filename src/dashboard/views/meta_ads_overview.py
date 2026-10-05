@@ -516,6 +516,14 @@ def _show_meta_ads(db, artist_id):
     ) + _win_sql
     params = (artist_id, *_acct_params, *selected_campaigns, *_win_params)
 
+    # R373 (2026-10-05, V6) — « ce que ta publicité a appris » a quitté l'accueil et
+    # vit ici en attendant la vue croisée (R378). Même fenêtre que la page, et toute la
+    # publicité de l'artiste : le conseil parle de ses campagnes, pas de la sélection.
+    from src.dashboard.utils.period_side_metrics import period_side_metrics
+    from src.dashboard.views.home_meta_advice import render_meta_advice
+    _bornes = (None, None) if window.is_all_history else (window.start, window.end)
+    render_meta_advice(period_side_metrics(db, artist_id, *_bornes))
+
     # ==============================================================================
     # 🟢 SECTION 1 : VUE MACRO (KPIS)
     # ==============================================================================

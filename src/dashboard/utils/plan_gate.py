@@ -9,7 +9,7 @@ Persists in: nothing
 Le trou, balayé le 2026-09-22
 ------------------------------
 Trois surfaces verrouillent un BLOC de contenu, et les trois ont recopié le motif à
-la main : `home._bouton_rapport_pdf`, `export_pdf.py:176-185`, `onboarding.py:349`.
+la main : `export_pdf.py:176-185`, `onboarding.py:349`.
 Aucun helper n'existait.
 
 `auth.require_plan` ne pouvait pas servir : il appelle `st.stop()` et emporte la page

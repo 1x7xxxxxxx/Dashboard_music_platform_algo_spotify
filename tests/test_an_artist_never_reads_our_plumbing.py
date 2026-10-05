@@ -81,9 +81,6 @@ _ADMIN_GATED_KEYS = {
     # app.py::_check_db_health — the operator's own "Docker is down" banner; an
     # artist never sees a reachable app in that state.
     "app.db_health_error",
-    # views/home.py::_section_dag_status — `if not is_admin(): return`
-    "home.airflow_unreachable",
-    "home.no_dags",
     # views/meta_creatives.py — `if is_admin():`, the full-history manoeuvre
     "meta_creatives.uncollected_admin",
 }
