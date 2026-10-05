@@ -311,7 +311,10 @@ _FLOOR: dict[str, int] = {
     # 2026-10-05 (R388) : 158 → 153 — the distributor page loses its tabs (owner,
     # V75-V78); its three evolution tiles become one sentence above the chart, and the
     # three branches of the ROI tile one call (same figure, written once).
-    "tiles.total": 153,
+    # 2026-10-05 (R391) : 153 → 150 — billing's three tiles (plan, monthly price,
+    # status) become the Free / Premium cards side by side (owner, V84-V86); same
+    # three facts, written under the card they describe.
+    "tiles.total": 150,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

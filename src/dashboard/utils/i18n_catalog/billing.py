@@ -2,7 +2,6 @@
 
 EN = {
     # ── Le service d'optimisation (2026-09-21) ───────────────────────────────
-    "billing.service_header": "🎯 Have your campaigns run for you (bespoke service)",
     "billing.service_body": (
         "The tool tells you where your money goes. If you want someone to handle "
         "**the campaigns themselves**, that is a separate service, and we talk "
@@ -22,7 +21,7 @@ EN = {
         "does not"),
     "billing.service_credential.3": (
         "🎯 **The full setup** — audiences, placements, budgets, iterations"),
-    "billing.title": "💳 Billing & Subscription",
+    "billing.title": "💳 Billing / Subscription",
     "billing.price_free": "€0/month",
     "billing.price_monthly": "€{p}/month",
     # Plan cards
@@ -32,12 +31,13 @@ EN = {
     "billing.up_to_10": "Up to 10 artists",
     "billing.feat_everything_free": "Everything in Free",
     # Current plan
-    "billing.free_plan_info": "You are on the **Free** plan. Check out the offers below.",
     "billing.trial_active": "🎁 **{plan}** access active (welcome trial). "
                             "See the offers below for what comes next.",
-    "billing.metric_plan": "Plan",
-    "billing.metric_price": "Monthly price",
-    "billing.metric_status": "Status",
+    "billing.status_active": "Active",
+    "billing.status_trialing": "Trial",
+    "billing.status_past_due": "Payment overdue",
+    "billing.status_canceled": "Cancelled",
+    "billing.status_inactive": "Not subscribed",
     "billing.free_months": (
         "🎁 You have **{n} free month(s)** from referrals: each one is deducted from "
         "your next Stripe invoice, one month at a time."),
@@ -73,5 +73,5 @@ EN = {
     "billing.total_mrr": "Total MRR",
     "billing.paying_artists": "Paying artists",
     "billing.no_tenant": "Incomplete session: the payment could not be linked to your account. Please sign in again and retry.",
-    "billing.service_see": "See the service",
+    "billing.service_see": "🎯 Have my campaigns run for me",
 }

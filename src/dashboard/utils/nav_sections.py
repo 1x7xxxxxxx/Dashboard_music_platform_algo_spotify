@@ -205,7 +205,7 @@ NAV_SECTIONS: list = [
       ("🎼 SACEM", "sacem")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
-      ("💳 Billing", "billing"),
+      ("💳 Facturation / Abonnement", "billing"),
       ("⬇️ Export CSV", "export_csv"),
       ("🎁 Parrainage", "referral")]),
     # ⚡ « Perf. Dashboard » (`perf_monitor`) a ete RETIRE le 2026-09-16, R115 etape 6.

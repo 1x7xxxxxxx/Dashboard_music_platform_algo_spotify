@@ -64,7 +64,7 @@ _PLAN_ORDER = ['free', 'premium']
 
 
 def show():
-    st.title(t("billing.title", "💳 Facturation & Abonnement"))
+    st.title(t("billing.title", "💳 Facturation / Abonnement"))
     st.markdown("---")
 
     db = require_db(get_db_connection())
@@ -74,20 +74,18 @@ def show():
     admin = is_admin()
 
     try:
-        # ── Current plan ─────────────────────────────────────────────────
+        # R391 (V84-V86, owner's screen review, 2026-10-05): the two plans first,
+        # side by side — the inactive one struck through, the active one marked —,
+        # then the « Faire piloter » button, then « Nos offres ». It used to read
+        # three metric tiles, the offers, and the service pitch last.
+        current_plan = None if admin else get_artist_plan()
         if not admin and artist_id:
-            _show_current_plan(db, artist_id)
+            _show_current_plan(db, artist_id, current_plan)
         elif admin:
             _show_admin_view(db)
 
-        st.markdown("---")
-
-        # ── Offres (3 colonnes Free / Basic / Premium) ───────────────────
-        # authoritative plan (includes the promo/trial precedence)
-        current_plan = None if admin else get_artist_plan()
-        _render_plan_columns(current_plan)
-
         _render_service_cta(db)
+        _render_plan_columns(current_plan)
 
     finally:
         db.close()
@@ -113,9 +111,7 @@ def _render_service_cta(db=None) -> None:
     from src.dashboard.utils.navigation import goto
 
     st.markdown("---")
-    st.subheader(t("billing.service_header",
-                   "🎯 Faire piloter tes campagnes (prestation sur-mesure)"))
-    st.markdown(t(
+    st.caption(t(
         "billing.service_body",
         "L'outil te dit où va ton argent. Si tu veux que quelqu'un s'occupe **des "
         "campagnes elles-mêmes**, c'est une prestation à part — trois formules, et "
@@ -123,7 +119,7 @@ def _render_service_cta(db=None) -> None:
 
     lien = get_setting(db, "service_calendly_url", SERVICE_CALENDLY_URL)
     cols = st.columns(2)
-    if cols[0].button(t("billing.service_see", "Voir la prestation"),
+    if cols[0].button(t("billing.service_see", "🎯 Faire piloter mes campagnes"),
                       type="primary", width="stretch"):
         goto("service")
     if lien:
@@ -137,7 +133,35 @@ def _render_service_cta(db=None) -> None:
             "sans redéploiement."))
 
 
-def _show_current_plan(db, artist_id: int):
+def status_text(status: str | None) -> str:
+    """The subscription status in words, with its colour dot."""
+    words = {
+        'active': f"🟢 {t('billing.status_active', 'Actif')}",
+        'trialing': f"🟡 {t('billing.status_trialing', 'Essai')}",
+        'past_due': f"🔴 {t('billing.status_past_due', 'Paiement en retard')}",
+        'canceled': f"⚫ {t('billing.status_canceled', 'Résilié')}",
+    }
+    return words.get(status or 'active', f"⚪ {status}")
+
+
+def card_header(label: str, active: bool) -> str:
+    """An active plan is marked by a green arrow; an inactive one is struck through."""
+    return f"### :green[➜] {label}" if active else f"### ~~{label}~~"
+
+
+def _render_plan_status(current_plan: str, status: str | None) -> None:
+    """Free and Premium side by side: which one runs, at what price, in what state."""
+    cards = _plan_cards()
+    for col, plan_key in zip(st.columns(len(_PLAN_ORDER)), _PLAN_ORDER):
+        active = plan_key == current_plan
+        with col:
+            st.markdown(card_header(cards[plan_key]['label'], active))
+            st.markdown(f"**{cards[plan_key]['price']}**")
+            st.caption(status_text(status) if active
+                       else t("billing.status_inactive", "Non souscrit"))
+
+
+def _show_current_plan(db, artist_id: int, current_plan: str):
     row = db.fetch_query(
         """
         SELECT sp.name, sp.price_monthly, asub.status,
@@ -152,32 +176,20 @@ def _show_current_plan(db, artist_id: int):
     )
 
     if not row:
-        # No subscription row → free plan (or active promo trial)
-        plan = get_artist_plan()
-        if plan == 'free':
-            st.info(t("billing.free_plan_info",
-                      "Vous êtes sur le plan **Free**. Découvrez les offres ci-dessous."))
-        else:
+        # No subscription row → free plan, or an active promo trial.
+        trial = current_plan != 'free'
+        _render_plan_status(current_plan, 'trialing' if trial else 'active')
+        if trial:
             st.success(
                 t("billing.trial_active",
                   "🎁 Accès **{plan}** actif (essai de bienvenue). "
-                  "Voir les offres ci-dessous pour la suite.").format(plan=plan.capitalize())
+                  "Voir les offres ci-dessous pour la suite.").format(
+                      plan=current_plan.capitalize())
             )
         return
 
-    plan_name, price, status, period_end, cancel_at_end, customer_id, sub_id = row[0]
-
-    status_color = {
-        'active': '🟢',
-        'trialing': '🟡',
-        'past_due': '🔴',
-        'canceled': '⚫',
-    }.get(status, '⚪')
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric(t("billing.metric_plan", "Plan"), plan_name.capitalize())
-    col2.metric(t("billing.metric_price", "Prix mensuel"), f"{float(price):.2f} €")
-    col3.metric(t("billing.metric_status", "Statut"), f"{status_color} {status.replace('_', ' ').title()}")
+    _, _, status, period_end, cancel_at_end, customer_id, _ = row[0]
+    _render_plan_status(current_plan, status)
 
     free_months_row = db.fetch_query(
         "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)
@@ -290,7 +302,8 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
 
 
 def _render_plan_columns(current_plan: str | None) -> None:
-    """3-column Free / Basic / Premium offer layout (replaces the table)."""
+    """« Nos offres »: what each plan contains, with its call to action."""
+    st.markdown("---")
     st.subheader(t("billing.offers_header", "Nos offres"))
     plan_cards = _plan_cards()
     cols = st.columns(len(_PLAN_ORDER))
