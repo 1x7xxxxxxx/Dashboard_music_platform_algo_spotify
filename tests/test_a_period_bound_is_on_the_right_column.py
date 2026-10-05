@@ -169,7 +169,10 @@ def test_the_inventory_is_not_empty() -> None:
     assert len(b) >= 10, (
         f"seulement {len(b)} bornage(s) trouvé(s) — il y en avait 13 le 2026-09-10. "
         "L'extraction vise à côté, et les deux contrôles passent sur du vide.")
-    assert {c for _f, c, _ln in b} >= {"date", "collected_at", "timestamp"}, (
+    # By FAMILY, not by column name: R377 removed the only `date_column="date"` site
+    # (Hypeddit now compares campaigns), and eight `day` sites still date an event.
+    assert {COLUMN_SUBJECT.get(c) for _f, c, _ln in b} >= {
+        Dates.EVENT, Dates.MEASUREMENT, Dates.PUBLICATION}, (
         "les trois familles de colonne — événement, mesure, publication — ne sont plus "
         "toutes représentées ; le garde ne prouve plus qu'il sait les distinguer.")
 

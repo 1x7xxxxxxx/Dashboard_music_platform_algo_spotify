@@ -49,10 +49,6 @@ from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.filters import (
-    latest_release_date,
-    smart_period_filter,
-)
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_serie
@@ -186,27 +182,33 @@ def get_global_stats(start_date, end_date, db):
     return db.fetch_df(query, (start_date, end_date, artist_id))
 
 
+def get_campaign_stats(db):
+    """Every reading of every campaign of the tenant — the campaign filter bounds it (R377)."""
+    return db.fetch_df(
+        "SELECT campaign_name, day AS date, visits, clicks FROM v_hypeddit_daily "
+        "WHERE artist_id = %s ORDER BY day", (_resolve_artist_id(),))
+
+
+def default_campaigns(last_day: pd.Series, n: int = 2) -> list:
+    """The `n` campaigns read most recently — the two latest releases by default. Pure.
+
+    `last_day` maps a campaign name to its last day with a reading. A campaign serves
+    one release, so its last reading dates the release it served.
+    """
+    return list(last_day.sort_values(ascending=False).index[:n])
+
+
 def _render_global_stats(db):
-    """Section Statistiques Globales (graphique multi-axes + KPIs)."""
+    """Statistiques par CAMPAGNE : visites, clics et pub Meta, comparées (R377).
+
+    ⚠️ UN FILTRE CAMPAGNE, PLUS UN FILTRE DE PÉRIODE — 2026-10-05, revue d'écran du
+    propriétaire (V22-V25). Une campagne Hypeddit sert UNE sortie : c'est elle l'unité
+    qu'on compare, pas une fenêtre de dates. La période par défaut (« depuis la dernière
+    sortie ») cachait justement la campagne de l'avant-dernière, celle à laquelle on veut
+    comparer la dernière. Défaut : les deux campagnes relevées le plus récemment.
+    """
     st.header(t("hypeddit.global_stats", "📊 Statistiques globales"))
-
-    # Smart period filter (presets + auto-default on data span) instead of two
-    # manual date inputs. The connection is show()'s — this used to open a second
-    # one here and close it below, while show()'s stayed open.
-    artist_id = _resolve_artist_id()
-    # DÉFAUT « DEPUIS LA DERNIÈRE SORTIE » — 2026-09-21, appliqué à toute l'app.
-    # Une campagne Hypeddit sert une SORTIE ; l'année civile n'est pas son cadre.
-    window = smart_period_filter(
-        db,
-        table="hypeddit_daily_stats",
-        date_column="date",
-        artist_id=artist_id,
-        key="hyp_stats",
-        latest_release_resolver=lambda: latest_release_date(db, artist_id),
-    )
-
-    df = get_global_stats(window.start, window.end, db=db)
-
+    df = get_campaign_stats(db)
     if df.empty:
         st.info(t("hypeddit.no_data_period", "📭 Aucune donnée trouvée pour la période sélectionnée."))
         return
@@ -219,12 +221,26 @@ def _render_global_stats(db):
     df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce')
     df['date'] = pd.to_datetime(df['date'])
 
+    last = df.groupby('campaign_name')['date'].max()
+    chosen = st.multiselect(
+        t("hypeddit.campaign_filter", "🎯 Campagnes comparées"),
+        list(last.sort_values(ascending=False).index),
+        default=default_campaigns(last), key="hyp_campaigns",
+        help=t("hypeddit.campaign_filter_help",
+               "Par défaut, les deux campagnes les plus récentes — tes deux dernières "
+               "sorties."))
+    if not chosen:
+        st.info(t("hypeddit.no_campaign", "Choisis au moins une campagne à comparer."))
+        return
+    df = df[df['campaign_name'].isin(chosen)]
+
     # R301 (R282 proposal D, 2026-09-28) — the Meta spend around each campaign's release: the
     # rings already carry visits, clicks and conversion per campaign, so the proposal's ONE
     # new fact goes under each ring instead of a second chart repeating the first (R299).
     spend = db.fetch_df("SELECT day, SUM(spend) AS spend FROM v_meta_daily "
-                        "WHERE artist_id = %s GROUP BY day", (artist_id,))
-    _render_campaign_series(df, window, spend)
+                        "WHERE artist_id = %s GROUP BY day", (_resolve_artist_id(),))
+    _render_campaign_series(
+        df, t("hypeddit.label_campaigns", "{n} campagne(s)").format(n=len(chosen)), spend)
 
 
 _MAX_RINGS = 12  # two rows of six rings (R245); the caption names what is left out
@@ -244,7 +260,7 @@ def _short(name, lines: int = 2, width: int = 16) -> str:
     return "<br>".join(out[:lines]) + ("…" if len(out) > lines else "")
 
 
-def _render_campaign_series(df, window, spend=None) -> None:
+def _render_campaign_series(df, label: str, spend=None) -> None:
     """Visites, clics et taux de conversion — par CAMPAGNE, sur l'axe du temps.
 
     REMPLACE LES DEUX TUILES DE MOYENNE, et la raison est dans la donnée.
@@ -300,7 +316,7 @@ def _render_campaign_series(df, window, spend=None) -> None:
         from src.dashboard.utils.meta_impact import spend_around
         ringed = ringed.assign(meta=[spend_around(spend, pd.Timestamp(d).date())
                                      for d in ringed['jour']])
-    charts.plotly_chart(rings_figure(ringed, taux, window), width="stretch")
+    charts.plotly_chart(rings_figure(ringed, taux, label), width="stretch")
     hidden = int(taux.notna().sum()) - len(ringed)
     if hidden > 0:
         st.caption(t("hypeddit.rings_capped",
@@ -315,7 +331,7 @@ def _render_campaign_series(df, window, spend=None) -> None:
         zeros = int((par_camp['visits'].fillna(0) == 0).sum())
         st.caption(t(
             "hypeddit.conv_caption",
-            "**{n} campagne(s)** sur la période. Le **taux de conversion** est ce "
+            "**{n} campagne(s)** comparée(s). Le **taux de conversion** est ce "
             "qui juge un smart link : sa raison d'être est de transformer une "
             "visite en clic vers une plateforme. Il va ici de **{mini:.0f} %** à "
             "**{maxi:.0f} %** — **{best}** convertit le mieux. Une visite qui ne "
@@ -325,14 +341,17 @@ def _render_campaign_series(df, window, spend=None) -> None:
         ).format(n=len(par_camp), mini=_t.min(), maxi=_t.max(), best=meilleure,
                  solo=int((par_camp['releves'] == 1).sum()),
                  zero=(t("hypeddit.zero_campaigns",
-                         "{k} campagne(s) n'ont que des relevés à zéro sur cette "
-                         "période : leur conversion est incalculable, pas nulle.")
+                         "{k} campagne(s) n'ont que des relevés à zéro : leur conversion est incalculable, pas nulle.")
                        .format(k=zeros) if zeros else "")))
 
 
 def _render_history(db):
-    """Section Historique (50 dernières lignes)."""
-    st.header(t("hypeddit.history_header", "📋 Historique"))
+    """Section Historique (50 dernières lignes) — REPLIÉE par défaut (R377, V25)."""
+    with st.expander(t("hypeddit.history_header", "📋 Historique"), expanded=False):
+        _render_history_table(db)
+
+
+def _render_history_table(db):
     artist_id = _resolve_artist_id()
     df_hist = db.fetch_df("""
         SELECT campaign_name, day AS date, visits, clicks
@@ -357,6 +376,15 @@ def _render_history(db):
 def _render_entry_form(db):
     """Section Saisie manuelle — EN TÊTE de page depuis le 2026-09-21."""
     st.header(t("hypeddit.entry_header", "📝 Saisir les données"))
+    # R377 (V23) : les gestes seulement — pas d'explication de ce qu'est un smart link.
+    with st.expander(t("hypeddit.fetch_header", "📥 Récupérer tes chiffres sur Hypeddit")):
+        st.markdown(t(
+            "hypeddit.fetch_steps",
+            "1. Ouvre **hypeddit.com** et connecte-toi.\n"
+            "2. Dans ton tableau de bord, ouvre la campagne de ta sortie.\n"
+            "3. Ouvre ses statistiques et règle-les sur la journée à saisir.\n"
+            "4. Reporte ici la campagne, la date, les **visites** et les **clics**, "
+            "puis **Enregistrer**."))
 
     with st.form("hypeddit_entry_form"):
         col1, col2 = st.columns(2)
@@ -461,7 +489,7 @@ def ring_label(name: str, visits: float, clicks: float, meta: float | None = Non
     return out
 
 
-def rings_figure(ringed, taux, window):
+def rings_figure(ringed, taux, label: str):
     """One ring per campaign (R245): its conversion rate in the hole, its totals under it."""
     import math
 
@@ -491,5 +519,5 @@ def rings_figure(ringed, taux, window):
         height=300 * rows + 80, margin=dict(t=70, b=90),
         legend=dict(orientation="h", y=-0.08),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
-        .format(label=window.label))
+        .format(label=label))
     return fig

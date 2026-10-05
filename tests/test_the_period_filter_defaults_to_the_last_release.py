@@ -28,6 +28,8 @@ EXEMPT = {
     # R368 — seen only once `_uses_the_layer` stopped counting an ACCOUNT-filter import.
     "meta_cpr_optimizer.py": "coût par résultat sur TOUTE la vie de chaque campagne : une fenêtre tronquerait le CPR",
     "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`_campaign_window`), pas une période libre",
+    # R377 (V24) — the default « depuis la dernière sortie » hid the previous campaign.
+    "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
 }
 
 
