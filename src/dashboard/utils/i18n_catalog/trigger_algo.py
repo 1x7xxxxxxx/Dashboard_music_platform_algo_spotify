@@ -162,29 +162,11 @@ EN = {
         "remaining Meta Ads budget, and the risk-adjusted cost (cost ÷ trigger "
         "probability) = the real € to pay to hope to open an algorithmic door."
     ),
-    "trigger_algo.roi.risk_adjusted_header": "**Risk-adjusted cost (cost ÷ trigger probability):**",
-    "trigger_algo.roi.ml_proba_unavailable": (
-        "No probabilities yet for this track. They are computed nightly as soon as it "
-        "has enough history — nothing to do on your side."
-    ),
-    "trigger_algo.roi.adj_cost_help": "Nominal cost {cost:,.2f} € ÷ P={p:.0f}% trigger.",
-    "trigger_algo.roi.p_nominal_caption": "P={p:.0f}% · nominal {cost:,.0f} €",
-    "trigger_algo.roi.best_bet": (
-        "🎯 Best bet: **{label}** — each euro there has the highest chance "
-        "of converting into a trigger (adjusted cost {cost:,.0f} €)."
-    ),
-    "trigger_algo.roi.score_reliability": "🎯 Score reliability: {note}",
     "trigger_algo.roi.meta_budget_header": "💶 Meta Ads Budget",
     "trigger_algo.roi.lifetime_budget_metric": "Lifetime budget allocated",
     "trigger_algo.roi.spent_metric": "Spent (period)",
     "trigger_algo.roi.remaining_metric": "Estimated remaining",
     "trigger_algo.roi.cost_per_stream_metric": "Cost / stream",
-    "trigger_algo.roi.budget_per_playlist_header": "**Estimated budget to trigger each playlist:**",
-    "trigger_algo.roi.budget_sufficient": "**{label}**\n\n~{seuil:,} streams · {cost:.2f} €\n\n✅ Sufficient budget",
-    "trigger_algo.roi.budget_short": "**{label}**\n\n~{seuil:,} streams · {cost:.2f} €\n\n❌ {missing:.2f} € short",
-    "trigger_algo.roi.shap_volumes_caption": (
-        "SHAP trigger volumes (Class 1) per algo, not rounded 1k/10k figures."
-    ),
     "trigger_algo.roi.no_active_campaign": "No active Meta campaign found for this artist.",
     "trigger_algo.roi.meta_budget_unavailable": "Meta budget unavailable: {err}",
     "trigger_algo.roi.organic_scaling_header": "🔊 Organic scaling threshold (DW volume)",
@@ -318,9 +300,6 @@ EN = {
     "trigger_algo.common.gate_reached": "✅ door reached",
     "trigger_algo.common.gate_requires": "⛔ requires PI {gate}",
     "trigger_algo.common.gate_line": "- **{label}**: door at PI **{gate}** — {status}",
-    "trigger_algo.roi.ml_proba_floor": ("No reliable estimate for this track: its "
-        "three probabilities are on the calibration floor. Dividing a cost by that floor "
-        "would invent a « best bet » the model never gave."),
     "trigger_algo.common.verdict_floor": ("⚪ **No reliable estimate** — for this "
         "track the model decided nothing on any of the three algorithms (score on the "
         "calibration floor). No STOP / SCALE verdict can be drawn from it."),
@@ -389,13 +368,6 @@ EN = {
     "trigger_algo.common.dm_protocol_caption": (
         "Live Discovery Mode status not collected (imputed to 0 at inference) — "
         "protocol shown for guidance only."
-    ),
-    "trigger_algo.common.gate28_header": "**🚪 28-day door — streams & listeners vs per-algo thresholds**",
-    "trigger_algo.common.gate28_caption": "This track (28d): **{streams:,} streams** · **{listeners:,} listeners**.",
-    "trigger_algo.common.gate28_streams": "{mark} streams ≥ {thr:,}",
-    "trigger_algo.common.gate28_listeners": "{mark} listeners ≥ {thr:,}",
-    "trigger_algo.common.gate28_note": (
-        "Approximate 28d thresholds, derived from data_anon.csv (success-rate knee)."
     ),
     "trigger_algo.common.velocity_advice": (
         "⚡ High velocity ({vel:.2f}) on « {track} » — Radio (threshold {radio:g}) "

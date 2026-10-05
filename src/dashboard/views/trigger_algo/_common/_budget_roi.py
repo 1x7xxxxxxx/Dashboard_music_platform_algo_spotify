@@ -8,52 +8,10 @@ from src.utils.track_matching import canonical_song_sql
 _CANON = canonical_song_sql('ctm.track_name')
 
 
-_TRIGGER_STREAM_TARGETS = {
-    "Release Radar": 417,
-    "Discover Weekly": 1333,
-    "Radio": 8423,
-}
-
-
-_GATE_28D = {
-    "Discover Weekly": {"streams": 9200, "listeners": 4100},
-    "Release Radar": {"streams": 1300, "listeners": 600},
-    "Radio": {"streams": 8400, "listeners": 4000},
-}
-
-
-def _show_28d_gate(db, track: str, artist_id) -> None:
-    """28-day streams/listeners gate per algo — is the track above each trigger threshold?
-
-    Per-song listeners only exist as the 28-day snapshot (s4a_songs_global), not a daily
-    series, so this is a gate panel rather than a chart line.
-    """
-    try:
-        row = db.fetch_query(
-            """SELECT listeners, streams FROM s4a_songs_global
-               WHERE artist_id = %s AND song = %s AND time_window = '28d' LIMIT 1""",
-            (artist_id, track),
-        )
-    except Exception:
-        return
-    if not row or row[0][0] is None:
-        return
-    listeners, streams = int(row[0][0] or 0), int(row[0][1] or 0)
-    st.markdown(t("trigger_algo.common.gate28_header",
-                  "**🚪 Porte 28 jours — streams & listeners vs seuils par algo**"))
-    st.caption(t("trigger_algo.common.gate28_caption",
-                 "Ce titre (28j) : **{streams:,} streams** · **{listeners:,} listeners**.")
-               .format(streams=streams, listeners=listeners))
-    cols = st.columns(len(_GATE_28D))
-    for col, (algo, g) in zip(cols, _GATE_28D.items()):
-        with col:
-            st.markdown(f"**{algo}**")
-            st.caption(t("trigger_algo.common.gate28_streams", "{mark} streams ≥ {thr:,}")
-                       .format(mark='✅' if streams >= g['streams'] else '❌', thr=g['streams']))
-            st.caption(t("trigger_algo.common.gate28_listeners", "{mark} listeners ≥ {thr:,}")
-                       .format(mark='✅' if listeners >= g['listeners'] else '❌', thr=g['listeners']))
-    st.caption(t("trigger_algo.common.gate28_note",
-                 "Seuils 28j approximatifs, dérivés de data_anon.csv (knee du taux de succès)."))
+# ⚠️ `_TRIGGER_STREAM_TARGETS` (417/1333/8423), `_GATE_28D` (9200/4100…) and
+# `_show_28d_gate` DELETED on 2026-10-05 (R402). The first was a steady-state volume
+# used as streams to buy; the second had no source, and its panel had no caller.
+# The one threshold set is `src.utils.ml_outcome_labeling.TARGET_THRESHOLDS`.
 
 
 # ⚠️ `_show_budget_tier_selector` SUPPRIMÉ — 2026-09-22.

@@ -314,7 +314,9 @@ _FLOOR: dict[str, int] = {
     # 2026-10-05 (R391) : 153 → 150 — billing's three tiles (plan, monthly price,
     # status) become the Free / Premium cards side by side (owner, V84-V86); same
     # three facts, written under the card they describe.
-    "tiles.total": 150,
+    # 2026-10-05 (R402) : 150 → 149 — the risk-adjusted cost tile is gone: it priced a
+    # steady-state playlist volume as streams to buy (no honest replacement figure).
+    "tiles.total": 149,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

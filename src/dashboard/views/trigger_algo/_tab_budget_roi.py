@@ -3,98 +3,26 @@ from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak, charts
 from src.dashboard.utils.semantic_colors import BON
-from src.dashboard.utils import ml_widgets
 from src.dashboard.utils.i18n import t
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from ._common import (
-    _TRIGGER_STREAM_TARGETS,
     _show_budget_pacing_calculator,
     _show_pi_breakeven,
     _show_velocity_budget_advice,
 )
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.algo_preview_data import cout_par_stream as _cout_par_stream  # noqa: F401,E402 — moved (R193)
-from src.dashboard.utils.algo_preview_data import budget_pour_streams  # noqa: E402 — R372, one formula
 
 
-# Maps the cost-target labels to (ml_pred probability key, calibration-band algo key).
-_EV_ALGO_KEYS = {
-    "Release Radar": ("rr_probability", "RR"),
-    "Discover Weekly": ("dw_probability", "DW"),
-    "Radio": ("radio_probability", "RADIO"),
-}
-
-
-def _expected_value_rows(ml_pred: dict, cost_per_stream: float) -> tuple[list[tuple], int]:
-    """`(rows, n_floor)` — one row per algo whose probability is a real measure. Pure.
-
-    A floor probability (`proba_affichable` → None) is EXCLUDED from the rows, hence
-    from the P display and from « Meilleur pari »: dividing a cost by the calibration
-    intercept ranked Radio first for every title (2026-09-26, 33/33 prod values on
-    the floor). `n_floor` counts the excluded ones so the view can say why.
-    """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
-
-    rows, n_floor = [], 0
-    for label, seuil in _TRIGGER_STREAM_TARGETS.items():
-        key, algo = _EV_ALGO_KEYS[label]
-        raw = ml_pred.get(key)
-        p = proba_affichable(algo.lower(), raw)
-        if p is None:
-            n_floor += raw is not None
-            continue
-        if p <= 0:
-            continue
-        cost_est = budget_pour_streams(seuil, cost_per_stream)
-        rows.append((label, algo, p, cost_est, cost_est / p))
-    return rows, n_floor
-
-
-def _render_expected_value(ml_pred: dict, cost_per_stream: float) -> None:
-    """Risk-adjusted cost-per-trigger = nominal cost / P(trigger).
-
-    The nominal cost-to-trigger assumes the push always converts. It does not: the model
-    gives P(trigger). Dividing the cost by P yields the honest effective € per trigger
-    actually obtained, and ranks where a euro is most likely to convert. Expected value,
-    never a promise — gated by the calibration caveat per algo.
-    """
-    st.markdown(t("trigger_algo.roi.risk_adjusted_header",
-                  "**Coût ajusté au risque (coût ÷ probabilité de déclenchement) :**"))
-    rows, n_floor = _expected_value_rows(ml_pred, cost_per_stream)
-    if not rows and n_floor:
-        st.caption(t("trigger_algo.roi.ml_proba_floor",
-                     "Pas d'estimation fiable pour ce titre : ses trois probabilités sont "
-                     "au plancher de la calibration. Diviser un coût par ce plancher "
-                     "inventerait un « meilleur pari » que le modèle n'a pas donné."))
-        return
-    if not rows:
-        # L'artiste ne peut PAS lancer un DAG : le message nommait une action que
-        # son lecteur ne peut pas prendre. Il dit maintenant QUAND ça arrive.
-        st.caption(t("trigger_algo.roi.ml_proba_unavailable",
-                     "Pas encore de probabilités pour ce titre. Elles sont calculées "
-                     "chaque nuit dès qu'il a assez d'historique — rien à faire de ton côté."))
-        return
-    cols = st.columns(len(rows))
-    for col, (label, algo, p, cost_est, adj) in zip(cols, rows):
-        with col:
-            st.metric(label, f"{adj:,.2f} €",
-                      help=t("trigger_algo.roi.adj_cost_help",
-                             "Coût nominal {cost:,.2f} € ÷ P={p:.0f}% de déclenchement.")
-                      .format(cost=cost_est, p=p * 100))
-            st.caption(t("trigger_algo.roi.p_nominal_caption", "P={p:.0f}% · nominal {cost:,.0f} €")
-                       .format(p=p * 100, cost=cost_est))
-    best = min(rows, key=lambda r: r[4])
-    st.success(t("trigger_algo.roi.best_bet",
-                 "🎯 Meilleur pari : **{label}** — chaque euro y a le plus de chances "
-                 "de convertir en déclenchement (coût ajusté {cost:,.0f} €).")
-               .format(label=best[0], cost=best[4]))
-    note = ml_widgets.calibration_note_text(best[1], best[2])
-    if note:
-        st.caption(t("trigger_algo.roi.score_reliability", "🎯 Fiabilité du score : {note}")
-                   .format(note=note))
+# ⚠️ « Budget estimé pour déclencher chaque playlist » and the risk-adjusted cost
+# (cost ÷ P) were REMOVED on 2026-10-05 (R402). Both bought streams up to 417/1333/8423 —
+# the volume a playlist PRODUCES once installed (`pdf_exporter/_report.py`: « pas un
+# objectif de streams à atteindre soi-même ») — under a caption naming a SHAP source
+# that does not exist. The euro figures rested on a diverted threshold. The honest
+# cost is the coach's 7-day streams GAP × cost per stream (`algo_preview_data`).
 
 
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=None):
@@ -112,8 +40,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
     st.caption(t(
         "trigger_algo.roi.caption",
         "💰 **Décision budget** — quels titres pousser en priorité (top-N% par score), ton "
-        "budget Meta Ads restant, et le coût ajusté au risque (coût ÷ probabilité de "
-        "déclenchement) = le vrai € à payer pour espérer ouvrir une porte algorithmique."
+        "budget Meta Ads restant et le rythme de dépense."
     ))
     st.markdown("---")
 
@@ -178,24 +105,6 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
             cost_per_stream = total_spend / total_streams
             b4.metric(t("trigger_algo.roi.cost_per_stream_metric", "Coût / stream"),
                       f"{cost_per_stream:.4f} €")
-            st.markdown(t("trigger_algo.roi.budget_per_playlist_header",
-                          "**Budget estimé pour déclencher chaque playlist :**"))
-            est_cols = st.columns(len(_TRIGGER_STREAM_TARGETS))
-            for i, (label, seuil) in enumerate(_TRIGGER_STREAM_TARGETS.items()):
-                cost_est = budget_pour_streams(seuil, cost_per_stream)
-                with est_cols[i]:
-                    if remaining >= cost_est:
-                        st.success(t("trigger_algo.roi.budget_sufficient",
-                                     "**{label}**\n\n~{seuil:,} streams · {cost:.2f} €\n\n✅ Budget suffisant")
-                                   .format(label=label, seuil=seuil, cost=cost_est))
-                    else:
-                        st.error(t("trigger_algo.roi.budget_short",
-                                   "**{label}**\n\n~{seuil:,} streams · {cost:.2f} €\n\n❌ Manque {missing:.2f} €")
-                                 .format(label=label, seuil=seuil, cost=cost_est, missing=cost_est - remaining))
-            st.caption(t("trigger_algo.roi.shap_volumes_caption",
-                         "Volumes de déclenchement SHAP (Classe 1) par algo, pas des arrondis 1k/10k."))
-            if ml_pred:
-                _render_expected_value(ml_pred, cost_per_stream)
         else:
             b4.metric(t("trigger_algo.roi.cost_per_stream_metric", "Coût / stream"), "—")
             if lifetime_budget == 0:

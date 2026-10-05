@@ -157,8 +157,6 @@ _BOUCLES_CONNUES: dict[str, str] = {
         "MÊME forme que le défaut des 38 jauges ; borné à 3 par le registre, pas par le code",
     "src/dashboard/views/trigger_algo/_tab_model.py::_show_tab_model":
         "ak.populated_algos() × render_classification_scorecard(compact) — même forme",
-    "src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_expected_value":
-        "un st.metric par algo ayant une probabilité — suit les lignes calculées",
     "src/dashboard/views/trigger_algo/_tab_explainability.py::_show_tab_explainability":
         "ak.populated_algos() × render_lever_sensitivity (DW seul, par un `if`) — c'est "
         "la boucle qui appelait les 38 jauges ; les tables ne sont plus des figures",

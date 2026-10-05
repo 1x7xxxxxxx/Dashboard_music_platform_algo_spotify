@@ -217,16 +217,6 @@ def test_verdict_banner():
     assert algo == "RR", "the argmax ran over a floor value"
 
 
-def test_budget_roi_best_bet_excludes_the_floor():
-    from src.dashboard.views.trigger_algo._tab_budget_roi import _expected_value_rows
-
-    floor = {f"{a}_probability": FLOOR[a] for a in ALGOS}
-    rows, n_floor = _expected_value_rows(floor, 0.05)
-    assert rows == [] and n_floor == 3, rows
-    rows, _n = _expected_value_rows({**floor, "dw_probability": OFF}, 0.05)
-    assert [r[1] for r in rows] == ["DW"] and rows[0][2] == pytest.approx(OFF)
-
-
 def test_cpr_optimizer_labels():
     from src.dashboard.views.meta_cpr_optimizer import _ml_label
 

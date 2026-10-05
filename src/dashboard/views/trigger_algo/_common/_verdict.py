@@ -7,7 +7,9 @@ import streamlit as st
 from ._loaders import _clean_feat, _load_feature_importance, _load_scored_tracks
 
 
-ELBOW_THRESHOLDS_28D = {"DW": 137, "RR": 130, "RADIO": 639}
+from src.utils.ml_outcome_labeling import TARGET_THRESHOLDS  # noqa: E402 — R402, one threshold set
+
+ELBOW_THRESHOLDS_28D = {k.upper(): v for k, v in TARGET_THRESHOLDS.items()}
 
 
 
