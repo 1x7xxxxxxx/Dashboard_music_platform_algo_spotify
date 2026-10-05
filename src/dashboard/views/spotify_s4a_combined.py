@@ -53,6 +53,7 @@ vivent dans `v_s4a_song_daily`, pas dans la mémoire de celui qui écrit la requ
 """
 from __future__ import annotations
 
+import math
 from datetime import date
 
 import pandas as pd
@@ -272,11 +273,46 @@ def _release_overlays(db, keys: list, horizon: int, frag: str,
 
 
 def meta_spend_traces(meta: pd.DataFrame, colour: dict) -> list:
-    """The Meta €/day panel's traces — one CURVE per release. Pure (R349)."""
+    """The Meta panel's traces — one CUMULATIVE curve per release. Pure (R349, R382).
+
+    R382 (V28, owner, 2026-10-05): the €/day curve still read as noise beside the
+    cumulative streams above it. Spend cumulated per release follows the same shape as
+    the streams it is meant to explain, on its own axis (€ and streams never share one).
+    """
+    dense = spend_curve(meta)
+    if dense.empty:
+        return []
+    dense = dense.assign(spend=dense.groupby("title", sort=False)["spend"].cumsum())
     return [go.Scatter(x=grp["day_index"], y=grp["spend"], name=str(title),
                        mode="lines", legendgroup=str(title), showlegend=False,
                        line=dict(color=colour.get(title, "#888"), width=2))
-            for title, grp in spend_curve(meta).groupby("title", sort=False)]
+            for title, grp in dense.groupby("title", sort=False)]
+
+
+def popularity_axis_max(values: pd.Series) -> int:
+    """The popularity axis top: the observed max rounded UP to the next ten. Pure (R382).
+
+    V33 (owner, 2026-10-05): a fixed 0-100 axis flattened a title peaking at 12 to a line
+    on the floor. The bound follows the data (0-20 here, 0-60 elsewhere) but never drops
+    below 10, so a PI of 3 still does not fill the panel and read as a title at the top.
+    """
+    top = pd.to_numeric(values, errors="coerce").max()
+    if pd.isna(top):
+        return 100
+    return int(min(100, max(10, math.ceil(float(top) / 10) * 10)))
+
+
+def moving_songs(spans: pd.DataFrame, recent: pd.DataFrame) -> pd.DataFrame:
+    """`spans` limited to the titles that MOVE: at least one stream a day on average over
+    the `_MOMENTUM_DAYS` window. Pure (R382, V31).
+
+    `> 0` was tried first and filtered nothing: on artist 1 (local, 2026-10-05) all 11
+    titles had a trickle (11 to 253 streams over 28 days); the bar keeps the 4 above 100.
+    Falls back to every title when none moves: an empty selector would hide the page."""
+    moving = (set(recent.loc[pd.to_numeric(recent["recent"]) >= _MOMENTUM_DAYS, "song"])
+              if not recent.empty else set())
+    kept = spans[spans["song"].isin(moving)]
+    return kept if not kept.empty else spans
 
 
 def _render_releases(db, frag: str, params: tuple) -> None:
@@ -365,7 +401,8 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     if not meta.empty:
         for trace in meta_spend_traces(meta, colour):
             fig.add_trace(trace, row=row, col=1)
-        fig.update_yaxes(title_text=t("spotify_s4a_combined.meta_spend_axis", "Meta €/jour"),
+        fig.update_yaxes(title_text=t("spotify_s4a_combined.meta_spend_axis",
+                                                "Meta € cumulés"),
                          row=row, col=1)
         row += 1
     if not shazam.empty:
@@ -589,7 +626,7 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
     #
     # Le titre « 📊 Analyses détaillées » et la colonne imbriquée disparaissent : la rangée
     # n'est plus un tiroir secondaire, c'est la seconde moitié de la page.
-    song, window = _common_filter(db, spans)
+    song, window = _common_filter(db, spans, frag, params)
     if song is None:
         return
     # ── DEUX COLONNES, PLUS TROIS — R194, 2026-09-26 ───────────────────────────────
@@ -625,7 +662,20 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
                 st.caption(note)
 
 
-def _common_filter(db, spans: pd.DataFrame):
+def _recent_streams(db, spans: pd.DataFrame, frag: str, params: tuple) -> pd.DataFrame:
+    """(song, recent) over the last `_MOMENTUM_DAYS` measured days of the catalogue."""
+    if spans.empty:
+        return pd.DataFrame(columns=["song", "recent"])
+    horizon = pd.to_datetime(spans["last_measured"]).max().date()
+    since = horizon - pd.Timedelta(days=_MOMENTUM_DAYS - 1)
+    return _df(db, f"""
+        SELECT song, SUM(streams) AS recent FROM v_s4a_song_daily
+         WHERE day BETWEEN %s AND %s {frag}
+         GROUP BY song
+    """, (since, horizon, *params))
+
+
+def _common_filter(db, spans: pd.DataFrame, frag: str, params: tuple):
     """Le Titre et la Période PARTAGÉS par les trois figures de la rangée (R188).
 
     LA DERNIÈRE SORTIE EST PROPOSÉE D'OFFICE (2026-09-21) : `spans` arrive trié par cumul à
@@ -639,7 +689,10 @@ def _common_filter(db, spans: pd.DataFrame):
     if spans.empty:
         st.info(t("spotify_s4a_combined.no_data", "Pas de données disponibles."))
         return None, None
-    ordered = spans.sort_values("first_streamed", ascending=False, na_position="last")
+    # R382 (V31) : seuls les titres qui BOUGENT — écoutés sur les 28 derniers jours
+    # mesurés. Un catalogue entier dans le sélecteur noyait la dernière sortie.
+    ordered = (moving_songs(spans, _recent_streams(db, spans, frag, params))
+               .sort_values("first_streamed", ascending=False, na_position="last"))
     f_song, f_period = st.columns([2, 3])
     with f_song:
         song = st.selectbox(t("spotify_s4a_combined.select_song", "Titre"),
@@ -713,8 +766,15 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
                              line=dict(color=_SPOTIFY_GREEN, width=2)),
                   row=panel, col=1, secondary_y=False)
     if not pi.empty:
+        # R382 (V32) : la légende est SUR la courbe, au dernier point — la légende
+        # horizontale sous la figure se lisait comme celle de l'autre panneau.
+        pi_text = [""] * len(pi)
+        pi_text[-1] = t("spotify_s4a_combined.pi_label", "Indice de popularité {v}").format(
+            v=int(pi["popularity"].iloc[-1]))
         fig.add_trace(go.Scatter(x=pi["day"], y=pi["popularity"],
-                                 mode="lines+markers",
+                                 mode="lines+markers+text", text=pi_text,
+                                 textposition="top left", cliponaxis=False,
+                                 textfont=dict(color=_PI_INK, size=12),
                                  name=t("spotify_s4a_combined.pi_series",
                                         "Indice de popularité (0-100)"),
                                  line=dict(color=_PI_INK, width=2, dash="dot"),
@@ -722,11 +782,12 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
                       row=panel, col=1, secondary_y=True)
     fig.update_yaxes(title_text=t("spotify_s4a_combined.streams_per_day", "Streams / jour"),
                      row=panel, col=1, secondary_y=False)
-    # Borné à 0-100 même quand les valeurs sont basses : un PI de 9 autoscalé
-    # remplirait la hauteur et se lirait comme un titre au sommet. L'échelle du PI
-    # est sa propre information — c'est la distance aux portes algorithmiques.
+    # R382 (V33) : borné au max observé arrondi à la dizaine (0-20 ici, 0-60 ailleurs),
+    # plus 0-100 fixe qui écrasait un PI de 12 au plancher. Jamais sous 10 : un PI de 3
+    # autoscalé remplirait la hauteur et se lirait comme un titre au sommet.
+    pi_top = popularity_axis_max(pi["popularity"]) if not pi.empty else 100
     fig.update_yaxes(title_text=t("spotify_s4a_combined.pi_axis", "Indice de popularité"),
-                     row=panel, col=1, secondary_y=True, range=[0, 100], showgrid=False,
+                     row=panel, col=1, secondary_y=True, range=[0, pi_top], showgrid=False,
                      title_font=dict(color=_PI_INK), tickfont=dict(color=_PI_INK))
 
     # ⚠️ DEUX TIERS DE CETTE LÉGENDE SONT RETIRÉS — 2026-09-22, demandé en regardant

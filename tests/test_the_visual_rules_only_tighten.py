@@ -150,9 +150,9 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
                         "(ratio) — deux natures, « publier plus ou mieux »"),
     "spotify_s4a_combined.py": (
         6, "(9 → 6 le 2026-09-26, R187 : le §2 « auditeurs-jour » et son axe du ratio ont "
-           "été remplacés par une figure à UN axe) — détail par titre : compte (streams/jour) vs INDICE borné 0-100 (PI), "
-           "dont l'axe est fixé et ne peut donc pas être calé pour fabriquer un "
-           "croisement ; §figure d'engagement (2026-09-22) : FLUX MENSUELS "
+           "été remplacés par une figure à UN axe) — détail par titre : compte (streams/jour) vs INDICE (PI) borné de 0 au "
+           "max observé arrondi à la dizaine (R382, V33 — 0-100 fixe écrasait un PI de 12), "
+           "jamais autoscalé, donc pas calé pour fabriquer un croisement ; §figure d'engagement (2026-09-22) : FLUX MENSUELS "
            "(sauvegardes, ajouts en playlist — « combien ce mois-ci ») vs NIVEAU "
            "QUOTIDIEN (abonnés — « combien en tout, aujourd'hui »). Deux natures et "
            "deux grains, donc le partage d'échelle ferait lire un niveau comme un "

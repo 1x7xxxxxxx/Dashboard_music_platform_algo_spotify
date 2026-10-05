@@ -46,6 +46,7 @@ EN = {
     "spotify_s4a_combined.streams_per_day": "Streams / day",
     "spotify_s4a_combined.pi_series": "Popularity index (0-100)",
     "spotify_s4a_combined.pi_axis": "Popularity index",
+    "spotify_s4a_combined.pi_label": "Popularity index {v}",
     "spotify_s4a_combined.pi_missing": "No popularity index over this period: this track "
                                        "has no confirmed Spotify link, or the API has "
                                        "not read it yet. Linking happens in **🔗 "
@@ -67,7 +68,7 @@ EN = {
                                           "Artists. Enter them here and the year-over-year "
                                           "curve builds itself.",
     "spotify_s4a_combined.recent_tag": "{r} recent",
-    "spotify_s4a_combined.meta_spend_axis": "Meta €/day",
+    "spotify_s4a_combined.meta_spend_axis": "Meta € cumulative",
     "spotify_s4a_combined.shazam_axis": "Shazams (per reading)",
     "spotify_s4a_combined.shazam_caption": "Apple publishes no daily Shazams: each point is the "
                                            "Shazams gained since the previous reading, placed "
