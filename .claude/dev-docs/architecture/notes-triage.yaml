@@ -3748,18 +3748,18 @@
   resume: Graphiques au lieu des chiffres brut / charges / net.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R389
+  preuve_statut: R389 (archivée) — 76d0912c
 - ligne: 104
   source: revue/notes-vocales-2026-10-05.md
   note: V80
   resume: Expliquer que l'import est un CSV dans Credentials › import CSV, bouton direct.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R389
+  preuve_statut: R389 (archivée) — 76d0912c
 - ligne: 106
   source: revue/notes-vocales-2026-10-05.md
   note: V81

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R389 — SACEM (V79, V80) : graphiques au lieu des tuiles brut / charges / net ; dire que l'impo… (livrée 2026-10-05)
+
+- [x] **R389 — SACEM (V79, V80) : graphiques au lieu des tuiles brut / charges / net ; dire que l'import est un fichier `.xlsx` (pas un CSV) et y mener par un bouton vers l'onglet d'import des Credentials** (P3) ✅ (2026-10-05, 76d0912c)
+  Mesuré par : AppTest : une figure, un bouton dont la cible est l'onglet d'import
+  SACEM : cascade brut → retenues → net au lieu des 3 tuiles, note .xlsx, bouton vers l'onglet d'import (goto_tab) ; garde tests/test_sacem_draws_gross_to_net_and_leads_to_the_import.py (2 mutations rouges). CI verte sur 76d0912c.
+  Commits : 76d0912c R389 : SACEM — brut / retenues / net en une cascade, le relevé dit .xl
+
 ## ✅ R392 — Export CSV (V87) : le choix ZIP / Excel et « Préparer l'export » en tête de page, téléc… (livrée 2026-10-05)
 
 - [x] **R392 — Export CSV (V87) : le choix ZIP / Excel et « Préparer l'export » en tête de page, téléchargement seulement — tranché 2026-10-05 : pas d'export par mail (il n'en a jamais existé)** (P3) ✅ (2026-10-05, 57ac4c2f)
