@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R386 — Rapport de carrière PDF (V47-V51) : section de tête = Accueil, Rapport PDF, Faire pilot… (livrée 2026-10-05)
+
+- [x] **R386 — Rapport de carrière PDF (V47-V51) : section de tête = Accueil, Rapport PDF, Faire piloter mes campagnes ; un filtre « chansons » aligné avec Artiste et Période, défaut toutes, qui remplace « S4A chansons à inclure » et « Focus ML chansons à inclure » ; bouton « dernière sortie » ; bouton Générer juste après les trois filtres ; retirer « Rapport pour … »** (P3) ✅ (2026-10-05, 288f86b9, 0a243bf9)
+  Mesuré par : AppTest : 3 filtres sur une ligne puis le bouton ; le PDF généré avec « toutes » contient les sections S4A et ML pour les mêmes titres
+  CI verte sur 288f86b9 — un seul filtre « Chansons » à côté d'Artiste et Période, bouton dernière sortie, Générer après les filtres, menu de tête Accueil · Rapport · Faire piloter
+  Commits : 288f86b9 R386 : le garde du filtre « Chansons » saute quand le locataire n'a au · 0a243bf9 R386 : Rapport de carrière PDF — un seul filtre « Chansons » à côté d'
+
 ## ✅ R385 — SoundCloud (V42-V46) : écoutes, likes, reposts, commentaires sur une ligne ; graphique… (livrée 2026-10-05)
 
 - [x] **R385 — SoundCloud (V42-V46) : écoutes, likes, reposts, commentaires sur une ligne ; graphique comparant les sorties sur ces métriques ; « tout le catalogue » : choisir un ou plusieurs titres, comparés en cumulé à âge égal (réutiliser le composant de « sorties à J égal ») ; expliquer le taux d'engagement = (likes + reposts + commentaires) / écoutes ; peu de figures, alignées, la plus utile en haut** (P3) ✅ (2026-10-05, 9079fd70)

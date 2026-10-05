@@ -3455,9 +3455,9 @@
   resume: Onglet juste sous Accueil ; section = Accueil, Export PDF, puis « Faire piloter mes campagnes ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R386
+  preuve_statut: R386 (archivée) — 288f86b9
 - ligne: 64
   source: revue/notes-vocales-2026-10-05.md
   note: V48
@@ -3465,36 +3465,36 @@
     » et « Focus ML chansons à inclure ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R386
+  preuve_statut: R386 (archivée) — 288f86b9
 - ligne: 65
   source: revue/notes-vocales-2026-10-05.md
   note: V49
   resume: Bouton « dernière sortie ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R386
+  preuve_statut: R386 (archivée) — 288f86b9
 - ligne: 66
   source: revue/notes-vocales-2026-10-05.md
   note: V50
   resume: Bouton Générer juste après les trois filtres.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R386
+  preuve_statut: R386 (archivée) — 288f86b9
 - ligne: 67
   source: revue/notes-vocales-2026-10-05.md
   note: V51
   resume: Retirer « rapport pour XX période… ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R386
+  preuve_statut: R386 (archivée) — 288f86b9
 - ligne: 69
   source: revue/notes-vocales-2026-10-05.md
   note: V52
