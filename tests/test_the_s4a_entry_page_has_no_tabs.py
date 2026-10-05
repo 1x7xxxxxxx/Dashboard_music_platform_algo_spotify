@@ -34,12 +34,12 @@ def data() -> dict:
     titles both pages stop on their empty state, and there is no layout to judge."""
     from src.dashboard.utils import get_db_connection
     from src.dashboard.utils.s4a_entry_insight import load_entry_tracks
+    from tests.conftest import pre_session_active_tenants
 
     db = get_db_connection()
     try:
         return {"tracks": bool(load_entry_tracks(db, 1)),
-                "artists": bool(db.fetch_query(
-                    "SELECT 1 FROM saas_artists WHERE active LIMIT 1"))}
+                "artists": bool(pre_session_active_tenants(db, limit=1))}
     finally:
         db.close()
 
