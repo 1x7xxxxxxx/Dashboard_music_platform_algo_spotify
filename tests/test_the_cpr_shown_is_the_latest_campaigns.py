@@ -147,13 +147,18 @@ def test_a_campaign_without_results_is_never_ranked():
 
 
 def test_the_last_release_is_found_without_a_release_date():
-    """`release_date` est NULL deux fois sur trois — on passe par l'ÂGE."""
+    """`release_date` est NULL deux fois sur trois — on passe par la MESURE (R372).
+
+    Jusqu'au 2026-10-05 la sortie était le plus petit `days_since_release` de la
+    dernière prédiction : un titre pas encore noté n'était jamais la dernière sortie.
+    Elle est désormais le titre au premier jour d'écoute le plus récent — la même
+    définition que `algo_preview_data.budget_declenchement`.
+    """
+    body = _cte("last_release")
+    assert "FROM v_s4a_song_measured_span" in body, (
+        "la dernière sortie n'est plus lue dans la couche or de la mesure")
     order = _clause("last_release", "ORDER BY")
-    assert order == "days_since_release ASC", (
-        f"la dernière sortie est classée par « {order or '(rien)'} » au lieu de "
-        "« days_since_release ASC ». `track_release_reference.release_date` est NULL "
-        "pour deux titres sur trois de l'artiste 1 (mesuré le 2026-09-12) : s'y fier "
-        "écarterait justement les sorties les plus récentes.")
-    assert "MAX(prediction_date)" in _cte("last_release"), (
-        "la dernière sortie n'est plus cherchée sur la prédiction la plus RÉCENTE : "
-        "on lirait un classement figé d'une ancienne exécution du modèle.")
+    assert order.startswith("first_streamed DESC"), (
+        f"la dernière sortie est classée par « {order or '(rien)'} » au lieu du premier "
+        "jour d'écoute le plus récent. `track_release_reference.release_date` est NULL "
+        "pour deux titres sur trois de l'artiste 1 (mesuré le 2026-09-12).")

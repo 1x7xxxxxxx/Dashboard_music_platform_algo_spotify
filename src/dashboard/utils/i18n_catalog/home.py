@@ -76,7 +76,15 @@ EN = {
     # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
     # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
     # observé — aucune issue n'a encore été saisie.
-    "home.gates_for": "🔮 **Highest predicted** probabilities for **{song}**",
+    "home.gates_for": " — **highest predicted** probabilities",
+    "home.release_named": "🆕 Your latest release: **{song}**",
+    "home.gates_nopred": " — no prediction for this track yet",
+    "home.release_budget_none": "💰 No playlist is waiting on extra streams for this track.",
+    "home.release_budget_nocost": ("💰 Meta budget: no measured cost per stream — no known "
+                                   "Meta spend."),
+    "home.release_budget_one": "**~{eur}** for {gap} more streams over 7 days",
+    "home.release_budget": "💰 Meta budget to trigger: {detail}",
+    "home.release_budget_caveat": " — an order of magnitude, at your campaigns' average cost per stream",
     "home.gates_age": " · released {n} days ago",
     "home.gate_dw": "🎯 Discover Weekly",
     "home.gate_radio": "📻 Radio",

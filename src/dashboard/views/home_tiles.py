@@ -36,7 +36,7 @@ import streamlit as st
 
 from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
 from src.dashboard.utils.date_format import format_date
-from src.dashboard.utils.formats import num
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
 from src.dashboard.utils.stat_boxes import stat_box
@@ -464,15 +464,17 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
               ("release_radio", t("home.gate_radio", "📻 Radio")),
               ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
     _gate_algo = {"release_dw": "dw", "release_radio": "radio", "release_rr": "rr"}
+    if _song and not any(_s.get(k) for k, _lab in _gates):
+        # R372 — LA SORTIE EST NOMMÉE MÊME SANS PRÉDICTION. Se taire laissait croire
+        # que l'artiste n'avait rien sorti ; afficher une autre sortie aurait été pire.
+        st.caption(_release_caption(_song, _age)
+                   + t("home.gates_nopred", " — pas encore de prédiction pour ce titre"))
     if any(_s.get(k) for k, _lab in _gates):
         # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
         # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
         # dans chaque boîte volerait la place du chiffre.
-        st.caption(t("home.gates_for",
-                     "🔮 Probabilités **prédites maximales** pour **{song}**")
-                   .format(song=_song or "—")
-                   + (t("home.gates_age", " · sortie il y a {n} j").format(n=_age)
-                      if _age is not None else ""))
+        st.caption(_release_caption(_song, _age)
+                   + t("home.gates_for", " — probabilités **prédites maximales**"))
         g1, g2, g3 = st.columns(3)
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
@@ -487,3 +489,43 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                                      "pas un taux observé : aucune issue n'a encore été "
                                      "saisie.")),
                          unsafe_allow_html=True)
+        st.caption(_release_budget_line(_s.get("release_budget"), _song))
+
+
+def _release_caption(song: str | None, age: int | None) -> str:
+    """« 🆕 Ta dernière sortie : **X** · sortie il y a n j » — named, and called the last."""
+    return (t("home.release_named", "🆕 Ta dernière sortie : **{song}**")
+            .format(song=song or "—")
+            + (t("home.gates_age", " · sortie il y a {n} j").format(n=age)
+               if age is not None else ""))
+
+
+def _release_budget_line(budget: dict | None, song: str | None) -> str:
+    """The Meta budget that would buy the missing 7-day streams — R372. Pure.
+
+    `budget` is `algo_preview_data.budget_declenchement`, the algo view's own call. A
+    budget computed for ANOTHER title than the one named above is never shown.
+    """
+    if not budget or budget.get("song") != song or not budget.get("pred"):
+        return ""
+    gates = budget.get("gates") or []
+    if not gates:
+        return t("home.release_budget_none",
+                 "💰 Aucune playlist n'attend d'écoutes supplémentaires sur ce titre.")
+    if budget.get("cost") is None:
+        return t("home.release_budget_nocost",
+                 "💰 Budget Meta : pas de coût par écoute mesuré — aucune dépense Meta "
+                 "connue.")
+    # The three gates share one streams target, so one budget usually unlocks all
+    # three: stacking three equal lines would read as three budgets to add up.
+    montants = {round(g["budget"]) for g in gates}
+    if len(montants) == 1:
+        g = gates[0]
+        detail = t("home.release_budget_one", "**~{eur}** pour {gap} écoutes de plus sur 7 j"
+                   ).format(eur=eur(g["budget"], 0), gap=num(g["gap"], 0))
+    else:
+        detail = " · ".join(f"{g['name']} **~{eur(g['budget'], 0)}**" for g in gates)
+    return (t("home.release_budget", "💰 Budget Meta pour déclencher : {detail}")
+            .format(detail=detail)
+            + t("home.release_budget_caveat",
+                " — ordre de grandeur, au coût moyen par écoute de tes campagnes"))

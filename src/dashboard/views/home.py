@@ -68,6 +68,10 @@ def _section_streams(db, artist_id):
     # donc la page gagne la dépense Meta et l'écart d'abonnés sans gagner une requête.
     from src.dashboard.utils.period_side_metrics import period_side_metrics
     _side = period_side_metrics(db, artist_id, since, until)
+    # R372 — le budget Meta de la dernière sortie, LE MÊME APPEL que la vue algo. Une
+    # requête : l'accueil en a une de marge sous son plafond.
+    from src.dashboard.utils.algo_preview_data import budget_declenchement
+    _side["release_budget"] = budget_declenchement(db, artist_id)
     ig_count = _side.get("ig_followers") or 0
 
     # UN SEUL CALCUL, pour toutes les surfaces. `platform_totals` porte les deux

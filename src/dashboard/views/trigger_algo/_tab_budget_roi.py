@@ -17,6 +17,7 @@ from ._common import (
 )
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.algo_preview_data import cout_par_stream as _cout_par_stream  # noqa: F401,E402 — moved (R193)
+from src.dashboard.utils.algo_preview_data import budget_pour_streams  # noqa: E402 — R372, one formula
 
 
 # Maps the cost-target labels to (ml_pred probability key, calibration-band algo key).
@@ -47,7 +48,7 @@ def _expected_value_rows(ml_pred: dict, cost_per_stream: float) -> tuple[list[tu
             continue
         if p <= 0:
             continue
-        cost_est = cost_per_stream * seuil
+        cost_est = budget_pour_streams(seuil, cost_per_stream)
         rows.append((label, algo, p, cost_est, cost_est / p))
     return rows, n_floor
 
@@ -122,8 +123,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
     # effet réel. Il vient AVANT le budget : on décide quoi régler avant de décider
     # combien mettre.
     from ._tab_reglages import _show_reglages
-    _show_reglages(db, artist_id, ml_pred, _cout_par_stream(db, artist_id,
-                                                            date_from, date_to))
+    _show_reglages(db, artist_id, track)
     st.markdown("---")
 
     # 1. Budget Meta restant
@@ -182,7 +182,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                           "**Budget estimé pour déclencher chaque playlist :**"))
             est_cols = st.columns(len(_TRIGGER_STREAM_TARGETS))
             for i, (label, seuil) in enumerate(_TRIGGER_STREAM_TARGETS.items()):
-                cost_est = cost_per_stream * seuil
+                cost_est = budget_pour_streams(seuil, cost_per_stream)
                 with est_cols[i]:
                     if remaining >= cost_est:
                         st.success(t("trigger_algo.roi.budget_sufficient",

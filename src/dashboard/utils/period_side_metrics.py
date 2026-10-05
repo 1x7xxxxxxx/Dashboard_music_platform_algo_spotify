@@ -118,30 +118,35 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                  ORDER BY last_day DESC
                  LIMIT 1
             ), last_release AS (
-                -- ── LA DERNIÈRE SORTIE, SANS JOINTURE ET SANS DATE ──────────────
+                -- ── LA DERNIÈRE SORTIE = LE TITRE LE PLUS RÉCEMMENT ÉCOUTÉ POUR LA
+                --    PREMIÈRE FOIS (R372, 2026-10-05) ─────────────────────────────
                 --
-                -- `track_release_reference.release_date` est NULL pour deux titres
-                -- sur trois de l'artiste 1 (mesuré le 2026-09-12) : s'y fier
-                -- écarterait justement les sorties les plus récentes, celles que
-                -- personne n'a encore rapprochées d'une référence. `days_since_release`
-                -- vit dans la prédiction elle-même et est renseigné partout.
+                -- Même définition que `algo_preview_data.budget_declenchement`, que
+                -- l'accueil appelle pour le budget : les portes, le Shazam de la
+                -- sortie et le budget nomment donc LE MÊME titre. Elle se lisait
+                -- avant dans la prédiction (plus petit `days_since_release`) : un
+                -- titre pas encore noté n'était jamais « la dernière sortie », et
+                -- l'accueil affichait la précédente sans le dire.
                 --
-                -- La dernière sortie est donc le titre au plus PETIT âge, sur la
-                -- prédiction la plus RÉCENTE. Les deux critères comptent : sans le
-                -- second on lirait un classement figé d'une ancienne exécution du
-                -- modèle.
-                SELECT song, days_since_release,
-                       COALESCE(dw_probability, 0)    AS dw,
-                       COALESCE(rr_probability, 0)    AS rr,
-                       COALESCE(radio_probability, 0) AS radio
-                  FROM ml_song_predictions
-                 WHERE artist_id = %s
-                   AND prediction_date = (
-                        SELECT MAX(prediction_date) FROM ml_song_predictions
-                         WHERE artist_id = %s)
-                   AND days_since_release IS NOT NULL
-                 ORDER BY days_since_release ASC
-                 LIMIT 1
+                -- `first_streamed`, pas `first_measured` : l'import S4A est
+                -- épisodique (migration 118), son premier jour importé n'est pas la
+                -- sortie. Sans prédiction, le titre reste nommé, ses portes à NULL.
+                SELECT r.song,
+                       -- L'âge vient de la MESURE, comme le titre : celui de la
+                       -- prédiction est figé au jour où elle a tourné (651 j lus le
+                       -- 2026-10-05 pour une première écoute vieille de 766 j).
+                       CURRENT_DATE - r.first_streamed       AS days_since_release,
+                       p.dw_probability    AS dw,
+                       p.rr_probability    AS rr,
+                       p.radio_probability AS radio
+                  FROM (SELECT song, first_streamed FROM v_s4a_song_measured_span
+                         WHERE artist_id = %s AND first_streamed IS NOT NULL
+                         ORDER BY first_streamed DESC, song LIMIT 1) r
+                  LEFT JOIN LATERAL (
+                        SELECT dw_probability, rr_probability, radio_probability
+                          FROM ml_song_predictions
+                         WHERE artist_id = %s AND song = r.song
+                         ORDER BY prediction_date DESC LIMIT 1) p ON TRUE
             ), best_algo AS (
                 -- PROBABILITÉ PRÉDITE, pas taux observé : voir le docstring.
                 SELECT song, prediction_date,

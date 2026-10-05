@@ -41,7 +41,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
 
-from ._reglages import budget_pour_streams, classer, recommandation
+from ._reglages import classer, recommandation
 
 # ⚠️ LES TROIS AXES LISENT `v_meta_ad_daily` (migration 138), plus la jointure
 # `meta_ads × meta_insights` sur `ad_id` SEUL. Celle-ci ne nommait le locataire que
@@ -135,8 +135,7 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
     return reco
 
 
-def _show_reglages(db, artist_id, ml_pred: dict | None,
-                   cout_par_stream: float | None) -> None:
+def _show_reglages(db, artist_id, track: str) -> None:
     """Le panneau complet : les réglages, le budget de déclenchement, le retour."""
     st.subheader(t("trigger_algo.reg.header",
                    "🎛️ Comment régler tes campagnes"))
@@ -163,44 +162,29 @@ def _show_reglages(db, artist_id, ml_pred: dict | None,
         st.info(t("trigger_algo.reg.summary",
                   "📌 **À retenir, tous axes confondus** : {gains}").format(gains=gains))
 
-    _budget_declenchement(ml_pred, cout_par_stream)
+    from src.dashboard.utils.algo_preview_data import budget_declenchement
+    _budget_declenchement(budget_declenchement(db, artist_id, track))
     _retour_sur_investissement(db, artist_id)
 
 
-def _budget_declenchement(ml_pred: dict | None, cout_par_stream: float | None) -> None:
-    """Ce que coûterait d'acheter les écoutes qui manquent à chaque porte."""
+def _budget_declenchement(budget: dict | None) -> None:
+    """Ce que coûterait d'acheter les écoutes qui manquent à chaque porte.
+
+    R372 — le calcul est `algo_preview_data.budget_declenchement`, le même appel que
+    l'accueil : cette fonction ne fait plus que l'afficher.
+    """
     st.markdown("**" + t("trigger_algo.reg.budget_header",
                          "💰 Le budget pour déclencher chaque playlist") + "**")
-    if not ml_pred:
+    if not budget or not budget["pred"]:
         st.caption(t("trigger_algo.reg.budget_nopred",
                      "Pas encore de prédiction pour ce titre."))
         return
-    feats = ml_pred.get("features_json") or {}
-    if isinstance(feats, str):
-        import json
-        try:
-            feats = json.loads(feats)
-        except (ValueError, TypeError):
-            feats = {}
-
-    from src.dashboard.utils.algo_knowledge import split_coach_actions
-
-    lignes = []
-    for algo, nom in (("DW", "Discover Weekly"), ("RR", "Release Radar"),
-                      ("RADIO", "Radio")):
-        titre_lv, _artiste = split_coach_actions(algo, feats)
-        streams = next((a for a in titre_lv
-                        if a["feature"] == "StreamsLast7Days"), None)
-        if not streams:
-            continue
-        cout = budget_pour_streams(streams["gap"], cout_par_stream)
-        lignes.append({
-            t("trigger_algo.reg.col_algo", "Playlist"): nom,
-            t("trigger_algo.reg.col_missing", "Écoutes qui manquent (7 j)"):
-                num(streams['gap'], 0),
-            t("trigger_algo.reg.col_budget", "Ordre de grandeur"):
-                "—" if cout is None else eur(cout, 0),
-        })
+    lignes = [{
+        t("trigger_algo.reg.col_algo", "Playlist"): g["name"],
+        t("trigger_algo.reg.col_missing", "Écoutes qui manquent (7 j)"): num(g["gap"], 0),
+        t("trigger_algo.reg.col_budget", "Ordre de grandeur"):
+            "—" if g["budget"] is None else eur(g["budget"], 0),
+    } for g in budget["gates"]]
     if not lignes:
         st.caption(t("trigger_algo.reg.budget_none",
                      "Aucune porte n'attend d'écoutes supplémentaires sur ce titre."))
