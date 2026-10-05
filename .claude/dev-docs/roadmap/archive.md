@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R413 — Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-s… (livrée 2026-10-05)
+
+- [x] **R413 — Harnais : les 3 commandes orphelines (`review-architecture`, `review-dag`, `review-db-schema`) archivées ou nommées par un déclencheur ; REQ-HARN-11/13 tranchés** (P4) ✅ (2026-10-05, 70010e30)
+  Mesuré par : `make harness-report` : 0 orpheline
+  CI verte sur 70010e30 ; /review-* déclarés invocation: manual (une source, lue par le test des déclencheurs et le rapport), HARN-11/13 tranchées sans retrait
+  Commits : 70010e30 R413 : les /review-* déclarés « invocation: manual » dans leur frontma
+
 ## ✅ R412 — Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jama… (livrée 2026-10-05)
 
 - [x] **R412 — Harnais : re-muter les 14 preuves `seen_red` périmées et muter REQ-BRONZE-02 (vert jamais vu rouge)** (P4) ✅ (2026-10-05, 47d41844)
