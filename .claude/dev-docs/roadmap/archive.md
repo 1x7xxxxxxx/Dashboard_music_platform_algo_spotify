@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R415 — Harnais : fraîcheur des workflows planifiés (voisin de R407) — un cron GitHub qui ne to… (livrée 2026-10-05)
+
+- [x] **R415 — Harnais : fraîcheur des workflows planifiés (voisin de R407) — un cron GitHub qui ne tourne plus se voit dans night-check** (P4) ✅ (2026-10-05, 7b8fe088)
+  Mesuré par : garde muté rouge sur un run vieux de > 2 périodes
+  night-check signale un workflow planifié GitHub qui ne tourne plus ; CI verte sur 52e8a904 (run 37374560335).
+  Commits : 7b8fe088 R415 : night-check voit un workflow planifié qui ne tourne plus
+
 ## ✅ R283 — Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une… (livrée 2026-10-05)
 
 - [x] **R283 — Parrainage Stripe (R272, actif en prod) : créer le coupon « 1 mois offert » (100 %, une fois) en mode test puis live, poser `STRIPE_REFERRAL_COUPON_ID` sur le serveur, abonner le webhook à `invoice.paid`, `charge.refunded` et `charge.dispute.created`, puis rejouer un parrainage en mode test** (P2) ✅ (2026-10-05, 716431d2, 77dfbd77, 093aa3cf, 017b1be8, 59412a9e, d07a10b8, 1ba8f4a9)
