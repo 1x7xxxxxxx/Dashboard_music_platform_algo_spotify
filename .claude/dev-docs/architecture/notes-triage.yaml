@@ -3766,27 +3766,27 @@
   resume: Supprimer « mes comptes branchés ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R390
+  preuve_statut: R390 (archivée) — a5d9e11c
 - ligne: 107
   source: revue/notes-vocales-2026-10-05.md
   note: V82
   resume: 'Bouton sous « supprimer mon compte » : demande par mail / action à faire.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R390
+  preuve_statut: R390 (archivée) — a5d9e11c
 - ligne: 108
   source: revue/notes-vocales-2026-10-05.md
   note: V83
   resume: Garder mot de passe, 2FA, communication.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R390
+  preuve_statut: R390 (archivée) — a5d9e11c
 - ligne: 110
   source: revue/notes-vocales-2026-10-05.md
   note: V84

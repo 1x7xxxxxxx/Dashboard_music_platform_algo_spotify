@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R390 — Mon compte (V81-V83) : retirer « Mes comptes branchés » (ils restent dans Credentials)… (livrée 2026-10-05)
+
+- [x] **R390 — Mon compte (V81-V83) : retirer « Mes comptes branchés » (ils restent dans Credentials) ; sous « Supprimer mon compte », un bouton qui ENVOIE DIRECTEMENT la demande à l'admin par mail (choix du propriétaire 2026-10-05, pas de `mailto`) et dit ce qui va se passer ; mot de passe, 2FA, communications gardés** (P3) ✅ (2026-10-05, a5d9e11c)
+  Mesuré par : AppTest : le bouton appelle l'envoi une fois (frontière SMTP du conftest) ; « comptes branchés » absent
+  CI verte a5d9e11c ; comptes branchés retirés, bouton de demande de suppression envoyé par EmailAlert, AppTest + mutation rouge
+  Commits : a5d9e11c R390 : Mon compte — la demande de suppression part d'un bouton, « comp
+
 ## ✅ R387 — Faire piloter mes campagnes (V52-V54) : texte concis « je gère tes campagnes de A à Z s… (livrée 2026-10-05)
 
 - [x] **R387 — Faire piloter mes campagnes (V52-V54) : texte concis « je gère tes campagnes de A à Z selon ton budget et tes objectifs (Meta Ads, créatives, bilan PDF, fichiers quotidiens) », sans durée ni prix ; deux boutons : m'écrire (mail) et réserver un rendez-vous — l'URL de RDV (Calendly ou autre) viendra du propriétaire plus tard : le bouton lit `service_calendly_url`, caché tant qu'elle est vide, tout le reste est livré sans elle** (P3) ✅ (2026-10-05, 1bd8ea71)
