@@ -150,6 +150,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/revenue_forecast.py::_tab_mrr#1': (
         "Suivre le revenu récurrent des abonnements, pour dimensionner le budget d'acquisition d'artistes.",
         'Follow recurring subscription revenue, to size the artist acquisition budget.'),
+    'views/sacem.py::show#1': (
+        "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition.",
+        'See what deductions take from your SACEM royalties, to plan the real net of a distribution.'),
     'views/soundcloud.py::_render_catalog_series#1': (
         "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo.",
         'Know whether SoundCloud plays and engagement grow together, to decide whether to invest promo time there.'),

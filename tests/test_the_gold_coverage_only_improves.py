@@ -303,7 +303,9 @@ _FLOOR: dict[str, int] = {
     # took its four tiles with it (MRR final, ARR final, months to target ×2).
     # 2026-10-04 (R346) : 162 → 161 — the three algorithm gates of the home page are
     # compact HTML boxes now (owner: the `st.metric` font was too big); same figures.
-    "tiles.total": 161,
+    # 2026-10-05 (R389) : 161 → 158 — the SACEM gross / charges / net tiles became ONE
+    # waterfall (owner, V79); same three figures, drawn as a step.
+    "tiles.total": 158,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

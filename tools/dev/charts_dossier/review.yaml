@@ -92,6 +92,18 @@ src/dashboard/views/apple_music.py::show#2:
   owner_v: garder
   owner: "Demandé par le propriétaire (V37) : les Shazams en graphique, pas en tableau replié."
   note: "Même ordre que le graphique des écoutes à côté (R383). Instantané cumulé, un titre se lit sur la même ligne dans les deux cadres."
+src/dashboard/views/sacem.py::show#1:
+  q: "Combien de mes royalties SACEM brutes me reste-t-il une fois les retenues payées ?"
+  decision: "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition."
+  decision_en: "See what deductions take from your SACEM royalties, to plan the real net of a distribution."
+  role: business
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  owner_v: garder
+  owner: "Demandé par le propriétaire (V79) : un graphique au lieu des tuiles brut / charges / net."
+  note: "Cascade brut → retenues → net (R389). Le net est sa propre lecture, pas brut − retenues recalculé."
 src/dashboard/views/apple_music.py::_render_song_series#1:
   q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
   decision: "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter."

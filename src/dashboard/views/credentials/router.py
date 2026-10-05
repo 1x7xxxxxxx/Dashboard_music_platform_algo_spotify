@@ -77,6 +77,19 @@ _TAB_PARAM = "tab"
 _TAB_STATE = "_creds_tab"
 
 
+def goto_tab(tab_key: str) -> None:
+    """Open this page on `tab_key`, from any other page. Never returns.
+
+    Writes the tab where `_resolve_active_tab` reads it first (the session) AND in the
+    URL, then navigates. Used by the SACEM page to land on the file-import tab (R389):
+    a link that opens Credentials on its first tab sends the artist to the wrong form.
+    """
+    from src.dashboard.utils.navigation import goto
+    st.session_state[_TAB_STATE] = tab_key
+    st.query_params[_TAB_PARAM] = tab_key
+    goto("credentials")
+
+
 def _resolve_active_tab(keys: list[str], done: set | None = None) -> str:
     """L'onglet à ouvrir : la session d'abord, l'URL ensuite, le premier À FAIRE sinon.
 

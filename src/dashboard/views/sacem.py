@@ -1,7 +1,7 @@
 """SACEM royalties view — gross distributions, social charges and net over time.
 
 Type: Feature
-Uses: view_session, i18n
+Uses: view_session, i18n, charts, credentials.router.goto_tab
 Persists in: — (reads sacem_statement, written by the SACEM xlsx import)
 
 Free-tier. Shows the SACEM account statement: gross royalties (REPARTITION lines),
@@ -68,6 +68,27 @@ def _load_net(db, artist_id) -> tuple[float, float]:
     return float(row[0][0] or 0), float(row[0][1] or 0)
 
 
+def gross_to_net_figure(gross: float, deductions: float, net: float):
+    """Brut → retenues → net, as a waterfall (R389). Pure.
+
+    The net bar is ABSOLUTE, not plotly's computed total: the net comes from its own
+    view (`_load_net`), and a computed total would draw `gross − deductions` even on
+    the day the two disagree — hiding the very gap the caption below names."""
+    import plotly.graph_objects as go
+
+    labels = [t("sacem.kpi_gross", "💰 Royalties brutes"),
+              t("sacem.deductions", "🧾 Retenues"),
+              t("sacem.kpi_net", "✅ Net versé")]
+    values = [gross, -abs(deductions), net]
+    fig = go.Figure(go.Waterfall(
+        x=labels, y=values, measure=["absolute", "relative", "absolute"],
+        text=[f"{v:,.2f} €" for v in values], textposition="outside",
+        hovertemplate="%{x}<br>%{y:,.2f} €<extra></extra>"))
+    fig.update_layout(title=t("sacem.waterfall_title", "Du brut au net versé"),
+                      yaxis_title="€", height=380, showlegend=False)
+    return fig
+
+
 def show():
     st.title(t("sacem.title", "🎼 Royalties SACEM"))
     st.caption(t("sacem.caption",
@@ -82,28 +103,36 @@ def show():
                       "3. Réglez le filtre de **date sur « depuis l'inscription »** (pour tout "
                       "l'historique).\n"
                       "4. **Téléchargez le fichier `.xlsx`**.\n"
-                      "5. Importez-le depuis **📂 Ajouter mes chiffres Spotify for Artists & Apple** "
-                      "(le type SACEM est détecté "
-                      "automatiquement)."))
+                      "5. Importez-le dans l'onglet **📂 Ajouter mes chiffres** des Credentials "
+                      "(le type SACEM est détecté automatiquement)."))
+
+    # R389 (V80) : le relevé est un .xlsx, pas un CSV — l'artiste cherchait un CSV que
+    # la SACEM ne fournit pas. Et le bouton mène à l'ONGLET d'import, pas à la page.
+    st.caption(t("sacem.xlsx_note",
+                 "Le relevé SACEM est un fichier **Excel (.xlsx)**, pas un CSV : "
+                 "importe-le tel quel."))
+    if st.button(t("sacem.import_btn", "📂 Importer mon relevé SACEM (.xlsx)"),
+                 key="sacem_import"):
+        from src.dashboard.views.credentials.router import CSV_TAB_KEY, goto_tab
+        goto_tab(CSV_TAB_KEY)
 
     with view_session() as (db, artist_id):
         df = _load(db, artist_id)
         if df.empty:
             st.info(t("sacem.no_data",
-                      "Aucune donnée SACEM. Importez votre relevé de compte (.xlsx) depuis "
-                      "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
+                      "Aucune donnée SACEM. Importe ton relevé de compte (.xlsx) avec le "
+                      "bouton ci-dessus."))
             return
 
         df['mouvement_eur'] = pd.to_numeric(df['mouvement_eur'], errors='coerce').fillna(0.0)
         totals = _load_totals(db, artist_id)
         gross = totals.get('repartition', 0.0)
-        charges = totals.get('charge', 0.0)     # ≤ 0
         deductions, net = _load_net(db, artist_id)
 
-        k1, k2, k3 = st.columns(3)
-        k1.metric(t("sacem.kpi_gross", "💰 Royalties brutes"), f"{gross:,.2f} €")
-        k2.metric(t("sacem.kpi_charges", "🧾 Charges sociales"), f"{charges:,.2f} €")
-        k3.metric(t("sacem.kpi_net", "✅ Net versé"), f"{net:,.2f} €")
+        # R389 (V79) : trois tuiles devenues UN graphique — du brut au net, la retenue
+        # entre les deux se lit comme une marche, pas comme une soustraction à faire.
+        from src.dashboard.utils import charts
+        charts.plotly_chart(gross_to_net_figure(gross, deductions, net), width="stretch")
 
         # Les DEUX chiffres, et ce qui les sépare (R107 §2, tranché le 2026-09-14).
         # Un artiste qui ne lit que le brut découvre l'écart à son relevé bancaire ;
