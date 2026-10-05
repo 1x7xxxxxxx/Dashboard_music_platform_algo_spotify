@@ -3363,9 +3363,9 @@
   resume: Expander « Shazam par chanson » → graphique, à droite de « top 10 écoutes cumulées au dernier relevé ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R383
+  preuve_statut: R383 (archivée) — 48796a33
 - ligne: 52
   source: revue/notes-vocales-2026-10-05.md
   note: V38
