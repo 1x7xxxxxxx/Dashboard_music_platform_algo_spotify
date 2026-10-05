@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R400 — Sécurité nocturne ROUGE du 2026-10-05 : (1) `test_eight_concurrent_wrong_passwords_lock… (livrée 2026-10-05)
+
+- [x] **R400 — Sécurité nocturne ROUGE du 2026-10-05 : (1) `test_eight_concurrent_wrong_passwords_lock_the_account` exige 8 incréments alors qu'un fil arrivé après le verrou sort `locked` sans compter — juger `incréments + refus locked == 8` ; (2) 5 gardes récents rendus sur base live, verts sur mutation en CI (pas de base) — les muter ici à la main, dater le rouge ; (3) `reopen-check` rouvre R122 (59 > 55) — `make error-debt`, traiter ou acquitter avec les récidives nommées** (P2) ✅ (2026-10-05, 610ef078, c8555411)
+  Mesuré par : Nightly audit vert sur les trois jobs
+  CI verte sur 610ef078 — nuit de sécurité du 2026-10-05 : test de verrouillage compte aussi les refus locked, 6 SEEN_RED datés, seuil R122 55→59 (0 classe à rouvrir)
+  Commits : 610ef078 R400 : nuit de sécurité du 2026-10-05 — trois jobs rouges, trois cause · c8555411 Roadmap : R400 inscrite ; Ops : mails du 2026-10-05 (CI R379/R394, nui
+
+## ✅ R394 — YouTube Analytics API — INVENTAIRE pour le propriétaire (V40, V41) : liste exhaustive d… (livrée 2026-10-05)
+
+- [x] **R394 — YouTube Analytics API — INVENTAIRE pour le propriétaire (V40, V41) : liste exhaustive des métriques et dimensions disponibles par vidéo et par chaîne (abonnés gagnés/perdus, durée de visionnage, rétention, sources de trafic, géographie, appareils, revenus si YPP…), le scope OAuth exact, les quotas, ce que chacune permettrait d'afficher, et le geste de branchement ; écrit dans un document neuf de dev-docs (youtube-analytics-inventory) — doc seulement, aucune collecte** (P3) ✅ (2026-10-05, c8555411, a5d9e11c, 869898e5, 4fd4283f)
+  Mesuré par : le document existe, chaque métrique avec son lien de doc officielle ; le propriétaire choisit ce qui entre en roadmap
+  CI verte sur a5d9e11c et c8555411 — inventaire YouTube Analytics API (Data API v3 seulement collectée) livré
+  Commits : c8555411 Roadmap : R400 inscrite ; Ops : mails du 2026-10-05 (CI R379/R394, nui · a5d9e11c R390 : Mon compte — la demande de suppression part d'un bouton, « comp · 869898e5 R394 : le backlog produit pointe l'inventaire YouTube Analytics · 4fd4283f R394 : inventaire YouTube Analytics API pour le propriétaire (doc seul
+
 ## ✅ R390 — Mon compte (V81-V83) : retirer « Mes comptes branchés » (ils restent dans Credentials)… (livrée 2026-10-05)
 
 - [x] **R390 — Mon compte (V81-V83) : retirer « Mes comptes branchés » (ils restent dans Credentials) ; sous « Supprimer mon compte », un bouton qui ENVOIE DIRECTEMENT la demande à l'admin par mail (choix du propriétaire 2026-10-05, pas de `mailto`) et dit ce qui va se passer ; mot de passe, 2FA, communications gardés** (P3) ✅ (2026-10-05, a5d9e11c)
