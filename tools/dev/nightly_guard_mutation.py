@@ -64,13 +64,18 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "make schema-check-local":
+        "2026-10-05 — R412 : trg_revision_s4a_song_timeline commenté dans la migration 096 "
+        "→ exit 2, « a trigger present on one side only » (REQ-BRONZE-02)",
     "tests/test_a_creative_funnel_never_widens.py":
         "2026-09-27 — funnel_stages lit `total_results` (le résultat de l'objectif) comme "
         "clics sortants → 3 rouges",
     "tests/test_a_roi_verdict_needs_a_crossing_and_enough_points.py":
-        "2026-09-27 — MIN_FIT_POINTS 5 → 2 (un ajustement sur deux points) → 2 rouges",
+        "2026-09-27 — MIN_FIT_POINTS 5 → 2 (un ajustement sur deux points) → 2 rouges ; "
+        "2026-10-05 — R412 : MIN_FIT_POINTS 5 → 2 rejoué → 2 rouges",
     "tests/test_a_floor_probability_is_never_shown_as_a_measure.py":
-        "2026-09-27 — proba_affichable ne refuse plus le plancher → 16 rouges",
+        "2026-09-27 — proba_affichable ne refuse plus le plancher → 16 rouges ; "
+        "2026-10-05 — R412 : le refus du plancher retiré de proba_affichable → 15 rouges",
     "tests/test_a_lever_curve_resolves_where_the_model_responds.py":
         "2026-09-27 — _lever_grid échantillonne un levier _log LINÉAIREMENT en unités "
         "humaines (le défaut mesuré) → 7 rouges",
@@ -82,7 +87,8 @@ SEEN_RED: dict[str, str] = {
         "2026-09-29 — readiness_many rendu par le chemin par locataire (artist_readiness en "
         "boucle) → 15 requêtes par locataire contre une borne de 3, 1 rouge",
     "tests/test_a_release_is_benchmarked_with_its_spend.py":
-        "2026-09-29 — worth_a_panel répond True sur un cadre tout à zéro → 1 rouge",
+        "2026-09-29 — worth_a_panel répond True sur un cadre tout à zéro → 1 rouge ; "
+        "2026-10-05 — R412 : worth_a_panel `> 0` → `>= 0` → 1 rouge",
     "tests/test_engagement_stacks_actions_not_their_total.py":
         "2026-09-29 — page_interactions remis dans _ENG_STACK (l'agrégat empilé avec ce "
         "qu'il contient) → 1 rouge",
@@ -128,7 +134,8 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_nominal_bar_chart_is_sorted_pareto.py":
         "2026-10-04 — pareto_by_default(fig) → False dans apply_defaults (charts.py:151) → 1 rouge",
     "tests/test_the_first_screen_counts_its_gauges.py":
-        "2026-10-04 — un st.metric de plus dans billing.show(), déjà à son plafond de 6 → 1 rouge",
+        "2026-10-04 — un st.metric de plus dans billing.show(), déjà à son plafond de 6 → 1 rouge ; "
+        "2026-10-05 — R412 : 7 st.metric ajoutés à billing.show() → 1 rouge",
     "tests/test_saving_credentials_yields_a_verdict_now.py":
         "2026-10-04 — run_probes_now remplacé par pass à l'enregistrement (_render.py:1185) → 1 rouge",
     "tests/test_a_secret_never_rides_into_an_image_layer.py":

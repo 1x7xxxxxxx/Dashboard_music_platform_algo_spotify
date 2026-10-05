@@ -46,7 +46,12 @@ def test_a_self_proving_guard_is_credited_and_a_plain_one_is_not(tmp_path) -> No
 def test_every_hand_seen_red_names_its_guard_its_date_and_its_mutation() -> None:
     import re
     for rel, why in ngm.SEEN_RED.items():
-        assert (_ROOT / rel).is_file(), f"{rel} no longer exists — drop it from SEEN_RED"
+        if rel.startswith("make "):                 # a `cmd:` proof (R412) — its target must exist
+            target = rel.split()[1]
+            assert re.search(rf"^{re.escape(target)}:", (_ROOT / "Makefile").read_text(),
+                             re.M), f"`{rel}`: no such make target — drop it from SEEN_RED"
+        else:
+            assert (_ROOT / rel).is_file(), f"{rel} no longer exists — drop it from SEEN_RED"
         assert re.match(r"\d{4}-\d{2}-\d{2} — .{20,}→", why), (
             f"{rel}: « {why} » — a hand-seen red names the date, the mutation and its reds")
 

@@ -161,16 +161,23 @@ def _mutation_evidence() -> tuple[dict, object]:
     return mod.SEEN_RED, mod.self_proving
 
 
+def last_red(detail: str) -> str:
+    """The NEWEST date in a SEEN_RED entry. Re-mutations are appended at the end, so the
+    head is the oldest red (R412: 11 proofs re-mutated on 2026-10-05 read stale for ever)."""
+    return max(re.findall(r"\b\d{4}-\d{2}-\d{2}\b", detail), default=detail[:10])
+
+
 def proof_state(req: dict, proof: str, seen_red: dict, self_proving) -> dict:
     """active = replayed green AND seen red (by hand, or self-proving). Pure but for the
     file read of `self_proving` and `git log` for the staleness of a dated red."""
     p = req.get("preuve") or {}
     if not (p.get("pytest") or p.get("cmd")):
         return {"etat": "trou", "vu_rouge": None}
-    path = (p.get("pytest") or "").split("::")[0]
+    # A `cmd:` proof is keyed by its command (R412): no file to date, so never « périmé ».
+    path = (p.get("pytest") or "").split("::")[0] or p.get("cmd", "")
     red = None
     if path in seen_red:
-        red = {"comment": "à la main", "detail": seen_red[path], "date": seen_red[path][:10]}
+        red = {"comment": "à la main", "detail": seen_red[path], "date": last_red(seen_red[path])}
         last = subprocess.run(["git", "log", "-1", "--format=%cs", "--", path], cwd=ROOT,
                               capture_output=True, text=True).stdout.strip()
         red["perime"] = bool(last) and last > red["date"]
