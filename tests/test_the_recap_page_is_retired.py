@@ -10,12 +10,10 @@ not become a dead end.
 """
 from __future__ import annotations
 
-from pathlib import Path
+import importlib.util
 
 from src.dashboard.routes import ROUTES
 from src.dashboard.utils.nav_sections import NAV_SECTIONS
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_the_menu_no_longer_offers_the_recap() -> None:
@@ -27,5 +25,5 @@ def test_the_menu_no_longer_offers_the_recap() -> None:
 def test_an_old_recap_link_lands_on_the_home_page() -> None:
     assert ROUTES.get("recap") == ROUTES["home"], (
         "the `recap` key no longer routes home: an old link would be a dead end")
-    assert not (ROOT / "src/dashboard/views/recap.py").exists(), (
+    assert importlib.util.find_spec("src.dashboard.views.recap") is None, (
         "the retired view is back in src/ — nothing routes to it")
