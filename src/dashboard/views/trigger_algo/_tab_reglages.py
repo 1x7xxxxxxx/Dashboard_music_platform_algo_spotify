@@ -35,9 +35,12 @@ n'est pas un enseignement, c'est la seule chose qu'on ait essayée.
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
+from src.dashboard.utils import charts
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
 
@@ -112,9 +115,10 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
         t("trigger_algo.reg.col_ctr", "Taux de clic"): [
             "—" if pd.isna(v) else f"{v:.2f} %" for v in df["ctr"]],
     })
+    reco = recommandation(df)
+    charts.plotly_chart(_figure_axe(df, reco), width="stretch")
     with detail():
         st.dataframe(aff, hide_index=True, width="stretch")
-    reco = recommandation(df)
     if reco:
         # ⚠️ L'espacement des milliers s'applique au NOMBRE, pas à la phrase.
         # Le premier jet faisait `.format(...).replace(",", " ")` sur la chaîne
@@ -135,6 +139,25 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
             "Pas de recommandation sur cet axe : il faut **deux** réglages comparés "
             "sur assez d'annonces. Un seul essai n'est pas un enseignement."))
     return reco
+
+
+def _figure_axe(df: pd.DataFrame, reco: dict | None):
+    """R404 (V68): the cost per click of each setting, the one to keep in green.
+
+    A thin setting (⚠️) is drawn grey: it is on the chart, never the lesson.
+    """
+    vu = df[df["cpc"].notna()]
+    retenir = reco["retenir"] if reco else None
+    couleurs = [BON if v == retenir else (ATTENTION if f else NEUTRE)
+                for v, f in zip(vu["valeur"], vu["fiable"])]
+    fig = go.Figure(go.Bar(
+        x=vu["cpc"], y=[v if f else f"{v} ⚠️" for v, f in zip(vu["valeur"], vu["fiable"])],
+        orientation="h", marker_color=couleurs,
+        text=[eur(v, 3) for v in vu["cpc"]], textposition="auto"))
+    fig.update_layout(height=max(160, 46 * len(vu) + 60), margin=dict(l=0, r=0, t=10, b=0),
+                      xaxis_title=t("trigger_algo.reg.col_cpc", "Coût / clic"),
+                      yaxis=dict(autorange="reversed"), showlegend=False)
+    return fig
 
 
 def _show_reglages(db, artist_id, track: str) -> None:
@@ -164,17 +187,19 @@ def _show_reglages(db, artist_id, track: str) -> None:
         st.info(t("trigger_algo.reg.summary",
                   "📌 **À retenir, tous axes confondus** : {gains}").format(gains=gains))
 
-    from src.dashboard.utils.algo_preview_data import budget_declenchement
-    _budget_declenchement(budget_declenchement(db, artist_id, track))
+    _budget_declenchement(db, artist_id, track)
     _retour_sur_investissement(db, artist_id)
 
 
-def _budget_declenchement(budget: dict | None) -> None:
+def _budget_declenchement(db, artist_id, track: str) -> None:
     """Ce que coûterait d'acheter les écoutes qui manquent à chaque porte.
 
     R372 — le calcul est `algo_preview_data.budget_declenchement`, le même appel que
-    l'accueil : cette fonction ne fait plus que l'afficher.
+    l'accueil. R404 : l'appel vit ICI, dans la fonction qui dessine la figure — le
+    traceur de `gold_coverage` attribue une figure par les lectures de sa tranche.
     """
+    from src.dashboard.utils.algo_preview_data import budget_declenchement
+    budget = budget_declenchement(db, artist_id, track)
     st.markdown("**" + t("trigger_algo.reg.budget_header",
                          "💰 Le budget pour déclencher chaque playlist") + "**")
     if not budget or not budget["pred"]:
@@ -211,8 +236,14 @@ def _budget_declenchement(budget: dict | None) -> None:
             "des trois."
         ).format(n=len(lignes), manque=manque, budget=budget))
     else:
-        with detail():
-            st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
+        # R404 (V68): the budget of each playlist as bars, not a table.
+        prix = [(g["name"], g["budget"]) for g in budget["gates"] if g["budget"] is not None]
+        fig = go.Figure(go.Bar(x=[n for n, _ in prix], y=[b for _, b in prix],
+                               marker_color=ATTENTION, text=[eur(b, 0) for _, b in prix],
+                               textposition="auto"))
+        fig.update_layout(height=260, margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                          yaxis_title=t("trigger_algo.reg.col_budget", "Ordre de grandeur"))
+        charts.plotly_chart(fig, width="stretch")
     st.caption(t(
         "trigger_algo.reg.budget_caveat",
         "⚠️ **Un ordre de grandeur, pas un devis.** Le coût par écoute est agrégé sur "

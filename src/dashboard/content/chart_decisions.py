@@ -186,6 +186,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/trigger_algo/_tab_budget_roi.py::_render_fit#1': (
         "Savoir si tes revenus suivent ta dépense Meta, pour décider d'augmenter ou de baisser le budget.",
         'Know whether your revenue follows your Meta spend, to decide whether to raise or cut the budget.'),
+    'views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1': (
+        'Voir ce qui reste de ton budget Meta, pour savoir combien de semaines de campagne il te reste.',
+        'See what is left of your Meta budget, to know how many weeks of campaign remain.'),
     'views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1': (
         'Voir quel titre est le plus proche de déclencher un algorithme, pour y concentrer ta prochaine campagne.',
         'See which track is closest to triggering an algorithm, to focus your next campaign on it.'),
@@ -210,6 +213,12 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1': (
         'Vérifier si le volume prédit colle au réel, pour savoir si tu peux budgéter une campagne dessus.',
         'Check whether the predicted volume matches reality, to know if you can budget a campaign on it.'),
+    'views/trigger_algo/_tab_reglages.py::_budget_declenchement#1': (
+        "Voir l'ordre de grandeur du budget par playlist, pour choisir laquelle viser avec ta campagne.",
+        'See the rough budget per playlist, to choose which one your campaign should aim for.'),
+    'views/trigger_algo/_tab_reglages.py::_rendre_axe#1': (
+        'Savoir quel réglage garder sur ta prochaine campagne : le vert est celui qui coûte le moins par clic.',
+        'Know which setting to keep on your next campaign: green is the one with the lowest cost per click.'),
     'views/usage_analytics.py::show#1': (
         "Voir si l'app est utilisée jour après jour, pour mesurer l'effet d'une campagne d'acquisition.",
         'See whether the app is used day after day, to measure the effect of an acquisition campaign.'),

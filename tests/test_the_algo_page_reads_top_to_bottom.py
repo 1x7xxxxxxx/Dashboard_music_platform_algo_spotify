@@ -67,3 +67,42 @@ def test_no_table_is_read_outside_a_detail_fold(page) -> None:
     assert not loose, (
         "a read-only table renders outside an expander on the algo page — wrap it in "
         f"`with detail():` (trigger_algo/_sections.py): {loose}")
+
+
+# ── R404 (V61, V63, V68) ────────────────────────────────────────────────────
+# Mutations, 2026-10-05: `_pastilles` call dropped → RED; `MAX_TRACKS = 5` → RED;
+# the Groover rate table put back → RED; `_figure_axe` colouring the retained
+# setting NEUTRE → RED.
+
+def test_each_playlist_is_a_readable_pill(page) -> None:
+    pills = [m.value for m in page.markdown if "-badge[" in m.value]
+    assert len(pills) > 0, "no playlist pill on the page"
+    for name in ("Discover Weekly", "Radio", "Release Radar"):
+        assert any(name in p for p in pills), f"{name} has no pill: {pills}"
+
+
+def test_the_trigger_values_compare_two_tracks() -> None:
+    from src.dashboard.views.trigger_algo._release_targets import MAX_TRACKS
+
+    assert MAX_TRACKS == 2, "V63: « 2 au lieu de 5 »"
+
+
+def test_budget_shows_no_static_rate_table(page) -> None:
+    tables = [list(df.value.columns) for df, _ in _walk(page._tree)
+              if type(df).__name__ == "Dataframe"]
+    assert len(tables) > 0, "no table at all — the probe sees nothing"
+    assert not [c for c in tables if "Coût/soumission (€)" in c], (
+        "the Groover/Fluence rate table is back — the rates live in the selector")
+
+
+def test_the_settings_chart_greens_the_setting_to_keep() -> None:
+    import pandas as pd
+
+    from src.dashboard.utils.semantic_colors import BON
+    from src.dashboard.views.trigger_algo._tab_reglages import _figure_axe
+
+    df = pd.DataFrame({"valeur": ["LISTEN_NOW", "SANS"], "cpc": [0.12, 0.21],
+                       "fiable": [True, True]})
+    bar = _figure_axe(df, {"retenir": "LISTEN_NOW"}).data[0]
+    assert list(bar.marker.color) == [BON, bar.marker.color[1]]
+    assert bar.marker.color[1] != BON

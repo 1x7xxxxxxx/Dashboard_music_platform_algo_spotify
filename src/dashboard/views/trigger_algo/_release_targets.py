@@ -37,7 +37,7 @@ LEVERS = ("StreamsLast7Days", "NonAlgoStreams28Days", "SavesLast28Days", "Playli
 ALGOS = ALGO_ORDER
 P_TARGET = 0.80
 _OFFSET = (-0.3, 0.0, 0.3)   # one per algorithm, inside a track's slot
-MAX_TRACKS = 5
+MAX_TRACKS = 2  # V63 (R404): two tracks read side by side, five did not
 
 
 def _curve(algo: str, feature: str, feats: dict, targets: tuple):

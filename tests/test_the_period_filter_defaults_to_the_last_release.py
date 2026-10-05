@@ -31,6 +31,8 @@ EXEMPT = {
     # R399 — the page's one filter bar draws the period; the section reads `bar.window`.
     "meta_creatives.py": "la fenêtre vient de la barre de filtres unique de la page Meta (R399)",
     # R377 (V24) — the default « depuis la dernière sortie » hid the previous campaign.
+    # R404 (V68) — the settings bars aggregate each setting over the account's whole life.
+    "trigger_algo/_tab_reglages.py": "réglages comparés sur TOUTE la vie du compte : une fenêtre ferait tomber chaque réglage sous le seuil d'annonces fiable",
     "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
     # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
     "soundcloud.py": "titres comparés à âge égal (jours depuis l'upload) ; le catalogue montre ses 19 relevés, toute la collecte",

@@ -164,6 +164,7 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
                      .replace(",", " ")),
             t("trigger_algo.titre.col_cohort", "Cohorte"): int(r["n"]),
         })
+    _pastilles(valeurs, ml_pred)
     with detail():
         st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
 
@@ -195,6 +196,23 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
         "La porte la plus PROCHE n'est pas la plus RICHE : Discover Weekly vaut "
         "environ 3,4 fois un Release Radar. « Cohorte » est le nombre de titres sur "
         "lesquels la valeur est mesurée."))
+
+
+def _pastilles(valeurs: pd.DataFrame, ml_pred: dict) -> None:
+    """R404 (V61): each playlist in a small readable box, coloured by its chance.
+
+    The bands are the guide's (STOP < 20 % ≤ OPTIMISER < 50 % ≤ SCALER); a floor
+    probability is grey and says so — the same refusal as the table below.
+    """
+    cols = st.columns(len(valeurs))
+    for col, algo in zip(cols, valeurs["algo"]):
+        raw = ml_pred.get(f"{algo.lower()}_probability")
+        proba = proba_affichable(algo.lower(), raw)
+        couleur = ("gray" if proba is None else "green" if proba >= 0.5
+                   else "orange" if proba >= 0.2 else "red")
+        with col:
+            st.badge(f"{_NOMS.get(algo, algo)} · {format_proba(algo.lower(), raw, decimals=0)}",
+                     color=couleur)
 
 
 def _valeur_de(valeurs, algo) -> float | None:

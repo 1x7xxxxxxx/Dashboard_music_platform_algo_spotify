@@ -2,7 +2,7 @@
 from datetime import date
 from plotly.subplots import make_subplots
 from src.dashboard.utils import algo_knowledge as ak, charts
-from src.dashboard.utils.semantic_colors import BON
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
 from src.dashboard.utils.i18n import t
 import numpy as np
 import pandas as pd
@@ -42,7 +42,6 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
         "💰 **Décision budget** — quels titres pousser en priorité (top-N% par score), ton "
         "budget Meta Ads restant et le rythme de dépense."
     ))
-    st.markdown("---")
 
     # ── LE PANNEAU DE RÉGLAGES EN TÊTE — 2026-09-22 ─────────────────────────
     # Les réglages d'une campagne vivaient éparpillés sur quatre surfaces. Ils sont
@@ -51,7 +50,6 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
     # combien mettre.
     from ._tab_reglages import _show_reglages
     _show_reglages(db, artist_id, track)
-    st.markdown("---")
 
     # 1. Budget Meta restant
     st.subheader(t("trigger_algo.roi.meta_budget_header", "💶 Budget Meta Ads"))
@@ -111,13 +109,25 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                 st.info(t("trigger_algo.roi.no_active_campaign",
                           "Aucune campagne Meta active trouvée pour cet artiste."))
 
+        if lifetime_budget > 0:
+            # R404 (V68): the allotted budget as ONE bar — spent, then what is left.
+            fig_b = go.Figure()
+            fig_b.add_trace(go.Bar(
+                x=[min(total_spend, lifetime_budget)], y=[""], orientation="h",
+                marker_color=ATTENTION, name=t("trigger_algo.roi.spent_metric", "Dépensé (période)")))
+            fig_b.add_trace(go.Bar(
+                x=[remaining], y=[""], orientation="h", marker_color=NEUTRE,
+                name=t("trigger_algo.roi.remaining_metric", "Restant estimé")))
+            fig_b.update_layout(barmode="stack", height=140, margin=dict(l=0, r=0, t=10, b=0),
+                                xaxis_title="€", legend=dict(orientation="h", y=-0.6))
+            charts.plotly_chart(fig_b, width="stretch")
+
         if total_spend > 0:
             _show_velocity_budget_advice(db, track, artist_id, total_spend)
     except Exception as e:
         st.warning(t("trigger_algo.roi.meta_budget_unavailable",
                      "Budget Meta indisponible : {err}").format(err=e))
 
-    st.markdown("---")
 
     # 1bis. Organic scaling threshold (volume) — static target until Phase 2 data.
     st.subheader(t("trigger_algo.roi.organic_scaling_header",
@@ -137,23 +147,15 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
             "collectée (Phase 2 — split par source S4A) : ce seuil est affiché comme "
             "**cible**, pas comme un écart calculé sur vos données."
         ))
-    st.markdown("---")
 
     _show_budget_pacing_calculator(db, artist_id)
-    st.markdown("---")
 
     # 2. Groover / Fluence simulator
     with st.expander(t("trigger_algo.roi.playlist_budget_expander",
                        "💶 Budget playlist — Groover & Fluence"), expanded=False):
-        _PLATFORMS = [
-            {"Plateforme": "Groover",  "Offre": "Standard",  "Coût/soumission (€)": 2.10},
-            {"Plateforme": "Groover",  "Offre": "Premium",   "Coût/soumission (€)": 6.00},
-            {"Plateforme": "Fluence",  "Offre": "Standard",  "Coût/soumission (€)": 1.50},
-            {"Plateforme": "Fluence",  "Offre": "Premium",   "Coût/soumission (€)": 3.00},
-        ]
+        # R404 (V68): the rate table is gone — each rate is in the platform selector.
         st.caption(t("trigger_algo.roi.reference_rates",
                      "Tarifs de référence — vérifiez les prix actuels sur les plateformes."))
-        st.dataframe(pd.DataFrame(_PLATFORMS), hide_index=True, width='stretch')
         st.markdown(t("trigger_algo.roi.budget_simulator", "**Simulateur de budget**"))
         budget_key = f"budget_{track}"
         col_b1, col_b2, col_b3 = st.columns(3)
@@ -196,10 +198,8 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                          "Vous pouvez encore soumettre à **{n}** curators sur {platform}.")
                        .format(n=submissions, platform=platform_choice.split(' (')[0]))
 
-    st.markdown("---")
 
     _show_roi_regression(db, artist_id)
-    st.markdown("---")
     _show_breakeven(db, track, artist_id, ml_pred)
 
 

@@ -110,11 +110,11 @@ def _show_tab_catalogue(db, artist_id) -> None:
     from ._release_targets import (MAX_TRACKS, by_proximity, indicators_figure,
                                    last_releases, track_levers, values_figure)
     choix = st.multiselect(
-        t("trigger_algo.cat.releases", "🎵 Tes dernières sorties (5 au plus)"),
+        t("trigger_algo.cat.releases", "🎵 Tes deux dernières sorties"),
         options=list(df["song"]), default=last_releases(df),
         key=f"cat_compare_{artist_id}",
         help=t("trigger_algo.cat.releases_help",
-               "Tes cinq sorties les plus récentes sont choisies d'office ; remplace-les "
+               "Tes deux sorties les plus récentes sont choisies d'office ; remplace-les "
                "par d'autres titres pour les comparer."))
     # The cap is applied HERE, not by `max_selections`: Streamlit RAISES when the session
     # already holds more (this key served the uncapped selector before R247), and a

@@ -825,10 +825,10 @@ EN = {
         "a Release Radar. « Cohort » is the number of tracks the value is measured on."),
     "trigger_algo.tab_realise": "📈 What actually happened",
     "trigger_algo.lifecycle_folded": "📉 Lifecycle & cohort benchmark",
-    "trigger_algo.cat.releases": "🎵 Your latest releases (5 at most)",
+    "trigger_algo.cat.releases": "🎵 Your two latest releases",
     "trigger_algo.cat.releases_cut": "The first {n} selected tracks are shown.",
     "trigger_algo.cat.releases_help": (
-        "Your five most recent releases are picked by default; swap them for other "
+        "Your two most recent releases are picked by default; swap them for other "
         "tracks to compare those."),
     "trigger_algo.titre.best_bet": (
         "🎯 **Best expected value: {algo}** — {val:.2f} €. That is not necessarily the "

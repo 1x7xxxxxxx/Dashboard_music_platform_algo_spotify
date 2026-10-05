@@ -626,6 +626,38 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
   owner: "Pas mal ; retirer la popularité 0 ; ajouter SACEM, tous les revenus, et le coût de distribution (10–30 €) en charge."
   cause: ajustement-trompeur
   note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
+src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
+  mq: M4
+  q: "Combien de mon budget Meta reste-t-il ?"
+  decision: "Voir ce qui reste de ton budget Meta, pour savoir combien de semaines de campagne il te reste."
+  decision_en: "See what is left of your Meta budget, to know how many weeks of campaign remain."
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R404 (V68) : une barre empilée dépensé / restant remplace quatre tuiles lues l'une après l'autre ; dessinée seulement si un budget à vie est alloué."
+src/dashboard/views/trigger_algo/_tab_reglages.py::_rendre_axe#1:
+  mq: M3
+  q: "Quel réglage de campagne coûte le moins cher par clic sur MON compte ?"
+  decision: "Savoir quel réglage garder sur ta prochaine campagne : le vert est celui qui coûte le moins par clic."
+  decision_en: "Know which setting to keep on your next campaign: green is the one with the lowest cost per click."
+  role: meta
+  d: 5
+  c: 4
+  p: 4
+  v: garder
+  note: "R404 (V68) : coût par clic par réglage, le réglage retenu en vert, les réglages fiables en orange, ceux à trop peu d'annonces (⚠️) en gris ; le tableau est replié dessous."
+src/dashboard/views/trigger_algo/_tab_reglages.py::_budget_declenchement#1:
+  q: "Combien coûterait de déclencher chaque playlist ?"
+  decision: "Voir l'ordre de grandeur du budget par playlist, pour choisir laquelle viser avec ta campagne."
+  decision_en: "See the rough budget per playlist, to choose which one your campaign should aim for."
+  role: prediction
+  d: 4
+  c: 3
+  p: 3
+  v: garder
+  note: "R404 (V68) : dessinée seulement quand les playlists demandent des budgets DIFFÉRENTS — sinon un seul encadré dit que c'est un budget, pas trois. Un ordre de grandeur, la légende le dit."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
   decision: "Vérifier si le volume prédit colle au réel, pour savoir si tu peux budgéter une campagne dessus."
