@@ -26,7 +26,6 @@ EN = {
     "common.date": "Date",
     "common.notes": "Notes",
     "common.artist": "Artist",
-    "common.song": "Song",
     "common.delete": "🗑️ Delete",
     "common.cancel": "Cancel",
     "common.error": "Error: {err}",

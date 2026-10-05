@@ -155,11 +155,14 @@ def show():
                 # automargin: the titles were cut at the left edge (« en le français »).
                 fig.update_layout(yaxis={'categoryorder': 'total ascending', 'automargin': True},
                                   height=500, margin=dict(l=10, r=40))
-                charts.plotly_chart(fig, width="stretch")
-                with st.expander(t("apple_music.shazams_expander", "⚡ Shazams par chanson (Top 10)")):
-                    _df_sh = df_top[['song_name', 'shazam_count']].rename(
-                        columns={'song_name': t("common.song", "Chanson"), 'shazam_count': 'Shazams'})
-                    st.dataframe(_df_sh, hide_index=True, width="stretch")
+                # R383 (V37) : les Shazams étaient un tableau replié sous le graphique ;
+                # ils sont un second graphique, à droite, dans l'ordre des écoutes —
+                # un titre se lit sur la même ligne dans les deux cadres.
+                col_streams, col_shazams = st.columns(2)
+                with col_streams:
+                    charts.plotly_chart(fig, width="stretch")
+                with col_shazams:
+                    charts.plotly_chart(_shazam_bar(df_top), width="stretch")
 
             st.markdown("---")
 
@@ -254,6 +257,26 @@ def show():
 
 if __name__ == "__main__":
     show()
+
+
+def _shazam_bar(df_top):
+    """Shazams of the top-10 titles, in the streams order of the chart beside it (R383)."""
+    from src.dashboard.utils.platform_colors import PALETTE_LIGHT
+
+    order = df_top.sort_values("plays")["song_name"].tolist()
+    fig = px.bar(
+        df_top, x="shazam_count", y="song_name", orientation="h", text="shazam_count",
+        title=t("apple_music.shazams_title", "⚡ Shazams — mêmes titres, même ordre"),
+        labels={"shazam_count": "Shazams", "song_name": ""},
+        color_discrete_sequence=[PALETTE_LIGHT["apple"]],
+    )
+    fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside",
+                      hovertemplate=t("apple_music.shazams_hover",
+                                      "%{y}<br>⚡ Shazams : %{x:,.0f}<extra></extra>"))
+    fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": order,
+                             "automargin": True},
+                      height=500, margin=dict(l=10, r=40))
+    return fig
 
 
 def _render_song_series(df, song: str, window) -> None:

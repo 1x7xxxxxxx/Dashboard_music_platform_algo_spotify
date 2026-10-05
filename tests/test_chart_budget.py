@@ -70,7 +70,9 @@ _BUDGET = {
     # la série d'un titre ne posent — ma dernière sortie se fait-elle Shazamer plus vite
     # que la précédente ? Ce n'est pas un raffinement d'une figure existante : l'axe
     # (jours depuis la sortie) n'existe nulle part ailleurs sur la page.
-    "apple_music.py": 3,
+    # 3 → 4 le 2026-10-05, DÉLIBÉRÉMENT (R383, V37 demandé par le propriétaire) : les
+    # Shazams du Top 10 passent d'un tableau replié à un second graphique à côté.
+    "apple_music.py": 4,
     "imusician.py": 2,
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et les trois répondent à trois questions
     # distinctes — chacune dans SON onglet, donc jamais trois à l'écran.
