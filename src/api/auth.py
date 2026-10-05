@@ -43,6 +43,11 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+# R401: an identifier with no password to check still pays one bcrypt, against this
+# decoy — otherwise the response time says which identifiers exist.
+_DECOY_HASH = pwd_context.hash("no-password-ever-matches-this-hash")
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Encode a JWT with an expiry claim."""
     to_encode = data.copy()
@@ -84,6 +89,7 @@ def authenticate_api_user(db, username: str, password: str):
         (ident, ident),
     )
     if not rows:
+        verify_password(password, _DECOY_HASH)  # R401: same cost as a real account
         return None, "invalid_credentials"
     (uid, uname, email, pw_hash, artist_id, role, verified,
      fail_count, locked_until, totp_enabled, token_version) = rows[0]
@@ -108,6 +114,7 @@ def authenticate_api_user(db, username: str, password: str):
     # bouton « Se connecter avec Google » à montrer, donc nommer la méthode
     # n'aiderait personne et ne ferait qu'ouvrir un oracle d'énumération.
     if pw_hash is None:
+        verify_password(password, _DECOY_HASH)  # R401: same cost as a real account
         return None, "invalid_credentials"
 
     # R398 (a): counted BEFORE bcrypt, atomically, only while unlocked — the read above

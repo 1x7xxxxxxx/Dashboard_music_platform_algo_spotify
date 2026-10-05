@@ -245,6 +245,9 @@ def _authenticate_user(username: str, password: str, db) -> tuple[Optional[dict]
         (ident, ident)
     )
     if not rows:
+        # R401: an unknown identifier pays the same bcrypt as a real account — returning
+        # at once let the response time say which identifiers exist.
+        verify_password(password, _CONDENSAT_LEURRE)
         return None, _t("auth.invalid_credentials", "Identifiant ou mot de passe invalide.")
 
     (uid, uname, email, pw_hash, artist_id, role, email_verified, fail_count,
