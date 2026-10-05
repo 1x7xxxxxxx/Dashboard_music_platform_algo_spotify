@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R392 — Export CSV (V87) : le choix ZIP / Excel et « Préparer l'export » en tête de page, téléc… (livrée 2026-10-05)
+
+- [x] **R392 — Export CSV (V87) : le choix ZIP / Excel et « Préparer l'export » en tête de page, téléchargement seulement — tranché 2026-10-05 : pas d'export par mail (il n'en a jamais existé)** (P3) ✅ (2026-10-05, 57ac4c2f)
+  Mesuré par : AppTest : le bouton est le premier widget
+  Export CSV : choix ZIP/Excel et « Préparer l'export » en tête de page ; garde tests/test_the_export_page_opens_on_its_gesture.py (2 mutations rouges). CI verte sur 57ac4c2f.
+  Commits : 57ac4c2f R392 : Export CSV — le choix ZIP / Excel et « Préparer l'export » en t
+
 ## ✅ R383 — Apple Music (V37) : l'expander « Shazams par chanson » devient un graphique, sur la mêm… (livrée 2026-10-05)
 
 - [x] **R383 — Apple Music (V37) : l'expander « Shazams par chanson » devient un graphique, sur la même ligne, à droite du top 10 des écoutes cumulées** (P3) ✅ (2026-10-05, 48796a33)

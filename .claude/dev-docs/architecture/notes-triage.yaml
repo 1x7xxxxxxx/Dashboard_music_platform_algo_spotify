@@ -3821,9 +3821,9 @@
   resume: Bouton « format zip/Excel, préparer l'export » en haut, avec l'export par mail.
   type: action-produit
   domaine: product-offer
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R392
+  preuve_statut: R392 (archivée) — 57ac4c2f
 - ligne: 116
   source: revue/notes-vocales-2026-10-05.md
   note: V88
