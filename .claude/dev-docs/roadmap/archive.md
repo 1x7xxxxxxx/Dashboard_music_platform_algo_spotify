@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R397 — Facturation admin — `billing.py:327` appelle `x.strftime` si `x` est vrai : `NaT` (péri… (livrée 2026-10-05)
+
+- [x] **R397 — Facturation admin — `billing.py:327` appelle `x.strftime` si `x` est vrai : `NaT` (période de fin NULL, laissée par la session Stripe de test) est VRAI → ValueError, la page admin billing plante (2 rouges de `make test-changed` du 2026-10-05) ; + `test_a_first_payment_earns_once_and_the_coupon_lands` rouge sous xdist, vert seul (dépendance d'ordre à trouver)** (P2) ✅ (2026-10-05, 30437fc6, 54ef4a1c, 51beaacd)
+  Mesuré par : billing rendu avec une période NULL (test qui la sème) ; le test de parrainage vert dans l'ordre de la suite
+  CI verte sur 30437fc6 (run 37245510910) : billing admin rend « — » sur une fin de période NULL au lieu de lever ValueError NaTType (_admin_frame, garde muté rouge) ; le test de parrainage efface STRIPE_REFERRAL_COUPON_ID
+  Commits : 30437fc6 R397 : billing ne plante plus sur une fin de période NULL ; le test de · 54ef4a1c R368 : sondes durcies — format de date à 4 chiffres (home_tiles, meta_ · 51beaacd Roadmap : R397 inscrite — billing NaT + test parrainage dépendant de l
+
 ## ✅ R396 — Bronze — la DDL qui ne vit QUE dans le code d'exécution (trouvée par R368, balayage sib… (livrée 2026-10-05)
 
 - [x] **R396 — Bronze — la DDL qui ne vit QUE dans le code d'exécution (trouvée par R368, balayage sibling-sweeper : 159 CREATE → 12 sites vivants) : la fonction `calculate_hypeddit_metrics()` + le trigger `trg_calculate_hypeddit_metrics` (`hypeddit_schema.py:52,76`) et 10 index non uniques (`hypeddit_schema.py:48`, `apple_music_csv_schema.py:36,57`, `saas_schema.py:35`, `youtube_schema.py:29,79,102,126,129,155`) existent en base locale mais dans AUCUNE migration — une base reconstruite depuis les migrations n'a ni le trigger ni les index, et `make schema-check-local` est rouge depuis que l'empreinte lit les triggers. Remède additif : migration 146 (`CREATE OR REPLACE FUNCTION`, `CREATE OR REPLACE TRIGGER`, `CREATE INDEX IF NOT EXISTS`), puis les `create_*_tables()` morts (appelés seulement sous `__main__`) marqués comme non canoniques** (P2) ✅ (2026-10-05, b5cace9a, 54ef4a1c)
