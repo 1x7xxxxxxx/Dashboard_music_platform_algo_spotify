@@ -95,6 +95,9 @@ _INJECTIONS = _REPO / ".claude" / "sessions" / "injections.jsonl"
 # (.claude/hooks/_hook_trace.py) — the only count that sees a silent hook.
 _HOOK_RUNS = _REPO / ".claude" / "sessions"
 _HOOK_SCRIPT = re.compile(r"\.claude/(?:hooks|scripts)/[\w-]+\.py")
+# R416: a `/name` a hook printed is a suggestion the model read. Only the slash form: a path
+# (`.claude/skills/airflow-dag.rex.md`) names a file, not a gesture — 161 false hits measured.
+_SUGGESTED = re.compile(r"(?<![\w/.-])/([a-z][\w-]*)(?![\w./-])")
 
 
 def _empty() -> dict:
@@ -103,7 +106,8 @@ def _empty() -> dict:
             "workflows": collections.Counter(), "rules": collections.Counter(),
             "hooks": collections.Counter(), "hook_ms": collections.Counter(),
             "hook_failures": collections.Counter(), "commands": collections.Counter(),
-            "make_targets": collections.Counter(), "last_seen": {}}
+            "make_targets": collections.Counter(), "suggested": collections.Counter(),
+            "last_seen": {}}
 
 
 def _hook_key(command: str) -> str:
@@ -120,6 +124,8 @@ def _scan_hook(acc: dict, att: dict, ts: str | None) -> None:
     if att.get("type") != "hook_success" or att.get("exitCode") not in (0, None):
         acc["hook_failures"][key] += 1
     _seen(acc, f"hook:{key}", ts)
+    said = "".join(x for x in (att.get("content"), att.get("stdout")) if isinstance(x, str))
+    acc["suggested"].update(set(_SUGGESTED.findall(said)))   # once per run, not per mention
 
 
 def _seen(acc: dict, key: str, ts: str | None) -> None:
@@ -222,7 +228,7 @@ def read() -> dict:
         return {"transcripts_dir": str(_TRANSCRIPTS), "found": False, "sessions": 0,
                 "agents": {}, "tools": {}, "tokens": {}, "skills": {}, "workflows": {},
                 "rules": {}, "hooks": {}, "hook_ms": {}, "hook_failures": {},
-                "commands": {}, "make_targets": {}, "last_seen": {}, "injections": injections(), "hook_runs": hook_runs()}
+                "commands": {}, "make_targets": {}, "suggested": {}, "last_seen": {}, "injections": injections(), "hook_runs": hook_runs()}
     for f in sorted(_TRANSCRIPTS.glob("*.jsonl")):
         sessions += 1
         try:

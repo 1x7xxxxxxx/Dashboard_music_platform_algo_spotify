@@ -132,6 +132,7 @@
   priorite: P3
   statut: absent
   a_ecrire: "compteur Prometheus par plateforme et par locataire incrémenté dans src/utils/request_throttle.py, testé par un appel simulé"
+  differe: "ADR-030 — le fan-out par locataire"
   ecart: "différé par ADR-030 avec le fan-out (même déclencheur) : sans tâche par locataire, un budget par locataire n'a rien à borner"
   roadmap: R284
 
@@ -560,6 +561,7 @@
   statut: absent
   ecart: "le chiffre « 33 à 37 reruns perdus » précédait la mesure de R114, dont les quatre passes alternées n'en perdent aucun (archive.md, R114) ; rien ne le rejoue automatiquement — différé par ADR-030 derrière les seuils de tools/scale_check.sh, lus chaque nuit"
   a_ecrire: "make loadtest-concurrency avec un seuil de reruns perdus qui sort ≠ 0"
+  differe: "ADR-030 — les seuils de tools/scale_check.sh, lus chaque nuit"
   roadmap: R284
 - id: REQ-RUN-05
   domaine: app-runtime
@@ -751,7 +753,7 @@
   portee: generique
   composants: [.claude/agents/build-error-resolver.md, .claude/agents/code-architecture-reviewer.md, .claude/agents/code-critic.md, .claude/agents/roadmap-keeper.md, .claude/agents/security-specialist.md, .claude/agents/sibling-sweeper.md, .claude/agents/web-research-specialist.md, .claude/hooks/sensor.py]
   preuve: {pytest: tests/test_claude_config_floor.py::test_every_declared_agent_has_a_trigger_that_can_fire}
-  opportunite: "32 % du trafic d'agents va aux agents intégrés (Explore 86) ; code-architecture-reviewer : 3 appels en tout"
+  # R416 : opportunité retirée du rapport — une observation sans geste — l'agent a son déclencheur (règle 18). Texte d'origine : "32 % du trafic d'agents va aux agents intégrés (Explore 86) ; code-architecture-reviewer : 3 appels en tout"
   mutation: "retirer la règle 18 de CLAUDE.md → code-architecture-reviewer n'a plus de déclencheur"
 - id: REQ-HARN-09
   domaine: claude-wsl
@@ -775,7 +777,7 @@
   portee: generique
   composants: [.claude/hooks/require_sweep_before_catalogue.py, .claude/hooks/suggest_sweep.py]
   preuve: {pytest: tests/test_the_catalogue_needs_a_real_sweep.py::test_a_sentence_that_names_the_agent_is_not_a_call}
-  opportunite: "suggest_sweep ne reconnaissait que les mots anglais (2 commits sur 300 contre 24 en français) — corrigé R360 et gardé par tests/test_suggest_sweep_suggests_after_a_fix.py"
+  # R416 : opportunité retirée du rapport — livrée R360 et gardée — le texte le dit. Texte d'origine : "suggest_sweep ne reconnaissait que les mots anglais (2 commits sur 300 contre 24 en français) — corrigé R360 et gardé par tests/test_suggest_sweep_suggests_after_a_fix.py"
   mutation: "faire compter une phrase qui nomme sibling-sweeper comme un appel"
 - id: REQ-HARN-11
   domaine: claude-wsl
@@ -841,7 +843,7 @@
   portee: generique
   composants: [Makefile:test, Makefile:test-fast, Makefile:test-changed]
   preuve: {pytest: tests/test_the_worker_count_follows_what_can_grow.py::test_the_detector_sees_the_defect_it_is_written_for}
-  opportunite: "4 workers 179 s, 2 workers 269 s (mesuré en alternance) : la pile Docker éteinte vaut 90 s par suite"
+  # R416 : opportunité retirée du rapport — acquise — les conteneurs à la demande (2026-10-04) la portent. Texte d'origine : "4 workers 179 s, 2 workers 269 s (mesuré en alternance) : la pile Docker éteinte vaut 90 s par suite"
   mutation: "faire ignorer la réserve Ollama par pytest_workers.py"
 - id: REQ-HARN-16
   domaine: tests-ci
@@ -853,7 +855,7 @@
   portee: generique
   composants: [Makefile:test-durations, Makefile:test-durations-missing]
   preuve: {pytest: tests/test_the_shards_are_balanced_by_real_durations.py::test_the_durations_file_still_describes_this_suite}
-  opportunite: "le plafond d'écart entre shards est un cliquet : le resserrer après chaque rééquilibrage mesuré"
+  # R416 : opportunité retirée du rapport — une pratique permanente, pas un geste ouvert — le cliquet la tient. Texte d'origine : "le plafond d'écart entre shards est un cliquet : le resserrer après chaque rééquilibrage mesuré"
   mutation: "vider .test_durations"
 - id: REQ-HARN-17
   domaine: dev-resources

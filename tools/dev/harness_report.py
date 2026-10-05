@@ -36,14 +36,32 @@ ETATS = ("active", "verte, non prouvée", "rouge", "trou", "non rejouée")
 _INVOKED = ("agent", "skill", "command", "workflow", "playbook", "make")
 
 
+_INVENTORY = 5   # R416: a rank that calls for no gesture today — listed, never counted
+
+
 def opportunities(data: dict) -> list[dict]:
-    """Every optimisation the data supports, most actionable first. Pure."""
+    """What calls for a gesture today, most actionable first. Pure.
+
+    R416: the page announced 27 opportunities when about six asked for anything — the rest
+    said « rien à faire » in their own text. What waits on a trigger is in `inventory`."""
+    return [o for o in _items(data) if o["rang"] < _INVENTORY]
+
+
+def inventory(data: dict) -> list[dict]:
+    """Deferred holes, dormant and manual components: known, waiting, no gesture. Pure."""
+    return [o for o in _items(data) if o["rang"] >= _INVENTORY]
+
+
+def _items(data: dict) -> list[dict]:
     out = []
     for r in data["exigences"]:
         if r["etat"] == "rouge":
             out.append({"rang": 0, "type": "preuve rouge", "ref": r["id"],
                         "texte": f"{r['enonce']} — la preuve est rouge aujourd'hui"})
-        if r["etat"] == "trou":
+        if r["etat"] == "trou" and r.get("differe"):
+            out.append({"rang": _INVENTORY, "type": "différé", "ref": r["id"],
+                        "texte": f"{r.get('a_ecrire') or 'aucune preuve rejouable'} — attend : {r['differe']}"})
+        elif r["etat"] == "trou":
             out.append({"rang": 1, "type": "trou", "ref": r["id"],
                         "texte": r.get("a_ecrire") or "aucune preuve rejouable"})
         if r.get("opportunite"):
@@ -65,7 +83,7 @@ def opportunities(data: dict) -> list[dict]:
             # younger than the transcripts): such a 0 is not an opportunity.
             if a and a["kind"] in _INVOKED and a["n"] == 0 and not a.get("note"):
                 out.append(_never_invoked(comp, c.get("declencheurs"), data.get("seances"),
-                                          c.get("manuel")))
+                                          c.get("manuel"), a.get("suggere")))
             elif a and a["kind"] == "hook" and a.get("ms") and a["ms"] >= 1000:
                 out.append({"rang": 4, "type": "hook lent", "ref": comp,
                             "texte": f"{a['ms']} ms en moyenne sur {a['n']} passages"})
@@ -74,15 +92,21 @@ def opportunities(data: dict) -> list[dict]:
 
 
 def _never_invoked(comp: str, triggers: list[str] | None, seances: int | None,
-                   manual: str | None = None) -> dict:
+                   manual: str | None = None, suggested: int | None = None) -> dict:
     """R366: a 0 is DORMANT when an imperative surface names it (its trigger has not come
     yet) and ORPHAN when nothing does (it can never fire). Only the second is work.
-    R413: a component declared `invocation: manual` is neither — its trigger is the owner."""
+    R413: a component declared `invocation: manual` is neither — its trigger is the owner.
+    R416: « its trigger has not come yet » is false when a hook PRINTED `/name` to the model
+    and nothing followed — that is a suggestion ignored, and either it or the nag is wrong."""
+    if suggested:
+        return {"rang": 3, "type": "suivi manqué", "ref": comp,
+                "texte": f"suggéré {suggested} fois par un hook, invoqué 0 fois en {seances} séances "
+                         "— la suivre, ou retirer la suggestion du hook qui l'imprime"}
     if manual:
-        return {"rang": 5, "type": "manuel", "ref": comp,
+        return {"rang": _INVENTORY, "type": "manuel", "ref": comp,
                 "texte": f"0 usage en {seances} séances, invoqué à la main par décision : {manual}"}
     if triggers:
-        return {"rang": 5, "type": "dormant", "ref": comp,
+        return {"rang": _INVENTORY, "type": "dormant", "ref": comp,
                 "texte": f"0 usage en {seances} séances, déclencheur nommé ({', '.join(triggers[:2])}) "
                          "— attendre qu'il tire, rien à faire"}
     return {"rang": 4, "type": "orphelin", "ref": comp,
@@ -117,7 +141,8 @@ def summary(data: dict) -> dict:
 
 
 def render(data: dict) -> str:
-    payload = {"data": data, "opportunites": opportunities(data), "resume": summary(data),
+    payload = {"data": data, "opportunites": opportunities(data), "inventaire": inventory(data),
+               "resume": summary(data),
                "etats": ETATS}
     blob = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     page = (Path(__file__).with_name("harness_report.html.tpl")).read_text(encoding="utf-8")

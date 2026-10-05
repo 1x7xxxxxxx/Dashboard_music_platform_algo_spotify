@@ -287,13 +287,15 @@ def component_activity(comp: str, usage: dict) -> dict | None:
         return {"kind": "agent", "n": usage["agents"].get(stem, 0), "last": last.get(f"agent:{stem}")}
     if "/skills/" in comp:
         name = Path(comp).parent.name
-        return {"kind": "skill", "n": usage["skills"].get(name, 0), "last": last.get(f"skill:{name}")}
+        return {"kind": "skill", "n": usage["skills"].get(name, 0), "last": last.get(f"skill:{name}"),
+                "suggere": usage.get("suggested", {}).get(name, 0)}
     if "/rules/" in comp:
         return {"kind": "rule", "n": usage["rules"].get(stem, 0), "last": None,
                 "note": "séances qui l'ont chargée"}
     if "/commands/" in comp:
         return {"kind": "command", "n": usage["commands"].get(stem, 0) + usage["skills"].get(stem, 0),
-                "last": last.get(f"command:{stem}") or last.get(f"skill:{stem}")}
+                "last": last.get(f"command:{stem}") or last.get(f"skill:{stem}"),
+                "suggere": usage.get("suggested", {}).get(stem, 0)}
     if comp.startswith(".github/workflows/"):
         return usage.get("ci", {}).get(Path(comp).name) or {
             "kind": "ci", "n": 0, "last": None, "note": "gh injoignable — non mesuré"}
@@ -335,7 +337,7 @@ def build(domains: dict, reqs: list[dict], proofs: dict | None, usage: dict | No
             "methode": methode, "methode_deduite": "methode" not in r,
             "portee": r.get("portee", "streamlytics"),
             "preuve": p.get("pytest") or p.get("cmd"), "a_ecrire": r.get("a_ecrire"),
-            "mutation": r.get("mutation"), "ecart": r.get("ecart"),
+            "mutation": r.get("mutation"), "ecart": r.get("ecart"), "differe": r.get("differe"),
             "roadmap": r.get("roadmap"), "opportunite": r.get("opportunite"),
             "premisse_corrigee": r.get("premisse_corrigee"),
             "composants": r.get("composants") or [], **state})

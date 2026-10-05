@@ -96,6 +96,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
   </tr></thead><tbody></tbody></table></div>
 </section>
 <section id="t-opp"><div class="list" id="opps"></div></section>
+<section id="t-inv"><p class="note">Connu, en attente d'un déclencheur ou d'une décision — aucun geste aujourd'hui.</p><div class="list" id="inv"></div></section>
 <section id="t-base">
   <p class="note">Les exigences de portée <b>générique</b> : ce qui part dans la baseline v2, avec la méthode qui les tient.</p>
   <div class="list" id="base"></div>
@@ -128,13 +129,13 @@ const zero = comps.filter(([,c]) => c.activite && c.activite.n === 0 && !c.activ
   && !(c.declencheurs && c.declencheurs.length)).length;
 const cards = [["active",E["active"]||0,"actives — vertes et vues rouges"],
   ["verte, non prouvée",E["verte, non prouvée"]||0,"vertes, jamais vues rouges"],
-  ["rouge",E["rouge"]||0,"preuves rouges"],["trou",E["trou"]||0,"trous (à écrire)"],
+  ["rouge",E["rouge"]||0,"preuves rouges"],["trou",R.filter(r=>r.etat==="trou"&&!r.differe).length,"trous (à écrire)"],
   [null,P.resume.generiques,"génériques → baseline v2"],[null,zero,"orphelins — 0 usage, aucun déclencheur"]];
 $("#cards").innerHTML = cards.map(([e,n,l]) =>
   `<div class="card"><b style="color:${e?COL[e]:"var(--ink)"}">${n}</b><span>${l}</span></div>`).join("");
 
 const TABS=[["t-req",`Exigences (${R.length})`],["t-act",`Activité (${comps.length})`],
-  ["t-opp",`Opportunités (${P.opportunites.length})`],["t-base",`Baseline v2 (${P.resume.generiques})`],
+  ["t-opp",`Opportunités (${P.opportunites.length})`],["t-inv",`Inventaire (${P.inventaire.length})`],["t-base",`Baseline v2 (${P.resume.generiques})`],
   ["t-pre","Prémisses corrigées"]];
 $("#tabs").innerHTML = TABS.map(([id,l],i)=>`<button role="tab" data-t="${id}" aria-selected="${i===0}">${l}</button>`).join("");
 const show = id => { document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===id));
@@ -193,8 +194,10 @@ $("#acts thead").onclick=e=>{const k=e.target.dataset.k;if(!k)return; sd = sk===
 $("#a-kind").oninput=drawAct; drawAct();
 
 // opportunities
-const OC={"preuve rouge":"s-rouge","trou":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","orphelin":"s-trou","dormant":"s-na","hook lent":"s-na","défaut ouvert":"s-rouge","billet à répondre":"s-trou"};
+const OC={"preuve rouge":"s-rouge","trou":"s-trou","différé":"s-na","manuel":"s-na","suivi manqué":"s-trou","mesurée":"s-active","vu rouge périmé":"s-verte","à muter":"s-verte","orphelin":"s-trou","dormant":"s-na","hook lent":"s-na","défaut ouvert":"s-rouge","billet à répondre":"s-trou"};
 $("#opps").innerHTML=P.opportunites.map(o=>`<div class="item"><div class="top"><span class="pill ${OC[o.type]||"s-na"}">${esc(o.type)}</span>
+  <span class="id">${esc(o.ref)}</span></div><div class="meta" style="color:var(--ink)">${esc(o.texte)}</div></div>`).join("") || "<p class=note>Aucune.</p>";
+$("#inv").innerHTML=P.inventaire.map(o=>`<div class="item"><div class="top"><span class="pill ${OC[o.type]||"s-na"}">${esc(o.type)}</span>
   <span class="id">${esc(o.ref)}</span></div><div class="meta" style="color:var(--ink)">${esc(o.texte)}</div></div>`).join("") || "<p class=note>Aucune.</p>";
 
 // baseline
