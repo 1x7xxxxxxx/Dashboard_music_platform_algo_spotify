@@ -92,7 +92,12 @@ def _health() -> dict:
 # (dev-doc atteint par le disque et non par git, R279 ; `Decimal` + `float` dans
 # `split_ledger`, en production). ACQUITTÉE : `make error-debt` rend 0 classe à traiter.
 # Elle a tenu la nuit de sécurité ROUGE six nuits sans que personne ne l'acquitte.
-_R122_SEUIL = 55
+# 55 → 59 le 2026-10-05 (R400) : a tiré à 59 — quatre classes récidivées pour la
+# première fois les 2026-10-04/05 (`a-status-screen-that-reads-half-its-source`, R339 ;
+# `audit-reads-the-constraints-not-the-installed-set` ; `an-sdk-object-read-as-a-dict`,
+# R364 ; `check-then-insert-loses-the-race`, webhook Stripe). ACQUITTÉE la nuit même :
+# `make error-debt` rend 0 classe à traiter.
+_R122_SEUIL = 59
 
 
 def _r122() -> tuple[str, str]:

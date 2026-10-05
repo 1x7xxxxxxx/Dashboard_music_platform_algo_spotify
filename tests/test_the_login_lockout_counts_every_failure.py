@@ -93,12 +93,15 @@ def test_eight_concurrent_wrong_passwords_lock_the_account() -> None:
         (name, f"{name}@example.invalid", pw_hash))[0][0]
     barrier = threading.Barrier(8)
     errors: list[str] = []
+    refused_locked: list[int] = []
 
     def worker() -> None:
         db = get_db_connection()
         try:
             barrier.wait(timeout=30)
-            authenticate_api_user(db, name, "wrong")
+            _user, reason = authenticate_api_user(db, name, "wrong")
+            if reason == "locked":
+                refused_locked.append(1)
         except Exception as exc:  # noqa: BLE001 — c'est l'objet de la mesure
             errors.append(repr(exc)[:200])
         finally:
@@ -114,7 +117,12 @@ def test_eight_concurrent_wrong_passwords_lock_the_account() -> None:
         count, locked = admin.fetch_query(
             "SELECT failed_login_attempts, locked_until IS NOT NULL "
             "FROM saas_users WHERE id = %s", (uid,))[0]
-        assert count == 8, f"8 échecs simultanés comptés {count} — le seuil se contourne"
+        # R400 (nuit du 2026-10-05, CI lente) : un fil qui lit le compte APRÈS le
+        # verrou sort `locked` sans incrémenter — c'est le comportement voulu. Une mise
+        # à jour PERDUE est un échec ni compté ni refusé : c'est ce total qu'on juge.
+        assert count + len(refused_locked) == 8, (
+            f"8 échecs simultanés : {count} comptés + {len(refused_locked)} refusés "
+            "verrouillés ≠ 8 — une tentative s'est perdue, le seuil se contourne")
         assert locked, "8 échecs ≥ 5 et le compte n'est pas verrouillé"
     finally:
         admin.execute_query("DELETE FROM saas_users WHERE id = %s", (uid,))

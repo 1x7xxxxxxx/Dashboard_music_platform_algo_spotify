@@ -202,6 +202,25 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — /zz-ghost nommé seulement dans tooling-reference.md → 1 rouge ; `.claude/workflows/*` retiré des surfaces → 1 rouge (db-schema) ; lookbehind retiré du motif → 1 rouge",
     "tests/test_the_schema_gate_decides_correctly.py":
         "2026-10-05 — R368 : \"trg\" retiré des sortes comparées → 7 rouges ; trigger de l'historique commenté dans la migration 096 → schema-check-local rouge",
+    # R400 (nuit du 2026-10-05) : cinq gardes rendus sur base live — en CI sans base ils
+    # sautent, donc aucune mutation générique ne peut les y voir rougir.
+    "tests/test_the_s4a_entry_page_has_no_tabs.py":
+        "2026-10-05 — saisie_s4a.show() rouvre `st.tabs(['Saisie', 'Pari'])` → rouge "
+        "(« the S4A entry page has tabs again »)",
+    "tests/test_the_mapping_page_is_two_expanders.py":
+        "2026-10-05 — meta_mapping.show() rouvre `st.tabs` → rouge (« still renders tabs »)",
+    "tests/test_apple_shazams_sit_beside_the_top10.py":
+        "2026-10-05 — le graphique Shazam replié dans un expander « Shazams par chanson » "
+        "→ rouge (« folded in an expander again »)",
+    "tests/test_the_release_budget_is_one_call.py":
+        "2026-10-05 — `_release_budget_line` ne compare plus le titre du budget → rouge "
+        "(« a budget priced for A shown under B »)",
+    "tests/test_the_home_stops_at_the_numbers.py":
+        "2026-10-05 — home.show() rappelle `render_meta_advice` → rouge "
+        "(« home.py calls render_meta_advice again »)",
+    "tests/test_the_login_lockout_counts_every_failure.py":
+        "2026-10-05 — record_password_failure en lecture-puis-écriture (mise à jour perdue) "
+        "→ rouge (« 1 comptés + 0 refusés verrouillés ≠ 8 »)",
 }
 
 
