@@ -57,6 +57,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/home.py::platform': (
         'Voir si une sortie ou une campagne a fait monter tes écoutes sur toutes les plateformes, pour savoir où remettre du budget.',
         'See whether a release or a campaign lifted your streams across platforms, to know where to put budget back.'),
+    'views/home_tiles.py::render_tiles#1': (
+        'Voir quelle plateforme porte tes écoutes, pour savoir où concentrer ta promo.',
+        'See which platform carries your streams, to know where to focus your promotion.'),
     'views/hypeddit.py::_render_campaign_series#1': (
         "Juger si ton smart link convertit les visites en clics vers les plateformes, et combien de pub l'a nourri.",
         'Judge whether your smart link turns visits into platform clicks, and how much ad spend fed it.'),

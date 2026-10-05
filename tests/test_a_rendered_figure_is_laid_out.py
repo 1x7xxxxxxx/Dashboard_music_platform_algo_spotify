@@ -94,6 +94,12 @@ _KNOWN: dict[tuple[str, str], int] = {
     # Empty on the day it was written: the five sites the render found were fixed and each
     # one LOOKED at in a browser at 1366 px (Wrapped row, Spotify row, the Meta verdict's
     # legend under the modebar).
+    #
+    # R371 (2026-10-05) — the home pie (260 px) sits in the KPI COLUMN, between the total
+    # banner and eight tiles, beside the 340 px trend. The two columns are not two figures
+    # side by side: the KPI column is ~700 px of tiles whatever the pie's height, so
+    # matching 340 would lengthen it without aligning anything.
+    ("home", "unequal_rows"): 1,
 }
 
 

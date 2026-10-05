@@ -60,10 +60,9 @@ def agencer(unites: list, par_rangee: int = 2) -> list[list]:
     Une « unité » est une liste de boîtes qui doivent rester côte à côte. Deux
     existent, et leur voisinage est une décision écrite, pas un hasard de place :
 
-      Apple + Shazam   même dépôt de CSV, même nature de relevé — « les voisiner
-                       laisse l'œil transporter la réserve de l'un sur l'autre »
-      Meta + Hypeddit  la chaîne que le produit raconte : on dépense, les gens
-                       cliquent, le titre est écouté, l'algorithme le reprend
+      Meta + Hypeddit     la chaîne que le produit raconte : on dépense, les gens
+                          cliquent, le titre est écouté, l'algorithme le reprend
+      Shazam + Instagram  les signaux relevés hors des plateformes d'écoute (V3)
 
     Un simple découpage en tranches de deux les casserait dès qu'une unité de deux
     tombe en position impaire. Cette fonction regarde donc PLUS LOIN dans la liste :
@@ -187,19 +186,27 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     _grand_fmt = f"{grand_total:,}".replace(",", "\u202f")
 
     # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
-    # « diminues la taille des box pour que tout rentre ». 1,8em et non 2,6 — à
-    # 2,6 le nombre débordait de sa colonne dès six chiffres.
+    # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
+    # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
     st.markdown(
         f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
             background:#f0f2f6; border-radius:8px; margin-bottom:8px;">
             <div style="color:#555; font-size:0.78em; font-weight:600;">{
                 t("home.total_all_platforms", "🎧 Total streams")}</div>
-            <div style="font-size:1.8em; line-height:1.1; color:#1DB954;
+            <div style="font-size:2.3em; line-height:1.1; color:#1DB954;
                  font-weight:800;">{_grand_fmt}</div>
             <div style="color:#666; font-size:0.78em;">{
                 _delta(grand_total, prev_grand) or ""}</div>
         </div>""",
         unsafe_allow_html=True)
+
+    # R371 (V2) — each platform's share of THAT total, read from the same `totals`
+    # dict: the slices sum to the number above by construction, never a second total.
+    from src.dashboard.utils import charts
+    from src.dashboard.utils.platform_share import platform_share_figure
+    _pie = platform_share_figure(_t)
+    if _pie is not None:
+        charts.plotly_chart(_pie, width="stretch", key="home_platform_share")
 
     _last = _s.get("last_measured") or {}
 
@@ -240,15 +247,12 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # Une UNITÉ est une liste de boîtes qui ne se séparent jamais. Deux existent,
     # et leur voisinage est une décision écrite :
     #
-    #   Apple + Shazam   même dépôt de CSV, même nature de relevé — « les voisiner
-    #                    laisse l'œil transporter la réserve de l'un sur l'autre »
-    #   Meta + Hypeddit  la chaîne que le produit raconte : on dépense (Meta), les
-    #                    gens cliquent (Hypeddit), le titre est écouté, l'algorithme
-    #                    le reprend
+    #   Meta + Hypeddit     la chaîne que le produit raconte : on dépense (Meta), les
+    #                       gens cliquent (Hypeddit), le titre est écouté
+    #   Shazam + Instagram  les deux signaux relevés HORS des plateformes d'écoute —
+    #                       demandé le 2026-10-05 (V3), il remplace Apple + Shazam
     #
-    # `agencer()` les range sans jamais en couper une. Spotify+YouTube et
-    # SoundCloud+Instagram n'avaient, eux, AUCUNE justification d'appariement : le
-    # seul commentaire sur SoundCloud disait qu'il était POUSSÉ là par Apple+Shazam.
+    # `agencer()` les range sans jamais en couper une.
     #
     # ⚠️ DEUX PAR RANGÉE, pas trois : la colonne fait 2/5 de la page et un libellé
     # comme « ☁️ SoundCloud » se coupe en deux à trois colonnes.
@@ -416,12 +420,12 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     _unites = [
         [(_t.get("spotify"), _u_spotify)],
         [(_t.get("youtube"), _u_youtube)],
-        # ⚠️ UNE SEULE UNITÉ — voir le commentaire en tête de bloc.
-        [(_t.get("apple"), _u_apple), (_shz, _u_shazam)],
+        [(_t.get("apple"), _u_apple)],
         [(_t.get("soundcloud"), _u_soundcloud)],
-        [(ig_count, _u_instagram)],
-        # ⚠️ UNE SEULE UNITÉ — la chaîne dépense → clic.
+        # R371 (V3) — Meta Ads + Hypeddit on one row (the spend → click chain), then
+        # Shazam + Instagram on the next: the two signals measured off the stores.
         [(_spend, _u_meta), (_hd_ctr, _u_hypeddit)],
+        [(_shz, _u_shazam), (ig_count, _u_instagram)],
     ]
     # `sorted` est STABLE : à présence égale, l'ordre de déclaration ci-dessus
     # départage. Une unité a des données dès qu'UNE de ses boîtes en a — sans quoi
@@ -451,8 +455,8 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # se passer. Mélanger du mesuré et du prédit dans le même coup d'œil est le
     # meilleur moyen de faire lire une prédiction comme un relevé.
     #
-    # Le libellé le dit désormais en toutes lettres — « Probabilités prédites maximum
-    # atteintes pour » : ce sont les maximums que le modèle a attribués à ce titre,
+    # Le libellé le dit désormais en toutes lettres — « Probabilités prédites
+    # maximales pour » : ce sont les maximums que le modèle a attribués à ce titre,
     # pas des taux constatés. Le taux constaté demanderait `s4a_song_algo_outcomes`,
     # à **0 ligne** tous locataires confondus (mesuré le 2026-09-12).
     _song, _age = _s.get("release_song"), _s.get("release_age")
@@ -465,7 +469,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
         # dans chaque boîte volerait la place du chiffre.
         st.caption(t("home.gates_for",
-                     "🔮 Probabilités **prédites maximum atteintes** pour **{song}**")
+                     "🔮 Probabilités **prédites maximales** pour **{song}**")
                    .format(song=_song or "—")
                    + (t("home.gates_age", " · sortie il y a {n} j").format(n=_age)
                       if _age is not None else ""))

@@ -112,7 +112,7 @@ def test_the_ceilings_only_fall() -> None:
     pour attraper ailleurs.
     """
     total = sum(_reference()["plafonds"].values())
-    assert total <= 162, (
+    assert total <= 113, (  # 162 → 113 le 2026-10-05 (R371, `_note_2026_10_05`)
         f"le total des plafonds vaut {total}, contre 191 le 2026-09-20. Ce fichier "
         "descend quand une vue est allégée ; il ne monte pas. Une vue neuve doit tenir "
         f"sous {_MAX_FIRST_SCREEN} sans entrée du tout.")

@@ -203,6 +203,16 @@ src/dashboard/views/instagram.py::show#1:
   owner: "L'ergonomie du graphique est pas ouf, propose-moi un autre truc."
   cause: lisibilite
   note: "Likes et commentaires tracés dans la MÊME couleur (noir) — la légende ne distingue rien."
+src/dashboard/views/home_tiles.py::render_tiles#1:
+  q: "Quelle part de mes écoutes vient de chaque plateforme ?"
+  decision: "Voir quelle plateforme porte tes écoutes, pour savoir où concentrer ta promo."
+  decision_en: "See which platform carries your streams, to know where to focus your promotion."
+  role: plateforme
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R371 (ta note V2 du 2026-10-05). Rendu regardé le 2026-10-05 : premier jet avec texte tourné et une part de 4,6 % illisible → étiquettes horizontales, à l'extérieur quand la part est fine. Lu sur le même dict que le total affiché au-dessus : la somme des parts EST ce total."
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   mq: M5
   q: "Mes smart links Hypeddit convertissent-ils ?"

@@ -20,12 +20,11 @@ voisinage portait disparaît.
 
 Deux paires existent, et chacune a sa raison ÉCRITE dans `home_tiles.py` :
 
-    Apple + Shazam    même dépôt de CSV Apple, même nature de relevé — « les
-                      voisiner laisse l'œil transporter la réserve de l'un sur
-                      l'autre, au lieu de la répéter deux fois »
-    Meta + Hypeddit   la chaîne que le produit raconte : « on dépense (Meta), les
-                      gens cliquent (ici), le titre est écouté, l'algorithme le
-                      reprend »
+    Meta + Hypeddit     la chaîne que le produit raconte : « on dépense (Meta), les
+                        gens cliquent (ici), le titre est écouté, l'algorithme le
+                        reprend »
+    Shazam + Instagram  les signaux relevés hors des plateformes d'écoute — demandé
+                        le 2026-10-05 (R371, V3), il remplace Apple + Shazam
 
 ⚠️ Ce que ce garde NE tient PAS : l'ordre des trois BLOCS. Le total toutes
 plateformes reste en tête et les trois portes algorithmiques en dernier — décision
@@ -41,7 +40,7 @@ from src.dashboard.views.home_tiles import agencer
 #: Les paires dont la séparation perdrait une information. Les libellés sont ceux
 #: que `st.metric` affiche — c'est par eux que les harnais de ce dépôt retrouvent
 #: une boîte, jamais par index.
-_PAIRES = (("🎎 Apple Music", "🎧 Shazam"), ("📊 Meta Ads", "📱 Hypeddit"))
+_PAIRES = (("📊 Meta Ads", "📱 Hypeddit"), ("🎧 Shazam", "📸 Instagram"))
 
 
 def _rendre(totals: dict, side: dict | None = None, ig: int = 0) -> list[str]:
@@ -149,15 +148,15 @@ def test_a_full_tenant_keeps_the_declared_order() -> None:
 @pytest.mark.parametrize("totals,side,ig", [
     ({"soundcloud": 4200}, {}, 0),                                   # Benken
     ({}, {}, 0),                                                     # locataire vide
-    ({"spotify": 10}, {"shazam_total": 5}, 0),                       # Shazam sans Apple
-    ({"apple": 10}, {}, 0),                                          # Apple sans Shazam
+    ({"spotify": 10}, {"shazam_total": 5}, 0),                       # Shazam sans Insta
+    ({"apple": 10}, {}, 8),                                          # Insta sans Shazam
     ({"spotify": 1, "youtube": 2, "apple": 3, "soundcloud": 4},
      {"shazam_total": 5, "meta_spend": 6, "hypeddit_ctr": 7.0}, 8),  # tout plein
 ])
 def test_the_two_written_pairs_stay_adjacent(totals, side, ig) -> None:
     """Quel que soit l'état de la donnée, les deux paires restent collées.
 
-    Le paramétrage porte les cas qui les SÉPARERAIENT : Shazam plein et Apple vide
+    Le paramétrage porte les cas qui les SÉPARERAIENT : Shazam plein et Instagram vide
     les met de part et d'autre de la frontière du tri, et c'est exactement là qu'une
     unité mal déclarée se romprait.
     """
@@ -174,15 +173,15 @@ def test_the_two_written_pairs_stay_adjacent(totals, side, ig) -> None:
 
 
 def test_a_unit_counts_as_full_when_any_of_its_boxes_has_data() -> None:
-    """Shazam vide ne doit pas faire descendre Apple qui livre.
+    """Shazam vide ne doit pas faire descendre Instagram qui livre.
 
     C'est le piège de l'unité : si la présence se jugeait sur la PREMIÈRE boîte, ou
     sur TOUTES, une paire à moitié pleine tomberait au mauvais endroit.
     """
-    libelles = _rendre({"apple": 999}, {})       # Apple livre, Shazam non
-    assert "🎎 Apple Music" in libelles
-    place = libelles.index("🎎 Apple Music")
+    libelles = _rendre({}, {}, ig=999)           # Instagram livre, Shazam non
+    assert "📸 Instagram" in libelles
+    place = libelles.index("📸 Instagram")
     vides = [libelles.index(x) for x in ("🎵 Spotify", "🎬 YouTube")
              if x in libelles]
     assert all(place < v for v in vides), (
-        f"Apple a des données et passe derrière des tuiles vides : {libelles}")
+        f"Instagram a des données et passe derrière des tuiles vides : {libelles}")

@@ -76,7 +76,7 @@ EN = {
     # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
     # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
     # observé — aucune issue n'a encore été saisie.
-    "home.gates_for": "🔮 **Maximum predicted** probabilities for **{song}**",
+    "home.gates_for": "🔮 **Highest predicted** probabilities for **{song}**",
     "home.gates_age": " · released {n} days ago",
     "home.gate_dw": "🎯 Discover Weekly",
     "home.gate_radio": "📻 Radio",
