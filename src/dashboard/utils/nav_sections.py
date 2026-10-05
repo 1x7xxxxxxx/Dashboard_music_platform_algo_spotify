@@ -145,10 +145,8 @@ NAV_SECTIONS: list = [
     # choses : on regarde d'abord ce qu'on a, on décide ensuite si on paie pour
     # plus.
     ("analytics", "📊 Analytics plateformes",
-     # R271 (note L8) — the ten charts that decide the most, one click from each; at the
-     # head of what one LOOKS at, not beside the home (which stands alone with the funnel).
-     [("📌 Récap", "recap"),
-      ("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
+     # R379 (V26) — « 📌 Récap » retired: it drew nothing, it listed ten links.
+     [("🎵 Spotify + Spotify for Artists", "spotify_s4a_combined"),
       ("📣 Publicité Meta Ads", "meta_ads_overview"),
       # La FUSION des plateformes est gratuite depuis le 2026-09-26 (ADR-029) : ces
       # pages lisent tes données, elles ne prédisent rien. « Tout mon funnel »

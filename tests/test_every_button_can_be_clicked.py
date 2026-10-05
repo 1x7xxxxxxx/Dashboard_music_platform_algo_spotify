@@ -82,9 +82,10 @@ def test_every_button_of_the_view_can_be_clicked(view, offline):
 
 
 def test_the_click_harness_sees_buttons_not_vacuous(offline):
-    """The recap page draws one button per chart: a harness that sees none clicks nothing."""
+    """The onboarding draws its two language buttons and its next step whatever the data
+    holds: a harness that sees none clicks nothing. (It was the Récap page, retired by R379.)"""
     if not _db_up():
         pytest.skip("no development base (localhost:5433) — `make up`")
-    at = _app("recap")
-    assert not at.exception and len(at.button) >= 5
-    assert len(at.button) <= _MAX_PER_VIEW, "the bound would already cut the recap"
+    at = _app("onboarding")
+    assert not at.exception and len(at.button) >= 3
+    assert len(at.button) <= _MAX_PER_VIEW, "the bound would already cut the onboarding"

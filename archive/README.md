@@ -104,3 +104,7 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/claude-config/commands/check-env.md` | `.claude/commands/check-env.md` | commande orpheline : 0 invocation, `make check-env` fait la même chose et c'est lui que nomme la règle 10 (R366) | 2026-10-04 |
 | `archive/claude-config/commands/logs-airflow.md` | `.claude/commands/logs-airflow.md` | commande orpheline : 0 invocation, aucune surface impérative ne la nomme (R366) | 2026-10-04 |
 | `archive/claude-config/commands/run-tests.md` | `.claude/commands/run-tests.md` | commande orpheline qui contredisait la règle « jamais `pytest tests/` nu » — les cibles `make test*` la remplacent (R366) | 2026-10-04 |
+| `archive/src/dashboard/views/recap.py` | `src/dashboard/views/recap.py` | page « 📌 Récap » retirée (V26) : elle ne dessinait rien, elle listait dix liens ; la route `recap` est un alias vers l'accueil (R379) | 2026-10-05 |
+| `archive/src/dashboard/content/recap_charts.py` | `src/dashboard/content/recap_charts.py` | contenu généré de la page Récap, sans lecteur depuis son retrait (R379) | 2026-10-05 |
+| `archive/tools/dev/build_recap.py` | `tools/dev/build_recap.py` | générateur de `recap_charts.py` et cible `make recap`, sans objet depuis le retrait de la page (R379) | 2026-10-05 |
+| `archive/tests/test_the_recap_page_is_the_reviews_top.py` | `tests/test_the_recap_page_is_the_reviews_top.py` | garde de la page Récap, retirée avec elle (R379) | 2026-10-05 |

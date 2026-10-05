@@ -114,7 +114,6 @@ graph LR
 | `src/utils/dag_callbacks.py` | Utility | `email_alerts.dag_failure_callback`, `error_registry.record_error` — LE rappel d'échec des 13 DAG (R265) |
 | `dashboard/utils/ratios.py` | Utility | rien — CPC, CPM, CPR, CTR définis une fois (R258) ; `meta_ads_overview`, `meta_creatives`, `meta_cpr_optimizer`, `trigger_algo/_reglages` |
 | `dashboard/utils/onboarding_journey.py` | Utility | `saas_users`, `artist_credentials`, `etl_run_log` en une requête ; lu par `onboarding_health.py` (R270) |
-| `dashboard/content/recap_charts.py` | Utility | généré par `tools/dev/build_recap.py` depuis la revue notée ; lu par `views/recap.py` (R271) |
 | `init_db.sql` | Core | Docker entrypoint (runs once) |
 | `auth.py` | Core | PostgresHandler, saas_artists table |
 | `views/*.py` | Feature | get_db_connection, st.session_state |
@@ -313,7 +312,6 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
 | `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
-| `recap.py` | Récap | `src/dashboard/content/recap_charts.py` (generated from the graded chart review — no database read) | all |
 | `meta_campaign_settings.py` | Paramètres de mes campagnes | meta_campaigns, meta_adsets, meta_ads (réglages, jamais sommés) ; v_meta_campaign_daily (résultat, or) ; `utils.ratios` | all (Premium) |
 | `meta_mapping/` (package) | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |

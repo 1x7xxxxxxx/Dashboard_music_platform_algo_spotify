@@ -57,6 +57,6 @@ ROUTES: dict[str, str] = {
     "upgrade": "views.upgrade",
     "usage_analytics": "views.usage_analytics",
     "alerts": "views.alerts",
-    "recap": "views.recap",  # R271 — the ten charts that decide the most
+    "recap": "views.home",  # alias — R379 retired the Récap page; old links land home
     "meta_campaign_settings": "views.meta_campaign_settings",  # R272 — Premium
 }
