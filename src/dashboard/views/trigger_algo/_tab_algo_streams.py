@@ -25,6 +25,7 @@ from src.utils.artist_name_filter import (
 )
 from src.dashboard.utils import charts
 from src.dashboard.utils.ui import secondary_analyses
+from src.utils.algo_order import ALGO_ORDER
 _WINDOWS = [("7d", "7 jours"), ("28d", "28 jours"), ("custom", "Période perso")]
 _SOURCE_LABELS = {"dw_streams": "Discover Weekly", "rr_streams": "Release Radar", "radio_streams": "Radio"}
 _SOURCE_COLORS = {"Discover Weekly": ALGO_COLORS["DW"], "Release Radar": ALGO_COLORS["RR"],
@@ -69,15 +70,17 @@ def _show_tab_algo_streams(db, song, artist_id):
     latest = df.iloc[-1]
 
     # KPI cards: latest per-playlist + cumulative total.
+    # DW → Radio → RR, the one order (`ALGO_ORDER`, R380) — one tile per call, so the
+    # gold-coverage scan can attribute each to its column.
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("🟢 Discover Weekly", int(latest["dw_streams"]))
-    c2.metric("🩷 Release Radar", int(latest["rr_streams"]))
-    c3.metric("🟠 Radio", int(latest["radio_streams"]))
+    c2.metric("🟠 Radio", int(latest["radio_streams"]))
+    c3.metric("🩷 Release Radar", int(latest["rr_streams"]))
     c4.metric(t("trigger_algo.algostreams_total", "Σ Total (cumulé)"), int(latest["total"]))
 
     # Stacked bar: stack height = cumulative total, each segment = one playlist's streams.
     long = df.melt(id_vars="recorded_at",
-                   value_vars=["dw_streams", "rr_streams", "radio_streams"],
+                   value_vars=[f"{a.lower()}_streams" for a in ALGO_ORDER],
                    var_name="source", value_name="streams")
     long["source"] = long["source"].map(_SOURCE_LABELS)
     # R209 (2026-09-27) — the readings are SNAPSHOTS, often one or two: on a date axis a

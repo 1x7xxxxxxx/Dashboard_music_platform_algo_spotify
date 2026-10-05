@@ -12,6 +12,7 @@ from ._common import (
     _standardization_block,
 )
 from src.dashboard.utils import charts
+from src.utils.algo_order import ALGO_ORDER
 
 
 def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
@@ -48,7 +49,7 @@ def _show_tab_lifecycle(db, track, artist_id, release_date, benchmark_df):
                   "ton titre ; le verdict est plus bas."))
     _lifecycle_legend()
 
-    for algo in ("DW", "RR", "RADIO"):
+    for algo in ALGO_ORDER:
         curve = benchmark_df[benchmark_df["algorithm"] == algo].sort_values("age_week_bin_order")
         if curve.empty:
             continue

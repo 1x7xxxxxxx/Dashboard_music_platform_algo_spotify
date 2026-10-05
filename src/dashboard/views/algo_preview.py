@@ -37,10 +37,9 @@ from src.dashboard.utils.algo_preview_data import (
 from src.dashboard.utils.example_figures import ALGO_PREDICTION, render_example
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.plan_gate import bouton_vers
+from src.utils.algo_order import named_algos
 
-_ALGOS = (("DW", "Discover Weekly", "dw_probability"),
-          ("RR", "Release Radar", "rr_probability"),
-          ("RADIO", "Radio", "radio_probability"))
+_ALGOS = tuple((a, name, f"{a.lower()}_probability") for a, name in named_algos())
 _COST_WINDOW_DAYS = 90
 
 

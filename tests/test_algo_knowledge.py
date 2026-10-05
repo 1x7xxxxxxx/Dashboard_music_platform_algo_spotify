@@ -74,7 +74,7 @@ def test_feature_ids_covers_all_13_inference_features():
 # ─────────────────────────────────────────────────────────────────────
 
 def test_populated_algos_order():
-    assert ak.populated_algos() == ["DW", "RR", "RADIO"]
+    assert ak.populated_algos() == list(ak.ALGO_ORDER)  # DW → Radio → RR (R380)
 
 
 def test_radio_feature_keys_are_valid_inference_columns():

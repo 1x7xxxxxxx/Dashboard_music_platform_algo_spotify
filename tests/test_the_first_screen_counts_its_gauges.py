@@ -186,13 +186,34 @@ def _qui_dessine(arbres: list[ast.Module]) -> set[str]:
     return atteint
 
 
-def _bornes(arbre: ast.Module) -> set[str]:
-    """Noms bornés par construction : un littéral de module, ou `st.columns(<littéral>)`."""
+def _litteraux_de_module(arbre: ast.Module) -> set[str]:
     out: set[str] = set()
     for n in arbre.body:
         if isinstance(n, (ast.Assign, ast.AnnAssign)) and isinstance(n.value, _BOUCLE_LITTERALE):
             cibles = n.targets if isinstance(n, ast.Assign) else [n.target]
             out |= {c.id for c in cibles if isinstance(c, ast.Name)}
+    return out
+
+
+def _litteraux_importes(arbre: ast.Module) -> set[str]:
+    """Un littéral de module IMPORTÉ reste borné (`from src.utils.algo_order import
+    ALGO_ORDER`, R380) — lu dans le module qui le lie, jamais deviné sur le nom."""
+    out: set[str] = set()
+    for n in arbre.body:
+        if not (isinstance(n, ast.ImportFrom) and (n.module or "").startswith("src.")):
+            continue
+        source = ROOT / (n.module.replace(".", "/") + ".py")
+        if not source.is_file():
+            continue
+        litteraux = _litteraux_de_module(ast.parse(source.read_text(encoding="utf-8")))
+        out |= {a.asname or a.name for a in n.names if a.name in litteraux}
+    return out
+
+
+def _bornes(arbre: ast.Module) -> set[str]:
+    """Noms bornés par construction : un littéral de module (local ou importé), ou
+    `st.columns(<littéral>)`."""
+    out: set[str] = _litteraux_de_module(arbre) | _litteraux_importes(arbre)
     for n in ast.walk(arbre):
         if (isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)
                 and _nom(n.value) == "columns" and n.value.args

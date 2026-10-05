@@ -39,6 +39,7 @@ from src.database.stripe_schema import PLAN_CATALOG as _CAT
 # le même mot dès qu'un abonnement passait en `trialing`.
 from src.utils.mrr import MRR_STATUSES
 from src.dashboard.utils.date_format import format_date
+from src.utils.algo_order import ALGO_ORDER
 
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
@@ -667,9 +668,7 @@ def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
     return -cumul if cumul < 0 else None
 
 
-_FLOOR_COLUMNS = (("DW", "dw_streams_forecast_7d"),
-                  ("RR", "rr_streams_forecast_7d"),
-                  ("RADIO", "radio_streams_forecast_7d"))
+_FLOOR_COLUMNS = tuple((a, f"{a.lower()}_streams_forecast_7d") for a in ALGO_ORDER)
 
 
 def drop_suppressed_floor_columns(ml_df: pd.DataFrame) -> pd.DataFrame:

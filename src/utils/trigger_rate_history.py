@@ -37,14 +37,12 @@ from __future__ import annotations
 import logging
 from statistics import median
 
+from src.utils.algo_order import named_algos
+
 logger = logging.getLogger(__name__)
 
-# Les trois portes, dans l'ordre où le PDF les présente déjà.
-GATES = (
-    ("dw_probability", "Discover Weekly"),
-    ("rr_probability", "Release Radar"),
-    ("radio_probability", "Radio"),
-)
+# Les trois portes, dans l'ordre unique (`ALGO_ORDER`, R380).
+GATES = tuple((f"{a.lower()}_probability", name) for a, name in named_algos())
 
 EARLY_DAYS = 30
 

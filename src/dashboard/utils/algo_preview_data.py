@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import math
 
+from src.utils.algo_order import named_algos
+
 #: Le score BRUT en dessous duquel on considère que le modèle n'a rien tranché.
 #:
 #: Le seuil vit dans l'espace brut et non dans l'espace calibré, parce que c'est là
@@ -156,7 +158,7 @@ def cout_par_stream(db, artist_id, date_from, date_to) -> float | None:
 
 
 #: The three algorithmic playlists, in the order every surface lists them.
-PORTES = (("DW", "Discover Weekly"), ("RR", "Release Radar"), ("RADIO", "Radio"))
+PORTES = named_algos()
 
 
 def budget_par_porte(feats: dict, cout: float | None) -> list[dict]:

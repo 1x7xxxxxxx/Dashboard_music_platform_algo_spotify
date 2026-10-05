@@ -22,6 +22,7 @@ from src.dashboard.utils.pdf_exporter._config import _t  # noqa: E402
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.platform_colors import DISTINCT, platform_color
 from src.dashboard.utils.semantic_colors import BON
+from src.utils.algo_order import ALGO_ORDER, named_algos
 
 # R260 — the PDF draws with the app's palette, not its own copy of the brand hues.
 _GREEN = platform_color("spotify")        # a Spotify series
@@ -438,8 +439,10 @@ def _draw_ml_probabilities(pred) -> str:
     """
     from src.dashboard.utils.algo_preview_data import proba_affichable
 
-    labels = ["Discover\nWeekly", "Release\nRadar", "Radio"]
-    kept = [proba_affichable(a, pred[i]) for i, a in enumerate(("dw", "rr", "radio"))]
+    # `pred` is the SELECT's column order (dw, rr, radio); the bars follow ALGO_ORDER.
+    by_algo = {"DW": pred[0], "RR": pred[1], "RADIO": pred[2]}
+    labels = [name.replace(" ", "\n") for _a, name in named_algos()]
+    kept = [proba_affichable(a.lower(), by_algo[a]) for a in ALGO_ORDER]
     vals = [p * 100 if p is not None else 0.0 for p in kept]
     colors = [BON if v >= 50 else ("#FFA500" if v >= 30 else _RED) for v in vals]
     fig, ax = plt.subplots(figsize=(5.2, 3.0))
@@ -900,9 +903,9 @@ def pi_gate(tables, here=None) -> str | None:
     brackets = tables.get("pi_brackets", [])
     if not brackets:
         return None
-    algos = [("discover_weekly", "Discover Weekly", "#E45756"),
-             ("release_radar", "Release Radar", "#4C78A8"),
-             ("radio", "Radio", "#54A24B")]
+    keys = {"DW": ("discover_weekly", "#E45756"), "RR": ("release_radar", "#4C78A8"),
+            "RADIO": ("radio", "#54A24B")}
+    algos = [(keys[a][0], name, keys[a][1]) for a, name in named_algos()]
     fig, axes = plt.subplots(1, 3, figsize=(8.6, 2.8))
     # Un panier SANS observation ne se dessine pas.
     #

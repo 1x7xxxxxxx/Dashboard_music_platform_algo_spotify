@@ -8,6 +8,7 @@ from ._loaders import _clean_feat, _load_feature_importance, _load_scored_tracks
 
 
 from src.utils.ml_outcome_labeling import TARGET_THRESHOLDS  # noqa: E402 — R402, one threshold set
+from src.utils.algo_order import named_algos  # noqa: E402 — R380, one order
 
 ELBOW_THRESHOLDS_28D = {k.upper(): v for k, v in TARGET_THRESHOLDS.items()}
 
@@ -270,8 +271,7 @@ def _show_feature_importance() -> None:
                      "Poids relatif de chaque variable dans la décision du modèle "
                      "(gain XGBoost — proxy de l'importance SHAP globale)."))
         cols = st.columns(3)
-        algos = [("dw", "Discover Weekly"), ("rr", "Release Radar"), ("radio", "Radio")]
-        for col, (algo, label) in zip(cols, algos):
+        for col, (algo, label) in zip(cols, ((a.lower(), n) for a, n in named_algos())):
             with col:
                 st.markdown(f"**{label}**")
                 rows = imp.get(algo, [])

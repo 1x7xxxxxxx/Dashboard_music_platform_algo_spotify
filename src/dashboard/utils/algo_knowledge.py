@@ -12,6 +12,8 @@ lives in ml_widgets.py; this module stays import-light and unit-testable.
 """
 import math
 
+from src.utils.algo_order import ALGO_ORDER  # also re-exported: the one order
+
 # ── Per-feature decision zones (Discover Weekly) ──────────────────────────────
 # Each entry keyed by clean feature id. `json_key` = key in ml_song_predictions
 # features_json; `decode` = how to recover the raw human value from it.
@@ -690,7 +692,7 @@ def volume_feature_ids(algo: str) -> list[str]:
 
 def volume_algos() -> list[str]:
     """Algorithms with a populated volume/regressor zone set, in display order."""
-    return [a for a in ("DW", "RR", "RADIO") if a in ALGO_VOLUME_ZONES]
+    return [a for a in ALGO_ORDER if a in ALGO_VOLUME_ZONES]
 
 
 def volume_scaling_threshold(algo: str):
@@ -750,9 +752,8 @@ def radio_discovery_recovery_note(feats: dict) -> str | None:
 
 
 def populated_algos() -> list[str]:
-    """Algorithms with feature zones, in canonical display order (DW, RR, RADIO)."""
-    order = ["DW", "RR", "RADIO"]
-    return [a for a in order if a in ALGO_FEATURE_ZONES]
+    """Algorithms with feature zones, in the one display order (`ALGO_ORDER`)."""
+    return [a for a in ALGO_ORDER if a in ALGO_FEATURE_ZONES]
 
 
 def decode_feature_value(algo: str, feature: str, feats: dict, registry: dict | None = None):
@@ -906,7 +907,7 @@ def split_coach_actions(algo: str, feats: dict) -> tuple[list[dict], list[dict]]
     return titre, artiste
 
 
-def nearest_gate(feats: dict, algos: tuple[str, ...] = ("DW", "RR", "RADIO")) -> dict | None:
+def nearest_gate(feats: dict, algos: tuple[str, ...] = ALGO_ORDER) -> dict | None:
     """La porte la plus PROCHE pour ce titre — celle dont le premier levier est le
     moins loin de sa cible.
 

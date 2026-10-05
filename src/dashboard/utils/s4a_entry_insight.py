@@ -227,8 +227,11 @@ def _bar_label(dw, rr, radio) -> str:
     """
     from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
 
-    kept = [p for a, v in (("dw", dw), ("rr", rr), ("radio", radio))
-            if (p := proba_affichable(a, v)) is not None]
+    from src.utils.algo_order import ALGO_ORDER
+
+    vals = {"DW": dw, "RR": rr, "RADIO": radio}
+    kept = [p for a in ALGO_ORDER
+            if (p := proba_affichable(a.lower(), vals[a])) is not None]
     return f"{max(kept):.0%}" if kept else texte_plancher()
 
 

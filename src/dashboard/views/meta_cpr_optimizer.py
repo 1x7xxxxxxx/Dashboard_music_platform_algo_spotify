@@ -22,6 +22,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.auth import require_plan
+from src.utils.algo_order import ALGO_ORDER
 from src.utils.track_matching import canonical_song_sql
 
 
@@ -129,8 +130,9 @@ def _ml_factor(dw, rr, radio) -> float | None:
     Radio's intercept (~10,7 %) — an artefact of calibration, not a signal about the
     track — and it multiplied a real ad-spend recommendation. Pure.
     """
-    kept = [p for a, v in (("dw", dw), ("rr", rr), ("radio", radio))
-            if (p := proba_affichable(a, v)) is not None]
+    vals = {"DW": dw, "RR": rr, "RADIO": radio}
+    kept = [p for a in ALGO_ORDER
+            if (p := proba_affichable(a.lower(), vals[a])) is not None]
     return max(kept) if kept else None
 
 

@@ -197,9 +197,10 @@ def _render_table(df: pd.DataFrame) -> None:
         t("trigger_algo.cat.col_saves", "Saves 28j"): df["saves_28d"],
         t("trigger_algo.cat.col_adds", "Ajouts playlist 28j"): df["adds_28d"],
         t("trigger_algo.cat.col_streams", "Streams 28j"): df["streams_28d"],
+        # DW → Radio → RR, the one order (`ALGO_ORDER`, R380).
         "DW %": [_proba("dw", v) for v in df["dw_probability"]],
-        "RR %": [_proba("rr", v) for v in df["rr_probability"]],
         "Radio %": [_proba("radio", v) for v in df["radio_probability"]],
+        "RR %": [_proba("rr", v) for v in df["rr_probability"]],
     })
     st.dataframe(
         aff, hide_index=True, width="stretch",

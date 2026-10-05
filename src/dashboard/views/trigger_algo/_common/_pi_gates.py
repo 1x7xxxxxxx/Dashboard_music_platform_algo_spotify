@@ -2,6 +2,7 @@
 from src.dashboard.utils.i18n import t
 import streamlit as st
 from ._loaders import _load_threshold_tables
+from src.utils.algo_order import named_algos
 
 
 _PI_BINS = [(0, 10, "0-10"), (11, 20, "11-20"), (21, 30, "21-30"),
@@ -35,8 +36,8 @@ def _show_pi_breakeven(ml_pred: dict | None) -> None:
                  "PI prédit actuel : **{pi} / 100** (tranche {bracket}). Tu ne rentabilises "
                  "via un algo que si ton PI franchit sa porte de déclenchement.")
                .format(pi=int(pi), bracket=here))
-    for key, label in (("discover_weekly", "Discover Weekly"),
-                       ("radio", "Radio"), ("release_radar", "Release Radar")):
+    keys = {"DW": "discover_weekly", "RADIO": "radio", "RR": "release_radar"}
+    for key, label in ((keys[a], name) for a, name in named_algos()):
         data = tables.get(key, {})
         gate = next((b for b in brackets if (data.get(b, {}).get("prob") or 0) >= 50), None)
         if not gate:

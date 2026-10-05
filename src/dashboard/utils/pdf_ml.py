@@ -18,10 +18,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+from src.utils.algo_order import named_algos  # noqa: E402
+
 # (model_key, display label) — the 3 classifiers.
-_ALGOS = [("dw_classifier", "Discover Weekly"),
-          ("rr_classifier", "Release Radar"),
-          ("radio_classifier", "Radio")]
+_ALGOS = [(f"{a.lower()}_classifier", name) for a, name in named_algos()]
 _ZONE_BADGE = {"malus": ('red', 'malus'), "neutral": ('gray', 'neutre'),
                "bonus": ('green', 'bonus')}
 

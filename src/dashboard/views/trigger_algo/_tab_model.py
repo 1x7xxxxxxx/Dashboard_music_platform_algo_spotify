@@ -7,6 +7,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from src.utils.algo_order import ALGO_ORDER
+
 
 def _show_tab_model(db, track: str, artist_id):
     st.caption(t(
@@ -63,7 +65,7 @@ _RECORDED_SQL = """
 # One scatter per algo, in display order. The column each one reads is the
 # regressor's volume forecast, which `machine_learning/train.py:122-128` trains on
 # an ALGO-SOURCED, 28-DAY target (the `_7d` in the column name is a known misnomer).
-_SCATTER_ALGOS = ("DW", "RR", "RADIO")
+_SCATTER_ALGOS = ALGO_ORDER
 _FORECAST_COL = {"DW": "predicted_dw", "RR": "predicted_rr", "RADIO": "predicted_radio"}
 _ALGO_LABEL = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
 _ALGO_COLOR = ALGO_COLORS   # R260 — the one algorithm palette

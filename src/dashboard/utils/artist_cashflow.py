@@ -27,6 +27,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.dashboard.utils.safe_number import nombre
+from src.utils.algo_order import named_algos
 from src.utils.track_matching import canonical_song_sql
 from dateutil.relativedelta import relativedelta
 
@@ -248,7 +249,7 @@ GROUP BY algorithm
 """
 
 # L'ordre d'affichage, et le nom que l'artiste reconnaît.
-ALGOS = [("DW", "Discover Weekly"), ("RR", "Release Radar"), ("RADIO", "Radio")]
+ALGOS = list(named_algos())
 
 
 def trigger_value(db, eur_par_stream: float) -> pd.DataFrame:

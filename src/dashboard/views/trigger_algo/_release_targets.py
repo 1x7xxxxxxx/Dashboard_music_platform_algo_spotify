@@ -31,10 +31,10 @@ from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.labels import unique_short_labels as short_labels  # R209
+from src.utils.algo_order import ALGO_NAMES, ALGO_ORDER
 
 LEVERS = ("StreamsLast7Days", "NonAlgoStreams28Days", "SavesLast28Days", "PlaylistAddsLast28Days")
-ALGOS = ("DW", "RR", "RADIO")
-ALGO_NAMES = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
+ALGOS = ALGO_ORDER
 P_TARGET = 0.80
 _OFFSET = (-0.3, 0.0, 0.3)   # one per algorithm, inside a track's slot
 MAX_TRACKS = 5

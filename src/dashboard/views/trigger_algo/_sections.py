@@ -1,0 +1,38 @@
+"""trigger_algo sections — the page's parts, named ONCE for the layout and the guide.
+
+Type: Utility
+Uses: src.dashboard.utils.i18n
+Depends on: nothing
+Persists in: nothing
+
+R380 (2026-10-05): « Comment lire cette page » listed seven tabs for a page that had
+four — it had been rewritten twice by hand and drifted twice. The layout and the guide
+now read this tuple, so a part cannot be added, renamed or removed in one of them only.
+"""
+from src.dashboard.utils.i18n import t
+
+# (key, label i18n key, FR label, description i18n key, FR description)
+PAGE_SECTIONS = (
+    ("catalogue", "trigger_algo.tab_catalogue", "🎯 Où en sont mes titres",
+     "trigger_algo.guide_section_catalogue",
+     "ton catalogue classé par l'avancement vers la porte la plus proche."),
+    ("titre", "trigger_algo.tab_titre", "🎧 Ce titre : ce qu'il reste à faire",
+     "trigger_algo.guide_section_titre",
+     "le verdict du titre choisi, ses leviers et sa trajectoire J+28."),
+    ("realise", "trigger_algo.tab_realise", "📈 Ce qui s'est vraiment passé",
+     "trigger_algo.guide_section_realise",
+     "ce que chaque playlist t'a réellement rapporté, et le pari du modèle face au résultat."),
+    ("budget", "trigger_algo.tab_budget", "💰 Budget & ROI",
+     "trigger_algo.guide_section_budget",
+     "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),
+)
+
+
+def section_labels() -> list[str]:
+    return [t(key, fr) for _k, key, fr, _dk, _dfr in PAGE_SECTIONS]
+
+
+def guide_sections_md() -> str:
+    head = t("trigger_algo.guide_sections_head", "**🗂️ Les parties de la page**")
+    lines = [f"- **{t(key, fr)}** — {t(dkey, dfr)}" for _k, key, fr, dkey, dfr in PAGE_SECTIONS]
+    return head + "\n" + "\n".join(lines)
