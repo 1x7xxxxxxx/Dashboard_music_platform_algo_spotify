@@ -333,16 +333,14 @@ def render_campaign_tab(db, artist_id, canonical):
 
     st.markdown("---")
     # ── Existing + manual ──
-    sub_existing, sub_add = st.tabs([
-        t("meta_mapping.tab_existing", "Mappings existants"),
-        t("meta_mapping.tab_add", "Ajout manuel"),
-    ])
-    with sub_existing:
+    # Two sections one under the other, not sub-tabs: the page holds no `st.tabs` (R375).
+    st.subheader(t("meta_mapping.tab_existing", "Mappings existants"))
+    with st.container():
         df = _load_mappings(db, artist_id)
         if df.empty:
             st.info(t("meta_mapping.no_mappings",
                       "Aucun mapping pour le moment. Utilisez les suggestions ci-dessus ou "
-                      "l'onglet **Ajout manuel**."))
+                      "la section **Ajout manuel** ci-dessous."))
         else:
             st.dataframe(df[["campaign_name", "track_name"]],
                          width="stretch", hide_index=True)
@@ -359,7 +357,8 @@ def render_campaign_tab(db, artist_id, canonical):
                     (options[sel], artist_id))
                 flash(t("meta_mapping.deleted", "Supprimé : {label}").format(label=sel))
                 st.rerun()
-    with sub_add:
+    st.subheader(t("meta_mapping.tab_add", "Ajout manuel"))
+    with st.container():
         campaigns = _load_campaigns(db, artist_id)
         tracks = _load_tracks(db, artist_id)
         if not campaigns:

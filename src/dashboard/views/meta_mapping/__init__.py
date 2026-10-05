@@ -6,7 +6,7 @@ Uses: view_session, track_matching (canonical reference + canonical_song),
 Persists in: track_platform_link (cross-platform tracks) + campaign_track_mapping
              (Meta campaigns) — both in PostgreSQL spotify_etl
 
-Free-tier. Two tabs:
+Free-tier. Two expanders, one under the other (R375, V16 — they were two tabs):
   1. Cross-platform tracks (_tracks.py) — each platform's free-text titles scored
      against the canonical track_release_reference (title similarity + release-date
      proximity where the platform exposes a date); accept/reject → track_platform_link,
@@ -50,11 +50,13 @@ def show():
                 st.rerun()
             return
 
-        tab_overview, tab_camp = st.tabs(
-            [t("meta_mapping.tab_overview", "🎵 Titres & couverture"),
-             t("meta_mapping.tab_campaigns", "📣 Campagnes Meta")])
-
-        with tab_overview:
+        # Two expanders, one under the other, in the order of the work (R375, V16): a
+        # campaign is linked to a title, so the titles come first. Tabs hid the second
+        # path behind a label nobody clicked. Streamlit forbids an expander inside an
+        # expander — nothing below opens one (`_tracks` uses a toggle for the orphans).
+        with st.expander(t("meta_mapping.tab_overview", "🎵 Titres & couverture"),
+                         expanded=True):
             render_overview_tab(db, artist_id, canonical)
-        with tab_camp:
+        with st.expander(t("meta_mapping.tab_campaigns", "📣 Campagnes Meta"),
+                         expanded=True):
             render_campaign_tab(db, artist_id, canonical)

@@ -27,7 +27,7 @@ EN = {
     "meta_mapping.tab_existing": "Existing mappings",
     "meta_mapping.tab_add": "Manual add",
     "meta_mapping.no_mappings": "No mappings yet. Use the suggestions above or the "
-                                "**Manual add** tab.",
+                                "**Manual add** section below.",
     "meta_mapping.delete_title": "Delete a mapping",
     "meta_mapping.select_delete": "Select mapping to delete",
     "meta_mapping.deleted": "Deleted: {label}",

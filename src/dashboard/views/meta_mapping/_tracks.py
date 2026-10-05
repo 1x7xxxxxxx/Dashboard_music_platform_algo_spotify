@@ -187,9 +187,12 @@ def _render_orphans(orphans) -> None:
     """
     if orphans is None or orphans.empty:
         return
-    with st.expander(t("track_mapping.orphans_header",
-                       "🕳️ {n} titre(s) vus sur une plateforme et rattachés à aucune "
-                       "de tes sorties").format(n=len(orphans)), expanded=False):
+    # A toggle, not an expander: this renders inside the « Titres & couverture »
+    # expander, and Streamlit refuses an expander inside an expander (R375).
+    if st.toggle(t("track_mapping.orphans_header",
+                   "🕳️ {n} titre(s) vus sur une plateforme et rattachés à aucune "
+                   "de tes sorties").format(n=len(orphans)), value=False,
+                 key="track_mapping_orphans"):
         st.caption(t("track_mapping.orphans_help",
                      "Rien à faire si ce sont des edits ou des mix. Si l'un d'eux "
                      "est bien une de tes sorties, c'est qu'elle manque à ton export "
