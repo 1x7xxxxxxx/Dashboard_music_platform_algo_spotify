@@ -251,28 +251,13 @@ def _sweep_the_channel_counter() -> None:
     )
 
 
-def test_the_sweep_still_finds_the_place_the_counter_legitimately_lives() -> None:
-    """Un balayage qui n'examine plus aucun site est un balayage qui ne garde rien.
-
-    Il ne suffit pas que le test ci-dessus soit vert : il l'est aussi quand plus rien
-    ne lit le compteur de chaîne, et ce jour-là il ne garde que le vide. Le « prédicat
-    sans site » que ce dépôt a déjà payé.
-
-    La première version de ce test cherchait deux chaînes n'importe où dans la page —
-    elle est restée VERTE sur sa propre mutation (l'alias posé sur `subscriber_count`,
-    donc plus aucune lecture du compteur à examiner). Elle interroge maintenant le
-    balayage lui-même.
-    """
-    reads, _ = _channel_counter_reads()
-    assert reads, (
-        "aucune lecture de `youtube_channel_history.view_count` dans tout l'arbre : "
-        "le balayage ci-dessus passe à vide. Si c'est voulu — plus aucune surface "
-        "n'affiche le compteur de chaîne — retire ce test en le disant."
-    )
-    assert any("views/youtube.py" in r for r in reads), (
-        f"la page YouTube ne lit plus le compteur de chaîne (sites vus : {reads}). "
-        "C'est la seule surface où il est légitime, sous son propre nom."
-    )
+# ⚠️ RETIRÉ LE 2026-10-05 (R384) : `test_the_sweep_still_finds_the_place_the_counter_
+# legitimately_lives`. Il exigeait que la page YouTube LISE le compteur de chaîne, sa
+# seule surface légitime, et disait lui-même : « si plus aucune surface ne l'affiche,
+# retire ce test en le disant ». C'est le cas : la légende qui le citait est partie à la
+# demande du propriétaire (V39, « retirer le texte explicatif »), et la lecture avec elle.
+# Le balayage garde sa non-vacuité par `test_the_detector_sees_the_defect_it_is_written_for`,
+# qui le nourrit d'un site synthétique au lieu du site vivant disparu.
 
 
 def test_a_bounded_period_is_never_larger_than_the_lifetime(db) -> None:

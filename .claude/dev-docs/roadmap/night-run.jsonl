@@ -674,3 +674,4 @@
 {"at": "2026-10-05T10:45:26+00:00", "head": "3f764d96", "kind": "done", "task": "R400", "what": ""}
 {"at": "2026-10-05T10:51:34+00:00", "head": "e17bd83d", "kind": "start", "task": "R384", "what": ""}
 {"at": "2026-10-05T10:55:41+00:00", "kind": "done", "task": "R382", "what": "fermée par roadmap-close — CI verte sur e17bd83d — Meta en cumulé par titre, sélecteur limité aux titres qui bougent (≥28 streams sur 28 j), axe de popularité borné au max observé arrondi à la dizaine ; 4 mutations rouges"}
+{"at": "2026-10-05T10:58:25+00:00", "head": "1939143d", "kind": "done", "task": "R382", "what": ""}

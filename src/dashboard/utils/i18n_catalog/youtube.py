@@ -13,28 +13,14 @@ EN = {
     "youtube.content_type": "Content type",
     "youtube.n_videos": "Number of videos",
     "youtube.views": "Views",
-    "youtube.top_chart_title": "Top {n} {type}",
     "youtube.no_video_category": "No video in this category.",
     "youtube.no_video_db": "No video found in the database.",
     "youtube.error": "Error: {err}",
-    # La légende d'honnêteté qui remplace les trois tuiles (2026-09-21).
-    "youtube.channel_caption": "**Subscribers**: YouTube rounds this counter to three "
-                               "significant figures on the public API — only {n} "
-                               "distinct value(s) over {j} days of readings here, hence "
-                               "the staircase. The exact daily figure exists, but it "
-                               "needs **channel-owner** access (YouTube Analytics API), "
-                               "not an API key.\n\n"
-                               "**Views**: the curve sums the PER-VIDEO counters, which "
-                               "move by single units ({vues}). The counter YouTube shows "
-                               "for the channel reads {chaine} — it includes private and "
-                               "deleted videos and internal aggregates that are absent "
-                               "from the catalogue analysed here. Seeing them diverge is "
-                               "information, not an error.",
-    "youtube.cohort_notice": "Ranked **by publication date**: the window picks the "
-                             "videos RELEASED in the period. The figures are the ones "
-                             "**earned to date**, since publication — not the activity "
-                             "of the period.",
-    "youtube.n_comments": "{n} comm.",
-    "youtube.views_per_like": "{r:.0f} views/like",
     "youtube.likes_per_k": "Likes per 1,000 views",
+    "youtube.comments_per_k": "Comments per 1,000 views",
+    "youtube.gained_title": "Views gained over the period, per video",
+    "youtube.ranking_title": "Videos published in the period, by publication date — "
+                             "figures earned to date",
+    "youtube.age_title": "Video age and views earned to date",
+    "youtube.age_days": "Days since publication",
 }

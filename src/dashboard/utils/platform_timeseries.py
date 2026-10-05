@@ -255,6 +255,29 @@ def youtube_cumulative_views(db: Any, artist_id: Optional[int]) -> list[tuple]:
     return rebase_method_changes(_rows(db, _SQL_LEVEL_ONE, (artist_id, "youtube")))
 
 
+def youtube_video_readings(db: Any, artist_id: int, since=None, until=None) -> list[tuple]:
+    """[(video_id, title, collected_at, view_count), …] in the window, per video in time
+    order — the readings `views.youtube.views_gained` turns into views gained (R384).
+
+    Read HERE because this module is the one place that reads the bronze counters; the
+    period rule is `platform_totals`' — a counter grows by its level at the end minus its
+    level at the start, never by a sum of daily gaps."""
+    bounds, params = "", [artist_id]
+    if since is not None:
+        bounds += " AND s.collected_at::date >= %s"
+        params.append(since)
+    if until is not None:
+        bounds += " AND s.collected_at::date <= %s"
+        params.append(until)
+    return list(_q(db, f"""
+        SELECT s.video_id, l.title, s.collected_at, s.view_count
+          FROM youtube_video_stats s
+          JOIN v_youtube_video_latest l
+            ON l.artist_id = s.artist_id AND l.video_id = s.video_id
+         WHERE s.artist_id = %s AND s.view_count IS NOT NULL{bounds}
+         ORDER BY s.video_id, s.collected_at""", tuple(params)) or [])
+
+
 def soundcloud_cumulative_plays(db: Any, artist_id: Optional[int]) -> list[tuple]:
     """[(jour, écoutes cumulées)] — dernier compteur connu par TITRE, additionné."""
     if db is None or artist_id is None:

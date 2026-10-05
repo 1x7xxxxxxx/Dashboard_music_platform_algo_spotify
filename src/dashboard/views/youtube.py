@@ -40,12 +40,17 @@ Le second bouge à l'unité, jour après jour. C'est lui que trace la courbe (vi
 produit. Le compteur de chaîne, lui, inclut des vidéos absentes du catalogue et
 avance par paliers.
 """
-import streamlit as st
-import plotly.graph_objects as go
+from datetime import date
+
 import isodate
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.labels import unique_short_labels
 from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
@@ -65,6 +70,106 @@ def parse_duration(duration_str):
         return td.total_seconds()
     except Exception:
         return 0
+
+def _labels(titles, n: int = 40) -> list[str]:
+    """« 1. Title », ranked in order. `unique_short_labels` cuts a series that differs
+    only at its end (« DJ Set … Detroit 17 », « … 16 ») in the middle, keeping it apart."""
+    return [f"{i}. {x}" for i, x in enumerate(unique_short_labels(list(titles), n), 1)]
+
+
+def like_ratio_ranking(videos: pd.DataFrame) -> pd.DataFrame:
+    """Videos ranked by likes per 1 000 views, best first. Pure (R384).
+
+    A video without a single view has no ratio and is left out: 0 likes on 0 views is
+    not a video nobody liked. Comments per 1 000 views ride along, same denominator."""
+    from src.dashboard.utils.ratios import per_series
+
+    out = videos.assign(
+        likes_per_k=per_series(videos["like_count"], videos["view_count"], 1000),
+        comments_per_k=per_series(videos["comment_count"], videos["view_count"], 1000))
+    out = out.dropna(subset=["likes_per_k"]).sort_values(
+        ["likes_per_k", "view_count"], ascending=False, kind="stable")
+    return out.assign(label=_labels(out["title"]))
+
+
+def views_gained(readings: pd.DataFrame) -> pd.DataFrame:
+    """(title, gained) — last minus first reading of each video in the window. Pure (R384).
+
+    YouTube publishes COUNTERS: a video's views over a period are a DIFFERENCE of two
+    readings, never a sum of them (`cumulative-counter-drawn-as-its-own-history`). A
+    video read once in the window gained nothing measurable and is left out."""
+    cols = ["title", "gained"]
+    if readings.empty:
+        return pd.DataFrame(columns=cols)
+    r = readings.sort_values(["video_id", "collected_at"])
+    g = r.groupby("video_id", sort=False)
+    out = pd.DataFrame({"title": g["title"].last(),
+                        "gained": g["view_count"].last() - g["view_count"].first(),
+                        "n": g.size()})
+    out = out[(out["n"] > 1) & (out["gained"] > 0)]
+    return out.sort_values("gained", ascending=False)[cols].reset_index(drop=True)
+
+
+def views_gained_figure(gained: pd.DataFrame, top: int = 10) -> go.Figure:
+    """The videos that gained the most views over the period, horizontal bars."""
+    d = gained.head(top).iloc[::-1]
+    labels = _labels(gained.head(top)["title"])[::-1]
+    fig = go.Figure(go.Bar(x=d["gained"], y=labels, orientation="h", marker_color=_YT,
+                           text=[num(int(v), 0) for v in d["gained"]],
+                           textposition="outside", cliponaxis=False))
+    fig.update_layout(title=t("youtube.gained_title",
+                              "Vues gagnées sur la période, par vidéo"),
+                      height=120 + 28 * len(d), showlegend=False,
+                      margin=dict(l=10, r=40, t=50, b=30))
+    fig.update_yaxes(automargin=True)
+    return fig
+
+
+def ratio_ranking_figure(ranked: pd.DataFrame, title: str) -> go.Figure:
+    """Likes and comments per 1 000 views, one row per video, best ratio on top."""
+    from plotly.subplots import make_subplots
+
+    d = ranked.iloc[::-1]
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, column_widths=[0.65, 0.35],
+                        horizontal_spacing=0.08,
+                        subplot_titles=(t("youtube.likes_per_k", "Likes pour 1 000 vues"),
+                                        t("youtube.comments_per_k",
+                                          "Commentaires pour 1 000 vues")))
+    hover = [f"{num(int(v), 0)} vues" for v in d["view_count"]]
+    for col, field in ((1, "likes_per_k"), (2, "comments_per_k")):
+        fig.add_trace(go.Bar(x=d[field].fillna(0), y=d["label"], orientation="h",
+                             marker_color=_YT, opacity=1 if col == 1 else 0.55,
+                             text=[f"{v:.1f}" for v in d[field].fillna(0)],
+                             textposition="outside", cliponaxis=False,
+                             customdata=hover,
+                             hovertemplate="%{y}<br>%{x:.1f} · %{customdata}<extra></extra>"),
+                      row=1, col=col)
+    fig.update_layout(title=title, height=140 + 28 * len(d), showlegend=False,
+                      margin=dict(l=10, r=40, t=80, b=30))
+    fig.update_yaxes(automargin=True)
+    fig.update_xaxes(rangemode="tozero")
+    return fig
+
+
+def age_views_figure(videos: pd.DataFrame, today: date | None = None) -> go.Figure:
+    """Age of each video (days since publication) against its views, both on log axes."""
+    today = today or date.today()
+    pub = pd.to_datetime(videos["published_at"], utc=True).dt.date
+    age = [max((today - d).days, 1) for d in pub]
+    fig = go.Figure(go.Scatter(
+        x=age, y=videos["view_count"], mode="markers",
+        marker=dict(color=_YT, size=9, opacity=0.75),
+        text=[str(x) for x in videos["title"]],
+        hovertemplate="%{text}<br>%{x} j · %{y:,.0f} vues<extra></extra>"))
+    fig.update_layout(title=t("youtube.age_title",
+                              "Âge de la vidéo et vues acquises à ce jour"),
+                      xaxis_title=t("youtube.age_days", "Jours depuis la publication"),
+                      yaxis_title=t("youtube.views", "Vues"),
+                      height=380, showlegend=False, margin=dict(t=50, b=40))
+    fig.update_xaxes(type="log")
+    fig.update_yaxes(type="log", tickformat="~s")
+    return fig
+
 
 def show():
     # ⚠️ NI TITRE NI SOUS-TITRE — retirés le 2026-09-21, même geste que la page
@@ -98,8 +203,7 @@ def show():
             # `platform_timeseries.youtube_cumulative_views`.
             hist_query = f"""
                 SELECT date(collected_at) as date,
-                       MAX(subscriber_count) as subs,
-                       MAX(view_count) as channel_views
+                       MAX(subscriber_count) as subs
                 FROM youtube_channel_history
                 WHERE artist_id = %s {frag}
                 GROUP BY date(collected_at)
@@ -184,33 +288,18 @@ def show():
                 )
                 charts.plotly_chart(fig_channel, width="stretch")
 
-                # ⚠️ LES TROIS TUILES SONT PARTIES le 2026-09-21, à la demande du
-                # propriétaire — « 👥 Abonnés Actuels / 👁️ Vues Totales / 📺 Vues de
-                # la chaîne ». Elles répétaient en chiffre le dernier point des deux
-                # courbes juste au-dessus, et la troisième demandait une bulle d'aide
-                # pour expliquer pourquoi elle différait de la deuxième.
-                #
-                # Ce qu'elles portaient d'irremplaçable — que les deux compteurs de
-                # vues ne sont pas le même — descend dans la légende, où il est LU au
-                # lieu d'être survolé.
-                _subs_paliers = int(df_hist['subs'].nunique())
-                st.caption(t(
-                    "youtube.channel_caption",
-                    "**Abonnés** : YouTube arrondit ce compteur à trois chiffres "
-                    "significatifs sur l'API publique — {n} valeur(s) distincte(s) "
-                    "seulement sur {j} jours de relevés ici, d'où l'escalier. Le "
-                    "quotidien exact existe, mais il demande un accès "
-                    "**propriétaire de chaîne** (API YouTube Analytics), pas une clé "
-                    "d'API.\n\n"
-                    "**Vues** : la courbe additionne les compteurs PAR VIDÉO, qui "
-                    "bougent à l'unité ({vues}). Le compteur que YouTube affiche pour "
-                    "la chaîne vaut {chaine} — il inclut des vidéos privées, "
-                    "supprimées et des agrégats absents du catalogue analysé ici. "
-                    "Les voir diverger est une information, pas une erreur."
-                ).format(
-                    n=_subs_paliers, j=len(df_hist),
-                    vues=num(views_series[-1][1], 0) if views_series else "—",
-                    chaine=num(int(df_hist.iloc[-1]['channel_views']), 0)))
+                # R384 (V39, owner 2026-10-05) : la légende explicative est retirée.
+                # Les trois tuiles étaient déjà parties le 2026-09-21 ; l'escalier des
+                # abonnés et l'écart des deux compteurs de vues sont dits dans le
+                # docstring de ce module, pas à l'écran.
+                gained = views_gained(pd.DataFrame(
+                    pts.youtube_video_readings(
+                        db, artist_id,
+                        None if window.is_all_history else window.start,
+                        None if window.is_all_history else window.end),
+                    columns=["video_id", "title", "collected_at", "view_count"]))
+                if not gained.empty:
+                    charts.plotly_chart(views_gained_figure(gained), width="stretch")
 
             else:
                 st.info(t("youtube.no_channel_history", "Pas encore d'historique pour la chaîne."))
@@ -222,7 +311,7 @@ def show():
             # ============================================================================
 
             # ── Release-date filter (mirrors S4A / Apple / SoundCloud / Meta) ────
-            st.subheader(t("youtube.top_header", "🏆 Top Contenus (Analyse Multi-Axes)"))
+            st.subheader(t("youtube.top_header", "🏆 Top Contenus"))
 
             _all_lbl = t("common.all", "Tous")
 
@@ -261,37 +350,16 @@ def show():
             """
             df_videos = db.fetch_df(videos_query, (artist_id, *pub_params))
 
-            # ⚠️ CETTE FENÊTRE EST UNE COHORTE, ET ÇA SE DIT À L'ARTISTE.
-            #
-            # Elle borne `published_at` : elle choisit les vidéos SORTIES dans la
-            # période, pas l'activité qu'elles ont eue pendant. Les chiffres
-            # affichés sont ceux acquis À CE JOUR, depuis la publication. « Top
-            # contenus des 30 derniers jours » se lirait comme un flux ; c'est un
-            # classement de cohorte.
-            #
-            # ⚠️ Et l'annonce vit APRÈS le bornage, pas avant : le garde
-            # (`test_a_period_bound_is_on_the_right_column`) lit les textes des
-            # 90 lignes qui SUIVENT le `sql_between`, parce qu'un texte placé
-            # au-dessus du sélecteur ne décrit pas forcément la figure d'en
-            # dessous. Posée près du sélecteur, la phrase était invisible au garde
-            # — et, plus important, elle était loin de la figure qu'elle qualifie.
-            st.caption(t("youtube.cohort_notice",
-                         "Classement **par date de publication** : la fenêtre "
-                         "choisit les vidéos SORTIES dans la période. Les chiffres "
-                         "sont ceux **acquis à ce jour**, depuis leur publication — "
-                         "pas l'activité de la période."))
-
+            # ⚠️ CETTE FENÊTRE EST UNE COHORTE : elle choisit les vidéos SORTIES dans la
+            # période, avec les chiffres acquis à ce jour. La légende qui le disait est
+            # partie avec R384 (V39) ; les TITRES des figures le disent — le garde
+            # `test_a_cohort_bound_figure_says_so` lit les textes vus par l'artiste.
             if not df_videos.empty:
                 # Traitement
                 _short_lbl = t("youtube.type_short", "Short 📱")
                 _video_lbl = t("youtube.type_video", "Vidéo 📹")
                 df_videos['seconds'] = df_videos['duration'].apply(parse_duration)
                 df_videos['type'] = df_videos['seconds'].apply(lambda x: _short_lbl if 0 < x <= 60 else _video_lbl)
-
-                # Calcul Ratio Vues/Like (Combien de vues pour 1 like ?)
-                df_videos['ratio_views_like'] = df_videos.apply(
-                    lambda x: x['view_count'] / x['like_count'] if x['like_count'] > 0 else 0, axis=1
-                )
 
                 with c_filter1:
                     selected_type = st.selectbox(t("youtube.content_type", "Type de contenu"), [_all_lbl, _video_lbl, _short_lbl])
@@ -306,81 +374,15 @@ def show():
                 df_top = df_filtered.head(top_n)
 
                 if not df_top.empty:
-                    # QUATRE MESURES, QUATRE CADRES — plus quatre axes superposés.
-                    #
-                    # Cette figure empilait `yaxis` à `yaxis4` : des vues (dizaines de
-                    # milliers), des likes (centaines), des commentaires (dizaines) et
-                    # un ratio sans unité, forcés à partager un même repère par simple
-                    # décalage de côté. Un lecteur ne peut pas comparer deux courbes qui
-                    # n'ont ni la même unité ni la même échelle ; il lit une forme, et
-                    # cette forme ne veut rien dire.
-                    #
-                    # Les petits multiples sont la seule alternative admise dans ce
-                    # produit — la figure de l'accueil porte la même décision, écrite le
-                    # 2026-09-08. On perd la superposition, on gagne quatre séries
-                    # réellement lisibles, chacune sur SON échelle.
-                    # R209 (2026-09-27) — ONE panel, horizontal bars. The four stacked
-                    # panels had a comments panel always at 0 and video titles slanted
-                    # into illegibility (dossier). A top is a RANKING: its names read
-                    # horizontally, its bars carry views, and likes / comments / the
-                    # views-per-like ratio are written on each bar — comments only when
-                    # there are any.
-                    # Sorted by views, the largest on top (Plotly draws the first row
-                    # at the bottom of a horizontal bar chart).
-                    _d = df_top.sort_values('view_count', ascending=True)
-                    # Numbered, and cut in the MIDDLE: this catalogue's titles share a
-                    # long prefix (« DJ Set multicamera Hardtechno… »), so a cut at the
-                    # end made them identical — ONE category, bars stacked (first render).
-                    def _cut(x: str, n: int = 44) -> str:
-                        x = str(x)
-                        return x if len(x) <= n else x[:n // 2 - 1] + "…" + x[-(n // 2 - 1):]
-
-                    def _detail(r) -> str:
-                        parts = [f"{int(r['like_count']):,} likes".replace(",", " ")]
-                        if r['comment_count']:
-                            parts.append(t("youtube.n_comments", "{n} comm.").format(
-                                n=int(r['comment_count'])))
-                        if r['ratio_views_like']:
-                            parts.append(t("youtube.views_per_like", "{r:.0f} vues/like")
-                                         .format(r=r['ratio_views_like']))
-                        return " · ".join(parts)
-
-                    # R290 (owner, fiche 13, 2026-09-28 : « les trois métriques sur un
-                    # même graphique, pas sur un même axe, en séparant le comportement des
-                    # likes ») — one BUBBLE per video: how far it went (views, across) and
-                    # how much it made people react (likes per 1 000 views, up), its size
-                    # the likes themselves. Reach and engagement are two behaviours: a video
-                    # far right and low was seen, one high was liked.
-                    from src.dashboard.utils.ratios import per_series
-                    _d = _d.assign(per_k=per_series(_d['like_count'], _d['view_count'], 1000))
-                    _pts = _d.dropna(subset=['per_k'])
-                    _size = _pts['like_count'].clip(lower=1) ** 0.5
-                    fig_top = go.Figure(go.Scatter(
-                        x=_pts['view_count'], y=_pts['per_k'], mode="markers+text",
-                        text=[_cut(x, 28) for x in _pts['title']],
-                        # Alternated above/below, by rank of views: neighbours on the log
-                        # axis printed their titles on top of each other.
-                        textposition=["top center" if i % 2 else "bottom center"
-                                      for i in _pts['view_count'].rank(method="first")],
-                        textfont=dict(size=10),
-                        marker=dict(size=8 + 32 * _size / max(float(_size.max()), 1.0),
-                                    color=_YT, opacity=0.7,
-                                    line=dict(width=1, color="white")),
-                        customdata=[[_detail(r)] for _, r in _pts.iterrows()],
-                        hovertemplate="%{text}<br>%{x:,.0f} vues · %{y:.1f} likes pour "
-                                      "1 000 vues<br>%{customdata[0]}<extra></extra>"))
-                    fig_top.update_layout(
-                        title=t("youtube.top_chart_title", "Top {n} {type}").format(
-                            n=top_n, type=selected_type),
-                        xaxis_title=t("youtube.views", "Vues"),
-                        yaxis_title=t("youtube.likes_per_k", "Likes pour 1 000 vues"),
-                        showlegend=False, height=460,
-                        margin=dict(r=20, t=60, b=40),
-                    )
-                    # Views span three orders of magnitude between two videos.
-                    fig_top.update_xaxes(type="log", tickformat="~s", dtick="D1")
-
-                    charts.plotly_chart(fig_top, width="stretch")
+                    # R384 (V40, owner 2026-10-05) : « voir d'un coup d'œil la meilleure
+                    # vidéo ». Le nuage vues × likes demandait de chercher le point le plus
+                    # haut ; un CLASSEMENT par likes pour 1 000 vues le met en tête.
+                    charts.plotly_chart(ratio_ranking_figure(
+                        like_ratio_ranking(df_top),
+                        t("youtube.ranking_title", "Classement des vidéos publiées sur la "
+                          "période, par date de publication — chiffres acquis à ce jour")),
+                        width="stretch")
+                    charts.plotly_chart(age_views_figure(df_top), width="stretch")
 
                 else:
                     st.info(t("youtube.no_video_category", "Aucune vidéo dans cette catégorie."))

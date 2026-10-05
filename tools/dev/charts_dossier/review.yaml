@@ -190,18 +190,35 @@ src/dashboard/views/youtube.py::show#1:
   owner: "On garde."
   note: "La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
 src/dashboard/views/youtube.py::show#2:
-  q: "Quelles vidéos marchent ?"
-  decision: "Repérer les vidéos qui marchent, à réutiliser comme créas de pub."
-  decision_en: "Spot the videos that work, to reuse as ad creatives."
+  q: "Quelles vidéos ont gagné des vues sur la période ?"
+  decision: "Voir quelles vidéos ont pris des vues sur la période, pour savoir lesquelles relancer ou mettre en avant."
+  decision_en: "See which videos gained views over the period, to know which ones to push again."
+  role: plateforme
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "R384 (V39) : écart dernier − premier relevé par vidéo, la règle de période d'un compteur (platform_totals). Barres horizontales, titres coupés au milieu pour garder la fin d'une série."
+src/dashboard/views/youtube.py::show#3:
+  q: "Quelles vidéos plaisent le plus à ceux qui les voient ?"
+  decision: "Repérer les vidéos qui plaisent le plus pour 1 000 vues, à réutiliser comme créas de pub."
+  decision_en: "Spot the videos people like most per 1,000 views, to reuse as ad creatives."
+  role: plateforme
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "R384 (V40) : remplace la bulle vues × likes × vues/like. Likes et commentaires pour 1 000 vues, deux panneaux d'un même graphique, axes séparés ; classé par ratio de likes."
+src/dashboard/views/youtube.py::show#4:
+  q: "Une vidéo a-t-elle des vues parce qu'elle est vieille ou parce qu'elle plaît ?"
+  decision: "Distinguer une vidéo qui accumule avec le temps d'une vidéo qui part vite, avant d'en promouvoir une."
+  decision_en: "Tell a video that accumulates over time from one that takes off fast, before promoting one."
   role: plateforme
   d: 2
-  c: 4
+  c: 3
   p: 3
-  v: corriger
-  owner_v: corriger
-  owner: "C'est pas mal, tu m'as rajouté les vues, les likes et les vues par like. Mets-moi les trois métriques sur un même graphique, pas sur un même axe, en séparant le comportement des likes et de l'engagement. Propose-moi un autre truc."
-  cause: lisibilite
-  note: "Quatre sous-graphes dont un toujours à 0 (commentaires) ; titres de vidéos illisibles en biais. Un top en barres horizontales suffit."
+  v: garder
+  note: "R384 (V41) : jours depuis la publication contre vues acquises, axes log. Sur l'artiste 1, 15 vidéos partagent la même date de publication : la colonne verticale est la donnée, pas un défaut."
 src/dashboard/views/instagram.py::_render_community#1:
   q: "Ma communauté Instagram grandit-elle ?"
   decision: "Suivre ta communauté Instagram pour savoir si tes campagnes la font grandir."
