@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R404 — Vue algo — 3/4 (V65, V67-V69) : Budget & ROI en graphiques ; « valeurs qui déclencherai… (livrée 2026-10-05)
+
+- [x] **R404 — Vue algo — 3/4 (V65, V67-V69) : Budget & ROI en graphiques ; « valeurs qui déclencheraient » sur 2 titres en graphiques ; noms de playlist en pastilles** (P3) ✅ (2026-10-05, bea715b0, 72656ca7)
+  Mesuré par : AppTest : les deux figures présentes, aucun tableau à leur place
+  Budget & ROI en graphiques (dépense par poste, CPR par réglage en barres colorées BON sur le réglage à garder) ; « valeurs qui déclencheraient » comparées sur 2 titres (MAX_TRACKS=2, V63) ; playlists en pastilles. CI verte sur bea715b0.
+  Commits : bea715b0 R404 : Budget & ROI en graphiques, deux titres comparés, playlists en  · 72656ca7 Roadmap : R380 et R381 découpées (critic BUILD-MODIFIED) ; R402 défaut
+
 ## ✅ R403 — Vue algo — 2/4 (V18, V20, V57-V63) : les 4 onglets de « Prédiction déclenchement » → un… (livrée 2026-10-05)
 
 - [x] **R403 — Vue algo — 2/4 (V18, V20, V57-V63) : les 4 onglets de « Prédiction déclenchement » → une page lue de haut en bas, séparateurs ; retirer « prochain geste titre par titre » et « vrai pour tout ton catalogue » ; jauges 0-100 gardées ; chaque nouveau module de section sous le plafond dur de 5 figures** (P3) ✅ (2026-10-05, fd551731, 72656ca7)
