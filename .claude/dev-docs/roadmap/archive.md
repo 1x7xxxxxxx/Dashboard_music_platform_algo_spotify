@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R382 — Spotify + S4A (V27, V28, V31-V34) : dépense Meta en courbe CUMULÉE sur son propre axe (… (livrée 2026-10-05)
+
+- [x] **R382 — Spotify + S4A (V27, V28, V31-V34) : dépense Meta en courbe CUMULÉE sur son propre axe (au lieu de €/jour) ; sélecteur « titres » limité à ceux qui bougent ; légende de l'indice de popularité sur le graphique ; axe secondaire de popularité borné au max observé arrondi (0-20 ici, 60 ailleurs), au lieu de 0-100 fixe ; « sorties à J égal » et Wrapped inchangés** (P3) ✅ (2026-10-05, e17bd83d)
+  Mesuré par : test pur : la borne d'axe suit le max des données ; AppTest : la trace Meta est cumulative (monotone)
+  CI verte sur e17bd83d — Meta en cumulé par titre, sélecteur limité aux titres qui bougent (≥28 streams sur 28 j), axe de popularité borné au max observé arrondi à la dizaine ; 4 mutations rouges
+  Commits : e17bd83d R382 : Spotify + S4A — Meta en cumulé, titres qui bougent, axe de popu
+
 ## ✅ R400 — Sécurité nocturne ROUGE du 2026-10-05 : (1) `test_eight_concurrent_wrong_passwords_lock… (livrée 2026-10-05)
 
 - [x] **R400 — Sécurité nocturne ROUGE du 2026-10-05 : (1) `test_eight_concurrent_wrong_passwords_lock_the_account` exige 8 incréments alors qu'un fil arrivé après le verrou sort `locked` sans compter — juger `incréments + refus locked == 8` ; (2) 5 gardes récents rendus sur base live, verts sur mutation en CI (pas de base) — les muter ici à la main, dater le rouge ; (3) `reopen-check` rouvre R122 (59 > 55) — `make error-debt`, traiter ou acquitter avec les récidives nommées** (P2) ✅ (2026-10-05, 610ef078, c8555411)

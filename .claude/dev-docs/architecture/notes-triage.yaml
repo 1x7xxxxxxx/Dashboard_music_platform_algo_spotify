@@ -3270,18 +3270,18 @@
   resume: Garder « mes sorties à J égal / sorties à comparer ».
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 39
   source: revue/notes-vocales-2026-10-05.md
   note: V28
   resume: 'Nuage Meta €/jour laid : courbes suivant les écoutes cumulées, sur un nouvel axe.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 40
   source: revue/notes-vocales-2026-10-05.md
   note: V29
@@ -3307,36 +3307,36 @@
   resume: '« Titres » : seulement ceux qui bougent en ce moment.'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 43
   source: revue/notes-vocales-2026-10-05.md
   note: V32
   resume: Légende de l'indice de popularité sur le graphique.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 44
   source: revue/notes-vocales-2026-10-05.md
   note: V33
   resume: '« Ton audience » : axe secondaire de popularité dynamique selon le max (0-20 ici, jusqu''à 60 ailleurs).'
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 45
   source: revue/notes-vocales-2026-10-05.md
   note: V34
   resume: Garder Spotify Wrapped tel quel.
   type: action-produit
   domaine: pages-ux
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R382
+  preuve_statut: R382 (archivée) — e17bd83d
 - ligne: 47
   source: revue/notes-vocales-2026-10-05.md
   note: V35

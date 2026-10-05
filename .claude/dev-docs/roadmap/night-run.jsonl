@@ -631,3 +631,46 @@
 {"at": "2026-10-05T00:01:06+00:00", "head": "5d442cae", "kind": "done", "task": "R397", "what": ""}
 {"at": "2026-10-05T00:01:06+00:00", "head": "5d442cae", "kind": "start", "task": "R367", "what": ""}
 {"at": "2026-10-05T00:12:59+00:00", "kind": "done", "task": "R367", "what": "fermée par roadmap-close — CI verte sur f7a59a82 (run 37246371515) — REQ-ORCH-01 et REQ-RUN-06 ont une preuve AST vue rouge ; trous 4 → 2 (ORCH-03, RUN-04 restent sous R284)"}
+{"at": "2026-10-05T00:14:34+00:00", "head": "e4ccfa06", "kind": "done", "task": "R367", "what": ""}
+{"at": "2026-10-05T00:14:34+00:00", "head": "e4ccfa06", "kind": "start", "task": "R370", "what": ""}
+{"at": "2026-10-05T07:01:41+00:00", "kind": "done", "task": "R370", "what": "fermée par roadmap-close — Livré d8e6929b, CI verte (run 37274717988). a/b/c/d/f/g construits, e DO-NOT-BUILD. Audit security-specialist : 2 HIGH corrigés dans le même commit (reset du compteur avant la porte 2FA côté API ; écriture des comptes Meta supplémentaires sans contrôle d'identité), gardes mutés rouges ; MEDIUM → R398."}
+{"at": "2026-10-05T07:03:43+00:00", "head": "d887ca11", "kind": "done", "task": "R370", "what": ""}
+{"at": "2026-10-05T07:03:43+00:00", "head": "d887ca11", "kind": "start", "task": "R371", "what": ""}
+{"at": "2026-10-05T07:03:52+00:00", "head": "d887ca11", "kind": "start", "task": "R373", "what": ""}
+{"at": "2026-10-05T07:14:18+00:00", "kind": "done", "task": "R371", "what": "fermée par roadmap-close — Accueil : camembert des parts (somme = total affiché, plateforme absente = pas de part), total agrandi, tuiles Meta·Hypeddit puis Shazam·Instagram, « prédites maximales ». Cliquet premier écran 139 → 113 (globale 162 → 113). CI verte sur d887ca11."}
+{"at": "2026-10-05T07:16:02+00:00", "head": "05b4a5f3", "kind": "done", "task": "R371", "what": ""}
+{"at": "2026-10-05T07:22:16+00:00", "head": "69ff0ace", "kind": "start", "task": "R372", "what": ""}
+{"at": "2026-10-05T07:24:23+00:00", "kind": "done", "task": "R373", "what": "fermée par roadmap-close — Accueil allégé (V6) : conseil Meta → Publicité Meta Ads, grille des sources → Santé onboarding (utils/source_freshness.py), statut DAG → Monitoring ETL, bouton PDF → menu. Garde tests/test_the_home_stops_at_the_numbers.py (AST + rendu), muté rouge. CI verte sur 69ff0ace."}
+{"at": "2026-10-05T07:26:02+00:00", "head": "27c2ad43", "kind": "done", "task": "R373", "what": ""}
+{"at": "2026-10-05T07:42:17+00:00", "head": "e02047c6", "kind": "done", "task": "R372", "what": ""}
+{"at": "2026-10-05T07:42:17+00:00", "head": "e02047c6", "kind": "start", "task": "R374", "what": ""}
+{"at": "2026-10-05T07:59:00+00:00", "head": "66a78541", "kind": "done", "task": "R374", "what": ""}
+{"at": "2026-10-05T07:59:00+00:00", "head": "66a78541", "kind": "start", "task": "R375", "what": ""}
+{"at": "2026-10-05T08:05:27+00:00", "head": "8a5c3c22", "kind": "done", "task": "R375", "what": ""}
+{"at": "2026-10-05T08:05:27+00:00", "head": "8a5c3c22", "kind": "start", "task": "R376", "what": ""}
+{"at": "2026-10-05T08:16:38+00:00", "head": "f69f1318", "kind": "done", "task": "R376", "what": ""}
+{"at": "2026-10-05T08:18:32+00:00", "head": "e31dc86e", "kind": "start", "task": "R377", "what": ""}
+{"at": "2026-10-05T08:27:17+00:00", "head": "fb897e69", "kind": "done", "task": "R377", "what": ""}
+{"at": "2026-10-05T08:27:38+00:00", "head": "fb897e69", "kind": "start", "task": "R379", "what": ""}
+{"at": "2026-10-05T08:42:41+00:00", "head": "8e80823b", "kind": "done", "task": "R379", "what": ""}
+{"at": "2026-10-05T08:55:23+00:00", "head": "b1a71df4", "kind": "start", "task": "R378", "what": ""}
+{"at": "2026-10-05T09:13:48+00:00", "head": "04546147", "kind": "done", "task": "R378", "what": ""}
+{"at": "2026-10-05T09:14:03+00:00", "head": "04546147", "kind": "start", "task": "R383", "what": ""}
+{"at": "2026-10-05T09:32:25+00:00", "head": "48796a33", "kind": "done", "task": "R383", "what": ""}
+{"at": "2026-10-05T09:32:30+00:00", "head": "48796a33", "kind": "start", "task": "R392", "what": ""}
+{"at": "2026-10-05T09:38:58+00:00", "head": "57ac4c2f", "kind": "done", "task": "R392", "what": ""}
+{"at": "2026-10-05T09:40:51+00:00", "head": "836cc048", "kind": "start", "task": "R389", "what": ""}
+{"at": "2026-10-05T09:52:22+00:00", "head": "76d0912c", "kind": "done", "task": "R389", "what": ""}
+{"at": "2026-10-05T09:54:32+00:00", "head": "49c40d42", "kind": "start", "task": "R387", "what": ""}
+{"at": "2026-10-05T10:03:03+00:00", "head": "1bd8ea71", "kind": "done", "task": "R387", "what": ""}
+{"at": "2026-10-05T10:03:08+00:00", "head": "1bd8ea71", "kind": "start", "task": "R394", "what": ""}
+{"at": "2026-10-05T10:08:53+00:00", "head": "4fd4283f", "kind": "done", "task": "R394", "what": ""}
+{"at": "2026-10-05T10:11:11+00:00", "head": "cb9e9a65", "kind": "start", "task": "R390", "what": ""}
+{"at": "2026-10-05T10:23:35+00:00", "kind": "done", "task": "R390", "what": "fermée par roadmap-close — CI verte a5d9e11c ; comptes branchés retirés, bouton de demande de suppression envoyé par EmailAlert, AppTest + mutation rouge"}
+{"at": "2026-10-05T10:25:23+00:00", "head": "ec80f1e3", "kind": "done", "task": "R390", "what": ""}
+{"at": "2026-10-05T10:25:31+00:00", "head": "ec80f1e3", "kind": "start", "task": "R400", "what": ""}
+{"at": "2026-10-05T10:34:41+00:00", "head": "610ef078", "kind": "start", "task": "R382", "what": ""}
+{"at": "2026-10-05T10:43:40+00:00", "kind": "done", "task": "R400", "what": "fermée par roadmap-close — CI verte sur 610ef078 — nuit de sécurité du 2026-10-05 : test de verrouillage compte aussi les refus locked, 6 SEEN_RED datés, seuil R122 55→59 (0 classe à rouvrir)"}
+{"at": "2026-10-05T10:45:26+00:00", "head": "3f764d96", "kind": "done", "task": "R400", "what": ""}
+{"at": "2026-10-05T10:51:34+00:00", "head": "e17bd83d", "kind": "start", "task": "R384", "what": ""}
+{"at": "2026-10-05T10:55:41+00:00", "kind": "done", "task": "R382", "what": "fermée par roadmap-close — CI verte sur e17bd83d — Meta en cumulé par titre, sélecteur limité aux titres qui bougent (≥28 streams sur 28 j), axe de popularité borné au max observé arrondi à la dizaine ; 4 mutations rouges"}
