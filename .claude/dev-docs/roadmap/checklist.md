@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R430 | Faire piloter mes campagnes — retours du 2026-10-06 (2) : phrase « …objectifs (déclenchement des algos Spotify) : optimisation de campagnes Meta Ads, optimisation des streams Spotify, créatives, bilans quotidiens » ; questionnaire PRÉ-REMPLI (300 à 1 000 €, moins de 2 semaines, pub Meta : oui) ; pays, créatives et smart link retirés ; « déjà fait de la pub Meta » en Oui/Non à cocher ; objectifs : + Shazam, − concert ; le bouton ENVOIE le mail depuis l'app (SMTP, Reply-To = l'artiste, borné par IP) au lieu d'ouvrir la messagerie — chaque demande est un mail compté <!-- critic: non — un envoi vers UNE adresse fixe (le propriétaire), aucune écriture en base ; la revue est celle de la règle 13 (security-specialist) sur le chemin d'envoi --> <!-- scope: src/dashboard/views/service.py, src/dashboard/utils/service_offer.py, src/utils/service_request_mail.py, src/dashboard/utils/throttle.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test de rendu : défauts pré-cochés, clic → un envoi SMTP au propriétaire portant les réponses et Reply-To ; plafond IP ; contrôle sur la prod |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R430 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
