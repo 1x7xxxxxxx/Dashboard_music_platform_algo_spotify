@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R434 — Faire piloter mes campagnes — retours du 2026-10-07 : « 🚀 Déclenchement des algos Spoti… (livrée 2026-10-07)
+
+- [x] **R434 — Faire piloter mes campagnes — retours du 2026-10-07 : « 🚀 Déclenchement des algos Spotify » en PREMIER sous la phrase d'accroche, en gros, surligné et souligné (sorti de la parenthèse) ; puis la vue VERROUILLÉE comme l'Accueil et le Rapport PDF : photo figée + marqueur `service: oui` exigé par le hook commit-msg** (P3) ✅ (2026-10-07, c556028f)
+  Mesuré par : test de rendu : la ligne algos en tête, en gros ; photo figée + refus du hook sans marqueur
+  Déployé en prod (dashboard) ; CI verte sur c556028f. Ligne algos en tête 1,9rem surlignée/soulignée ; page verrouillée par tests/fixtures/service_snapshot.json + marqueur service: oui (garde vu rouge sur 1,9→1,2rem).
+  Commits : c556028f R434 : Faire piloter — « 🚀 Déclenchement des algos Spotify » en tête, 
+
 ## ✅ R433 — Faire piloter mes campagnes — retours du 2026-10-06 (3) : la plus-value en puces (optim… (livrée 2026-10-06)
 
 - [x] **R433 — Faire piloter mes campagnes — retours du 2026-10-06 (3) : la plus-value en puces (optimisation des campagnes Meta Ads, optimisation des streams Spotify, génération de créatives, bilan quotidien) sous la phrase d'accroche ; la question « 🎵 Le titre concerné » retirée ; objectifs inchangés** (P3) ✅ (2026-10-06, 59729ab1)
