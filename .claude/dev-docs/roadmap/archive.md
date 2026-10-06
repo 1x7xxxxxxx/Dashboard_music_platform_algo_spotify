@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R428 — Rapport PDF — retour du 2026-10-06 : « Rapport de carrière PDF » renommé « Rapport PDF… (livrée 2026-10-06)
+
+- [x] **R428 — Rapport PDF — retour du 2026-10-06 : « Rapport de carrière PDF » renommé « Rapport PDF » (menu + titre), puis la vue VERROUILLÉE comme l'Accueil (R425) : photo figée sur des lectures rejouées + marqueur `` exigé par le hook commit-msg ; le verrou R425 est généralisé à une table de vues verrouillées** (P3) ✅ (2026-10-06, 4c0f9184, e232ec5c)
+  Mesuré par : photo de la vue + test du verrou (refus sans marqueur) + menu vérifié sur la prod
+  CI verte sur 4c0f9184, déployé 4c0f9184 ; photo premium + gratuit, mutation du titre → 2 rouges
+  Commits : 4c0f9184 R428 : rouges vus à la main pour les quatre gardes du jour (Rapport PD · e232ec5c R428 : « Rapport de carrière PDF » devient « Rapport PDF » (menu + tit
+
+## ✅ R429 — Faire piloter mes campagnes — retour du 2026-10-06 : bouton « M'écrire » raccourci ; il… (livrée 2026-10-06)
+
+- [x] **R429 — Faire piloter mes campagnes — retour du 2026-10-06 : bouton « M'écrire » raccourci ; il ouvre SUR la page un questionnaire (budget, délai avant la sortie, objectifs dont le déclenchement des algos Spotify, titre, pays, créatives, historique pub, smart link) et le mail prêt à envoyer, lisible sur la vue, avec un lien mailto pré-rempli ; la phrase devient « optimisation de campagnes Meta Ads, créatives, bilans quotidiens »** (P3) ✅ (2026-10-06, 7773ae35)
+  Mesuré par : test de rendu : questionnaire → corps du mail et lien mailto portent les réponses ; contrôle sur la prod
+  CI verte sur e232ec5c, déployé 4c0f9184 ; test : questionnaire → corps du mail et mailto portent budget, délai, algos
+  Commits : 7773ae35 R429 : Faire piloter — « M'écrire » court ouvre sur la page un questio
+
 ## ✅ R427 — Accueil — retour du 2026-10-06 (5) : en non cumulé, YouTube et SoundCloud (≈ 30 écoutes… (livrée 2026-10-06)
 
 - [x] **R427 — Accueil — retour du 2026-10-06 (5) : en non cumulé, YouTube et SoundCloud (≈ 30 écoutes/mois contre ≈ 700 pour Spotify, mesuré en prod) sont collés au zéro et lus comme absents → axe Y logarithmique en mode non cumulé, sur l'Accueil seulement ; puis l'Accueil reste verrouillé (R425)** (P3) ✅ (2026-10-06, 8a422741)

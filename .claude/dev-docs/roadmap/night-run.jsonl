@@ -702,3 +702,26 @@
 {"at": "2026-10-05T13:48:00+00:00", "head": "5c077676", "kind": "done", "task": "R402", "what": ""}
 {"at": "2026-10-05T13:48:07+00:00", "head": "5c077676", "kind": "start", "task": "R399", "what": ""}
 {"at": "2026-10-05T13:49:43+00:00", "kind": "done", "task": "R380", "what": "fermée par roadmap-close — ALGO_ORDER (src/utils/algo_order.py) = DW → Radio → RR, lu par ~20 sites (vues, PDF, i18n) ; garde tests/test_the_algos_are_listed_in_one_order.py, muté dans les deux sens ; CI verte sur 3595244a"}
+{"at": "2026-10-05T13:51:36+00:00", "head": "5c077676", "kind": "done", "task": "R380", "what": ""}
+{"at": "2026-10-05T14:29:04+00:00", "head": "627a960c", "kind": "start", "task": "R403", "what": ""}
+{"at": "2026-10-05T14:38:35+00:00", "kind": "done", "task": "R399", "what": "fermée par roadmap-close — Une seule barre Meta (compte, campagne, période) lue par les 4 sections ; Instagram organique dit être hors barre. CI verte sur 627a960c (run 37325037260)."}
+{"at": "2026-10-05T14:40:15+00:00", "head": "a9aa7cbf", "kind": "done", "task": "R399", "what": ""}
+{"at": "2026-10-05T14:46:00+00:00", "head": "fd551731", "kind": "start", "task": "R404", "what": ""}
+{"at": "2026-10-05T14:54:11+00:00", "kind": "done", "task": "R403", "what": "fermée par roadmap-close — La page algo se lit de haut en bas : quatre sections séparées, tableaux repliés ; CI verte sur fd551731."}
+{"at": "2026-10-05T14:55:52+00:00", "head": "1c26ac11", "kind": "done", "task": "R403", "what": ""}
+{"at": "2026-10-05T15:06:25+00:00", "head": "bea715b0", "kind": "start", "task": "R405", "what": ""}
+{"at": "2026-10-05T15:20:05+00:00", "kind": "done", "task": "R404", "what": "fermée par roadmap-close — Budget & ROI en graphiques (dépense par poste, CPR par réglage en barres colorées BON sur le réglage à garder) ; « valeurs qui déclencheraient » comparées sur 2 titres (MAX_TRACKS=2, V63) ; playlists en pastilles. CI verte sur bea715b0."}
+{"at": "2026-10-05T15:21:46+00:00", "head": "257c1afd", "kind": "done", "task": "R404", "what": ""}
+{"at": "2026-10-05T15:55:18+00:00", "kind": "done", "task": "R405", "what": "fermée par roadmap-close — Vue algo 4/4 : argent et réglages Meta absorbés (sections), 9 liens d'alias réparés (resolve_alias dans app.py ET goto, garde muté 4×), MRR → Facturation, LTV admin seulement, figure V73 retirée, résultats réalisés partagés avec Saisie S4A (Free), CPR Premium jusqu'à R381/R406. CI verte sur ed7bd948."}
+{"at": "2026-10-05T15:57:03+00:00", "head": "e2940d32", "kind": "done", "task": "R405", "what": ""}
+{"at": "2026-10-05T15:59:05+00:00", "head": "20bf7506", "kind": "start", "task": "R381", "what": ""}
+{"at": "2026-10-05T16:27:36+00:00", "kind": "done", "task": "R381", "what": "fermée par roadmap-close — Vue algo : par playlist, SHAP trié (plancher exclu, critère manquant signalé), réalisé vs TARGET_THRESHOLDS, fourchette meilleur↔moyen CPR (une seule ligne quand commune), recos CPR Optimizer de la dernière sortie. CI verte sur 3346a4df."}
+{"at": "2026-10-05T16:29:54+00:00", "head": "726b02cb", "kind": "done", "task": "R381", "what": ""}
+{"at": "2026-10-05T16:30:14+00:00", "head": "726b02cb", "kind": "start", "task": "R407", "what": ""}
+{"at": "2026-10-05T16:42:14+00:00", "kind": "done", "task": "R407", "what": "fermée par roadmap-close — Une liste de runs sans le commit de tête rend « illisible » (nightly_recap.is_fresh, night_run.fresh_runs, ci_break_mail.judge) ; 3 gardes mutés. Planifiés (prod-health, security) : non couverts, jugés par l'âge. CI verte sur bf9a0085."}
+{"at": "2026-10-05T16:44:13+00:00", "head": "b9d4966a", "kind": "done", "task": "R407", "what": ""}
+{"at": "2026-10-05T16:44:25+00:00", "head": "b9d4966a", "kind": "start", "task": "R395", "what": ""}
+{"at": "2026-10-05T17:23:46+00:00", "kind": "done", "task": "R395", "what": "fermée par roadmap-close — déploiement d'exploitation, entrée d'archive écrite à la main (aucun commit de code)"}
+{"at": "2026-10-05T17:25:46+00:00", "head": "8463e933", "kind": "done", "task": "R395", "what": ""}
+{"at": "2026-10-05T17:29:49+00:00", "head": "8463e933", "kind": "park", "task": "R283", "what": "Geste humain : créer le coupon Stripe « 1 mois offert » (test puis live), poser STRIPE_REFERRAL_COUPON_ID, abonner les évènements webhook, rejouer un parrainage test — runbook §39. Étape Stripe live INTERDITE à la séance."}
+{"at": "2026-10-05T17:29:49+00:00", "head": "8463e933", "kind": "park", "task": "R406", "what": "Geste humain : deux décisions de tarif à donner dans le fil (runbook §40) — une décision de prix n'appartient pas à la séance."}
