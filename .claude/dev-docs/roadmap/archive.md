@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R432 — Accueil — retour du 2026-10-06 : une flèche vers le bas « ⬇️ » à la fin de la phrase «… (livrée 2026-10-06)
+
+- [x] **R432 — Accueil — retour du 2026-10-06 : une flèche vers le bas « ⬇️ » à la fin de la phrase « Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans chaque playlist algorithmique de Spotify. » (FR + EN) ; photo figée de l'Accueil réapprouvée, le verrou R425 reste** (P3) ✅ (2026-10-06, aa45cbdd)
+  Mesuré par : photo de l'Accueil régénérée : seule la phrase change
+  CI verte sur aa45cbdd ; déployé en prod (dashboard healthy, flèche présente dans le conteneur). Photo de l'Accueil réapprouvée, verrou R425 inchangé.
+  Commits : aa45cbdd R432 : Accueil — flèche « ⬇️ » à la fin de la phrase des trois portes 
+
 ## ✅ R431 — Rapport PDF — retour du 2026-10-06 (2) : les deux textes d'explication retirés (« Confi… (livrée 2026-10-06)
 
 - [x] **R431 — Rapport PDF — retour du 2026-10-06 (2) : les deux textes d'explication retirés (« Configurez le rapport… » sous le titre, « Les sections pub & revenus… » sous la période) ; le bouton « 📄 Générer le rapport PDF » centré ; la photo figée R428 est réapprouvée sous cette ligne, le verrou reste en place** (P3) ✅ (2026-10-06, 43c6a663)
