@@ -74,9 +74,12 @@ EN = {
     "home.gate_rr": "🆕 Release Radar",
     "home.gate_28d_met": "✅ 28-day target reached",
     "home.gate_28d_gap": "📈 {n} streams / 28 d",
+    "home.gate_rr_gap": "📈 {n} streams in {d} d",
+    "home.gate_rr_closed": "⛔ first-28-day window over",
     "home.gate_28d_help": ("Below: the streams missing over 28 days to reach the model's "
                            "threshold, and their cost at the best CPR, counting one "
-                           "click as one stream."),
+                           "click as one stream. Release Radar only counts the "
+                           "release's first 28 days."),
     "home.gates_caption": ("The highest predicted percentage for your latest release "
                            "to enter each Spotify algorithmic playlist."),
     "home.gate_help_max": ("HIGHEST probability PREDICTED that « {song} », your latest "

@@ -155,9 +155,11 @@ def _section_streams(db, artist_id):
     # and the donut, both 340 px high, aligned on their BOTTOM edge: what sits above
     # each (the Cumulé toggle, the total banner) differs in height, the plots do not.
     # The Indicateurs, the four boxes and the three gates follow, full width.
-    # R424 — « le total au milieu entre le graphique et le diagramme circulaire » : a
-    # third, narrow column between them holds the banner, the donut stands alone.
-    col_fig, col_total, col_kpi = st.columns([5, 1.6, 3.4], vertical_alignment="bottom")
+    # R426 — « le total stream en haut, au milieu des deux graphiques, sur une ligne
+    # supérieure, et les deux graphiques au même niveau » (2026-10-06): the banner has
+    # its own row ABOVE, centred; the figure and the donut share the row below.
+    col_total = st.container()
+    col_fig, col_kpi = st.columns([5, 3.4], vertical_alignment="bottom")
     recap_slot = st.container()
     with col_fig:
         # `totals` et `_side` sont DÉJÀ calculés au-dessus : les repasser évite de

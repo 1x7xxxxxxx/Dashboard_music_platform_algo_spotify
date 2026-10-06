@@ -60,9 +60,23 @@ def _format_gate(val) -> str:
 #: R424 — each gate's 28-day target and the measure it starts from. DW and Radio: the
 #: model's own non-algo threshold (`ALGO_FEATURE_ZONES`). RR has only a release-week
 #: threshold (2 000 / 7 d); the owner chose to bring it to 28 days, ×4 (2026-10-06).
+#: R426 — and RR only counts during the release's FIRST 28 days: « c'est que sur les 28
+#: premiers jours » (the owner, 2026-10-06). Past them no budget can reach it.
 _GATE_28D = (("release_dw", "DW", "NonAlgoStreams28Days", 1),
              ("release_radio", "RADIO", "NonAlgoStreams28Days", 1),
              ("release_rr", "RR", "StreamsLast7Days", 4))
+RR_WINDOW_DAYS = 28
+
+
+def rr_days_left(release_age) -> int | None:
+    """Days left in Release Radar's window (the release's first 28 days); 0 once shut. Pure.
+
+    `release_age` is `CURRENT_DATE - first_streamed`: day 0 is the release day, so the
+    window holds ages 0..27. Unknown age → None (nothing said rather than a guess).
+    """
+    if release_age is None:
+        return None
+    return max(0, RR_WINDOW_DAYS - int(release_age))
 
 
 def gate_gaps_28d(nonalgo28_log, streams28) -> dict:
@@ -87,14 +101,22 @@ def gate_gaps_28d(nonalgo28_log, streams28) -> dict:
     return out
 
 
-def _gate_sub(gap, cpr) -> str:
-    """The small line under a gate: what is left over 28 days, and its price. Pure."""
+def _gate_sub(gap, cpr, days_left: int | None = None) -> str:
+    """The small line under a gate: what is left, over how long, and its price. Pure.
+
+    `days_left` is RR's window (R426): 0 → the window is shut and no price is shown,
+    since no spend reaches a playlist the release can no longer enter.
+    """
+    if days_left == 0:
+        return t("home.gate_rr_closed", "⛔ fenêtre des 28 premiers jours passée")
     if gap is None:
         return ""
     if gap == 0:
         return t("home.gate_28d_met", "✅ objectif 28 j atteint")
-    line = t("home.gate_28d_gap", "📈 {n} streams / 28 j").format(
-        n=f"{gap:,}".replace(",", "\u202f"))
+    n = f"{gap:,}".replace(",", "\u202f")
+    line = (t("home.gate_rr_gap", "📈 {n} streams en {d} j").format(n=n, d=days_left)
+            if days_left is not None
+            else t("home.gate_28d_gap", "📈 {n} streams / 28 j").format(n=n))
     if cpr:
         line += " · 💶 " + f"{gap * cpr:,.0f}".replace(",", "\u202f") + "\u00a0€"
     return line
@@ -139,19 +161,20 @@ def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
                             delta: str | None, total_slot=None, share_slot=None) -> None:
     """The total banner, then each platform's share of it (the donut).
 
-    R424 — « le total au milieu entre le graphique et le diagramme circulaire, où ça
-    fait référence aux deux » (2026-10-06): the banner goes in its own middle column,
-    so the donut column holds the plot alone and lines up with the figure.
+    R426 — « le total stream en haut, au milieu des deux graphiques » (2026-10-06):
+    the banner goes in its own row above, the donut column holds the plot alone and
+    lines up with the figure.
     """
     # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
     # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
     # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
-    # The row is bottom-aligned on the plots (340 px): the bottom margin lifts the
-    # banner to their vertical middle.
+    # R426 — with a `total_slot` the banner is a row of its own above both plots,
+    # centred and narrow: it names the total the curve and the donut both split.
     (total_slot or st).markdown(
         f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
-            background:#f0f2f6; border-radius:8px; margin-bottom:{
-                "120px" if total_slot is not None else "8px"};">
+            background:#f0f2f6; border-radius:8px; margin:{
+                "0 auto 8px auto; max-width:320px" if total_slot is not None
+                else "0 0 8px 0"};">
             <div style="color:#555; font-size:0.78em; font-weight:600;">{
                 t("home.total_all_platforms", "🎧 Total streams")}</div>
             <div style="font-size:1.9em; line-height:1.1; color:#1DB954;
@@ -505,6 +528,9 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         # best CPR, read as 1 click = 1 stream (the owner's choice, 2026-10-06).
         _gaps = gate_gaps_28d(_s.get("release_nonalgo28_log"),
                               _s.get("release_streams28"))
+        # R426 — RR's gap counts the streams SINCE the release (inside its first 28
+        # days, `release_streams28` covers them all) against the days still left.
+        _rr_left = rr_days_left(_s.get("release_age"))
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
             # R346 — compact HTML, not `st.metric`: its label/value fonts are fixed and
@@ -523,6 +549,10 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                                              "En dessous : les streams qui manquent sur "
                                              "28 jours pour atteindre le seuil du modèle, "
                                              "et leur coût au meilleur CPR, en comptant "
-                                             "un clic pour une écoute."),
-                                   sub=_gate_sub(_gaps.get(key), _cpr)),
+                                             "un clic pour une écoute. Release Radar ne "
+                                             "compte que les 28 premiers jours de la "
+                                             "sortie."),
+                                   sub=_gate_sub(_gaps.get(key), _cpr,
+                                                 _rr_left if key == "release_rr"
+                                                 else None)),
                          unsafe_allow_html=True)

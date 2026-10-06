@@ -48,3 +48,23 @@ def test_the_budget_is_the_gap_at_the_best_cpr() -> None:
     line = _gate_sub(2000, 0.109)
     assert "2 000" in line and "218 €" in line
     assert "€" not in _gate_sub(2000, None), "no CPR → no invented price"
+
+
+# R426 — « c'est que sur les 28 premiers jours de la sortie » (the owner, 2026-10-06).
+
+def test_release_radar_window_is_the_releases_first_28_days() -> None:
+    from src.dashboard.views.home_tiles import rr_days_left
+    assert rr_days_left(0) == 28 and rr_days_left(27) == 1
+    assert rr_days_left(28) == 0 and rr_days_left(766) == 0
+    assert rr_days_left(None) is None
+
+
+def test_a_shut_window_shows_no_budget() -> None:
+    line = _gate_sub(8000, 0.22, days_left=0)
+    assert "€" not in line and "8\u202f000" not in line
+    assert line != _gate_sub(8000, 0.22)
+
+
+def test_an_open_window_names_the_days_left_and_the_price() -> None:
+    line = _gate_sub(5000, 0.2, days_left=10)
+    assert "5\u202f000" in line and "10 j" in line and "1\u202f000\u00a0€" in line
