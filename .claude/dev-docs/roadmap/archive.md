@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R417 — Harnais : les 6 suggestions de hook jamais suivies (48 séances, 0 invocation) — `/retro… (livrée 2026-10-06)
+
+- [x] **R417 — Harnais : les 6 suggestions de hook jamais suivies (48 séances, 0 invocation) — `/retro` 2018×, `continuous-learning` 1796×, `/rex-promote` 927× (`session_summary.py`, `draft_rex.py`), `/adr` 198×, `/curator` 116× (`session_summary.py:450`), `/dev-docs` 39× (playbooks injectés) : pour chacune, la suivre ou retirer la suggestion du hook qui l'imprime — règle « un déclencheur qui ne se produit jamais ⇒ retirer » ; décision du propriétaire attendue par suggestion** (P4) ✅ (2026-10-06, eb32d8c6)
+  Mesuré par : `make harness-report` : 0 « suivi manqué »
+  6 suggestions jamais suivies retirées (observe/draft_rex/promote_rex archivés, /dev-docs /rex-promote archivées, /retro /adr /curator /continuous-learning déclarées manuelles) ; curateur hebdo lancé par night-status ; le rapport ne compte une suggestion que tant qu'une surface l'imprime — harness-report : 0 suivi manqué ; CI verte sur eb32d8c6
+  Commits : eb32d8c6 R417 : les 6 suggestions jamais suivies — retirées ou automatisées
+
 ## ✅ R416 — Harnais : le rapport ne compte comme opportunité que ce qui appelle un geste — trous di… (livrée 2026-10-05)
 
 - [x] **R416 — Harnais : le rapport ne compte comme opportunité que ce qui appelle un geste — trous différés par ADR rangés « différé » avec leur déclencheur, opportunités mesurées closes retirées du catalogue, dormants et manuels sortis en inventaire, et un dormant dont la surface déclencheuse a tiré sans lui signalé « suivi manqué »** (P4) ✅ (2026-10-05, 9224f601)
