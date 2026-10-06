@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R419 — pip-audit nocturne rouge depuis le 2026-10-06 : CVE-2026-102598 werkzeug 3.1.8 (`safe_j… (livrée 2026-10-06)
+
+- [x] **R419 — pip-audit nocturne rouge depuis le 2026-10-06 : CVE-2026-102598 werkzeug 3.1.8 (`safe_join` et noms de périphériques Windows, corrigé en 3.1.9) et CVE-2026-104874 multidict 6.7.1 (fuite de référence, corrigé en 6.9.1), toutes deux transitives — montée du lock + planchers comme R341** (P1) ✅ (2026-10-06, 210d00e3)
+  Mesuré par : `pip-audit -r <(uv export --frozen --no-dev --no-hashes)` sans avis hors de `security/pip-audit-accepted.txt` ; job Security nocturne vert
+  lock werkzeug 3.1.9 + multidict 6.9.1, planchers pyproject/requirements.txt ; CI verte sur 210d00e3 et Security nocturne vert en entier (run 37455403191). Images Airflow de prod à reconstruire pour en profiter.
+  Commits : 210d00e3 R419 : werkzeug 3.1.9 et multidict 6.9.1 — lock monté + planchers (CVE
+
 ## ✅ R418 — Vue admin : ce que le mail du soir dit de la collecte, lisible sans le mail — « 🔴 ne co… (livrée 2026-10-06)
 
 - [x] **R418 — Vue admin : ce que le mail du soir dit de la collecte, lisible sans le mail — « 🔴 ne collecte pas » (`readiness_red_flags` + dernier verdict de sonde mémorisé), échecs de collecte par locataire avec leur ancienneté (`etl_run_log`, même requête que `check_collection_outcomes`, extraite dans `src/utils/collection_outcomes.py`), inscrits sans source déclarée — demande du propriétaire (« je supprime les mails »)** (P3) ✅ (2026-10-06, 46786dfc)

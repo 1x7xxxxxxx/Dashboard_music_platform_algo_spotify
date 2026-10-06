@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R419 | pip-audit nocturne rouge depuis le 2026-10-06 : CVE-2026-102598 werkzeug 3.1.8 (`safe_join` et noms de périphériques Windows, corrigé en 3.1.9) et CVE-2026-104874 multidict 6.7.1 (fuite de référence, corrigé en 6.9.1), toutes deux transitives — montée du lock + planchers comme R341 <!-- critic: non — montée de patch de deux dépendances transitives, précédent R341 --> <!-- scope: pyproject.toml, requirements.txt, requirements-api.txt, uv.lock, tests/ --> | P1 | `pip-audit -r <(uv export --frozen --no-dev --no-hashes)` sans avis hors de `security/pip-audit-accepted.txt` ; job Security nocturne vert |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R419 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
