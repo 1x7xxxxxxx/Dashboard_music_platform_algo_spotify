@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R426 — Accueil — retours du 2026-10-06 (4) : le total de streams sur sa propre ligne EN HAUT,… (livrée 2026-10-06)
+
+- [x] **R426 — Accueil — retours du 2026-10-06 (4) : le total de streams sur sa propre ligne EN HAUT, centré au-dessus des deux graphiques (graphique et donut au même niveau) ; Release Radar mesuré sur les 28 PREMIERS jours de la sortie — fenêtre ouverte : streams manquants depuis la sortie et jours restants, budget au meilleur CPR ; fenêtre fermée : on le dit, sans budget** (P3) ✅ (2026-10-06, 9e740d94)
+  Mesuré par : test pur de la fenêtre RR + photo de l'Accueil régénérée + contrôle sur la prod
+  Total sur sa ligne en haut, centré ; RR sur les 28 premiers jours de la sortie (fenêtre passée : dit, sans budget). CI verte 37482571216, déployé 9e740d94.
+  Commits : 9e740d94 R426 : Accueil — total sur sa ligne en haut, centré au-dessus des deux
+
 ## ✅ R425 — Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque co… (livrée 2026-10-06)
 
 - [x] **R425 — Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque commit ; un écart refuse le commit sauf si la ligne de roadmap citée nomme l'Accueil (« je modifiais une page et l'autre était modifiée », 2026-10-06)** (P3) ✅ (2026-10-06, 7f183f45)

@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R426 | Accueil — retours du 2026-10-06 (4) : le total de streams sur sa propre ligne EN HAUT, centré au-dessus des deux graphiques (graphique et donut au même niveau) ; Release Radar mesuré sur les 28 PREMIERS jours de la sortie — fenêtre ouverte : streams manquants depuis la sortie et jours restants, budget au meilleur CPR ; fenêtre fermée : on le dit, sans budget <!-- critic: non — règle de fenêtre donnée par le propriétaire, aucune requête ajoutée (l'âge de la sortie est déjà lu) --> <!-- home: oui --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test pur de la fenêtre RR + photo de l'Accueil régénérée + contrôle sur la prod |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R426 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
