@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R427 — Accueil — retour du 2026-10-06 (5) : en non cumulé, YouTube et SoundCloud (≈ 30 écoutes… (livrée 2026-10-06)
+
+- [x] **R427 — Accueil — retour du 2026-10-06 (5) : en non cumulé, YouTube et SoundCloud (≈ 30 écoutes/mois contre ≈ 700 pour Spotify, mesuré en prod) sont collés au zéro et lus comme absents → axe Y logarithmique en mode non cumulé, sur l'Accueil seulement ; puis l'Accueil reste verrouillé (R425)** (P3) ✅ (2026-10-06, 8a422741)
+  Mesuré par : test du type d'axe par mode + photo régénérée + contrôle sur la prod
+  Non cumulé : axe log + courbes non empilées sur l'Accueil ; photo étendue au mode non cumulé (mutée rouge). CI verte 37485782064, déployé 8a422741.
+  Commits : 8a422741 R427 : Accueil — en non cumulé, axe logarithmique et courbes non empil
+
 ## ✅ R426 — Accueil — retours du 2026-10-06 (4) : le total de streams sur sa propre ligne EN HAUT,… (livrée 2026-10-06)
 
 - [x] **R426 — Accueil — retours du 2026-10-06 (4) : le total de streams sur sa propre ligne EN HAUT, centré au-dessus des deux graphiques (graphique et donut au même niveau) ; Release Radar mesuré sur les 28 PREMIERS jours de la sortie — fenêtre ouverte : streams manquants depuis la sortie et jours restants, budget au meilleur CPR ; fenêtre fermée : on le dit, sans budget** (P3) ✅ (2026-10-06, 9e740d94)
