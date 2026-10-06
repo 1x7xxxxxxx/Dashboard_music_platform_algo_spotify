@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R423 | Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… » retirée sous le donut, graphique cumulé et donut alignés sur une rangée, Meta Ads/Hypeddit/Shazam/Instagram sur une ligne de quatre en dessous, puis DW/Radio/RR avec une phrase qui dit ce qu'est le chiffre <!-- critic: non — mise en page demandée, aucun calcul touché --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/i18n_catalog/, src/dashboard/content/chart_decisions.py, tools/dev/charts_dossier/, tests/ --> | P3 | rendu de l'Accueil (render smoke) + contrôle sur la prod |
+| R423 | Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… » retirée sous le donut, graphique cumulé et donut alignés sur une rangée, Meta Ads/Hypeddit/Shazam/Instagram sur une ligne de quatre en dessous, puis DW/Radio/RR avec une phrase qui dit ce qu'est le chiffre <!-- critic: non — mise en page demandée, aucun calcul touché --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/utils/i18n_catalog/, src/dashboard/content/chart_decisions.py, tools/dev/charts_dossier/, tests/ --> | P3 | rendu de l'Accueil (render smoke) + contrôle sur la prod |
 
 ---
 
