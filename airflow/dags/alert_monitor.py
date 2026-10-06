@@ -30,7 +30,7 @@ from src.utils.diagnosis_text import as_html
 from src.utils.dag_timeouts import dagrun_timeout_for
 from src.utils.safe_error import redact, safe_error
 from src.utils.collection_outcomes import (
-    describe_failure_age, failure_age_nights, is_long_standing, split_by_age)
+    describe_failure_age, is_long_standing, split_by_age)
 
 import os
 import logging
@@ -1059,84 +1059,22 @@ def check_collection_outcomes(**context):
     import sys
     sys.path.insert(0, '/opt/airflow')
 
-    WINDOW_H = 36  # one nightly cycle plus margin — a single missed run is not news
-
     problems = []
     db = None
     try:
         from src.database.postgres_handler import PostgresHandler
+        from src.utils.collection_outcomes import collection_failures
         db = PostgresHandler.from_env_or_config()
 
-        # The LAST outcome per (tenant, platform) inside the window. A tenant that
-        # failed at 03:00 and succeeded on a manual re-run at 09:00 is not a problem;
-        # taking the latest row is what makes that true.
         # DEPUIS COMBIEN DE NUITS, ET PAS SEULEMENT « CETTE NUIT ».
         #
         # Mesuré le 2026-09-10 en production : le locataire 12 échoue sur Meta
         # **toutes les nuits depuis le 2026-06-19**, 93 fois, avec exactement la
-        # même cause — « Ad account owner has NOT grant ads_management or ads_read
-        # permission ». Aucune exécution ne peut la retirer : elle nomme un geste
-        # humain à faire chez Meta, pas une panne.
-        #
-        # Le problème n'est pas que l'alerte le dise ; c'est qu'elle le dise à
-        # l'identique la nuit 1 et la nuit 93. Un lecteur ne peut pas distinguer ce
-        # qui vient de casser de ce qui est bloqué depuis trois mois, donc il finit
-        # par ne plus lire la section — et une vraie panne s'y noie. On mesure donc
-        # l'ancienneté et on la montre, sans rien faire taire.
-        rows = db.fetch_query(
-            """
-            WITH latest AS (
-                SELECT DISTINCT ON (e.artist_id, e.platform)
-                       e.artist_id, e.platform, e.dag_id,
-                       e.status, e.error_message, e.started_at
-                FROM etl_run_log e
-                WHERE e.started_at > now() - make_interval(hours => %s)
-                  AND e.artist_id IS NOT NULL
-                ORDER BY e.artist_id, e.platform, e.started_at DESC
-            )
-            SELECT l.artist_id, a.name, l.platform, l.dag_id,
-                   l.status, l.error_message, l.started_at,
-                   (SELECT max(s.started_at) FROM etl_run_log s
-                     WHERE s.artist_id = l.artist_id AND s.platform = l.platform
-                       AND s.status = 'success') AS last_success,
-                   (SELECT count(DISTINCT s.started_at::date) FROM etl_run_log s
-                     WHERE s.artist_id = l.artist_id AND s.platform = l.platform
-                       AND s.status IN ('failed', 'partial')
-                       AND s.started_at > COALESCE(
-                           (SELECT max(s2.started_at) FROM etl_run_log s2
-                             WHERE s2.artist_id = l.artist_id
-                               AND s2.platform = l.platform
-                               AND s2.status = 'success'),
-                           '-infinity'::timestamp)) AS failing_nights
-            FROM latest l
-            JOIN saas_artists a ON a.id = l.artist_id
-            ORDER BY l.artist_id, l.platform
-            """,
-            (WINDOW_H,),
-        )
-
-        for (artist_id, name, platform, dag_id, status, error_message, started_at,
-             last_success, failing_nights) in rows:
-            if status not in ('failed', 'partial'):
-                continue
-            problems.append({
-                'artist_id': artist_id,
-                'artist_name': name,
-                'platform': platform,
-                'dag_id': dag_id,
-                'status': status,
-                # The literal cause, already redacted at write time by safe_error.
-                'reason': (error_message or 'no cause recorded')[:300],
-                'when': str(started_at),
-                # Nights failed since the last success — 1 means "broke tonight".
-                'failing_nights': int(failing_nights or 1),
-                'last_success': str(last_success) if last_success else None,
-            })
-
-        # Le plus RÉCENT en premier : ce qui vient de casser est ce sur quoi une
-        # exécution peut encore agir. Ce qui traîne depuis des semaines attend un
-        # geste humain et ne doit pas occuper le haut de la liste chaque nuit.
-        problems.sort(key=failure_age_nights)
+        # même cause. Un lecteur ne peut pas distinguer ce qui vient de casser de ce
+        # qui est bloqué depuis trois mois, donc on mesure l'ancienneté et on la
+        # montre, sans rien faire taire. La requête vit dans `collection_failures`
+        # (R418) : la vue admin lit les MÊMES lignes que ce mail.
+        problems = collection_failures(db)
     except Exception as e:  # noqa: BLE001
         # Same contract as check_central_apps: a check that could not run says so
         # rather than looking like a passing one.

@@ -806,6 +806,9 @@ def show():
     # ── LES GROUPES QUI DÉLÈGUENT : ils n'ouvrent pas de connexion ici ──────
     if _groupe == "sante":
         choix = _sous_selecteur("sante", [
+            # R418 — first: the owner deletes the evening mail, so this is where
+            # « ne collecte pas » is read now.
+            ("collecte", t("admin.s_collection", "🔴 Collecte par artiste")),
             ("db_health", t("admin.s_datasets", "🏥 Jeux de données")),
             ("etl_logs", t("admin.s_etl", "📜 Journaux ETL")),
             ("airflow_kpi", t("admin.s_airflow", "🚦 Pipelines")),
@@ -813,7 +816,7 @@ def show():
             ("technique", t("admin.s_platforms", "📡 Fraîcheur par plateforme")),
             ("s4a_fresh", t("admin.s_s4a_fresh", "📝 Fraîcheur des saisies S4A")),
         ])
-        if choix not in ("technique", "s4a_fresh"):
+        if choix not in ("collecte", "technique", "s4a_fresh"):
             _deleguer(choix)
             return
     elif _groupe == "usage":
@@ -844,7 +847,9 @@ def show():
         if _groupe == "business":
             _render_supervision(db)
         elif _groupe == "sante":
-            (_render_s4a_freshness if choix == "s4a_fresh" else _render_technique)(db)
+            from src.dashboard.views.admin_collection import render as _render_collection
+            {"collecte": _render_collection, "s4a_fresh": _render_s4a_freshness,
+             "technique": _render_technique}[choix](db)
         elif _groupe == "comptes":
             {"artistes": lambda: _tab_artists(db),
              "utilisateurs": lambda: _tab_users(db),

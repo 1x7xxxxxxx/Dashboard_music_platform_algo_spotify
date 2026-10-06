@@ -35,10 +35,14 @@ def test_both_checks_really_do_read_the_same_predicate():
     If these two ever stop meaning the same thing, subtracting one from the other
     starts HIDING rows — a far worse defect than the duplication it fixed.
     """
-    from src.utils.artist_readiness import TODO, readiness_stalled_flags
+    from src.utils.artist_readiness import (
+        BROKEN, NO_DATA, OK, QUIET, STALE, TODO, readiness_stalled_flags, stalled_platforms)
 
-    src = inspect.getsource(readiness_stalled_flags)
-    assert 'm["status"] == TODO' in src, (
+    # Executed, not read: R418 moved the selection into the pure `stalled_platforms`,
+    # shared with the admin screen, and a substring guard on the old body went red.
+    assert "stalled_platforms(" in inspect.getsource(readiness_stalled_flags)
+    rows = [{"status": s} for s in (TODO, BROKEN, NO_DATA, STALE, QUIET, OK)]
+    assert stalled_platforms(rows) == [{"status": TODO}], (
         "readiness_stalled_flags no longer selects on TODO — the subtraction in "
         "alert_monitor assumes it does, and would now drop rows it should show")
     assert TODO == "todo"

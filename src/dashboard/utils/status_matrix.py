@@ -106,6 +106,29 @@ def read_probes(db, artist_id: int) -> dict:
     return {r[0]: (r[1], r[2], r[3], None) for r in rows}
 
 
+def read_failed_probes_many(db, artist_ids) -> dict:
+    """{artist_id: {platform: (False, reason, probed_at)}} for many tenants, ONE query (R418).
+
+    Only the failures: a remembered « ok » proves nothing about tonight, and the fleet
+    screen replays a verdict only to say WHY something is red. Never raises — an
+    unreadable memory falls back to the static hint, which is today's behaviour.
+    """
+    ids = [int(a) for a in artist_ids]
+    if not ids:
+        return {}
+    try:
+        rows = db.fetch_query(
+            "SELECT artist_id, platform, reason, probed_at FROM tenant_platform_probe "
+            "WHERE artist_id = ANY(%s) AND NOT ok", (ids,)) or []
+    except Exception as e:  # noqa: BLE001 — no table yet is "never measured"
+        logger.warning("probe memory unreadable: %s", type(e).__name__)
+        return {}
+    out: dict = {}
+    for aid, platform, reason, probed_at in rows:
+        out.setdefault(int(aid), {})[platform] = (False, reason, probed_at)
+    return out
+
+
 def save_probe(db, artist_id: int, platform: str, ok: bool, reason: str,
                category: str | None = None) -> None:
     """Remember one verdict. Overwrites — we want the latest, not a history."""

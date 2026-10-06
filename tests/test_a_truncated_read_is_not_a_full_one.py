@@ -106,25 +106,24 @@ def test_the_dag_records_partial_rather_than_success() -> None:
 def test_partial_is_a_status_the_alert_actually_reports() -> None:
     """Un statut que personne ne remonte serait un garde muet.
 
-    Lu par l'AST et non par une recherche de chaîne : le dépôt a mesuré quatre gardes
-    passés au vert sur leur PROPRE commentaire. Ici c'est la comparaison réelle qu'on
-    cherche — `status not in ('failed', 'partial')` — pas ses lettres.
+    Exécuté et non lu : le dépôt a mesuré quatre gardes passés au vert sur leur PROPRE
+    commentaire, et une lecture d'AST perd son sujet quand le filtre déménage (R418).
     """
-    tree = ast.parse(_read("airflow/dags/alert_monitor.py"))
-    reported = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Compare):
-            continue
-        if not any(isinstance(op, (ast.In, ast.NotIn)) for op in node.ops):
-            continue
-        for comparator in node.comparators:
-            if isinstance(comparator, (ast.Tuple, ast.List, ast.Set)):
-                reported |= {e.value for e in comparator.elts
-                             if isinstance(e, ast.Constant) and isinstance(e.value, str)}
-    assert {"failed", "partial"} <= reported, (
-        "la tâche d'alerte ne compare plus un statut à un ensemble contenant "
-        "`failed` ET `partial` : enregistrer `partial` ne produirait plus aucun "
-        f"signal, et la troncature redeviendrait invisible. Vu : {sorted(reported)}")
+    from src.utils.collection_outcomes import collection_failures
+
+    # Exécuté, et non plus lu dans le DAG : R418 a déplacé la requête et son filtre dans
+    # `collection_failures`, que la tâche d'alerte appelle (prouvé par
+    # tests/test_the_admin_screen_says_what_the_mail_says.py).
+    class _Ledger:
+        def fetch_query(self, sql, params=None):
+            return [(1, "A", "instagram", "instagram_daily", s, "tronqué", None, None, 1)
+                    for s in ("failed", "partial", "success", "skipped")]
+
+    reported = {r["status"] for r in collection_failures(_Ledger())}
+    assert reported == {"failed", "partial"}, (
+        "la tâche d'alerte ne remonte plus `failed` ET `partial` (et eux seuls) : "
+        "enregistrer `partial` ne produirait plus aucun signal, et la troncature "
+        f"redeviendrait invisible. Vu : {sorted(reported)}")
 
 
 # ── La population, DÉRIVÉE — ajoutée le 2026-09-17 ───────────────────────────

@@ -28,6 +28,7 @@ class the BROKEN status was introduced to kill.
 """
 
 import ast
+import inspect
 from pathlib import Path
 
 from src.utils.artist_readiness import (
@@ -49,16 +50,18 @@ _PLATFORM = {"key": "youtube", "label": "🎬 YouTube",
 
 
 def _red_flag_statuses() -> set[str]:
-    """The status set `readiness_red_flags` filters on, read off the AST."""
-    tree = ast.parse(READINESS.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "readiness_red_flags":
-            for sub in ast.walk(node):
-                if isinstance(sub, ast.Compare) and isinstance(sub.ops[0], ast.In):
-                    comp = sub.comparators[0]
-                    if isinstance(comp, ast.Tuple):
-                        return {e.id for e in comp.elts if isinstance(e, ast.Name)}
-    raise AssertionError("could not read the status filter of readiness_red_flags")
+    """The statuses `readiness_red_flags` keeps — EXECUTED on one row per status.
+
+    It read the filter off the function's AST until R418 moved it into the pure
+    `red_platforms`, shared with the admin screen; running it is what survives a move.
+    """
+    from src.utils.artist_readiness import readiness_red_flags, red_platforms
+
+    assert "red_platforms(" in inspect.getsource(readiness_red_flags), \
+        "readiness_red_flags no longer goes through red_platforms — re-point this guard"
+    names = {TODO: "TODO", BROKEN: "BROKEN", NO_DATA: "NO_DATA", STALE: "STALE",
+             QUIET: "QUIET", OK: "OK"}
+    return {names[m["status"]] for m in red_platforms([{"status": s} for s in names])}
 
 
 def test_stale_is_one_of_the_statuses_that_alert() -> None:

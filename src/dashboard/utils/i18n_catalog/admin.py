@@ -208,4 +208,29 @@ EN = {
     "admin.s4a_fresh_artist": "Artist",
     "admin.s_usage": "\U0001F4C8 App usage",
     "admin.s_ml": "\U0001F916 ML performance",
+    # R418 — la collecte par artiste, lisible sans le mail du soir.
+    "admin.s_collection": "\U0001F534 Collection per artist",
+    "admin.coll_title": "\U0001F534 Collection per artist",
+    "admin.coll_caption": ("State **now**, recomputed on every render \u2014 the evening mail says "
+                           "the same at 23:00. Failures cover every tenant in the collection log; "
+                           "connections cover active artists except the canary and the sandbox "
+                           "(the canary has its own check). No API call here: the causes shown "
+                           "are the last verdicts measured overnight."),
+    "admin.coll_fail_h": "#### \u274C Collection failures (last {h} h)",
+    "admin.coll_fail_err": ("\u274C The collection log is unreadable ({e}) \u2014 "
+                            "this is NOT \u201cno failure\u201d."),
+    "admin.coll_fail_none": "\u2705 No collection failure.",
+    "admin.coll_fail_count": "{n} tonight \u00B7 {m} long-standing (waiting on a human gesture)",
+    "admin.coll_col_artist": "Artist",
+    "admin.coll_col_platform": "Platform",
+    "admin.coll_col_since": "Since",
+    "admin.coll_col_cause": "Cause",
+    "admin.coll_col_state": "State",
+    "admin.coll_col_action": "Next action",
+    "admin.coll_ready_err": "\u274C Connection state is unreadable ({e}).",
+    "admin.coll_red_h": "#### \U0001F534 Connected, but nothing arrives",
+    "admin.coll_red_none": "\u2705 Every connected platform is receiving data.",
+    "admin.coll_stalled_h": "#### \u26AA Signed up 7+ days ago, nothing connected",
+    "admin.coll_stalled_none": "Nobody.",
+    "admin.coll_unreadable": "\u26A0\uFE0F Unreadable: {names}",
 }

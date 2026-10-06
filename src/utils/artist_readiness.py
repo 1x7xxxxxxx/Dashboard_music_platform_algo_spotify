@@ -198,13 +198,15 @@ def artist_readiness(db, artist_id: int, probe=None) -> list:
     return _matrix(creds, spotify_artist_id, check_freshness(db, artist_id), probe)
 
 
-def readiness_many(db, artist_ids) -> dict:
+def readiness_many(db, artist_ids, probes: dict | None = None) -> dict:
     """{artist_id: artist_readiness(db, artist_id)} in a CONSTANT number of queries (R266 e).
 
     `artist_readiness` asks ~14 queries per tenant; the onboarding health page called it
     once per tenant — ~700 queries at fifty. Here identities, Spotify ids and freshness
     are each read once for every tenant, and the SAME `_matrix` builds each verdict.
-    No probe: a fleet screen never makes API calls on render.
+    No live probe: a fleet screen never makes API calls on render. `probes` —
+    `{artist_id: {platform: (ok, message)}}`, the verdicts the nightly probe REMEMBERED
+    — replays them instead, so the screen carries the sentence the mail carried (R418).
     """
     import json
 
@@ -226,7 +228,10 @@ def readiness_many(db, artist_ids) -> dict:
     spotify = {int(r[0]): r[1] for r in db.fetch_query(
         "SELECT id, spotify_artist_id FROM saas_artists WHERE id = ANY(%s)", (ids,)) or []}
     fresh = check_freshness_many(db, ids)
-    return {a: _matrix(creds[a], spotify.get(a), fresh[a], None) for a in ids}
+    probes = probes or {}
+    return {a: _matrix(creds[a], spotify.get(a), fresh[a],
+                       (lambda p, m=probes.get(a, {}): m.get(p)) if a in probes else None)
+            for a in ids}
 
 
 def _matrix(creds: dict, spotify_artist_id, fresh_rows: list, probe) -> list:
@@ -310,8 +315,12 @@ def readiness_red_flags(db, artist_id: int, probe=None) -> list:
     "collection is broken" — it is in fact the only shape a working credential can
     take when it breaks.
     """
-    return [m for m in artist_readiness(db, artist_id, probe=probe)
-            if m["status"] in (NO_DATA, BROKEN, STALE)]
+    return red_platforms(artist_readiness(db, artist_id, probe=probe))
+
+
+def red_platforms(matrix: list) -> list:
+    """The rows of a readiness matrix that need someone to look. Pure."""
+    return [m for m in matrix if m["status"] in (NO_DATA, BROKEN, STALE)]
 
 
 def readiness_stalled_flags(db, artist_id: int, min_age_days: int = 7) -> list:
@@ -326,12 +335,24 @@ def readiness_stalled_flags(db, artist_id: int, min_age_days: int = 7) -> list:
         "SELECT created_at FROM saas_artists WHERE id = %s", (artist_id,))
     if not row or row[0][0] is None:
         return []
-    created = row[0][0]
     from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc)
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=timezone.utc)
-    if (now - created).days < min_age_days:
+    if not is_stalled(row[0][0], datetime.now(timezone.utc), min_age_days):
         return []
-    return [m for m in artist_readiness(db, artist_id) if m["status"] == TODO]
+    return stalled_platforms(artist_readiness(db, artist_id))
+
+
+def is_stalled(created_at, now, min_age_days: int = 7) -> bool:
+    """Signed up at least `min_age_days` ago — TODO from then on is nobody's follow-up. Pure."""
+    from datetime import timezone
+
+    if created_at is None:
+        return False
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return (now - created_at).days >= min_age_days
+
+
+def stalled_platforms(matrix: list) -> list:
+    """The TODO rows of a readiness matrix. Pure — the age test is `is_stalled`."""
+    return [m for m in matrix if m["status"] == TODO]
