@@ -14,7 +14,7 @@ gone from home, present where it went.
   freshness grid → Santé onboarding (`utils/source_freshness.py`, artist view)
   Meta advice    → Publicité Meta Ads, until the cross view (R378) takes it
   DAG status     → Monitoring ETL (`airflow_kpi`, admin) — already there
-  PDF button     → the « Rapport de carrière PDF » menu entry — already there
+  PDF button     → the « Rapport PDF » menu entry — already there
 """
 from __future__ import annotations
 

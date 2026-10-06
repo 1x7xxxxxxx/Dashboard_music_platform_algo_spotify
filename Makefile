@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: home-snapshot home-record chart-decisions select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review
+.PHONY: home-snapshot home-record pdf-report-snapshot chart-decisions select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review
 
 help:        ## List available targets
 	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -386,6 +386,10 @@ error-inbox-check: ## Le registre décrit-il encore la base ? 0 à jour · 1 pé
 home-snapshot: ## Nouvelle photo FIGÉE de l'Accueil (R425) — à commiter sous une ligne `<!-- home: oui -->`
 	@test -x $(PYTHON) || { echo "❌ interpréteur absent. Run: make sync"; exit 1; }
 	$(PYTHON) -m tests.home_snapshot write
+
+pdf-report-snapshot: ## Nouvelle photo FIGÉE du Rapport PDF (R428) — à commiter sous une ligne `<!-- rapport_pdf: oui -->`
+	@test -x $(PYTHON) || { echo "❌ interpréteur absent. Run: make sync"; exit 1; }
+	$(PYTHON) -m tests.pdf_report_snapshot write
 
 home-record: check-db ## Réenregistre les données rejouées par la photo de l'Accueil (base locale 5433)
 	$(PYTHON) -m tests.home_snapshot record

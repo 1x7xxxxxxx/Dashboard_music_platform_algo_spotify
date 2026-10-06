@@ -1,4 +1,9 @@
-"""Page Export PDF — Rapport artiste paramétrable."""
+"""Page « Rapport PDF » — rapport artiste paramétrable.
+
+R428 (2026-10-06): this page is LOCKED like Home (R425) — its render is compared to
+`tests/fixtures/pdf_report_snapshot.json`; a new photo needs a roadmap row carrying
+`<!-- rapport_pdf: oui -->`.
+"""
 import streamlit as st
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -83,7 +88,7 @@ def show():
     # artist's own data. ⚠️ This line said « Free » from 2026-09-04 to 2026-09-26 while the
     # page was Premium — it was false for three weeks. The ML sections stay Premium
     # (`PREMIUM_SECTIONS`), and so does the weekly e-mailed report (`weekly_digest`).
-    st.title(t("export_pdf.title", "📄 Export PDF — Rapport Artiste"))
+    st.title(t("export_pdf.title", "📄 Rapport PDF"))
     st.caption(t(
         "export_pdf.caption",
         "Configurez le rapport, sélectionnez les sections et les chansons à inclure, "

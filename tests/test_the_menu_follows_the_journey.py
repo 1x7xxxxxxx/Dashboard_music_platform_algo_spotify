@@ -202,13 +202,14 @@ def test_the_home_heads_the_three_gestures_that_need_no_reading() -> None:
 # ══════════════════════════════════════════════════════════════════════════
 
 def test_the_report_is_named_by_what_it_gives_not_by_its_format() -> None:
-    """« Export PDF » décrit un format ; « Rapport de carrière » décrit ce qu'on obtient.
+    """« Export PDF » décrit un format ; « Rapport » décrit ce qu'on obtient.
 
-    C'est le second qu'on cherche dans un menu.
+    R428 (2026-10-06) : le propriétaire l'a raccourci en « Rapport PDF » — le mot
+    « Rapport » reste, c'est lui qui dit ce qu'on obtient.
     """
     lbl = _labels().get("export_pdf", "")
-    assert "Rapport" in lbl and "carri" in lbl, (
-        f"le rapport s'appelle encore « {lbl} » : un format n'est pas un résultat.")
+    assert lbl == "📄 Rapport PDF", (
+        f"le rapport s'appelle « {lbl} », pas le nom choisi par le propriétaire.")
 
 
 # ══════════════════════════════════════════════════════════════════════════

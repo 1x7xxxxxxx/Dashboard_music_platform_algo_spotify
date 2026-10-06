@@ -55,7 +55,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.section.admin": "🛠️ Admin / Ops",
         # Items (keyed by page key)
         "nav.item.home": "🏠 Home",
-        "nav.item.export_pdf": "📄 PDF Export",
+        "nav.item.export_pdf": "📄 PDF report",
         "nav.item.export_csv": "⬇️ CSV Export",
         "nav.item.onboarding": "🚀 Set-up wizard",
         "nav.item.credentials": "🔑 API Credentials",

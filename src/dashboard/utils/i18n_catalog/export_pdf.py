@@ -1,7 +1,7 @@
 """EN catalog for the export_pdf view."""
 
 EN = {
-    "export_pdf.title": "📄 PDF Export — Artist Report",
+    "export_pdf.title": "📄 PDF report",
     "export_pdf.caption": (
         "Configure the report, pick the sections and songs to include, "
         "then generate the downloadable PDF."

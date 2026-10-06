@@ -1,0 +1,825 @@
+{
+ "free": {
+  "children": [
+   {
+    "children": [
+     {
+      "body": "📄 Rapport PDF",
+      "tag": "h1",
+      "type": "title",
+      "wrap": true
+     },
+     {
+      "body": "Configurez le rapport, sélectionnez les sections et les chansons à inclure, puis générez le PDF téléchargeable.",
+      "elementType": "CAPTION",
+      "type": "caption",
+      "wrap": true
+     },
+     {
+      "body": "---",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "body": "**👤 Artiste**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "body": "Artiste test",
+          "format": "INFO",
+          "icon": "👤",
+          "type": "info",
+          "widthConfig": {
+           "useStretch": true
+          }
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "body": "**📅 Période**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "acceptNewOptions": false,
+          "default": 5,
+          "label": "Période",
+          "labelVisibility": {
+           "value": "COLLAPSED"
+          },
+          "options": [
+           "28 derniers jours",
+           "3 derniers mois",
+           "6 derniers mois",
+           "12 derniers mois",
+           "Cette année",
+           "Depuis le début",
+           "Depuis la sortie de la track",
+           "Personnalisé"
+          ],
+          "type": "selectbox"
+         },
+         {
+          "body": "Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours calculées **depuis le début** ; la période ci-dessus ne filtre que le streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs).",
+          "elementType": "CAPTION",
+          "type": "caption",
+          "wrap": true
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "body": "**🎵 Chansons**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "acceptNewOptions": false,
+          "label": "Chansons",
+          "labelVisibility": {
+           "value": "COLLAPSED"
+          },
+          "options": [
+           "Titre A",
+           "Titre B",
+           "Titre C"
+          ],
+          "placeholder": "Toutes les chansons",
+          "selectAll": 1000,
+          "type": "multiselect"
+         },
+         {
+          "label": "🆕 Dernière sortie",
+          "type": "secondary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "label": "📄 Générer le rapport PDF",
+          "type": "primary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.75
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "body": "---",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "**📑 Sections à inclure**",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "🔒 Les sections **Premium** (ML, prévisions, Meta avancé) nécessitent le plan Premium — verrouillées ci-dessous.",
+      "elementType": "CAPTION",
+      "type": "caption",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Vue d'ensemble",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Connexions & mapping",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Fraîcheur des sources",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "S4A — évolution",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "S4A — chansons",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta × Spotify",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Apple Music",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "YouTube",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "SoundCloud",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Instagram",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Hypeddit",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "disabled": true,
+          "help": "Section Premium — passez au plan Premium pour l'inclure.",
+          "label": "🔒 Prédiction algos",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "disabled": true,
+          "help": "Section Premium — passez au plan Premium pour l'inclure.",
+          "label": "🔒 Explainabilité (SHAP)",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta Ads",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta — Répartitions",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "ROI Breakeven",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "disabled": true,
+          "help": "Section Premium — passez au plan Premium pour l'inclure.",
+          "label": "🔒 Prévisions revenus",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ },
+ "premium": {
+  "children": [
+   {
+    "children": [
+     {
+      "body": "📄 Rapport PDF",
+      "tag": "h1",
+      "type": "title",
+      "wrap": true
+     },
+     {
+      "body": "Configurez le rapport, sélectionnez les sections et les chansons à inclure, puis générez le PDF téléchargeable.",
+      "elementType": "CAPTION",
+      "type": "caption",
+      "wrap": true
+     },
+     {
+      "body": "---",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "body": "**👤 Artiste**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "body": "Artiste test",
+          "format": "INFO",
+          "icon": "👤",
+          "type": "info",
+          "widthConfig": {
+           "useStretch": true
+          }
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "body": "**📅 Période**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "acceptNewOptions": false,
+          "default": 5,
+          "label": "Période",
+          "labelVisibility": {
+           "value": "COLLAPSED"
+          },
+          "options": [
+           "28 derniers jours",
+           "3 derniers mois",
+           "6 derniers mois",
+           "12 derniers mois",
+           "Cette année",
+           "Depuis le début",
+           "Depuis la sortie de la track",
+           "Personnalisé"
+          ],
+          "type": "selectbox"
+         },
+         {
+          "body": "Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours calculées **depuis le début** ; la période ci-dessus ne filtre que le streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs).",
+          "elementType": "CAPTION",
+          "type": "caption",
+          "wrap": true
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "body": "**🎵 Chansons**",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         },
+         {
+          "acceptNewOptions": false,
+          "label": "Chansons",
+          "labelVisibility": {
+           "value": "COLLAPSED"
+          },
+          "options": [
+           "Titre A",
+           "Titre B",
+           "Titre C"
+          ],
+          "placeholder": "Toutes les chansons",
+          "selectAll": 1000,
+          "type": "multiselect"
+         },
+         {
+          "label": "🆕 Dernière sortie",
+          "type": "secondary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "label": "📄 Générer le rapport PDF",
+          "type": "primary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.75
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "body": "---",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "**📑 Sections à inclure**",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Vue d'ensemble",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Connexions & mapping",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Fraîcheur des sources",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "S4A — évolution",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "S4A — chansons",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta × Spotify",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Apple Music",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "YouTube",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "SoundCloud",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Instagram",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Hypeddit",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Prédiction algos",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Explainabilité (SHAP)",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta Ads",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Meta — Répartitions",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "ROI Breakeven",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "default": true,
+          "label": "Prévisions revenus",
+          "labelVisibility": {},
+          "type": "checkbox"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.2
+       }
+      ],
+      "type": "flex_container"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ }
+}

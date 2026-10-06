@@ -35,7 +35,8 @@ R425 (2026-10-06): Home is frozen. The owner: « je modifiais un truc sur une pa
 avait l'autre page qui était modifiée ». `tests/test_home_is_frozen.py` compares Home's render
 to an approved photo; approving a new photo is a commit touching `HOME_LOCKED`, refused unless
 a cited open row carries `<!-- home: oui -->` — a structural marker, not the word "Accueil",
-which half the rows about other pages also contain.
+which half the rows about other pages also contain. R428 extends it to the PDF report
+(`<!-- rapport_pdf: oui -->`): `LOCKED_PAGES` maps each marker to its page's files.
 
 What it does NOT prove: that the diff IS the cited task. With several open rows, any of them
 passes. It binds a commit to an inscribed action, not a diff to its meaning.
@@ -70,17 +71,27 @@ _SELF = "tools/dev/require_roadmap_id.py"
 # The photo, its recorded data and what decides how both are made (R425).
 HOME_LOCKED = ("tests/fixtures/home_snapshot.json", "tests/fixtures/home_data.pkl",
                "tests/home_snapshot.py")
-_HOME = re.compile(r"<!--\s*home:\s*oui\s*-->")
+# R428 — the PDF report page, locked the same way.
+PDF_REPORT_LOCKED = ("tests/fixtures/pdf_report_snapshot.json", "tests/pdf_report_snapshot.py")
+# marker → (page name, its locked files). A row unlocks a page only with ITS marker.
+LOCKED_PAGES = {"home": ("l'Accueil", HOME_LOCKED),
+                "rapport_pdf": ("le Rapport PDF", PDF_REPORT_LOCKED)}
+
+
+def _marker(name: str) -> re.Pattern:
+    return re.compile(rf"<!--\s*{name}:\s*oui\s*-->")
 
 
 def home_reason(files: list[str], ids: set[str], rows: dict[str, str]) -> str | None:
-    """Why a commit touching Home's photo may not go — None when it may."""
-    touched = [f for f in files if f in HOME_LOCKED]
-    if not touched or any(_HOME.search(rows[i]) for i in ids & set(rows)):
-        return None
-    return (f"{touched[0]} est la photo FIGÉE de l'Accueil (R425) — aucune ligne ouverte "
-            "citée ne porte `<!-- home: oui -->`. Si l'Accueil doit vraiment changer, "
-            "ajoute ce marqueur à la ligne de roadmap qui le demande")
+    """Why a commit touching a locked page's photo may not go — None when it may."""
+    cited_rows = [rows[i] for i in ids & set(rows)]
+    for marker, (page, locked) in LOCKED_PAGES.items():
+        touched = [f for f in files if f in locked]
+        if touched and not any(_marker(marker).search(r) for r in cited_rows):
+            return (f"{touched[0]} est la photo FIGÉE de {page} (R425/R428) — aucune "
+                    f"ligne ouverte citée ne porte `<!-- {marker}: oui -->`. Si {page} doit "
+                    "vraiment changer, ajoute ce marqueur à la ligne de roadmap qui le demande")
+    return None
 
 
 def is_product(path: str) -> bool:

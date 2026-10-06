@@ -102,6 +102,8 @@ NAV_SECTIONS: list = [
     # La place ensuite : il vient après les plateformes parce qu'il les RÉSUME ;
     # en troisième entrée du menu, il proposait un résumé avant qu'il y ait quoi
     # que ce soit à résumer.
+    # R428 (owner, 2026-10-06): « Rapport de carrière PDF » → « Rapport PDF ». The
+    # owner's word, shorter; the page title follows.
     #
     # « 🎯 Faire piloter mes campagnes » suit immédiatement le rapport. L'ordre
     # raconte quelque chose : voilà ta carrière en un document, et voilà qui peut
@@ -124,7 +126,7 @@ NAV_SECTIONS: list = [
     # dérouler six plateformes pour les trouver.
     ("start",     "",
      [("🏠 Accueil", "home"),
-      ("📄 Rapport de carrière PDF", "export_pdf"),
+      ("📄 Rapport PDF", "export_pdf"),
       ("🎯 Faire piloter mes campagnes", "service")]),
     ("data",      "⚙️ Configuration de streaMLytics",
      [("🚀 Mise en route (assistant)", "onboarding"),
