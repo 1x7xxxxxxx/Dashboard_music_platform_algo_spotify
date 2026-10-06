@@ -2,19 +2,10 @@
 
 EN = {
     "export_pdf.title": "📄 PDF report",
-    "export_pdf.caption": (
-        "Configure the report, pick the sections and songs to include, "
-        "then generate the downloadable PDF."
-    ),
     # Artist + period
     "export_pdf.artist_header": "**👤 Artist**",
     "export_pdf.no_active_artist": "No active artist in the database.",
     "export_pdf.period_header": "**📅 Period**",
-    "export_pdf.period_caption": (
-        "Ad & revenue sections (Meta, Hypeddit, ROI…) are always computed "
-        "**since the beginning**; the period above only filters streaming "
-        "(S4A, YouTube, etc.). “Since the track's release” uses the release "
-        "date of the selected song (the earliest if several)."),
     "export_pdf.date_from": "From",
     "export_pdf.date_to": "To",
     # Sections

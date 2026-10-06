@@ -10,12 +10,6 @@
       "wrap": true
      },
      {
-      "body": "Configurez le rapport, sélectionnez les sections et les chansons à inclure, puis générez le PDF téléchargeable.",
-      "elementType": "CAPTION",
-      "type": "caption",
-      "wrap": true
-     },
-     {
       "body": "---",
       "elementType": "NATIVE",
       "type": "markdown",
@@ -70,12 +64,6 @@
            "Personnalisé"
           ],
           "type": "selectbox"
-         },
-         {
-          "body": "Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours calculées **depuis le début** ; la période ci-dessus ne filtre que le streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs).",
-          "elementType": "CAPTION",
-          "type": "caption",
-          "wrap": true
          }
         ],
         "type": "column",
@@ -118,6 +106,13 @@
      {
       "children": [
        {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.25
+       },
+       {
         "children": [
          {
           "label": "📄 Générer le rapport PDF",
@@ -125,14 +120,14 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "gapConfig": {
          "gapSize": "SMALL"
         },
         "type": "column",
-        "weight": 0.75
+        "weight": 0.25
        }
       ],
       "type": "flex_container"
@@ -426,12 +421,6 @@
       "wrap": true
      },
      {
-      "body": "Configurez le rapport, sélectionnez les sections et les chansons à inclure, puis générez le PDF téléchargeable.",
-      "elementType": "CAPTION",
-      "type": "caption",
-      "wrap": true
-     },
-     {
       "body": "---",
       "elementType": "NATIVE",
       "type": "markdown",
@@ -486,12 +475,6 @@
            "Personnalisé"
           ],
           "type": "selectbox"
-         },
-         {
-          "body": "Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours calculées **depuis le début** ; la période ci-dessus ne filtre que le streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs).",
-          "elementType": "CAPTION",
-          "type": "caption",
-          "wrap": true
          }
         ],
         "type": "column",
@@ -534,6 +517,13 @@
      {
       "children": [
        {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.25
+       },
+       {
         "children": [
          {
           "label": "📄 Générer le rapport PDF",
@@ -541,14 +531,14 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "gapConfig": {
          "gapSize": "SMALL"
         },
         "type": "column",
-        "weight": 0.75
+        "weight": 0.25
        }
       ],
       "type": "flex_container"

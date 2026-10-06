@@ -89,11 +89,6 @@ def show():
     # page was Premium — it was false for three weeks. The ML sections stay Premium
     # (`PREMIUM_SECTIONS`), and so does the weekly e-mailed report (`weekly_digest`).
     st.title(t("export_pdf.title", "📄 Rapport PDF"))
-    st.caption(t(
-        "export_pdf.caption",
-        "Configurez le rapport, sélectionnez les sections et les chansons à inclure, "
-        "puis générez le PDF téléchargeable."
-    ))
     st.markdown("---")
 
     db = get_db_connection()
@@ -133,12 +128,6 @@ def _period_cell():
         t("common.period", "Période"), list(_PERIOD_SLUGS),
         index=5, label_visibility="collapsed", format_func=_period_display,
     )
-    st.caption(t(
-        "export_pdf.period_caption",
-        "Les sections pub & revenus (Meta, Hypeddit, ROI…) sont toujours "
-        "calculées **depuis le début** ; la période ci-dessus ne filtre que le "
-        "streaming (S4A, YouTube, etc.). « Depuis la sortie de la track » utilise "
-        "la date de sortie de la chanson sélectionnée (la plus ancienne si plusieurs)."))
     return period_label
 
 
@@ -229,7 +218,8 @@ def _show_form(db):
     custom_from, custom_to = _custom_dates(period_label, now)
 
     # ── Le bouton juste après les filtres (R386) ─────────────────────────────
-    col_gen, _ = st.columns([1, 3])
+    # Centred (R431, owner 2026-10-06: « repositionne le bouton au milieu »).
+    _, col_gen, _ = st.columns([1, 2, 1])
     with col_gen:
         generate_clicked = st.button(t("export_pdf.generate_btn", "📄 Générer le rapport PDF"),
                                      type="primary", width="stretch")
