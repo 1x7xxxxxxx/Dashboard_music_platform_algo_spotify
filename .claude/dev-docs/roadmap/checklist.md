@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R432 | Accueil — retour du 2026-10-06 : une flèche vers le bas « ⬇️ » à la fin de la phrase « Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans chaque playlist algorithmique de Spotify. » (FR + EN) ; photo figée de l'Accueil réapprouvée, le verrou R425 reste <!-- home: oui --> <!-- critic: non — un caractère ajouté à un texte, aucune donnée touchée --> <!-- scope: src/dashboard/views/home_tiles.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | photo de l'Accueil régénérée : seule la phrase change |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R432 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
