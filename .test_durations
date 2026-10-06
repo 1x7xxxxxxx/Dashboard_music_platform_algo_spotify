@@ -11219,6 +11219,7 @@
     "tests/test_the_pool_keeps_what_a_direct_connection_promised.py::test_an_aborted_transaction_does_not_poison_the_next_borrower": 0.011735918998965644,
     "tests/test_the_pool_keeps_what_a_direct_connection_promised.py::test_close_returns_the_connection_instead_of_destroying_it": 0.012585476999447565,
     "tests/test_the_pool_keeps_what_a_direct_connection_promised.py::test_without_the_pool_nothing_changes": 0.008947914999225759,
+    "tests/test_the_precompact_hook_saves_the_state.py::test_a_clock_step_back_never_overwrites_a_snapshot": 0.14427644699935627,
     "tests/test_the_precompact_hook_saves_the_state.py::test_a_dirty_tree_is_saved_once_per_state": 2.3852673419969506,
     "tests/test_the_precompact_hook_saves_the_state.py::test_a_failing_or_slow_night_status_is_one_note_line": 0.603235816997767,
     "tests/test_the_precompact_hook_saves_the_state.py::test_the_hook_is_registered_for_precompact": 0.0011354160014889203,

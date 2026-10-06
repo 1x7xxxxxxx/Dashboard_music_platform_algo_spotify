@@ -201,7 +201,13 @@ def main() -> None:
               "refreshed latest.md only")
         sys.exit(0)
 
+    # The name has 1 s resolution and the WSL wall clock steps BACK (Hyper-V TimeSync,
+    # −1.78 s measured 2026-10-06, R420): a taken name is another state, never rewritten.
     session_file = sessions_dir / f"session-{timestamp}.md"
+    n = 1
+    while session_file.exists():
+        session_file = sessions_dir / f"session-{timestamp}-{n}.md"
+        n += 1
     session_file.write_text(content, encoding="utf-8")
 
     all_sessions = sorted(sessions_dir.glob("session-*.md"), key=lambda f: f.stat().st_mtime)
@@ -209,7 +215,7 @@ def main() -> None:
         stale.unlink()
 
     (sessions_dir / "latest.md").write_text(content, encoding="utf-8")
-    print(f"[PreCompact] Session state saved to .claude/sessions/session-{timestamp}.md")
+    print(f"[PreCompact] Session state saved to .claude/sessions/{session_file.name}")
     sys.exit(0)
 
 

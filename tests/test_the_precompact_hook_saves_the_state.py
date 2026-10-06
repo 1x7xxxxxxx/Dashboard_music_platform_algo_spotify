@@ -135,3 +135,25 @@ def test_a_failing_or_slow_night_status_is_one_note_line(tmp_path: Path) -> None
     assert hook._night_status(tmp_path) == "(night-status unavailable: exit 3)"
     _fake_night_run(tmp_path, "import time; time.sleep(5)")
     assert hook._night_status(tmp_path, timeout=0.5) == "(night-status unavailable: TimeoutExpired)"
+
+
+def test_a_clock_step_back_never_overwrites_a_snapshot(tmp_path: Path) -> None:
+    """R420 — the WSL wall clock steps BACK (Hyper-V TimeSync, −1.78 s measured 2026-10-06):
+    two calls can compute the same `session-<second>.md`. Every name the hook could pick in
+    the window is taken by a different state; none may be rewritten, and the new state lands."""
+    from datetime import datetime, timedelta
+
+    repo = _repo(tmp_path)
+    sessions = repo / ".claude" / "sessions"
+    sessions.mkdir()
+    now = datetime.now()
+    taken = {}
+    for s in range(-2, 6):  # 8 files: retention keeps 10, the new one must not evict any
+        f = sessions / f"session-{(now + timedelta(seconds=s)):%Y%m%d-%H%M%S}.md"
+        f.write_text(f"older state {s}\n", encoding="utf-8")
+        taken[f] = f.read_text(encoding="utf-8")
+    (repo / "a.py").write_text("x = 2\n")
+    _run(repo)
+    assert {f: f.read_text(encoding="utf-8") for f in taken} == taken, "a snapshot was overwritten"
+    new = [f for f in _snapshots(repo) if f not in taken]
+    assert len(new) == 1 and "a.py" in new[0].read_text(encoding="utf-8")
