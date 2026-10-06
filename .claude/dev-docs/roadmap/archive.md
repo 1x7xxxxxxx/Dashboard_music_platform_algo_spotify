@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R430 — Faire piloter mes campagnes — retours du 2026-10-06 (2) : phrase « …objectifs (déclench… (livrée 2026-10-06)
+
+- [x] **R430 — Faire piloter mes campagnes — retours du 2026-10-06 (2) : phrase « …objectifs (déclenchement des algos Spotify) : optimisation de campagnes Meta Ads, optimisation des streams Spotify, créatives, bilans quotidiens » ; questionnaire PRÉ-REMPLI (300 à 1 000 €, moins de 2 semaines, pub Meta : oui) ; pays, créatives et smart link retirés ; « déjà fait de la pub Meta » en Oui/Non à cocher ; objectifs : + Shazam, − concert ; le bouton ENVOIE le mail depuis l'app (SMTP, Reply-To = l'artiste, borné par IP) au lieu d'ouvrir la messagerie — chaque demande est un mail compté** (P3) ✅ (2026-10-06, 0d622656)
+  Mesuré par : test de rendu : défauts pré-cochés, clic → un envoi SMTP au propriétaire portant les réponses et Reply-To ; plafond IP ; contrôle sur la prod
+  CI verte sur 0d622656 ; déployé en prod (dashboard healthy). La demande part depuis l'app vers l'adresse fixe, objet « 🎯 Demande de pilotage — <compte> », Reply-To = l'artiste ; 3 envois/h par compte, 20/h pour l'instance ; mailto seulement si l'envoi échoue.
+  Commits : 0d622656 R430 : Faire piloter — phrase « (déclenchement des algos Spotify) : op
+
 ## ✅ R428 — Rapport PDF — retour du 2026-10-06 : « Rapport de carrière PDF » renommé « Rapport PDF… (livrée 2026-10-06)
 
 - [x] **R428 — Rapport PDF — retour du 2026-10-06 : « Rapport de carrière PDF » renommé « Rapport PDF » (menu + titre), puis la vue VERROUILLÉE comme l'Accueil (R425) : photo figée sur des lectures rejouées + marqueur `` exigé par le hook commit-msg ; le verrou R425 est généralisé à une table de vues verrouillées** (P3) ✅ (2026-10-06, 4c0f9184, e232ec5c)
