@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R424 — Accueil — retours du 2026-10-06 (3) : total de streams centré ENTRE le graphique et le… (livrée 2026-10-06)
+
+- [x] **R424 — Accueil — retours du 2026-10-06 (3) : total de streams centré ENTRE le graphique et le donut (les deux tracés alignés), et dans chaque porte DW/Radio/RR une petite ligne « streams restants sur 28 j · budget » — cibles 28 j du modèle (DW 3 900 et Radio 2 000 non-algo, RR 2 000/7 j ramené à 8 000/28 j), budget = écart × meilleur CPR (1 clic = 1 écoute)** (P3) ✅ (2026-10-06, 554486bb)
+  Mesuré par : test pur de l'écart 28 j + render smoke + contrôle sur la prod
+  Total centré entre graphique et donut (3 colonnes, bandeau au milieu vertical) ; sous chaque porte, streams restants sur 28 j et budget = écart × CPR de la tuile Meta. Prod artiste 1 : DW 3 792 → 835 €, Radio 1 892 → 417 €, RR 8 000 → 1 761 € (CPR 0,22 €). CI verte sur 554486bb, déployé.
+  Commits : 554486bb R424 : Accueil — total centré entre le graphique et le donut, streams 
+
 ## ✅ R423 — Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… (livrée 2026-10-06)
 
 - [x] **R423 — Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… » retirée sous le donut, graphique cumulé et donut alignés sur une rangée, Meta Ads/Hypeddit/Shazam/Instagram sur une ligne de quatre en dessous, puis DW/Radio/RR avec une phrase qui dit ce qu'est le chiffre** (P3) ✅ (2026-10-06, 7a82ae9b)
