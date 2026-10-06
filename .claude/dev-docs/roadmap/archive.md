@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R423 — Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… (livrée 2026-10-06)
+
+- [x] **R423 — Accueil — retours du 2026-10-06 (2) : phrase « Voir quelle plateforme porte tes écoutes… » retirée sous le donut, graphique cumulé et donut alignés sur une rangée, Meta Ads/Hypeddit/Shazam/Instagram sur une ligne de quatre en dessous, puis DW/Radio/RR avec une phrase qui dit ce qu'est le chiffre** (P3) ✅ (2026-10-06, 7a82ae9b)
+  Mesuré par : rendu de l'Accueil (render smoke) + contrôle sur la prod
+  CI verte sur 7a82ae9b, déployé et vérifié dans le conteneur de prod
+  Commits : 7a82ae9b R423 : Accueil — graphique et donut sur une rangée, quatre tuiles en l
+
 ## ✅ R422 — Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu roug… (livrée 2026-10-06)
 
 - [x] **R422 — Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu rouge : l'audit de nuit (guard-mutation, mail du 2026-10-06 11:34) l'a signalé — le muter à la main et l'inscrire dans `SEEN_RED`** (P4) ✅ (2026-10-06, 5cb6ab2d)
