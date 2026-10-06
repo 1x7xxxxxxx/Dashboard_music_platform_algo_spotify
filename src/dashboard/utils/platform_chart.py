@@ -608,7 +608,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           recap_metrics=None,
                           key: str = "platform_chart",
                           decision_key: str | None = None,
-                          notes: bool = True) -> bool:
+                          notes: bool = True, log_periodic: bool = False) -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
     L'appelant décide quoi dire quand c'est False — cette fonction n'écrit ni
@@ -617,6 +617,10 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
     `notes=False` (R421, l'Accueil) : aucun texte sous la figure — ni la phrase de
     décision, ni le glossaire, ni les notes. Les boîtes du récapitulatif restent.
+
+    `log_periodic=True` (R427, l'Accueil) : en mode non cumulé, l'axe Y est
+    logarithmique — YouTube et SoundCloud (≈ 30/mois) ne sont plus collés au zéro
+    sous Spotify (≈ 700/mois), ce qui se lisait « pas de données ».
     """
     span, aligned = _window(series or {}, days, since, until)
     if not span or not aligned:
@@ -1074,6 +1078,13 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                    range=[0, 100] if mode == "share" else None,
                    ticksuffix=" %" if mode == "share" else None),
     )
+    if log_periodic and mode == "absolute":
+        # Unstacked too: stacked on a log axis, the small platforms ride on Spotify.
+        for tr in fig.data:
+            if getattr(tr, "stackgroup", None):
+                tr.update(stackgroup=None, fill="none",
+                          line=dict(width=2, color=tr.fillcolor or tr.line.color))
+        fig.update_yaxes(type="log", rangemode=None)
     # Les étiquettes de valeur vivent dans `platform_chart_labels` : ce fichier a
     # franchi 1 200 lignes le 2026-09-13 et `test_a_file_only_gets_shorter` l'a dit.
     # Figer la dette dans sa liste était l'option paresseuse ; la découper la retire.

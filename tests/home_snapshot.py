@@ -47,7 +47,10 @@ PHOTO = ROOT / "tests/fixtures/home_snapshot.json"
 FROZEN_DAY = _dt.date(2026, 10, 6)
 
 # (scenario, tenant): a tenant with history, and one on its first day.
-SCENARIOS = {"full": 1, "empty": 471}
+SCENARIOS = {"full": 1, "empty": 471, "full_not_cumulative": 1}
+# R427 — a scenario drawn with the « Cumulé » toggle switched OFF, on the data of the
+# scenario it is named after: the lock covers both modes of the chart.
+TOGGLED_OFF = {"full_not_cumulative": "full"}
 
 # Every function through which Home reads data. Patched where it is DEFINED: Home and
 # its helpers import them inside functions, so the patch is seen at call time.
@@ -136,6 +139,8 @@ def render(scenario: str, store: dict, record: bool = False):
     with _patched(artist_id, store, record):
         at = AppTest.from_string(SCRIPT.format(root=str(ROOT), artist_id=artist_id))
         at.run(timeout=180)
+        if scenario in TOGGLED_OFF:
+            at.toggle[0].set_value(False).run(timeout=180)
     if at.exception:
         raise AssertionError(f"home ({scenario}) raised: {at.exception[0].value}")
     errors = [e.value for e in at.error]
@@ -205,7 +210,7 @@ def load_data() -> dict:
 
 def write_photo() -> None:
     data = load_data()
-    shot = {s: render(s, data.get(s, {})) for s in SCENARIOS}
+    shot = {s: render(s, data.get(TOGGLED_OFF.get(s, s), {})) for s in SCENARIOS}
     PHOTO.write_text(json.dumps(shot, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
                      encoding="utf-8")
     print(f"✅ {PHOTO.relative_to(ROOT)} written — commit it under a roadmap row "
@@ -215,6 +220,8 @@ def write_photo() -> None:
 def record() -> None:
     data = {}
     for s in SCENARIOS:
+        if s in TOGGLED_OFF:
+            continue
         data[s] = {}
         render(s, data[s], record=True)
     DATA.write_bytes(pickle.dumps(data, protocol=4))

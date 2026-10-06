@@ -90,8 +90,8 @@ EN = {
     "home.trend_cumulative": "Cumulative",
     "home.trend_cumulative_help": (
         "On: the curve only rises and its last point is the period total. Off: each "
-        "point is what was gained over that step — useful on a short window, hard to "
-        "read over several years where one platform dwarfs the others."),
+        "point is what was gained over that step, on a logarithmic scale so the "
+        "smaller platforms stay readable next to Spotify."),
     # Tuiles + métriques dérivées du récapitulatif (2026-09-12)
     # Shazam sur l'accueil (R106, 2026-09-13) — ADR-025 le met dans le cœur du
     # produit ; il n'était sur aucun écran.

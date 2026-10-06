@@ -49,7 +49,8 @@ def _first_difference(want, got, path="") -> str:
 @pytest.mark.parametrize("scenario", sorted(home_snapshot.SCENARIOS))
 def test_home_renders_exactly_the_approved_photo(scenario: str) -> None:
     approved = json.loads(home_snapshot.PHOTO.read_text(encoding="utf-8"))[scenario]
-    got = home_snapshot.render(scenario, home_snapshot.load_data()[scenario])
+    data = home_snapshot.load_data()[home_snapshot.TOGGLED_OFF.get(scenario, scenario)]
+    got = home_snapshot.render(scenario, data)
     got = json.loads(json.dumps(got, ensure_ascii=False, sort_keys=True))
     assert got == approved, (
         f"L'Accueil ({scenario}) a changé — first difference at "

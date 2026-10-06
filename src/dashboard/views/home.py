@@ -352,8 +352,8 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         help=t("home.trend_cumulative_help",
                "Allumé : la courbe monte et son dernier point est le total de la "
                "période. Éteint : chaque point est ce qui a été gagné sur ce "
-               "pas-là — utile sur une fenêtre courte, peu lisible sur plusieurs "
-               "années où une plateforme écrase les autres."),
+               "pas-là, sur une échelle logarithmique pour que les petites "
+               "plateformes restent lisibles à côté de Spotify."),
     ) else "absolute")
 
     # ── LA LÉGENDE DU PAS A ÉTÉ RETIRÉE LE 2026-09-13, ET C'EST UN ARBITRAGE ────
@@ -460,6 +460,9 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         # R421 — « retire-moi tout le texte sous le graphique » (le propriétaire,
         # 2026-10-06) : ni phrase de décision, ni notes ; les Indicateurs restent.
         notes=False,
+        # R427 — « quand je décoche le cumulé, je n'ai pas les data pour SoundCloud et
+        # YouTube » (2026-10-06): they were there, flattened at zero under Spotify.
+        log_periodic=True,
         cumulative=cumulative, discarded=_discarded,
         # `recap=True` ET NON UNE COLONNE : sans conteneur, les indicateurs
         # tombent là où la figure les rend — juste sous elle, dans l'ordre de

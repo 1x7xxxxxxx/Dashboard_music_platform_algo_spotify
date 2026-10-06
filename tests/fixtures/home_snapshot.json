@@ -129,7 +129,7 @@
         "children": [
          {
           "default": true,
-          "help": "Allumé : la courbe monte et son dernier point est le total de la période. Éteint : chaque point est ce qui a été gagné sur ce pas-là — utile sur une fenêtre courte, peu lisible sur plusieurs années où une plateforme écrase les autres.",
+          "help": "Allumé : la courbe monte et son dernier point est le total de la période. Éteint : chaque point est ce qui a été gagné sur ce pas-là, sur une échelle logarithmique pour que les petites plateformes restent lisibles à côté de Spotify.",
           "label": "Cumulé",
           "labelVisibility": {},
           "type": "TOGGLE"
@@ -459,7 +459,7 @@
         "children": [
          {
           "default": true,
-          "help": "Allumé : la courbe monte et son dernier point est le total de la période. Éteint : chaque point est ce qui a été gagné sur ce pas-là — utile sur une fenêtre courte, peu lisible sur plusieurs années où une plateforme écrase les autres.",
+          "help": "Allumé : la courbe monte et son dernier point est le total de la période. Éteint : chaque point est ce qui a été gagné sur ce pas-là, sur une échelle logarithmique pour que les petites plateformes restent lisibles à côté de Spotify.",
           "label": "Cumulé",
           "labelVisibility": {},
           "type": "TOGGLE"
@@ -671,6 +671,502 @@
              "points": 42,
              "showlegend": true,
              "stackgroup": "g",
+             "type": "scatter"
+            }
+           ]
+          },
+          "type": "plotly_chart"
+         }
+        ],
+        "type": "column",
+        "weight": 0.5952
+       },
+       {
+        "children": [
+         {
+          "figure": {
+           "layout": {
+            "height": 340,
+            "margin": {
+             "b": 40,
+             "l": 40,
+             "r": 40,
+             "t": 40
+            },
+            "separators": ", ",
+            "showlegend": false
+           },
+           "traces": [
+            {
+             "hole": 0.35,
+             "labels": [
+              "Spotify",
+              "YouTube",
+              "Apple Music",
+              "SoundCloud"
+             ],
+             "marker": {
+              "colors": [
+               "#3acf84",
+               "#bd354b",
+               "#bd00a4",
+               "#e0631b"
+              ]
+             },
+             "points": 4,
+             "textposition": "auto",
+             "type": "pie"
+            }
+           ]
+          },
+          "type": "plotly_chart"
+         }
+        ],
+        "type": "column",
+        "weight": 0.4048
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "flexContainer": {
+       "align": "ALIGN_START",
+       "direction": "VERTICAL",
+       "gapConfig": {
+        "gapSize": "SMALL"
+       },
+       "justify": "JUSTIFY_START"
+      },
+      "heightConfig": {
+       "useContent": true
+      },
+      "type": "flex_container",
+      "widthConfig": {
+       "useStretch": true
+      }
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [
+           {
+            "body": "3 087,82 €",
+            "color": "GRAY",
+            "delta": "🎯 CPR 0,1090 € · 755,52 €",
+            "direction": "UP",
+            "help": "Dépense publicitaire de la période affichée, et le coût par résultat de la campagne la plus RÉCENTE — celle de la dernière sortie, pas le record de toutes les campagnes. Campagne : O chiotte l'arbitre Tucome Back.\n\n**Un « résultat » ici est un clic qui QUITTE le smart link** vers Spotify — l'évènement que Hypeddit renvoie à Meta. Ce n'est pas une écoute : personne ne sait si l'auditeur a lancé le titre. Meta optimise la diffusion sur ce clic, donc ce coût est un coût par clic sortant, pas un coût par écoute. Pour le prix d'une écoute réelle, voir la tuile « Coût par stream » de la page **Meta × Spotify**.",
+            "label": "📊 Meta Ads",
+            "labelVisibility": {},
+            "type": "metric"
+           }
+          ],
+          "type": "flex_container"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       },
+       {
+        "children": [
+         {
+          "children": [
+           {
+            "body": "45,7 %",
+            "color": "GRAY",
+            "delta": "👁️ 7 828 · 🖱️ 3 581",
+            "direction": "UP",
+            "help": "Meilleur taux de clic obtenu par un lien Hypeddit de la dernière sortie : clics divisés par visites. Il porte toute l'histoire de la campagne, pas la période affichée — ce chiffre ne bouge donc pas avec le filtre. Campagne : « Ô Chiotte l'arbitre tucome back ».",
+            "label": "📱 Hypeddit",
+            "labelVisibility": {},
+            "type": "metric"
+           }
+          ],
+          "type": "flex_container"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       },
+       {
+        "children": [
+         {
+          "children": [
+           {
+            "body": "1 770",
+            "color": "GRAY",
+            "delta": "🆕 Dernière sortie · 637",
+            "direction": "UP",
+            "help": "Shazams **depuis le début**, lus dans l'export Apple Music. C'est un relevé de dépôt et non une quantité du jour : il ne se découpe pas par période, et ce chiffre ne bouge donc pas avec le filtre. La seconde ligne est la dernière sortie, « Ô Chiotte l'arbitre Tucome Back - Original ».",
+            "label": "🎧 Shazam",
+            "labelVisibility": {},
+            "type": "metric"
+           }
+          ],
+          "type": "flex_container"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       },
+       {
+        "children": [
+         {
+          "children": [
+           {
+            "body": "1 517",
+            "delta": "-89",
+            "help": "Un EFFECTIF d'abonnés, pas un cumul d'écoutes : il ne se découpe pas par période et n'entre pas dans le total ci-dessus. L'écart est celui de la période affichée.",
+            "label": "📸 Instagram",
+            "labelVisibility": {},
+            "type": "metric"
+           }
+          ],
+          "type": "flex_container"
+         }
+        ],
+        "type": "column",
+        "weight": 0.25
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "body": "Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans chaque playlist algorithmique de Spotify.",
+      "elementType": "CAPTION",
+      "type": "caption",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "allowHtml": true,
+          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.78em; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🎯 Discover Weekly</div><div style=\"font-size:1.05em; font-weight:600;\">7,0 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 3 792 streams / 28 j · 💶 413 €</div></div>",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "allowHtml": true,
+          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.78em; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">📻 Radio</div><div style=\"font-size:1.05em; font-weight:600;\">11,1 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 1 892 streams / 28 j · 💶 206 €</div></div>",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       },
+       {
+        "children": [
+         {
+          "allowHtml": true,
+          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.78em; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🆕 Release Radar</div><div style=\"font-size:1.05em; font-weight:600;\">6,6 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">⛔ fenêtre des 28 premiers jours passée</div></div>",
+          "elementType": "NATIVE",
+          "type": "markdown",
+          "wrap": true
+         }
+        ],
+        "type": "column",
+        "weight": 0.3333
+       }
+      ],
+      "type": "flex_container"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ },
+ "full_not_cumulative": {
+  "children": [
+   {
+    "children": [
+     {
+      "children": [
+       {
+        "body": "Toutes les étapes de mise en route sont complètes. 🎉",
+        "format": "SUCCESS",
+        "type": "success",
+        "widthConfig": {
+         "useStretch": true
+        }
+       },
+       {
+        "body": "✅ 🔑 Configurer les API",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       },
+       {
+        "body": "✅ soundcloud · ❌ spotify · ❌ youtube · ✅ meta · ✅ instagram",
+        "elementType": "CAPTION",
+        "type": "caption",
+        "wrap": true
+       },
+       {
+        "body": "✅ 📂 Importer mes fichiers",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       },
+       {
+        "body": "✅ S4A — Timeline par titre · ✅ S4A — Résumé titres · ✅ S4A — Audience · ❌ Apple Music · ✅ iMusician — Résumé par sortie · ✅ iMusician — Rapport de vente · ❌ DistroKid — Bank details (TSV/CSV) · ✅ SACEM — Relevé de compte (xlsx)",
+        "elementType": "CAPTION",
+        "type": "caption",
+        "wrap": true
+       },
+       {
+        "body": "✅ 🔗 Valider le mapping cross-plateforme",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       },
+       {
+        "body": "✅ 📝 Saisir mes ajouts en playlist (S4A)",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       },
+       {
+        "body": "Optimise la précision des algorithmes prédictifs sur l'intégration des playlists Spotify (Discover Weekly, Radio, Release Radar).",
+        "elementType": "CAPTION",
+        "type": "caption",
+        "wrap": true
+       },
+       {
+        "body": "✅ 📄 Générer mon premier rapport PDF",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       }
+      ],
+      "type": "expander"
+     },
+     {
+      "body": "🎧 Tes chiffres",
+      "tag": "h3",
+      "type": "subheader",
+      "wrap": true
+     },
+     {
+      "default": [
+       0
+      ],
+      "label": "Période",
+      "labelVisibility": {
+       "value": "COLLAPSED"
+      },
+      "options": [
+       {
+        "content": "Depuis le début"
+       },
+       {
+        "content": "12 mois"
+       },
+       {
+        "content": "90 jours"
+       },
+       {
+        "content": "30 jours"
+       },
+       {
+        "content": "Sur mesure",
+        "contentIcon": "📅"
+       }
+      ],
+      "type": "button_group"
+     },
+     {
+      "children": [
+       {
+        "allowHtml": true,
+        "body": "<div title=\"Somme de toutes les plateformes mesurées. 🎬 YouTube 118 219 et ☁️ SoundCloud 23 486 sont des COMPTEURS À VIE : ils portent tout ce qui précède notre première collecte, et cette part-là n&#x27;a aucune date. Les écoutes Spotify, elles, sont comptées jour par jour.\" style=\"text-align:center; padding:8px 6px;\n            background:#f0f2f6; border-radius:8px; margin:0 auto 8px auto; max-width:320px;\">\n            <div style=\"color:#555; font-size:0.78em; font-weight:600;\">🎧 Total streams</div>\n            <div style=\"font-size:1.9em; line-height:1.1; color:#1DB954;\n                 font-weight:800;\">308 060</div>\n            <div style=\"color:#666; font-size:0.78em;\"></div>\n        </div>",
+        "elementType": "NATIVE",
+        "type": "markdown",
+        "wrap": true
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "default": true,
+          "help": "Allumé : la courbe monte et son dernier point est le total de la période. Éteint : chaque point est ce qui a été gagné sur ce pas-là, sur une échelle logarithmique pour que les petites plateformes restent lisibles à côté de Spotify.",
+          "label": "Cumulé",
+          "labelVisibility": {},
+          "type": "TOGGLE"
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "bgcolor": "#fcfcfb",
+              "borderpad": 2,
+              "font": {
+               "color": "#3acf84",
+               "size": 11
+              },
+              "opacity": 0.92,
+              "showarrow": false,
+              "text": "<b>39 712</b>",
+              "x": "2024-04-01",
+              "y": 39712.0,
+              "yshift": 9
+             },
+             {
+              "bgcolor": "#fcfcfb",
+              "borderpad": 2,
+              "font": {
+               "color": "#bd354b",
+               "size": 11
+              },
+              "opacity": 0.92,
+              "showarrow": false,
+              "text": "<b>98</b>",
+              "x": "2026-03-01",
+              "y": 1023.0,
+              "yshift": 9
+             },
+             {
+              "bgcolor": "#fcfcfb",
+              "borderpad": 2,
+              "font": {
+               "color": "#e0631b",
+               "size": 11
+              },
+              "opacity": 0.92,
+              "showarrow": false,
+              "text": "<b>163</b>",
+              "x": "2026-03-01",
+              "y": 1186.0,
+              "yshift": 9
+             }
+            ],
+            "font": {
+             "color": "#1a1a19"
+            },
+            "height": 340,
+            "hovermode": "x unified",
+            "legend": {
+             "bgcolor": "rgba(0,0,0,0)",
+             "font": {
+              "color": "#6b6b68",
+              "size": 11
+             },
+             "groupclick": "togglegroup",
+             "orientation": "h",
+             "x": 0,
+             "xanchor": "left",
+             "y": -0.18,
+             "yanchor": "top"
+            },
+            "margin": {
+             "b": 62,
+             "l": 56,
+             "r": 24,
+             "t": 12
+            },
+            "paper_bgcolor": "rgba(0,0,0,0)",
+            "plot_bgcolor": "rgba(0,0,0,0)",
+            "showlegend": true,
+            "title": {
+             "text": ""
+            },
+            "xaxis": {
+             "linecolor": "rgba(150,150,150,0.20)",
+             "showgrid": false,
+             "title": {}
+            },
+            "yaxis": {
+             "gridcolor": "rgba(150,150,150,0.20)",
+             "title": {},
+             "type": "log",
+             "zeroline": false
+            }
+           },
+           "traces": [
+            {
+             "hovertemplate": "pas encore collectée — depuis le 2025-12-01<extra>🎬 YouTube</extra>",
+             "marker": {
+              "color": "rgba(0,0,0,0)",
+              "size": 0.1
+             },
+             "mode": "markers",
+             "name": "🎬 YouTube",
+             "points": 35,
+             "showlegend": false,
+             "type": "scatter"
+            },
+            {
+             "hovertemplate": "pas encore collectée — depuis le 2026-01-01<extra>☁️ SoundCloud</extra>",
+             "marker": {
+              "color": "rgba(0,0,0,0)",
+              "size": 0.1
+             },
+             "mode": "markers",
+             "name": "☁️ SoundCloud",
+             "points": 36,
+             "showlegend": false,
+             "type": "scatter"
+            },
+            {
+             "fill": "none",
+             "hovertemplate": "%{y:,} %{customdata[0]}<extra>🎵 Spotify</extra>",
+             "line": {
+              "color": "#3acf84",
+              "width": 2
+             },
+             "mode": "lines",
+             "name": "🎵 Spotify",
+             "points": 42,
+             "showlegend": true,
+             "type": "scatter"
+            },
+            {
+             "fill": "none",
+             "hovertemplate": "%{y:,} %{customdata[0]}<extra>🎬 YouTube</extra>",
+             "line": {
+              "color": "#bd354b",
+              "width": 2
+             },
+             "mode": "lines",
+             "name": "🎬 YouTube",
+             "points": 42,
+             "showlegend": true,
+             "type": "scatter"
+            },
+            {
+             "fill": "none",
+             "hovertemplate": "%{y:,} %{customdata[0]}<extra>☁️ SoundCloud</extra>",
+             "line": {
+              "color": "#e0631b",
+              "width": 2
+             },
+             "mode": "lines",
+             "name": "☁️ SoundCloud",
+             "points": 42,
+             "showlegend": true,
              "type": "scatter"
             }
            ]
