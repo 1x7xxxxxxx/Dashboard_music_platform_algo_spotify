@@ -9,6 +9,16 @@ import pandas as pd
 # Rendre src/ importable sans installation du package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Run from a git hook (pre-commit → tools/dev/run_readers.py), pytest inherits the
+# variables git exports to bind ITS invocation to THIS repo. A test that runs `git add`
+# in a throwaway repo then writes into this repo's index — measured 2026-10-06: the
+# index pointed at a foreign blob and `git status` died with `unable to read <sha>`.
+# Eight test files build such repos; dropping the binding here covers all of them.
+GIT_BINDING_VARS = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY",
+                    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR", "GIT_PREFIX")
+for _var in GIT_BINDING_VARS:
+    os.environ.pop(_var, None)
+
 
 # ---------------------------------------------------------------------------
 # Helpers CSV en mémoire (pas de fichiers temporaires nécessaires)
