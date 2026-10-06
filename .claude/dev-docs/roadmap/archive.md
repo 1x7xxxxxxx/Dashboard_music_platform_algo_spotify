@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R422 — Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu roug… (livrée 2026-10-06)
+
+- [x] **R422 — Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu rouge : l'audit de nuit (guard-mutation, mail du 2026-10-06 11:34) l'a signalé — le muter à la main et l'inscrire dans `SEEN_RED`** (P4) ✅ (2026-10-06, 5cb6ab2d)
+  Mesuré par : le job guard-mutation de l'audit de nuit ne liste plus ce garde en ✗
+  Garde R418 muté à la main (2 rouges : verdicts rejoués retirés ; success gardé dans le ledger) et inscrit dans SEEN_RED ; mail ops 2026-10-06 11:34 trié (réel). CI verte sur 5cb6ab2d.
+  Commits : 5cb6ab2d R422 : le garde R418 est vu rouge à la main, inscrit dans SEEN_RED
+
 ## ✅ R421 — Accueil — retours du propriétaire du 2026-10-06 : plus aucun texte sous le graphique cu… (livrée 2026-10-06)
 
 - [x] **R421 — Accueil — retours du propriétaire du 2026-10-06 : plus aucun texte sous le graphique cumulé (Accueil seul, Indicateurs gardés), donut dont l'étiquette SoundCloud est coupée, bandeaux Spotify/YouTube/Apple/SoundCloud retirés (le donut les porte), portes DW/Radio/RR en probabilité prédite brute même sur le plancher (décision explicite), phrases « Ta dernière sortie » et « Budget Meta pour déclencher » retirées** (P3) ✅ (2026-10-06, 34f2652c)

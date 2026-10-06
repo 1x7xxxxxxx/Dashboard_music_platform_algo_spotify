@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R422 | Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu rouge : l'audit de nuit (guard-mutation, mail du 2026-10-06 11:34) l'a signalé — le muter à la main et l'inscrire dans `SEEN_RED` <!-- critic: non — enregistrement d'une preuve, aucun code produit --> <!-- scope: tools/dev/, .claude/dev-docs/ops-mail-journal.md --> | P4 | le job guard-mutation de l'audit de nuit ne liste plus ce garde en ✗ |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R422 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
