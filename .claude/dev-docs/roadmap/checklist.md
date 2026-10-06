@@ -31,6 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R421 | Accueil — retours du propriétaire du 2026-10-06 : plus aucun texte sous le graphique cumulé (Accueil seul, Indicateurs gardés), donut dont l'étiquette SoundCloud est coupée, bandeaux Spotify/YouTube/Apple/SoundCloud retirés (le donut les porte), portes DW/Radio/RR en probabilité prédite brute même sur le plancher (décision explicite), phrases « Ta dernière sortie » et « Budget Meta pour déclencher » retirées <!-- critic: non — retraits d'affichage demandés, un seul réglage de mise en page --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/utils/platform_chart.py, src/dashboard/utils/charts.py, src/dashboard/utils/platform_share.py, src/dashboard/utils/i18n_catalog/home.py, tools/dev/build_chart_decisions.py, tools/dev/charts_dossier/, src/dashboard/content/, tests/ --> | P3 | rendu de l'Accueil (smoke AppTest) + PNG du donut lu |
+| R422 | Le garde R418 `test_the_admin_screen_says_what_the_mail_says.py` n'a jamais été vu rouge : l'audit de nuit (guard-mutation, mail du 2026-10-06 11:34) l'a signalé — le muter à la main et l'inscrire dans `SEEN_RED` <!-- critic: non — enregistrement d'une preuve, aucun code produit --> <!-- scope: tools/dev/, .claude/dev-docs/ops-mail-journal.md --> | P4 | le job guard-mutation de l'audit de nuit ne liste plus ce garde en ✗ |
 
 ---
 
@@ -86,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R421 -->
+<!-- reprise: open=R421,R422 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
