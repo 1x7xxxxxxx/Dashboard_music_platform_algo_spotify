@@ -138,12 +138,19 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                        CURRENT_DATE - r.first_streamed       AS days_since_release,
                        p.dw_probability    AS dw,
                        p.rr_probability    AS rr,
-                       p.radio_probability AS radio
+                       p.radio_probability AS radio,
+                       -- R424 — what each gate's 28-day target is measured against:
+                       -- the model's non-algo streams (DW, Radio) and the release's
+                       -- streams over the last 28 days (RR). Same row, no new trip.
+                       (p.features_json->>'NonAlgoStreams28Days_log')::float AS nonalgo28_log,
+                       (SELECT SUM(d.streams) FROM v_s4a_song_daily d
+                         WHERE d.artist_id = %s AND d.song = r.song
+                           AND d.day > CURRENT_DATE - 28)  AS streams28
                   FROM (SELECT song, first_streamed FROM v_s4a_song_measured_span
                          WHERE artist_id = %s AND first_streamed IS NOT NULL
                          ORDER BY first_streamed DESC, song LIMIT 1) r
                   LEFT JOIN LATERAL (
-                        SELECT dw_probability, rr_probability, radio_probability
+                        SELECT dw_probability, rr_probability, radio_probability, features_json
                           FROM ml_song_predictions
                          WHERE artist_id = %s AND song = r.song
                          ORDER BY prediction_date DESC LIMIT 1) p ON TRUE
@@ -339,6 +346,8 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
               (SELECT dw FROM last_release)                         AS release_dw,
               (SELECT rr FROM last_release)                         AS release_rr,
               (SELECT radio FROM last_release)                      AS release_radio,
+              (SELECT nonalgo28_log FROM last_release)              AS release_nonalgo28_log,
+              (SELECT streams28 FROM last_release)                  AS release_streams28,
               -- ── SHAZAM : LE CATALOGUE, PUIS LA DERNIÈRE SORTIE ──────────────
               --
               -- ADR-025 met Shazam dans le cœur du produit ; il n'était sur aucun
@@ -426,7 +435,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                   WHERE artist_id = %s AND placement IS NOT NULL
                   GROUP BY 1) x)                             AS axe_placement
         """, (artist_id, since, since, until, until,     # best_cpr
-              artist_id, artist_id,                       # apple_song, last_release
+              artist_id, artist_id, artist_id,            # last_release (streams28, span, lateral)
               artist_id, since, since, until, until,      # hypeddit_release
               artist_id, artist_id,                       # best_algo
               # ig_first / ig_last : 5 paramètres chacun depuis la migration 121
@@ -448,6 +457,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
      best_cpr_last_day, meta_last_day, meta_active, meta_campaigns_known,
      best_algo_p, best_algo_name, best_algo_song,
      release_song, release_age, release_dw, release_rr, release_radio,
+     release_nonalgo28_log, release_streams28,
      shazam_total, shazam_release,
      hypeddit_ctr, hypeddit_visits, hypeddit_clicks, hypeddit_campaign,
      cash_sorti, cash_rentre, cash_sacem, axe_age, axe_pays, axe_placement) = rows[0]
@@ -492,6 +502,12 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
         "release_dw": float(release_dw) if release_dw else None,
         "release_rr": float(release_rr) if release_rr else None,
         "release_radio": float(release_radio) if release_radio else None,
+        # R424 — the two measures each gate's 28-day gap starts from (`is not None`:
+        # zero streams is a measure, not an absence).
+        "release_nonalgo28_log": (float(release_nonalgo28_log)
+                                  if release_nonalgo28_log is not None else None),
+        "release_streams28": (int(release_streams28)
+                              if release_streams28 is not None else None),
         # SHAZAM — un RELEVÉ de dépôt, pas une quantité datée : ces deux nombres ne
         # se découpent pas par période, exactement comme la tuile Apple. La surface
         # qui les affiche doit le dire.

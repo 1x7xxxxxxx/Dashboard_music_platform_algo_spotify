@@ -57,6 +57,49 @@ def _format_gate(val) -> str:
     return f"{p * 100:.1f}".replace(".", ",") + " %"
 
 
+#: R424 — each gate's 28-day target and the measure it starts from. DW and Radio: the
+#: model's own non-algo threshold (`ALGO_FEATURE_ZONES`). RR has only a release-week
+#: threshold (2 000 / 7 d); the owner chose to bring it to 28 days, ×4 (2026-10-06).
+_GATE_28D = (("release_dw", "DW", "NonAlgoStreams28Days", 1),
+             ("release_radio", "RADIO", "NonAlgoStreams28Days", 1),
+             ("release_rr", "RR", "StreamsLast7Days", 4))
+
+
+def gate_gaps_28d(nonalgo28_log, streams28) -> dict:
+    """{gate key: streams still missing over the next 28 days}. Pure.
+
+    A gate whose measure is unknown (no prediction → no non-algo figure) is left out
+    rather than shown as the whole target: « nothing measured » is not « zero ». RR's
+    measure is the release's streams over the last 28 days, where no row means none.
+    """
+    import math
+
+    from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES
+
+    nonalgo = math.expm1(nonalgo28_log) if nonalgo28_log is not None else None
+    out = {}
+    for key, algo, fid, mult in _GATE_28D:
+        target = (ALGO_FEATURE_ZONES.get(algo, {}).get(fid) or {}).get("target")
+        current = nonalgo if fid == "NonAlgoStreams28Days" else (streams28 or 0)
+        if target is None or current is None:
+            continue
+        out[key] = max(0, round(target * mult - current))
+    return out
+
+
+def _gate_sub(gap, cpr) -> str:
+    """The small line under a gate: what is left over 28 days, and its price. Pure."""
+    if gap is None:
+        return ""
+    if gap == 0:
+        return t("home.gate_28d_met", "✅ objectif 28 j atteint")
+    line = t("home.gate_28d_gap", "📈 {n} streams / 28 j").format(
+        n=f"{gap:,}".replace(",", "\u202f"))
+    if cpr:
+        line += " · 💶 " + f"{gap * cpr:,.0f}".replace(",", "\u202f") + "\u00a0€"
+    return line
+
+
 def agencer(unites: list, par_rangee: int = 2) -> list[list]:
     """Range les unités en rangées SANS jamais en couper une.
 
@@ -93,17 +136,25 @@ def agencer(unites: list, par_rangee: int = 2) -> list[list]:
 
 
 def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
-                            delta: str | None) -> None:
-    """The total banner, then each platform's share of it (the donut)."""
+                            delta: str | None, total_slot=None, share_slot=None) -> None:
+    """The total banner, then each platform's share of it (the donut).
+
+    R424 — « le total au milieu entre le graphique et le diagramme circulaire, où ça
+    fait référence aux deux » (2026-10-06): the banner goes in its own middle column,
+    so the donut column holds the plot alone and lines up with the figure.
+    """
     # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
     # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
     # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
-    st.markdown(
+    # The row is bottom-aligned on the plots (340 px): the bottom margin lifts the
+    # banner to their vertical middle.
+    (total_slot or st).markdown(
         f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
-            background:#f0f2f6; border-radius:8px; margin-bottom:8px;">
+            background:#f0f2f6; border-radius:8px; margin-bottom:{
+                "120px" if total_slot is not None else "8px"};">
             <div style="color:#555; font-size:0.78em; font-weight:600;">{
                 t("home.total_all_platforms", "🎧 Total streams")}</div>
-            <div style="font-size:2.3em; line-height:1.1; color:#1DB954;
+            <div style="font-size:1.9em; line-height:1.1; color:#1DB954;
                  font-weight:800;">{_grand_fmt}</div>
             <div style="color:#666; font-size:0.78em;">{
                 delta or ""}</div>
@@ -118,13 +169,14 @@ def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
     if _pie is not None:
         # R423 — no decision line under the donut: « Voir quelle plateforme porte tes
         # écoutes… » was « inutile » (the owner, 2026-10-06).
-        charts.plotly_chart(_pie, width="stretch", key="home_platform_share",
-                            decision=False)
+        with share_slot if share_slot is not None else contextlib.nullcontext():
+            charts.plotly_chart(_pie, width="stretch", key="home_platform_share",
+                                decision=False)
 
 
 def render_tiles(totals: dict, grand_total: int, ig_count: int,
                   side: dict | None = None, prev_grand: int | None = None,
-                  share_slot=None) -> None:
+                  share_slot=None, total_slot=None) -> None:
     """Les KPI de l'accueil — trois blocs.
 
     R423 (2026-10-06) — « sur la même ligne horizontale le graphique cumulé et le
@@ -222,9 +274,14 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # de l'infobulle qu'on vient d'y mettre — les siennes sont du texte, pas des
     # milliers. Le défaut n'existait pas tant que le gabarit n'était que du HTML.
     _grand_fmt = f"{grand_total:,}".replace(",", "\u202f")
-    with share_slot if share_slot is not None else contextlib.nullcontext():
+    if total_slot is not None:
         _render_total_and_share(_t, _grand_fmt, _banner_title,
-                                _delta(grand_total, prev_grand))
+                                _delta(grand_total, prev_grand),
+                                total_slot=total_slot, share_slot=share_slot)
+    else:
+        with share_slot if share_slot is not None else contextlib.nullcontext():
+            _render_total_and_share(_t, _grand_fmt, _banner_title,
+                                    _delta(grand_total, prev_grand))
 
     # ── L'ORDRE SUIT LA DONNÉE — 2026-09-22 ────────────────────────────────
     #
@@ -443,6 +500,11 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             "Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans "
             "chaque playlist algorithmique de Spotify."))
         g1, g2, g3 = st.columns(3)
+        # R424 — under each percentage, « en tout petit […] comme Meta, Hypeddit,
+        # Shazam et Instagram »: the streams left over 28 days and their price at the
+        # best CPR, read as 1 click = 1 stream (the owner's choice, 2026-10-06).
+        _gaps = gate_gaps_28d(_s.get("release_nonalgo28_log"),
+                              _s.get("release_streams28"))
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
             # R346 — compact HTML, not `st.metric`: its label/value fonts are fixed and
@@ -456,5 +518,11 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                                      "algorithmique. Ce n'est pas un taux observé. Au "
                                      "plancher du modèle, ce chiffre est le même pour "
                                      "tous les titres.").format(
-                                         song=_s.get("release_song") or "—")),
+                                         song=_s.get("release_song") or "—")
+                                   + " " + t("home.gate_28d_help",
+                                             "En dessous : les streams qui manquent sur "
+                                             "28 jours pour atteindre le seuil du modèle, "
+                                             "et leur coût au meilleur CPR, en comptant "
+                                             "un clic pour une écoute."),
+                                   sub=_gate_sub(_gaps.get(key), _cpr)),
                          unsafe_allow_html=True)

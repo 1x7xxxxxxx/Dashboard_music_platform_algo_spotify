@@ -155,7 +155,9 @@ def _section_streams(db, artist_id):
     # and the donut, both 340 px high, aligned on their BOTTOM edge: what sits above
     # each (the Cumulé toggle, the total banner) differs in height, the plots do not.
     # The Indicateurs, the four boxes and the three gates follow, full width.
-    col_fig, col_kpi = st.columns([3, 2], vertical_alignment="bottom")
+    # R424 — « le total au milieu entre le graphique et le diagramme circulaire » : a
+    # third, narrow column between them holds the banner, the donut stands alone.
+    col_fig, col_total, col_kpi = st.columns([5, 1.6, 3.4], vertical_alignment="bottom")
     recap_slot = st.container()
     with col_fig:
         # `totals` et `_side` sont DÉJÀ calculés au-dessus : les repasser évite de
@@ -164,7 +166,8 @@ def _section_streams(db, artist_id):
                       totals=totals, side=_side, recap_slot=recap_slot)
     from src.dashboard.views.home_tiles import render_tiles
     render_tiles(totals, grand_total, ig_count,
-                 side=_side, prev_grand=_prev_grand, share_slot=col_kpi)
+                 side=_side, prev_grand=_prev_grand, share_slot=col_kpi,
+                 total_slot=col_total)
 
     # R373 (2026-10-05, V6) — l'accueil s'arrête aux chiffres. Quatre blocs sont partis
     # là où l'on vient les chercher : le conseil Meta sur la page Publicité Meta Ads
