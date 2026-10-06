@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R418 — Vue admin : ce que le mail du soir dit de la collecte, lisible sans le mail — « 🔴 ne co… (livrée 2026-10-06)
+
+- [x] **R418 — Vue admin : ce que le mail du soir dit de la collecte, lisible sans le mail — « 🔴 ne collecte pas » (`readiness_red_flags` + dernier verdict de sonde mémorisé), échecs de collecte par locataire avec leur ancienneté (`etl_run_log`, même requête que `check_collection_outcomes`, extraite dans `src/utils/collection_outcomes.py`), inscrits sans source déclarée — demande du propriétaire (« je supprime les mails »)** (P3) ✅ (2026-10-06, 46786dfc)
+  Mesuré par : rendu de `admin?admin_onglet=sante` sur base live : mêmes locataires/plateformes que l'objet du mail du 2026-10-06 (Benken Meta, GRiNCH SoundCloud)
+  Écran admin Santé → « 🔴 Collecte par artiste » : échecs du journal (mêmes lignes que le mail, collection_failures partagé avec alert_monitor) + connecté-sans-données + inscrits bloqués ; verdicts de sonde rejoués, aucun appel API. 4 tests (dont 1 sur base), CI verte sur 46786dfc.
+  Commits : 46786dfc R418 : la collecte par artiste dans la vue admin, sans le mail
+
 ## ✅ R417 — Harnais : les 6 suggestions de hook jamais suivies (48 séances, 0 invocation) — `/retro… (livrée 2026-10-06)
 
 - [x] **R417 — Harnais : les 6 suggestions de hook jamais suivies (48 séances, 0 invocation) — `/retro` 2018×, `continuous-learning` 1796×, `/rex-promote` 927× (`session_summary.py`, `draft_rex.py`), `/adr` 198×, `/curator` 116× (`session_summary.py:450`), `/dev-docs` 39× (playbooks injectés) : pour chacune, la suivre ou retirer la suggestion du hook qui l'imprime — règle « un déclencheur qui ne se produit jamais ⇒ retirer » ; décision du propriétaire attendue par suggestion** (P4) ✅ (2026-10-06, eb32d8c6)

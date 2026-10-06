@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R418 | Vue admin : ce que le mail du soir dit de la collecte, lisible sans le mail — « 🔴 ne collecte pas » (`readiness_red_flags` + dernier verdict de sonde mémorisé), échecs de collecte par locataire avec leur ancienneté (`etl_run_log`, même requête que `check_collection_outcomes`, extraite dans `src/utils/collection_outcomes.py`), inscrits sans source déclarée — demande du propriétaire (« je supprime les mails ») <!-- critic: requis — nouvelle lecture en vue admin + requête déplacée hors du DAG --> <!-- scope: src/utils/collection_outcomes.py, src/utils/artist_readiness.py, airflow/dags/alert_monitor.py, src/dashboard/views/admin.py, src/dashboard/views/admin_collection.py, src/dashboard/utils/status_matrix.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | rendu de `admin?admin_onglet=sante` sur base live : mêmes locataires/plateformes que l'objet du mail du 2026-10-06 (Benken Meta, GRiNCH SoundCloud) |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R418 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
