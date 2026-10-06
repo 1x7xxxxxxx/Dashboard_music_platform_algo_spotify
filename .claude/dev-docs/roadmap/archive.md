@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R431 — Rapport PDF — retour du 2026-10-06 (2) : les deux textes d'explication retirés (« Confi… (livrée 2026-10-06)
+
+- [x] **R431 — Rapport PDF — retour du 2026-10-06 (2) : les deux textes d'explication retirés (« Configurez le rapport… » sous le titre, « Les sections pub & revenus… » sous la période) ; le bouton « 📄 Générer le rapport PDF » centré ; la photo figée R428 est réapprouvée sous cette ligne, le verrou reste en place** (P3) ✅ (2026-10-06, 43c6a663)
+  Mesuré par : photo du Rapport PDF régénérée : les deux textes absents, le bouton dans la colonne centrale
+  CI verte sur 43c6a663 ; déployé en prod (dashboard healthy, texte absent du conteneur). Photo figée réapprouvée, verrou R428 inchangé.
+  Commits : 43c6a663 R431 : Rapport PDF — les deux textes d'explication retirés (« Configur
+
 ## ✅ R430 — Faire piloter mes campagnes — retours du 2026-10-06 (2) : phrase « …objectifs (déclench… (livrée 2026-10-06)
 
 - [x] **R430 — Faire piloter mes campagnes — retours du 2026-10-06 (2) : phrase « …objectifs (déclenchement des algos Spotify) : optimisation de campagnes Meta Ads, optimisation des streams Spotify, créatives, bilans quotidiens » ; questionnaire PRÉ-REMPLI (300 à 1 000 €, moins de 2 semaines, pub Meta : oui) ; pays, créatives et smart link retirés ; « déjà fait de la pub Meta » en Oui/Non à cocher ; objectifs : + Shazam, − concert ; le bouton ENVOIE le mail depuis l'app (SMTP, Reply-To = l'artiste, borné par IP) au lieu d'ouvrir la messagerie — chaque demande est un mail compté** (P3) ✅ (2026-10-06, 0d622656)

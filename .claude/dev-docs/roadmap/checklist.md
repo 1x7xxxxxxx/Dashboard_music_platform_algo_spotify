@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R431 | Rapport PDF — retour du 2026-10-06 (2) : les deux textes d'explication retirés (« Configurez le rapport… » sous le titre, « Les sections pub & revenus… » sous la période) ; le bouton « 📄 Générer le rapport PDF » centré ; la photo figée R428 est réapprouvée sous cette ligne, le verrou reste en place <!-- rapport_pdf: oui --> <!-- critic: non — retrait de deux textes et déplacement d'un bouton, aucune donnée ni requête touchée --> <!-- scope: src/dashboard/views/export_pdf.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | photo du Rapport PDF régénérée : les deux textes absents, le bouton dans la colonne centrale |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R431 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
