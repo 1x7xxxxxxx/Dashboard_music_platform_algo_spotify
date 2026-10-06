@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R425 — Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque co… (livrée 2026-10-06)
+
+- [x] **R425 — Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque commit ; un écart refuse le commit sauf si la ligne de roadmap citée nomme l'Accueil (« je modifiais une page et l'autre était modifiée », 2026-10-06)** (P3) ✅ (2026-10-06, 7f183f45)
+  Mesuré par : le garde vu rouge sur un changement d'un module partagé
+  Photo de l'Accueil (2 scénarios, 11 lecteurs rejoués) comparée à chaque exécution ; verrou home:oui dans le commit-msg et le rejugement CI. Mutations : 3 rendus rouges + verrou rouge. CI verte sur 7f183f45.
+  Commits : 7f183f45 R425 : Accueil figé — photo rendue sur données rejouées, et verrou de 
+
 ## ✅ R424 — Accueil — retours du 2026-10-06 (3) : total de streams centré ENTRE le graphique et le… (livrée 2026-10-06)
 
 - [x] **R424 — Accueil — retours du 2026-10-06 (3) : total de streams centré ENTRE le graphique et le donut (les deux tracés alignés), et dans chaque porte DW/Radio/RR une petite ligne « streams restants sur 28 j · budget » — cibles 28 j du modèle (DW 3 900 et Radio 2 000 non-algo, RR 2 000/7 j ramené à 8 000/28 j), budget = écart × meilleur CPR (1 clic = 1 écoute)** (P3) ✅ (2026-10-06, 554486bb)
