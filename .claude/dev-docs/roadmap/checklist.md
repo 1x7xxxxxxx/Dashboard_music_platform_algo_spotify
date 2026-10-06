@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R420 | Le hook PreCompact écrase un instantané quand deux appels tombent sur le même nom à la seconde : l'horloge murale WSL recule (Hyper-V TimeSync, pas de −1,78 s mesuré, 88 sauts depuis le 2026-10-05) — cause des 3 rouges intermittents de `test_a_dirty_tree_is_saved_once_per_state` <!-- critic: non — une boucle de suffixe sur un nom déjà pris, aucun design en jeu --> <!-- scope: .claude/hooks/pre_compact.py, tests/ --> | P4 | test qui pré-occupe les noms de la fenêtre et exige qu'aucun ne soit réécrit |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R420 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

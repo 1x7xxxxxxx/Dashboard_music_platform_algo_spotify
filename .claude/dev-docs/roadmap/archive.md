@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R420 — Le hook PreCompact écrase un instantané quand deux appels tombent sur le même nom à la… (livrée 2026-10-06)
+
+- [x] **R420 — Le hook PreCompact écrase un instantané quand deux appels tombent sur le même nom à la seconde : l'horloge murale WSL recule (Hyper-V TimeSync, pas de −1,78 s mesuré, 88 sauts depuis le 2026-10-05) — cause des 3 rouges intermittents de `test_a_dirty_tree_is_saved_once_per_state`** (P4) ✅ (2026-10-06, 2d227779)
+  Mesuré par : test qui pré-occupe les noms de la fenêtre et exige qu'aucun ne soit réécrit
+  suffixe -n sur un nom d'instantané déjà pris ; horloge WSL mesurée en recul de 1,78 s (88 sauts depuis le 2026-10-05) ; garde muté rouge ; CI verte sur 2d227779. Images Airflow de prod reconstruites le même jour pour R419 (werkzeug 3.1.9, multidict 6.9.1 vérifiés dans le conteneur).
+  Commits : 2d227779 R420 : un instantané PreCompact n'est plus écrasé quand l'horloge WSL 
+
 ## ✅ R419 — pip-audit nocturne rouge depuis le 2026-10-06 : CVE-2026-102598 werkzeug 3.1.8 (`safe_j… (livrée 2026-10-06)
 
 - [x] **R419 — pip-audit nocturne rouge depuis le 2026-10-06 : CVE-2026-102598 werkzeug 3.1.8 (`safe_join` et noms de périphériques Windows, corrigé en 3.1.9) et CVE-2026-104874 multidict 6.7.1 (fuite de référence, corrigé en 6.9.1), toutes deux transitives — montée du lock + planchers comme R341** (P1) ✅ (2026-10-06, 210d00e3)
