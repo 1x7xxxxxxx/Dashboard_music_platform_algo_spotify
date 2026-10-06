@@ -49,6 +49,10 @@ dependencies = [
     # PYSEC-2026-4140..4152 fixed in 2.15, PYSEC-2026-4175..4177 in urllib3 2.8).
     "PyJWT>=2.15.0",
     "urllib3>=2.8.0",
+    # R419 — CVE-2026-102598 (werkzeug < 3.1.9) and CVE-2026-104874 (multidict < 6.9.1),
+    # both transitive (Flask/Airflow, aiohttp): floors for the pip-built images.
+    "werkzeug>=3.1.9",
+    "multidict>=6.9.1",
     "passlib[bcrypt]>=1.7.4",
     # bcrypt 4.1+ rejects passwords >72 bytes with ValueError, breaking
     # passlib 1.7.4's detect_wrap_bug probe (73-byte secret). Without this
