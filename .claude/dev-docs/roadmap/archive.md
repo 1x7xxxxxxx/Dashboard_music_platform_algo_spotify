@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R421 — Accueil — retours du propriétaire du 2026-10-06 : plus aucun texte sous le graphique cu… (livrée 2026-10-06)
+
+- [x] **R421 — Accueil — retours du propriétaire du 2026-10-06 : plus aucun texte sous le graphique cumulé (Accueil seul, Indicateurs gardés), donut dont l'étiquette SoundCloud est coupée, bandeaux Spotify/YouTube/Apple/SoundCloud retirés (le donut les porte), portes DW/Radio/RR en probabilité prédite brute même sur le plancher (décision explicite), phrases « Ta dernière sortie » et « Budget Meta pour déclencher » retirées** (P3) ✅ (2026-10-06, 34f2652c)
+  Mesuré par : rendu de l'Accueil (smoke AppTest) + PNG du donut lu
+  Accueil : textes sous le graphique retirés, donut entier (automargin, 340 px), 4 tuiles d'écoute retirées, portes à la probabilité prédite max (plancher compris), phrases release/budget retirées ; 12 gardes adaptés. CI verte sur 34f2652c.
+  Commits : 34f2652c R421 : Accueil — retours du propriétaire du 2026-10-06
+
 ## ✅ R420 — Le hook PreCompact écrase un instantané quand deux appels tombent sur le même nom à la… (livrée 2026-10-06)
 
 - [x] **R420 — Le hook PreCompact écrase un instantané quand deux appels tombent sur le même nom à la seconde : l'horloge murale WSL recule (Hyper-V TimeSync, pas de −1,78 s mesuré, 88 sauts depuis le 2026-10-05) — cause des 3 rouges intermittents de `test_a_dirty_tree_is_saved_once_per_state`** (P4) ✅ (2026-10-06, 2d227779)
