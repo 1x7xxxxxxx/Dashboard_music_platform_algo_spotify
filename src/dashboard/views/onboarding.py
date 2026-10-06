@@ -166,19 +166,22 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # tirées des données du locataire, qui n'en a pas le premier jour. Une vue d'ensemble
     # sous la phrase, puis les deux promesses côte à côte, même hauteur, dans l'ordre :
     # prédiction des algos, puis campagnes. Chaque image porte « Exemple ».
+    #
+    # R435 (2026-10-07) : « les trois graphiques de la même taille … une, deux, trois,
+    # équidistants » — trois colonnes égales, l'image EN HAUT pour que les trois
+    # s'alignent quelle que soit la longueur de leur ligne, la ligne dessous.
     st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
-    st.markdown(t("onboarding.brief_1",
-                  "**Toutes tes données au même endroit, récupérées chaque jour, "
-                  "automatiquement.**"))
-    render_example(OVERVIEW)
-    for col, name, line in zip(st.columns(2), PROMISES, (
+    for col, name, line in zip(st.columns(3, gap="medium"), (OVERVIEW, *PROMISES), (
+            t("onboarding.brief_1",
+              "**Toutes tes données au même endroit, récupérées chaque jour, "
+              "automatiquement.**"),
             t("onboarding.promise_algo",
               "**Prédire Discover Weekly, Release Radar et Radio**"),
             t("onboarding.promise_campaign",
               "**Savoir quel euro de pub a produit quelles écoutes**"))):
         with col:
-            st.markdown(line)
             render_example(name)
+            st.markdown(line)
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",
@@ -315,7 +318,9 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # centrage. Même raison que pour les cellules encadrées du sélecteur.
     _l, _mid, _r = st.columns([1, 2, 1])
     with _mid:
-        if st.button(t("onboarding.go_configure", "🔑 Connecter mes sources →"),
+        # R435 (2026-10-07) : le bouton DIT où il mène — « Connecter mes sources »
+        # est le bouton de l'étape 2, pas de celle-ci.
+        if st.button(t("onboarding.go_status", "➡️ 2. Où tu en es"),
                      type="primary", width="stretch", key="_onb_go_creds"):
             # « Où tu en es », pas Credentials (R347) : l'assistant n'a que deux
             # étapes et ce bouton mène à la seconde ; c'est elle qui envoie vers la

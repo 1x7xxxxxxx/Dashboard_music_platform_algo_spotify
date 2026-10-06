@@ -23,6 +23,7 @@ EN = {
     "onboarding.reco_tag": " — ⭐ recommended",
     "onboarding.need": "You will need: {need}",
     "onboarding.go_configure": "🔑 Connect my sources →",
+    "onboarding.go_status": "➡️ 2. Where you stand",
     # Les lignes de valeur et de piège par plateforme ont été retirées de l'écran le
     # 2026-09-04 — « on ne garde uniquement les sections à cocher ». Elles vivent
     # désormais là où elles servent : le guide de chaque onglet pour le piège, la

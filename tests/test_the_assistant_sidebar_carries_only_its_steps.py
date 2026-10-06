@@ -134,7 +134,10 @@ def test_connect_my_sources_opens_step_two_and_stays() -> None:
     at = _render("onboarding")
     assert at.session_state["_onboarding_step"] == 1, "the assistant did not open on step 1"
     button = [b for b in at.button if b.key == "_onb_go_creds"]
-    assert button, "CONTROL: « 🔑 Connecter mes sources → » is not drawn on step 1"
+    assert button, "CONTROL: the step-1 button is not drawn"
+    assert button[0].label == "➡️ 2. Où tu en es", (
+        "R435: the step-1 button names where it leads — « Connecter mes sources » is "
+        f"step 2's; it reads {button[0].label!r}")
 
     after = button[0].click().run()
     assert not after.exception, after.exception

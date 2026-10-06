@@ -27,15 +27,30 @@ _ROOT = Path(__file__).resolve().parents[1]
 _ONB = _ROOT / "src" / "dashboard" / "views" / "onboarding.py"
 
 
-def test_the_two_promises_are_generated_at_the_same_height() -> None:
+def test_the_three_figures_are_generated_at_the_same_height() -> None:
+    """R435: the three sit side by side (owner, 2026-10-07: « de la même taille »)."""
     from PIL import Image
 
-    from src.dashboard.utils.example_figures import EXAMPLES_DIR, PROMISES
+    from src.dashboard.utils.example_figures import EXAMPLES_DIR, OVERVIEW, PROMISES
 
-    ratios = [h / w for w, h in (Image.open(EXAMPLES_DIR / n).size for n in PROMISES)]
-    assert abs(ratios[0] - ratios[1]) < 0.01, (
-        f"the two promise figures sit side by side at different heights: {ratios} — "
+    ratios = [h / w for w, h in (Image.open(EXAMPLES_DIR / n).size
+                                 for n in (OVERVIEW, *PROMISES))]
+    assert max(ratios) - min(ratios) < 0.01, (
+        f"the three figures sit side by side at different heights: {ratios} — "
         "regenerate with `make example-charts`")
+
+
+def test_the_three_figures_share_one_row_of_equal_columns() -> None:
+    """R435: « sur chaque colonne, une, deux, trois, équidistant »."""
+    fn = next(n for n in ast.walk(ast.parse(_ONB.read_text(encoding="utf-8")))
+              if isinstance(n, ast.FunctionDef) and n.name == "_step_welcome")
+    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
+    cols = [c for c in calls if getattr(c.func, "attr", "") == "columns"
+            and c.args and getattr(c.args[0], "value", None) == 3]
+    assert cols, "the three figures are no longer one row of three equal columns"
+    examples = [c for c in calls if getattr(c.func, "id", "") == "render_example"]
+    assert len(examples) == 1, (
+        f"{len(examples)} render_example calls — one, in the loop over the three columns")
 
 
 def test_the_welcome_step_reads_no_tenant_series() -> None:
