@@ -64,6 +64,16 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_pdf_report_is_frozen.py":
+        "2026-10-06 — R428 : titre de la vue « 📄 Rapport PDF » → « 📄 Rapport PDFx » "
+        "→ 2 rouges (photo premium + gratuit)",
+    "tests/test_home_periodic_axis_is_log.py":
+        "2026-10-06 — R427 : axe `type=\"log\"` → `\"linear\"` en non cumulé → 1 rouge",
+    "tests/test_home_is_frozen.py":
+        "2026-10-06 — R427 : axe `type=\"log\"` → `\"linear\"` → 1 rouge "
+        "(photo full_not_cumulative) ; `log_periodic=False` à l'appel de l'Accueil → rouge",
+    "tests/test_home_gate_28d_gap.py":
+        "2026-10-06 — R426 : RR_WINDOW_DAYS 28 → 35 → 1 rouge (fenêtre Release Radar)",
     "tests/test_the_admin_screen_says_what_the_mail_says.py":
         "2026-10-06 — R422 : readiness_snapshot sans les verdicts rejoués (`probes=` retiré) "
         "→ 1 rouge (« the screen must replay the verdict ») ; collection_failures gardant "
