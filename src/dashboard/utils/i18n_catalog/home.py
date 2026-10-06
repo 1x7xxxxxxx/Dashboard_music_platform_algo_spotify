@@ -81,7 +81,7 @@ EN = {
                            "click as one stream. Release Radar only counts the "
                            "release's first 28 days."),
     "home.gates_caption": ("The highest predicted percentage for your latest release "
-                           "to enter each Spotify algorithmic playlist."),
+                           "to enter each Spotify algorithmic playlist. ⬇️"),
     "home.gate_help_max": ("HIGHEST probability PREDICTED that « {song} », your latest "
                            "release, enters this algorithmic playlist. It is not an "
                            "observed rate. At the model's floor, this figure is the same "

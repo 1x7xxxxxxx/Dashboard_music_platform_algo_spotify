@@ -521,7 +521,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         st.caption(t(
             "home.gates_caption",
             "Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans "
-            "chaque playlist algorithmique de Spotify."))
+            "chaque playlist algorithmique de Spotify. ⬇️"))
         g1, g2, g3 = st.columns(3)
         # R424 — under each percentage, « en tout petit […] comme Meta, Hypeddit,
         # Shazam et Instagram »: the streams left over 28 days and their price at the
