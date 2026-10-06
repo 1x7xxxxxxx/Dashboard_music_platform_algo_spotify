@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R435 | Assistant (mise en route) — retours du 2026-10-07 : les trois figures d'exemple côte à côte, une par colonne, même taille, équidistantes ; le bouton du bas de l'étape 1 mène à « 2. Où tu en es » et le dit (« ➡️ 2. Où tu en es »), c'est là que se trouve « Connecter mes sources » <!-- critic: non — mise en page et libellé d'un bouton, aucune donnée touchée --> <!-- scope: src/dashboard/views/onboarding.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test de rendu : 3 images dans 3 colonnes égales ; libellé du bouton de l'étape 1 |
 | R436 | Spotify + S4A — retour du 2026-10-07 : la dépense Meta cumulée quitte son panneau et devient une AIRE sous la courbe, sur le même graphique que les streams cumulés (axe € à droite), mêmes couleurs par sortie <!-- critic: non — changement de forme d'un tracé existant, mêmes données --> <!-- scope: src/dashboard/views/spotify_s4a_combined.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test : traces Meta remplies (fill) sur l'axe y secondaire de la rangée 1 ; plus de panneau Meta ; PNG rendu et regardé |
 
 ---
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R435, R436 -->
+<!-- reprise: open=R436 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

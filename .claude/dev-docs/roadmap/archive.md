@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R435 — Assistant (mise en route) — retours du 2026-10-07 : les trois figures d'exemple côte à… (livrée 2026-10-07)
+
+- [x] **R435 — Assistant (mise en route) — retours du 2026-10-07 : les trois figures d'exemple côte à côte, une par colonne, même taille, équidistantes ; le bouton du bas de l'étape 1 mène à « 2. Où tu en es » et le dit (« ➡️ 2. Où tu en es »), c'est là que se trouve « Connecter mes sources »** (P3) ✅ (2026-10-07, 9c0c2625)
+  Mesuré par : test de rendu : 3 images dans 3 colonnes égales ; libellé du bouton de l'étape 1
+  Déployé en prod (dashboard) ; CI verte sur 9c0c2625. Trois figures en st.columns(3, gap=medium), image en haut ; bouton étape 1 « ➡️ 2. Où tu en es ».
+  Commits : 9c0c2625 R435 : Assistant — les trois figures d'exemple côte à côte (trois colo
+
 ## ✅ R434 — Faire piloter mes campagnes — retours du 2026-10-07 : « 🚀 Déclenchement des algos Spoti… (livrée 2026-10-07)
 
 - [x] **R434 — Faire piloter mes campagnes — retours du 2026-10-07 : « 🚀 Déclenchement des algos Spotify » en PREMIER sous la phrase d'accroche, en gros, surligné et souligné (sorti de la parenthèse) ; puis la vue VERROUILLÉE comme l'Accueil et le Rapport PDF : photo figée + marqueur `service: oui` exigé par le hook commit-msg** (P3) ✅ (2026-10-07, c556028f)
