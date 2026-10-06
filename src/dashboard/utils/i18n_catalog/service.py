@@ -2,9 +2,9 @@
 
 EN = {
     "service.title": "🎯 Have my campaigns run for me",
-    "service.pitch": (
-        "I run your campaigns **end to end**, to your budget and your goals (triggering "
-        "Spotify's algorithms):\n\n"
+    "service.pitch": "I run your campaigns **end to end**, to your budget and your goals:",
+    "service.headline": "🚀 Triggering Spotify's algorithms",
+    "service.bullets": (
         "- Meta Ads campaign optimisation\n"
         "- Spotify stream optimisation\n"
         "- Creative generation\n"

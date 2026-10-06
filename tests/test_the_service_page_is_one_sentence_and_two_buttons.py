@@ -79,12 +79,23 @@ def test_two_buttons_and_no_price_or_duration() -> None:
     assert _buttons(at) == ["https://calendly.example/rdv"], "the mail is not a bare mailto"
     text = " ".join(m.value for m in at.markdown) + " ".join(c.value for c in at.caption)
     assert "A à Z" in text, "the one-sentence pitch is gone"
-    for part in ("déclenchement des algos Spotify", "- Optimisation des campagnes Meta Ads",
+    for part in ("- Optimisation des campagnes Meta Ads",
                  "- Optimisation des streams Spotify", "- Génération de créatives",
                  "- Bilan quotidien"):
         assert part in text, part
     found = _PRICE_OR_DURATION.findall(text)
     assert not found, f"the page states a price or a duration again: {found}"
+
+
+def test_the_algorithm_goal_comes_first_large_highlighted_and_underlined() -> None:
+    """R434 (owner, 2026-10-07): « en premier, en gros, surligné et souligné »."""
+    blocks = [m.value for m in _render("").markdown]
+    first = next(i for i, b in enumerate(blocks) if "Déclenchement des algos Spotify" in b)
+    assert first < next(i for i, b in enumerate(blocks) if "Bilan quotidien" in b)
+    line = blocks[first]
+    for style in ("font-size:1.9rem", "background:", "text-decoration:underline"):
+        assert style in line, style
+    assert "(déclenchement" not in " ".join(blocks), "still hidden in a parenthesis"
 
 
 def test_the_booking_button_hides_while_its_link_is_empty() -> None:

@@ -64,6 +64,9 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_service_is_frozen.py":
+        "2026-10-07 — R434 : ligne « Déclenchement des algos Spotify » font-size 1.9rem "
+        "→ 1.2rem → 3 rouges (photos with_link, no_link, mail_open)",
     "tests/test_service_request_mail.py":
         "2026-10-06 — R430 : Reply-To posé brut (sans parseaddr/_one_line) → rouge "
         "(en-tête Bcc injecté refusé à la sérialisation)",

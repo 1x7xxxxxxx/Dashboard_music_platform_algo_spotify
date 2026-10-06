@@ -36,7 +36,8 @@ avait l'autre page qui était modifiée ». `tests/test_home_is_frozen.py` compa
 to an approved photo; approving a new photo is a commit touching `HOME_LOCKED`, refused unless
 a cited open row carries `<!-- home: oui -->` — a structural marker, not the word "Accueil",
 which half the rows about other pages also contain. R428 extends it to the PDF report
-(`<!-- rapport_pdf: oui -->`): `LOCKED_PAGES` maps each marker to its page's files.
+(`<!-- rapport_pdf: oui -->`), R434 to « Faire piloter » (`<!-- service: oui -->`):
+`LOCKED_PAGES` maps each marker to its page's files.
 
 What it does NOT prove: that the diff IS the cited task. With several open rows, any of them
 passes. It binds a commit to an inscribed action, not a diff to its meaning.
@@ -73,9 +74,12 @@ HOME_LOCKED = ("tests/fixtures/home_snapshot.json", "tests/fixtures/home_data.pk
                "tests/home_snapshot.py")
 # R428 — the PDF report page, locked the same way.
 PDF_REPORT_LOCKED = ("tests/fixtures/pdf_report_snapshot.json", "tests/pdf_report_snapshot.py")
+# R434 — the « Faire piloter mes campagnes » page, locked the same way.
+SERVICE_LOCKED = ("tests/fixtures/service_snapshot.json", "tests/service_snapshot.py")
 # marker → (page name, its locked files). A row unlocks a page only with ITS marker.
 LOCKED_PAGES = {"home": ("l'Accueil", HOME_LOCKED),
-                "rapport_pdf": ("le Rapport PDF", PDF_REPORT_LOCKED)}
+                "rapport_pdf": ("le Rapport PDF", PDF_REPORT_LOCKED),
+                "service": ("« Faire piloter mes campagnes »", SERVICE_LOCKED)}
 
 
 def _marker(name: str) -> re.Pattern:
@@ -88,7 +92,7 @@ def home_reason(files: list[str], ids: set[str], rows: dict[str, str]) -> str | 
     for marker, (page, locked) in LOCKED_PAGES.items():
         touched = [f for f in files if f in locked]
         if touched and not any(_marker(marker).search(r) for r in cited_rows):
-            return (f"{touched[0]} est la photo FIGÉE de {page} (R425/R428) — aucune "
+            return (f"{touched[0]} est la photo FIGÉE de {page} (R425/R428/R434) — aucune "
                     f"ligne ouverte citée ne porte `<!-- {marker}: oui -->`. Si {page} doit "
                     "vraiment changer, ajoute ce marqueur à la ligne de roadmap qui le demande")
     return None

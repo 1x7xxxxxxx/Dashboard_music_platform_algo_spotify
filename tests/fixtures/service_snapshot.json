@@ -1,0 +1,327 @@
+{
+ "mail_open": {
+  "children": [
+   {
+    "children": [
+     {
+      "body": "🎯 Faire piloter mes campagnes",
+      "tag": "h1",
+      "type": "title",
+      "wrap": true
+     },
+     {
+      "body": "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs :",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "allowHtml": true,
+      "body": "<p style=\"font-size:1.9rem;font-weight:700;margin:.2rem 0 .6rem\"><span style=\"background:rgba(255,165,0,.35);text-decoration:underline;padding:0 .3rem;border-radius:.2rem\">🚀 Déclenchement des algos Spotify</span></p>",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "- Optimisation des campagnes Meta Ads\n- Optimisation des streams Spotify\n- Génération de créatives\n- Bilan quotidien",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "label": "✉️ M'écrire",
+          "type": "primary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "ignoreRerun": true,
+          "label": "📅 Prendre rendez-vous",
+          "type": "secondary",
+          "url": "https://calendly.example/rdv"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.6
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "body": "**Quelques questions** — tes réponses remplissent le mail en dessous.",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [
+           {
+            "acceptNewOptions": false,
+            "default": 1,
+            "label": "💶 Budget pub Meta prévu",
+            "labelVisibility": {},
+            "options": [
+             "Moins de 300 €",
+             "300 à 1 000 €",
+             "1 000 à 3 000 €",
+             "Plus de 3 000 €",
+             "Je ne sais pas encore"
+            ],
+            "placeholder": "—",
+            "type": "selectbox"
+           },
+           {
+            "acceptNewOptions": false,
+            "label": "🎯 Tes objectifs",
+            "labelVisibility": {},
+            "options": [
+             "Déclencher les algos Spotify (Release Radar, Discover Weekly, Radio)",
+             "Gagner des écoutes",
+             "Gagner des abonnés Spotify",
+             "Entrer en playlists",
+             "Faire grandir mon Instagram",
+             "Faire grandir mon nombre de Shazam"
+            ],
+            "placeholder": "—",
+            "rawValues": [
+             "Déclencher les algos Spotify (Release Radar, Discover Weekly, Radio)"
+            ],
+            "selectAll": 1000,
+            "setValue": true,
+            "type": "multiselect"
+           }
+          ],
+          "type": "column",
+          "weight": 0.5
+         },
+         {
+          "children": [
+           {
+            "acceptNewOptions": false,
+            "default": 1,
+            "label": "📅 La sortie est prévue…",
+            "labelVisibility": {},
+            "options": [
+             "Déjà sortie",
+             "Dans moins de 2 semaines",
+             "Dans 2 à 4 semaines",
+             "Dans 1 à 3 mois",
+             "Dans plus de 3 mois",
+             "Pas encore de date"
+            ],
+            "placeholder": "—",
+            "type": "selectbox"
+           },
+           {
+            "default": 0,
+            "horizontal": true,
+            "label": "📣 Déjà fait de la pub Meta ?",
+            "labelVisibility": {},
+            "options": [
+             "Oui",
+             "Non"
+            ],
+            "type": "radio"
+           }
+          ],
+          "type": "column",
+          "weight": 0.5
+         }
+        ],
+        "type": "flex_container"
+       },
+       {
+        "default": "",
+        "label": "✍️ Autre chose à me dire ?",
+        "labelVisibility": {},
+        "type": "text_area"
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "body": "**📨 Ton mail, prêt à partir**",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "codeText": "Bonjour,\n\nJe voudrais te confier mes campagnes. Voici où j'en suis :\n\n- 💶 Budget pub Meta prévu : 300 à 1 000 €\n- 📅 La sortie est prévue… : Dans moins de 2 semaines\n- 🎯 Tes objectifs : Déclencher les algos Spotify (Release Radar, Discover Weekly, Radio)\n- 📣 Déjà fait de la pub Meta ? : Oui\n- ✍️ Autre chose à me dire ? : —\n\nMerci !\nartiste@example.com",
+      "language": "plaintext",
+      "type": "code",
+      "wrapLines": true
+     },
+     {
+      "label": "📨 Envoyer",
+      "type": "primary"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ },
+ "no_link": {
+  "children": [
+   {
+    "children": [
+     {
+      "body": "🎯 Faire piloter mes campagnes",
+      "tag": "h1",
+      "type": "title",
+      "wrap": true
+     },
+     {
+      "body": "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs :",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "allowHtml": true,
+      "body": "<p style=\"font-size:1.9rem;font-weight:700;margin:.2rem 0 .6rem\"><span style=\"background:rgba(255,165,0,.35);text-decoration:underline;padding:0 .3rem;border-radius:.2rem\">🚀 Déclenchement des algos Spotify</span></p>",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "- Optimisation des campagnes Meta Ads\n- Optimisation des streams Spotify\n- Génération de créatives\n- Bilan quotidien",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "label": "✉️ M'écrire",
+          "type": "primary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.8
+       }
+      ],
+      "type": "flex_container"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ },
+ "with_link": {
+  "children": [
+   {
+    "children": [
+     {
+      "body": "🎯 Faire piloter mes campagnes",
+      "tag": "h1",
+      "type": "title",
+      "wrap": true
+     },
+     {
+      "body": "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs :",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "allowHtml": true,
+      "body": "<p style=\"font-size:1.9rem;font-weight:700;margin:.2rem 0 .6rem\"><span style=\"background:rgba(255,165,0,.35);text-decoration:underline;padding:0 .3rem;border-radius:.2rem\">🚀 Déclenchement des algos Spotify</span></p>",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "body": "- Optimisation des campagnes Meta Ads\n- Optimisation des streams Spotify\n- Génération de créatives\n- Bilan quotidien",
+      "elementType": "NATIVE",
+      "type": "markdown",
+      "wrap": true
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "label": "✉️ M'écrire",
+          "type": "primary"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "children": [
+         {
+          "ignoreRerun": true,
+          "label": "📅 Prendre rendez-vous",
+          "type": "secondary",
+          "url": "https://calendly.example/rdv"
+         }
+        ],
+        "type": "column",
+        "weight": 0.2
+       },
+       {
+        "gapConfig": {
+         "gapSize": "SMALL"
+        },
+        "type": "column",
+        "weight": 0.6
+       }
+      ],
+      "type": "flex_container"
+     }
+    ],
+    "type": "main"
+   },
+   {
+    "type": "sidebar"
+   },
+   {
+    "type": "event"
+   }
+  ],
+  "type": "root"
+ }
+}

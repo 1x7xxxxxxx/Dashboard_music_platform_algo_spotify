@@ -18,6 +18,10 @@ Facturation et Upgrade gardent une **amorce** qui renvoie ici. La donnée, elle,
 vit dans `utils/service_offer.py` — une seule source, comme `plan_pitch.py` l'a
 fait pour l'abonnement après que la même offre eut divergé sur deux surfaces.
 
+🔒 Page FIGÉE (R434, 2026-10-07) : son rendu est comparé à
+`tests/fixtures/service_snapshot.json` ; une nouvelle photo exige une ligne de roadmap
+portant `<!-- service: oui -->` (`make service-snapshot`).
+
 ⚠️ Cette page est dans `ALWAYS_ACCESSIBLE` : on ne fait pas payer le droit de lire
 une offre.
 """
@@ -32,6 +36,9 @@ from src.dashboard.utils.service_offer import (
 
 _OPEN = "service_mail_open"
 _SENT = "service_mail_sent"
+_HEADLINE = ('<p style="font-size:1.9rem;font-weight:700;margin:.2rem 0 .6rem">'
+             '<span style="background:rgba(255,165,0,.35);text-decoration:underline;'
+             'padding:0 .3rem;border-radius:.2rem">{}</span></p>')
 
 
 def show() -> None:
@@ -45,9 +52,13 @@ def show() -> None:
     # duration. The three-column grid and its levers left the page; their data stays
     # in `utils/service_offer.py`, which the admin pricing page still edits.
     # R433 (owner, 2026-10-06): the value as bullets, « toute la plus-value qu'on a ».
+    # R434 (owner, 2026-10-07): the algorithm goal FIRST, « en gros, surligné et
+    # souligné » — Markdown has no underline, hence the one HTML line (text is ours).
     st.markdown(t("service.pitch",
-                  "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs "
-                  "(déclenchement des algos Spotify) :\n\n"
+                  "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs :"))
+    st.markdown(_HEADLINE.format(t("service.headline", "🚀 Déclenchement des algos Spotify")),
+                unsafe_allow_html=True)
+    st.markdown(t("service.bullets",
                   "- Optimisation des campagnes Meta Ads\n"
                   "- Optimisation des streams Spotify\n"
                   "- Génération de créatives\n"
