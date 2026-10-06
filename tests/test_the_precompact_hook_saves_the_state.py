@@ -49,10 +49,11 @@ def _repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run(repo: Path) -> None:
+def _run(repo: Path) -> str:
     r = subprocess.run([sys.executable, str(HOOK)], cwd=repo, input="{}",
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
+    return r.stdout
 
 
 def _snapshots(repo: Path) -> list[Path]:
@@ -81,8 +82,12 @@ def test_a_dirty_tree_is_saved_once_per_state(tmp_path: Path) -> None:
 
     (repo / "b.py").write_text("y = 1\n")
     time.sleep(1.1)  # the snapshot name has 1 s resolution
-    _run(repo)
-    assert len(_snapshots(repo)) == 2
+    said = _run(repo)
+    # Red three times under a full suite (2026-10-05, 2026-10-06), never reproduced alone
+    # nor under 12 parallel runs: the message carries what the hook saw, so the next
+    # occurrence names its own cause.
+    assert len(_snapshots(repo)) == 2, (
+        said, [(f.name, f.read_text(encoding="utf-8")) for f in _snapshots(repo)])
 
 
 _FAKE = """import sys, time
