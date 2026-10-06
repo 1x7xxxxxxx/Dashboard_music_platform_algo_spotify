@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R428 | Rapport PDF — retour du 2026-10-06 : « Rapport de carrière PDF » renommé « Rapport PDF » (menu + titre), puis la vue VERROUILLÉE comme l'Accueil (R425) : photo figée sur des lectures rejouées + marqueur `<!-- rapport_pdf: oui -->` exigé par le hook commit-msg ; le verrou R425 est généralisé à une table de vues verrouillées <!-- critic: non — renommage + garde de test, aucune requête ni écriture --> <!-- rapport_pdf: oui --> <!-- scope: src/dashboard/utils/nav_sections.py, src/dashboard/views/export_pdf.py, src/dashboard/utils/i18n.py, src/dashboard/utils/i18n_catalog/, tests/, tools/dev/, Makefile --> | P3 | photo de la vue + test du verrou (refus sans marqueur) + menu vérifié sur la prod |
+| R429 | Faire piloter mes campagnes — retour du 2026-10-06 : bouton « M'écrire » raccourci ; il ouvre SUR la page un questionnaire (budget, délai avant la sortie, objectifs dont le déclenchement des algos Spotify, titre, pays, créatives, historique pub, smart link) et le mail prêt à envoyer, lisible sur la vue, avec un lien mailto pré-rempli ; la phrase devient « optimisation de campagnes Meta Ads, créatives, bilans quotidiens » <!-- critic: non — composition d'un texte côté client, aucune écriture ni endpoint --> <!-- scope: src/dashboard/views/service.py, src/dashboard/utils/service_offer.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test de rendu : questionnaire → corps du mail et lien mailto portent les réponses ; contrôle sur la prod |
 
 ---
 
@@ -85,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R428, R429 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
