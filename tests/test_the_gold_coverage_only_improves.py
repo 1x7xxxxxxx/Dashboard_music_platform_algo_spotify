@@ -318,7 +318,10 @@ _FLOOR: dict[str, int] = {
     # steady-state playlist volume as streams to buy (no honest replacement figure).
     # 2026-10-05 (R405) : 149 → 145 — the « MRR Actuel » tab of revenue_forecast is gone
     # (4 tiles): a third MRR definition beside billing's, which keeps the single one.
-    "tiles.total": 145,
+    # 2026-10-06 (R421) : 145 → 144 — the home's Spotify / YouTube / Apple Music /
+    # SoundCloud boxes are gone (owner): the pie carries their totals. One site, not
+    # four: the four boxes were drawn by one shared `_box` helper.
+    "tiles.total": 144,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

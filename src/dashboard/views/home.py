@@ -68,10 +68,6 @@ def _section_streams(db, artist_id):
     # donc la page gagne la dépense Meta et l'écart d'abonnés sans gagner une requête.
     from src.dashboard.utils.period_side_metrics import period_side_metrics
     _side = period_side_metrics(db, artist_id, since, until)
-    # R372 — le budget Meta de la dernière sortie, LE MÊME APPEL que la vue algo. Une
-    # requête : l'accueil en a une de marge sous son plafond.
-    from src.dashboard.utils.algo_preview_data import budget_declenchement
-    _side["release_budget"] = budget_declenchement(db, artist_id)
     ig_count = _side.get("ig_followers") or 0
 
     # UN SEUL CALCUL, pour toutes les surfaces. `platform_totals` porte les deux
@@ -116,13 +112,7 @@ def _section_streams(db, artist_id):
                                     since - _dt.timedelta(days=1))
             _prev_grand = combined_total(_prev or {}) or None
 
-    # LA DERNIÈRE MESURE PAR PLATEFORME, dérivée de `series` — déjà en mémoire.
-    # C'est ce qui permet à une boîte vide de dire « dernier relevé : 05/09/26 »
-    # plutôt que de laisser croire à zéro écoute. Mesuré en prod le 2026-09-12 :
-    # Spotify s'arrêtait sept jours en arrière, et rien ne le nommait.
     _side = dict(_side)
-    _side["last_measured"] = {
-        k: max(d for d, _v in rows) for k, rows in (series or {}).items() if rows}
 
     # ── CE QUE NOUS AVONS VU CROÎTRE, ET CE QUI NOUS PRÉCÈDE ─────────────────
     #
@@ -168,7 +158,7 @@ def _section_streams(db, artist_id):
     with col_kpi:
         from src.dashboard.views.home_tiles import render_tiles
         render_tiles(totals, grand_total, ig_count,
-                     prev=_prev, side=_side, prev_grand=_prev_grand)
+                     side=_side, prev_grand=_prev_grand)
 
     # R373 (2026-10-05, V6) — l'accueil s'arrête aux chiffres. Quatre blocs sont partis
     # là où l'on vient les chercher : le conseil Meta sur la page Publicité Meta Ads
@@ -456,7 +446,9 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # 2026-09-12.
     drawn = render_platform_chart(
         series, since=since, until=until, only=chosen, step=step, mode=mode,
-        decision_key="views/home.py::platform",
+        # R421 — « retire-moi tout le texte sous le graphique » (le propriétaire,
+        # 2026-10-06) : ni phrase de décision, ni notes ; les Indicateurs restent.
+        notes=False,
         cumulative=cumulative, discarded=_discarded,
         # `recap=True` ET NON UNE COLONNE : sans conteneur, les indicateurs
         # tombent là où la figure les rend — juste sous elle, dans l'ordre de

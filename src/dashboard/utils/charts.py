@@ -238,7 +238,7 @@ def _say_the_decision(target, decision_key: str | None) -> None:
 
 
 def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: bool = True,
-                 decision_key: str | None = None, **kwargs):
+                 decision_key: str | None = None, decision: bool = True, **kwargs):
     """Draw `fig` — THE way every chart of the app reaches the screen (R243).
 
     R314 — and says, under it, what it lets you decide (`chart_decisions.py`), looked up by
@@ -250,7 +250,8 @@ def plotly_chart(fig, *, container=None, pareto: bool | None = None, glossary: b
     if fig is not None and hasattr(fig, "layout"):
         apply_defaults(fig, pareto=pareto)
     out = target.plotly_chart(fig, **kwargs)
-    _say_the_decision(target, decision_key)
+    if decision:                # False only where the owner asked the page for no text (R421)
+        _say_the_decision(target, decision_key)
     if glossary and fig is not None and hasattr(fig, "layout"):
         terms = jargon(fig)
         if terms:

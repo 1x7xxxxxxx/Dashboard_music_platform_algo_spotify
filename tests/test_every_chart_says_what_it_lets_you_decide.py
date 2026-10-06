@@ -85,10 +85,12 @@ def test_the_runtime_key_is_the_dossiers_key_for_every_site() -> None:
     assert not wrong, f"the door would look up another chart's line: {wrong[:5]}"
 
 
-def _decision_keys_passed() -> set[str]:
+def _decision_keys_passed(sources=None) -> set[str]:
     keys = set()
-    for f in (ROOT / "src").rglob("*.py"):
-        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+    if sources is None:
+        sources = [f.read_text(encoding="utf-8") for f in (ROOT / "src").rglob("*.py")]
+    for src in sources:
+        for node in ast.walk(ast.parse(src)):
             if isinstance(node, ast.Call):
                 for kw in node.keywords:
                     if kw.arg == "decision_key" and isinstance(kw.value, ast.Constant) \
@@ -100,7 +102,10 @@ def _decision_keys_passed() -> set[str]:
 def test_every_decision_key_a_page_passes_has_its_line() -> None:
     dec = _decisions()
     passed = _decision_keys_passed()
-    assert passed, "no page passes a decision_key — the scan no longer reads the calls"
+    # R421 (2026-10-06): home, the last page passing one, dropped its line at the owner's
+    # request — `passed` may be empty. Non-vacuity moves to the scanner itself.
+    assert _decision_keys_passed(['f(x, decision_key="views/x.py::f")']) == {"views/x.py::f"}, \
+        "the scan no longer reads the calls"
     problems = [p for k in sorted(passed) for p in line_problems(k, dec.get(k))]
     assert not problems, "\n".join(problems)
 

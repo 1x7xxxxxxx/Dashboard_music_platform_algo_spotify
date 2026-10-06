@@ -607,12 +607,16 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           recap=None, recap_extra=None,
                           recap_metrics=None,
                           key: str = "platform_chart",
-                          decision_key: str | None = None) -> bool:
+                          decision_key: str | None = None,
+                          notes: bool = True) -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
     L'appelant décide quoi dire quand c'est False — cette fonction n'écrit ni
     « aucune donnée » ni un exemple à la place : les deux se sont déjà lus comme une
     panne ailleurs dans ce dépôt.
+
+    `notes=False` (R421, l'Accueil) : aucun texte sous la figure — ni la phrase de
+    décision, ni le glossaire, ni les notes. Les boîtes du récapitulatif restent.
     """
     span, aligned = _window(series or {}, days, since, until)
     if not span or not aligned:
@@ -1079,12 +1083,15 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                               PLATFORM_LABELS, muted, palette)
 
     # R314 — a helper drawn on several pages: each page names its own decision line.
-    charts.plotly_chart(fig, width="stretch", key=key, decision_key=decision_key)
+    charts.plotly_chart(fig, width="stretch", key=key, decision_key=decision_key,
+                        decision=notes, glossary=notes)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
                       step, extra=recap_extra,
                       metrics=_derive_metrics(recap_metrics, aligned, aligned_raw,
                                               span, mode, step))
+    if not notes:
+        return True
     _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,
                   discarded=discarded)
     # Les plateformes dont la collecte commence APRÈS le début de la fenêtre. Leur

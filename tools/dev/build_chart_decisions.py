@@ -12,7 +12,7 @@ the owner validates in the PDF — and the dashboard reads a generated module, b
 container does not carry tools/ (same pattern as `build_recap.py`).
 
 OVERRIDES carry the lines of a chart drawn by a shared helper on several pages, where each
-page says something different (`render_platform_chart`: home and onboarding) — code-critic.
+page says something different (`render_platform_chart`: onboarding; home shows none since R421) — code-critic.
 
     python3 tools/dev/build_chart_decisions.py [--check]
 """
@@ -27,13 +27,9 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "src" / "dashboard" / "content" / "chart_decisions.py"
 REVIEW = ROOT / "tools" / "dev" / "charts_dossier" / "review.yaml"
 
-#: key passed as `decision_key=` by a page → (fr, en).
+#: key passed as `decision_key=` by a page → (fr, en). The home page has none since R421:
+#: the owner asked for no text under its chart (2026-10-06).
 OVERRIDES: dict[str, tuple[str, str]] = {
-    "views/home.py::platform": (
-        "Voir si une sortie ou une campagne a fait monter tes écoutes sur toutes les "
-        "plateformes, pour savoir où remettre du budget.",
-        "See whether a release or a campaign lifted your streams across platforms, to know "
-        "where to put budget back."),
     "views/onboarding.py::platform": (
         "Poser ton point de départ toutes plateformes, pour mesurer l'effet de tes prochaines "
         "campagnes.",

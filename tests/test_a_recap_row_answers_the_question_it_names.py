@@ -138,7 +138,7 @@ def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
                lambda label, value, help_text="", sub="": _rec(label, value, help=help_text)
                or ""):
         render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
-                      prev=prev, side=side, prev_grand=None)
+                      side=side, prev_grand=None)
     return seen
 
 
@@ -175,40 +175,10 @@ def test_measured_periods_only_speaks_when_the_window_has_holes():
 
 # ── 5-6 : les boîtes du haut ─────────────────────────────────────────────────
 
-def test_no_delta_is_claimed_against_an_unmeasured_period():
-    """Sans période précédente MESURÉE, aucune flèche — jamais un « +100 % »."""
-    for prev in (None, {}, {"spotify": None}, {"spotify": 0}):
-        rows = _tiles({"spotify": 20_000}, prev=prev)
-        box = _one(rows, "Spotify")
-        assert box, f"la boîte Spotify a disparu avec prev={prev!r}"
-        assert box[2] is None, (
-            f"un écart {box[2]!r} s'affiche contre une période précédente {prev!r}. "
-            "Un « +100 % » contre une fenêtre jamais collectée transforme le début de "
-            "NOTRE observation en croissance de l'artiste.")
-
-    # ⚠️ ET LA FLÈCHE DOIT EXISTER QUAND ELLE EST LÉGITIME. Sans cette moitié, le
-    # garde passerait sur un `_delta` qui rend toujours `None` — l'absence attendue
-    # serait produite par une fonction morte, pas par la règle.
-    box = _one(_tiles({"spotify": 20_000}, prev={"spotify": 10_000}), "Spotify")
-    assert box and box[2] == "+100,0 %", (
-        f"l'écart de 10 000 → 20 000 ne vaut pas +100,0 % : {box[2]!r}")
-
-
-def test_an_empty_box_names_its_last_reading():
-    """Zéro écoute et « aucun export déposé » sont deux faits différents."""
-    day = _d.date(2026, 9, 5)
-    rows = _tiles({"spotify": None, "youtube": 12_000},
-                  last={"spotify": day, "youtube": _d.date(2026, 9, 12)})
-    captions = [r[1] for r in rows if r[0] == "caption"]
-    assert any("05/09/2026" in c for c in captions), (
-        "une plateforme SANS mesure sur la fenêtre, mais avec un relevé au "
-        f"{day}, n'affiche pas sa dernière date : {captions!r}. C'est le signalement "
-        "du 2026-09-12 — la figure se dessinait grâce aux autres plateformes, et "
-        "rien ne distinguait « zéro écoute » de « aucun export déposé ».")
-    assert not any("12/09/26" in c for c in captions), (
-        "une plateforme qui A des chiffres sur la fenêtre affiche quand même son "
-        "dernier relevé : la mention devient du bruit sur toutes les boîtes au lieu "
-        "de signaler les seules qui manquent.")
+# R421 (2026-10-06) : les boîtes Spotify / YouTube / Apple Music / SoundCloud ont quitté
+# l'Accueil à la demande du propriétaire — le camembert porte leurs totaux. Leurs deux
+# gardes (aucun écart contre une période non mesurée ; une boîte vide nomme son dernier
+# relevé) sont retirés avec elles : il ne reste aucune boîte qui porte l'un ou l'autre.
 
 
 # ── LES TROIS PORTES DE LA DERNIÈRE SORTIE (2026-09-12) ─────────────────────
@@ -248,17 +218,21 @@ def test_the_three_gates_are_three():
 
 
 def test_a_prediction_never_passes_for_an_observed_rate():
-    """Le taux OBSERVÉ demanderait `s4a_song_algo_outcomes`, à 0 ligne."""
+    """Le taux OBSERVÉ demanderait `s4a_song_algo_outcomes`, à 0 ligne.
+
+    R421 : la légende « Ta dernière sortie… » est retirée ; c'est l'infobulle de chaque
+    porte qui dit désormais PRÉDITE et nomme le titre.
+    """
     rows = _tiles({"spotify": 20_000}, side={**_SIDE, **_RELEASE})
-    captions = " ".join(r[1] for r in rows if r[0] == "caption")
-    assert "prédite" in captions.lower() or "prédit" in captions.lower(), (
-        f"aucun texte ne dit que ces pourcentages sont PRÉDITS : {captions!r}. "
-        "Aucune issue de prédiction n'a jamais été saisie (0 ligne dans "
-        "`s4a_song_algo_outcomes`, mesuré le 2026-09-12) : les présenter comme un "
-        "taux de déclenchement inventerait une mesure.")
-    assert "Ô Chiotte l'arbitre" in captions, (
-        f"le titre auquel se rapportent les trois pourcentages n'est pas nommé : "
-        f"{captions!r}. Trois nombres sans leur sujet sont trois nombres orphelins.")
+    helps = [r[3] or "" for r in rows if "Discover Weekly" in r[0] or "Radio" in r[0]]
+    assert len(helps) >= 2, f"les portes ne sont pas rendues : {[r[0] for r in rows]}"
+    for h in helps:
+        assert "PRÉDITE maximale" in h and "pas un taux observé" in h, (
+            f"l'infobulle ne dit pas que ce pourcentage est PRÉDIT : {h!r}. Aucune issue "
+            "de prédiction n'a jamais été saisie (0 ligne dans `s4a_song_algo_outcomes`, "
+            "mesuré le 2026-09-12) : le présenter comme un taux inventerait une mesure.")
+        assert "Ô Chiotte l'arbitre" in h, (
+            f"le titre auquel se rapporte le pourcentage n'est pas nommé : {h!r}")
 
 
 def test_no_gate_is_shown_without_a_prediction():

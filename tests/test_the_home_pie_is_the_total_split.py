@@ -61,8 +61,5 @@ def test_meta_hypeddit_come_before_shazam_instagram() -> None:
         and order[3] == order[2] + 1, f"V3 row order lost: {labels}"
 
 
-def test_the_gate_caption_says_maximales() -> None:
-    at = _render(_FULL, {"release_song": "X", "release_dw": 0.4}, 0)
-    captions = " ".join(c.value for c in at.caption)
-    assert "prédites maximales" in captions
-    assert "maximum atteintes" not in captions
+# R421 (2026-10-06): the gates' caption is gone; « maximale » now lives in each gate's
+# tooltip — guarded in tests/test_a_recap_row_answers_the_question_it_names.py.

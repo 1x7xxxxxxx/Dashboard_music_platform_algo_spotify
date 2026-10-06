@@ -124,11 +124,15 @@ def test_the_only_platform_that_delivers_is_named_first() -> None:
 
     Avant le 2026-09-22 il sortait en cinquième position, derrière quatre tuiles à
     « — ». C'est l'écran d'accueil du seul artiste bêta qui ait des données.
+
+    R421 (2026-10-06) : les tuiles d'écoute ont quitté l'Accueil (le camembert les
+    porte). Le cas se rejoue sur la dernière unité déclarée — Instagram seul livre.
     """
-    libelles = _rendre({"soundcloud": 4200})
+    libelles = _rendre({"soundcloud": 4200}, {}, ig=4200)
     assert libelles, "aucune jauge rendue — le harnais est cassé"
-    assert libelles[0] == "☁️ SoundCloud", (
-        f"SoundCloud livre et n'est pas en tête : {libelles}")
+    # Instagram est apparié à Shazam : l'UNITÉ qui livre passe devant, paire intacte.
+    assert libelles[:2] == ["🎧 Shazam", "📸 Instagram"], (
+        f"Instagram livre et son unité n'est pas en tête : {libelles}")
 
 
 def test_a_full_tenant_keeps_the_declared_order() -> None:
@@ -140,7 +144,7 @@ def test_a_full_tenant_keeps_the_declared_order() -> None:
     plein = {"spotify": 1000, "youtube": 900, "apple": 800, "soundcloud": 700}
     libelles = _rendre(plein, {"shazam_total": 1772, "meta_spend": 3088,
                                "hypeddit_ctr": 12.0}, ig=500)
-    assert libelles[0] == "🎵 Spotify", (
+    assert libelles[0] == "📊 Meta Ads", (
         f"l'ordre de déclaration n'est pas préservé quand tout a des données : "
         f"{libelles}")
 
@@ -181,7 +185,7 @@ def test_a_unit_counts_as_full_when_any_of_its_boxes_has_data() -> None:
     libelles = _rendre({}, {}, ig=999)           # Instagram livre, Shazam non
     assert "📸 Instagram" in libelles
     place = libelles.index("📸 Instagram")
-    vides = [libelles.index(x) for x in ("🎵 Spotify", "🎬 YouTube")
+    vides = [libelles.index(x) for x in ("📊 Meta Ads", "📱 Hypeddit")
              if x in libelles]
     assert all(place < v for v in vides), (
         f"Instagram a des données et passe derrière des tuiles vides : {libelles}")

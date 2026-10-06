@@ -47,9 +47,12 @@ def platform_share_figure(totals: dict) -> go.Figure | None:
         # render — rotated text, and a 4.6 % slice whose label was unreadable.
         textposition="auto",
         insidetextorientation="horizontal",
+        # R421 — an outside label is pushed past a fixed frame: « l'étiquette de
+        # SoundCloud en bas est crop » (2026-10-06). automargin grows the frame to it.
+        automargin=True,
         sort=False,
         hole=0.35,
     ))
-    fig.update_layout(height=260, margin=dict(l=0, r=0, t=24, b=24), showlegend=False,
+    fig.update_layout(height=340, margin=dict(l=40, r=40, t=40, b=40), showlegend=False,
                       separators=", ")
     return fig

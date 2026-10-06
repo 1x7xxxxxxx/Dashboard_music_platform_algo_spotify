@@ -117,29 +117,31 @@ class _Col:
 
 
 def test_a_lifetime_counter_says_what_the_curve_cannot_draw():
-    """118 336 dans la boîte, 304 sur la courbe — l'écart se nomme."""
-    seen: list = []
+    """118 336 dans le total, 304 sur la courbe — l'écart se nomme.
 
-    def _rec(label, value, delta=None, help=None, **_k):   # noqa: A002
-        seen.append((str(label), str(value), delta, str(help or "")))
+    R421 (2026-10-06) : la boîte YouTube et la note sous la courbe ont quitté l'Accueil à
+    la demande du propriétaire. Ce qui reste, et qu'on tient : l'infobulle du bandeau
+    total nomme YouTube comme COMPTEUR À VIE — et seulement quand la courbe en voit moins.
+    """
+    def _banner(observed) -> str:
+        seen: list = []
+        with patch("streamlit.markdown", lambda body, **k: seen.append(str(body))), \
+             patch("streamlit.caption", lambda *a, **k: None), \
+             patch("streamlit.plotly_chart", lambda *a, **k: None), \
+             patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
+                 n if isinstance(n, int) else len(n))]), \
+             patch("streamlit.metric", lambda *a, **k: None):
+            render_tiles({"youtube": 118_336}, 118_336, 0,
+                         side={"observed_growth": {"youtube": observed}})
+        return next((m for m in seen if "title=" in m), "")
 
-    side = {"observed_growth": {"youtube": (_d.date(2025, 11, 29), 304)}}
-    with patch("streamlit.markdown", lambda *a, **k: None), \
-         patch("streamlit.caption", lambda *a, **k: None), \
-         patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
-             n if isinstance(n, int) else len(n))]), \
-         patch("streamlit.metric", _rec):
-        render_tiles({"youtube": 118_336}, 118_336, 0, side=side)
-
-    box = next((r for r in seen if "YouTube" in r[0]), None)
-    assert box, f"la boîte YouTube a disparu : {[r[0] for r in seen]}"
-    assert "29/11/2025" in box[3], (
-        f"l'infobulle ne dit pas depuis quand nous relevons ce compteur : {box[3]!r}. "
-        "Sans cette date, l'écart entre 118 336 dans la boîte et 304 sur la courbe "
-        "n'a aucune explication visible, et c'est lui qui fait dire « ces chiffres "
-        "disent n'importe quoi ».")
-    assert "304" in box[3], (
-        f"l'infobulle ne dit pas ce que nous avons VU croître : {box[3]!r}")
+    banner = _banner((_d.date(2025, 11, 29), 304))
+    assert "118\u202f336" in banner and "COMPTEURS À VIE" in banner, (
+        f"le bandeau ne dit pas que YouTube est un compteur à vie : {banner[:300]!r}. "
+        "Sans cette mention, l'écart entre 118 336 au total et 304 sur la courbe n'a "
+        "aucune explication visible.")
+    assert "COMPTEURS À VIE" not in _banner((_d.date(2025, 11, 29), 118_336)), (
+        "la mention s'affiche alors que la courbe voit tout le compteur")
 
 
 def test_the_daily_exception_is_the_only_one():

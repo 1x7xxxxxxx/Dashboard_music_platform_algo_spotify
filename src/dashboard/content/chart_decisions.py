@@ -57,9 +57,6 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/etl_logs.py::_section_trend#1': (
         'Repérer une collecte en panne, avant de juger une campagne sur des chiffres qui manquent.',
         'Spot a broken collection before judging a campaign on missing figures.'),
-    'views/home.py::platform': (
-        'Voir si une sortie ou une campagne a fait monter tes écoutes sur toutes les plateformes, pour savoir où remettre du budget.',
-        'See whether a release or a campaign lifted your streams across platforms, to know where to put budget back.'),
     'views/home_tiles.py::render_tiles#1': (
         'Voir quelle plateforme porte tes écoutes, pour savoir où concentrer ta promo.',
         'See which platform carries your streams, to know where to focus your promotion.'),

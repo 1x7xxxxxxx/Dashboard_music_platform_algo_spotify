@@ -66,38 +66,22 @@ EN = {
         "Ad spend over the displayed period, and the campaign with the LOWEST cost "
         "per result along with the budget it consumed."),
     "home.tile_best_cpr": "🎯 CPR {cpr}{budget}",
-    "home.tile_last_seen": "Last reading: {d}",
-    # Pourquoi la courbe « par période » montre moins que le compteur de la boîte :
-    # le compteur est à VIE, nous ne le relevons que depuis une date donnée.
-    "home.tile_counter_history": (
-        "Lifetime counter. We have been reading this platform since {since}: "
-        "**{seen}** since that date. The rest predates our first reading and no date "
-        "can carry it — which is why the « per period » curve shows less."),
-    # Les trois portes algorithmiques de la dernière sortie (2026-09-12). « Predicted »
-    # est porté par le bandeau ET par l'aide : c'est une PRÉDICTION, jamais un taux
-    # observé — aucune issue n'a encore été saisie.
-    "home.gates_for": " — **highest predicted** probabilities",
-    "home.release_named": "🆕 Your latest release: **{song}**",
-    "home.gates_nopred": " — no prediction for this track yet",
-    "home.release_budget_none": "💰 No playlist is waiting on extra streams for this track.",
-    "home.release_budget_nocost": ("💰 Meta budget: no measured cost per stream — no known "
-                                   "Meta spend."),
-    "home.release_budget_one": "**~{eur}** for {gap} more streams over 7 days",
-    "home.release_budget": "💰 Meta budget to trigger: {detail}",
-    "home.release_budget_caveat": " — an order of magnitude, at your campaigns' average cost per stream",
-    "home.gates_age": " · released {n} days ago",
+    # Les trois portes algorithmiques de la dernière sortie. Depuis R421 le chiffre
+    # est affiché même au plancher : l'aide dit que c'est une PRÉDICTION, et qu'au
+    # plancher elle ne distingue aucun titre.
     "home.gate_dw": "🎯 Discover Weekly",
     "home.gate_radio": "📻 Radio",
     "home.gate_rr": "🆕 Release Radar",
+    "home.gate_help_max": ("HIGHEST probability PREDICTED that « {song} », your latest "
+                           "release, enters this algorithmic playlist. It is not an "
+                           "observed rate. At the model's floor, this figure is the same "
+                           "for every track."),
     # L'interrupteur du cumulé (2026-09-13), qui remplace la barre de modes.
     "home.trend_cumulative": "Cumulative",
     "home.trend_cumulative_help": (
         "On: the curve only rises and its last point is the period total. Off: each "
         "point is what was gained over that step — useful on a short window, hard to "
         "read over several years where one platform dwarfs the others."),
-    "home.gate_help": ("Probability PREDICTED by the model that this track enters "
-                       "this algorithmic playlist. It is not an observed rate: no "
-                       "outcome has been recorded yet."),
     # Tuiles + métriques dérivées du récapitulatif (2026-09-12)
     # Shazam sur l'accueil (R106, 2026-09-13) — ADR-025 le met dans le cœur du
     # produit ; il n'était sur aucun écran.
@@ -128,9 +112,6 @@ EN = {
         "Sum of every measured platform. {parts} are LIFETIME COUNTERS: they carry "
         "everything that precedes our first collection, and that part has no date. "
         "Spotify plays, by contrast, are counted day by day."),
-    "home.apple_no_window": (
-        "Apple Music only reports a total per CSV upload: it cannot be split by "
-        "period. Pick « Since the beginning » for its total."),
     "home.ig_is_a_headcount": (
         "A follower HEADCOUNT, not a play count: it cannot be split by period and "
         "is not part of the total above. The change over the period is in the table."),

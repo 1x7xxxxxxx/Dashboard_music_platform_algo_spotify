@@ -195,11 +195,15 @@ def test_pdf_songs_focus_reads_real_columns_and_refuses_the_floor():
 
 
 def test_home_gate_tiles():
+    """EXEMPTED by the owner on 2026-10-06 (R421): Home shows the raw predicted maximum,
+    floor included — the floor caveat lives in the tile's tooltip. Pinned here so the
+    exemption stays one surface wide and the format stays the number, not a label."""
     from src.dashboard.views.home_tiles import _format_gate
 
     for a in ALGOS:
-        _no_pct(_format_gate(a, FLOOR[a]), "home_tiles._format_gate")
-    assert _format_gate("dw", OFF) == "60,0 %"
+        assert PCT.search(_format_gate(FLOOR[a])), "R421: the floor value is shown"
+    assert _format_gate(OFF) == "60,0 %"
+    assert _format_gate(None) == "—" and _format_gate(float("nan")) == "—"
 
 
 def test_verdict_banner():

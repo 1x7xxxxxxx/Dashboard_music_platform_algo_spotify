@@ -39,7 +39,10 @@ def _calls(path: Path) -> set[str]:
 
 
 def test_both_surfaces_call_the_shared_budget() -> None:
-    for path in (_VIEWS / "home.py", _VIEWS / "trigger_algo" / "_tab_reglages.py"):
+    # R421 (2026-10-06): the home's « 💰 Budget Meta pour déclencher » line is gone at the
+    # owner's request; the two algo-view surfaces that still price a trigger remain.
+    for path in (_VIEWS / "trigger_algo" / "_tab_reglages.py",
+                 _VIEWS / "trigger_algo" / "_playlist_detail.py"):
         assert "budget_declenchement" in _calls(path), (
             f"{path.name} no longer prices the trigger with budget_declenchement — a "
             "second formula will drift from the first")
@@ -57,17 +60,8 @@ def test_no_inline_cost_times_target_remains_in_the_algo_view() -> None:
     assert not sites, f"inline cost × streams outside budget_pour_streams: {sites}"
 
 
-def test_a_budget_for_another_title_is_never_shown() -> None:
-    from src.dashboard.views.home_tiles import _release_budget_line
-
-    gate = {"algo": "DW", "name": "Discover Weekly", "gap": 1993.0, "budget": 47.9}
-    budget = {"song": "A", "pred": {"dw_probability": 0.1}, "cost": 0.024,
-              "gates": [gate, {**gate, "algo": "RR"}, {**gate, "algo": "RADIO"}]}
-    assert _release_budget_line(budget, "B") == "", "a budget priced for A shown under B"
-    line = _release_budget_line(budget, "A")
-    assert line.count("~") == 1, f"three equal gates read as three budgets: {line}"
-    assert "ordre de grandeur" in line
-    assert _release_budget_line({**budget, "cost": None}, "A").startswith("💰")
+# R421 (2026-10-06): `test_a_budget_for_another_title_is_never_shown` retired with
+# `home_tiles._release_budget_line`, the only renderer it guarded.
 
 
 @pytest.mark.skipif(not db_ready(), reason="compares two surfaces on the live DB")

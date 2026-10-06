@@ -34,23 +34,25 @@ import html as _html
 
 import streamlit as st
 
-from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
-from src.dashboard.utils.date_format import format_date
-from src.dashboard.utils.formats import eur, num
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
 from src.dashboard.utils.stat_boxes import stat_box
 
 
-def _format_gate(algo: str, val) -> str:
-    """One gate tile's value: a percentage only when it is OFF the calibration floor.
+def _format_gate(val) -> str:
+    """One gate tile's value: the maximum predicted probability, ON the floor too. Pure.
 
-    A floor probability (`sur_le_plancher`) is the model saying nothing; printed as
-    « 6,5 % » it read as a measure that distinguishes this release. Pure.
+    R421 — the owner's decision (2026-10-06): « pas d'estimation fiable » is replaced by
+    the number. The floor caveat moved to the tooltip; this is the one surface exempted
+    from `proba_affichable` (tests/test_a_floor_probability_is_never_shown_as_a_measure.py).
     """
-    p = proba_affichable(algo, val)
-    if p is None:
-        return texte_plancher() if val else "—"
+    try:
+        p = float(val)
+    except (TypeError, ValueError):
+        return "—"
+    if p != p:                                            # NaN
+        return "—"
     return f"{p * 100:.1f}".replace(".", ",") + " %"
 
 
@@ -90,8 +92,7 @@ def agencer(unites: list, par_rangee: int = 2) -> list[list]:
 
 
 def render_tiles(totals: dict, grand_total: int, ig_count: int,
-                  prev: dict | None = None, side: dict | None = None,
-                  prev_grand: int | None = None) -> None:
+                  side: dict | None = None, prev_grand: int | None = None) -> None:
     """La COLONNE de KPI, à droite de la figure — compacte, trois blocs.
 
     ── L'ORDRE, ET POURQUOI CELUI-LÀ ────────────────────────────────────────────
@@ -129,7 +130,7 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     points. La boîte nomme sa dernière date plutôt que de laisser « — » se lire comme
     un zéro.
     """
-    _t, _p, _s = totals or {}, prev or {}, side or {}
+    _t, _s = totals or {}, side or {}
 
     def _n(v) -> str:
         # `—` ET JAMAIS `0`. Un zéro affirme « personne n'a écouté » ; l'absence dit
@@ -207,36 +208,6 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     _pie = platform_share_figure(_t)
     if _pie is not None:
         charts.plotly_chart(_pie, width="stretch", key="home_platform_share")
-
-    _last = _s.get("last_measured") or {}
-
-    def _box(col, key: str, label: str, help_text: str | None = None) -> None:
-        # ⚠️ `_t.get(...)` EST LU SUR LE SITE D'APPEL, pas dans un helper qui
-        # lirait `totals` lui-même : `make gold-coverage` ne peut suivre une
-        # tranche qu'à travers un nombre limité d'appelants, et les quatre tuiles
-        # de l'accueil sont sorties de la carte de la couche or pour cette raison
-        # exacte le 2026-09-12.
-        value, before = _t.get(key), _p.get(key)
-        # LE COMPTEUR À VIE PORTE CE QU'ON N'A PAS VU. Pour YouTube et SoundCloud,
-        # le total est le compteur de la plateforme : il inclut tout ce qui précède
-        # notre première collecte. L'infobulle nomme les deux nombres — celui de la
-        # boîte et celui que la figure peut dessiner — parce que leur écart est ce
-        # qui fait dire « ces chiffres disent n'importe quoi ».
-        _obs = (_s.get("observed_growth") or {}).get(key)
-        if _obs and value and _obs[1] < value:
-            help_text = (help_text + " " if help_text else "") + t(
-                "home.tile_counter_history",
-                "Compteur à vie. Nous relevons cette plateforme depuis le {since} : "
-                "**{seen}** depuis cette date, le reste précède notre première "
-                "mesure et aucune date ne peut le porter — c'est pourquoi la courbe "
-                "« par période » en montre moins.").format(
-                    since=format_date(_obs[0]),
-                    seen=num(_obs[1]))
-        with col.container(border=True):
-            st.metric(label, _n(value), delta=_delta(value, before), help=help_text)
-            if not value and _last.get(key):
-                st.caption(t("home.tile_last_seen", "Dernier relevé : {d}").format(
-                    d=format_date(_last[key])))
 
     # ── L'ORDRE SUIT LA DONNÉE — 2026-09-22 ────────────────────────────────
     #
@@ -351,21 +322,8 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         ).format(song=_s["release_song"])
 
     # Chaque boîte : (la valeur qui dit si elle a des données, son rendu).
-    def _u_spotify(col):
-        _box(col, "spotify", "🎵 Spotify")
-
-    def _u_youtube(col):
-        _box(col, "youtube", "🎬 YouTube")
-
-    def _u_soundcloud(col):
-        _box(col, "soundcloud", "☁️ SoundCloud")
-
-    def _u_apple(col):
-        _box(col, "apple", "🎎 Apple Music",
-             t("home.apple_no_window",
-               "Apple Music ne fournit qu'un relevé par dépôt de CSV : impossible de "
-               "le découper par période. Choisis « Depuis le début » pour son total."))
-
+    # Spotify, YouTube, Apple Music and SoundCloud have no box since R421: the pie
+    # above carries them, value and share (« vu qu'on les affiche dans le rond »).
     def _u_shazam(col):
         with col.container(border=True):
             st.metric(
@@ -418,10 +376,6 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
 
     _ig_d = _s.get("ig_delta")
     _unites = [
-        [(_t.get("spotify"), _u_spotify)],
-        [(_t.get("youtube"), _u_youtube)],
-        [(_t.get("apple"), _u_apple)],
-        [(_t.get("soundcloud"), _u_soundcloud)],
         # R371 (V3) — Meta Ads + Hypeddit on one row (the spend → click chain), then
         # Shazam + Instagram on the next: the two signals measured off the stores.
         [(_spend, _u_meta), (_hd_ctr, _u_hypeddit)],
@@ -459,22 +413,13 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # maximales pour » : ce sont les maximums que le modèle a attribués à ce titre,
     # pas des taux constatés. Le taux constaté demanderait `s4a_song_algo_outcomes`,
     # à **0 ligne** tous locataires confondus (mesuré le 2026-09-12).
-    _song, _age = _s.get("release_song"), _s.get("release_age")
     _gates = (("release_dw", t("home.gate_dw", "🎯 Discover Weekly")),
               ("release_radio", t("home.gate_radio", "📻 Radio")),
               ("release_rr", t("home.gate_rr", "🆕 Release Radar")))
-    _gate_algo = {"release_dw": "dw", "release_radio": "radio", "release_rr": "rr"}
-    if _song and not any(_s.get(k) for k, _lab in _gates):
-        # R372 — LA SORTIE EST NOMMÉE MÊME SANS PRÉDICTION. Se taire laissait croire
-        # que l'artiste n'avait rien sorti ; afficher une autre sortie aurait été pire.
-        st.caption(_release_caption(_song, _age)
-                   + t("home.gates_nopred", " — pas encore de prédiction pour ce titre"))
     if any(_s.get(k) for k, _lab in _gates):
-        # LE TITRE EST NOMMÉ AU-DESSUS, UNE FOIS. Trois pourcentages sans le titre
-        # auquel ils se rapportent seraient trois nombres orphelins ; le répéter
-        # dans chaque boîte volerait la place du chiffre.
-        st.caption(_release_caption(_song, _age)
-                   + t("home.gates_for", " — probabilités **prédites maximales**"))
+        # R421 — no sentence above or below (« Ta dernière sortie… », « Budget Meta
+        # pour déclencher… » : « enlève les phrases inutiles », 2026-10-06). The title
+        # and the nature of the number live in each box's tooltip.
         g1, g2, g3 = st.columns(3)
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
@@ -482,50 +427,12 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
             # « 🆕 Release Radar » was cut to « 🆕 Release Ra… » in a third of the column.
             # The help survives as the tooltip; the HTML is ONE line (see
             # tests/test_an_html_placeholder_never_stands_alone_on_its_line.py).
-            col.markdown(stat_box(label, _format_gate(_gate_algo[key], val),
-                                   t("home.gate_help",
-                                     "Probabilité PRÉDITE par le modèle que ce titre "
-                                     "entre dans cette playlist algorithmique. Ce n'est "
-                                     "pas un taux observé : aucune issue n'a encore été "
-                                     "saisie.")),
+            col.markdown(stat_box(label, _format_gate(val),
+                                   t("home.gate_help_max",
+                                     "Probabilité PRÉDITE maximale que « {song} », ta "
+                                     "dernière sortie, entre dans cette playlist "
+                                     "algorithmique. Ce n'est pas un taux observé. Au "
+                                     "plancher du modèle, ce chiffre est le même pour "
+                                     "tous les titres.").format(
+                                         song=_s.get("release_song") or "—")),
                          unsafe_allow_html=True)
-        st.caption(_release_budget_line(_s.get("release_budget"), _song))
-
-
-def _release_caption(song: str | None, age: int | None) -> str:
-    """« 🆕 Ta dernière sortie : **X** · sortie il y a n j » — named, and called the last."""
-    return (t("home.release_named", "🆕 Ta dernière sortie : **{song}**")
-            .format(song=song or "—")
-            + (t("home.gates_age", " · sortie il y a {n} j").format(n=age)
-               if age is not None else ""))
-
-
-def _release_budget_line(budget: dict | None, song: str | None) -> str:
-    """The Meta budget that would buy the missing 7-day streams — R372. Pure.
-
-    `budget` is `algo_preview_data.budget_declenchement`, the algo view's own call. A
-    budget computed for ANOTHER title than the one named above is never shown.
-    """
-    if not budget or budget.get("song") != song or not budget.get("pred"):
-        return ""
-    gates = budget.get("gates") or []
-    if not gates:
-        return t("home.release_budget_none",
-                 "💰 Aucune playlist n'attend d'écoutes supplémentaires sur ce titre.")
-    if budget.get("cost") is None:
-        return t("home.release_budget_nocost",
-                 "💰 Budget Meta : pas de coût par écoute mesuré — aucune dépense Meta "
-                 "connue.")
-    # The three gates share one streams target, so one budget usually unlocks all
-    # three: stacking three equal lines would read as three budgets to add up.
-    montants = {round(g["budget"]) for g in gates}
-    if len(montants) == 1:
-        g = gates[0]
-        detail = t("home.release_budget_one", "**~{eur}** pour {gap} écoutes de plus sur 7 j"
-                   ).format(eur=eur(g["budget"], 0), gap=num(g["gap"], 0))
-    else:
-        detail = " · ".join(f"{g['name']} **~{eur(g['budget'], 0)}**" for g in gates)
-    return (t("home.release_budget", "💰 Budget Meta pour déclencher : {detail}")
-            .format(detail=detail)
-            + t("home.release_budget_caveat",
-                " — ordre de grandeur, au coût moyen par écoute de tes campagnes"))
