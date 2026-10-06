@@ -105,6 +105,30 @@ def throttle_consume(bucket: str, key: Optional[str] = None) -> Optional[int]:
     return _LIMITERS[bucket].hit(_key(bucket, key))
 
 
+# R430 — « Faire piloter » requests the app mails to the owner. NOT an authentication
+# bucket (kept out of `_LIMITERS`, whose family is guarded): it bounds a mailbox and the
+# SMTP account it shares with verification mail and ops alerts. Per ACCOUNT, not per
+# IP — a new network must not buy a new budget — plus one cap for the whole instance,
+# so N throwaway accounts cannot drain the relay's daily quota.
+SERVICE_MAIL_PER_ACCOUNT = 3
+SERVICE_MAIL_PER_INSTANCE = 20
+_SERVICE_MAIL_WINDOW_SECS = 3600
+_MAIL_LIMITERS = {
+    "account": SlidingWindowLimiter(SERVICE_MAIL_PER_ACCOUNT, _SERVICE_MAIL_WINDOW_SECS,
+                                    store=_STORE),
+    "instance": SlidingWindowLimiter(SERVICE_MAIL_PER_INSTANCE, _SERVICE_MAIL_WINDOW_SECS,
+                                     store=_STORE),
+}
+
+
+def service_mail_consume(user_id: object) -> Optional[int]:
+    """Seconds to wait before this account may send another request, else None."""
+    if not user_id:
+        return _SERVICE_MAIL_WINDOW_SECS  # no account, no mail — never a shared bucket
+    return (_MAIL_LIMITERS["account"].hit(f"service_mail:{user_id}")
+            or _MAIL_LIMITERS["instance"].hit("service_mail:*"))
+
+
 def throttle_check(bucket: str, key: Optional[str] = None) -> Optional[int]:
     """Seconds to wait if `bucket` is over budget for this client, else None.
 

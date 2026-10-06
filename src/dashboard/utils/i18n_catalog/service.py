@@ -3,8 +3,9 @@
 EN = {
     "service.title": "🎯 Have my campaigns run for me",
     "service.pitch": (
-        "I run your campaigns **end to end**, to your budget and your goals: Meta Ads "
-        "campaign optimisation, creatives, daily reports."),
+        "I run your campaigns **end to end**, to your budget and your goals (triggering "
+        "Spotify's algorithms): Meta Ads campaign optimisation, Spotify stream "
+        "optimisation, creatives, daily reports."),
     "service.no_calendly": (
         "⚙️ No booking link: the button is hidden. Set it in **⚙️ Admin → Settings**."),
     "service.book": "📅 Book a call",
@@ -49,8 +50,11 @@ EN = {
         "Hello,\n\nI would like you to run my campaigns. Here is where I stand:"),
     "service.mail_closing": "Thanks!",
     "service.mail_preview": "**📨 Your mail, ready to go**",
-    "service.mail_header": "To: {to} · Subject: {subject}",
-    "service.mail_send": "📨 Send it from my mail app",
+    "service.mail_send": "📨 Send",
+    "service.mail_sent": "✅ On its way! I'll reply by e-mail.",
+    "service.mail_throttled": "⏳ You've just written to me — try again in {m} min.",
+    "service.mail_failed": "❌ The mail didn't go out. You can send it yourself:",
+    "service.mail_fallback": "📨 Open it in my mail app",
     "service.q.budget": "💶 Planned Meta ad budget",
     "service.q.budget.lt300": "Under €300",
     "service.q.budget.300_1000": "€300 to €1,000",
@@ -70,19 +74,10 @@ EN = {
     "service.q.goals.followers": "Get more Spotify followers",
     "service.q.goals.playlists": "Get into playlists",
     "service.q.goals.instagram": "Grow my Instagram",
-    "service.q.goals.live": "Fill a gig",
+    "service.q.goals.shazam": "Grow my Shazam count",
     "service.q.track": "🎵 The track",
-    "service.q.countries": "🌍 Target countries",
-    "service.q.creatives": "🎬 Your creatives",
-    "service.q.creatives.clip": "I have a music video",
-    "service.q.creatives.visuals": "I have visuals or video snippets",
-    "service.q.creatives.none": "Nothing yet — to be made",
     "service.q.ads": "📣 Run Meta ads before?",
-    "service.q.ads.never": "Never",
-    "service.q.ads.some": "Yes, a little",
-    "service.q.ads.regular": "Yes, regularly",
-    "service.q.smartlink": "🔗 A smart link or a pre-save?",
-    "service.q.smartlink.yes": "Yes (Hypeddit, Feature.fm…)",
-    "service.q.smartlink.no": "No",
+    "service.q.ads.yes": "Yes",
+    "service.q.ads.no": "No",
     "service.q.message": "✍️ Anything else to tell me?",
 }

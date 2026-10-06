@@ -192,35 +192,35 @@ def grille_complete(valeurs: dict[str, str]) -> bool:
 
 class Question(NamedTuple):
     qid: str
-    kind: str  # select | multi | text | area
+    kind: str  # select | multi | yesno | text | area
     key: str
     label: str
     options: tuple[tuple[str, str], ...] = ()
+    #: R430 — pre-filled answer (a slug, or a tuple of slugs for `multi`).
+    default: str | tuple[str, ...] | None = None
 
 
+# R430 (owner, 2026-10-06): pre-filled with the most common case — 300 to 1 000 €, out
+# in under two weeks, already ran Meta ads — so most artists only adjust. Countries,
+# creatives and smart link left: « on s'en fout ». « Déjà fait de la pub Meta » is a
+# yes/no to tick, not a list to open and read. Goals gain Shazam, lose the gig.
 QUESTIONS: tuple[Question, ...] = (
     Question("budget", "select", "service.q.budget", "💶 Budget pub Meta prévu", (
         ("lt300", "Moins de 300 €"), ("300_1000", "300 à 1 000 €"),
         ("1000_3000", "1 000 à 3 000 €"), ("gt3000", "Plus de 3 000 €"),
-        ("unknown", "Je ne sais pas encore"))),
+        ("unknown", "Je ne sais pas encore")), "300_1000"),
     Question("release", "select", "service.q.release", "📅 La sortie est prévue…", (
         ("out", "Déjà sortie"), ("lt2w", "Dans moins de 2 semaines"),
         ("2_4w", "Dans 2 à 4 semaines"), ("1_3m", "Dans 1 à 3 mois"),
-        ("gt3m", "Dans plus de 3 mois"), ("nodate", "Pas encore de date"))),
+        ("gt3m", "Dans plus de 3 mois"), ("nodate", "Pas encore de date")), "lt2w"),
     Question("goals", "multi", "service.q.goals", "🎯 Tes objectifs", (
         ("algos", "Déclencher les algos Spotify (Release Radar, Discover Weekly, Radio)"),
         ("streams", "Gagner des écoutes"), ("followers", "Gagner des abonnés Spotify"),
         ("playlists", "Entrer en playlists"), ("instagram", "Faire grandir mon Instagram"),
-        ("live", "Remplir un concert"))),
+        ("shazam", "Faire grandir mon nombre de Shazam")), ("algos",)),
+    Question("ads", "yesno", "service.q.ads", "📣 Déjà fait de la pub Meta ?", (
+        ("yes", "Oui"), ("no", "Non")), "yes"),
     Question("track", "text", "service.q.track", "🎵 Le titre concerné"),
-    Question("countries", "text", "service.q.countries", "🌍 Les pays visés"),
-    Question("creatives", "select", "service.q.creatives", "🎬 Tes créatives", (
-        ("clip", "J'ai un clip"), ("visuals", "J'ai des visuels ou des extraits vidéo"),
-        ("none", "Rien encore — à créer"))),
-    Question("ads", "select", "service.q.ads", "📣 Déjà fait de la pub Meta ?", (
-        ("never", "Jamais"), ("some", "Oui, un peu"), ("regular", "Oui, régulièrement"))),
-    Question("smartlink", "select", "service.q.smartlink", "🔗 Un smart link ou un pré-save ?", (
-        ("yes", "Oui (Hypeddit, Feature.fm…)"), ("no", "Non"))),
     Question("message", "area", "service.q.message", "✍️ Autre chose à me dire ?"),
 )
 
@@ -235,6 +235,7 @@ def compose_mail(answers: dict[str, str], intro: str, closing: str,
 
 
 def mailto_url(to: str, subject: str, body: str) -> str:
+    """The fallback when the app could not send: the artist's own mail app."""
     from urllib.parse import quote
 
     return f"mailto:{to}?subject={quote(subject)}&body={quote(body)}"

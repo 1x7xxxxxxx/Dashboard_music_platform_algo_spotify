@@ -31,6 +31,7 @@ from src.dashboard.utils.service_offer import (
 )
 
 _OPEN = "service_mail_open"
+_SENT = "service_mail_sent"
 
 
 def show() -> None:
@@ -44,8 +45,9 @@ def show() -> None:
     # duration. The three-column grid and its levers left the page; their data stays
     # in `utils/service_offer.py`, which the admin pricing page still edits.
     st.markdown(t("service.pitch",
-                  "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs : "
-                  "optimisation de campagnes Meta Ads, créatives, bilans quotidiens."))
+                  "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs "
+                  "(déclenchement des algos Spotify) : optimisation de campagnes Meta Ads, "
+                  "optimisation des streams Spotify, créatives, bilans quotidiens."))
 
     with project_db() as db:
         lien = get_setting(db, "service_calendly_url", SERVICE_CALENDLY_URL)
@@ -72,16 +74,23 @@ def show() -> None:
 
 
 def _ask(q) -> str:
-    """One question's widget; its answer as display text, '' when unanswered."""
+    """One question's widget, pre-filled (R430); its answer as text, '' when unanswered."""
     label = t(q.key, q.label)
     shown = {slug: t(f"{q.key}.{slug}", txt) for slug, txt in q.options}
+    slugs = list(shown)
     key = f"service_q_{q.qid}"
-    if q.kind == "select":
-        pick = st.selectbox(label, list(shown), index=None, key=key,
-                            format_func=shown.get, placeholder="—")
+    if q.kind in ("select", "yesno"):
+        index = slugs.index(q.default) if q.default in shown else None
+        if q.kind == "yesno":  # R430: two boxes to tick, not a list to open and read
+            pick = st.radio(label, slugs, index=index, key=key, format_func=shown.get,
+                            horizontal=True)
+        else:
+            pick = st.selectbox(label, slugs, index=index, key=key,
+                                format_func=shown.get, placeholder="—")
         return shown.get(pick, "")
     if q.kind == "multi":
-        picks = st.multiselect(label, list(shown), key=key, format_func=shown.get,
+        st.session_state.setdefault(key, list(q.default or ()))  # pre-ticked, once
+        picks = st.multiselect(label, slugs, key=key, format_func=shown.get,
                                placeholder="—")
         return ", ".join(shown[p] for p in picks)
     if q.kind == "area":
@@ -90,7 +99,11 @@ def _ask(q) -> str:
 
 
 def _questionnaire_and_mail(to: str) -> None:
-    """R429 — the questions a first call would ask, then the mail they make, on the page."""
+    """R429 — the questions a first call would ask, then the mail they make, on the page.
+
+    R430 — the mail leaves FROM the app: one request, one mail in the owner's inbox,
+    countable. The artist's mail app is only the fallback when the send fails.
+    """
     st.markdown(t("service.survey_intro",
                   "**Quelques questions** — tes réponses remplissent le mail en dessous."))
     answers, labels = {}, {}
@@ -104,7 +117,8 @@ def _questionnaire_and_mail(to: str) -> None:
             if q.kind == "area":  # full width, under the two columns
                 answers[q.qid] = _ask(q)
             labels[q.qid] = t(q.key, q.label)
-    who = st.session_state.get("email") or ""
+    # `name` holds the account's e-mail (auth._hydrate_session) — there is no "email".
+    who = str(st.session_state.get("name") or "")
     body = compose_mail(
         answers,
         t("service.mail_intro",
@@ -112,8 +126,29 @@ def _questionnaire_and_mail(to: str) -> None:
         t("service.mail_closing", "Merci !") + (f"\n{who}" if who else ""),
         labels)
     st.markdown(t("service.mail_preview", "**📨 Ton mail, prêt à partir**"))
-    st.caption(t("service.mail_header", "À : {to} · Objet : {subject}").format(
-        to=to, subject=SUJET_MAIL))
     st.code(body, language=None, wrap_lines=True)
-    st.link_button(t("service.mail_send", "📨 L'envoyer depuis ma messagerie"),
-                   mailto_url(to, SUJET_MAIL, body), type="primary")
+    if st.session_state.get(_SENT) == body:
+        st.success(t("service.mail_sent", "✅ C'est parti ! Je te réponds par mail."))
+        return
+    if st.button(t("service.mail_send", "📨 Envoyer"), type="primary"):
+        _send(to, who, body)
+
+
+def _send(to: str, who: str, body: str) -> None:
+    from src.dashboard.utils.throttle import service_mail_consume
+    from src.utils.service_request_mail import send_service_request
+
+    artist = str(st.session_state.get("username") or "")
+    wait = service_mail_consume(st.session_state.get("user_id"))
+    if wait is not None:
+        st.warning(t("service.mail_throttled",
+                     "⏳ Tu viens déjà de m'écrire — réessaie dans {m} min.").format(
+                         m=max(1, wait // 60)))
+        return
+    if send_service_request(to, artist, who, body):
+        st.session_state[_SENT] = body
+        st.rerun()
+    st.error(t("service.mail_failed",
+               "❌ L'envoi n'est pas parti. Tu peux me l'envoyer toi-même :"))
+    st.link_button(t("service.mail_fallback", "📨 L'ouvrir dans ma messagerie"),
+                   mailto_url(to, SUJET_MAIL, body))
