@@ -690,15 +690,15 @@
   mutation: "faire écrire le refus de require_roadmap_entry.py sur stdout"
 - id: REQ-HARN-04
   domaine: claude-wsl
-  enonce: Chaque Write/Edit est relu aussitôt (syntaxe, vue Streamlit, journal d'observation, déploiement prod à prévoir, preuves d'une classe d'erreur)
+  enonce: Chaque Write/Edit est relu aussitôt (syntaxe, vue Streamlit, déploiement prod à prévoir, preuves d'une classe d'erreur)
   sources: [{doc: .claude/hooks/hook.md}]
   priorite: P3
   statut: conforme
   methode: hook
   portee: generique
-  composants: [.claude/hooks/check_python_syntax.py, .claude/hooks/lint_dashboard_view.py, .claude/hooks/observe.py, .claude/hooks/check_prod_sync.py, .claude/hooks/check_error_class_evidence.py]
+  composants: [.claude/hooks/check_python_syntax.py, .claude/hooks/lint_dashboard_view.py, .claude/hooks/check_prod_sync.py, .claude/hooks/check_error_class_evidence.py]
   preuve: {pytest: tests/test_the_prose_gate_and_the_evidence_hook_see_their_defect.py::test_the_evidence_hook_names_a_class_without_its_proofs}
-  ecart: "observe.py et lint_dashboard_view.py n'ont qu'une preuve indirecte (tests qui lisent leur sortie)"
+  ecart: "lint_dashboard_view.py n'a qu'une preuve indirecte (tests qui lisent leur sortie)"
   # Refusé R414 (2026-10-05), sur mesure : Claude Code lance en PARALLÈLE les hooks d'un
   # même évènement — 5 processus = 84 ms médiane, les mêmes en série 236 ms (20 tirages
   # alternés, suite de tests en cours). Un répartiteur en un processus serait en série :
@@ -787,13 +787,16 @@
   statut: conforme
   methode: humain
   portee: generique
-  composants: [.claude/hooks/draft_rex.py, .claude/scripts/promote_rex.py, .claude/rules/rex-format.md, .claude/commands/rex-promote.md, .claude/commands/retro.md, .claude/skills/continuous-learning/SKILL.md]
+  composants: [.claude/rules/rex-format.md, .claude/commands/retro.md, .claude/skills/continuous-learning/SKILL.md]
   preuve: {pytest: tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses}
   # Décidé R413 (2026-10-05) : les trois surfaces sont GARDÉES, chacune a son rôle —
   # draft_rex = le brouillon automatique (31 passages) ; /retro et /rex-promote = la
   # validation humaine que l'exigence demande ; continuous-learning = nommée par le hook
   # session_summary et par CLAUDE.md. draft_rex écrasait pending-rex.md — corrigé R360,
-  # gardé par tests/test_draft_rex_drafts_from_the_session.py.
+  # gardé par archive/tests/test_draft_rex_drafts_from_the_session.py.
+  # Révisé R417 (2026-10-06), sur mesure : 657 lignes de brouillons, 0 promotion, 48
+  # séances — draft_rex, promote_rex et /rex-promote archivés ; /retro et
+  # continuous-learning restent, `invocation: manual`.
   mutation: "faire accepter une date YYYY-MM par validate_rex.py"
 - id: REQ-HARN-12
   domaine: claude-wsl
@@ -815,7 +818,7 @@
   statut: conforme
   methode: commit
   portee: generique
-  composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/curator.md, .claude/commands/dev-docs.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
+  composants: [.claude/commands/adr.md, .claude/commands/audit-collectors.md, .claude/commands/capitalise.md, .claude/commands/curator.md, .claude/commands/resume.md, .claude/commands/review-architecture.md, .claude/commands/review-dag.md, .claude/commands/review-db-schema.md, .claude/commands/roadmap-done.md, .claude/commands/sprint.md, .claude/commands/sweep.md]
   preuve: {pytest: tests/test_claude_config_floor.py::test_every_claude_path_named_in_configuration_resolves}
   # Décidé R413 (2026-10-05) : rien n'est retiré. Les commandes à 0 appel ont un
   # déclencheur nommé (dormantes, R366) ; les trois /review-* portent

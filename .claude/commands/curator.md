@@ -1,4 +1,5 @@
 ---
+invocation: "manual — the weekly pass runs from `make night-status` (R417); by hand only for an off-cycle review"
 rex: []
 ---
 
@@ -7,7 +8,7 @@ Run the config self-improvement curator and act on its proposals (with validatio
 The curator (`/curator`) is the ported `hermes` loop: it makes the Claude Code config
 *improve each iteration* by surfacing redundancy (near-duplicate REX / error-classes),
 real usage (what actually fires), and dead weight (stale skills, cold guards). It is
-**report-only** — it proposes, you validate, mirroring `/rex-promote`.
+**report-only** — it proposes, you validate, and acts only on a validated item.
 
 ## What to do
 
@@ -43,5 +44,6 @@ real usage (what actually fires), and dead weight (stale skills, cold guards). I
   `inject_context.py` (skill injections) and `audit_runner.py` (signature runs/hits).
   Early on it may be sparse — that is expected; telemetry accrues over sessions.
 - This command never mutates the config on its own. The curator script is pure analysis.
-- Run ad-hoc. Nothing schedules it: this config ships no scheduler, and a command
-  that claims a cadence it does not have is a promise the repo cannot keep.
+- The weekly pass runs from `make night-status` when `.claude/curator/last-run` is older
+  than 7 days, report in `.claude/curator/last-report.md` (R417). Run this command for
+  an off-cycle pass, or to act on that report.

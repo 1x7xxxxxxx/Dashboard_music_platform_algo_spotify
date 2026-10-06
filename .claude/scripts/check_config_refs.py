@@ -62,9 +62,10 @@ _EXTRA_FILES = ("dev-docs/roadmap/checklist.md",)
 _REF = re.compile(r"(?<![~/\w])\.claude/[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:py|md)")
 
 # Paths a correct repo may legitimately lack: they are produced at runtime, not installed.
-# `sessions/` is written by draft_rex.py, `archives/` accumulates over time. Listing them here
+# `sessions/` is written by the hooks, `archives/` accumulates over time, `curator/last-report.md`
+# is written by `make night-status` (R417). Listing them here
 # rather than widening the regex keeps every OTHER miss a genuine hit.
-_RUNTIME = (".claude/sessions/", "archive/docs/dev-docs/archives/")
+_RUNTIME = (".claude/sessions/", "archive/docs/dev-docs/archives/", ".claude/curator/last-report.md")
 
 
 def _is_archived(path: pathlib.Path) -> bool:

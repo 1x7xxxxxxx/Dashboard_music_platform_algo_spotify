@@ -96,6 +96,7 @@ airflow-webserver.pid
 .claude/scheduled_tasks.lock
 .claude/curator/usage.json
 .claude/curator/last-run
+.claude/curator/last-report.md
 .claude/curator/*.tmp
 
 # Local archive — obsolete files kept on disk but excluded from repo

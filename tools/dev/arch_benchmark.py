@@ -263,7 +263,28 @@ def manual_invocation(comp: str, root: Path = ROOT) -> str | None:
     return (m.group(1).strip() or "manual") if m else None
 
 
-def component_activity(comp: str, usage: dict) -> dict | None:
+def live_suggestion_surfaces(root: Path = ROOT) -> dict[str, str]:
+    """What can still PRINT `/name` to the model: the hooks and the injected workflows (R417).
+
+    `usage["suggested"]` is read from past transcripts, so it never drops — a nag retired
+    today would keep reporting « suivi manqué » for every session it ever reached."""
+    files = [*sorted((root / ".claude" / "hooks").glob("*.py")),
+             *sorted((root / ".claude" / "workflows").glob("*.md"))]
+    return {str(f.relative_to(root)): f.read_text(encoding="utf-8", errors="ignore") for f in files}
+
+
+def still_suggested(name: str, surfaces: dict[str, str]) -> bool:
+    """Does a live surface still name `/name`? Same shape as the transcript counter. Pure."""
+    pat = re.compile(rf"(?<![\w/.-])/{re.escape(name)}(?![\w./-])")
+    return any(pat.search(text) for text in surfaces.values())
+
+
+def _suggested(name: str, usage: dict, surfaces: dict[str, str] | None) -> int:
+    n = usage.get("suggested", {}).get(name, 0)
+    return n if surfaces is None or still_suggested(name, surfaces) else 0
+
+
+def component_activity(comp: str, usage: dict, surfaces: dict[str, str] | None = None) -> dict | None:
     """{'n': runs, 'last': date, 'kind': …} from the transcripts; None where unmeasurable."""
     if not usage.get("found"):
         return None
@@ -288,14 +309,14 @@ def component_activity(comp: str, usage: dict) -> dict | None:
     if "/skills/" in comp:
         name = Path(comp).parent.name
         return {"kind": "skill", "n": usage["skills"].get(name, 0), "last": last.get(f"skill:{name}"),
-                "suggere": usage.get("suggested", {}).get(name, 0)}
+                "suggere": _suggested(name, usage, surfaces)}
     if "/rules/" in comp:
         return {"kind": "rule", "n": usage["rules"].get(stem, 0), "last": None,
                 "note": "séances qui l'ont chargée"}
     if "/commands/" in comp:
         return {"kind": "command", "n": usage["commands"].get(stem, 0) + usage["skills"].get(stem, 0),
                 "last": last.get(f"command:{stem}") or last.get(f"skill:{stem}"),
-                "suggere": usage.get("suggested", {}).get(stem, 0)}
+                "suggere": _suggested(stem, usage, surfaces)}
     if comp.startswith(".github/workflows/"):
         return usage.get("ci", {}).get(Path(comp).name) or {
             "kind": "ci", "n": 0, "last": None, "note": "gh injoignable — non mesuré"}
@@ -342,7 +363,8 @@ def build(domains: dict, reqs: list[dict], proofs: dict | None, usage: dict | No
             "premisse_corrigee": r.get("premisse_corrigee"),
             "composants": r.get("composants") or [], **state})
     surfaces = imperative_surfaces()
-    components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage),
+    printers = live_suggestion_surfaces()
+    components = {c: {"exigences": owners.get(c, []), "activite": component_activity(c, usage, printers),
                       **({"declencheurs": trigger_sites(c, surfaces),
                           "manuel": manual_invocation(c)}
                          if "/commands/" in c or c.endswith("SKILL.md") else {})}

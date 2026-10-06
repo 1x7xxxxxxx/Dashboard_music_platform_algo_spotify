@@ -67,7 +67,10 @@ def trace_missing(source: str) -> str | None:
 def test_the_hook_list_comes_from_the_settings() -> None:
     hooks = registered_hooks(json.loads(SETTINGS.read_text(encoding="utf-8")))
     assert ".claude/hooks/pre_compact.py" in hooks
-    assert ".claude/scripts/promote_rex.py" in hooks, "a hook outside .claude/hooks/ is a hook"
+    cmd = 'python3 "$(git rev-parse --show-toplevel)"/.claude/scripts/some_check.py'
+    synthetic = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": cmd}]}]}}
+    assert registered_hooks(synthetic) == [".claude/scripts/some_check.py"], (
+        "a hook outside .claude/hooks/ is a hook")
 
 
 def test_every_registered_hook_traces_before_any_logic() -> None:
@@ -92,13 +95,13 @@ def test_the_detector_sees_a_hook_without_its_trace() -> None:
 def test_a_hook_run_writes_one_line(tmp_path: Path) -> None:
     env = {**os.environ, "HOOK_TRACE_DIR": str(tmp_path)}
     env.pop("PYTEST_CURRENT_TEST", None)
-    subprocess.run([sys.executable, str(REPO / ".claude/hooks/observe.py")], input="{}",
+    subprocess.run([sys.executable, str(REPO / ".claude/hooks/lint_dashboard_view.py")], input="{}",
                    text=True, env=env, cwd=REPO, check=False, timeout=60)
     lines = [json.loads(x) for f in tmp_path.glob("hook-runs-*.jsonl")
              for x in f.read_text(encoding="utf-8").splitlines()]
-    assert [x["hook"] for x in lines] == [".claude/hooks/observe.py"]
+    assert [x["hook"] for x in lines] == [".claude/hooks/lint_dashboard_view.py"]
     usage = _load(REPO / ".claude/scripts/usage_report.py", "usage_report_r365")
-    assert usage.hook_runs(tmp_path)[".claude/hooks/observe.py"]["n"] == 1
+    assert usage.hook_runs(tmp_path)[".claude/hooks/lint_dashboard_view.py"]["n"] == 1
 
 
 def test_a_test_never_writes_the_real_journal(monkeypatch) -> None:
@@ -108,5 +111,5 @@ def test_a_test_never_writes_the_real_journal(monkeypatch) -> None:
     registered = []
     monkeypatch.setattr(trace.atexit, "register", lambda *a: registered.append(a))
     monkeypatch.setenv("HOOK_TRACE_DIR", "/nonexistent")
-    trace.trace(str(REPO / ".claude/hooks/observe.py"))
+    trace.trace(str(REPO / ".claude/hooks/lint_dashboard_view.py"))
     assert registered == [], "an IMPORTED hook (not __main__) must not trace"

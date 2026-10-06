@@ -79,12 +79,7 @@ Persists in: PostgreSQL spotify_etl (read-only view)
 After every substantive response (file created, file edited, architectural decision made), spawn a **single background general-purpose agent** to update these 4 deliverables in one pass:
 
 1. **`.claude/dev-docs/architecture.md`** — update Mermaid diagrams (macro + micro) to reflect the change
-2. **Per-tool REX blocks** — for each `.claude/` tool modified with a durable lesson this session, fill the corresponding block in `.claude/sessions/pending-rex.md` **before /clear or session end**:
-   - Set `validated: true`
-   - Fill `entry.issue` (≤120 chars, the symptom — not the fix)
-   - Fill `entry.fix` (≤200 chars, the concrete action)
-   - Add `entry.ref` if there's a DEVLOG/brick anchor
-   The Stop-hook chain (`draft_rex.py` → `promote_rex.py`) will then auto-inject validated drafts into each tool's `rex:` frontmatter list. Drafts left with `issue: "?"` stay pending. Replaces the legacy `retro.md` log.
+2. **Per-tool REX blocks** — for each `.claude/` tool modified with a durable lesson this session, append an entry to its `rex:` frontmatter list (`issue` ≤120 chars, `fix` ≤200 chars, optional `ref`), per `.claude/rules/rex-format.md`. Written by hand since R417 retired the drafting chain.
 3. **`.claude/dev-docs/roadmap/checklist.md`** — add newly discovered work as index rows (R196); a delivered row leaves by `make roadmap-close ID=Rnnn`, never by ticking it in place
 4. **The roadmap** — `make roadmap-close ID=Rnnn NOTE="…"` records the delivery (Why, measure, commits)
 

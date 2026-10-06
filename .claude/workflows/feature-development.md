@@ -10,7 +10,7 @@ For a new capability that is not a bug fix. A playbook the model runs.
 
 | # | Step | Carrier | Type |
 |---|------|---------|------|
-| 1 | Scope it | `/dev-docs <feature>` → `work-in-progress/<feature>/context.md` + `plan.md` | command |
+| 1 | Scope it | an index row `\| Rnnn \| … \|` in `roadmap/checklist.md` with its measure, committed before the code (R196) | playbook |
 | 2 | Design | `Plan` agent — step-by-step, trade-offs, critical files. State what you are NOT building. | playbook |
 | 3 | Challenger, if high-stakes | `code-critic` on the DESIGN (see `bug-resolution.md` for the surface list) | playbook |
 | 4 | Build the smallest slice that is provable | not the whole feature — the smallest thing whose correctness can be demonstrated | playbook |

@@ -108,3 +108,9 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/src/dashboard/content/recap_charts.py` | `src/dashboard/content/recap_charts.py` | contenu généré de la page Récap, sans lecteur depuis son retrait (R379) | 2026-10-05 |
 | `archive/tools/dev/build_recap.py` | `tools/dev/build_recap.py` | générateur de `recap_charts.py` et cible `make recap`, sans objet depuis le retrait de la page (R379) | 2026-10-05 |
 | `archive/tests/test_the_recap_page_is_the_reviews_top.py` | `tests/test_the_recap_page_is_the_reviews_top.py` | garde de la page Récap, retirée avec elle (R379) | 2026-10-05 |
+| `archive/claude-config/hooks/draft_rex.py` | `.claude/hooks/draft_rex.py` | hook Stop qui rédigeait `pending-rex.md` (657 lignes en attente, `issue: "?"`) : 48 séances, 0 promotion — la suggestion `/retro` n'a jamais été suivie (R417) | 2026-10-06 |
+| `archive/claude-config/scripts/promote_rex.py` | `.claude/scripts/promote_rex.py` | hook Stop qui promouvait les brouillons validés — aucun ne l'a jamais été, sans objet sans `draft_rex.py` (R417) | 2026-10-06 |
+| `archive/claude-config/hooks/observe.py` | `.claude/hooks/observe.py` | hook PostToolUse qui alimentait `observations.jsonl` pour `/continuous-learning` — 562 lignes, jamais lues (R417) | 2026-10-06 |
+| `archive/claude-config/commands/rex-promote.md` | `.claude/commands/rex-promote.md` | promotion de `pending-rex.md`, retirée avec son générateur (R417) | 2026-10-06 |
+| `archive/claude-config/commands/dev-docs.md` | `.claude/commands/dev-docs.md` | écrivait dans `work-in-progress/`, inutilisé depuis R201 ; nommé par `feature-development.md`, jamais suivi (R417) | 2026-10-06 |
+| `archive/tests/test_draft_rex_drafts_from_the_session.py` | `tests/test_draft_rex_drafts_from_the_session.py` | garde de `draft_rex.py`, archivé avec son sujet (R417) | 2026-10-06 |

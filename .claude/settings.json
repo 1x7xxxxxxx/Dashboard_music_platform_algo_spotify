@@ -191,10 +191,6 @@
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/observe.py"
-          },
-          {
-            "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/check_prod_sync.py"
           },
           {
@@ -219,15 +215,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/draft_rex.py"
-          },
-          {
-            "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/suggest_sweep.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/scripts/promote_rex.py"
           },
           {
             "type": "command",

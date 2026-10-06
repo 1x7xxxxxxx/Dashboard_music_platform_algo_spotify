@@ -10,10 +10,10 @@ How the config improves itself, honest about what is automatic and what is not.
 
 | # | Step | Carrier | Type |
 |---|------|---------|------|
-| 1 | Observe | `observe.py` (PostToolUse) appends to `observations.jsonl` | hook |
-| 2 | Weekly review | `/curator` — consolidate REX, flag stale tools (report-only, it proposes) | command |
+| 1 | Observe | the trace journal (`_hook_trace`, R365) + transcripts → `make harness-report` | report |
+| 2 | Weekly review | `curator.py`, rerun by `make night-status` when a week has passed → `.claude/curator/last-report.md` (report-only, it proposes) | script |
 | 3 | Coverage meta-guard | `audit_runner.py --coverage` — no catalogued class may be un-swept | signature |
-| 4 | Promote the lessons | `/retro` or `/rex-promote` — REX lives in the tool's own frontmatter, so it travels with the tool | command + human |
+| 4 | Keep the lessons | a test for the defect, a memory file for the owner's preference; a `rex:` entry in the tool's frontmatter when the lesson is about that tool | human |
 | 5 | Prune | delete what is unused. A tool nobody invokes is not neutral: it is a claim that something is covered. | playbook |
 
 ## Prefer a DETECTOR over an AGENT

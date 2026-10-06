@@ -122,8 +122,6 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — trouvaille DO-NOT-BUILD envoyée à Fix → 1 rouge",
     "tests/test_suggest_sweep_suggests_after_a_fix.py":
         "2026-10-04 — `if commits:` → `if False:` → 1 rouge ; mots français retirés de `_FIX_RE` → 1 rouge",
-    "tests/test_draft_rex_drafts_from_the_session.py":
-        "2026-10-04 — filtre `_is_tool_path` retiré → 2 rouges ; `_holds_human_input` court-circuité → 1 rouge",
     "tests/test_a_skill_loads_when_its_subject_is_touched.py":
         "2026-10-04 — `keywords:` retiré de dashboard-view → 1 rouge ; `paths:` → `globs:` dans python.md → 1 rouge",
     "tests/test_containers_are_on_demand.py":

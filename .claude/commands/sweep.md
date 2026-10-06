@@ -81,12 +81,10 @@ gate).
   **History** line — never rewrite prior lines (append-only).
 - If an aggregator target hardcodes signatures, confirm it still matches the
   catalogue; report drift.
-- Record the durable lesson via the existing REX path — **do not hand-edit any
-  `rex:` block**. Append a block to `.claude/sessions/pending-rex.md` targeting
-  the guard tool, or note an architectural class belongs in CLAUDE.md + the
-  relevant `.claude/rules/` file (per `rex-format.md` taxonomy). The Stop chain
-  (`draft_rex.py`) drafts it and `/rex-promote` injects it; immutability + the
-  schema are enforced by the REX validator.
+- Record the durable lesson as a new entry in the guard tool's `rex:` block, or
+  note that an architectural class belongs in CLAUDE.md + the relevant
+  `.claude/rules/` file (per `rex-format.md` taxonomy). Never edit an existing
+  entry; the schema is enforced by the REX validator.
 
 ## Edge cases
 

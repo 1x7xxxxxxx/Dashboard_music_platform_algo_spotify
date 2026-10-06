@@ -1,5 +1,6 @@
 ---
 name: continuous-learning
+invocation: "manual — its end-of-turn nag and the observe.py feed were retired (R417, 48 sessions, 0 calls); memory files carry the lessons now"
 description: Captures a non-obvious pattern found during a session so it is not rediscovered later. Use at the end of a session, when the same fix or workaround appears a second time, when the user says "remember this", "save this pattern", or when a retro surfaces a recurring blocker. Not for writing project documentation or changelog entries — it persists reusable patterns only. Assumes the work being generalised from is already finished.
 ---
 

@@ -6,12 +6,13 @@ scheduled run never changes anything on its own — it produces a report you tri
 
 ## How it's scheduled
 
-The curator is **self-paced via Claude Code**, not a system cron (unlike the prod
-`schema_drift_cron.sh`, which must run on the server). Two equivalent triggers:
+`make night-status` — which every `/resume` runs — reruns `curator.py` when
+`last-run` is older than 7 days and writes the report to `.claude/curator/last-report.md`
+(R417, 2026-10-06). Before that, the Stop hook asked for `/curator` at the end of every
+turn once the week had passed: 48 sessions, 0 runs. A reminder nobody follows is noise;
+a run that happens on the path already taken is not.
 
-- **Ad-hoc**: run `/curator` any time (e.g. at the end of a heavy config session).
-- **Recurring**: ask Claude to `/schedule` a weekly `/curator` run, or add a calendar
-  reminder. A weekly cadence matches how fast REX/error-classes accumulate here.
+`/curator` stays available by hand for an off-cycle pass.
 
 ## Why not a system crontab
 

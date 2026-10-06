@@ -503,7 +503,7 @@ a file that had not existed for weeks.
 | `response-protocol/` | Detailed audit rules — `disable-model-invocation: true`, so **manual only** (`/review-*`) |
 | `audit-collectors/` | Silent success anti-pattern rules — load when touching collectors |
 | `impact-analysis/` | A bug/divergence/drift/500 was identified — whole-repo impact sweep + root-cause + durable guard (rule #11) |
-| `continuous-learning/` | Capturer un motif non évident trouvé en séance. **Nommée ici parce qu'un hook la nomme déjà** : `session_summary.py:429` écrit « run /continuous-learning » en fin de séance, et ce fichier ne le disait pas |
+| `continuous-learning/` | Capturer un motif non évident trouvé en séance — **manuelle** depuis R417 (2026-10-06) : le rappel de fin de tour et le hook `observe.py` qui l'alimentaient sont archivés, 48 séances, 0 appel |
 
 ⚠️ **Deux skills retirées le 2026-09-18** (`systematic-debugging/`, `verification/`), vers `archive/claude-config/skills/` — couvertes par `workflows/bug-resolution.md`. La loi mesurée de ce dépôt vaut aussi pour les skills : **ce qui n'est nommé nulle part n'est jamais invoqué.** Réouverture : `archive/claude-config/skills/POURQUOI-CES-DEUX.md`.
 

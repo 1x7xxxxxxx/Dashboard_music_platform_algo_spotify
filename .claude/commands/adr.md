@@ -1,5 +1,6 @@
 ---
 description: "Add an Architecture Decision Record as a standalone file in docs/adr/."
+invocation: "manual — architecture-change.md names the ADR FILE to write, not this command (R417); a shortcut for whoever wants it"
 rex:
   - date: 2026-08-03
     issue: "The command wrote ADRs into a table in `.claude/dev-docs/ROADMAP.md`, a bootstrap template never rendered (it still held literal `$(date +%Y-%m-%d)`). Its Context section described another project — QuestDB, Fanuc OPC UA, Airbus IT/OT. Six real ADRs meanwhile lived as standalone files in docs/adr/, which the command never named."

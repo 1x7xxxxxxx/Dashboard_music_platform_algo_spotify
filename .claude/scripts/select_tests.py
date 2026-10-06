@@ -1061,8 +1061,8 @@ def _chemins(root: Path, tests: list[str], known: dict[str, Path]) -> list[str]:
 
     `as_paths` reconstruit un chemin en remplaçant les points par des slashs.
     C'était juste tant que tout module vivait sous la racine du dépôt ; ça cesse
-    de l'être dès qu'une racine d'imports est déclarée — `observe` sous
-    `.claude/hooks/` deviendrait `observe.py`, un chemin que pytest ne trouve
+    de l'être dès qu'une racine d'imports est déclarée — `check_prod_sync` sous
+    `.claude/hooks/` deviendrait `check_prod_sync.py` à la racine, un chemin que pytest ne trouve
     pas. On rend donc le chemin que le parcours a réellement vu.
     """
     out = []
@@ -1178,21 +1178,21 @@ def self_test() -> int:
         (cl_root / ".claude" / "hooks").mkdir(parents=True)
         (cl_root / ".claude" / "curator").mkdir(parents=True)
         (cl_root / "tests").mkdir()
-        (cl_root / ".claude" / "hooks" / "observe.py").write_text("X = 1\n")
+        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
         (cl_root / ".claude" / "curator" / "usage.json").write_text("{}\n")
         (cl_root / "tests" / "test_hook.py").write_text(
             "import subprocess, sys\n"
             "def test_h():\n"
-            "    subprocess.run([sys.executable, '.claude/hooks/observe.py'], check=True)\n")
+            "    subprocess.run([sys.executable, '.claude/hooks/check_prod_sync.py'], check=True)\n")
         (cl_root / "tests" / "test_neutre.py").write_text("def test_n(): assert True\n")
         subprocess.run(["git", "init", "-q", str(cl_root)], check=True)
         subprocess.run(["git", "-C", str(cl_root), "add", "-A", "-f"], check=True)
         subprocess.run(["git", "-C", str(cl_root), "-c", "user.email=t@t",
                         "-c", "user.name=t", "commit", "-qm", "base"], check=True)
 
-        (cl_root / ".claude" / "hooks" / "observe.py").write_text("X = 2\n")
+        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 2\n")
         s_hook = select(cl_root)
-        (cl_root / ".claude" / "hooks" / "observe.py").write_text("X = 1\n")
+        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
         (cl_root / ".claude" / "curator" / "usage.json").write_text('{"n": 1}\n')
         s_etat = select(cl_root)
         cas_claude = [
@@ -1217,11 +1217,11 @@ def self_test() -> int:
         dc_root = Path(tempfile.mkdtemp(prefix="select-tests-declare-"))
         (dc_root / ".claude" / "hooks").mkdir(parents=True)
         (dc_root / "tests").mkdir()
-        (dc_root / ".claude" / "hooks" / "observe.py").write_text("X = 1\n")
+        (dc_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
         (dc_root / "conftest.py").write_text(
             "import sys\nsys.path.insert(0, '.claude/hooks')\n")
         (dc_root / "tests" / "test_imp.py").write_text(
-            "import observe\ndef test_i(): assert observe.X\n")
+            "import check_prod_sync\ndef test_i(): assert check_prod_sync.X\n")
         (dc_root / "tests" / "test_syspath.py").write_text(
             "import sys\nsys.path.insert(0, 'ailleurs')\ndef test_s(): assert True\n")
         (dc_root / "tests" / "test_neutre.py").write_text("def test_n(): assert True\n")
@@ -1229,7 +1229,7 @@ def self_test() -> int:
         subprocess.run(["git", "-C", str(dc_root), "add", "-A", "-f"], check=True)
         subprocess.run(["git", "-C", str(dc_root), "-c", "user.email=t@t",
                         "-c", "user.name=t", "commit", "-qm", "base"], check=True)
-        (dc_root / ".claude" / "hooks" / "observe.py").write_text("X = 2\n")
+        (dc_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 2\n")
         s_decl = select(dc_root)
         cas_decl = [
             ("VERT   racine déclarée : le test qui IMPORTE le hook est atteint par le graphe",

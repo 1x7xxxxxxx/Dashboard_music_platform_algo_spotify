@@ -83,7 +83,7 @@ def format_git_summary(lines: list[str]) -> str:
     detail = "\n  ".join([""] + lines[:5])
     if len(lines) > 5:
         detail += f"\n  … et {len(lines) - 5} autre(s)"
-    reminder = '\n💡 Before /clear : close delivered roadmap rows (make roadmap-close ID=Rnnn), run /retro to promote pending REX drafts'
+    reminder = '\n💡 Before /clear : close delivered roadmap rows (make roadmap-close ID=Rnnn)'
     return header + detail + reminder
 
 
@@ -396,64 +396,6 @@ def write_latest_snapshot(repo_root: str, git_changes: list[str]) -> None:
         pass  # non-fatal — hook must never block the session
 
 
-# ── Observations visibility ───────────────────────────────────────────────────
-
-def _check_observations(repo_root: str) -> str | None:
-    root = Path(repo_root)
-    obs = root / ".claude" / "homunculus" / (root.name or "default") / "observations.jsonl"
-    if not obs.exists():
-        return None
-    try:
-        count = sum(1 for _ in obs.open(encoding="utf-8"))
-    except OSError:
-        return None
-    if count > 50:
-        return (
-            f"\n💡 {count} observations logged in observations.jsonl"
-            " — run /continuous-learning to extract reusable patterns"
-        )
-    return None
-
-
-def _check_pending_rex(repo_root: str) -> str | None:
-    pending = Path(repo_root) / ".claude" / "sessions" / "pending-rex.md"
-    if not pending.exists():
-        return None
-    try:
-        text = pending.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return None
-    n_drafts = text.count("\n## ")
-    if n_drafts == 0:
-        return None
-    return (
-        f"\n📝 {n_drafts} REX draft(s) pending in .claude/sessions/pending-rex.md"
-        " — run /retro (review + promote) or /rex-promote (promote only) before /clear"
-    )
-
-
-CURATOR_MAX_DAYS = 7
-
-
-def _check_curator_age(repo_root: str, today=None) -> str | None:
-    """`/curator` is meant to run weekly; say so when it has not (R172, 2026-09-25).
-
-    « weekly » lived in `.claude/curator/SCHEDULE.md` as a wish nothing checked. The
-    curator dates each run in `.claude/curator/last-run`; this line reminds, it never blocks.
-    """
-    import datetime as _dt
-    today = today or _dt.date.today()
-    stamp = Path(repo_root) / ".claude" / "curator" / "last-run"
-    try:
-        last = _dt.date.fromisoformat(stamp.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return "\n🧹 /curator n'a jamais été daté — le lancer (revue hebdomadaire de la config)"
-    age = (today - last).days
-    if age <= CURATOR_MAX_DAYS:
-        return None
-    return f"\n🧹 /curator pas lancé depuis {age} j (revue hebdomadaire de la config)"
-
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def record_defects(transcript_path: str, session: str, repo_root: str) -> None:
@@ -540,21 +482,8 @@ def main():
         sections.append(
             "\n📋 Post-session deliverables not updated:\n"
             + "\n".join(deliverable_warnings)
-            + "\n  → make roadmap-close for delivered rows before /clear; run /retro to promote pending REX drafts"
+            + "\n  → make roadmap-close for delivered rows before /clear"
         )
-
-    # 7. Observations visibility
-    obs_hint = _check_observations(repo_root)
-    if obs_hint:
-        sections.append(obs_hint)
-
-    # 8. Pending REX drafts
-    curator_hint = _check_curator_age(repo_root)
-    if curator_hint:
-        sections.append(curator_hint)
-    rex_hint = _check_pending_rex(repo_root)
-    if rex_hint:
-        sections.append(rex_hint)
 
     if sections:
         print("\n" + "─" * 50)

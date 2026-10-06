@@ -63,10 +63,8 @@ Le validator parse la docstring, extrait le bloc entre `---` et le charge en YAM
 
 ## Flux opérationnel
 
-1. **Capture automatique (fin de session)** — le hook Stop `draft_rex.py` lit `observations.jsonl` + `git diff` et génère `.claude/sessions/pending-rex.md` avec N propositions pré-remplies (fichier cible, timestamp, diff résumé, `issue: ?` et `fix: ?` vides).
-2. **Validation humaine** — l'utilisateur édite `pending-rex.md`, remplit `issue` + `fix`, marque `validated: true` sur les entrées à promouvoir.
-3. **Promotion** — slash command `/rex-promote` lit `pending-rex.md`, injecte chaque entrée validée dans le bloc `rex:` de l'outil cible, puis supprime ou archive le fichier pending.
-4. **Audit** — `.claude/scripts/validate_rex.py` vérifie que chaque outil expose une clé `rex:` (même vide) ; flag les outils sans REX après modifications répétées.
+1. **Écriture à la main** — l'entrée s'ajoute directement au bloc `rex:` de l'outil concerné, validée par le propriétaire. La chaîne automatique (`draft_rex.py` → `pending-rex.md` → `/rex-promote`) est retirée depuis R417 (2026-10-06) : 657 lignes de brouillons, 0 promotion en 48 séances.
+2. **Audit** — `.claude/scripts/validate_rex.py` vérifie que chaque outil expose une clé `rex:` (même vide) ; flag les outils sans REX après modifications répétées.
 
 ## Ce qui n'est pas un REX par outil
 

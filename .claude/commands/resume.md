@@ -30,8 +30,8 @@ Resume the current session context after a /clear or session restart.
 
 3. Read the last 5 delivered entries at the head of `.claude/dev-docs/roadmap/archive.md` (`## ✅ Rnnn` headings) — title and date only, no body. The DEVLOG is archived since R311.
 
-4. Read `.claude/sessions/pending-rex.md` if it exists and list any un-promoted REX drafts
-   (session cleanup reminder). (`_archived_retro.md` is frozen — no longer read, R201.)
+4. If `make night-status` printed a `▶ CURATEUR` line, read `.claude/curator/last-report.md`
+   and list its proposals in the brief (the weekly config review, R417 — it proposes, never acts).
 
 5. `ls docs/adr/` — show the 2 ADRs most relevant to the open rows (match by id, technology keyword, or domain). Read only those two; show ADR number + title + the one-line `## Decision`. Skip if the index is empty.
 
@@ -47,6 +47,8 @@ Resume the current session context after a /clear or session restart.
 <Rnnn — the gesture it awaits> (or "none")
 
 **Roadmap discipline (14 d):** <the 3 lines of `make roadmap-discipline`>
+
+**Config review (curator):** <proposals from last-report.md, only when re-run today>
 
 **Deferred from last sessions:**
 - <deferred action or Next session item>

@@ -310,6 +310,43 @@ def mail_journal_age_days(text: str, today: str) -> "int | None":
     return (datetime.fromisoformat(today) - newest).days
 
 
+CURATOR_DIR = REPO / ".claude" / "curator"
+CURATOR_MAX_DAYS = 7
+
+
+def curator_due(stamp: "str | None", today: str, max_days: int = CURATOR_MAX_DAYS) -> bool:
+    """Is the weekly config review due? A missing or unreadable stamp is due. Pure."""
+    try:
+        last = datetime.fromisoformat((stamp or "").strip())
+    except ValueError:
+        return True
+    return (datetime.fromisoformat(today) - last).days > max_days
+
+
+def _run_curator_if_due() -> None:
+    """R417: the review RUNS here instead of being asked for at every end of turn.
+
+    `/curator` was nagged by the Stop hook for weeks and never run (48 sessions, 0 calls).
+    `night-status` is what every resume runs, so the weekly pass happens on its own; the
+    report is written to a file and only its path is shown — it still proposes, never acts."""
+    try:
+        stamp = (CURATOR_DIR / "last-run").read_text(encoding="utf-8")
+    except OSError:
+        stamp = None
+    if not curator_due(stamp, _now()[:10]):
+        return
+    report = CURATOR_DIR / "last-report.md"
+    try:
+        out = subprocess.run([sys.executable, str(REPO / ".claude/scripts/curator.py")],
+                             cwd=REPO, capture_output=True, text=True, timeout=120)
+        report.write_text(out.stdout, encoding="utf-8")
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"\n▶ CURATEUR ⚠️ revue hebdomadaire n'a pas pu tourner ({type(exc).__name__})")
+        return
+    print(f"\n▶ CURATEUR revue hebdomadaire de la config relancée → "
+          f"{report.relative_to(REPO)} ({len(out.stdout.splitlines())} lignes, à lire)")
+
+
 def cmd_status(_args) -> int:
     entries = _entries()
     tasks = _open_tasks()
@@ -404,6 +441,7 @@ def cmd_status(_args) -> int:
         print(f"\n▶ MAILS     📬 journal {'absent' if age is None else f'vieux de {age} j'} — "
               "chercher `from:noreply@streamlytics.fr` depuis la dernière ligne et trier "
               f"dans {MAIL_JOURNAL.relative_to(REPO)}")
+    _run_curator_if_due()
 
     return 0
 

@@ -2,12 +2,11 @@
 """
 Stop hook — suggests running /sweep when the session looks like a bug fix.
 
-Detects a "bugfix-shaped" session via four signals (fires if ANY is true) and
+Detects a "bugfix-shaped" session via its signals (fires if ANY is true) and
 prints ONE actionable line to stderr pointing at /sweep. It never runs the
-sweep, never blocks, exits 0 on any error. Mirrors the contract of draft_rex.py
-(session-window helper replicated, not imported — hooks run standalone).
-Position in the Stop chain: AFTER draft_rex.py (signal 4 needs pending-rex.md
-populated first), BEFORE draft_devlog.py.
+sweep, never blocks, exits 0 on any error (session-window helper replicated, not
+imported — hooks run standalone). The pending-REX signal went with draft_rex.py (R417):
+nothing writes pending-rex.md any more.
 
 Signal 3 (risk-dir .py changed) derives its source dirs from the repo itself —
 see `_risk_dirs`. Nothing to tune, and nothing that only works in one repo.
@@ -30,7 +29,6 @@ from _hook_trace import trace as _trace  # noqa: E402
 _trace(__file__)
 
 _SESSION_MARKER_FILE = ".claude/sessions/.session-start-ts"
-_PENDING_REX = ".claude/sessions/pending-rex.md"
 _CATALOGUE = ".claude/dev-docs/error-classes.md"
 _FALLBACK_WINDOW_SEC = 2 * 60 * 60  # 2h
 # R360: this repo writes its commits in French — the English-only list matched 2 of the
@@ -109,23 +107,12 @@ def _risk_py_changed(repo_root: Path) -> bool:
     )
 
 
-def _pending_rex_severe(repo_root: Path) -> bool:
-    f = repo_root / _PENDING_REX
-    try:
-        txt = f.read_text(encoding="utf-8") if f.exists() else ""
-    except OSError:
-        return False
-    return "severity: crit" in txt or "severity: warn" in txt
-
-
 def _detect(repo_root: Path) -> tuple[str, str] | None:
     """Return (signal_name, suggested_phrase) or None."""
     start_ts = _session_start_ts(repo_root)
     commits = _fix_commits(repo_root, start_ts)
     if commits:
         return "fix-commit", commits[0][:60]
-    if _pending_rex_severe(repo_root):
-        return "pending-rex severity", "the issue fixed this session"
     if _risk_py_changed(repo_root):
         return "risk-dir .py change", "the change made this session"
     return None

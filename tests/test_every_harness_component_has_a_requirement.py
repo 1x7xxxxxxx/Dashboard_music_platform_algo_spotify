@@ -41,7 +41,7 @@ def test_every_harness_component_has_a_requirement() -> None:
 
 def test_the_component_list_reads_every_kind() -> None:
     comps = bench.harness_components()
-    for expected in (".claude/hooks/pre_compact.py", ".claude/scripts/promote_rex.py",
+    for expected in (".claude/hooks/pre_compact.py", ".claude/hooks/session_summary.py",
                      ".claude/agents/code-critic.md", ".claude/skills/db-schema/SKILL.md",
                      ".claude/rules/python.md", ".claude/workflows/engineering-loop.js",
                      ".claude/commands/capitalise.md", "Makefile:test-changed"):
