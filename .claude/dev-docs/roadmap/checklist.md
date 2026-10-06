@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R427 | Accueil — retour du 2026-10-06 (5) : en non cumulé, YouTube et SoundCloud (≈ 30 écoutes/mois contre ≈ 700 pour Spotify, mesuré en prod) sont collés au zéro et lus comme absents → axe Y logarithmique en mode non cumulé, sur l'Accueil seulement ; puis l'Accueil reste verrouillé (R425) <!-- critic: non — choix d'échelle tranché par le propriétaire, aucune requête ajoutée --> <!-- home: oui --> <!-- scope: src/dashboard/views/home.py, src/dashboard/utils/platform_chart.py, tests/ --> | P3 | test du type d'axe par mode + photo régénérée + contrôle sur la prod |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R427 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
