@@ -44,10 +44,14 @@ def show() -> None:
     # R387 (V52-V54, owner 2026-10-05): the offer in one sentence — no price, no
     # duration. The three-column grid and its levers left the page; their data stays
     # in `utils/service_offer.py`, which the admin pricing page still edits.
+    # R433 (owner, 2026-10-06): the value as bullets, « toute la plus-value qu'on a ».
     st.markdown(t("service.pitch",
                   "Je gère tes campagnes **de A à Z**, selon ton budget et tes objectifs "
-                  "(déclenchement des algos Spotify) : optimisation de campagnes Meta Ads, "
-                  "optimisation des streams Spotify, créatives, bilans quotidiens."))
+                  "(déclenchement des algos Spotify) :\n\n"
+                  "- Optimisation des campagnes Meta Ads\n"
+                  "- Optimisation des streams Spotify\n"
+                  "- Génération de créatives\n"
+                  "- Bilan quotidien"))
 
     with project_db() as db:
         lien = get_setting(db, "service_calendly_url", SERVICE_CALENDLY_URL)

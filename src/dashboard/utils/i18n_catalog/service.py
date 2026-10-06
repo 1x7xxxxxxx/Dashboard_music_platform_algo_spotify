@@ -4,8 +4,11 @@ EN = {
     "service.title": "🎯 Have my campaigns run for me",
     "service.pitch": (
         "I run your campaigns **end to end**, to your budget and your goals (triggering "
-        "Spotify's algorithms): Meta Ads campaign optimisation, Spotify stream "
-        "optimisation, creatives, daily reports."),
+        "Spotify's algorithms):\n\n"
+        "- Meta Ads campaign optimisation\n"
+        "- Spotify stream optimisation\n"
+        "- Creative generation\n"
+        "- Daily report"),
     "service.no_calendly": (
         "⚙️ No booking link: the button is hidden. Set it in **⚙️ Admin → Settings**."),
     "service.book": "📅 Book a call",
@@ -75,7 +78,6 @@ EN = {
     "service.q.goals.playlists": "Get into playlists",
     "service.q.goals.instagram": "Grow my Instagram",
     "service.q.goals.shazam": "Grow my Shazam count",
-    "service.q.track": "🎵 The track",
     "service.q.ads": "📣 Run Meta ads before?",
     "service.q.ads.yes": "Yes",
     "service.q.ads.no": "No",

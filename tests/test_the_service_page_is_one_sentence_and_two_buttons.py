@@ -79,8 +79,9 @@ def test_two_buttons_and_no_price_or_duration() -> None:
     assert _buttons(at) == ["https://calendly.example/rdv"], "the mail is not a bare mailto"
     text = " ".join(m.value for m in at.markdown) + " ".join(c.value for c in at.caption)
     assert "A à Z" in text, "the one-sentence pitch is gone"
-    for part in ("déclenchement des algos Spotify", "optimisation des streams Spotify",
-                 "créatives", "bilans quotidiens"):
+    for part in ("déclenchement des algos Spotify", "- Optimisation des campagnes Meta Ads",
+                 "- Optimisation des streams Spotify", "- Génération de créatives",
+                 "- Bilan quotidien"):
         assert part in text, part
     found = _PRICE_OR_DURATION.findall(text)
     assert not found, f"the page states a price or a duration again: {found}"
@@ -105,7 +106,7 @@ def test_the_questionnaire_opens_pre_filled_and_without_the_dropped_questions() 
     assert "pub Meta ? : Oui" in body, "« déjà fait de la pub Meta » is not pre-ticked yes"
     ads = next(r for r in at.radio if "pub Meta" in r.label)
     assert list(ads.options) == ["Oui", "Non"], "a yes/no, not a list to open"
-    for gone in ("pays", "créatives", "smart link", "concert"):
+    for gone in ("pays", "créatives", "smart link", "concert", "titre concerné"):
         assert gone not in body.lower(), f"{gone!r} was dropped by the owner"
     assert "Shazam" in " ".join(next(m for m in at.multiselect).options)
 

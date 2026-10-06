@@ -204,6 +204,7 @@ class Question(NamedTuple):
 # in under two weeks, already ran Meta ads — so most artists only adjust. Countries,
 # creatives and smart link left: « on s'en fout ». « Déjà fait de la pub Meta » is a
 # yes/no to tick, not a list to open and read. Goals gain Shazam, lose the gig.
+# R433: « Le titre concerné » left too (« franchement on s'en fout »).
 QUESTIONS: tuple[Question, ...] = (
     Question("budget", "select", "service.q.budget", "💶 Budget pub Meta prévu", (
         ("lt300", "Moins de 300 €"), ("300_1000", "300 à 1 000 €"),
@@ -220,7 +221,6 @@ QUESTIONS: tuple[Question, ...] = (
         ("shazam", "Faire grandir mon nombre de Shazam")), ("algos",)),
     Question("ads", "yesno", "service.q.ads", "📣 Déjà fait de la pub Meta ?", (
         ("yes", "Oui"), ("no", "Non")), "yes"),
-    Question("track", "text", "service.q.track", "🎵 Le titre concerné"),
     Question("message", "area", "service.q.message", "✍️ Autre chose à me dire ?"),
 )
 
