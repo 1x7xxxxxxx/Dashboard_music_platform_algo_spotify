@@ -28,6 +28,14 @@ sys.path.insert(0, str(ROOT / "tools" / "dev"))
 
 # (page file, tile label key) → why it is not the chart's number.
 REVIEWED: dict[tuple[str, str], str] = {
+    ("src/dashboard/views/home_tiles.py", "home.tile_meta"):
+        "R423: ad spend in €; the donut splits streams by platform",
+    ("src/dashboard/views/home_tiles.py", "home.tile_hypeddit"):
+        "R423: a click-through rate; the donut splits streams by platform",
+    ("src/dashboard/views/home_tiles.py", "home.tile_shazam"):
+        "R423: Shazam counts are not streams; the donut does not draw them",
+    ("src/dashboard/views/home_tiles.py", "📸 Instagram"):
+        "R423: a follower headcount, not in the stream total the donut splits",
     ("src/dashboard/views/etl_logs.py", "etl_logs.kpi_runs"):
         "total over every DAG; the chart facets runs per DAG and per day",
     ("src/dashboard/views/etl_logs.py", "etl_logs.kpi_success_rate"):

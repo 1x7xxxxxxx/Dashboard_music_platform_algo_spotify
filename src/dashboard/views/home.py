@@ -149,16 +149,22 @@ def _section_streams(db, artist_id):
     # distinguent, une colonne de chiffres n'en a pas besoin. Les boîtes ont été
     # rétrécies en conséquence — bandeau à 1,8em, deux boîtes par rangée — plutôt
     # que de rogner la figure.
-    col_fig, col_kpi = st.columns([3, 2])
+    #
+    # R423 (2026-10-06) — « sur la même ligne horizontale le graphique cumulé et le
+    # diagramme circulaire […] ils doivent être alignés ». The row holds ONLY the figure
+    # and the donut, both 340 px high, aligned on their BOTTOM edge: what sits above
+    # each (the Cumulé toggle, the total banner) differs in height, the plots do not.
+    # The Indicateurs, the four boxes and the three gates follow, full width.
+    col_fig, col_kpi = st.columns([3, 2], vertical_alignment="bottom")
+    recap_slot = st.container()
     with col_fig:
         # `totals` et `_side` sont DÉJÀ calculés au-dessus : les repasser évite de
         # les redemander, et le plafond de requêtes est atteint.
         _render_trend(db, series, since, until, range_key, artist_id,
-                      totals=totals, side=_side)
-    with col_kpi:
-        from src.dashboard.views.home_tiles import render_tiles
-        render_tiles(totals, grand_total, ig_count,
-                     side=_side, prev_grand=_prev_grand)
+                      totals=totals, side=_side, recap_slot=recap_slot)
+    from src.dashboard.views.home_tiles import render_tiles
+    render_tiles(totals, grand_total, ig_count,
+                 side=_side, prev_grand=_prev_grand, share_slot=col_kpi)
 
     # R373 (2026-10-05, V6) — l'accueil s'arrête aux chiffres. Quatre blocs sont partis
     # là où l'on vient les chercher : le conseil Meta sur la page Publicité Meta Ads
@@ -232,7 +238,7 @@ def _recap_metrics(side: dict, totals: dict, aligned: dict, span: list,
 
 
 def _render_trend(db, series, since, until, range_key, artist_id,
-                  totals=None, side=None) -> None:
+                  totals=None, side=None, recap_slot=None) -> None:
     """La figure de l'accueil — pleine largeur depuis que les tuiles sont parties.
 
     Chaque valeur est une quantité du JOUR : `platform_timeseries` ramène les compteurs
@@ -454,7 +460,9 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         # tombent là où la figure les rend — juste sous elle, dans l'ordre de
         # lecture. C'est le seul endroit d'où l'on connaît le grain RÉELLEMENT
         # retenu quand l'artiste a laissé « Automatique ».
-        recap=True,
+        # R423 — the boxes go in `recap_slot`, UNDER the figure+donut row: inside the
+        # figure's column they would push it off the donut's line.
+        recap=recap_slot if recap_slot is not None else True,
         # UN RAPPEL, pas une liste toute faite : les métriques dérivées doivent
         # être calculées sur les séries que la figure a RÉELLEMENT dessinées.
         recap_metrics=lambda al, sp, _gr, st_, md: _recap_metrics(

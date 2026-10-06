@@ -1,4 +1,4 @@
-"""La colonne de KPI de l'accueil — huit tuiles de plateforme, puis les trois portes.
+"""Les KPI de l'accueil — total + donut à côté de la figure, puis quatre tuiles et trois portes.
 
 Type: Sub
 Uses: streamlit, i18n.t, html
@@ -30,6 +30,7 @@ tant qu'elle vivait dans le fichier qui l'appelle ; exportée, un `_` en tête d
 """
 from __future__ import annotations
 
+import contextlib
 import html as _html
 
 import streamlit as st
@@ -91,9 +92,45 @@ def agencer(unites: list, par_rangee: int = 2) -> list[list]:
     return rangees
 
 
+def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
+                            delta: str | None) -> None:
+    """The total banner, then each platform's share of it (the donut)."""
+    # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
+    # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
+    # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
+    st.markdown(
+        f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
+            background:#f0f2f6; border-radius:8px; margin-bottom:8px;">
+            <div style="color:#555; font-size:0.78em; font-weight:600;">{
+                t("home.total_all_platforms", "🎧 Total streams")}</div>
+            <div style="font-size:2.3em; line-height:1.1; color:#1DB954;
+                 font-weight:800;">{_grand_fmt}</div>
+            <div style="color:#666; font-size:0.78em;">{
+                delta or ""}</div>
+        </div>""",
+        unsafe_allow_html=True)
+
+    # R371 (V2) — each platform's share of THAT total, read from the same `totals`
+    # dict: the slices sum to the number above by construction, never a second total.
+    from src.dashboard.utils import charts
+    from src.dashboard.utils.platform_share import platform_share_figure
+    _pie = platform_share_figure(_t)
+    if _pie is not None:
+        # R423 — no decision line under the donut: « Voir quelle plateforme porte tes
+        # écoutes… » was « inutile » (the owner, 2026-10-06).
+        charts.plotly_chart(_pie, width="stretch", key="home_platform_share",
+                            decision=False)
+
+
 def render_tiles(totals: dict, grand_total: int, ig_count: int,
-                  side: dict | None = None, prev_grand: int | None = None) -> None:
-    """La COLONNE de KPI, à droite de la figure — compacte, trois blocs.
+                  side: dict | None = None, prev_grand: int | None = None,
+                  share_slot=None) -> None:
+    """Les KPI de l'accueil — trois blocs.
+
+    R423 (2026-10-06) — « sur la même ligne horizontale le graphique cumulé et le
+    diagramme circulaire », puis Meta Ads, Hypeddit, Shazam, Insta « sur la même ligne
+    les quatre », et en dessous les trois portes. `share_slot` is the column beside the
+    figure: the total banner and the donut go there, everything else below the row.
 
     ── L'ORDRE, ET POURQUOI CELUI-LÀ ────────────────────────────────────────────
 
@@ -185,29 +222,9 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # de l'infobulle qu'on vient d'y mettre — les siennes sont du texte, pas des
     # milliers. Le défaut n'existait pas tant que le gabarit n'était que du HTML.
     _grand_fmt = f"{grand_total:,}".replace(",", "\u202f")
-
-    # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
-    # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
-    # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
-    st.markdown(
-        f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
-            background:#f0f2f6; border-radius:8px; margin-bottom:8px;">
-            <div style="color:#555; font-size:0.78em; font-weight:600;">{
-                t("home.total_all_platforms", "🎧 Total streams")}</div>
-            <div style="font-size:2.3em; line-height:1.1; color:#1DB954;
-                 font-weight:800;">{_grand_fmt}</div>
-            <div style="color:#666; font-size:0.78em;">{
-                _delta(grand_total, prev_grand) or ""}</div>
-        </div>""",
-        unsafe_allow_html=True)
-
-    # R371 (V2) — each platform's share of THAT total, read from the same `totals`
-    # dict: the slices sum to the number above by construction, never a second total.
-    from src.dashboard.utils import charts
-    from src.dashboard.utils.platform_share import platform_share_figure
-    _pie = platform_share_figure(_t)
-    if _pie is not None:
-        charts.plotly_chart(_pie, width="stretch", key="home_platform_share")
+    with share_slot if share_slot is not None else contextlib.nullcontext():
+        _render_total_and_share(_t, _grand_fmt, _banner_title,
+                                _delta(grand_total, prev_grand))
 
     # ── L'ORDRE SUIT LA DONNÉE — 2026-09-22 ────────────────────────────────
     #
@@ -386,8 +403,9 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # Shazam vide ferait descendre Apple qui livre.
     _unites.sort(key=lambda u: not any(v for v, _f in u))
 
-    for _rangee in agencer(_unites):
-        _cols = st.columns(2)
+    # R423 — the four boxes on ONE row, under the figure and the donut.
+    for _rangee in agencer(_unites, par_rangee=4):
+        _cols = st.columns(4)
         for _col, (_valeur, _rendu) in zip(_cols, _rangee):
             _rendu(_col)
 
@@ -420,6 +438,10 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         # R421 — no sentence above or below (« Ta dernière sortie… », « Budget Meta
         # pour déclencher… » : « enlève les phrases inutiles », 2026-10-06). The title
         # and the nature of the number live in each box's tooltip.
+        st.caption(t(
+            "home.gates_caption",
+            "Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans "
+            "chaque playlist algorithmique de Spotify."))
         g1, g2, g3 = st.columns(3)
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)

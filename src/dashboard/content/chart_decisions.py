@@ -57,7 +57,7 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/etl_logs.py::_section_trend#1': (
         'Repérer une collecte en panne, avant de juger une campagne sur des chiffres qui manquent.',
         'Spot a broken collection before judging a campaign on missing figures.'),
-    'views/home_tiles.py::render_tiles#1': (
+    'views/home_tiles.py::_render_total_and_share#1': (
         'Voir quelle plateforme porte tes écoutes, pour savoir où concentrer ta promo.',
         'See which platform carries your streams, to know where to focus your promotion.'),
     'views/hypeddit.py::_render_campaign_series#1': (
