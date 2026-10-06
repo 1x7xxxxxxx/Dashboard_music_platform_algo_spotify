@@ -64,6 +64,10 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_the_admin_screen_says_what_the_mail_says.py":
+        "2026-10-06 — R422 : readiness_snapshot sans les verdicts rejoués (`probes=` retiré) "
+        "→ 1 rouge (« the screen must replay the verdict ») ; collection_failures gardant "
+        "les `success` → 1 rouge (l'écran et le mail divergent du ledger)",
     "make schema-check-local":
         "2026-10-05 — R412 : trg_revision_s4a_song_timeline commenté dans la migration 096 "
         "→ exit 2, « a trigger present on one side only » (REQ-BRONZE-02)",
