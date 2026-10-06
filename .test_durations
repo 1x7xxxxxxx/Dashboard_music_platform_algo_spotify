@@ -2090,6 +2090,7 @@
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_an_unlinked_campaign_name_draws_nothing": 0.0051489390025381,
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_another_tenants_link_does_not_resolve": 0.028303482009505387,
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_the_meta_panel_is_a_curve": 0.03886192100617336,
+    "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_the_meta_spend_is_an_area_on_the_streams_figure": 0.06484173200442456,
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_the_overlays_hand_the_link_frames_to_the_pure_join": 0.029734818999713752,
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_the_spend_stops_at_the_compared_horizon": 0.029062136993161403,
     "tests/test_a_release_receives_its_meta_spend_by_match_key.py::test_two_platform_titles_do_not_double_the_spend": 0.03576488899125252,

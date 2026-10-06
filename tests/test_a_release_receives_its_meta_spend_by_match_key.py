@@ -102,6 +102,28 @@ def test_the_meta_panel_is_a_curve():
     assert traces and all(tr.mode == "lines" for tr in traces)
 
 
+def test_the_meta_spend_is_an_area_on_the_streams_figure():
+    """R436 (owner, 2026-10-07): an area under the curve, on the cumulative-streams figure."""
+    import ast
+    import inspect
+
+    meta = page.release_spend(*_frames(), horizon=30)
+    traces = page.meta_spend_traces(meta, {"a": "#065fd8"})
+    assert all(tr.fill == "tozeroy" and tr.fillcolor.startswith("rgba(") for tr in traces)
+    tree = ast.parse(inspect.getsource(page))
+    adds = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+            and getattr(n.func, "attr", "") == "add_trace" and n.args
+            and isinstance(n.args[0], ast.Name) and n.args[0].id == "trace"]
+    meta_loop = [n for n in ast.walk(tree) if isinstance(n, ast.For)
+                 and getattr(getattr(n.iter, "func", None), "id", "") == "meta_spend_traces"]
+    assert meta_loop, "the Meta traces are no longer drawn"
+    call = next(c for c in ast.walk(meta_loop[0]) if c in adds)
+    kw = {k.arg: getattr(k.value, "value", None) for k in call.keywords}
+    # The area sits on the BASE axis so the streams lines (overlaying axis) draw above it.
+    assert kw.get("row") == 1 and kw.get("secondary_y") is False, (
+        f"the Meta area left the streams figure, or now covers its lines: {kw}")
+
+
 class _FakeDb:
     """Answers each overlay read by the table it names — no Postgres."""
 

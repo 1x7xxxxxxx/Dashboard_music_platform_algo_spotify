@@ -149,7 +149,11 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
     "instagram.py": (3, "posts du mois (volume) vs likes + commentaires par publication "
                         "(ratio) — deux natures, « publier plus ou mieux »"),
     "spotify_s4a_combined.py": (
-        6, "(9 → 6 le 2026-09-26, R187 : le §2 « auditeurs-jour » et son axe du ratio ont "
+        9, "(6 → 9 le 2026-10-07, R436 : la dépense Meta CUMULÉE (€) devient une aire à "
+           "l'axe de droite de la figure des streams cumulés (écoutes) — un VOLUME contre "
+           "une DÉPENSE, la paire déjà admise pour meta_x_spotify ; demandé par le "
+           "propriétaire : « sur le même graphique que les streams cumulés … pour bien "
+           "voir les deux ») ; (9 → 6 le 2026-09-26, R187 : le §2 « auditeurs-jour » et son axe du ratio ont "
            "été remplacés par une figure à UN axe) — détail par titre : compte (streams/jour) vs INDICE (PI) borné de 0 au "
            "max observé arrondi à la dizaine (R382, V33 — 0-100 fixe écrasait un PI de 12), "
            "jamais autoscalé, donc pas calé pour fabriquer un croisement ; §figure d'engagement (2026-09-22) : FLUX MENSUELS "

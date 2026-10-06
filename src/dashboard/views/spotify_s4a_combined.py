@@ -273,20 +273,43 @@ def _release_overlays(db, keys: list, horizon: int, frag: str,
     return meta, shazam
 
 
-def meta_spend_traces(meta: pd.DataFrame, colour: dict) -> list:
-    """The Meta panel's traces — one CUMULATIVE curve per release. Pure (R349, R382).
+def _translucent(hex_colour: str, alpha: float = 0.12) -> str:
+    h = hex_colour.lstrip("#")
+    if len(h) != 6:
+        return f"rgba(136,136,136,{alpha})"
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
+
+
+def meta_spend_traces(meta: pd.DataFrame, colour: dict, until: int | None = None) -> list:
+    """The Meta spend — one CUMULATIVE area per release. Pure (R349, R382, R436).
 
     R382 (V28, owner, 2026-10-05): the €/day curve still read as noise beside the
     cumulative streams above it. Spend cumulated per release follows the same shape as
-    the streams it is meant to explain, on its own axis (€ and streams never share one).
+    the streams it is meant to explain.
+
+    R436 (owner, 2026-10-07): « une aire sous la courbe sur le même graphique que les
+    streams cumulés … pour bien voir les deux ». Same colour as the release's streams,
+    filled and thin, drawn on the € axis on the right (€ and streams never share one).
+    Seen on the render: an area that stops on the last campaign day reads as data that
+    ends. A CUMULATIVE total does not fall after the last euro, so with `until` the area
+    holds its level to the streams' horizon — the spend that release has had, flat.
     """
     dense = spend_curve(meta)
     if dense.empty:
         return []
     dense = dense.assign(spend=dense.groupby("title", sort=False)["spend"].cumsum())
+    if until is not None:
+        tails = [pd.DataFrame({"title": title, "day_index": range(int(last) + 1, until + 1),
+                               "spend": float(total)})
+                 for title, last, total in dense.groupby("title", sort=False).last()
+                 .reset_index()[["title", "day_index", "spend"]].itertuples(index=False)
+                 if int(last) < until]
+        dense = pd.concat([dense, *tails], ignore_index=True)
     return [go.Scatter(x=grp["day_index"], y=grp["spend"], name=str(title),
-                       mode="lines", legendgroup=str(title), showlegend=False,
-                       line=dict(color=colour.get(title, "#888"), width=2))
+                       mode="lines", hovertemplate="%{y:,.0f} € Meta", legendgroup=str(title), showlegend=False,
+                       fill="tozeroy",
+                       fillcolor=_translucent(colour.get(title, "#888888")),
+                       line=dict(color=colour.get(title, "#888"), width=1, dash="dot"))
             for title, grp in dense.groupby("title", sort=False)]
 
 
@@ -368,9 +391,12 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         return
 
     # R271 (owner note L470) — « y superposer la dépense Meta Ads et les Shazams par jour
-    # depuis la sortie, pour benchmarker ». Superposer trois UNITÉS sur un axe serait lire
-    # des euros contre des écoutes : chaque mesure a son panneau, et les trois partagent
-    # l'axe « jours depuis la sortie ». Un panneau n'existe que si sa donnée existe.
+    # depuis la sortie, pour benchmarker ». Les Shazams gardent leur panneau ; ils
+    # partagent l'axe « jours depuis la sortie ». Un panneau n'existe que si sa donnée
+    # existe.
+    # R436 (propriétaire, 2026-10-07) : la dépense Meta cumulée quitte son panneau et
+    # devient une AIRE sur la figure des streams cumulés, à l'axe € de DROITE — des
+    # euros et des écoutes, deux natures, jamais une échelle commune.
     meta, shazam = _release_overlays(db, list(keys), horizon, frag, params)
     # Seen on the render (2026-09-28): two readings at 0 drew a panel on a −1..1 axis. A
     # panel of zeros says nothing a caption cannot — it appears only once a reading gains.
@@ -378,34 +404,37 @@ def _render_releases(db, frag: str, params: tuple) -> None:
         shazam = shazam.iloc[0:0]
     if not worth_a_panel(meta, "spend"):
         meta = meta.iloc[0:0]
-    rows = 1 + (not meta.empty) + (not shazam.empty)
+    rows = 1 + (not shazam.empty)
     from plotly.subplots import make_subplots
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.06,
-                        row_heights=[0.6] + [0.4 / (rows - 1)] * (rows - 1) if rows > 1 else [1])
+                        specs=[[{"secondary_y": True}]] + [[{}]] * (rows - 1),
+                        row_heights=[0.7, 0.3] if rows > 1 else [1])
     colour = {t_: DISTINCT[i % len(DISTINCT)] for i, t_ in enumerate(cohort["title"].unique())}
+    # Seen on the render: plotly draws the OVERLAYING axis above the base one, so an area
+    # on the secondary axis greyed the streams lines. The area takes the BASE axis (on the
+    # right) and the streams the overlaying one (on the left): the lines stay on top.
+    for trace in meta_spend_traces(meta, colour, until=horizon - 1):
+        fig.add_trace(trace, row=1, col=1, secondary_y=False)
     # R385 — the drawing rule (value label at the last point only) is shared with the
     # SoundCloud catalogue comparison: one function, two callers.
     for trace in age_aligned_traces(cohort, x="day_index", y="streams_cumulative",
                                     series="title", colour=colour):
-        fig.add_trace(trace, row=1, col=1)
-    row = 2
-    if not meta.empty:
-        for trace in meta_spend_traces(meta, colour):
-            fig.add_trace(trace, row=row, col=1)
-        fig.update_yaxes(title_text=t("spotify_s4a_combined.meta_spend_axis",
-                                                "Meta € cumulés"),
-                         row=row, col=1)
-        row += 1
+        fig.add_trace(trace, row=1, col=1, secondary_y=True)
+    # Both axes start at 0: the € area and the streams curve share their floor.
+    fig.update_yaxes(title_text=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
+                     rangemode="tozero", side="left", row=1, col=1, secondary_y=True)
+    fig.update_yaxes(title_text=(t("spotify_s4a_combined.meta_spend_axis", "Meta € cumulés")
+                                 if not meta.empty else None),
+                     rangemode="tozero", side="right", showgrid=False,
+                     showticklabels=not meta.empty, row=1, col=1, secondary_y=False)
     if not shazam.empty:
         for title, grp in shazam.groupby("title", sort=False):
             fig.add_trace(go.Scatter(x=grp["day_index"], y=grp["shazams"], name=str(title),
                                      mode="markers", legendgroup=str(title), showlegend=False,
                                      marker=dict(color=colour.get(title, "#888"), size=8)),
-                          row=row, col=1)
+                          row=2, col=1)
         fig.update_yaxes(title_text=t("spotify_s4a_combined.shazam_axis",
-                                      "Shazams (par relevé)"), row=row, col=1)
-    fig.update_yaxes(title_text=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
-                     row=1, col=1)
+                                      "Shazams (par relevé)"), row=2, col=1)
     fig.update_xaxes(title_text=t("spotify_s4a_combined.days_since_release",
                                   "Jours depuis la sortie"), row=rows, col=1)
     fig.update_layout(
