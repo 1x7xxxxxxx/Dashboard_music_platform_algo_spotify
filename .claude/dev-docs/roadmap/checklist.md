@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R425 | Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque commit ; un écart refuse le commit sauf si la ligne de roadmap citée nomme l'Accueil (« je modifiais une page et l'autre était modifiée », 2026-10-06) <!-- critic: requis — un garde neuf, à muter --> <!-- scope: tests/, tools/dev/, Makefile --> | P3 | le garde vu rouge sur un changement d'un module partagé |
+| R425 | Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque commit ; un écart refuse le commit sauf si la ligne de roadmap citée nomme l'Accueil (« je modifiais une page et l'autre était modifiée », 2026-10-06) <!-- home: oui --> <!-- critic: requis — un garde neuf, à muter --> <!-- scope: tests/, tools/dev/, Makefile --> | P3 | le garde vu rouge sur un changement d'un module partagé |
 
 ---
 
