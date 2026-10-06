@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R433 — Faire piloter mes campagnes — retours du 2026-10-06 (3) : la plus-value en puces (optim… (livrée 2026-10-06)
+
+- [x] **R433 — Faire piloter mes campagnes — retours du 2026-10-06 (3) : la plus-value en puces (optimisation des campagnes Meta Ads, optimisation des streams Spotify, génération de créatives, bilan quotidien) sous la phrase d'accroche ; la question « 🎵 Le titre concerné » retirée ; objectifs inchangés** (P3) ✅ (2026-10-06, 59729ab1)
+  Mesuré par : test de rendu : quatre puces, plus de question « titre » ni de ligne dans le mail
+  CI verte sur 59729ab1 ; déployé en prod (dashboard healthy). Quatre puces de plus-value, question « titre concerné » retirée, objectifs inchangés.
+  Commits : 59729ab1 R433 : Faire piloter — la plus-value en quatre puces (optimisation des
+
 ## ✅ R432 — Accueil — retour du 2026-10-06 : une flèche vers le bas « ⬇️ » à la fin de la phrase «… (livrée 2026-10-06)
 
 - [x] **R432 — Accueil — retour du 2026-10-06 : une flèche vers le bas « ⬇️ » à la fin de la phrase « Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans chaque playlist algorithmique de Spotify. » (FR + EN) ; photo figée de l'Accueil réapprouvée, le verrou R425 reste** (P3) ✅ (2026-10-06, aa45cbdd)
