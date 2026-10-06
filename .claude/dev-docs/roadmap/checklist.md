@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R424 | Accueil — retours du 2026-10-06 (3) : total de streams centré ENTRE le graphique et le donut (les deux tracés alignés), et dans chaque porte DW/Radio/RR une petite ligne « streams restants sur 28 j · budget » — cibles 28 j du modèle (DW 3 900 et Radio 2 000 non-algo, RR 2 000/7 j ramené à 8 000/28 j), budget = écart × meilleur CPR (1 clic = 1 écoute) <!-- critic: non — formule et cibles tranchées par le propriétaire le 2026-10-06, aucune requête ajoutée --> <!-- scope: src/dashboard/views/home.py, src/dashboard/views/home_tiles.py, src/dashboard/utils/period_side_metrics.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test pur de l'écart 28 j + render smoke + contrôle sur la prod |
+| R425 | Accueil figé : une photo de l'Accueil rendu sur des données fixes, comparée à chaque commit ; un écart refuse le commit sauf si la ligne de roadmap citée nomme l'Accueil (« je modifiais une page et l'autre était modifiée », 2026-10-06) <!-- critic: requis — un garde neuf, à muter --> <!-- scope: tests/, tools/dev/, Makefile --> | P3 | le garde vu rouge sur un changement d'un module partagé |
 
 ---
 
@@ -85,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R424,R425 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
