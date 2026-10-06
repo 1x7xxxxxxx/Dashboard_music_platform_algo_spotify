@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R433 | Faire piloter mes campagnes — retours du 2026-10-06 (3) : la plus-value en puces (optimisation des campagnes Meta Ads, optimisation des streams Spotify, génération de créatives, bilan quotidien) sous la phrase d'accroche ; la question « 🎵 Le titre concerné » retirée ; objectifs inchangés <!-- critic: non — texte et retrait d'une question du formulaire, aucune donnée ni chemin d'envoi touché --> <!-- scope: src/dashboard/views/service.py, src/dashboard/utils/service_offer.py, src/dashboard/utils/i18n_catalog/, tests/ --> | P3 | test de rendu : quatre puces, plus de question « titre » ni de ligne dans le mail |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R433 -->
 
 **État au 2026-10-05** : R283 livrée (coupon live `PARRAINAGE-1MOIS`), R406-R416 livrées ; reste R417 (les 6 suggestions de hook jamais suivies, à trancher une par une). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
