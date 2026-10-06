@@ -182,3 +182,59 @@ def grille_complete(valeurs: dict[str, str]) -> bool:
     faire.
     """
     return all((valeurs or {}).get(c, "").strip() for c in CLES_PRIX)
+
+
+# ── R429 — le questionnaire derrière « M'écrire » ────────────────────────────
+# Owner, 2026-10-06: the button opens, ON the page, the questions a first call would
+# ask — budget, how soon the release is, and the rest — and the mail they make, readable
+# before it leaves. Each entry: (id, widget, i18n key, French label, options).
+# Options are (slug, French text); their i18n key is `<question key>.<slug>`.
+
+class Question(NamedTuple):
+    qid: str
+    kind: str  # select | multi | text | area
+    key: str
+    label: str
+    options: tuple[tuple[str, str], ...] = ()
+
+
+QUESTIONS: tuple[Question, ...] = (
+    Question("budget", "select", "service.q.budget", "💶 Budget pub Meta prévu", (
+        ("lt300", "Moins de 300 €"), ("300_1000", "300 à 1 000 €"),
+        ("1000_3000", "1 000 à 3 000 €"), ("gt3000", "Plus de 3 000 €"),
+        ("unknown", "Je ne sais pas encore"))),
+    Question("release", "select", "service.q.release", "📅 La sortie est prévue…", (
+        ("out", "Déjà sortie"), ("lt2w", "Dans moins de 2 semaines"),
+        ("2_4w", "Dans 2 à 4 semaines"), ("1_3m", "Dans 1 à 3 mois"),
+        ("gt3m", "Dans plus de 3 mois"), ("nodate", "Pas encore de date"))),
+    Question("goals", "multi", "service.q.goals", "🎯 Tes objectifs", (
+        ("algos", "Déclencher les algos Spotify (Release Radar, Discover Weekly, Radio)"),
+        ("streams", "Gagner des écoutes"), ("followers", "Gagner des abonnés Spotify"),
+        ("playlists", "Entrer en playlists"), ("instagram", "Faire grandir mon Instagram"),
+        ("live", "Remplir un concert"))),
+    Question("track", "text", "service.q.track", "🎵 Le titre concerné"),
+    Question("countries", "text", "service.q.countries", "🌍 Les pays visés"),
+    Question("creatives", "select", "service.q.creatives", "🎬 Tes créatives", (
+        ("clip", "J'ai un clip"), ("visuals", "J'ai des visuels ou des extraits vidéo"),
+        ("none", "Rien encore — à créer"))),
+    Question("ads", "select", "service.q.ads", "📣 Déjà fait de la pub Meta ?", (
+        ("never", "Jamais"), ("some", "Oui, un peu"), ("regular", "Oui, régulièrement"))),
+    Question("smartlink", "select", "service.q.smartlink", "🔗 Un smart link ou un pré-save ?", (
+        ("yes", "Oui (Hypeddit, Feature.fm…)"), ("no", "Non"))),
+    Question("message", "area", "service.q.message", "✍️ Autre chose à me dire ?"),
+)
+
+
+def compose_mail(answers: dict[str, str], intro: str, closing: str,
+                 labels: dict[str, str]) -> str:
+    """The mail's body: one line per question, « — » where nothing was answered."""
+    lines = [intro, ""]
+    for q in QUESTIONS:
+        lines.append(f"- {labels.get(q.qid, q.label)} : {answers.get(q.qid) or '—'}")
+    return "\n".join(lines + ["", closing])
+
+
+def mailto_url(to: str, subject: str, body: str) -> str:
+    from urllib.parse import quote
+
+    return f"mailto:{to}?subject={quote(subject)}&body={quote(body)}"

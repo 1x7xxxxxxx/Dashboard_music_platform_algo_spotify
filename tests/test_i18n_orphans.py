@@ -53,6 +53,9 @@ _DYNAMIC_PREFIXES = (
     # Idem pour les six cadres de la performance globale Meta Ads —
     # `test_the_global_perf_names_every_panel_it_draws` tient l'autre bout.
     "meta_ads_overview.perf.",
+    # R429 — the questionnaire's labels and options, keyed from
+    # `service_offer.QUESTIONS` (`q.key`, `f"{q.key}.{slug}"`).
+    "service.q.",
     # Les sources, catégories et fréquences de la page « Mon argent », construites
     # par `t(f"revenue_forecast.source.{s}")`, `…cat.{k}` et `…period.{k}`.
     # `_FLUX_NOMS`, `_CAT_COUTS` et le sélecteur de fréquence les énumèrent, et

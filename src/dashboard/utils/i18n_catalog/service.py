@@ -3,8 +3,8 @@
 EN = {
     "service.title": "🎯 Have my campaigns run for me",
     "service.pitch": (
-        "I run your campaigns **end to end**, to your budget and your goals: Meta Ads, "
-        "creatives, PDF wrap-up, daily files."),
+        "I run your campaigns **end to end**, to your budget and your goals: Meta Ads "
+        "campaign optimisation, creatives, daily reports."),
     "service.no_calendly": (
         "⚙️ No booking link: the button is hidden. Set it in **⚙️ Admin → Settings**."),
     "service.book": "📅 Book a call",
@@ -43,4 +43,46 @@ EN = {
         "📞 **A call first**, and it is not a formality: I look at your project, what "
         "your numbers already say, and the budget that makes sense. If it does not "
         "fit, I say so."),
+    # ── R429 — the questionnaire and the mail ───────────────────────────────
+    "service.survey_intro": "**A few questions** — your answers fill in the mail below.",
+    "service.mail_intro": (
+        "Hello,\n\nI would like you to run my campaigns. Here is where I stand:"),
+    "service.mail_closing": "Thanks!",
+    "service.mail_preview": "**📨 Your mail, ready to go**",
+    "service.mail_header": "To: {to} · Subject: {subject}",
+    "service.mail_send": "📨 Send it from my mail app",
+    "service.q.budget": "💶 Planned Meta ad budget",
+    "service.q.budget.lt300": "Under €300",
+    "service.q.budget.300_1000": "€300 to €1,000",
+    "service.q.budget.1000_3000": "€1,000 to €3,000",
+    "service.q.budget.gt3000": "Over €3,000",
+    "service.q.budget.unknown": "I don't know yet",
+    "service.q.release": "📅 The release is planned…",
+    "service.q.release.out": "Already out",
+    "service.q.release.lt2w": "In under 2 weeks",
+    "service.q.release.2_4w": "In 2 to 4 weeks",
+    "service.q.release.1_3m": "In 1 to 3 months",
+    "service.q.release.gt3m": "In over 3 months",
+    "service.q.release.nodate": "No date yet",
+    "service.q.goals": "🎯 Your goals",
+    "service.q.goals.algos": "Trigger Spotify's algorithms (Release Radar, Discover Weekly, Radio)",
+    "service.q.goals.streams": "Get more streams",
+    "service.q.goals.followers": "Get more Spotify followers",
+    "service.q.goals.playlists": "Get into playlists",
+    "service.q.goals.instagram": "Grow my Instagram",
+    "service.q.goals.live": "Fill a gig",
+    "service.q.track": "🎵 The track",
+    "service.q.countries": "🌍 Target countries",
+    "service.q.creatives": "🎬 Your creatives",
+    "service.q.creatives.clip": "I have a music video",
+    "service.q.creatives.visuals": "I have visuals or video snippets",
+    "service.q.creatives.none": "Nothing yet — to be made",
+    "service.q.ads": "📣 Run Meta ads before?",
+    "service.q.ads.never": "Never",
+    "service.q.ads.some": "Yes, a little",
+    "service.q.ads.regular": "Yes, regularly",
+    "service.q.smartlink": "🔗 A smart link or a pre-save?",
+    "service.q.smartlink.yes": "Yes (Hypeddit, Feature.fm…)",
+    "service.q.smartlink.no": "No",
+    "service.q.message": "✍️ Anything else to tell me?",
 }
