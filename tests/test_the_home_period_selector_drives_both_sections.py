@@ -264,30 +264,32 @@ def test_a_platform_tile_never_shows_a_zero_it_did_not_measure() -> None:
             got = [k for k in ("spotify", "youtube", "soundcloud") if tot.get(k)]
             gone = [k for k in ("spotify", "youtube", "soundcloud")
                     if not tot.get(k)]
-            if got and gone:
+            if len(got) >= 2 and gone:  # a donut needs two slices (R421)
                 target, missing = int(aid), gone
                 break
         if target is None:
-            pytest.skip("aucun locataire n'a une plateforme mesurée et une autre non")
+            pytest.skip("aucun locataire n'a deux plateformes mesurées et une autre non")
         at = _home(target)
     finally:
         db.close()
 
-    tiles = {m.label: m.value for m in at.metric}
-    assert tiles, (
-        "aucune tuile rendue sur l'accueil — le garde ne mesure rien. Elles sont "
-        "revenues le 2026-09-12 ; si elles repartent, c'est ce test qu'il faut "
-        "retourner, pas taire.")
-    _LABELS = {"spotify": "🎵 Spotify", "youtube": "🎬 YouTube",
-               "soundcloud": "☁️ SoundCloud"}
+    # R421 (2026-10-06): the platform tiles left Home — the donut carries each
+    # platform's total now. The rule moves with the number: an unmeasured platform is
+    # ABSENT from the donut, never a 0 % slice that says « nobody listened ».
+    import json
+    pies = [tr for chart in at.get("plotly_chart")
+            for tr in json.loads(chart.proto.spec).get("data", [])
+            if tr.get("type") == "pie"]
+    assert pies, (
+        "aucun donut rendu sur l'accueil — le garde ne mesure rien. Si la répartition "
+        "repart, c'est ce test qu'il faut retourner, pas taire.")
+    labels = [str(lab) for tr in pies for lab in tr.get("labels") or []]
+    _NAMES = {"spotify": "Spotify", "youtube": "YouTube", "soundcloud": "SoundCloud"}
     for key in missing:
-        label = _LABELS[key]
-        shown = next((v for k, v in tiles.items() if k.startswith(label)), None)
-        assert shown == "—", (
-            f"la tuile « {label} » du locataire {target} affiche « {shown} » alors "
-            f"que rien n'a été mesuré pour cette plateforme. Un zéro affirme "
-            f"« personne n'a écouté » ; l'absence dit « nous n'avons rien mesuré ». "
-            f"Tuiles rendues : {tiles}")
+        assert not any(_NAMES[key] in lab for lab in labels), (
+            f"le donut du locataire {target} porte une part « {_NAMES[key]} » alors que "
+            f"rien n'a été mesuré pour cette plateforme. Un zéro affirme « personne n'a "
+            f"écouté » ; l'absence dit « nous n'avons rien mesuré ». Parts : {labels}")
 
 
 def test_the_measured_days_helper_separates_the_two_absences() -> None:
@@ -321,3 +323,12 @@ def test_the_followers_delta_needs_two_readings() -> None:
     assert followers_change(
         _DB([(d.date(2026, 1, 1), 100), (d.date(2026, 2, 1), 92)]), 1
     ) == (100, 92, -8)
+
+
+def test_an_unmeasured_platform_is_no_slice_of_the_donut() -> None:
+    """The same rule without a database: CI's is empty, so the render above skips there."""
+    from src.dashboard.utils.platform_share import platform_share_figure
+
+    fig = platform_share_figure({"spotify": 1200, "youtube": 300, "soundcloud": 0})
+    assert list(fig.data[0].labels) and not any(
+        "SoundCloud" in lab for lab in fig.data[0].labels), fig.data[0].labels

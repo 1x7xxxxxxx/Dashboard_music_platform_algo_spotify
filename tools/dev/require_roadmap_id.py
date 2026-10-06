@@ -31,6 +31,12 @@ local Claude transcripts, absent on another machine or after a compaction, and t
 engineering-loop's internal critic does not carry the Rnnn — three false refusals for one true
 one (code-critic, 2026-09-26). Promote to blocking once the probe shows the false rate.
 
+R425 (2026-10-06): Home is frozen. The owner: « je modifiais un truc sur une page et il y
+avait l'autre page qui était modifiée ». `tests/test_home_is_frozen.py` compares Home's render
+to an approved photo; approving a new photo is a commit touching `HOME_LOCKED`, refused unless
+a cited open row carries `<!-- home: oui -->` — a structural marker, not the word "Accueil",
+which half the rows about other pages also contain.
+
 What it does NOT prove: that the diff IS the cited task. With several open rows, any of them
 passes. It binds a commit to an inscribed action, not a diff to its meaning.
 
@@ -59,6 +65,22 @@ _CITED = re.compile(r"\bR(\d{1,4})\b")
 _ANY_ID = re.compile(r"\bR(\d{1,4})\b")
 # The gate judges only commits made once it existed: a parent without this file predates it.
 _SELF = "tools/dev/require_roadmap_id.py"
+
+
+# The photo, its recorded data and what decides how both are made (R425).
+HOME_LOCKED = ("tests/fixtures/home_snapshot.json", "tests/fixtures/home_data.pkl",
+               "tests/home_snapshot.py")
+_HOME = re.compile(r"<!--\s*home:\s*oui\s*-->")
+
+
+def home_reason(files: list[str], ids: set[str], rows: dict[str, str]) -> str | None:
+    """Why a commit touching Home's photo may not go — None when it may."""
+    touched = [f for f in files if f in HOME_LOCKED]
+    if not touched or any(_HOME.search(rows[i]) for i in ids & set(rows)):
+        return None
+    return (f"{touched[0]} est la photo FIGÉE de l'Accueil (R425) — aucune ligne ouverte "
+            "citée ne porte `<!-- home: oui -->`. Si l'Accueil doit vraiment changer, "
+            "ajoute ce marqueur à la ligne de roadmap qui le demande")
 
 
 def is_product(path: str) -> bool:
@@ -139,10 +161,15 @@ def is_exempt(message: str, parents: int) -> bool:
 def verdict(files: list[str], message: str, parent_checklist: str,
             parents: int = 1) -> str | None:
     """None when the commit may go; otherwise the reason. Pure."""
-    if is_exempt(message, parents) or not any(is_product(f) for f in files):
+    if is_exempt(message, parents):
         return None
     ids = cited(message)
     rows = open_rows(parent_checklist)
+    frozen = home_reason(files, ids, rows)
+    if frozen:
+        return frozen
+    if not any(is_product(f) for f in files):
+        return None
     if not ids:
         return "le message ne cite aucun Rnnn"
     live = sorted(ids & set(rows))
