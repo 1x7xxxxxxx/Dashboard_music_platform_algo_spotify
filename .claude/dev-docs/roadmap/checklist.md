@@ -30,6 +30,15 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R454 | Boutons de navigation : « Ouvrir Road to Algo » (`algo_preview`) jette le retour de `bouton_vers`, et `goto("upgrade")` (`plan_gate`, `absence_cta`) atterrit sur l'accueil car `upgrade` n'est ni au menu ni alias — garde : toute cible de `goto` est atteignable <!-- critic: non — deux causes lues, fix d'une ligne chacune ; balayage sibling-sweeper --> <!-- scope: src/dashboard/views/algo_preview.py, src/dashboard/utils/plan_gate.py, src/dashboard/utils/absence_cta.py, src/dashboard/utils/navigation.py, src/dashboard/routes.py, src/dashboard/app.py, tests/, .test_durations --> | P2 | test : chaque cible littérale de `goto`/`bouton_vers` résout vers une page rendue, clic du CTA navigue ; muté |
+| R455 | Assistant, figures de bienvenue : Shazam devient la 5ᵉ courbe du graphique multi-plateformes ; « prédire le déclenchement » → 3 courbes de probabilité DW / Release Radar / Radio en prévision seule ; « quel euro… » → « optimiser le budget Meta Ads » avec visites, Hypeddit, streams et prévision <!-- critic: non — figures d'exemple hors données --> <!-- scope: tools/dev/make_example_charts.py, src/dashboard/assets/examples/, src/dashboard/utils/example_figures.py, src/dashboard/views/onboarding.py, src/dashboard/utils/i18n_catalog/onboarding.py, tests/, .test_durations --> | P3 | PNG rendus et regardés ; test des figures d'exemple |
+| R456 | Aperçu déclencher les algos : mêmes figures que l'assistant, plus petites, texte du dessous retiré, + aperçu SHAP factice (impact de chaque paramètre sur DW / Radio / RR, une phrase) <!-- critic: non — vue d'aperçu, données factices --> <!-- scope: src/dashboard/views/algo_preview.py, tools/dev/make_example_charts.py, src/dashboard/assets/examples/, src/dashboard/utils/example_figures.py, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | render-smoke + PNG regardé |
+| R457 | Offre de bienvenue : retirer les deux lignes « Votre compte a été créé… export CSV reste gratuit », trait entre Free et Premium, surlignage de couleur différente <!-- critic: non — texte et mise en forme --> <!-- scope: src/dashboard/views/onboarding.py, src/dashboard/utils/i18n_catalog/onboarding.py, tests/, .test_durations --> | P3 | render-smoke |
+| R458 | Santé onboarding : matrice compacte (`dense=True`) pour qu'on voie la suite « Ce qui alimente tes chiffres » <!-- critic: non — mode existant réutilisé --> <!-- scope: src/dashboard/views/onboarding_health.py, tests/, .test_durations --> | P3 | test : la vue demande la matrice dense |
+| R459 | Spotify : légende des pointillés (Meta €, popularité) dans les deux graphiques ; Meta en € par jour au lieu de cumulé <!-- critic: non — rendu d'une donnée existante --> <!-- scope: src/dashboard/views/spotify_s4a_combined.py, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | test des traces ; PNG regardé |
+| R460 | SoundCloud « tout le catalogue, à âge égal » : par défaut les 2 dernières sorties (annule le choix « plus écoutés » de R385, demandé par le propriétaire) <!-- critic: non — défaut de sélection --> <!-- scope: src/dashboard/views/soundcloud.py, tests/, .test_durations --> | P3 | test : défaut = 2 plus récents |
+| R461 | Fusion SACEM dans « Distributeur iMusician DistroKid + SACEM » — `sacem` devient alias de la page distributeur <!-- critic: non — déplacement de sections, alias conservé --> <!-- scope: src/dashboard/views/imusician.py, src/dashboard/views/sacem.py, src/dashboard/routes.py, src/dashboard/utils/nav_sections.py, src/dashboard/utils/i18n.py, src/dashboard/utils/i18n_catalog/, src/dashboard/app.py, src/dashboard/utils/plan_pitch.py, src/database/stripe_schema.py, .claude/dev-docs/architecture.md, tests/, .test_durations --> | P3 | render-smoke ; test d'alias |
+| R462 | Parrainage : remplacer « le dire à l'oral » par le vrai parcours (le code se saisit à l'inscription, champ « Code promo ou parrainage ») ; commentaire R272 périmé <!-- critic: non — texte --> <!-- scope: src/dashboard/views/referral.py, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | render-smoke |
 
 ---
 
@@ -85,7 +94,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R454,R455,R456,R457,R458,R459,R460,R461,R462 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
