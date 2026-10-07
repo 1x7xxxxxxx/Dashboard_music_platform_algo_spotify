@@ -12,8 +12,6 @@ EN = {
         "the tenant made for it."
     ),
     "onboarding.trial_offer": "🎁 **Premium free for 1 month** (30 days), until **{date}**.\n\nAfter that your account returns to **Free**: you keep your data, your connections, the fusion of all your platforms (Meta ads × streams included) and your CSV and PDF exports. You lose what **predicts**: **🚀 Road to Algo** (triggering Discover Weekly, Release Radar, Radio — and the budget to get there), the **cost-per-result optimizer** and **revenue forecasts**.",
-    "onboarding.welcome_body": "Your account has been created with the **{plan}** plan. "
-                               "Here is what your current plan includes:",
     "onboarding.your_plan": " ← *your plan*",
     "onboarding.upgrade_to": "Upgrade to {tier} →",
     # Step 2 — Credentials
@@ -42,10 +40,6 @@ EN = {
     "onboarding.b0_help": "It applies to the whole app and to your PDF guide. "
                           "We remember it: you only pick it once.",
     "onboarding.b2_title": "2. Your welcome offer",
-    "onboarding.b2_after": "Below: what you keep for ever (Free), and what you lose "
-                           "after the month if you do not go Premium. **Your data stays "
-                           "yours either way** — nothing is deleted, and the CSV export "
-                           "stays free.",
     "onboarding.status_title": "📋 Where you stand",
     "onboarding.col.quick": "⭐ Start here",
     "onboarding.col.longer": "A little longer",

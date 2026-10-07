@@ -25,6 +25,11 @@ from src.dashboard.utils.example_figures import OVERVIEW, PROMISES, render_examp
 # Platforms and which plan they require — all platform connectors are Free-tier.
 
 _STEP_KEY = '_onboarding_step'
+# R457 — each plan name is highlighted in its own colour (Streamlit `:color-background[]`).
+PLAN_HIGHLIGHT = {'free': 'blue', 'premium': 'violet'}
+# R457 — the thin vertical rule between the Free and Premium columns.
+_PLAN_RULE = ('<div style="border-left:1px solid rgba(128,128,128,.45);'
+              'min-height:260px;margin:0 auto;width:0"></div>')
 
 
 def _goto(page_key: str) -> None:
@@ -201,22 +206,17 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
             "le budget pour y arriver), l'**optimiseur de coût par résultat** et les "
             "**prévisions de revenus**."
         ).format(date=deadline))
-    else:
-        st.markdown(
-            t("onboarding.welcome_body",
-              "Votre compte a été créé avec le plan **{plan}**. "
-              "Voici ce qui est inclus dans votre plan actuel :").format(plan=plan.capitalize())
-        )
-
-    st.caption(t("onboarding.b2_after",
-                 "Ci-dessous, ce que tu gardes pour toujours (Free) et ce que tu perds "
-                 "au bout du mois si tu ne prends pas Premium. **Tes données restent "
-                 "les tiennes dans les deux cas** — rien n'est effacé, et l'export CSV "
-                 "reste gratuit."))
+    # R457 (2026-10-07) : la phrase « Votre compte a été créé… » et la légende « Tes
+    # données restent les tiennes… » sont retirées — l'offre ci-dessus et les deux
+    # colonnes ci-dessous disent déjà tout (« on va éviter le blabla », propriétaire).
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    col_free, col_premium = st.columns(2)
+    # R457 : une fine ligne verticale sépare les deux plans, et chaque nom de plan est
+    # surligné de SA couleur — on lit d'un coup d'œil lequel est lequel.
+    col_free, col_rule, col_premium = st.columns([20, 1, 20])
+    with col_rule:
+        st.markdown(_PLAN_RULE, unsafe_allow_html=True)
 
     # Les noms sont ceux que l'artiste connaît, pas les nôtres : « S4A » et
     # « iMusician » sont du vocabulaire interne — le premier est un sigle, le second
@@ -248,11 +248,12 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
 
             # « ← votre plan » en plus gros : c'est l'information que l'artiste
             # cherche dans ce tableau, et elle était de la même taille que le reste.
+            badge = f":{PLAN_HIGHLIGHT[tier_key]}-background[**{tier_label}**]"
             if is_current:
-                st.markdown(f"### {tier_label}"
+                st.markdown(f"### {badge}"
                             + t("onboarding.your_plan", " ← *votre plan*"))
             else:
-                st.markdown(f"**{tier_label}**")
+                st.markdown(f"### {badge}")
 
             for feat in features:
                 icon = "✅" if not is_locked or tier_rank <= current_rank else "🔒"
