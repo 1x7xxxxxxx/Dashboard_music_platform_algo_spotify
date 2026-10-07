@@ -317,6 +317,16 @@ def _render_campaign_series(df, label: str, spend=None) -> None:
         ringed = ringed.assign(meta=[spend_around(spend, pd.Timestamp(d).date())
                                      for d in ringed['jour']])
     charts.plotly_chart(rings_figure(ringed, taux, label), width="stretch")
+    # R443 (propriétaire, 2026-10-07) : « intégrer des graphiques sur le nombre de
+    # visites, le nombre de clics et les pubs Meta dépensées pour la comparaison ». Les
+    # anneaux disent le TAUX ; trois barres côte à côte disent les VOLUMES, campagne
+    # contre campagne, chacune sur sa propre échelle — jamais un second axe.
+    compared = par_camp.tail(_MAX_RINGS)
+    if spend is not None and not spend.empty:
+        from src.dashboard.utils.meta_impact import spend_around
+        compared = compared.assign(meta=[spend_around(spend, pd.Timestamp(d).date())
+                                         for d in compared['jour']])
+    charts.plotly_chart(comparison_figure(compared), width="stretch")
     hidden = int(taux.notna().sum()) - len(ringed)
     if hidden > 0:
         st.caption(t("hypeddit.rings_capped",
@@ -520,4 +530,40 @@ def rings_figure(ringed, taux, label: str):
         legend=dict(orientation="h", y=-0.08),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
         .format(label=label))
+    return fig
+
+
+_META = PALETTE_LIGHT["meta"]
+
+
+def comparison_figure(compared):
+    """Visites, clics, pub Meta ±14 j — un panneau chacun, une barre par campagne (R443).
+
+    Trois panneaux et pas un graphique groupé : les visites se comptent en centaines,
+    les clics en dizaines et la pub en euros. Sur un axe commun, les clics seraient
+    plats ; sur deux axes, la figure suggérerait une comparaison que les unités
+    interdisent. Une campagne sans mesure n'a pas de barre (`NaN`), jamais un zéro.
+    """
+    from plotly.subplots import make_subplots
+
+    names = [_short(n, lines=2, width=14) for n in compared['campaign_name']]
+    has_meta = 'meta' in compared
+    panels = [('visits', t("hypeddit.cmp_visits", "Visites"), _HYP),
+              ('clicks', t("hypeddit.cmp_clicks", "Clics"), _HYP)]
+    if has_meta:
+        panels.append(('meta', t("hypeddit.cmp_meta", "Pub Meta ±14 j (€)"), _META))
+    fig = make_subplots(rows=1, cols=len(panels),
+                        subplot_titles=[title for _, title, _ in panels])
+    for i, (col, title, colour) in enumerate(panels, start=1):
+        vals = pd.to_numeric(compared[col], errors='coerce')
+        fig.add_trace(go.Bar(
+            x=names, y=vals, marker_color=colour, name=title, showlegend=False,
+            text=[num(v, 0) if pd.notna(v) else "" for v in vals],
+            textposition="outside", cliponaxis=False,
+            hovertemplate="%{x}<br>" + title + " : %{y:,.0f}<extra></extra>"),
+            row=1, col=i)
+        fig.update_yaxes(rangemode="tozero", showticklabels=False, row=1, col=i)
+    fig.update_layout(
+        height=320, margin=dict(t=70, b=60), bargap=0.35,
+        title_text=t("hypeddit.cmp_title", "Volumes comparés, campagne par campagne"))
     return fig

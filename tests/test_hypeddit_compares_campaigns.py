@@ -64,3 +64,34 @@ def test_the_page_compares_campaigns_and_folds_its_history() -> None:
     assert history and not folded[history[0]], f"the history is not folded: {folded}"
     assert any("Récupérer tes chiffres" in label for label in folded), (
         f"the fetch steps are gone: {list(folded)}")
+
+
+def _frame(**extra) -> pd.DataFrame:
+    return pd.DataFrame({"campaign_name": ["Single A", "Single B"],
+                         "visits": [420.0, float("nan")], "clicks": [37.0, 12.0], **extra})
+
+
+def test_the_comparison_draws_visits_clicks_and_meta_one_bar_per_campaign() -> None:
+    """R443 — the owner asked for visits, clicks and Meta spend in the comparison."""
+    from src.dashboard.views.hypeddit import comparison_figure
+
+    fig = comparison_figure(_frame(meta=[150.0, 0.0]))
+    bars = [tr for tr in fig.data if tr.type == "bar"]
+    assert len(bars) == 3, "visits, clicks and Meta spend are not three panels"
+    assert all(len(b.x) == 2 for b in bars), "a panel does not carry one bar per campaign"
+    assert len({b.xaxis for b in bars}) == 3, "the three volumes share an axis"
+    assert list(bars[2].y) == [150.0, 0.0]
+
+
+def test_a_campaign_without_measured_visits_has_no_visit_bar() -> None:
+    from src.dashboard.views.hypeddit import comparison_figure
+
+    visits = comparison_figure(_frame()).data[0]
+    assert pd.isna(visits.y[1]), "an unmeasured campaign was drawn as a zero"
+    assert visits.text[1] == ""
+
+
+def test_without_meta_spend_the_comparison_has_two_panels() -> None:
+    from src.dashboard.views.hypeddit import comparison_figure
+
+    assert len(comparison_figure(_frame()).data) == 2

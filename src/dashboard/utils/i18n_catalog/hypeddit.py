@@ -8,6 +8,10 @@ EN = {
     "hypeddit.global_stats": "📊 Global statistics",
     "hypeddit.no_data_period": "📭 No data found for the selected period.",
     "hypeddit.chart_title": "My Hypeddit campaigns ({label})",
+    "hypeddit.cmp_title": "Volumes compared, campaign by campaign",
+    "hypeddit.cmp_visits": "Visits",
+    "hypeddit.cmp_clicks": "Clicks",
+    "hypeddit.cmp_meta": "Meta ads ±14 d (€)",
     "hypeddit.history_header": "📋 History",
     "hypeddit.campaign_filter": "🎯 Campaigns compared",
     "hypeddit.campaign_filter_help": "By default, the two most recent campaigns — your two "
