@@ -27,9 +27,6 @@ from src.dashboard.utils.example_figures import OVERVIEW, PROMISES, render_examp
 _STEP_KEY = '_onboarding_step'
 # R457 — each plan name is highlighted in its own colour (Streamlit `:color-background[]`).
 PLAN_HIGHLIGHT = {'free': 'blue', 'premium': 'violet'}
-# R457 — the thin vertical rule between the Free and Premium columns.
-_PLAN_RULE = ('<div style="border-left:1px solid rgba(128,128,128,.45);'
-              'min-height:260px;margin:0 auto;width:0"></div>')
 
 
 def _goto(page_key: str) -> None:
@@ -212,11 +209,11 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible
 
-    # R457 : une fine ligne verticale sépare les deux plans, et chaque nom de plan est
-    # surligné de SA couleur — on lit d'un coup d'œil lequel est lequel.
-    col_free, col_rule, col_premium = st.columns([20, 1, 20])
-    with col_rule:
-        st.markdown(_PLAN_RULE, unsafe_allow_html=True)
+    # R457 : un trait fin sépare les deux plans — le cadre natif de chaque colonne
+    # (`border=True`), pas un `<div>` stylé : cette page n'a pas de HTML brut, un
+    # sélecteur sur le DOM de Streamlit casse en silence à la montée de version. Et
+    # chaque nom de plan est surligné de SA couleur.
+    col_free, col_premium = st.columns(2, border=True)
 
     # Les noms sont ceux que l'artiste connaît, pas les nôtres : « S4A » et
     # « iMusician » sont du vocabulaire interne — le premier est un sigle, le second
