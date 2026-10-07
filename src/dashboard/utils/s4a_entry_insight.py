@@ -275,7 +275,7 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     # R247 (fiche 58, owner : « je ne comprends pas la plus-value ni la décision »).
     st.caption(t("s4a_insight.bet_plain",
                  "À gauche, la chance que le modèle donnait à chaque titre ; à droite, les "
-                 "streams que les algorithmes lui ont vraiment apportés (ta saisie S4A). "
+                 "streams que les algorithmes lui ont vraiment apportés (saisie S4A de l'artiste). "
                  "C'est le seul endroit où l'on vérifie si ses pourcentages valent quelque "
                  "chose."))
     try:
@@ -306,8 +306,8 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
     if not rows:
         st.info(t("s4a_insight.bet_none",
                   "Aucun titre n'a À LA FOIS une prédiction et un résultat saisi. "
-                  "Saisis les résultats réalisés juste en dessous pour que la "
-                  "comparaison existe."))
+                  "Les résultats réalisés se saisissent dans « 📝 Saisie S4A », "
+                  "côté artiste."))
         return
 
     d = pd.DataFrame(rows, columns=["song", "dw_p", "rr_p", "radio_p",

@@ -77,18 +77,20 @@ def test_the_entry_page_is_signals_then_coverage(data: dict) -> None:
     assert not gone, f"a section moved by R376 is back on the entry page: {gone}"
     covered = next((i for i, h in enumerate(heads) if _COVERED in h), None)
     assert covered is not None, f"no coverage section: {heads}"
-    for want in (_BET, _OUTCOMES):
-        at_ = [i for i, h in enumerate(heads) if want in h]
-        assert at_ and at_[0] > covered, (
-            f"« {want} » (shared, R405) is not after the coverage on the Free page: {heads}")
+    at_ = [i for i, h in enumerate(heads) if _OUTCOMES in h]
+    assert at_ and at_[0] > covered, (
+        f"« {_OUTCOMES} » (shared, R405) is not after the coverage on the Free page: {heads}")
+    # R442 (owner, 2026-10-07): the bet moved to the admin ML page.
+    assert not any(_BET in h for h in heads), f"« {_BET} » is back on the entry page: {heads}"
 
 
-def test_the_algo_view_carries_the_bet_and_the_outcome_entry(data: dict) -> None:
+def test_the_algo_view_carries_the_outcome_entry_but_not_the_bet(data: dict) -> None:
     _need(data, "tracks")
     at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="trigger_algo", artist_id=1))
     heads = _subheaders(at)
-    for want in (_BET, _OUTCOMES):
-        assert any(want in h for h in heads), f"« {want} » is not on the algo view: {heads}"
+    assert any(_OUTCOMES in h for h in heads), f"« {_OUTCOMES} » is not on the algo view: {heads}"
+    # R442: the bet is an admin reading now (ml_performance, « 🎲 Pari vs réalité »).
+    assert not any(_BET in h for h in heads), f"« {_BET} » is back on the algo view: {heads}"
 
 
 def test_the_admin_health_group_carries_the_entry_freshness(data: dict) -> None:

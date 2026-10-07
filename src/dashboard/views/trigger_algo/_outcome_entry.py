@@ -136,15 +136,15 @@ def render_outcome_custom_grid(db, artist_id, tracks) -> None:
 
 
 def render_outcomes(db, artist_id) -> None:
-    """The model's bet against what happened, then the entry of the real outcome.
+    """The entry of the real outcome — the grids that feed the model.
 
     SHARED (R405) by the algo page (Premium) and « 📝 Saisie S4A » (Free): the entry
-    feeds the model, so it is never locked behind the paywall.
+    feeds the model, so it is never locked behind the paywall. R442 (owner,
+    2026-10-07): the model's bet against what happened moved to the admin ML page
+    (tab « 🎲 Pari vs réalité ») — the grids stay here, with their tenant.
     """
-    from src.dashboard.utils.s4a_entry_insight import (
-        load_entry_tracks, render_prediction_vs_reality)
+    from src.dashboard.utils.s4a_entry_insight import load_entry_tracks
 
-    render_prediction_vs_reality(db, artist_id)
     tracks = load_entry_tracks(db, artist_id)
     if tracks:
         render_outcome_grid(db, artist_id, tracks)

@@ -161,7 +161,8 @@ def show():
             + [t("ml_performance.tab_scorecard", "📋 Scorecard classification"),
                t("ml_performance.tab_reliability", "📈 Fiabilité par algo"),
                t("ml_performance.tab_explain", "🔍 Explainabilité (SHAP)"),
-               t("ml_performance.tab_predictions", "🎯 Prédictions en DB")]
+               t("ml_performance.tab_predictions", "🎯 Prédictions en DB"),
+               t("ml_performance.tab_bet", "🎲 Pari vs réalité")]
         )
         tabs = st.tabs(tab_labels)
 
@@ -173,17 +174,20 @@ def show():
                                  exp_id=exp_id, run_id=run_id[:8]))
                 _show_model_tab(exp_id, run_id, label)
 
-        with tabs[-4]:
+        with tabs[-5]:
             _show_scorecard_tab()
 
-        with tabs[-3]:
+        with tabs[-4]:
             _show_reliability_tab(db)
 
-        with tabs[-2]:
+        with tabs[-3]:
             _show_explainability_tab(db)
 
-        with tabs[-1]:
+        with tabs[-2]:
             _show_predictions_tab(db)
+
+        with tabs[-1]:
+            _show_bet_tab(db)
 
 
 def _choisir_titre(db, cle: str):
@@ -227,3 +231,33 @@ def _show_explainability_tab(db) -> None:
     artist_id, song = _choisir_titre(db, "mlperf_shap_track")
     if song:
         _show_tab_explainability(db, _load_ml_pred(db, song, artist_id), song, artist_id)
+
+
+def _show_bet_tab(db) -> None:
+    """« Le pari du modèle, et ce qui est arrivé » — rapatrié de la saisie S4A (R442).
+
+    Le propriétaire, 2026-10-07 : déplacer ce bloc vers l'admin. Seul le GRAPHIQUE
+    vient ici, et c'est délibéré : les grilles de saisie écrivent les résultats qui
+    deviennent des étiquettes d'entraînement, et cette page n'a pas de locataire —
+    une saisie faite ici s'écrirait sous l'identité de l'admin. Elles restent donc
+    chez l'artiste ; cette page LIT, elle n'écrit jamais. Le locataire est choisi
+    explicitement, jamais déduit de la session.
+    """
+    from src.dashboard.utils.s4a_entry_insight import render_prediction_vs_reality
+
+    try:
+        rows = db.fetch_query(
+            "SELECT DISTINCT p.artist_id, COALESCE(a.name, '?') "
+            "  FROM ml_song_predictions p LEFT JOIN saas_artists a ON a.id = p.artist_id "
+            " ORDER BY p.artist_id")
+    except Exception:                                    # noqa: BLE001
+        st.info(t("ml_performance.bet_unreadable",
+                  "Liste des artistes illisible — ce n'est pas « aucune prédiction »."))
+        return
+    if not rows:
+        st.info(t("ml_performance.no_track", "Aucune prédiction en base — rien à expliquer."))
+        return
+    libelles = [f"#{a} · {n}" for a, n in rows]
+    choix = st.selectbox(t("ml_performance.pick_artist", "👤 Artiste"), libelles,
+                         key="mlperf_bet_artist")
+    render_prediction_vs_reality(db, rows[libelles.index(choix)][0])

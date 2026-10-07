@@ -34,13 +34,13 @@ EN = {
         "Comparison unavailable: the predictions table could not be read. That is not "
         "the same as « no prediction »."),
     "s4a_insight.bet_none": (
-        "No track has BOTH a prediction and a recorded outcome. Fill in the recorded "
-        "outcomes just below so the comparison can exist."),
+        "No track has BOTH a prediction and a recorded outcome. The recorded "
+        "outcomes are entered in « 📝 S4A entry », on the artist's side."),
     "s4a_insight.panel_pred": "Predicted probability",
     "s4a_insight.panel_real": "Algorithmic streams recorded (28 d)",
     "s4a_insight.bet_plain": (
         "On the left, the chance the model gave each track; on the right, the streams the "
-        "algorithms actually brought it (your S4A entry). This is the only place where we "
+        "algorithms actually brought it (the artist's S4A entry). This is the only place where we "
         "check whether its percentages are worth anything."),
     "s4a_insight.bet_too_early": (
         "⏳ **Too early to judge the model**: across {n} track(s) it expected {a:.1f} "

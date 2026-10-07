@@ -1,6 +1,9 @@
 """EN catalog for the ml_performance view."""
 
 EN = {
+    "ml_performance.tab_bet": "🎲 Bet vs reality",
+    "ml_performance.pick_artist": "👤 Artist",
+    "ml_performance.bet_unreadable": "Artist list unreadable — this is not « no prediction ».",
     "ml_performance.no_artifacts": "No PNG artifact found for this run (`mlruns/{exp_id}/{run_id}/`).",
     "ml_performance.predictions_error": "Error while fetching predictions: {err}",
     "ml_performance.no_predictions": "No prediction in database. Run the `ml_scoring_daily` DAG to generate scores.",
