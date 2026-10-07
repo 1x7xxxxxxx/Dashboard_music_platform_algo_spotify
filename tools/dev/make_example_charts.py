@@ -183,7 +183,7 @@ def dashboard_global() -> Path:
     shazam = np.clip(18 + days * 0.42 + rng.normal(0, 4, 90).cumsum() * 0.35, 4, None)
 
     fig, (ax, axs) = plt.subplots(
-        2, 1, figsize=(9, 4.9), sharex=True,
+        2, 1, figsize=(9, 4.38), sharex=True,
         gridspec_kw={"height_ratios": [4.2, 1], "hspace": 0.12})
     ax.stackplot(days, *series.values(), colors=colours,
                  # 2 px surface gap between stacked fills — the segments must not
@@ -318,7 +318,7 @@ def meta_x_s4a() -> Path:
     # axes partent de ZÉRO — le seul réglage qui empêche d'inventer une corrélation
     # en choisissant où épingler une échelle. Le CPR est un RATIO : il est ÉCRIT,
     # pas tracé, comme la probabilité.
-    fig, ax = plt.subplots(figsize=(9, 4.4))
+    fig, ax = plt.subplots(figsize=(9, 4.06))
     axe = ax.twinx()
     ax.set_zorder(axe.get_zorder() + 1)
     ax.patch.set_visible(False)
