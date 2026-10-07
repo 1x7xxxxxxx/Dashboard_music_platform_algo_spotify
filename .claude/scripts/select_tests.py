@@ -179,11 +179,26 @@ def _git(root: Path, *args: str) -> str | None:
     return r.stdout
 
 
+def _unpushed_base(root: Path) -> str:
+    """Where the unpushed work starts: merge-base with the upstream, else HEAD.
+
+    R464 — against `HEAD` alone, `make test-changed` run AFTER a commit saw an empty diff,
+    selected nothing, stamped the tree green, and the pre-push gate let an untested commit
+    go (2026-10-08: a catalogue commit, CI red). Diffing from the upstream covers the
+    working tree AND every commit not yet pushed; it can only widen the selection.
+    """
+    global _DERNIERE_PANNE_GIT
+    panne = _DERNIERE_PANNE_GIT
+    out = _git(root, "merge-base", "HEAD", "@{upstream}")
+    _DERNIERE_PANNE_GIT = panne   # no upstream is a normal state, not a git failure
+    return out.strip() if out and out.strip() else "HEAD"
+
+
 def changed_files(root: Path, base: str | None) -> list[str] | None:
     """Fichiers modifiés, ou None si on ne peut pas savoir (→ suite entière)."""
     if _git(root, "rev-parse", "--git-dir") is None:
         return None
-    args = ["diff", "--name-only", base] if base else ["diff", "--name-only", "HEAD"]
+    args = ["diff", "--name-only", base or _unpushed_base(root)]
     out = _git(root, *args)
     if out is None:
         return None
