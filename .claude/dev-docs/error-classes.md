@@ -4756,6 +4756,26 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-10-04
 - History:
   - 2026-10-04: trouvée par le rejeu Stripe en mode test (R369). Le harnais des tests de parrainage SEMAIT la ligne d'abonnement : le test reproduisait l'ordre favorable, pas l'ordre réel. Le garde neuf passe par le vrai routeur et ne sème jamais `artist_subscriptions`.
+## a-navigation-button-that-lands-elsewhere
+- status: guarded
+- severity: P2
+- family: un-travail-qui-n-arrive-nulle-part
+- kind: deterministic
+- admitted: sites:4
+- symptom: un bouton nomme une page (« Ouvrir Road to Algo », « Passer Premium ») et un clic laisse l'utilisateur où il est ou le renvoie à l'accueil. Aucune erreur : la page existe, elle est routée, le bouton s'affiche.
+- signature: `.venv/bin/python -m pytest tests/test_every_navigation_button_reaches_its_page.py -q -p no:cacheprovider >/dev/null 2>&1`
+- seen_red: self-proving (tests/test_every_navigation_button_reaches_its_page.py::test_the_detectors_see_the_defects_they_are_written_for) — l'appel nu `bouton_vers(...)` et `goto("upgrade")` y sont fabriqués et vus. Muté rouge le 2026-10-07 trois fois : `if bouton_vers` remis en appel nu, `goto(page_key)` → `goto("upgrade")` dans plan_gate, `url_key` rendant `page`.
+- root_cause: deux formes d'une même cause, « la clé que le bouton émet n'arrive pas à la page qu'il nomme ». (1) `src/dashboard/views/algo_preview.py` appelait `bouton_vers(...)` comme une instruction : son contrat est « True si cliqué ET ouvert, l'appelant navigue », donc le clic était jeté. (2) `goto("upgrade")` (plan_gate, absence_cta), `?page=upgrade` (auth.require_plan) et le miroir d'URL émettaient `upgrade`, une clé de ROUTES qui n'est ni dans le menu ni un alias : `resolve_nav_page` la renvoie à l'accueil.
+- cause_evidence: read (src/dashboard/utils/navigation.py — contrat de `bouton_vers` et `url_key` lus ; `src/dashboard/routes.py` — `resolve_alias` ne connaît pas `upgrade`)
+- long_term_fix: une cible de navigation littérale est jugée sur sa clé RÉSOLUE (`resolve_alias(key)[0] in MENU`), pas sur « la clé est routée » ; et `bouton_vers` ne peut pas être appelé comme une instruction (garde AST). Le miroir d'URL garde la page demandée, jamais le mur.
+- guard: { type: pytest, ref: tests/test_every_navigation_button_reaches_its_page.py }
+- guard_scope: un-travail-qui-n-arrive-nulle-part — un geste de navigation dont la destination n'est pas celle qu'il nomme ; couvre: tout appel `goto`/`bouton_vers` à premier argument LITTÉRAL et toute affectation `query_params["page"] = "<littéral>"` sous `src/dashboard/`, plus tout `bouton_vers` en instruction nue ; ne couvre pas: (1) **le geste voisin le plus proche — une cible CALCULÉE** (`goto(page_key)`, `goto(f"…")`), jugée seulement par les tests de plan_gate ; (2) `st.page_link` / `st.switch_page` et les liens markdown `?page=` dans un texte ; (3) une page du menu qui EXISTE mais que le plan de l'utilisateur ne lui ouvre pas (le mur `upgrade` intervient alors, à raison).
+- siblings: swept:2026-10-07 — A : 58 appels bruts de boutons → 57 écartés (on_click, disabled, valeur lue) → 1 site vivant (algo_preview) ; B : ~60 émissions de navigation → ~56 visibles ou publiques → 3 sites vivants (plan_gate, absence_cta, auth.require_plan) + le miroir d'URL. **4 sites vivants**, tous corrigés par R454.
+- closest: page-that-nothing-routes-to — là la page n'a AUCUNE route ; ici la page est routée et dans le menu, c'est la clé émise par le bouton (ou son retour jeté) qui n'y mène pas
+- rex_ref: src/dashboard/utils/navigation.py
+- first_seen: 2026-10-07
+- History:
+  - 2026-10-07: rapportée par le propriétaire (« le bouton Ouvrir Road to Algo ne fonctionne pas »). Le piège qu'a nommé le balayage : « la clé est routée » passe sur `upgrade` ; la propriété est « la clé, une fois résolue, est une clé du MENU ».
 ## 💤 Classes DORMANTES — gardées, jamais récidivées, balayage à zéro site
 
 > Les 236 classes qui suivent remplissent **toutes** ces conditions, calculées depuis
@@ -4770,7 +4790,7 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 > **Elles ne sont ni archivées ni supprimées.** Elles vivent dans ce fichier, leurs
 > signatures tournent, leurs gardes tournent, `--coverage` les compte. Elles sont
 > seulement RANGÉES APRÈS, pour qu'un humain qui ouvre ce document rencontre d'abord
-> les 195 classes encore vivantes.
+> les 196 classes encore vivantes.
 >
 > ⚠️ **Pourquoi pas un second fichier.** C'était le plan, et la mesure l'a écarté : le
 > gain en temps est de **≈ 0 s** — les 8,46 s du cliquet de santé viennent du rejeu de
@@ -9595,24 +9615,3 @@ Compte à jour et évolution : `make error-health`, `make error-health-history`.
 - first_seen: 2026-09-17
 - History:
   - 2026-09-17: trouvée en triant `object-dtype-numeric-op`, dont le champ `guard:` promettait `test_views_render_smoke.py`. La promesse était fausse et mesurable en deux exécutions. C'est la troisième forme de « le produit cartésien des menus » dans ce dépôt : 4 737 tests verts et une vue vide trouvée par l'artiste en une heure. La leçon qui se répète n'est pas « il manque un test » — c'est qu'un garde répond à une question PLUS ÉTROITE que la classe qu'il nomme : ici « la vue rend-elle ? » au lieu de « la vue rend-elle dans les états que l'utilisateur atteint ? ».
-
-## a-navigation-button-that-lands-elsewhere
-- status: guarded
-- severity: P2
-- family: un-travail-qui-n-arrive-nulle-part
-- kind: deterministic
-- admitted: sites:4
-- symptom: un bouton nomme une page (« Ouvrir Road to Algo », « Passer Premium ») et un clic laisse l'utilisateur où il est ou le renvoie à l'accueil. Aucune erreur : la page existe, elle est routée, le bouton s'affiche.
-- signature: `.venv/bin/python -m pytest tests/test_every_navigation_button_reaches_its_page.py -q -p no:cacheprovider >/dev/null 2>&1`
-- seen_red: self-proving (tests/test_every_navigation_button_reaches_its_page.py::test_the_detectors_see_the_defects_they_are_written_for) — l'appel nu `bouton_vers(...)` et `goto("upgrade")` y sont fabriqués et vus. Muté rouge le 2026-10-07 trois fois : `if bouton_vers` remis en appel nu, `goto(page_key)` → `goto("upgrade")` dans plan_gate, `url_key` rendant `page`.
-- root_cause: deux formes d'une même cause, « la clé que le bouton émet n'arrive pas à la page qu'il nomme ». (1) `src/dashboard/views/algo_preview.py` appelait `bouton_vers(...)` comme une instruction : son contrat est « True si cliqué ET ouvert, l'appelant navigue », donc le clic était jeté. (2) `goto("upgrade")` (plan_gate, absence_cta), `?page=upgrade` (auth.require_plan) et le miroir d'URL émettaient `upgrade`, une clé de ROUTES qui n'est ni dans le menu ni un alias : `resolve_nav_page` la renvoie à l'accueil.
-- cause_evidence: read (src/dashboard/utils/navigation.py — contrat de `bouton_vers` et `url_key` lus ; `src/dashboard/routes.py` — `resolve_alias` ne connaît pas `upgrade`)
-- long_term_fix: une cible de navigation littérale est jugée sur sa clé RÉSOLUE (`resolve_alias(key)[0] in MENU`), pas sur « la clé est routée » ; et `bouton_vers` ne peut pas être appelé comme une instruction (garde AST). Le miroir d'URL garde la page demandée, jamais le mur.
-- guard: { type: pytest, ref: tests/test_every_navigation_button_reaches_its_page.py }
-- guard_scope: un-travail-qui-n-arrive-nulle-part — un geste de navigation dont la destination n'est pas celle qu'il nomme ; couvre: tout appel `goto`/`bouton_vers` à premier argument LITTÉRAL et toute affectation `query_params["page"] = "<littéral>"` sous `src/dashboard/`, plus tout `bouton_vers` en instruction nue ; ne couvre pas: (1) **le geste voisin le plus proche — une cible CALCULÉE** (`goto(page_key)`, `goto(f"…")`), jugée seulement par les tests de plan_gate ; (2) `st.page_link` / `st.switch_page` et les liens markdown `?page=` dans un texte ; (3) une page du menu qui EXISTE mais que le plan de l'utilisateur ne lui ouvre pas (le mur `upgrade` intervient alors, à raison).
-- siblings: swept:2026-10-07 — A : 58 appels bruts de boutons → 57 écartés (on_click, disabled, valeur lue) → 1 site vivant (algo_preview) ; B : ~60 émissions de navigation → ~56 visibles ou publiques → 3 sites vivants (plan_gate, absence_cta, auth.require_plan) + le miroir d'URL. **4 sites vivants**, tous corrigés par R454.
-- closest: page-that-nothing-routes-to — là la page n'a AUCUNE route ; ici la page est routée et dans le menu, c'est la clé émise par le bouton (ou son retour jeté) qui n'y mène pas
-- rex_ref: src/dashboard/utils/navigation.py
-- first_seen: 2026-10-07
-- History:
-  - 2026-10-07: rapportée par le propriétaire (« le bouton Ouvrir Road to Algo ne fonctionne pas »). Le piège qu'a nommé le balayage : « la clé est routée » passe sur `upgrade` ; la propriété est « la clé, une fois résolue, est une clé du MENU ».
