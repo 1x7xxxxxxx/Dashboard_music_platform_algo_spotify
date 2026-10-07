@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R453 — `night-status` affiche les refus répétés (hooks, pre-commit) des 7 derniers jours — la… (livrée 2026-10-07)
+
+- [x] **R453 — `night-status` affiche les refus répétés (hooks, pre-commit) des 7 derniers jours — la table de `make defect-log` n'est lue par rien** (P4) ✅ (2026-10-07, 375082e2)
+  Mesuré par : test : fonction pure sur évènements fabriqués ; muté
+  CI verte sur 375082e2 (run 37655586733) ; R452 balayage 147→99→1 faux positif→98, muté rouge 2 fois ; R453 muté rouge 3 fois
+  Commits : 375082e2 R453 : night-status affiche les refus répétés des 7 derniers jours — u
+
+## ✅ R452 — Un commit refusé ne doit pas laisser son index au commit suivant de la même commande :… (livrée 2026-10-07)
+
+- [x] **R452 — Un commit refusé ne doit pas laisser son index au commit suivant de la même commande : `guard_destructive` bloque un second `git commit` qui n'est pas atteint par `&&` depuis le premier (R448 est parti sous R449 ainsi le 2026-10-07)** (P2) ✅ (2026-10-07, cf9783a7)
+  Mesuré par : test : la commande R448 exacte bloquée, `A && B` passe ; balayage chiffré sur les transcriptions ; muté
+  CI verte sur 375082e2 (run 37655586733) ; R452 balayage 147→99→1 faux positif→98, muté rouge 2 fois ; R453 muté rouge 3 fois
+  Commits : cf9783a7 R452 : un commit refusé ne part plus avec le suivant — guard_destructi
+
 ## ✅ R451 — Un cron qui vient de naître n'est pas un cron arrêté : `night-check` disait « aucun run… (livrée 2026-10-07)
 
 - [x] **R451 — Un cron qui vient de naître n'est pas un cron arrêté : `night-check` disait « aucun run planifié connu — le cron ne tourne pas » sur `ci.yml` le soir même de R448 ; sans run planifié, l'âge se mesure depuis le dernier commit du workflow** (P4) ✅ (2026-10-07, 6b3215f4)
