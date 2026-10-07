@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R451 — Un cron qui vient de naître n'est pas un cron arrêté : `night-check` disait « aucun run… (livrée 2026-10-07)
+
+- [x] **R451 — Un cron qui vient de naître n'est pas un cron arrêté : `night-check` disait « aucun run planifié connu — le cron ne tourne pas » sur `ci.yml` le soir même de R448 ; sans run planifié, l'âge se mesure depuis le dernier commit du workflow** (P4) ✅ (2026-10-07, 6b3215f4)
+  Mesuré par : test : workflow neuf de 3 h muet, de 3 jours signalé ; mutation
+  CI verte sur 6b3215f4 (run 37647721221). R450 : le périmètre se juge sur tout fichier hors tests/, durées et fichiers de roadmap ; scope_of lit le dernier marqueur ; rejeu 120 commits = 5 écarts réels dont 017b6f3c. R451 : un cron commité depuis moins de deux périodes n'est plus signalé arrêté ; night-check ne warn plus sur ci.yml.
+  Commits : 6b3215f4 R451 : un cron qui vient de naître n'est pas un cron arrêté — night-ch
+
+## ✅ R450 — Le périmètre déclaré d'une ligne se juge sur TOUT fichier d'un commit qui la cite, pas… (livrée 2026-10-07)
+
+- [x] **R450 — Le périmètre déclaré d'une ligne se juge sur TOUT fichier d'un commit qui la cite, pas seulement sur le code produit : le 2026-10-07 un commit « R449 » (scope `tools/dev/, tests/`) a emporté `.github/workflows/ci.yml` de R448 sans que rien ne bronche — les fichiers de roadmap et le journal de nuit restent hors jugement** (P3) ✅ (2026-10-07, 5a808312)
+  Mesuré par : test : commit R449 + ci.yml refusé, roadmap seule acceptée ; mutation
+  CI verte sur 6b3215f4 (run 37647721221). R450 : le périmètre se juge sur tout fichier hors tests/, durées et fichiers de roadmap ; scope_of lit le dernier marqueur ; rejeu 120 commits = 5 écarts réels dont 017b6f3c. R451 : un cron commité depuis moins de deux périodes n'est plus signalé arrêté ; night-check ne warn plus sur ci.yml.
+  Commits : 5a808312 R450 : le périmètre déclaré d'une ligne se juge sur tout fichier du co
+
 ## ✅ R449 — 15 worktrees d'agents (`.claude/worktrees/`) déjà fusionnés mais SALES traînent : diff… (livrée 2026-10-07)
 
 - [x] **R449 — 15 worktrees d'agents (`.claude/worktrees/`) déjà fusionnés mais SALES traînent : diff archivé hors dépôt puis retirés ; `make night-check` signale tout worktree de plus de 48 h** (P4) ✅ (2026-10-07, 017b6f3c)

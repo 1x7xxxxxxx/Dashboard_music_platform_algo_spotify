@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R450 | Le périmètre déclaré d'une ligne se juge sur TOUT fichier d'un commit qui la cite, pas seulement sur le code produit : le 2026-10-07 un commit « R449 » (scope `tools/dev/, tests/`) a emporté `.github/workflows/ci.yml` de R448 sans que rien ne bronche — les fichiers de roadmap et le journal de nuit restent hors jugement <!-- critic: non — extension d'un prédicat existant, une ligne de verdict --> <!-- scope: tools/dev/, tests/, .test_durations --> | P3 | test : commit R449 + ci.yml refusé, roadmap seule acceptée ; mutation |
-| R451 | Un cron qui vient de naître n'est pas un cron arrêté : `night-check` disait « aucun run planifié connu — le cron ne tourne pas » sur `ci.yml` le soir même de R448 ; sans run planifié, l'âge se mesure depuis le dernier commit du workflow <!-- critic: non — une branche dans une fonction pure --> <!-- scope: tools/dev/, tests/, .test_durations --> | P4 | test : workflow neuf de 3 h muet, de 3 jours signalé ; mutation |
 
 ---
 
@@ -87,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R450, R451 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
