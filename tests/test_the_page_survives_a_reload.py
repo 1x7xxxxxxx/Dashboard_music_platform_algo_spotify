@@ -44,7 +44,8 @@ def _source() -> str:
 
 def test_the_active_page_is_written_back_to_the_url():
     src = _source()
-    assert 'st.query_params["page"] = page' in src, (
+    # R454: the mirror writes the page ASKED for (`url_key`), not the premium wall.
+    assert 'st.query_params["page"] = _mirror' in src and "url_key(page" in src, (
         "app.py no longer mirrors the active page into ?page=. Without it the page "
         "lives only in session_state, and every reload or WebSocket reconnect lands "
         "the artist on home — while the language, which HAS a durable carrier, comes "
