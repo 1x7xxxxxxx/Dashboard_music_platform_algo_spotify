@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R442 — Saisie S4A — retours du 2026-10-07 : retirer « pas d'estimation fiable » des barres du… (livrée 2026-10-07)
+
+- [x] **R442 — Saisie S4A — retours du 2026-10-07 : retirer « pas d'estimation fiable » des barres du pari ; déplacer « Le pari du modèle… » jusqu'à « Enregistrer la période (algos) » vers la vue admin, après vérification qu'aucun graphique admin ne donne déjà cette information** (P3) ✅ (2026-10-07, 916614d2, 9747f152)
+  Mesuré par : test de rendu : saisie sans le pari, admin avec ; plus de libellé plancher
+  Option A : étiquette « pas d'estimation fiable » retirée ; le pari va dans l'onglet admin « 🎲 Pari vs réalité » avec sélecteur d'artiste, les grilles restent chez l'artiste ; CI verte, déployé
+  Commits : 916614d2 R442 : option A — « Le pari du modèle » quitte la saisie S4A et la pag · 9747f152 R442 : saisie S4A — une barre au plancher du « pari du modèle » ne por
+
+## ✅ R443 — Hypeddit — retour du 2026-10-07 : dans la comparaison des deux dernières sorties, des g… (livrée 2026-10-07)
+
+- [x] **R443 — Hypeddit — retour du 2026-10-07 : dans la comparaison des deux dernières sorties, des graphiques visites, clics et dépense Meta** (P3) ✅ (2026-10-07, 14b729a4, d9975f5d)
+  Mesuré par : test de rendu : trois figures dans la comparaison ; PNG regardé
+  Trois panneaux visites/clics/pub Meta par campagne, regardés sur données réelles ; déployé 14b729a4, CI verte
+  Commits : 14b729a4 R443 : la comparaison Hypeddit a sa revue notée et sa ligne de décisio · d9975f5d R443 : Hypeddit — sous les anneaux, trois panneaux de barres (visites,
+
+## ✅ R441 — Saisie S4A — retours du 2026-10-07 : « Autre fenêtre » propose J+1, J+2, J+3, J+7 après… (livrée 2026-10-07)
+
+- [x] **R441 — Saisie S4A — retours du 2026-10-07 : « Autre fenêtre » propose J+1, J+2, J+3, J+7 après la sortie du titre ; « Titres couverts par la saisie » montre l'âge de la dernière saisie en jours par famille au lieu d'un ✅ « déjà saisi une fois »** (P3) ✅ (2026-10-07, c399d26d)
+  Mesuré par : tests de `resolve` sur J+n ; test de l'âge en jours
+  J+1/J+2/J+3/J+7 depuis une sortie choisie + âge de la dernière saisie ; déployé 14b729a4, CI verte
+  Commits : c399d26d R441 : saisie S4A — « Autre fenêtre » propose J+1/J+2/J+3/J+7 depuis l
+
+## ✅ R440 — Mapping cross-platform — retour du 2026-10-07 : récap EN HAUT des suggestions à valider… (livrée 2026-10-07)
+
+- [x] **R440 — Mapping cross-platform — retour du 2026-10-07 : récap EN HAUT des suggestions à valider (titres & couvertures) et des suggestions automatiques (campagnes Meta), sorties des volets, avec leurs messages vides (« rien n'a mappé… », « toutes les campagnes Meta sont déjà traitées ») ; le détail reste dans les volets dépliants** (P3) ✅ (2026-10-07, 78c49e26)
+  Mesuré par : test de rendu : récap avant les volets, messages vides présents
+  Récap des suggestions en haut du mapping ; déployé 14b729a4, CI verte
+  Commits : 78c49e26 R440 : mapping cross-plateforme — les suggestions à valider (titres & 
+
 ## ✅ R439 — Assistant « Où tu en es » — retour du 2026-10-07 : cases de couleur de la matrice d'éta… (livrée 2026-10-07)
 
 - [x] **R439 — Assistant « Où tu en es » — retour du 2026-10-07 : cases de couleur de la matrice d'état (saisie, format, réponse, données) plus petites, pour que « Connecter mes sources » soit visible sans défiler** (P3) ✅ (2026-10-07, 59e7f8ac)

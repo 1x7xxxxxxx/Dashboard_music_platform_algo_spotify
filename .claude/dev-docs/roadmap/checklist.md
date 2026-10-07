@@ -30,10 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R440 | Mapping cross-platform — retour du 2026-10-07 : récap EN HAUT des suggestions à valider (titres & couvertures) et des suggestions automatiques (campagnes Meta), sorties des volets, avec leurs messages vides (« rien n'a mappé… », « toutes les campagnes Meta sont déjà traitées ») ; le détail reste dans les volets dépliants <!-- critic: non — réordonnancement d'affichage, mêmes écritures --> <!-- scope: src/dashboard/views/meta_mapping/, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | test de rendu : récap avant les volets, messages vides présents |
-| R441 | Saisie S4A — retours du 2026-10-07 : « Autre fenêtre » propose J+1, J+2, J+3, J+7 après la sortie du titre ; « Titres couverts par la saisie » montre l'âge de la dernière saisie en jours par famille au lieu d'un ✅ « déjà saisi une fois » <!-- critic: non — préréglages de période et un affichage d'âge --> <!-- scope: src/dashboard/utils/entry_period.py, src/dashboard/utils/s4a_entry_insight.py, src/dashboard/views/saisie_s4a.py, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | tests de `resolve` sur J+n ; test de l'âge en jours |
-| R442 | Saisie S4A — retours du 2026-10-07 : retirer « pas d'estimation fiable » des barres du pari ; déplacer « Le pari du modèle… » jusqu'à « Enregistrer la période (algos) » vers la vue admin, après vérification qu'aucun graphique admin ne donne déjà cette information <!-- critic: requis — déplacement d'une surface de saisie vers une autre page et un autre rôle --> <!-- scope: src/dashboard/views/saisie_s4a.py, src/dashboard/views/ml_performance.py, src/dashboard/views/admin.py, src/dashboard/views/admin/, src/dashboard/utils/s4a_entry_insight.py, src/dashboard/views/trigger_algo/, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | test de rendu : saisie sans le pari, admin avec ; plus de libellé plancher |
-| R443 | Hypeddit — retour du 2026-10-07 : dans la comparaison des deux dernières sorties, des graphiques visites, clics et dépense Meta <!-- critic: non — graphiques sur données déjà lues --> <!-- scope: src/dashboard/views/hypeddit.py, src/dashboard/utils/, src/dashboard/utils/i18n_catalog/, tests/, .test_durations, src/dashboard/content/chart_decisions.py, tools/dev/charts_dossier/review.yaml --> | P3 | test de rendu : trois figures dans la comparaison ; PNG regardé |
 
 ---
 
@@ -89,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R440, R441, R442, R443 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), à livrer une par une. R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
