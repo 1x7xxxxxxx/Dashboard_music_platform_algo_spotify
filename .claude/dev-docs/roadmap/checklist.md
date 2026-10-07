@@ -30,6 +30,10 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R446 | Chaque rouge de CI de main dit PAR OÙ il est passé : `make defect-log` rejoue le sélecteur sur le diff dernier-vert → rouge et range chaque test rouge en « le sélecteur l'aurait raté » / « sélectionné : poussé sans arbre vert ou écart local/CI » ; plus réponse aux 2 billets `recurrence:` ouverts (R438, R443) <!-- critic: non — lecture d'un journal existant --> <!-- scope: tools/dev/, tests/, .test_durations, Makefile --> | P3 | test : classement pur sur rouges fabriqués ; rejeu réel sur l'historique |
+| R447 | Le sélecteur voit les imports écrits DANS une chaîne de script (`AppTest.from_string` : `from src.dashboard.views.{view} import show`) — le rejeu R446 l'a pris en défaut : `test_a_view_says_something_or_says_why[revenue_forecast]` rouge en CI le 2026-10-05, non sélectionné <!-- critic: non — une arête de plus dans le graphe, le doute élargit --> <!-- scope: .claude/scripts/select_tests.py, tests/, .test_durations --> | P2 | test : vue modifiée ⇒ test templaté sélectionné ; mutation |
+| R448 | Dérive sans push : `ci.yml` tourne chaque nuit sur main (`schedule`) — une date, une dépendance, une API qui bouge rougit le matin et non au prochain push ; `notify` mail aussi la cassure nocturne, le job `roadmap` est sauté hors push/PR <!-- critic: non — dépôt public, minutes gratuites --> <!-- scope: .github/workflows/ci.yml, tools/dev/, tests/, .test_durations --> | P3 | test : schedule déclaré, notify et mail le couvrent, roadmap sauté |
+| R449 | 15 worktrees d'agents (`.claude/worktrees/`) déjà fusionnés mais SALES traînent : diff archivé hors dépôt puis retirés ; `make night-check` signale tout worktree de plus de 48 h <!-- critic: non — ménage + un contrôle --> <!-- scope: tools/dev/, tests/, .test_durations --> | P4 | test : worktree vieux signalé, récent non ; `git worktree list` = 1 |
 
 ---
 
@@ -85,7 +89,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R446, R447, R448, R449 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
