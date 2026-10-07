@@ -660,6 +660,41 @@ def _schedule_problems() -> "list[str]":
     return stale_schedules(periods, last, datetime.now(timezone.utc))
 
 
+WORKTREE_MAX_HOURS = 48
+
+
+def stale_worktrees(trees: "list[tuple[str, float]]", max_h: float = WORKTREE_MAX_HOURS) -> "list[str]":
+    """The agent worktrees older than `max_h` hours, given (path, age in hours). Pure.
+
+    R449 (2026-10-07): 15 worktrees of agents and workflows, all merged into main, all
+    dirty, accumulated for weeks under `.claude/worktrees/` — nothing said so. Their
+    uncommitted diffs are the only copy of what an agent did not deliver; past 48 h they
+    are either delivered (then removable) or forgotten (then to archive)."""
+    old = sorted(path for path, age in trees if age > max_h)
+    if not old:
+        return []
+    return [f"{len(old)} worktree(s) de plus de {max_h:.0f} h ({', '.join(Path(p).name for p in old[:3])}"
+            f"{'…' if len(old) > 3 else ''}) — archiver leur diff hors du dépôt puis "
+            "`git worktree remove --force` et `git worktree prune`"]
+
+
+def _worktrees() -> "list[tuple[str, float]]":
+    """(path, age in hours) of every worktree but the main one, from `git worktree list`."""
+    now = datetime.now(timezone.utc).timestamp()
+    out = []
+    for line in _git("worktree", "list", "--porcelain").splitlines():
+        if not line.startswith("worktree "):
+            continue
+        path = Path(line[len("worktree "):])
+        if path.resolve() == REPO.resolve():
+            continue
+        try:
+            out.append((str(path), (now - (path / ".git").stat().st_mtime) / 3600))
+        except OSError:
+            continue   # prunable: its directory is gone, `git worktree prune` handles it
+    return out
+
+
 def cmd_check(_args) -> int:
     """Les invariants d'une séance longue. Sort ≠ 0 quand il y a à redire."""
     problems = _reopening_conditions_met()
@@ -690,6 +725,7 @@ def cmd_check(_args) -> int:
         if dirty:
             problems.append(f"arbre sale ({len(dirty)}) — une unité finie se commite "
                             "avant la suivante")
+        problems += stale_worktrees(_worktrees())   # R449
         if _git("rev-parse", "--abbrev-ref", "@{u}") and _git("log", "--oneline",
                                                               "@{u}..HEAD"):
             problems.append("commits non poussés — un arrêt les perdrait de vue")

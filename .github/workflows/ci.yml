@@ -17,6 +17,11 @@ on:
   pull_request:
     branches: [main, dev]
   workflow_dispatch: {}
+  # R448 (2026-10-07) — drift reaches main without a push: a date, a dependency, an API.
+  # One run per night on main makes it red the morning it happens, through `notify`,
+  # instead of on the next unrelated push. The repo is public: minutes are free.
+  schedule:
+    - cron: "0 3 * * *"
 
 # Three pushes in a minute used to queue three full runs and let all three
 # finish; only the last one can still be true. msdr's ci.yml has had this since
@@ -435,6 +440,8 @@ jobs:
   # commits of THIS push or PR, each against its PARENT's open index. Commits made before the
   # gate existed are not judged (the script skips any whose parent lacks it).
   roadmap:
+    # R448: a scheduled run carries no new commit — there is no range to judge.
+    if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -459,7 +466,7 @@ jobs:
   # outage) — `ci_break_mail.py` mails the green→red TRANSITION only.
   notify:
     needs: [gates, suite, secrets, roadmap]
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read

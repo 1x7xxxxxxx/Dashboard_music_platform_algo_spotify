@@ -47,7 +47,7 @@ def previous_conclusion(env: dict) -> str | None:
     """Conclusion of the last completed CI run on main before this one, or None."""
     url = (f"{env.get('GITHUB_API_URL', 'https://api.github.com')}/repos/"
            f"{env['GITHUB_REPOSITORY']}/actions/workflows/ci.yml/runs"
-           "?branch=main&event=push&per_page=15")   # R316: completed filtered below, not by an index
+           "?branch=main&per_page=15")   # R316: completed filtered below; R448: push AND nightly schedule
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {env['GITHUB_TOKEN']}",
                                                "Accept": "application/vnd.github+json"})
     try:
