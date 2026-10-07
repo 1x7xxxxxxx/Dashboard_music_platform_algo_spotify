@@ -731,3 +731,10 @@
 {"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "start", "task": "R459", "what": "spotify légende + meta/jour"}
 {"at": "2026-10-07T21:18:39+00:00", "head": "a2ba7d0c", "kind": "done", "task": "R459", "what": "commitée"}
 {"at": "2026-10-07T21:18:39+00:00", "head": "a2ba7d0c", "kind": "start", "task": "R461", "what": "fusion SACEM"}
+{"at": "2026-10-07T21:24:13+00:00", "head": "3156faa8", "kind": "done", "task": "R461", "what": "commitée"}
+{"at": "2026-10-07T21:38:20+00:00", "head": "63eb47f0", "kind": "start", "task": "R463", "what": "harnais : 3 refus"}
+{"at": "2026-10-07T21:54:17+00:00", "head": "f8180294", "kind": "start", "task": "R455", "what": "figures bienvenue"}
+{"at": "2026-10-07T21:54:20+00:00", "head": "f8180294", "kind": "done", "task": "R463", "what": ""}
+{"at": "2026-10-07T22:06:15+00:00", "head": "9b93be74", "kind": "done", "task": "R455", "what": ""}
+{"at": "2026-10-07T22:06:15+00:00", "head": "9b93be74", "kind": "start", "task": "R456", "what": "algo_preview figures + SHAP"}
+{"at": "2026-10-07T22:26:28+00:00", "head": "b94025c9", "kind": "done", "task": "R456", "what": ""}
