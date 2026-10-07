@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R439 — Assistant « Où tu en es » — retour du 2026-10-07 : cases de couleur de la matrice d'éta… (livrée 2026-10-07)
+
+- [x] **R439 — Assistant « Où tu en es » — retour du 2026-10-07 : cases de couleur de la matrice d'état (saisie, format, réponse, données) plus petites, pour que « Connecter mes sources » soit visible sans défiler** (P3) ✅ (2026-10-07, 59e7f8ac)
+  Mesuré par : test de rendu de la matrice compacte ; capture regardée
+  Matrice dense (cases 22 px, un seul tableau) sur « Où tu en es », Accueil inchangé ; CI verte sur 59e7f8ac, déployé
+  Commits : 59e7f8ac R439 : « Où tu en es » — matrice d'état en un seul tableau dense (case
+
+## ✅ R438 — Assistant — figures d'exemple, retours du 2026-10-07 : Shazam ajouté à « streaMLytics e… (livrée 2026-10-07)
+
+- [x] **R438 — Assistant — figures d'exemple, retours du 2026-10-07 : Shazam ajouté à « streaMLytics en bref » (seulement Shazam) ; texte « Prédire le déclenchement des playlists algorithmiques Spotify : Discover Weekly, Release Radar et Radio » (FR + EN) ; la figure campagne passe sur UN SEUL graphique avec € Meta, streams Spotify, visites/clics Hypeddit et CPR** (P3) ✅ (2026-10-07, dfeec2d5, 9f4622c2)
+  Mesuré par : PNG régénérés et regardés ; test du libellé
+  Shazam en bande à part dans « en bref », promesse algo réécrite, campagne sur un seul graphique (Meta €, Hypeddit visites/clics, CPR) ; hauteurs réalignées dfeec2d5 ; CI verte sur 59e7f8ac, déployé
+  Commits : dfeec2d5 R438 : figures d'exemple ramenées à la même hauteur (0,511–0,513) — la · 9f4622c2 R438 : assistant — Shazam dans « streaMLytics en bref » (bande à part,
+
+## ✅ R437 — Assistant — retour du 2026-10-07 : les deux boutons d'étape (« 1. Bienvenue & choix »,… (livrée 2026-10-07)
+
+- [x] **R437 — Assistant — retour du 2026-10-07 : les deux boutons d'étape (« 1. Bienvenue & choix », « 2. Où tu en es ») CENTRÉS verticalement dans la barre latérale, plus collés sous le logo** (P3) ✅ (2026-10-07, 059dead4)
+  Mesuré par : test de rendu : l'espaceur de centrage précède les boutons ; capture regardée
+  Boutons d'étape centrés à mi-hauteur dans la barre nue ; CI verte sur 59e7f8ac, déployé en prod
+  Commits : 059dead4 R437 : assistant — les deux boutons d'étape centrés verticalement dans
+
 ## ✅ R436 — Spotify + S4A — retour du 2026-10-07 : la dépense Meta cumulée quitte son panneau et de… (livrée 2026-10-07)
 
 - [x] **R436 — Spotify + S4A — retour du 2026-10-07 : la dépense Meta cumulée quitte son panneau et devient une AIRE sous la courbe, sur le même graphique que les streams cumulés (axe € à droite), mêmes couleurs par sortie** (P3) ✅ (2026-10-07, 7d861ecf)
