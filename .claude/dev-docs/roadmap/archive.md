@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R464 — Harnais : `make test-changed` lancé APRÈS un commit sélectionne 0 test (diff contre `HE… (livrée 2026-10-08)
+
+- [x] **R464 — Harnais : `make test-changed` lancé APRÈS un commit sélectionne 0 test (diff contre `HEAD`), estampille l'arbre vert et la porte pre-push laisse partir un commit jamais testé — vu le 2026-10-08 sur le catalogue, CI rouge. Diff contre `@{upstream}` quand il existe** (P4) ✅ (2026-10-08, 55458954, 00649e24)
+  Mesuré par : self-test select_tests + garde muté rouge
+  select_tests diffe contre merge-base(HEAD, @{upstream}) ; garde muté rouge 2× ; CI verte sur 55458954
+  Commits : 55458954 Roadmap : journal de nuit R464 · 00649e24 R464 : select_tests diffe contre merge-base(HEAD, @{upstream}) — un co
+
 ## ✅ R463 — Harnais, les 3 refus de la nuit : (a) le hook des durées refuse le 1ᵉʳ commit d'un test… (livrée 2026-10-08)
 
 - [x] **R463 — Harnais, les 3 refus de la nuit : (a) le hook des durées refuse le 1ᵉʳ commit d'un test neuf PUIS se corrige — ×41 en 7 j, il doit indexer lui-même `.test_durations` ; (b) la porte pre-push R444 compte le journal `night-run.jsonl` (append-only, écrit par night-start/done) comme du code et refuse le push ; (c) un commit refusé laisse l'index, et le commit « Roadmap : » suivant l'emporte — le hook roadmap doit dire quels fichiers déjà indexés sont hors périmètre** (P4) ✅ (2026-10-08, f8180294)

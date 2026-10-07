@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R464 | Harnais : `make test-changed` lancé APRÈS un commit sélectionne 0 test (diff contre `HEAD`), estampille l'arbre vert et la porte pre-push laisse partir un commit jamais testé — vu le 2026-10-08 sur le catalogue, CI rouge. Diff contre `@{upstream}` quand il existe <!-- critic: non — outil de dev, sens unique (élargit la sélection) --> <!-- scope: .claude/scripts/select_tests.py, tests/, .test_durations --> | P4 | self-test select_tests + garde muté rouge |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R464 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
