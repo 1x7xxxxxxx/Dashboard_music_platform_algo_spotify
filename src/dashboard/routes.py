@@ -50,7 +50,7 @@ ROUTES: dict[str, str] = {
     "service": "views.service",
     "billing": "views.billing",
     "revenue_forecast": "views.trigger_algo",  # alias — R405 made it a section of the algo page, which points to it
-    "sacem": "views.sacem",
+    "sacem": "views.imusician",  # alias — R461 merged the SACEM page into the distributors page
     "meta_mapping": "views.meta_mapping",
     "admin": "views.admin",
     "account": "views.account",
@@ -81,6 +81,7 @@ PAGE_ALIASES: dict[str, str] = {
     "recap": "home",
     "upload_csv": "credentials",
     "process_guide": "onboarding_health",
+    "sacem": "imusician",
 }
 ALIAS_ARRIVAL_KEY = "_alias_arrival"
 

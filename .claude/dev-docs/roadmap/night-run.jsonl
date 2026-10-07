@@ -729,3 +729,5 @@
 {"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "done", "task": "R457", "what": "commitée, à déployer"}
 {"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "note", "task": "R457", "what": "harnais: durations hook refuse le 1er commit d'un test neuf, x41/7j — candidat R463"}
 {"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "start", "task": "R459", "what": "spotify légende + meta/jour"}
+{"at": "2026-10-07T21:18:39+00:00", "head": "a2ba7d0c", "kind": "done", "task": "R459", "what": "commitée"}
+{"at": "2026-10-07T21:18:39+00:00", "head": "a2ba7d0c", "kind": "start", "task": "R461", "what": "fusion SACEM"}

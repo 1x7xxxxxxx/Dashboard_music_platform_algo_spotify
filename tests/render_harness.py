@@ -60,7 +60,7 @@ VIEWS = [
     "meta_breakdowns", "meta_cpr_optimizer", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance",
     "promo_admin", "referral", "referral_admin",
-    "sacem", "saisie_s4a", "soundcloud",
+    "saisie_s4a", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
     "useful_links", "youtube",
     "onboarding", "onboarding_health", "register",
@@ -70,6 +70,7 @@ VIEWS = [
     "algo_preview", "platform_status", "privacy",
     # R405: `meta_campaign_settings` and `revenue_forecast` left — no `show()` any more,
     # both are sections of `trigger_algo` (rendered above), like `upload_csv` in 2026-09.
+    # R461: `sacem` left too — a section of `imusician`, rendered above.
 ]
 
 # Les vues rendues sous un locataire NEUF ET VIDE — l'état du premier jour, où la

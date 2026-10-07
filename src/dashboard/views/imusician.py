@@ -211,7 +211,7 @@ def show():
     # saisie en tête (c'est le geste qu'on vient faire ici), puis l'évolution des ventes,
     # puis le point mort. Les onglets « Données » / « ROI » cachaient l'un à l'autre deux
     # lectures d'une même question : est-ce que ça rapporte ?
-    st.title(t("imusician.title", "💰 Distributeur — Revenus mensuels"))
+    st.title(t("imusician.title", "💰 Distributeur iMusician DistroKid + SACEM"))
     st.caption(t(
         "imusician.intro",
         "Les exports iMusician et DistroKid s'importent depuis la page **📂 Ajouter mes "
@@ -225,6 +225,10 @@ def show():
         _render_evolution(db, artist_id)
         st.markdown("---")
         _render_roi(db, artist_id)
+        # R461 (owner, 2026-10-07): the SACEM page merged here, on the SAME connection.
+        st.markdown("---")
+        from src.dashboard.views.sacem import render_section
+        render_section(db, artist_id)
     finally:
         db.close()
 

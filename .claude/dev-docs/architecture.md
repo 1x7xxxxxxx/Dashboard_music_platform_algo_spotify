@@ -323,7 +323,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `instagram.py` | Instagram | instagram_* | all |
 | `apple_music.py` | Apple Music | apple_* | all |
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |
-| `imusician.py` | iMusician (Distributeur) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
+| `imusician.py` | Distributeur iMusician DistroKid + SACEM (section SACEM depuis R461) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
 | `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | premium |
 | `algo_preview.py` | Aperçu : déclencher les algos — FREE preview of Road to Algo for the latest scored release (R193, ADR-029): nearest gate + action per algorithm (`algo_knowledge.split_coach_actions`), no percentage while on the calibration floor, one order-of-magnitude budget (`algo_preview_data.budget_pour_streams`), CTA to Premium | ml_song_predictions, v_meta_daily, v_s4a_song_daily | all |
 | `trigger_algo/` (package) | Trigger Algo — **4 tabs since the 2026-09 rework** (`router.py:190` : Où en sont mes titres / Ce titre : ce qu'il reste à faire / Ce qui s'est vraiment passé / Budget & ROI ; Modèle and Explainabilité moved to `ml_performance`). ⚠️ The description below is the PREVIOUS 7-tab layout, kept for history — (Global/Suivi Algos/Budget/Explainabilité/Modèle/Cycle de vie & Benchmark/**Streams algos générés** — last one NEW 2026-06-12: stacked bar of realized DW/RR/Radio streams, cumulative total + per-playlist, 7d/28d/custom, from `s4a_song_algo_outcomes`); Modèle + Explainabilité tabs stack ALL populated algos (DW + Radio + RR — all 3 populated as of 2026-05-30) via `ml_widgets` scorecard / feature gauges + `algo_knowledge` zones; volume layer (2026-05-30): floor wording in `_display_prob_bar`, `render_volume_gauges` in the coach loop, regressor SHAP autopsy (`render_shap_narrative`/`render_regressor_badge`) in Explainabilité, organic budget-scaling section in Budget; Budget tab `_show_velocity_budget_advice` cross-link routes through `algo_knowledge.velocity_penalty_threshold` | ml_song_predictions, algo_lifecycle_benchmark (lifecycle tab, GLOBAL read-only) | all |
@@ -338,7 +338,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `onboarding_health.py` | 🚦 Santé onboarding — matrice de préparation par artiste | `src.utils.artist_readiness` | all |
 | `db_health.py` | 🗄️ Santé des données — imports et fraîcheur | pg_stat_user_tables, colonnes `collected_at` | admin (`_ADMIN_ONLY`, `app.py:94-96`) |
 | `meta_cpr_optimizer.py` | 📊 CPR Optimizer — score ML × CPR et recommandations de budget | meta_insights_*, ml_song_predictions | premium |
-| `sacem.py` | 🎼 SACEM — répartitions brutes, charges sociales et net dans le temps | sacem_statement | all |
+| `sacem.py` | 🎼 SACEM — SECTION de `imusician` depuis R461 (`?page=sacem` est un alias) : brut → retenues → net, virements, relevé | sacem_statement | all |
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution — **hors navigation** : absente de `NAV_SECTIONS`, atteinte par sa seule route (`app.py:590`) | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
 | `referral.py` | 🎁 Parrainage — page côté artiste | referral_codes, referral_events | all |

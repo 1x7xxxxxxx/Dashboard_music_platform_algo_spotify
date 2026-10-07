@@ -1,7 +1,7 @@
 """EN strings for the Distributor (iMusician/DistroKid) revenue view."""
 
 EN = {
-    "imusician.title": "💰 Distributor — Monthly revenue",
+    "imusician.title": "💰 Distributor iMusician DistroKid + SACEM",
     "imusician.distributor": "Distributor",
     # Data tab
     "imusician.evolution_summary": "Total {total} · average {avg} per month · {n} months recorded",

@@ -1,7 +1,10 @@
-"""SACEM royalties view — gross distributions, social charges and net over time.
+"""SACEM royalties — a SECTION of the distributors page since R461.
 
-Type: Feature
-Uses: view_session, i18n, charts, credentials.router.goto_tab
+Type: Sub
+Uses: i18n, charts, credentials.router.goto_tab
+Triggers: called by views.imusician.show() (R461 — owner, 2026-10-07: « fusionne les
+          deux en un … Distributeur iMusician DistroKid + SACEM »). `?page=sacem` is an
+          alias of `imusician` (routes.PAGE_ALIASES).
 Persists in: — (reads sacem_statement, written by the SACEM xlsx import)
 
 Free-tier. Shows the SACEM account statement: gross royalties (REPARTITION lines),
@@ -17,7 +20,6 @@ this file until 2026-09-14 while being wrong by 41 %.
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
 
@@ -89,8 +91,9 @@ def gross_to_net_figure(gross: float, deductions: float, net: float):
     return fig
 
 
-def show():
-    st.title(t("sacem.title", "🎼 Royalties SACEM"))
+def render_section(db, artist_id) -> None:
+    """The SACEM block, on the page and connection of its caller (rule 9: one per view)."""
+    st.subheader(t("sacem.title", "🎼 Royalties SACEM"))
     st.caption(t("sacem.caption",
                  "Relevé de compte SACEM : royalties brutes (REPARTITION), charges "
                  "sociales, net réellement versé et virements reçus à ce jour. "
@@ -116,67 +119,66 @@ def show():
         from src.dashboard.views.credentials.router import CSV_TAB_KEY, goto_tab
         goto_tab(CSV_TAB_KEY)
 
-    with view_session() as (db, artist_id):
-        df = _load(db, artist_id)
-        if df.empty:
-            st.info(t("sacem.no_data",
-                      "Aucune donnée SACEM. Importe ton relevé de compte (.xlsx) avec le "
-                      "bouton ci-dessus."))
-            return
+    df = _load(db, artist_id)
+    if df.empty:
+        st.info(t("sacem.no_data",
+                  "Aucune donnée SACEM. Importe ton relevé de compte (.xlsx) avec le "
+                  "bouton ci-dessus."))
+        return
 
-        df['mouvement_eur'] = pd.to_numeric(df['mouvement_eur'], errors='coerce').fillna(0.0)
-        totals = _load_totals(db, artist_id)
-        gross = totals.get('repartition', 0.0)
-        deductions, net = _load_net(db, artist_id)
+    df['mouvement_eur'] = pd.to_numeric(df['mouvement_eur'], errors='coerce').fillna(0.0)
+    totals = _load_totals(db, artist_id)
+    gross = totals.get('repartition', 0.0)
+    deductions, net = _load_net(db, artist_id)
 
-        # R389 (V79) : trois tuiles devenues UN graphique — du brut au net, la retenue
-        # entre les deux se lit comme une marche, pas comme une soustraction à faire.
-        from src.dashboard.utils import charts
-        charts.plotly_chart(gross_to_net_figure(gross, deductions, net), width="stretch")
+    # R389 (V79) : trois tuiles devenues UN graphique — du brut au net, la retenue
+    # entre les deux se lit comme une marche, pas comme une soustraction à faire.
+    from src.dashboard.utils import charts
+    charts.plotly_chart(gross_to_net_figure(gross, deductions, net), width="stretch")
 
-        # Les DEUX chiffres, et ce qui les sépare (R107 §2, tranché le 2026-09-14).
-        # Un artiste qui ne lit que le brut découvre l'écart à son relevé bancaire ;
-        # qui ne lit que le net ne peut plus se comparer au brut distributeur.
-        st.caption(t("sacem.gross_net_caption",
-                     "Brut {gross:,.2f} € − retenues {deductions:,.2f} € = "
-                     "**net {net:,.2f} €**. Les retenues sont les charges sociales "
-                     "(CSG, CRDS, URSSAF, formation) et la TVA forfaitaire prélevées "
-                     "sur chaque répartition. Les frais d'adhésion, eux, n'en sont "
-                     "pas : ils ne se retranchent d'aucune royaltie.")
-                   .format(gross=gross, deductions=abs(deductions), net=net))
+    # Les DEUX chiffres, et ce qui les sépare (R107 §2, tranché le 2026-09-14).
+    # Un artiste qui ne lit que le brut découvre l'écart à son relevé bancaire ;
+    # qui ne lit que le net ne peut plus se comparer au brut distributeur.
+    st.caption(t("sacem.gross_net_caption",
+                 "Brut {gross:,.2f} € − retenues {deductions:,.2f} € = "
+                 "**net {net:,.2f} €**. Les retenues sont les charges sociales "
+                 "(CSG, CRDS, URSSAF, formation) et la TVA forfaitaire prélevées "
+                 "sur chaque répartition. Les frais d'adhésion, eux, n'en sont "
+                 "pas : ils ne se retranchent d'aucune royaltie.")
+               .format(gross=gross, deductions=abs(deductions), net=net))
 
-        payout = -totals.get('payout', 0.0)
-        if payout:
-            # Le seul chiffre qu'un artiste peut vérifier sur son relevé bancaire.
-            # L'écart avec le net est la part distribuée pas encore virée — un fait
-            # du calendrier SACEM, jamais une erreur, donc il se DIT.
-            pending = net - payout
-            st.caption(t("sacem.payout_caption",
-                         "🏦 Déjà viré sur votre compte : **{payout:,.2f} €**"
-                         "{pending}.")
-                       .format(payout=payout,
-                               pending=(
-                                   t("sacem.payout_pending",
-                                     " — reste {p:,.2f} € distribués, en attente du "
-                                     "prochain virement trimestriel").format(p=pending)
-                                   if round(pending, 2) > 0 else "")))
+    payout = -totals.get('payout', 0.0)
+    if payout:
+        # Le seul chiffre qu'un artiste peut vérifier sur son relevé bancaire.
+        # L'écart avec le net est la part distribuée pas encore virée — un fait
+        # du calendrier SACEM, jamais une erreur, donc il se DIT.
+        pending = net - payout
+        st.caption(t("sacem.payout_caption",
+                     "🏦 Déjà viré sur votre compte : **{payout:,.2f} €**"
+                     "{pending}.")
+                   .format(payout=payout,
+                           pending=(
+                               t("sacem.payout_pending",
+                                 " — reste {p:,.2f} € distribués, en attente du "
+                                 "prochain virement trimestriel").format(p=pending)
+                               if round(pending, 2) > 0 else "")))
 
-        # ── The treasury (R212) ──
-        # The quarterly royalty chart merged into the ONE treasury figure the owner asked
-        # for: SACEM (net) beside sales and every spend, from `v_artist_monthly_cashflow`.
-        # The gross figures above and the full ledger below stay.
-        # R244 (fiche 19 « fusionner ») : the treasury is drawn ONCE, on the distributors
-        # page, SACEM included — the same figure here was the owner's « déjà vu ».
-        st.caption(t("sacem.treasury_moved",
-                     "💶 Ta SACEM entre dans la trésorerie cumulée (ventes, SACEM, dépenses) de "
-                     "la page 💰 Distributeurs."))
+    # ── The treasury (R212) ──
+    # The quarterly royalty chart merged into the ONE treasury figure the owner asked
+    # for: SACEM (net) beside sales and every spend, from `v_artist_monthly_cashflow`.
+    # The gross figures above and the full ledger below stay.
+    # R244 (fiche 19 « fusionner ») : the treasury is drawn ONCE, on the distributors
+    # page, SACEM included — the same figure here was the owner's « déjà vu ».
+    st.caption(t("sacem.treasury_moved",
+                 "💶 Ta SACEM entre aussi dans la trésorerie cumulée (ventes, SACEM, "
+                 "dépenses) plus haut sur cette page."))
 
-        # ── Full ledger ──
-        with st.expander(t("sacem.ledger", "▸ Relevé détaillé")):
-            view = df.rename(columns={
-                'line_date': t("sacem.col_date", "Date"),
-                'libelle': t("sacem.col_label", "Libellé"),
-                'mouvement_eur': t("sacem.col_movement", "Mouvement (€)"),
-                'solde_eur': t("sacem.col_balance", "Solde (€)"),
-                'line_type': t("sacem.col_type", "Type")})
-            st.dataframe(view, hide_index=True, width="stretch")
+    # ── Full ledger ──
+    with st.expander(t("sacem.ledger", "▸ Relevé détaillé")):
+        view = df.rename(columns={
+            'line_date': t("sacem.col_date", "Date"),
+            'libelle': t("sacem.col_label", "Libellé"),
+            'mouvement_eur': t("sacem.col_movement", "Mouvement (€)"),
+            'solde_eur': t("sacem.col_balance", "Solde (€)"),
+            'line_type': t("sacem.col_type", "Type")})
+        st.dataframe(view, hide_index=True, width="stretch")

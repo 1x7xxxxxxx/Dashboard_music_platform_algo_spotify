@@ -39,7 +39,7 @@ TENANT_VIEWS = [
     "soundcloud", "youtube", "instagram", "apple_music", "data_wrapped",
     "credentials", "account", "billing", "alerts", "onboarding",
     "onboarding_health", "saisie_s4a", "meta_ads_overview",
-    "meta_x_spotify", "referral", "sacem", "trigger_algo",
+    "meta_x_spotify", "referral", "trigger_algo",
 ]
 
 # A session that has authenticated as an artist and carries no tenant.

@@ -203,8 +203,7 @@ NAV_SECTIONS: list = [
       # garde son entrée jusqu'à R381, qui reprend ses recommandations, et R406.
       ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
     ("revenue",   "💶 Revenus",
-     [("💰 Distributeurs (iMusician, DistroKid…)", "imusician"),
-      ("🎼 SACEM", "sacem")]),
+     [("💰 Distributeur iMusician DistroKid + SACEM", "imusician")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
       ("💳 Facturation / Abonnement", "billing"),
