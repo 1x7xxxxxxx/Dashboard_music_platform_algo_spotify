@@ -53,4 +53,7 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     roi = next((i for i, h in enumerate(heads) if "Point mort" in h), None)
     assert evo is not None and roi is not None and evo < roi, (
         f"the evolution does not come before break-even: {heads}")
-    assert len(at.dataframe) == 0, "the detail table is back in place of the chart"
+    # R461: the SACEM ledger joined this page, folded in its « Relevé détaillé » expander.
+    # The property is « no table SHOWN in place of the chart », not « no table at all ».
+    folded = sum(len(e.dataframe) for e in at.expander)
+    assert len(at.dataframe) - folded == 0, "the detail table is back in place of the chart"
