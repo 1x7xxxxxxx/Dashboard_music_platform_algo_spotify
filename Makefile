@@ -955,6 +955,7 @@ defect-log: ## R315 — les défauts relevés à chaque réponse (hook Stop), lu
 	@python3 tools/dev/import_ci_reds.py   # R337 : les rouges de la CI de main, l'arbre propre
 	@python3 tools/dev/import_cron_logs.py # R353 : les crons du poste (.claude/sessions/cron-logs.json, local)
 	@python3 tools/dev/defect_log.py
+	@python3 tools/dev/ci_red_escape.py    # R446 : par où chaque rouge de CI est passé
 
 defect-close: ## R353 — clore À LA MAIN un défaut qu'aucun vert ne peut clore, AVEC sa raison : make defect-close FP=… NOTE="…"
 	@test -n "$(FP)" || { echo "❌ FP manquant. Run: make defect-close FP=<empreinte> NOTE=\"pourquoi\""; exit 1; }
