@@ -28,8 +28,9 @@ ET « LE MÊME COMPTE DE STREAM » N'EST PAS UN BUG
 c'est qu'il soit le titre sélectionné D'OFFICE : le sélecteur triait sur
 `track_created_at`, la date d'upload SoundCloud, et ce titre est le plus récemment
 uploadé du compte. La page s'ouvrait donc sur le titre le plus vide du catalogue —
-4 écoutes, 0 like, 0 repost, 0 commentaire. Depuis R385 la comparaison à âge égal
-s'ouvre sur les deux titres les plus ÉCOUTÉS.
+4 écoutes, 0 like, 0 repost, 0 commentaire. R385 avait ouvert la comparaison à âge
+égal sur les deux titres les plus ÉCOUTÉS ; depuis R460 (demande du propriétaire,
+2026-10-07) elle s'ouvre sur les DEUX DERNIÈRES SORTIES — c'est la question qu'elle pose.
 
 LE TOTAL DES QUATRE COMPTEURS SUR UN AXE TEMPOREL
 ---------------------------------------------------
@@ -281,17 +282,24 @@ def age_aligned_readings(daily: pd.DataFrame, chosen: pd.DataFrame, col: str,
     return out.sort_values(["_o", "age"])[["title", "day", "age", "value"]]
 
 
+def latest_first(df: pd.DataFrame) -> pd.DataFrame:
+    """Titles newest release first — the upload date, then plays to break ties."""
+    return df.sort_values(["track_created_at", "playback_count"],
+                          ascending=[False, False], na_position="last")
+
+
 def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     """Choose titles, compare their cumulative counter at EQUAL AGE (R385, V44).
 
     The drawing is Spotify's « Mes sorties, à âge égal » — the same function,
-    `age_aligned_traces`, not a copy. The default is the two most-PLAYED titles, not
-    the two latest uploads: the latest is « Chokbar de bezed », 4 plays, and a page
-    that opens on its emptiest title says « nothing here » when there is.
+    `age_aligned_traces`, not a copy. The default is the two LATEST releases (R460,
+    owner, 2026-10-07: « d'office les deux dernières sorties »), which reverses R385's
+    most-played default: the question this chart answers is « how is my new release
+    doing against the previous one ».
     """
     st.subheader(t("soundcloud.age_header", "📈 Tout le catalogue, à âge égal"))
-    by_plays = df_top.sort_values("playback_count", ascending=False)
-    titles = by_plays["title"].tolist()
+    by_release = latest_first(df_top)
+    titles = by_release["title"].tolist()
     metrics = _metric_labels()
     c1, c2 = st.columns([3, 1])
     picked = c1.multiselect(t("soundcloud.age_pick", "Titres à comparer"), titles,
@@ -302,7 +310,7 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     if not picked:
         st.info(t("soundcloud.age_pick_one", "Choisis au moins un titre."))
         return
-    chosen = by_plays.set_index("title").loc[picked].reset_index()
+    chosen = by_release.set_index("title").loc[picked].reset_index()
     frame = _age_frame(db, artist_id, chosen, metric)
     if frame.empty:
         st.info(t("soundcloud.age_empty",

@@ -116,3 +116,17 @@ def test_the_page_puts_four_counters_on_one_row_and_compares_at_equal_age() -> N
     assert len(pickers) == 1, "the equal-age comparison has no title picker"
     assert len(pickers[0].value) == min(2, len(pickers[0].options))
     assert any("à âge égal" in h for h in heads), heads
+
+
+def test_the_comparison_opens_on_the_two_latest_releases() -> None:
+    """R460 — owner, 2026-10-07: « d'office les deux dernières sorties », not the most played."""
+    import pandas as pd
+
+    from src.dashboard.views.soundcloud import latest_first
+
+    df = pd.DataFrame({
+        "title": ["Hit ancien", "Chokbar de bezed", "Avant-dernier", "Sans date"],
+        "playback_count": [9000, 4, 300, 50],
+        "track_created_at": pd.to_datetime(["2024-01-01", "2026-09-30", "2026-06-01", None]),
+    })
+    assert latest_first(df)["title"].tolist()[:2] == ["Chokbar de bezed", "Avant-dernier"]

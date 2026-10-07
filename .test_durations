@@ -9566,6 +9566,7 @@
     "tests/test_soundcloud_compares_titles_at_equal_age.py::test_both_views_draw_through_the_one_function[src/dashboard/views/spotify_s4a_combined.py]": 0.006655103999946732,
     "tests/test_soundcloud_compares_titles_at_equal_age.py::test_only_the_last_point_carries_its_value": 0.002382313996349694,
     "tests/test_soundcloud_compares_titles_at_equal_age.py::test_readings_sit_at_the_title_age_and_skip_an_unreadable_day": 0.010045270002592588,
+    "tests/test_soundcloud_compares_titles_at_equal_age.py::test_the_comparison_opens_on_the_two_latest_releases": 0.2876282710058149,
     "tests/test_soundcloud_compares_titles_at_equal_age.py::test_the_page_puts_four_counters_on_one_row_and_compares_at_equal_age": 0.41937092499938444,
     "tests/test_stale_means_the_same_thing_everywhere.py::test_no_prose_announces_a_threshold_the_code_does_not_use": 0.0025704299987410195,
     "tests/test_stale_means_the_same_thing_everywhere.py::test_the_artist_badge_is_NOT_aligned_and_that_is_the_measured_answer": 0.0012736949993268354,
