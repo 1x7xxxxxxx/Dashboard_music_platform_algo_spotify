@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R445 — `make roadmap-close` accepte plusieurs ID (`ID="R440 R441"`) et ne relance les 351 lect… (livrée 2026-10-07)
+
+- [x] **R445 — `make roadmap-close` accepte plusieurs ID (`ID="R440 R441"`) et ne relance les 351 lecteurs de pilotage qu'UNE fois (~50 s × N mesurés le 2026-10-07)** (P4) ✅ (2026-10-07, c8af1526)
+  Mesuré par : test : deux ID fermés, lecteurs lancés une fois
+  CI verte sur 8f4e499d (R444) et c8af1526 (R445) ; le push de R445 est passé par la porte pre-push, refus vérifié de bout en bout sur un arbre non testé
+  Commits : c8af1526 R445 : make roadmap-close accepte plusieurs ID (ID="R1 R2") et ne rela
+
+## ✅ R444 — Porte pre-push — deux CI rouges le 2026-10-07 (R438, R443) poussées sans `make test-cha… (livrée 2026-10-07)
+
+- [x] **R444 — Porte pre-push — deux CI rouges le 2026-10-07 (R438, R443) poussées sans `make test-changed` : `make test-changed`/`make test` verts tamponnent l'ARBRE testé, un hook pre-push refuse un push dont l'arbre diffère du tampon hors des deux fichiers de roadmap** (P3) ✅ (2026-10-07, 8f4e499d)
+  Mesuré par : test : push refusé sans tampon / arbre différent, accepté si égal ou roadmap seule ; mutation
+  CI verte sur 8f4e499d (R444) et c8af1526 (R445) ; le push de R445 est passé par la porte pre-push, refus vérifié de bout en bout sur un arbre non testé
+  Commits : 8f4e499d R444 : porte pre-push — make test-changed/make test verts tamponnent l
+
 ## ✅ R442 — Saisie S4A — retours du 2026-10-07 : retirer « pas d'estimation fiable » des barres du… (livrée 2026-10-07)
 
 - [x] **R442 — Saisie S4A — retours du 2026-10-07 : retirer « pas d'estimation fiable » des barres du pari ; déplacer « Le pari du modèle… » jusqu'à « Enregistrer la période (algos) » vers la vue admin, après vérification qu'aucun graphique admin ne donne déjà cette information** (P3) ✅ (2026-10-07, 916614d2, 9747f152)
