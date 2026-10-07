@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R444 | Porte pre-push — deux CI rouges le 2026-10-07 (R438, R443) poussées sans `make test-changed` : `make test-changed`/`make test` verts tamponnent l'ARBRE testé, un hook pre-push refuse un push dont l'arbre diffère du tampon hors des deux fichiers de roadmap <!-- critic: non — outillage local, contournable par --no-verify --> <!-- scope: Makefile, .pre-commit-config.yaml, tools/dev/, tests/, .test_durations, .gitignore, .claude/dev-docs/error-classes.md, CLAUDE.md --> | P3 | test : push refusé sans tampon / arbre différent, accepté si égal ou roadmap seule ; mutation |
+| R444 | Porte pre-push — deux CI rouges le 2026-10-07 (R438, R443) poussées sans `make test-changed` : `make test-changed`/`make test` verts tamponnent l'ARBRE testé, un hook pre-push refuse un push dont l'arbre diffère du tampon hors des deux fichiers de roadmap <!-- critic: non — outillage local, contournable par --no-verify --> <!-- scope: Makefile, .pre-commit-config.yaml, tools/dev/, tests/, .test_durations, .gitignore, .claude/dev-docs/error-classes.md, CLAUDE.md, .claude/hooks/guard_destructive.py, .claude/settings.json --> | P3 | test : push refusé sans tampon / arbre différent, accepté si égal ou roadmap seule ; mutation |
 | R445 | `make roadmap-close` accepte plusieurs ID (`ID="R440 R441"`) et ne relance les 351 lecteurs de pilotage qu'UNE fois (~50 s × N mesurés le 2026-10-07) <!-- critic: non — boucle sur un geste existant --> <!-- scope: Makefile, tools/dev/, tests/, .test_durations, CLAUDE.md --> | P4 | test : deux ID fermés, lecteurs lancés une fois |
 
 ---
