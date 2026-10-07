@@ -63,6 +63,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/hypeddit.py::_render_campaign_series#1': (
         "Juger si ton smart link convertit les visites en clics vers les plateformes, et combien de pub l'a nourri.",
         'Judge whether your smart link turns visits into platform clicks, and how much ad spend fed it.'),
+    'views/hypeddit.py::_render_campaign_series#2': (
+        'Comparer tes dernières sorties en volumes — visites, clics, pub Meta autour de la sortie — pour savoir laquelle a vraiment porté.',
+        'Compare your latest releases by volume — visits, clicks, Meta ads around the release — to see which one really carried.'),
     'views/imusician.py::_render_evolution#1': (
         "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus.",
         'See whether your sales rise or fall month to month, to judge what your latest release did to your revenue.'),

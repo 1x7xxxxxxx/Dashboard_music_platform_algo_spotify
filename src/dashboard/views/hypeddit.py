@@ -562,7 +562,10 @@ def comparison_figure(compared):
             textposition="outside", cliponaxis=False,
             hovertemplate="%{x}<br>" + title + " : %{y:,.0f}<extra></extra>"),
             row=1, col=i)
-        fig.update_yaxes(rangemode="tozero", showticklabels=False, row=1, col=i)
+        # Headroom: the value written above the tallest bar must not touch the panel title.
+        top = vals.max()
+        fig.update_yaxes(range=[0, top * 1.25] if pd.notna(top) and top > 0 else None,
+                         rangemode="tozero", showticklabels=False, row=1, col=i)
     fig.update_layout(
         height=320, margin=dict(t=70, b=60), bargap=0.35,
         title_text=t("hypeddit.cmp_title", "Volumes comparés, campagne par campagne"))

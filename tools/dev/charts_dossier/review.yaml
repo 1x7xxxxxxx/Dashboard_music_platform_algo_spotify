@@ -252,6 +252,17 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   owner_v: corriger
   owner: "OK. Sur la fiche 17, le logo en carré dans le titre du rond n'a pas pris. Trouve pourquoi et fais l'analyse de tous les logos qui sont des carrés."
   note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée. R301 (ta R282, proposition D) : sous chaque anneau, la pub Meta dépensée à ±14 jours de la sortie — regardée le 2026-09-28 (« pub Meta ±14 j : 817 € » sous Ô Chiotte)."
+src/dashboard/views/hypeddit.py::_render_campaign_series#2:
+  mq: M5
+  q: "Ma dernière sortie a-t-elle eu plus de visites, de clics et de pub que la précédente ?"
+  decision: "Comparer tes dernières sorties en volumes — visites, clics, pub Meta autour de la sortie — pour savoir laquelle a vraiment porté."
+  decision_en: "Compare your latest releases by volume — visits, clicks, Meta ads around the release — to see which one really carried."
+  role: meta
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  note: "R443 (ta demande du 2026-10-07). Regardée le 2026-10-07 sur l'artiste 1 : Ô Chiotte 7 828 visites / 3 581 clics / 817 € contre Kimono 3 651 / 596 / 0 €. Premier rendu : l'étiquette « 817 » touchait le titre du panneau → marge de 25 % au-dessus de la plus haute barre."
 src/dashboard/views/imusician.py::_render_evolution#1:
   q: "Combien mes distributeurs m'ont-ils versé, mois par mois, et où en est le cumul ?"
   decision: "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus."
