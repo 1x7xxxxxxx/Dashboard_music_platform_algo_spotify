@@ -726,3 +726,6 @@
 {"at": "2026-10-05T17:29:49+00:00", "head": "8463e933", "kind": "park", "task": "R283", "what": "Geste humain : créer le coupon Stripe « 1 mois offert » (test puis live), poser STRIPE_REFERRAL_COUPON_ID, abonner les évènements webhook, rejouer un parrainage test — runbook §39. Étape Stripe live INTERDITE à la séance."}
 {"at": "2026-10-05T17:29:49+00:00", "head": "8463e933", "kind": "park", "task": "R406", "what": "Geste humain : deux décisions de tarif à donner dans le fil (runbook §40) — une décision de prix n'appartient pas à la séance."}
 {"at": "2026-10-07T21:13:20+00:00", "head": "fcf1a194", "kind": "start", "task": "R457", "what": "offre de bienvenue"}
+{"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "done", "task": "R457", "what": "commitée, à déployer"}
+{"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "note", "task": "R457", "what": "harnais: durations hook refuse le 1er commit d'un test neuf, x41/7j — candidat R463"}
+{"at": "2026-10-07T21:16:01+00:00", "head": "39022fca", "kind": "start", "task": "R459", "what": "spotify légende + meta/jour"}

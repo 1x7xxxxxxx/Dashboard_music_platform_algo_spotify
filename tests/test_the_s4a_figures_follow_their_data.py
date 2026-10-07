@@ -6,7 +6,8 @@ Uses: src/dashboard/views/spotify_s4a_combined.py (meta_spend_traces,
 Depends on: pandas, plotly — no database
 Persists in: nothing
 
-* the Meta panel draws spend CUMULATED per release, so it is monotone;
+* the Meta area draws spend PER DAY (R459, reversing R382's cumulation), and the
+  dotted style has its own legend entry;
 * the popularity axis top is the observed max rounded up to ten, not a fixed 100;
 * the title selector keeps only the titles at >= 1 stream/day over the recent window.
 """
@@ -17,13 +18,29 @@ import pandas as pd
 from src.dashboard.views import spotify_s4a_combined as page
 
 
-def test_the_meta_trace_is_cumulative_and_monotone() -> None:
+def test_the_meta_trace_is_per_day_not_cumulative() -> None:
+    """R459 (owner, 2026-10-07): « Meta Euro par jour uniquement ». Mutated red: cumsum back."""
     meta = pd.DataFrame({"title": ["a", "a", "a", "b"], "day_index": [0, 1, 3, 2],
                          "spend": [4.0, 2.0, 6.0, 5.0]})
     traces = {tr.name: list(tr.y) for tr in page.meta_spend_traces(meta, {})}
-    assert traces["a"] == [4.0, 6.0, 6.0, 12.0]
+    assert traces["a"] == [4.0, 2.0, 0.0, 6.0]
     assert traces["b"] == [5.0]
-    assert all(y == sorted(y) for y in traces.values())
+
+
+def test_the_dotted_lines_are_named_in_the_legend() -> None:
+    """R459: « la légende fait référence qu'au trait plein ». Mutated red: showlegend off."""
+    import ast
+    import inspect
+
+    entry = page.meta_legend_trace()
+    assert entry.showlegend and entry.line.dash == "dot"
+    tree = ast.parse(inspect.getsource(page))
+    dotted_named = [kw for n in ast.walk(tree) if isinstance(n, ast.Call)
+                    and getattr(n.func, "attr", "") == "Scatter"
+                    for kw in n.keywords if kw.arg == "showlegend"
+                    and getattr(kw.value, "value", None) is True]
+    # the Meta legend entry and the popularity series
+    assert len(dotted_named) >= 2
 
 
 def test_the_popularity_axis_follows_the_observed_max() -> None:

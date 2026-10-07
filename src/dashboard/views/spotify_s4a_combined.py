@@ -280,37 +280,40 @@ def _translucent(hex_colour: str, alpha: float = 0.12) -> str:
     return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
 
 
-def meta_spend_traces(meta: pd.DataFrame, colour: dict, until: int | None = None) -> list:
-    """The Meta spend — one CUMULATIVE area per release. Pure (R349, R382, R436).
+def meta_spend_traces(meta: pd.DataFrame, colour: dict) -> list:
+    """The Meta spend — one €-PER-DAY area per release. Pure (R349, R382, R436, R459).
 
-    R382 (V28, owner, 2026-10-05): the €/day curve still read as noise beside the
-    cumulative streams above it. Spend cumulated per release follows the same shape as
-    the streams it is meant to explain.
+    R459 (owner, 2026-10-07): « pour le Meta Euro cumulé, il faut le faire en Meta Euro
+    par jour uniquement » — the streams stay cumulative, the spend does not. This
+    reverses R382's cumulation: the area now shows WHEN the money went in, which is
+    what one reads against the slope of the streams curve. No tail after the last
+    campaign day: a daily spend that stops is a spend at 0, not a level held.
 
-    R436 (owner, 2026-10-07): « une aire sous la courbe sur le même graphique que les
-    streams cumulés … pour bien voir les deux ». Same colour as the release's streams,
-    filled and thin, drawn on the € axis on the right (€ and streams never share one).
-    Seen on the render: an area that stops on the last campaign day reads as data that
-    ends. A CUMULATIVE total does not fall after the last euro, so with `until` the area
-    holds its level to the streams' horizon — the spend that release has had, flat.
+    R436: same colour as the release's streams, filled and thin, dotted, on the € axis
+    on the right (€ and streams never share one). Not in the legend one by one —
+    `meta_legend_trace` names the dotted style once.
     """
     dense = spend_curve(meta)
     if dense.empty:
         return []
-    dense = dense.assign(spend=dense.groupby("title", sort=False)["spend"].cumsum())
-    if until is not None:
-        tails = [pd.DataFrame({"title": title, "day_index": range(int(last) + 1, until + 1),
-                               "spend": float(total)})
-                 for title, last, total in dense.groupby("title", sort=False).last()
-                 .reset_index()[["title", "day_index", "spend"]].itertuples(index=False)
-                 if int(last) < until]
-        dense = pd.concat([dense, *tails], ignore_index=True)
     return [go.Scatter(x=grp["day_index"], y=grp["spend"], name=str(title),
                        mode="lines", hovertemplate="%{y:,.0f} € Meta", legendgroup=str(title), showlegend=False,
                        fill="tozeroy",
                        fillcolor=_translucent(colour.get(title, "#888888")),
                        line=dict(color=colour.get(title, "#888"), width=1, dash="dot"))
             for title, grp in dense.groupby("title", sort=False)]
+
+
+def meta_legend_trace() -> go.Scatter:
+    """A legend-only entry for the dotted Meta areas. Pure (R459).
+
+    Owner, 2026-10-07: « la légende fait référence qu'au trait plein ». The releases'
+    entries name the solid streams lines; this one names the dotted style.
+    """
+    return go.Scatter(x=[None], y=[None], mode="lines", showlegend=True,
+                      name=t("spotify_s4a_combined.meta_spend_legend",
+                             "┈ Meta € / jour (pointillés)"),
+                      line=dict(color="#888888", width=1, dash="dot"))
 
 
 def popularity_axis_max(values: pd.Series) -> int:
@@ -394,7 +397,7 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     # depuis la sortie, pour benchmarker ». Les Shazams gardent leur panneau ; ils
     # partagent l'axe « jours depuis la sortie ». Un panneau n'existe que si sa donnée
     # existe.
-    # R436 (propriétaire, 2026-10-07) : la dépense Meta cumulée quitte son panneau et
+    # R436 (propriétaire, 2026-10-07) : la dépense Meta (par jour depuis R459) quitte son panneau et
     # devient une AIRE sur la figure des streams cumulés, à l'axe € de DROITE — des
     # euros et des écoutes, deux natures, jamais une échelle commune.
     meta, shazam = _release_overlays(db, list(keys), horizon, frag, params)
@@ -413,8 +416,10 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     # Seen on the render: plotly draws the OVERLAYING axis above the base one, so an area
     # on the secondary axis greyed the streams lines. The area takes the BASE axis (on the
     # right) and the streams the overlaying one (on the left): the lines stay on top.
-    for trace in meta_spend_traces(meta, colour, until=horizon - 1):
+    for trace in meta_spend_traces(meta, colour):
         fig.add_trace(trace, row=1, col=1, secondary_y=False)
+    if not meta.empty:
+        fig.add_trace(meta_legend_trace(), row=1, col=1, secondary_y=False)
     # R385 — the drawing rule (value label at the last point only) is shared with the
     # SoundCloud catalogue comparison: one function, two callers.
     for trace in age_aligned_traces(cohort, x="day_index", y="streams_cumulative",
@@ -423,7 +428,7 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     # Both axes start at 0: the € area and the streams curve share their floor.
     fig.update_yaxes(title_text=t("spotify_s4a_combined.cumulative_streams", "Streams cumulés"),
                      rangemode="tozero", side="left", row=1, col=1, secondary_y=True)
-    fig.update_yaxes(title_text=(t("spotify_s4a_combined.meta_spend_axis", "Meta € cumulés")
+    fig.update_yaxes(title_text=(t("spotify_s4a_combined.meta_spend_axis", "Meta € / jour")
                                  if not meta.empty else None),
                      rangemode="tozero", side="right", showgrid=False,
                      showticklabels=not meta.empty, row=1, col=1, secondary_y=False)
@@ -795,8 +800,10 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
                                  mode="lines+markers+text", text=pi_text,
                                  textposition="top left", cliponaxis=False,
                                  textfont=dict(color=_PI_INK, size=12),
+                                 # R459: the legend names the DOTTED style, not only the solid one.
                                  name=t("spotify_s4a_combined.pi_series",
-                                        "Indice de popularité (0-100)"),
+                                        "┈ Indice de popularité (pointillés, 0-100)"),
+                                 showlegend=True,
                                  line=dict(color=_PI_INK, width=2, dash="dot"),
                                  marker=dict(size=5)),
                       row=panel, col=1, secondary_y=True)
