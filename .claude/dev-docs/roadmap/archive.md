@@ -11,6 +11,76 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R463 — Harnais, les 3 refus de la nuit : (a) le hook des durées refuse le 1ᵉʳ commit d'un test… (livrée 2026-10-08)
+
+- [x] **R463 — Harnais, les 3 refus de la nuit : (a) le hook des durées refuse le 1ᵉʳ commit d'un test neuf PUIS se corrige — ×41 en 7 j, il doit indexer lui-même `.test_durations` ; (b) la porte pre-push R444 compte le journal `night-run.jsonl` (append-only, écrit par night-start/done) comme du code et refuse le push ; (c) un commit refusé laisse l'index, et le commit « Roadmap : » suivant l'emporte — le hook roadmap doit dire quels fichiers déjà indexés sont hors périmètre** (P4) ✅ (2026-10-08, f8180294)
+  Mesuré par : refus 7 j de `night-status` ; tests des 3 gestes
+  harnais : rappel git add .test_durations, journal de nuit exempté de la porte pre-push, commit Roadmap qui emporte du code dit quoi désindexer ; gardes mutés rouge 3×
+  Commits : f8180294 R463 : harnais — (a) `make test-changed` dit « git add .test_durations
+
+## ✅ R462 — Parrainage : remplacer « le dire à l'oral » par le vrai parcours (le code se saisit à l… (livrée 2026-10-08)
+
+- [x] **R462 — Parrainage : remplacer « le dire à l'oral » par le vrai parcours (le code se saisit à l'inscription, champ « Code promo ou parrainage ») ; commentaire R272 périmé** (P3) ✅ (2026-10-08, b2d817bf)
+  Mesuré par : render-smoke
+  parrainage : vrai parcours (code saisi à l'inscription) au lieu du dire à l'oral
+  Commits : b2d817bf R462 : Parrainage — « le dire à l'oral » remplacé par le vrai parcours
+
+## ✅ R461 — Fusion SACEM dans « Distributeur iMusician DistroKid + SACEM » — `sacem` devient alias… (livrée 2026-10-08)
+
+- [x] **R461 — Fusion SACEM dans « Distributeur iMusician DistroKid + SACEM » — `sacem` devient alias de la page distributeur** (P3) ✅ (2026-10-08, 54cc6e2a, 0f6e4c4b, 3156faa8)
+  Mesuré par : render-smoke ; test d'alias
+  SACEM fusionnée dans la page distributeur (alias de route)
+  Commits : 54cc6e2a R461 : le garde R388 de la page distributeur compte les tableaux AFFIC · 0f6e4c4b R461 : la clé `sacem` quitte la carte PDF (alias d'imusician) ; la déc · 3156faa8 R461 : SACEM fusionnée dans « 💰 Distributeur iMusician DistroKid + SAC
+
+## ✅ R460 — SoundCloud « tout le catalogue, à âge égal » : par défaut les 2 dernières sorties (annu… (livrée 2026-10-08)
+
+- [x] **R460 — SoundCloud « tout le catalogue, à âge égal » : par défaut les 2 dernières sorties (annule le choix « plus écoutés » de R385, demandé par le propriétaire)** (P3) ✅ (2026-10-08, c38bc19a)
+  Mesuré par : test : défaut = 2 plus récents
+  SoundCloud catalogue à âge égal : 2 dernières sorties par défaut
+  Commits : c38bc19a R460 : SoundCloud « tout le catalogue, à âge égal » s'ouvre sur les de
+
+## ✅ R459 — Spotify : légende des pointillés (Meta €, popularité) dans les deux graphiques ; Meta e… (livrée 2026-10-08)
+
+- [x] **R459 — Spotify : légende des pointillés (Meta €, popularité) dans les deux graphiques ; Meta en € par jour au lieu de cumulé** (P3) ✅ (2026-10-08, a2ba7d0c)
+  Mesuré par : test des traces ; PNG regardé
+  légende des pointillés Meta €/popularité sur les deux graphiques Spotify
+  Commits : a2ba7d0c R459 : Spotify — la dépense Meta est tracée en € PAR JOUR (aire pointi
+
+## ✅ R458 — Santé onboarding : matrice compacte (`dense=True`) pour qu'on voie la suite « Ce qui al… (livrée 2026-10-08)
+
+- [x] **R458 — Santé onboarding : matrice compacte (`dense=True`) pour qu'on voie la suite « Ce qui alimente tes chiffres »** (P3) ✅ (2026-10-08, d603b1e0)
+  Mesuré par : test : la vue demande la matrice dense
+  matrice de santé onboarding compacte (dense=True)
+  Commits : d603b1e0 R458 : Santé onboarding dessine la matrice compacte — `dense=True`, co
+
+## ✅ R457 — Offre de bienvenue : retirer les deux lignes « Votre compte a été créé… export CSV rest… (livrée 2026-10-08)
+
+- [x] **R457 — Offre de bienvenue : retirer les deux lignes « Votre compte a été créé… export CSV reste gratuit », trait entre Free et Premium, surlignage de couleur différente** (P3) ✅ (2026-10-08, 4ea94ee4, 5a67d640, 39022fca)
+  Mesuré par : render-smoke
+  deux lignes de compte créé / export CSV retirées de l'offre de bienvenue
+  Commits : 4ea94ee4 R457 : le garde de l'offre lit la vue dans ses tests, plus au niveau m · 5a67d640 R457 : le trait entre Free et Premium devient le cadre natif des colon · 39022fca R457 : offre de bienvenue — les deux lignes « Votre compte a été créé…
+
+## ✅ R456 — Aperçu déclencher les algos : mêmes figures que l'assistant, plus petites, texte du des… (livrée 2026-10-08)
+
+- [x] **R456 — Aperçu déclencher les algos : mêmes figures que l'assistant, plus petites, texte du dessous retiré, + aperçu SHAP factice (impact de chaque paramètre sur DW / Radio / RR, une phrase)** (P3) ✅ (2026-10-08, de4edcd1, b94025c9)
+  Mesuré par : render-smoke + PNG regardé
+  aperçu = 3 figures d'exemple (prévision, budget Meta, SHAP factice) + une phrase + CTA ; texte sur données réelles retiré, 2 gardes archivés ; garde muté rouge 3× ; déployé de4edcd1
+  Commits : de4edcd1 Roadmap : journal de nuit R456 · b94025c9 R456 : aperçu Road to Algo — figures de la mise en route en trois colo
+
+## ✅ R455 — Assistant, figures de bienvenue : Shazam devient la 5ᵉ courbe du graphique multi-platef… (livrée 2026-10-08)
+
+- [x] **R455 — Assistant, figures de bienvenue : Shazam devient la 5ᵉ courbe du graphique multi-plateformes ; « prédire le déclenchement » → 3 courbes de probabilité DW / Release Radar / Radio en prévision seule ; « quel euro… » → « optimiser le budget Meta Ads » avec visites, Hypeddit, streams et prévision** (P3) ✅ (2026-10-08, 9b93be74)
+  Mesuré par : PNG rendus et regardés ; test des figures d'exemple
+  Shazam 5ᵉ bande ; 3 probabilités DW/RR/Radio en prévision 0-100 % ; budget Meta conseillé hachuré ; promesses FR/EN + mail alignés ; garde lu sur la figure, muté rouge 3×
+  Commits : 9b93be74 R455 : figures de bienvenue — Shazam 5ᵉ bande de la pile (C1) ; 3 prob
+
+## ✅ R454 — Boutons de navigation : « Ouvrir Road to Algo » (`algo_preview`) jette le retour de `bo… (livrée 2026-10-08)
+
+- [x] **R454 — Boutons de navigation : « Ouvrir Road to Algo » (`algo_preview`) jette le retour de `bouton_vers`, et `goto("upgrade")` (`plan_gate`, `absence_cta`) atterrit sur l'accueil car `upgrade` n'est ni au menu ni alias — garde : toute cible de `goto` est atteignable** (P2) ✅ (2026-10-08, e6ae5e66, fcf1a194)
+  Mesuré par : test : chaque cible littérale de `goto`/`bouton_vers` résout vers une page rendue, clic du CTA navigue ; muté
+  bouton Ouvrir Road to Algo navigue (if bouton_vers → goto) ; 4 cibles 'upgrade' repointées ; garde AST muté rouge 3× ; prod vérifiée
+  Commits : e6ae5e66 R454 : le garde de rechargement lit le miroir d'URL `_mirror = url_key · fcf1a194 R454 : boutons de navigation — « Ouvrir Road to Algo » navigue (le cli
+
 ## ✅ R453 — `night-status` affiche les refus répétés (hooks, pre-commit) des 7 derniers jours — la… (livrée 2026-10-07)
 
 - [x] **R453 — `night-status` affiche les refus répétés (hooks, pre-commit) des 7 derniers jours — la table de `make defect-log` n'est lue par rien** (P4) ✅ (2026-10-07, 375082e2)
