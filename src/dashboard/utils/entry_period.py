@@ -58,6 +58,17 @@ PRESETS: dict[str, tuple[Optional[int], str]] = {
     "custom": (None, "🎯 Sur mesure"),
 }
 
+# Les premiers jours APRÈS une sortie — fenêtre [sortie, sortie + n] (R441,
+# propriétaire 2026-10-07 : « on vise vraiment les premiers jours post-release et on
+# n'a pas les filtres associés »). Offerts seulement par l'appelant qui connaît la
+# sortie (`post_release=True`) : sans date, « J+3 » n'a pas de sens.
+POST_RELEASE: dict[str, tuple[int, str]] = {
+    "j1": (1, "J+1"),
+    "j2": (2, "J+2"),
+    "j3": (3, "J+3"),
+    "j7": (7, "J+7"),
+}
+
 DEFAULT = "28d"
 
 
@@ -71,7 +82,7 @@ class EntryPeriod:
 
     @property
     def label(self) -> str:
-        return PRESETS[self.preset][1]
+        return {**PRESETS, **POST_RELEASE}[self.preset][1]
 
     @property
     def days(self) -> int:
@@ -96,19 +107,33 @@ def resolve(preset: str, today: _dt.date,
         if release is None:
             return EntryPeriod(today - _dt.timedelta(days=28), today, "28d")
         return EntryPeriod(release, today, "release")
+    if preset in POST_RELEASE:
+        if release is None:
+            return EntryPeriod(today - _dt.timedelta(days=28), today, "28d")
+        # Bornée à aujourd'hui : « J+7 » d'une sortie d'avant-hier n'a pas encore
+        # eu lieu, et une période qui finit demain décrirait un chiffre inexistant.
+        fin = min(release + _dt.timedelta(days=POST_RELEASE[preset][0]), today)
+        return EntryPeriod(release, fin, preset)
     jours = PRESETS.get(preset, PRESETS[DEFAULT])[0] or 28
     return EntryPeriod(today - _dt.timedelta(days=jours), today, preset)
 
 
 def entry_period_selector(*, key: str, release: Optional[_dt.date] = None,
-                          today: Optional[_dt.date] = None) -> EntryPeriod:
-    """Le sélecteur. Rend la fenêtre choisie, jamais `None`."""
+                          today: Optional[_dt.date] = None,
+                          post_release: bool = False) -> EntryPeriod:
+    """Le sélecteur. Rend la fenêtre choisie, jamais `None`.
+
+    `post_release=True` ajoute J+1 … J+7 en TÊTE, et J+1 devient le défaut : c'est
+    l'appelant qui sert les premiers jours d'une sortie (R441).
+    """
     today = today or _dt.date.today()
+    options = {**POST_RELEASE, **PRESETS} if post_release else dict(PRESETS)
+    defaut = "j1" if post_release else DEFAULT
     choix = st.segmented_control(
-        "Période de la saisie", list(PRESETS),
-        format_func=lambda k: PRESETS[k][1], default=DEFAULT,
+        "Période de la saisie", list(options),
+        format_func=lambda k: options[k][1], default=defaut,
         key=f"{key}_preset", label_visibility="collapsed",
-    ) or DEFAULT
+    ) or defaut
 
     custom = None
     if choix == "custom":
@@ -122,7 +147,7 @@ def entry_period_selector(*, key: str, release: Optional[_dt.date] = None,
             st.info("Sélectionne une date de fin.")
             st.stop()
 
-    if choix == "release" and release is None:
+    if (choix == "release" or choix in POST_RELEASE) and release is None:
         st.caption("Date de sortie inconnue pour ce titre — fenêtre de 28 jours utilisée.")
 
     fenetre = resolve(choix, today, release, custom)

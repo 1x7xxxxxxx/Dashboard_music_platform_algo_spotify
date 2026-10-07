@@ -21,6 +21,10 @@ EN = {
     "s4a_insight.fam_adds": "Playlist adds",
     "s4a_insight.fam_nonalgo": "Non-algo streams",
     "s4a_insight.fam_outcomes": "Recorded outcomes",
+    "s4a_insight.coverage_legend": ("Age of the latest entry: ✅ today or yesterday · "
+                                    "🟡 up to 7 days · 🔴 older · — never."),
+    "s4a_insight.coverage_today": "✅ today",
+    "s4a_insight.coverage_age": "{mark} {n} d ago",
     "s4a_insight.missing_outcomes": (
         "**{n} of {tot} track(s)** have no recorded outcome. Those are the ones the "
         "model is missing — a track with no outcome teaches it nothing, either way."),

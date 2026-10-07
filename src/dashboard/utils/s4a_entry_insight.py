@@ -97,6 +97,15 @@ def load_entry_tracks(db, artist_id) -> list[str]:
     return rows["song"].tolist() if rows is not None and not rows.empty else []
 
 
+def load_release_dates(db, artist_id: int) -> dict:
+    """{titre S4A: date de sortie} — la même jointure que `load_entry_tracks`."""
+    rows = db.fetch_query(
+        """SELECT REPLACE(track_name,'?','_'), MAX(release_date)::date FROM tracks
+            WHERE saas_artist_id = %s AND release_date IS NOT NULL
+            GROUP BY 1""", (artist_id,))
+    return {song: d for song, d in (rows or []) if d is not None}
+
+
 def _age_rows(db, artist_id: int) -> list[dict]:
     """Une ligne par bloc : dernière saisie et âge, ou l'absence DÉCLARÉE.
 
@@ -179,33 +188,56 @@ def render_freshness(db, artist_id: int, *, for_admin: bool = False) -> None:
                  "⬜ jamais saisi · ❓ table illisible").format(t=_TIEDE_JOURS, p=_PERIME_JOURS))
 
 
+def coverage_cell(last, today: _dt.date) -> str:
+    """« ✅ J-0 » … « 🔴 J-40 », ou « — » — l'âge de la dernière saisie d'un titre. Pure."""
+    if last is None:
+        return "—"
+    if isinstance(last, _dt.datetime):
+        last = last.date()
+    age = max((today - last).days, 0)
+    if age == 0:
+        return t("s4a_insight.coverage_today", "✅ aujourd'hui")
+    mark = "✅" if age <= 1 else "🟡" if age <= 7 else "🔴"
+    return t("s4a_insight.coverage_age", "{mark} il y a {n} j").format(mark=mark, n=age)
+
+
 def render_completeness(db, artist_id: int, tracks: list[str]) -> None:
-    """Quels titres n'ont JAMAIS eu telle saisie — un absent ne se voit pas seul."""
+    """Quels titres n'ont JAMAIS eu telle saisie, et l'âge de la dernière (R441)."""
     st.subheader(t("s4a_insight.complete_header", "🧩 Titres couverts par la saisie"))
     if not tracks:
         st.info(t("s4a_insight.no_tracks", "Aucun titre à couvrir."))
         return
 
-    def _songs(sql: str) -> set:
+    def _last(sql: str) -> dict:
         try:
-            return {r[0] for r in (db.fetch_query(sql, (artist_id,)) or [])}
+            return {r[0]: r[1] for r in (db.fetch_query(sql, (artist_id,)) or [])}
         except Exception:                               # noqa: BLE001
-            return set()
+            return {}
 
-    adds = _songs("SELECT DISTINCT song FROM s4a_song_playlist_adds WHERE artist_id = %s")
-    nonalgo = _songs("SELECT DISTINCT song FROM s4a_song_nonalgo_streams WHERE artist_id = %s")
-    outcomes = _songs("SELECT DISTINCT song FROM s4a_song_algo_outcomes WHERE artist_id = %s")
+    # La DATE la plus récente par titre, pas seulement « saisi une fois » (R441,
+    # propriétaire 2026-10-07 : « l'idée c'est de saisir tous les jours »). Un ✅
+    # gagné il y a deux mois se lisait comme un titre à jour.
+    adds = _last("SELECT song, MAX(recorded_at) FROM s4a_song_playlist_adds "
+                 "WHERE artist_id = %s GROUP BY song")
+    nonalgo = _last("SELECT song, MAX(recorded_at) FROM s4a_song_nonalgo_streams "
+                    "WHERE artist_id = %s GROUP BY song")
+    outcomes = _last("SELECT song, MAX(recorded_at) FROM s4a_song_algo_outcomes "
+                     "WHERE artist_id = %s GROUP BY song")
 
     familles = [
         (t("s4a_insight.fam_adds", "Ajouts playlist"), adds),
         (t("s4a_insight.fam_nonalgo", "Streams non-algo"), nonalgo),
         (t("s4a_insight.fam_outcomes", "Résultats réalisés"), outcomes),
     ]
+    today = _dt.date.today()
     st.dataframe(pd.DataFrame([
         {t("s4a_insight.col_track", "Titre"): s,
-         **{nom: ("✅" if s in vus else "—") for nom, vus in familles}}
+         **{nom: coverage_cell(vus.get(s), today) for nom, vus in familles}}
         for s in tracks
     ]), hide_index=True, width="stretch")
+    st.caption(t("s4a_insight.coverage_legend",
+                 "Âge de la dernière saisie : ✅ aujourd'hui ou hier · 🟡 jusqu'à 7 jours "
+                 "· 🔴 plus ancienne · — jamais."))
 
     manquants = [s for s in tracks if s not in outcomes]
     if manquants:

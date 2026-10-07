@@ -51,6 +51,7 @@ EN = {
     "saisie_s4a.outcome_custom_saved": "Range {start} → {end} saved for {n} tracks.",
     # Custom grid
     "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
+    "saisie_s4a.custom_release": "Reference release",
     "saisie_s4a.save_custom": "💾 Save custom range",
     "saisie_s4a.saved_custom": "Range {start} → {end} saved for {n} tracks.",
     # Shared

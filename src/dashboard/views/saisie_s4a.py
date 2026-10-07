@@ -20,11 +20,13 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import view_session
-from src.dashboard.utils.entry_period import entry_period_selector
+from src.dashboard.utils.entry_period import POST_RELEASE, entry_period_selector
 from src.dashboard.utils.s4a_entry_insight import (
     load_entry_tracks,
+    load_release_dates,
     render_completeness,
 )
+from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 
 from src.dashboard.utils.ui import flash
@@ -176,12 +178,25 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
 def _render_custom_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.custom_header",
                    "📅 Autre fenêtre (ex. premiers jours post-release)"))
-    # Même raison qu'au-dessus. « Depuis la sortie » est ici le raccourci utile :
-    # c'est exactement le cas que ce bloc existe pour servir.
-    fenetre = entry_period_selector(key=f"custom_{artist_id}")
+    # Même raison qu'au-dessus. J+1 … J+7 et « Depuis la sortie » sont ici les
+    # raccourcis utiles : c'est exactement le cas que ce bloc existe pour servir. Ils
+    # se comptent depuis la sortie D'UN titre — on le choisit, le plus récent d'abord
+    # (R441, 2026-10-07). Avant, `release` n'était jamais passé : « Depuis la sortie »
+    # retombait toujours sur 28 jours.
+    releases = load_release_dates(db, artist_id)
+    ref = st.selectbox(
+        t("saisie_s4a.custom_release", "Sortie de référence"), tracks,
+        format_func=lambda s: (f"{s} — {format_date(releases[s])}" if s in releases
+                               else s),
+        key=f"custom_ref_{artist_id}")
+    fenetre = entry_period_selector(key=f"custom_{artist_id}", release=releases.get(ref),
+                                    post_release=True)
     start, end = fenetre.start, fenetre.end
+    # Une fenêtre comptée depuis UNE sortie ne vaut que pour ce titre-là.
+    anchored = fenetre.preset == "release" or fenetre.preset in POST_RELEASE
+    rows_for = [ref] if anchored else tracks
 
-    df = pd.DataFrame([{"Titre": s, "Ajouts playlist": 0} for s in tracks])
+    df = pd.DataFrame([{"Titre": s, "Ajouts playlist": 0} for s in rows_for])
     edited = st.data_editor(
         df, hide_index=True, width="stretch", num_rows="fixed",
         column_config={

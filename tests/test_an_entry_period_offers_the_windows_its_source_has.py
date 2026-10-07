@@ -146,3 +146,65 @@ def test_the_selector_is_reachable_from_the_page():
         and any(a.name == "entry_period_selector" for a in n.names)
         for n in ast.walk(arbre))
     assert importe, "saisie_s4a.py n'importe pas `entry_period_selector`"
+
+
+# ── R441 (2026-10-07) : les premiers jours après une sortie ─────────────────
+
+def test_post_release_windows_start_on_the_release_day():
+    import datetime as dt
+
+    from src.dashboard.utils.entry_period import resolve
+
+    sortie, today = dt.date(2026, 9, 1), dt.date(2026, 10, 7)
+    for preset, n in (("j1", 1), ("j2", 2), ("j3", 3), ("j7", 7)):
+        w = resolve(preset, today, release=sortie)
+        assert (w.start, w.end, w.days) == (sortie, sortie + dt.timedelta(days=n), n)
+        assert w.label == f"J+{n}"
+
+
+def test_a_post_release_window_never_ends_in_the_future():
+    import datetime as dt
+
+    from src.dashboard.utils.entry_period import resolve
+
+    today = dt.date(2026, 10, 7)
+    w = resolve("j7", today, release=today - dt.timedelta(days=2))
+    assert w.end == today, "J+7 d'une sortie d'avant-hier n'a pas encore eu lieu"
+
+
+def test_a_post_release_window_without_a_release_falls_back_and_says_so():
+    import datetime as dt
+
+    from src.dashboard.utils.entry_period import resolve
+
+    w = resolve("j3", dt.date(2026, 10, 7), release=None)
+    assert w.preset == "28d", "sans date de sortie, on ne devine pas de borne"
+
+
+def test_the_custom_grid_offers_the_post_release_windows():
+    """Le seul appelant qui sert les premiers jours d'une sortie les demande, avec la sortie."""
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / "src/dashboard/views/saisie_s4a.py"
+    fn = next(n for n in ast.walk(ast.parse(src.read_text("utf-8")))
+              if isinstance(n, ast.FunctionDef) and n.name == "_render_custom_grid")
+    call = next(n for n in ast.walk(fn) if isinstance(n, ast.Call)
+                and getattr(n.func, "id", "") == "entry_period_selector")
+    kw = {k.arg: k.value for k in call.keywords}
+    assert getattr(kw.get("post_release"), "value", None) is True
+    assert "release" in kw and not (isinstance(kw["release"], ast.Constant)
+                                    and kw["release"].value is None)
+
+
+def test_the_coverage_cell_says_how_old_the_last_entry_is():
+    import datetime as dt
+
+    from src.dashboard.utils.s4a_entry_insight import coverage_cell
+
+    today = dt.date(2026, 10, 7)
+    assert coverage_cell(None, today) == "—"
+    assert coverage_cell(today, today) == "✅ aujourd'hui"
+    assert coverage_cell(today - dt.timedelta(days=1), today) == "✅ il y a 1 j"
+    assert coverage_cell(today - dt.timedelta(days=5), today) == "🟡 il y a 5 j"
+    assert coverage_cell(today - dt.timedelta(days=40), today) == "🔴 il y a 40 j"
