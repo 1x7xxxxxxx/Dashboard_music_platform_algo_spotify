@@ -54,3 +54,13 @@ def test_every_scheduled_workflow_of_this_repo_is_measured() -> None:
                  if "schedule:" in wf.read_text(encoding="utf-8")}
     assert scheduled, "no scheduled workflow found — the check is vacuous"
     assert set(night_run.scheduled_workflows()) == scheduled
+
+
+def test_a_cron_born_today_is_not_a_stopped_cron() -> None:
+    """R451 — 2026-10-07: `ci.yml` got its schedule at 16:30 and night-check said « le cron
+    ne tourne pas » the same evening. With no scheduled run, age counts from the commit."""
+    periods, last = {"ci.yml": 24.0}, {"ci.yml": None}
+    assert night_run.stale_schedules(periods, last, NOW, {"ci.yml": "2026-10-05T09:00:00+02:00"}) == []
+    old = night_run.stale_schedules(periods, last, NOW, {"ci.yml": "2026-10-01T09:00:00+02:00"})
+    assert len(old) == 1 and "aucun run planifié" in old[0]
+    assert len(night_run.stale_schedules(periods, last, NOW, {})) == 1, "unknown birth stays loud"

@@ -600,7 +600,7 @@ def scheduled_workflows(root: Path = REPO) -> "dict[str, float]":
 
 
 def stale_schedules(periods: "dict[str, float]", last: "dict[str, str | None]",
-                    now: datetime) -> "list[str]":
+                    now: datetime, born: "dict[str, str] | None" = None) -> "list[str]":
     """The scheduled workflows whose newest scheduled run is older than two periods. Pure.
 
     R415 (2026-10-05): a GitHub cron that stops — workflow disabled after 60 days without
@@ -613,6 +613,12 @@ def stale_schedules(periods: "dict[str, float]", last: "dict[str, str | None]",
             continue
         at = last[wf]
         if at is None:
+            # R451: a cron committed less than two periods ago has had no chance to run —
+            # `born` is the workflow file's last commit date, absent when unknown.
+            since = (born or {}).get(wf)
+            if since and (now - datetime.fromisoformat(since.replace("Z", "+00:00"))
+                          ).total_seconds() / 3600 <= 2 * period:
+                continue
             out.append(f"workflow planifié {wf} : aucun run planifié connu — le cron ne tourne pas")
             continue
         age_h = (now - datetime.fromisoformat(at.replace("Z", "+00:00"))).total_seconds() / 3600
@@ -657,7 +663,14 @@ def _schedule_problems() -> "list[str]":
     if len(last) < len(periods):
         print(f"ℹ️  workflows planifiés : {len(periods) - len(last)} non vérifié(s) — `gh` "
               "absent ou muet ; ce contrôle n'a rien dit de leur fraîcheur")
-    return stale_schedules(periods, last, datetime.now(timezone.utc))
+    born = {}
+    for wf, at in last.items():
+        if at is None:
+            try:
+                born[wf] = _git("log", "-1", "--format=%cI", "--", f".github/workflows/{wf}")
+            except GitUnavailable:
+                continue
+    return stale_schedules(periods, last, datetime.now(timezone.utc), born)
 
 
 WORKTREE_MAX_HOURS = 48
