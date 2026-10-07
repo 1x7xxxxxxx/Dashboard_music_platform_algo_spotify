@@ -579,6 +579,64 @@ def _verdict_swallowed_by_a_pipe(command: str) -> str | None:
     return None
 
 
+# ── Un commit refuse, puis un second commit qui emporte son index ─────────────
+#
+# Mesure le 2026-10-07 (R452), sur cette ligne exacte :
+#
+#     git commit -qm "R448 …" 2>&1 | grep -E "Failed|❌"; git add … && git commit -qm "R449 …"
+#
+# Le hook des durees a REFUSE le premier commit. Un refus pre-commit garde l'index
+# intact ; le `;` a laisse partir le second, qui a emporte les fichiers de R448 sous le
+# nom R449. Rien n'a ete perdu en apparence, et c'est le piege : le travail est livre,
+# sous le mauvais numero, et la trace de roadmap ment. R450 attrape la consequence quand
+# les fichiers sortent du perimetre declare — pas quand les deux lignes le partagent.
+#
+# La propriete, pas la forme : le second commit doit etre atteint par une chaine de `&&`
+# DEPUIS le premier. Tout autre lien (`|`, `;`, `||`, un saut de ligne) le laisse partir
+# quel que soit le verdict du premier.
+def _git_subcommand(argv: list[str]) -> str:
+    """`commit` pour `git commit`, `git -C d commit`, `rtk git commit`… ; '' sinon."""
+    i = 0
+    while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
+        i += 1
+    if i >= len(argv) or argv[i].rsplit("/", 1)[-1] != "git":
+        return ""
+    i += 1
+    while i < len(argv) and argv[i].startswith("-"):
+        i += 2 if argv[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
+    return argv[i] if i < len(argv) else ""
+
+
+def _commit_riding_a_refused_one(command: str) -> str | None:
+    """Deux `git commit` dans une commande, le second pas garde par `&&` depuis le
+    premier. Rend le premier commit fautif, ou None."""
+    texte = _sans_heredocs(command)
+    try:
+        # `\n` est un separateur de commandes : retire des blancs, ajoute a la ponctuation.
+        analyseur = shlex.shlex(texte, posix=True, punctuation_chars="();<>|&\n")
+        analyseur.whitespace = " \t\r"
+        analyseur.whitespace_split = True
+        jetons = list(analyseur)
+    except ValueError:
+        return None
+    etapes: list[list[str]] = [[]]
+    ops: list[str] = []
+    for jeton in jetons:
+        lien = jeton.replace("\n", "") if set(jeton) <= set("();<>|&\n") else None
+        if lien is not None and (lien in ("|", "&&", "||", ";", "&", "|&", "") or "\n" in jeton):
+            ops.append(lien or ";")
+            etapes.append([])
+        else:
+            etapes[-1].append(jeton)
+    # `--dry-run` n'ecrit rien : une sonde ne laisse pas d'index a emporter.
+    commits = [i for i, argv in enumerate(etapes)
+               if _git_subcommand(argv) == "commit" and "--dry-run" not in argv]
+    for a, b in zip(commits, commits[1:]):
+        if any(op != "&&" for op in ops[a:b]):
+            return " ".join(etapes[a])
+    return None
+
+
 
 def _serial_full_suite(command: str) -> str | None:
     """Une suite COMPLÈTE lancée sans parallélisme. Rend le segment fautif, ou None.
@@ -830,6 +888,16 @@ def check_command(cmd: str) -> tuple[str, str] | None:
                 "second appel ;\n"
                 "     • ou reparer le code de sortie : set -o pipefail; <cmd> | tail -3\n"
                 "     • ou n'affirmer rien : remplacer `&&` par `;` devant la livraison.")
+    porteur = _commit_riding_a_refused_one(cmd)
+    if porteur:
+        return ("block",
+                f"`{porteur[:80]}` est suivi d'un SECOND `git commit` qui partira meme s'il "
+                "est refuse : un refus pre-commit garde l'index, et le commit suivant "
+                "l'emporte sous un autre numero (R448 parti sous R449, 2026-10-07).\n"
+                "   Forme sure : un commit par appel, son code de sortie lu —\n"
+                "     git commit -q -F - > ~/.cache/commit.log 2>&1 <<'EOF' … EOF\n"
+                "     echo rc=$?\n"
+                "   puis le commit suivant dans un second appel ; ou les enchainer par `&&`.")
 
     prod = _tasks_test_on_prod(cmd)
     if prod:
