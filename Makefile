@@ -466,9 +466,11 @@ reopen-check-prod: ## Le même, avec les conditions de TRAFIC mesurées en prod.
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@PROD_SSH=$(PROD_SSH) python3 tools/dev/reopen_check.py
 
-roadmap-close: ## LE geste de livraison (R199) : écrit l'entrée d'archive si besoin, retire la ligne, recale l'ancre — make roadmap-close ID=R128 [NOTE="…"] [FORCE_CI=1 — la raison dans NOTE]
+roadmap-close: ## LE geste de livraison (R199) : écrit l'entrée d'archive si besoin, retire la ligne, recale l'ancre — make roadmap-close ID="R128 R129" [NOTE="…"] [FORCE_CI=1 — la raison dans NOTE]
 	@test -n "$(ID)" || { echo "❌ ID= manquant. Ex : make roadmap-close ID=R128"; exit 1; }
-	@python3 tools/dev/roadmap.py close "$(ID)" --note "$(NOTE)" $(if $(FORCE_CI),--force-ci)
+	@# R445: several IDs close in one gesture and the ~50 s of governance readers run ONCE
+	@# (four closes on 2026-10-07 paid them four times). NOTE goes to every entry.
+	@for id in $(ID); do python3 tools/dev/roadmap.py close "$$id" --note "$(NOTE)" $(if $(FORCE_CI),--force-ci) || exit 1; done
 	@python3 tools/dev/run_readers.py .claude/dev-docs/roadmap/checklist.md .claude/dev-docs/roadmap/archive.md || { echo "❌ la fermeture laisse un garde de pilotage ROUGE — corriger avant de pousser (R361)"; exit 1; }
 
 roadmap-sync: ## Remet l'ancre de reprise d'accord avec les deux tables d'index
