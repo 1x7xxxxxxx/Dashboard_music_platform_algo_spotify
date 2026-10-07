@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R436 — Spotify + S4A — retour du 2026-10-07 : la dépense Meta cumulée quitte son panneau et de… (livrée 2026-10-07)
+
+- [x] **R436 — Spotify + S4A — retour du 2026-10-07 : la dépense Meta cumulée quitte son panneau et devient une AIRE sous la courbe, sur le même graphique que les streams cumulés (axe € à droite), mêmes couleurs par sortie** (P3) ✅ (2026-10-07, 7d861ecf)
+  Mesuré par : test : traces Meta remplies (fill) sur l'axe y secondaire de la rangée 1 ; plus de panneau Meta ; PNG rendu et regardé
+  Aire Meta € cumulée sous les streams cumulés, axe droit, zéros alignés ; test vert, CI verte sur 7d861ecf, PNG rendu et regardé (aires sous les courbes), déployé en prod 2026-10-07
+  Commits : 7d861ecf R436 : Spotify + S4A — la dépense Meta cumulée devient une aire sous l
+
 ## ✅ R435 — Assistant (mise en route) — retours du 2026-10-07 : les trois figures d'exemple côte à… (livrée 2026-10-07)
 
 - [x] **R435 — Assistant (mise en route) — retours du 2026-10-07 : les trois figures d'exemple côte à côte, une par colonne, même taille, équidistantes ; le bouton du bas de l'étape 1 mène à « 2. Où tu en es » et le dit (« ➡️ 2. Où tu en es »), c'est là que se trouve « Connecter mes sources »** (P3) ✅ (2026-10-07, 9c0c2625)
