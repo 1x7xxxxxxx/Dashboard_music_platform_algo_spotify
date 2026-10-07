@@ -42,7 +42,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -347,6 +347,24 @@ def _run_curator_if_due() -> None:
           f"{report.relative_to(REPO)} ({len(out.stdout.splitlines())} lignes, à lire)")
 
 
+def recent_refusals(events: list[dict], today: str, rank, days: int = 7,
+                    top: int = 3) -> "str | None":
+    """R453 — the `top` most repeated refusals of the last `days` days, on one line. Pure.
+
+    `rank` is `defect_log.refusals`; the window is applied here, before ranking, so a
+    guard that refused twenty times this week is not drowned by last month's counts."""
+    floor = (datetime.fromisoformat(today) - timedelta(days=days)).date().isoformat()
+    ranked = rank([e for e in events if e.get("ts", "")[:10] > floor])[:top]
+    if not ranked:
+        return None
+
+    def label(fp: str) -> str:
+        target = re.search(r"\(make ([\w-]+)\)", fp)
+        return target.group(1) if target else fp.split(":", 1)[-1].split(" — ")[0].strip()[:32]
+
+    return f"▶ REFUS {days} j  " + " · ".join(f"{label(fp)} ×{n}" for fp, n, _ in ranked)
+
+
 def cmd_status(_args) -> int:
     entries = _entries()
     tasks = _open_tasks()
@@ -429,6 +447,9 @@ def cmd_status(_args) -> int:
         if events:
             print("▶ DÉFAUTS  " + defect_log.summary(
                 defect_log.classify(events, defect_log.touched_files(events))))
+            line = recent_refusals(events, _now()[:10], defect_log.refusals)
+            if line:
+                print(line)
     except (OSError, ValueError, KeyError) as exc:
         print(f"▶ DÉFAUTS  ⚠️ journal illisible ({type(exc).__name__}) — `make defect-log`")
     # ── Les mails automatiques, que le propriétaire ne lit pas (2026-09-26) ──────
