@@ -115,7 +115,7 @@ def show():
                     st.caption(journey_line(journeys[aid]))
                 try:
                     render_status_matrix(db, aid, key_suffix=f"health{aid}",
-                                        rows=matrix)
+                                        rows=matrix, dense=True)
                 except Exception as exc:  # noqa: BLE001 — isolement par locataire
                     echecs.append(f"{name} (id={aid}) — rendu : {type(exc).__name__}")
                     st.warning(f"Affichage indisponible ({type(exc).__name__}).")

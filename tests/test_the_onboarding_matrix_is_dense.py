@@ -10,6 +10,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 from src.dashboard.utils import status_matrix as sm
 
 REPO = Path(__file__).resolve().parents[1]
@@ -44,8 +46,10 @@ def test_the_full_size_box_is_unchanged():
     assert "min-width:22px" in sm._box("green", "✅", "tip", small=True)
 
 
-def test_the_assistant_asks_for_the_dense_matrix():
-    tree = ast.parse((REPO / "src/dashboard/views/onboarding.py").read_text("utf-8"))
+@pytest.mark.parametrize("view", ["onboarding", "onboarding_health"])
+def test_the_view_asks_for_the_dense_matrix(view):
+    """R458 — the health page too: its full-size rows hid « Ce qui alimente tes chiffres »."""
+    tree = ast.parse((REPO / f"src/dashboard/views/{view}.py").read_text("utf-8"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and getattr(n.func, "id", "") == "render_status_matrix"]
     assert calls and all(
