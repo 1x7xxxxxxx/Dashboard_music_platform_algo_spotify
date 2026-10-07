@@ -9712,6 +9712,7 @@
     "tests/test_the_assistant_reopens_on_its_first_step.py::test_the_sidebar_and_the_body_show_the_same_step[onboarding-2-False]": 0.49850371299908147,
     "tests/test_the_assistant_reopens_on_its_first_step.py::test_the_step_two_screen_offers_a_single_way_forward": 0.009727270000439603,
     "tests/test_the_assistant_reopens_on_its_first_step.py::test_the_steps_carry_a_direction_not_only_a_state": 0.4452354889999697,
+    "tests/test_the_assistant_reopens_on_its_first_step.py::test_the_steps_sit_mid_height_in_a_bare_sidebar": 1.2239683699990564,
     "tests/test_the_assistant_sidebar_carries_only_its_steps.py::test_connect_my_sources_opens_step_two_and_stays": 0.8034453640066204,
     "tests/test_the_assistant_sidebar_carries_only_its_steps.py::test_the_assistant_sidebar_draws_no_navigation": 3.256491656000435,
     "tests/test_the_assistant_sidebar_carries_only_its_steps.py::test_the_bare_sidebar_is_decided_by_the_page_alone": 0.003908995997335296,

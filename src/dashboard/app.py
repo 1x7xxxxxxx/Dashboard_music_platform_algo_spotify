@@ -878,7 +878,7 @@ def _main_body():
     # restent, même en barre nue » — mais « même en » avait été écrit « seulement si ».
     if page == 'onboarding':
         from views.onboarding import render_sidebar_steps
-        render_sidebar_steps()
+        render_sidebar_steps(centered=_bare)
 
     from src.dashboard.utils.i18n import language_selector
     if not _bare:

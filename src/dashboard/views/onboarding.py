@@ -458,8 +458,17 @@ def _step_labels() -> list[str]:
     ]
 
 
-def render_sidebar_steps() -> None:
-    """Les étapes, cliquables, EN HAUT de la barre latérale — sans son titre.
+# Le haut des deux boutons à mi-hauteur moins la moitié de leur bloc et du haut de la barre.
+_CENTERED_SPACER = "max(44px, calc(50vh - 165px))"
+
+
+def render_sidebar_steps(centered: bool = False) -> None:
+    """Les étapes, cliquables, dans la barre latérale — sans son titre.
+
+    `centered` (barre nue) : les deux boutons au MILIEU de la hauteur, pas collés sous
+    le logo — demandé le 2026-10-07 (R437). Seulement en barre nue : sur un compte
+    configuré la langue, l'activité et le compte suivent, et un espace d'un
+    demi-écran les pousserait hors de vue.
 
     Retirées entièrement le 2026-09-05, remises le même jour : la demande était
     « retire … Étapes … », et j'ai lu le BLOC là où l'énumération listait des éléments
@@ -496,7 +505,13 @@ def render_sidebar_steps() -> None:
     # faciliter la compréhension ». Collée au logo, la liste se lisait comme une
     # suite du titre ; détachée, elle se lit comme ce qu'elle est — deux endroits où
     # aller.
-    st.sidebar.markdown("<div style='height:44px'></div>", unsafe_allow_html=True)
+    #
+    # Centrées le 2026-10-07 (R437) : « mettre ces deux onglets au milieu du panel de
+    # gauche ». Le décalage suit la hauteur de la fenêtre (`vh`), jamais moins que les
+    # 44 px d'avant : le bloc (~110 px) commence ~110 px sous le haut de la barre.
+    st.sidebar.markdown(
+        f"<div style='height:{_CENTERED_SPACER if centered else '44px'}'></div>",
+        unsafe_allow_html=True)
     for i, label in enumerate(_step_labels(), 1):
         # LA FLÈCHE DIT OÙ VA LE CLIC, pas seulement où l'on en est. Demandé le
         # 2026-09-06. Les pastilles ✅/▶️/⬜ décrivaient un ÉTAT — fait, en cours, à

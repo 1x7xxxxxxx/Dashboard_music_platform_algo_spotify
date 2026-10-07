@@ -265,3 +265,32 @@ render_sidebar_steps()
     assert labels, "plus aucune étape cliquable dans la barre"
     assert any("⬅" in lbl for lbl in labels), (
         f"depuis l'étape 2, aucun retour n'est signalé par une flèche : {labels}")
+
+
+def _spacer_html(centered: bool) -> str:
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(f"""
+import sys
+sys.path.insert(0, {os.getcwd()!r})
+import streamlit as st
+st.session_state["role"] = "artist"
+st.session_state["artist_id"] = 1
+st.session_state["authenticated"] = True
+st.session_state['_page_arrived_from'] = 'onboarding'
+from src.dashboard.views.onboarding import render_sidebar_steps
+render_sidebar_steps(centered={centered!r})
+""")
+    at.run(timeout=120)
+    return at.sidebar.markdown[0].value
+
+
+def test_the_steps_sit_mid_height_in_a_bare_sidebar():
+    """R437, 2026-10-07 : « mettre ces deux onglets au milieu du panel de gauche ».
+
+    Seulement en barre nue : sur un compte configuré, la langue et le compte suivent
+    les étapes, et un demi-écran d'espace les pousserait hors de vue.
+    """
+    assert "50vh" in _spacer_html(True), "les étapes ne sont plus centrées en barre nue"
+    assert "50vh" not in _spacer_html(False), (
+        "le centrage pousse le reste de la barre hors de vue sur un compte configuré")
