@@ -34,7 +34,7 @@ EN = {
     "onboarding.b1_title": "1. streaMLytics in brief",
     "onboarding.brief_1": "**All your data in one place, pulled every day, "
                           "automatically.**",
-    "onboarding.promise_algo": "**Predict Discover Weekly, Release Radar and Radio**",
+    "onboarding.promise_algo": "**Predict when Spotify's algorithmic playlists trigger: Discover Weekly, Release Radar and Radio**",
     "onboarding.promise_campaign": "**See which ad euro produced which streams**",
     "onboarding.step1": "1. Welcome & pick",
     "onboarding.step2": "2. Where you stand",

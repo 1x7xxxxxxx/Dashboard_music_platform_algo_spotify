@@ -1108,13 +1108,31 @@ def test_the_charts_never_use_a_second_y_axis():
     Spend and streams have different scales: one axis each, in two stacked panels
     sharing the x. A `twinx()` here would let anyone read a correlation that is an
     artefact of where the two scales were pinned.
+
+    R438 (2026-10-07): the owner read the two panels as incomprehensible and asked
+    for ONE graph. One exception, scoped: `meta_x_s4a` may carry one euro axis, and
+    BOTH its axes must start at zero — the setting that stops a scale from being
+    pinned where it manufactures a correlation.
     """
     body = CHARTS.read_text(encoding="utf-8")
     tree = ast.parse(body)
-    twins = [n.lineno for n in ast.walk(tree)
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and n.func.attr in {"twinx", "twiny"}]
-    assert not twins, f"a dual-axis chart appeared at line(s) {twins}"
+    for fn in (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)):
+        twins = [n.lineno for n in ast.walk(fn)
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                 and n.func.attr in {"twinx", "twiny"}]
+        if fn.name != "meta_x_s4a":
+            assert not twins, f"{fn.name}(): a dual-axis chart at line(s) {twins}"
+            continue
+        assert len(twins) <= 1, f"meta_x_s4a(): more than one extra axis {twins}"
+        if not twins:
+            continue
+        zero_based = {n.func.value.id for n in ast.walk(fn)
+                      if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                      and n.func.attr == "set_ylim" and isinstance(n.func.value, ast.Name)
+                      and n.args and isinstance(n.args[0], ast.Constant)
+                      and n.args[0].value == 0}
+        assert {"ax", "axe"} <= zero_based, (
+            f"meta_x_s4a(): both y axes must start at 0, found {sorted(zero_based)}")
 
 
 def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
@@ -1194,3 +1212,12 @@ def test_the_sandbox_reset_actually_sends_the_verification_mail():
     assert "n'est PAS parti" in body, (
         "a failed send is not reported — the operator would wait for a mail that "
         "never left, which is exactly what happened")
+
+
+def test_the_algo_promise_names_the_algorithmic_playlists():
+    """R438, 2026-10-07 : « prédire le déclenchement des playlists algorithmiques
+    Spotify : Discover Weekly, Release Radar et Radio » — dans les deux langues."""
+    from src.dashboard.utils.i18n_catalog.onboarding import EN
+    view = code_of(REPO / "src" / "dashboard" / "views" / "onboarding.py")
+    assert "déclenchement des playlists algorithmiques Spotify" in view
+    assert "algorithmic playlists" in EN["onboarding.promise_algo"]

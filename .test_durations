@@ -11524,6 +11524,7 @@
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_no_two_separators_follow_each_other": 0.0035214199997426476,
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_nothing_asks_the_artist_to_pick_before_seeing": 0.01085190099911415,
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_only_one_language_selector_is_rendered_at_a_time": 0.006750033999196603,
+    "tests/test_the_setup_page_is_reachable_and_on_top.py::test_the_algo_promise_names_the_algorithmic_playlists": 0.1219069490016409,
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_the_assistant_has_no_early_route_that_skips_the_sidebar": 0.01771280899993144,
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_the_assistant_offers_a_way_into_the_app": 0.006054176999896299,
     "tests/test_the_setup_page_is_reachable_and_on_top.py::test_the_charts_never_use_a_second_y_axis": 0.006763258001228678,

@@ -176,7 +176,7 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
               "**Toutes tes données au même endroit, récupérées chaque jour, "
               "automatiquement.**"),
             t("onboarding.promise_algo",
-              "**Prédire Discover Weekly, Release Radar et Radio**"),
+              "**Prédire le déclenchement des playlists algorithmiques Spotify : Discover Weekly, Release Radar et Radio**"),
             t("onboarding.promise_campaign",
               "**Savoir quel euro de pub a produit quelles écoutes**"))):
         with col:

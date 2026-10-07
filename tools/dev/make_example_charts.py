@@ -31,9 +31,9 @@ Design rules applied (from the `dataviz` skill, validated not eyeballed)
   `validate_palette.js` on the light surface: all checks PASS, worst adjacent CVD
   ΔE 9.1, normal-vision ΔE 22.9. The contrast WARN on aqua/yellow obliges the
   **relief rule** — hence a visible direct label on every series, always;
-* **never a dual axis**: spend and streams are two stacked panels sharing one x, not
-  two y-scales on one plot. That is the single most common chart mistake and the one
-  this pair invites;
+* **one dual axis at most, and only in `meta_x_s4a`** (R438, 2026-10-07): counts on
+  the left, euros on the right, both from zero. It was two stacked panels until the
+  owner read them as incomprehensible;
 * text wears text tokens (ink), never the series colour; grid recessive; thin marks;
   2 px surface gap between stacked fills.
 """
@@ -62,6 +62,9 @@ GRID = "#e6e6e3"
 # orange, Apple magenta). Les noms restent positionnels — c'est la 1ʳᵉ, la 2ᵉ,
 # la 3ᵉ et la 4ᵉ série — parce que ce fichier ne connaît pas les plateformes.
 BLUE, ORANGE, AQUA, YELLOW = "#3acf84", "#bd354b", "#e0631b", "#bd00a4"
+# Shazam et Hypeddit : hors de la pile des quatre plateformes, donc hors de ses
+# quatre teintes — un bleu et un violet que rien d'autre ne porte sur ces figures.
+SHAZAM, HYPEDDIT = "#0a84ff", "#6b4fd8"
 
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE,
@@ -172,7 +175,16 @@ def dashboard_global() -> Path:
     series = {k: np.clip(v, 40, None) for k, v in base.items()}
     colours = [BLUE, ORANGE, AQUA, YELLOW]
 
-    fig, ax = plt.subplots(figsize=(9, 4.2))
+    # Shazam (R437/R438, 2026-10-07 : « intègre-moi uniquement le nombre de
+    # Shazam »). Pas une 5ᵉ bande de la pile : un Shazam n'est pas une écoute, et
+    # l'empiler gonflerait le total « écoutes » qui titre la figure. À l'échelle
+    # des écoutes (~8 000/j) une courbe de ~40/j serait un trait plat : il a donc
+    # sa propre bande, fine, sous la pile, sur le MÊME axe du temps.
+    shazam = np.clip(18 + days * 0.42 + rng.normal(0, 4, 90).cumsum() * 0.35, 4, None)
+
+    fig, (ax, axs) = plt.subplots(
+        2, 1, figsize=(9, 4.9), sharex=True,
+        gridspec_kw={"height_ratios": [4.2, 1], "hspace": 0.12})
     ax.stackplot(days, *series.values(), colors=colours,
                  # 2 px surface gap between stacked fills — the segments must not
                  # touch, or two adjacent hues read as one shape.
@@ -191,10 +203,18 @@ def dashboard_global() -> Path:
     total = int(sum(s.sum() for s in series.values()))
     ax.set_title("Toutes tes plateformes, un seul écran", fontsize=14,
                  fontweight="700", color=INK, loc="left", pad=18)
-    ax.text(0, 1.035, f"{total:,}".replace(",", " ") + " écoutes sur 90 jours",
+    n_shazam = int(shazam.sum())
+    ax.text(0, 1.035, f"{total:,}".replace(",", " ") + " écoutes et "
+            + f"{n_shazam:,}".replace(",", " ") + " Shazams sur 90 jours",
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
-    ax.set_xlabel("jours", fontsize=9)
     ax.set_xlim(0, days[-1])
+
+    axs.bar(days, shazam, color=SHAZAM, width=0.8)
+    _frame(axs)
+    axs.set_ylim(0, shazam.max() * 1.25)
+    axs.yaxis.set_major_locator(plt.MaxNLocator(2))
+    _series_tag(axs, 1.02, 0.5, "Shazam / jour", SHAZAM)
+    axs.set_xlabel("jours", fontsize=9)
     _example_badge(fig)
     return _save(fig, "dashboard-global.png")
 
@@ -237,12 +257,14 @@ def discover_weekly_prediction() -> Path:
 
 
 def meta_x_s4a() -> Path:
-    """Dépense et écoutes — DEUX panneaux, un axe chacun. Jamais deux échelles.
+    """Dépense Meta, visites et clics Hypeddit, CPR et écoutes — UN graphique.
 
-    C'est l'erreur que cette paire de mesures appelle : un axe à gauche pour les
-    euros, un à droite pour les écoutes, et une corrélation qu'on croit lire parce
-    que les deux courbes se croisent là où l'échelle a été choisie. Deux panneaux qui
-    partagent l'axe du temps disent la même chose sans mentir.
+    Deux panneaux jusqu'au 2026-10-07, pour ne jamais poser deux échelles sur un
+    même tracé. Le propriétaire les a lus comme « incompréhensibles » (R438) : la
+    figure passe sur un seul graphique, avec UN axe secondaire en euros, et le
+    risque que la règle visait est tenu autrement — les deux axes partent de zéro,
+    la dépense est en barres pâles derrière, et l'axe € est nommé. Même arbitrage
+    que la figure live de R436.
     """
     rng = np.random.default_rng(7)
     days = np.arange(45)
@@ -281,62 +303,77 @@ def meta_x_s4a() -> Path:
     reach = (future - days[-1]) / horizon
     forecast = streams[-1] + (trigger_level * 1.04 - streams[-1]) * reach ** 0.8
 
-    fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(9, 3.85), sharex=True,
-        gridspec_kw={"height_ratios": [1, 1.5], "hspace": 0.28})
+    # Hypeddit : la page de pré-sauvegarde que la pub vise. Visites, puis clics
+    # (pré-saves) — ce que l'euro achète AVANT de devenir une écoute.
+    camp = (days >= 8) & (days < 26)
+    visits = np.where(camp, spend * 6.2 + rng.normal(0, 10, 45), 8 + rng.normal(0, 2, 45))
+    visits = np.clip(visits, 0, None)
+    clicks = np.clip(visits * 0.42 + rng.normal(0, 3, 45), 0, None)
+    cpr = spend[camp].sum() / clicks[camp].sum()
 
-    ax1.bar(days, spend, color=ORANGE, width=0.75)
-    _frame(ax1)
-    ax1.set_ylabel("€ dépensés / jour", fontsize=9)
-    # Étiquettes DANS le panneau : hors-cadre, `bbox_inches="tight"` élargissait
-    # l'image d'une bande vide où les deux noms flottaient loin de leur courbe.
-    _series_tag(ax1, 0.86, 0.88, "Meta Ads", ORANGE)
+    # UN SEUL graphique (R438, 2026-10-07 : « tout me mettre sur un seul
+    # graphique, parce que là il y en a deux, c'est un peu incompréhensible »).
+    # Deux unités seulement : des COMPTES par jour à gauche (écoutes, visites,
+    # clics), des EUROS à droite (la dépense, en barres pâles DERRIÈRE). Les deux
+    # axes partent de ZÉRO — le seul réglage qui empêche d'inventer une corrélation
+    # en choisissant où épingler une échelle. Le CPR est un RATIO : il est ÉCRIT,
+    # pas tracé, comme la probabilité.
+    fig, ax = plt.subplots(figsize=(9, 4.4))
+    axe = ax.twinx()
+    ax.set_zorder(axe.get_zorder() + 1)
+    ax.patch.set_visible(False)
 
-    ax2.plot(days, streams, color=BLUE, linewidth=2)
+    axe.bar(days, spend, color=ORANGE, width=0.75, alpha=0.28, linewidth=0)
+    axe.set_ylim(0, spend.max() * 2.6)
+    axe.set_ylabel("€ Meta / jour", fontsize=9, color=INK_MUTED)
+    for side in ("top", "left", "bottom"):
+        axe.spines[side].set_visible(False)
+    axe.spines["right"].set_visible(False)
+    axe.tick_params(length=0, labelsize=8.5, colors=INK_MUTED)
+    axe.grid(False)
 
-    # La projection : même couleur (c'est la même grandeur), mais pointillée et plus
-    # fine — « la suite probable », pas « ce qui s'est passé ».
-    ax2.plot(future, forecast, color=BLUE, linewidth=1.6, linestyle=(0, (3, 3)))
-    ax2.fill_between(future, forecast * 0.86, forecast * 1.14,
-                     color=BLUE, alpha=0.10, linewidth=0)
+    ax.plot(days, streams, color=BLUE, linewidth=2.2)
+    ax.plot(future, forecast, color=BLUE, linewidth=1.6, linestyle=(0, (3, 3)))
+    ax.fill_between(future, forecast * 0.86, forecast * 1.14,
+                    color=BLUE, alpha=0.10, linewidth=0)
+    ax.plot(days, visits, color=HYPEDDIT, linewidth=1.6)
+    ax.plot(days, clicks, color=HYPEDDIT, linewidth=1.4, linestyle=(0, (1, 1.6)))
 
-    # Le seuil de déclenchement, en encre : c'est un repère, pas une série.
-    ax2.axhline(trigger_level, color=INK_MUTED, linewidth=1, linestyle=(0, (5, 4)))
-    # À GAUCHE, au-dessus du trait : la droite du panneau est là où la projection
-    # vient croiser le seuil, donc le seul endroit où le libellé recouvre ce qu'il
-    # commente.
-    ax2.text(0.015, trigger_level, "seuil de déclenchement Discover Weekly",
-             transform=ax2.get_yaxis_transform(), fontsize=9, color=INK_MUTED,
-             va="bottom", ha="left")
+    ax.axhline(trigger_level, color=INK_MUTED, linewidth=1, linestyle=(0, (5, 4)))
+    ax.text(0.015, trigger_level, "seuil de déclenchement Discover Weekly",
+            transform=ax.get_yaxis_transform(), fontsize=9, color=INK_MUTED,
+            va="bottom", ha="left")
+    _frame(ax)
+    ax.set_ylim(0, trigger_level * 1.32)
+    ax.set_ylabel("par jour", fontsize=9)
+    ax.set_xlabel("jours", fontsize=9)
+    ax.set_xlim(0, future[-1])
+    axe.set_xlim(0, future[-1])
+    ax.axvline(days[-1], color=GRID, linewidth=1)
 
-    _frame(ax2)
-    ax2.set_ylabel("écoutes / jour", fontsize=9)
-    ax2.set_xlabel("jours", fontsize=9)
-    _series_tag(ax2, 0.02, 0.34, "Spotify", BLUE)
+    # Étiquettes directes, au bout de chaque série, plutôt qu'une légende.
+    _series_tag(ax, 0.02, 0.50, "Spotify (écoutes)", BLUE)
+    # Les trois séries de la campagne : nommées dans le creux d'APRÈS la campagne,
+    # le seul endroit du tracé où rien ne passe.
+    _series_tag(ax, 0.47, 0.25, "Meta Ads (€, axe de droite)", ORANGE)
+    _series_tag(ax, 0.47, 0.165, "Hypeddit — visites", HYPEDDIT)
+    _series_tag(ax, 0.47, 0.08, "Hypeddit — clics (pointillés)", HYPEDDIT)
 
-    # La probabilité, ÉCRITE. Elle porte son horizon : « 78 % » sans « d'ici 14
-    # jours » n'est une probabilité de rien.
-    ax2.annotate("78 % de chances\nde déclencher\nd'ici 14 jours",
-                 xy=(future[-3], forecast[-3]),
-                 xytext=(days[-1] - 17, trigger_level * 0.34),
-                 fontsize=10, color=INK, fontweight="600", ha="left",
-                 arrowprops=dict(arrowstyle="-", color=INK_MUTED, linewidth=1),
-                 annotation_clip=False)
+    ax.text(17, trigger_level * 1.2,
+            f"CPR {cpr:.2f} € par clic".replace(".", ","),
+            fontsize=10, color=INK, fontweight="600", ha="center")
+    ax.annotate("78 % de chances\nde déclencher\nd'ici 14 jours",
+                xy=(future[-3], forecast[-3]),
+                xytext=(days[-1] - 13, trigger_level * 0.5),
+                fontsize=10, color=INK, fontweight="600", ha="left",
+                arrowprops=dict(arrowstyle="-", color=INK_MUTED, linewidth=1),
+                annotation_clip=False)
 
-    ax1.axvspan(8, 26, color=ORANGE, alpha=0.07, linewidth=0)
-    ax2.axvspan(8, 26, color=ORANGE, alpha=0.07, linewidth=0)
-    # Le panneau du bas va plus loin que celui du haut : la dépense est finie, la
-    # projection continue. Les deux gardent le même ZÉRO, donc le même axe du temps.
-    ax1.set_xlim(0, future[-1])
-    ax2.set_xlim(0, future[-1])
-    # La frontière mesuré / projeté, une fois, sur le panneau qui la porte.
-    ax2.axvline(days[-1], color=GRID, linewidth=1)
-
-    ax1.set_title("Quel euro de pub a produit quelles écoutes",
-                  fontsize=14, fontweight="700", color=INK, loc="left", pad=40)
-    ax1.text(0, 1.09,
-             "La campagne est la zone teintée ; à droite du trait, la projection",
-             transform=ax1.transAxes, fontsize=10, color=INK_MUTED, va="bottom")
+    ax.set_title("Quel euro de pub a produit quelles écoutes",
+                 fontsize=14, fontweight="700", color=INK, loc="left", pad=26)
+    ax.text(0, 1.035,
+            "Barres : la dépense Meta · à droite du trait, la projection",
+            transform=ax.transAxes, fontsize=10, color=INK_MUTED)
     _example_badge(fig)
     return _save(fig, "meta-x-s4a.png")
 
