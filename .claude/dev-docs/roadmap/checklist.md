@@ -39,6 +39,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | R460 | SoundCloud « tout le catalogue, à âge égal » : par défaut les 2 dernières sorties (annule le choix « plus écoutés » de R385, demandé par le propriétaire) <!-- critic: non — défaut de sélection --> <!-- scope: src/dashboard/views/soundcloud.py, tests/, .test_durations --> | P3 | test : défaut = 2 plus récents |
 | R461 | Fusion SACEM dans « Distributeur iMusician DistroKid + SACEM » — `sacem` devient alias de la page distributeur <!-- critic: non — déplacement de sections, alias conservé --> <!-- scope: src/dashboard/views/imusician.py, src/dashboard/views/sacem.py, src/dashboard/routes.py, src/dashboard/utils/nav_sections.py, src/dashboard/utils/i18n.py, src/dashboard/utils/i18n_catalog/, src/dashboard/app.py, src/dashboard/utils/plan_pitch.py, src/database/stripe_schema.py, .claude/dev-docs/architecture.md, tools/dev/charts_dossier/review.yaml, src/dashboard/content/chart_decisions.py, tests/, .test_durations --> | P3 | render-smoke ; test d'alias |
 | R462 | Parrainage : remplacer « le dire à l'oral » par le vrai parcours (le code se saisit à l'inscription, champ « Code promo ou parrainage ») ; commentaire R272 périmé <!-- critic: non — texte --> <!-- scope: src/dashboard/views/referral.py, src/dashboard/utils/i18n_catalog/, tests/, .test_durations --> | P3 | render-smoke |
+| R463 | Harnais, les 3 refus de la nuit : (a) le hook des durées refuse le 1ᵉʳ commit d'un test neuf PUIS se corrige — ×41 en 7 j, il doit indexer lui-même `.test_durations` ; (b) la porte pre-push R444 compte le journal `night-run.jsonl` (append-only, écrit par night-start/done) comme du code et refuse le push ; (c) un commit refusé laisse l'index, et le commit « Roadmap : » suivant l'emporte — le hook roadmap doit dire quels fichiers déjà indexés sont hors périmètre <!-- critic: non — outillage local, aucun code produit --> <!-- scope: tools/dev/, .pre-commit-config.yaml, .claude/hooks/, tests/, .test_durations --> | P4 | refus 7 j de `night-status` ; tests des 3 gestes |
 
 ---
 
@@ -94,7 +95,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R454,R455,R456,R457,R458,R459,R460,R461,R462 -->
+<!-- reprise: open=R454,R455,R456,R457,R458,R459,R460,R461,R462,R463 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
