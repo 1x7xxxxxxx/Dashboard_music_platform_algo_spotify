@@ -55,3 +55,25 @@ def test_every_new_row_declares_its_scope_not_vacuous():
         live = undeclared(fh.read())
     assert not live, f"lignes ≥ R{FIRST_SCOPED} sans `<!-- scope: … -->` : {live}"
     assert undeclared(_checklist("| R300 | x <!-- critic: non --> | P3 | m |")) == ["R300"]
+
+
+def test_a_non_product_file_outside_the_scope_is_refused_too():
+    """R450 — 2026-10-07: a commit « R449 » (scope tools/dev/, tests/) carried R448's
+    ci.yml; only product paths were judged, so nothing said so."""
+    row = ("| R449 | x <!-- critic: non — outil --> <!-- scope: tools/dev/, tests/, "
+           ".test_durations --> | P4 | m |")
+    bad = gate.verdict([".github/workflows/ci.yml", "tools/dev/night_run.py"],
+                       "R449 : x", _checklist(row))
+    assert bad and ".github/workflows/ci.yml" in bad and "night_run" not in bad
+    assert gate.verdict(["tools/dev/night_run.py", "tests/test_y.py", ".test_durations"],
+                        "R449 : x", _checklist(row)) is None
+    closing = [".claude/dev-docs/roadmap/checklist.md", ".claude/dev-docs/roadmap/archive.md"]
+    assert gate.verdict(closing, "Roadmap : R449 close", _checklist(row)) is None
+    assert gate.verdict(["Makefile"], "R450 : not open here", _checklist(row)) is None
+
+
+def test_a_row_quoting_the_marker_syntax_keeps_its_real_scope():
+    """R450's own row quoted `<!-- scope: … -->` in its text; read first, it became the scope."""
+    row = ("| R450 | judged by (`<!-- scope: … -->`) <!-- critic: non — x --> "
+           "<!-- scope: tools/dev/, tests/ --> | P3 | m |")
+    assert gate.scope_of(row) == ["tools/dev/", "tests/"]

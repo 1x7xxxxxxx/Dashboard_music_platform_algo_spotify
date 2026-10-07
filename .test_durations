@@ -253,6 +253,8 @@
     "tests/test_a_commit_message_is_not_fed_through_stdin.py::test_the_predicate_sees_the_forms_it_forbids": 0.0033988989980571205,
     "tests/test_a_commit_message_is_not_fed_through_stdin.py::test_the_scan_reaches_a_real_corpus": 0.007569249997686711,
     "tests/test_a_commit_stays_in_its_rows_scope.py::test_a_file_outside_the_declared_scope_is_refused": 0.6186749909829814,
+    "tests/test_a_commit_stays_in_its_rows_scope.py::test_a_non_product_file_outside_the_scope_is_refused_too": 0.1073352489984245,
+    "tests/test_a_commit_stays_in_its_rows_scope.py::test_a_row_quoting_the_marker_syntax_keeps_its_real_scope": 0.17905566900299164,
     "tests/test_a_commit_stays_in_its_rows_scope.py::test_a_row_without_scope_is_not_judged": 0.0024192780256271362,
     "tests/test_a_commit_stays_in_its_rows_scope.py::test_every_new_row_declares_its_scope_not_vacuous": 0.005895756039535627,
     "tests/test_a_confirmation_survives_the_rerun_that_follows_it.py::test_no_message_is_thrown_away_by_the_rerun_that_follows[__init__.py0]": 0.001059394002368208,

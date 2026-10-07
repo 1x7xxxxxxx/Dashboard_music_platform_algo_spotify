@@ -117,17 +117,28 @@ _SCOPE = re.compile(r"<!--\s*scope:\s*([^>]*?)\s*-->")
 def scope_of(row: str) -> list[str] | None:
     """The product paths a row declares it touches, or None when it declares none. R268:
     with several rows open, nothing proved the diff WAS the cited task (REQ-ROAD-04)."""
-    m = _SCOPE.search(row)
-    return [p.strip() for p in m.group(1).split(",") if p.strip()] if m else None
+    # R450: the LAST marker — the real one closes the row; an earlier one is prose quoting
+    # the syntax, and read first it gave R450 the scope « … » on its own commit.
+    found = _SCOPE.findall(row)
+    return [p.strip() for p in found[-1].split(",") if p.strip()] if found else None
+
+
+# R450 (2026-10-07): what a cited row's scope does NOT judge. Every other file is judged,
+# product or not — a commit « R449 » (scope `tools/dev/, tests/`) carried R448's
+# `.github/workflows/ci.yml` because only `src/`, `dags/` and `migrations/` were looked at.
+# A test may accompany any task; the durations and the roadmap's own files are bookkeeping.
+UNSCOPED = ("tests/", ".test_durations", ".claude/dev-docs/roadmap/checklist.md",
+            ".claude/dev-docs/roadmap/archive.md", ".claude/dev-docs/roadmap/night-run.jsonl",
+            ".claude/dev-docs/ops-mail-journal.md")
 
 
 def out_of_scope(files: list[str], rows: list[str]) -> list[str]:
-    """Product files outside every scope declared by the cited rows. Pure; [] when no
-    cited row declares a scope (rows written before R268 are not judged)."""
+    """Files outside every scope declared by the cited rows. Pure; [] when no cited row
+    declares a scope (rows written before R268 are not judged)."""
     scopes = [s for r in rows for s in (scope_of(r) or [])]
     if not scopes:
         return []
-    return [f for f in files if is_product(f) and not f.startswith(tuple(scopes))]
+    return [f for f in files if not f.startswith(UNSCOPED) and not f.startswith(tuple(scopes))]
 
 
 def open_ids(checklist: str) -> set[str]:
@@ -184,7 +195,7 @@ def verdict(files: list[str], message: str, parent_checklist: str,
     if frozen:
         return frozen
     if not any(is_product(f) for f in files):
-        return None
+        return _stray_reason(files, sorted(ids & set(rows)), rows)   # R450
     if not ids:
         return "le message ne cite aucun Rnnn"
     live = sorted(ids & set(rows))
@@ -194,6 +205,10 @@ def verdict(files: list[str], message: str, parent_checklist: str,
     if not any(critic_decision(rows[i]) for i in live):
         return (f"la ligne {', '.join(live)} ne décide pas du code-critic — ajoute "
                 "`<!-- critic: requis -->` ou `<!-- critic: non — <raison> -->` (R198)")
+    return _stray_reason(files, live, rows)
+
+
+def _stray_reason(files: list[str], live: list[str], rows: dict[str, str]) -> str | None:
     stray = out_of_scope(files, [rows[i] for i in live])
     if stray:
         return (f"{', '.join(stray[:3])} hors du périmètre déclaré par {', '.join(live)} "
