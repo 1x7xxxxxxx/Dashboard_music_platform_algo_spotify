@@ -205,7 +205,19 @@ def verdict(files: list[str], message: str, parent_checklist: str,
     if not any(critic_decision(rows[i]) for i in live):
         return (f"la ligne {', '.join(live)} ne décide pas du code-critic — ajoute "
                 "`<!-- critic: requis -->` ou `<!-- critic: non — <raison> -->` (R198)")
-    return _stray_reason(files, live, rows)
+    return _with_roadmap_hint(_stray_reason(files, live, rows), files)
+
+
+def _with_roadmap_hint(reason: str | None, files: list[str]) -> str | None:
+    """R463 — the scope is read in the PARENT commit, so a commit that widens it AND
+    carries the code is refused. On 2026-10-07 the index still held the files of a
+    refused commit and the « Roadmap : » commit took them: say which ones to unstage."""
+    product = [f for f in files if is_product(f)]
+    if not reason or CHECKLIST not in files or not product:
+        return reason
+    return (f"{reason}. Ce commit porte AUSSI la roadmap : un périmètre se lit dans le "
+            f"commit PRÉCÉDENT — `git reset {' '.join(product[:4])}`, commite la roadmap "
+            "seule, puis le code")
 
 
 def _stray_reason(files: list[str], live: list[str], rows: dict[str, str]) -> str | None:

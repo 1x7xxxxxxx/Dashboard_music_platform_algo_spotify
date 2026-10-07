@@ -14,7 +14,10 @@ after targeted tests only. The local gate existed — nothing tied the push to i
 honoured), because the suite ran on that tree, not on HEAD. `check` compares it to the
 tree of the commit being pushed. A difference limited to the two roadmap files passes:
 their readers already run at commit time (`governance-readers`, R361), and every
-delivery ends with a roadmap-only commit. Bypass: `git push --no-verify`.
+delivery ends with a roadmap-only commit. R463: so does the night journal
+`night-run.jsonl` — append-only, written by `night-start`/`night-done` AFTER the green
+run, read by no test as code; counting it refused the night's every push.
+Bypass: `git push --no-verify`.
 
 ---
 rex: []
@@ -32,6 +35,7 @@ STAMP = ".pytest-green-tree"
 EXEMPT = frozenset({
     ".claude/dev-docs/roadmap/checklist.md",
     ".claude/dev-docs/roadmap/archive.md",
+    ".claude/dev-docs/roadmap/night-run.jsonl",
 })
 _ZERO = "0" * 40
 

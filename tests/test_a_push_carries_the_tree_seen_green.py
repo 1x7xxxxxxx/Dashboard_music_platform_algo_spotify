@@ -95,10 +95,20 @@ def test_the_hook_runs_at_push_and_make_stamps_only_when_green():
         assert "rc -eq 0 ] || exit" in line or "rc -ne 0 ] ||" in line, line
 
 
-def test_only_the_two_roadmap_files_are_exempt():
-    """Widening EXEMPT is widening what reaches main untested — it must be a decision."""
+def test_only_the_roadmap_files_and_the_night_journal_are_exempt():
+    """Widening EXEMPT is widening what reaches main untested — it must be a decision.
+    R463 (2026-10-07) decided the third: the append-only night journal."""
     assert gate.EXEMPT == {".claude/dev-docs/roadmap/checklist.md",
-                           ".claude/dev-docs/roadmap/archive.md"}
+                           ".claude/dev-docs/roadmap/archive.md",
+                           ".claude/dev-docs/roadmap/night-run.jsonl"}
+
+
+def test_a_night_journal_entry_after_the_green_run_passes(tmp_path):
+    """R463 — `night-done` appends AFTER the green run; that refused the night's push."""
+    repo = _repo(tmp_path)
+    gate.stamp(repo)
+    (repo / ".claude/dev-docs/roadmap/night-run.jsonl").write_text('{"kind": "done"}\n')
+    assert gate.verdict(repo, _commit_all(repo, "night journal"))[0]
 
 
 def test_the_other_roads_to_main_are_closed():

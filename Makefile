@@ -318,6 +318,9 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
 	    --changed 2>&1 | tee -a .pytest-last.log'; \
 	  rc=$$?; [ $$rc -eq 0 ] || exit $$rc; python3 tools/dev/pre_push_gate.py stamp
+	@# R463: the durations above are written, never staged — 41 refusals of the commit
+	@# hook in 7 days were exactly that. Said here, at the moment the commit is built.
+	@git diff --quiet -- .test_durations || echo "▶ .test_durations a changé — \`git add .test_durations\` AVEC le test, sinon le hook refuse le commit (R463)"
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \
