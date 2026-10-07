@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R449 — 15 worktrees d'agents (`.claude/worktrees/`) déjà fusionnés mais SALES traînent : diff… (livrée 2026-10-07)
+
+- [x] **R449 — 15 worktrees d'agents (`.claude/worktrees/`) déjà fusionnés mais SALES traînent : diff archivé hors dépôt puis retirés ; `make night-check` signale tout worktree de plus de 48 h** (P4) ✅ (2026-10-07, 017b6f3c)
+  Mesuré par : test : worktree vieux signalé, récent non ; `git worktree list` = 1
+  CI verte sur 017b6f3c (R448+R449). CI nocturne 03:00 UTC ; 15 worktrees archivés (~/.cache/streamlytics-worktree-archive/2026-10-07) et retirés
+  Commits : 017b6f3c R449 : night-check nomme les worktrees de plus de 48 h ; les 15 worktr
+
+## ✅ R448 — Dérive sans push : `ci.yml` tourne chaque nuit sur main (`schedule`)… (livrée 2026-10-07)
+
+- [x] **R448 — Dérive sans push : `ci.yml` tourne chaque nuit sur main (`schedule`) — une date, une dépendance, une API qui bouge rougit le matin et non au prochain push ; `notify` mail aussi la cassure nocturne, le job `roadmap` est sauté hors push/PR** (P3) ✅ (2026-10-07, 017b6f3c)
+  Mesuré par : test : schedule déclaré, notify et mail le couvrent, roadmap sauté ; 4 mutations rouges
+  Livré dans 017b6f3c sous le message R449 : le commit « R448 : … » a été refusé par le hook `test-durations-known` (durées de fichiers encore non suivis), le diff a suivi dans le commit R449. CI verte sur 017b6f3c.
+  Commits : 017b6f3c (porte R448 + R449)
+
+## ✅ R447 — Le sélecteur voit les imports écrits DANS une chaîne de script (`AppTest.from_string` :… (livrée 2026-10-07)
+
+- [x] **R447 — Le sélecteur voit les imports écrits DANS une chaîne de script (`AppTest.from_string` : `from src.dashboard.views.{view} import show`) — le rejeu R446 l'a pris en défaut : `test_a_view_says_something_or_says_why[revenue_forecast]` rouge en CI le 2026-10-05, non sélectionné** (P2) ✅ (2026-10-07, adc8927c, 89892bc6)
+  Mesuré par : test : vue modifiée ⇒ test templaté sélectionné ; mutation
+  CI verte sur 89892bc6 (R447), adc8927c (R446), 017b6f3c (R448+R449 — le commit R448 refusé par le hook des durées, son diff est parti dans 017b6f3c). Rejeu des rouges : 1 selector-miss → R447, 3 unstamped-push ; CI nocturne 03:00 UTC ; 15 worktrees archivés (~/.cache/streamlytics-worktree-archive/2026-10-07) et retirés
+  Commits : adc8927c R446 : make defect-log dit par où chaque rouge de CI de main est passé · 89892bc6 R447 : le sélecteur lit les imports écrits dans une chaîne de script (
+
+## ✅ R446 — Chaque rouge de CI de main dit PAR OÙ il est passé : `make defect-log` rejoue le sélect… (livrée 2026-10-07)
+
+- [x] **R446 — Chaque rouge de CI de main dit PAR OÙ il est passé : `make defect-log` rejoue le sélecteur sur le diff dernier-vert → rouge et range chaque test rouge en « le sélecteur l'aurait raté » / « sélectionné : poussé sans arbre vert ou écart local/CI » ; plus réponse aux 2 billets `recurrence:` ouverts (R438, R443)** (P3) ✅ (2026-10-07, adc8927c)
+  Mesuré par : test : classement pur sur rouges fabriqués ; rejeu réel sur l'historique
+  CI verte sur 89892bc6 (R447), adc8927c (R446), 017b6f3c (R448+R449 — le commit R448 refusé par le hook des durées, son diff est parti dans 017b6f3c). Rejeu des rouges : 1 selector-miss → R447, 3 unstamped-push ; CI nocturne 03:00 UTC ; 15 worktrees archivés (~/.cache/streamlytics-worktree-archive/2026-10-07) et retirés
+  Commits : adc8927c R446 : make defect-log dit par où chaque rouge de CI de main est passé
+
 ## ✅ R445 — `make roadmap-close` accepte plusieurs ID (`ID="R440 R441"`) et ne relance les 351 lect… (livrée 2026-10-07)
 
 - [x] **R445 — `make roadmap-close` accepte plusieurs ID (`ID="R440 R441"`) et ne relance les 351 lecteurs de pilotage qu'UNE fois (~50 s × N mesurés le 2026-10-07)** (P4) ✅ (2026-10-07, c8af1526)
