@@ -178,9 +178,9 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
               "**Toutes tes données au même endroit, récupérées chaque jour, "
               "automatiquement.**"),
             t("onboarding.promise_algo",
-              "**Prédire le déclenchement des playlists algorithmiques Spotify : Discover Weekly, Release Radar et Radio**"),
+              "**Tes chances de déclencher les playlists algorithmiques Spotify — Discover Weekly, Release Radar et Radio — prévues jour par jour**"),
             t("onboarding.promise_campaign",
-              "**Savoir quel euro de pub a produit quelles écoutes**"))):
+              "**Optimiser ton budget Meta Ads pour maximiser tes streams**"))):
         with col:
             render_example(name)
             st.markdown(line)

@@ -1216,8 +1216,11 @@ def test_the_sandbox_reset_actually_sends_the_verification_mail():
 
 def test_the_algo_promise_names_the_algorithmic_playlists():
     """R438, 2026-10-07 : « prédire le déclenchement des playlists algorithmiques
-    Spotify : Discover Weekly, Release Radar et Radio » — dans les deux langues."""
+    Spotify : Discover Weekly, Release Radar et Radio » — dans les deux langues.
+    R455 (C2) : la promesse devient une probabilité (« tes chances de déclencher… »),
+    les trois playlists restent nommées."""
     from src.dashboard.utils.i18n_catalog.onboarding import EN
     view = code_of(REPO / "src" / "dashboard" / "views" / "onboarding.py")
-    assert "déclenchement des playlists algorithmiques Spotify" in view
+    assert "déclencher les playlists algorithmiques Spotify" in view
+    assert all(p in view for p in ("Discover Weekly", "Release Radar", "Radio"))
     assert "algorithmic playlists" in EN["onboarding.promise_algo"]

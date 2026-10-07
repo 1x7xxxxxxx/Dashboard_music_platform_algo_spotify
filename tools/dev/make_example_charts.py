@@ -163,7 +163,15 @@ def _save(fig, name: str) -> Path:
 
 
 def dashboard_global() -> Path:
-    """Toutes les plateformes sur un seul écran — aire empilée, 4 séries."""
+    """Toutes les plateformes sur un seul écran — aire empilée, 5 séries montantes.
+
+    R455 (2026-10-07, commentaire vocal C1) : « Shazam devient la 5ᵉ courbe montante ».
+    R438 l'avait mis dans une bande à part, sous la pile, pour ne pas gonfler le total
+    d'écoutes. Le propriétaire le veut DANS la pile, comme les autres plateformes : il
+    devient la 5ᵉ bande, et le risque que R438 visait est tenu par le sous-titre, qui
+    compte les écoutes et les Shazams SÉPARÉMENT — la hauteur de la pile n'est jamais
+    écrite comme un nombre d'écoutes.
+    """
     rng = np.random.default_rng(20260904)
     days = np.arange(90)
     base = {
@@ -171,20 +179,12 @@ def dashboard_global() -> Path:
         "YouTube":    420 + days * 11 + rng.normal(0, 60, 90).cumsum() * 0.4,
         "SoundCloud": 260 + days * 5 + rng.normal(0, 40, 90).cumsum() * 0.3,
         "Instagram":  180 + days * 4 + rng.normal(0, 30, 90).cumsum() * 0.25,
+        "Shazam":     110 + days * 3 + rng.normal(0, 20, 90).cumsum() * 0.2,
     }
     series = {k: np.clip(v, 40, None) for k, v in base.items()}
-    colours = [BLUE, ORANGE, AQUA, YELLOW]
+    colours = [BLUE, ORANGE, AQUA, YELLOW, SHAZAM]
 
-    # Shazam (R437/R438, 2026-10-07 : « intègre-moi uniquement le nombre de
-    # Shazam »). Pas une 5ᵉ bande de la pile : un Shazam n'est pas une écoute, et
-    # l'empiler gonflerait le total « écoutes » qui titre la figure. À l'échelle
-    # des écoutes (~8 000/j) une courbe de ~40/j serait un trait plat : il a donc
-    # sa propre bande, fine, sous la pile, sur le MÊME axe du temps.
-    shazam = np.clip(18 + days * 0.42 + rng.normal(0, 4, 90).cumsum() * 0.35, 4, None)
-
-    fig, (ax, axs) = plt.subplots(
-        2, 1, figsize=(9, 4.38), sharex=True,
-        gridspec_kw={"height_ratios": [4.2, 1], "hspace": 0.12})
+    fig, ax = plt.subplots(figsize=(9, 4.38))
     ax.stackplot(days, *series.values(), colors=colours,
                  # 2 px surface gap between stacked fills — the segments must not
                  # touch, or two adjacent hues read as one shape.
@@ -192,7 +192,7 @@ def dashboard_global() -> Path:
     _frame(ax)
 
     # Direct labels at the right end: required by the relief rule (aqua and yellow
-    # sit under 3:1 on this surface) AND better than a legend box for 4 series.
+    # sit under 3:1 on this surface) AND better than a legend box for 5 series.
     tops = np.cumsum([s[-1] for s in series.values()])
     ymax = tops[-1]
     prev = 0.0
@@ -200,64 +200,65 @@ def dashboard_global() -> Path:
         _series_tag(ax, 1.02, ((prev + top) / 2) / ymax, name, colour)
         prev = top
 
-    total = int(sum(s.sum() for s in series.values()))
+    listens = int(sum(s.sum() for k, s in series.items() if k != "Shazam"))
+    n_shazam = int(series["Shazam"].sum())
     ax.set_title("Toutes tes plateformes, un seul écran", fontsize=14,
                  fontweight="700", color=INK, loc="left", pad=18)
-    n_shazam = int(shazam.sum())
-    ax.text(0, 1.035, f"{total:,}".replace(",", " ") + " écoutes et "
+    ax.text(0, 1.035, f"{listens:,}".replace(",", " ") + " écoutes et "
             + f"{n_shazam:,}".replace(",", " ") + " Shazams sur 90 jours",
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
     ax.set_xlim(0, days[-1])
-
-    axs.bar(days, shazam, color=SHAZAM, width=0.8)
-    _frame(axs)
-    axs.set_ylim(0, shazam.max() * 1.25)
-    axs.yaxis.set_major_locator(plt.MaxNLocator(2))
-    _series_tag(axs, 1.02, 0.5, "Shazam / jour", SHAZAM)
-    axs.set_xlabel("jours", fontsize=9)
+    ax.set_ylim(0, ymax * 1.04)
+    ax.set_xlabel("jours", fontsize=9)
     _example_badge(fig)
     return _save(fig, "dashboard-global.png")
 
 
 def discover_weekly_prediction() -> Path:
-    """Le déclenchement prédit, puis observé — une seule série, donc pas de légende."""
-    rng = np.random.default_rng(11)
-    days = np.arange(60)
-    trigger = 34
-    streams = 320 + rng.normal(0, 25, 60).cumsum() * 0.4
-    streams[trigger:] += np.linspace(0, 2600, 60 - trigger) ** 0.92
-    streams = np.clip(streams, 120, None)
+    """Trois probabilités de déclenchement — DW, Release Radar, Radio — en prévision seule.
 
-    fig, ax = plt.subplots(figsize=(9, 4.2))
-    ax.plot(days, streams, color=BLUE, linewidth=2)
-    ax.fill_between(days[:trigger + 1],
-                    streams[:trigger + 1] * 0.82, streams[:trigger + 1] * 1.18,
-                    color=BLUE, alpha=0.12, linewidth=0)
+    R455 (2026-10-07, commentaire vocal C2) : « trois courbes de pourcentage de
+    déclencher, uniquement en prévision ». La figure montrait UNE série d'écoutes avec
+    un déclenchement observé : elle racontait le passé. Elle dit maintenant ce que
+    l'outil calcule — une probabilité par playlist, jour par jour, à partir
+    d'aujourd'hui. Tout est pointillé : rien n'y est mesuré. Une probabilité est
+    bornée, l'axe va donc de 0 à 100 %, sans échelle à choisir.
+    """
+    ahead = np.linspace(0, 28, 113)   # fine grid: a steep start must stay a curve
+    reach = ahead / ahead[-1]
+    curves = {   # (nom, couleur, niveau atteint à J+28, vitesse)
+        "Release Radar":   (0.86, BLUE, 0.45),
+        "Discover Weekly": (0.64, AQUA, 0.9),
+        "Radio":           (0.41, YELLOW, 1.4),
+    }
+    # 4.86 in, not 4.2: the end labels widen the saved PNG, and the three figures sit
+    # side by side at one height (test_the_three_figures_are_generated_at_the_same_height).
+    fig, ax = plt.subplots(figsize=(9, 4.86))
+    for name, (top, colour, speed) in curves.items():
+        p = 100 * (0.08 + (top - 0.08) * reach ** speed)
+        ax.plot(ahead, p, color=colour, linewidth=2.2, linestyle=(0, (4, 2.5)))
+        ax.fill_between(ahead, np.clip(p - 9 * reach, 0, 100), np.clip(p + 9 * reach, 0, 100),
+                        color=colour, alpha=0.10, linewidth=0)
+        ax.annotate(f"{name}  {p[-1]:.0f} %", xy=(ahead[-1], p[-1]),
+                    xytext=(ahead[-1] + 0.8, p[-1]), va="center", fontsize=10,
+                    color=INK, fontweight="600", annotation_clip=False)
+        ax.plot([ahead[-1] + 0.35], [p[-1]], marker="s", markersize=7, color=colour,
+                clip_on=False)
     _frame(ax)
-
-    ax.axvline(trigger, color=INK_MUTED, linewidth=1, linestyle=(0, (4, 3)))
-    ax.annotate("Discover Weekly\ndéclenché", xy=(trigger, streams[trigger]),
-                xytext=(trigger - 21, streams.max() * 0.62),
-                fontsize=10, color=INK, fontweight="600",
-                arrowprops=dict(arrowstyle="-", color=INK_MUTED, linewidth=1))
-    ax.annotate(f"{int(streams[-1]):,}".replace(",", " ") + " / jour",
-                xy=(days[-1], streams[-1]), xytext=(days[-1] + 1.5, streams[-1]),
-                va="center", fontsize=10, color=INK, fontweight="600",
-                annotation_clip=False)
-
-    ax.set_title("Prédire le déclenchement, avant de dépenser en promo",
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f} %"))
+    ax.set_ylim(0, 100)
+    ax.set_xlim(0, ahead[-1])
+    ax.set_xlabel("jours à partir d'aujourd'hui", fontsize=9)
+    ax.set_title("Tes chances d'entrer dans les playlists algorithmiques",
                  fontsize=14, fontweight="700", color=INK, loc="left", pad=18)
-    ax.text(0, 1.035,
-            "La zone claire est la prévision ; le trait, ce qui s'est passé",
+    ax.text(0, 1.035, "Probabilité prévue, jour par jour — la zone claire est l'incertitude",
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
-    ax.set_xlabel("jours", fontsize=9)
-    ax.set_xlim(0, days[-1])
     _example_badge(fig)
     return _save(fig, "prediction-discover-weekly.png")
 
 
 def meta_x_s4a() -> Path:
-    """Dépense Meta, visites et clics Hypeddit, CPR et écoutes — UN graphique.
+    """Dépense Meta, visites et clics Hypeddit, CPR, écoutes et budget conseillé — UN graphique.
 
     Deux panneaux jusqu'au 2026-10-07, pour ne jamais poser deux échelles sur un
     même tracé. Le propriétaire les a lus comme « incompréhensibles » (R438) : la
@@ -324,6 +325,12 @@ def meta_x_s4a() -> Path:
     ax.patch.set_visible(False)
 
     axe.bar(days, spend, color=ORANGE, width=0.75, alpha=0.28, linewidth=0)
+    # R455 (2026-10-07, C3) : la figure ne raconte plus seulement ce que l'euro a
+    # produit, elle dit combien remettre. Le budget CONSEILLÉ est dessiné à droite du
+    # trait, en barres hachurées : une recommandation, jamais une dépense mesurée.
+    advised = 32.0
+    axe.bar(future[1:], np.full(horizon, advised), color="none", width=0.75,
+            edgecolor=ORANGE, hatch="////", linewidth=0.6, alpha=0.55)
     axe.set_ylim(0, spend.max() * 2.6)
     axe.set_ylabel("€ Meta / jour", fontsize=9, color=INK_MUTED)
     for side in ("top", "left", "bottom"):
@@ -355,24 +362,24 @@ def meta_x_s4a() -> Path:
     _series_tag(ax, 0.02, 0.50, "Spotify (écoutes)", BLUE)
     # Les trois séries de la campagne : nommées dans le creux d'APRÈS la campagne,
     # le seul endroit du tracé où rien ne passe.
-    _series_tag(ax, 0.47, 0.25, "Meta Ads (€, axe de droite)", ORANGE)
-    _series_tag(ax, 0.47, 0.165, "Hypeddit — visites", HYPEDDIT)
-    _series_tag(ax, 0.47, 0.08, "Hypeddit — clics (pointillés)", HYPEDDIT)
+    _series_tag(ax, 0.455, 0.25, "Meta Ads (€, à droite)", ORANGE)
+    _series_tag(ax, 0.455, 0.165, "Hypeddit — visites", HYPEDDIT)
+    _series_tag(ax, 0.455, 0.08, "Hypeddit — clics (⋯)", HYPEDDIT)
 
     ax.text(17, trigger_level * 1.2,
             f"CPR {cpr:.2f} € par clic".replace(".", ","),
             fontsize=10, color=INK, fontweight="600", ha="center")
-    ax.annotate("78 % de chances\nde déclencher\nd'ici 14 jours",
+    ax.annotate(f"Budget conseillé : {advised:.0f} €/j\n→ 78 % de chances\nde déclencher\nd'ici 14 jours",
                 xy=(future[-3], forecast[-3]),
                 xytext=(days[-1] - 13, trigger_level * 0.5),
                 fontsize=10, color=INK, fontweight="600", ha="left",
                 arrowprops=dict(arrowstyle="-", color=INK_MUTED, linewidth=1),
                 annotation_clip=False)
 
-    ax.set_title("Quel euro de pub a produit quelles écoutes",
+    ax.set_title("Optimiser ton budget Meta Ads pour maximiser tes streams",
                  fontsize=14, fontweight="700", color=INK, loc="left", pad=26)
     ax.text(0, 1.035,
-            "Barres : la dépense Meta · à droite du trait, la projection",
+            "Barres : la dépense Meta · à droite du trait, le budget conseillé (hachuré) et la projection",
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
     _example_badge(fig)
     return _save(fig, "meta-x-s4a.png")

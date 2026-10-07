@@ -252,9 +252,9 @@ _WELCOME_FIGURES: tuple[tuple[str, str, str], ...] = (
     (_WELCOME_IMAGE_CID, "dashboard-global",
      "Toutes tes plateformes sur un seul écran"),
     ("streamlytics-example-prediction", "prediction-discover-weekly",
-     "La prédiction de déclenchement Discover Weekly"),
+     "Tes chances de déclencher Discover Weekly, Release Radar et Radio"),
     ("streamlytics-example-meta", "meta-x-s4a",
-     "Ce que chaque euro de pub a produit"),
+     "Optimiser ton budget Meta Ads pour maximiser tes streams"),
 )
 
 
