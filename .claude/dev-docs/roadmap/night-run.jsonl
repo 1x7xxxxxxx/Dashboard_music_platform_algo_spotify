@@ -738,3 +738,5 @@
 {"at": "2026-10-07T22:06:15+00:00", "head": "9b93be74", "kind": "done", "task": "R455", "what": ""}
 {"at": "2026-10-07T22:06:15+00:00", "head": "9b93be74", "kind": "start", "task": "R456", "what": "algo_preview figures + SHAP"}
 {"at": "2026-10-07T22:26:28+00:00", "head": "b94025c9", "kind": "done", "task": "R456", "what": ""}
+{"at": "2026-10-07T22:54:25+00:00", "head": "1c7b0fbf", "kind": "start", "task": "R464", "what": "select_tests contre upstream"}
+{"at": "2026-10-07T23:00:15+00:00", "head": "00649e24", "kind": "done", "task": "R464", "what": ""}
