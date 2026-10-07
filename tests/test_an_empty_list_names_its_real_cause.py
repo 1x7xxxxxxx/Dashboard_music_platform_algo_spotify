@@ -85,9 +85,12 @@ def test_the_view_asks_the_diagnosis_everywhere_it_says_empty():
     i18n `meta_mapping.no_campaigns` — une clé, deux sens, et l'anglais n'en
     traduisait qu'un. Aucune ne peut rester sur un message écrit d'avance.
     """
-    fn = next(n for n in ast.walk(_tree())
-              if isinstance(n, ast.FunctionDef) and n.name == "render_campaign_tab")
-    calls = [n for n in ast.walk(fn)
+    # R440 split the campaign path: the suggestions moved to the top of the page
+    # (`render_campaign_suggestions`), the backlog and manual add stayed below.
+    fns = [n for n in ast.walk(_tree()) if isinstance(n, ast.FunctionDef)
+           and n.name in ("render_campaign_tab", "render_campaign_suggestions")]
+    assert len(fns) == 2, "garde à repointer : le chemin campagnes a changé de forme"
+    calls = [n for fn in fns for n in ast.walk(fn)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
              and n.func.id == "_empty_campaigns_message"]
     assert len(calls) >= 3, (
@@ -116,7 +119,7 @@ def test_a_success_needs_something_to_succeed_on():
     Meta : deux affirmations contradictoires sur le même écran.
     """
     fn = next(n for n in ast.walk(_tree())
-              if isinstance(n, ast.FunctionDef) and n.name == "render_campaign_tab")
+              if isinstance(n, ast.FunctionDef) and n.name == "render_campaign_suggestions")
     for node in ast.walk(fn):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                 and node.func.attr == "success"

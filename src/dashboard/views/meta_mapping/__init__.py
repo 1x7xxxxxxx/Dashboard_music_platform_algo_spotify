@@ -6,7 +6,9 @@ Uses: view_session, track_matching (canonical reference + canonical_song),
 Persists in: track_platform_link (cross-platform tracks) + campaign_track_mapping
              (Meta campaigns) — both in PostgreSQL spotify_etl
 
-Free-tier. Two expanders, one under the other (R375, V16 — they were two tabs):
+Free-tier. The suggestions to validate (titles, then campaigns) sit at the top,
+outside any expander (R440); the detail lives in two folded expanders below
+(R375, V16 — they were two tabs):
   1. Cross-platform tracks (_tracks.py) — each platform's free-text titles scored
      against the canonical track_release_reference (title similarity + release-date
      proximity where the platform exposes a date); accept/reject → track_platform_link,
@@ -23,9 +25,9 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.utils.track_matching import rebuild_release_reference
 
-from ._campaigns import render_campaign_tab
+from ._campaigns import render_campaign_suggestions, render_campaign_tab
 from ._common import _load_canonical
-from ._tracks import render_overview_tab
+from ._tracks import _load_links, render_overview_tab, render_track_suggestions
 from src.dashboard.utils.ui import flash
 
 
@@ -50,13 +52,18 @@ def show():
                 st.rerun()
             return
 
-        # Two expanders, one under the other, in the order of the work (R375, V16): a
-        # campaign is linked to a title, so the titles come first. Tabs hid the second
-        # path behind a label nobody clicked. Streamlit forbids an expander inside an
-        # expander — nothing below opens one (`_tracks` uses a toggle for the orphans).
-        with st.expander(t("meta_mapping.tab_overview", "🎵 Titres & couverture"),
-                         expanded=True):
-            render_overview_tab(db, artist_id, canonical)
-        with st.expander(t("meta_mapping.tab_campaigns", "📣 Campagnes Meta"),
-                         expanded=True):
+        links_df = _load_links(db, artist_id)
+        # The work to do FIRST, outside any expander (R440, owner 2026-10-07: « rajouter
+        # en haut le récap des suggestions à valider […] pour identifier les actions à
+        # faire directement »). Each block says « rien à faire » in green when empty.
+        # Titles before campaigns: a campaign is linked to a title (R375, V16).
+        render_track_suggestions(db, artist_id, canonical, links_df)
+        render_campaign_suggestions(db, artist_id, canonical)
+
+        # The detail, folded. Streamlit forbids an expander inside an expander —
+        # nothing below opens one (`_tracks` uses a toggle for the orphans).
+        st.markdown("---")
+        with st.expander(t("meta_mapping.tab_overview", "🎵 Titres & couverture")):
+            render_overview_tab(db, artist_id, canonical, links_df)
+        with st.expander(t("meta_mapping.tab_campaigns", "📣 Campagnes Meta")):
             render_campaign_tab(db, artist_id, canonical)

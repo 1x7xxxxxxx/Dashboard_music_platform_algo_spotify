@@ -202,7 +202,8 @@ def _render_orphans(orphans) -> None:
 
 def _render_track_suggestions(db, artist_id, canonical, links_df):
     """Suggestions to validate (all platforms, no selector). Green when nothing left."""
-    st.subheader(t("track_mapping.suggest_header", "🔎 Suggestions à valider"))
+    st.subheader(t("track_mapping.suggest_header",
+                   "🔎 Titres & couvertures — suggestions à valider"))
     # Le verdict d'enregistrement passe par la session : `st.rerun()` efface tout ce
     # qui a été écrit avant lui (classe `message-written-before-a-rerun`).
     _saved = st.session_state.pop('_track_links_saved', None)
@@ -350,10 +351,11 @@ def _render_coverage_grid(db, artist_id, canonical, links_df):
                  "sont dans l'onglet **📣 Campagnes Meta**.)"))
 
 
-def render_overview_tab(db, artist_id, canonical):
-    links_df = _load_links(db, artist_id)
-    # Suggestions on top (green when nothing) …
+def render_track_suggestions(db, artist_id, canonical, links_df):
+    """Suggestions to validate — at the TOP of the page, outside any expander (R440)."""
     _render_track_suggestions(db, artist_id, canonical, links_df)
-    st.markdown("---")
-    # … cross-platform coverage recap just below.
+
+
+def render_overview_tab(db, artist_id, canonical, links_df):
+    """The cross-platform coverage detail, inside its expander."""
     _render_coverage_grid(db, artist_id, canonical, links_df)

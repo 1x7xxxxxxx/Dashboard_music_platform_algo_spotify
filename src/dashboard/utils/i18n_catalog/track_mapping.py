@@ -41,7 +41,7 @@ EN = {
     # Unified overview tab (coverage grid + Meta campaigns + suggestions)
     "track_mapping.coverage_header": "🗺️ Cross-platform coverage — do I have everything, everywhere?",
     "track_mapping.coverage_legend": "✅ linked · ❌ not linked. The count on top compares CONFIRMED links to the number of canonical tracks; \"seen\" is what the platform knows, linked or not. Hypeddit counts promo CAMPAIGNS, not tracks: having fewer is not an anomaly. (Meta campaigns live in the **📣 Meta campaigns** tab.)",
-    "track_mapping.suggest_header": "🔎 Suggestions to review",
+    "track_mapping.suggest_header": "🔎 Titles & covers — suggestions to review",
     # Le récap de couverture — comptes par plateforme (2026-09-21).
     "track_mapping.seen_n": "{n} seen",
     "track_mapping.count_ok": "Every canonical track is linked on this platform.",

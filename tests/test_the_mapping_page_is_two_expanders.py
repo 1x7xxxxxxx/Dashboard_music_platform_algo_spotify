@@ -9,6 +9,11 @@ as two big titles, each in its expander, one under the other — they were two t
 the campaign path hid behind a label. The campaign tab's own sub-tabs (existing / manual
 add) became two sections. Streamlit refuses an expander inside an expander, so the
 orphans list under « Titres » became a toggle; the render below catches a nested one.
+
+R440 (owner, 2026-10-07): the two « to validate » blocks — title suggestions, then the
+automatic campaign suggestions — moved OUT of the expanders, to the top of the page,
+« pour identifier les actions à faire directement ». The expanders keep the detail and
+open folded.
 """
 from __future__ import annotations
 
@@ -45,6 +50,19 @@ def test_the_mapping_page_is_two_expanders_in_order() -> None:
     assert len(labels) == 2, f"expected the two paths as expanders, got {labels}"
     assert "Titres" in labels[0] and "Campagnes Meta" in labels[1], (
         f"the titles path must come before the campaigns path: {labels}")
+
+    # R440: the two suggestion blocks are direct children of the page, before the
+    # expanders — not inside them.
+    top = [getattr(c, "value", "") for c in at.main.children.values()
+           if getattr(c, "type", "") != "expander"]
+    titles = [i for i, v in enumerate(top) if "suggestions à valider" in str(v)]
+    campaigns = [i for i, v in enumerate(top) if str(v).startswith("🤖")]
+    assert titles and campaigns and titles[0] < campaigns[0], (
+        f"the two « to validate » blocks must open the page, titles first: {top[:8]}")
+    for e in at.expander:
+        inside = [h.value for h in e.subheader]
+        assert not any("suggestions" in h.lower() for h in inside), (
+            f"a suggestion block is still folded inside « {e.label} »: {inside}")
 
 
 def test_nothing_inside_the_two_paths_opens_an_expander() -> None:

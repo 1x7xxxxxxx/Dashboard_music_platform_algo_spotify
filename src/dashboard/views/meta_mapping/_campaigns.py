@@ -254,8 +254,8 @@ def _empty_campaigns_message(db, artist_id: int) -> tuple[str, str]:
         "compte publicitaire. Rien à faire de ton côté.")
 
 
-def render_campaign_tab(db, artist_id, canonical):
-    # ── Suggestions to validate (top; green when nothing left) ──
+def render_campaign_suggestions(db, artist_id, canonical):
+    """Suggestions to validate — drawn at the TOP of the page, outside any expander (R440)."""
     st.subheader(t("meta_mapping.auto_header", "🤖 Suggestions automatiques (campagne → titre)"))
     sugg, disp = _build_campaign_suggestions(db, artist_id, canonical)
     if disp.empty:
@@ -308,8 +308,10 @@ def render_campaign_tab(db, artist_id, canonical):
                          "{a} associée(s), {r} rejetée(s).").format(a=n_a, r=n_r))
             st.rerun()
 
-    st.markdown("---")
-    # ── Backlog (full recap) below ──
+
+def render_campaign_tab(db, artist_id, canonical):
+    """The campaign detail, inside its expander: backlog, existing links, manual add."""
+    # ── Backlog (full recap) ──
     st.subheader(t("meta_mapping.backlog_header", "📋 Backlog des campagnes (récap)"))
     bl = _load_campaign_backlog(db, artist_id)
     if bl.empty:
