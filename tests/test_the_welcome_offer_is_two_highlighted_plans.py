@@ -20,7 +20,10 @@ from pathlib import Path
 from src.dashboard.views import onboarding
 
 VIEW = Path(onboarding.__file__)
-TREE = ast.parse(VIEW.read_text(encoding="utf-8"))
+
+
+def _tree() -> ast.AST:
+    return ast.parse(VIEW.read_text(encoding="utf-8"))
 
 
 def _t_keys(tree: ast.AST) -> set[str]:
@@ -38,7 +41,7 @@ def _rule_is_rendered(tree: ast.AST) -> bool:
 
 
 def test_the_two_redundant_lines_are_gone():
-    assert not {"onboarding.welcome_body", "onboarding.b2_after"} & _t_keys(TREE)
+    assert not {"onboarding.welcome_body", "onboarding.b2_after"} & _t_keys(_tree())
 
 
 def test_each_plan_has_its_own_colour():
@@ -47,7 +50,7 @@ def test_each_plan_has_its_own_colour():
 
 
 def test_a_rule_separates_the_plans():
-    assert _rule_is_rendered(TREE)
+    assert _rule_is_rendered(_tree())
 
 
 def test_the_detectors_see_the_defect():
