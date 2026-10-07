@@ -385,12 +385,59 @@ def meta_x_s4a() -> Path:
     return _save(fig, "meta-x-s4a.png")
 
 
+def shap_overview() -> Path:
+    """Ce qui pèse le plus sur chaque playlist — un aperçu SHAP, factice.
+
+    R456 (2026-10-07, commentaire vocal C10) : « un aperçu des algorithmes de SHAP qui
+    liste l'impact de chaque paramètre sur ce qui va déclencher en priorité Discover
+    Weekly, Radio et Release Radar, avec des données factices ». Un critère par ligne,
+    rangé du plus influent au moins influent ; trois barres par critère, une par
+    playlist, aux couleurs de la figure de prévision. Une barre vers la gauche FREINE
+    le déclenchement : le signe d'une contribution SHAP est la moitié de sa lecture.
+    """
+    params = (   # (critère, Release Radar, Discover Weekly, Radio) — contributions fictives
+        ("Streams des 7 derniers jours", 0.21, 0.17, 0.12),
+        ("Taux de sauvegarde", 0.08, 0.15, 0.10),
+        ("Ajouts en playlist d'auditeurs", 0.05, 0.12, 0.14),
+        ("Abonnés qui écoutent la sortie", 0.16, 0.04, 0.03),
+        ("Taux de skip", -0.04, -0.11, -0.09),
+        ("Jours depuis la sortie", -0.12, -0.03, 0.02),
+    )
+    playlists = (("Release Radar", BLUE), ("Discover Weekly", AQUA), ("Radio", YELLOW))
+    order = sorted(params, key=lambda r: sum(abs(v) for v in r[1:]))
+    # 5.14 in: the long criterion names widen the PNG; it sits beside the others at one height.
+    fig, ax = plt.subplots(figsize=(9, 5.14))
+    y = np.arange(len(order))
+    h = 0.26
+    for i, (name, colour) in enumerate(playlists):
+        ax.barh(y + (1 - i) * h, [r[i + 1] for r in order], height=h * 0.9,
+                color=colour, linewidth=0)
+    ax.axvline(0, color=INK_MUTED, linewidth=1)
+    _frame(ax)
+    # After `_frame`: it puts a thousands formatter on y, which would print the row
+    # indexes instead of the criteria.
+    ax.set_yticks(y, [r[0] for r in order], fontsize=10, color=INK)
+    ax.yaxis.set_major_formatter(plt.FixedFormatter([r[0] for r in order]))
+    ax.grid(axis="y", visible=False)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:+.0%}".replace("+0%", "0")))
+    ax.set_xlabel("effet sur la chance de déclencher", fontsize=9)
+    for i, (name, colour) in enumerate(playlists):
+        # In the one empty corner: row « Taux de skip » only reaches left of zero.
+        _series_tag(ax, 0.62, 0.475 - i * 0.06, name, colour)
+    ax.set_title("Ce qui pèse le plus sur chaque playlist", fontsize=14,
+                 fontweight="700", color=INK, loc="left", pad=18)
+    ax.text(0, 1.035, "Du critère le plus influent (en haut) au moins influent — à gauche, il freine",
+            transform=ax.transAxes, fontsize=10, color=INK_MUTED)
+    _example_badge(fig)
+    return _save(fig, "shap-overview.png")
+
+
 def main() -> int:
     dashboard_global()
     discover_weekly_prediction()
     meta_x_s4a()
+    shap_overview()
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

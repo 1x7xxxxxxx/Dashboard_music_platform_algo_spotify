@@ -2631,9 +2631,9 @@
   domaine: product-offer
   statut: livré
   priorite: P2
-  preuve_statut: archive.md:947 R193 — src/dashboard/views/algo_preview.py ; budget absent faute de dépense Meta
-    (dit à l'écran)
-  preuve_ciblee: tests/test_the_algo_preview_says_only_what_the_model_knows.py::test_an_algo_stream_estimate_is_refused_under_its_minimum
+  preuve_statut: archive.md:947 R193, puis R456 (2026-10-08, C8/C10 du propriétaire) — l'aperçu ne montre plus que
+    des figures d'exemple (prévision, budget Meta conseillé, SHAP factice) ; le texte sur données réelles est retiré
+  preuve_ciblee: tests/test_the_algo_preview_is_figures_only.py::test_the_preview_is_the_welcome_figures_then_shap
 - ligne: 481
   resume: PDF gratuit à la demande, envoi hebdo par mail payant
   type: décision-requise

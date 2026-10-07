@@ -40,6 +40,18 @@ def test_the_three_figures_are_generated_at_the_same_height() -> None:
         "regenerate with `make example-charts`")
 
 
+def test_the_preview_row_is_generated_at_one_height() -> None:
+    """R456: the algo preview sets its three figures side by side too."""
+    from PIL import Image
+
+    from src.dashboard.utils.example_figures import ALGO_PREVIEW, EXAMPLES_DIR
+
+    ratios = [h / w for w, h in (Image.open(EXAMPLES_DIR / n).size for n in ALGO_PREVIEW)]
+    assert max(ratios) - min(ratios) < 0.01, (
+        f"the preview figures sit side by side at different heights: {ratios} — "
+        "regenerate with `make example-charts`")
+
+
 def test_the_three_figures_share_one_row_of_equal_columns() -> None:
     """R435: « sur chaque colonne, une, deux, trois, équidistant »."""
     fn = next(n for n in ast.walk(ast.parse(_ONB.read_text(encoding="utf-8")))
@@ -102,9 +114,11 @@ def test_an_empty_tenant_sees_three_example_figures(empty_tenant) -> None:
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo preview against the live DB")
-def test_the_algo_preview_shows_the_welcome_prediction_figure(empty_tenant) -> None:
+def test_the_algo_preview_shows_the_welcome_figures_then_shap(empty_tenant) -> None:
+    """R456 (C8, C10): the two welcome promises, then the SHAP overview — all examples."""
     welcome = _images("onboarding", empty_tenant)
     preview = _images("algo_preview", empty_tenant)
-    assert len(preview) == 1 and "Exemple" in preview[0][0], preview
-    assert preview[0][1] == welcome[1][1], (
-        "the algo preview shows another figure than the welcome step's prediction")
+    assert len(preview) == 3 and all("Exemple" in c for c, _u in preview), preview
+    assert [u for _c, u in preview[:2]] == [u for _c, u in welcome[1:]], (
+        "the algo preview shows other figures than the welcome step's two promises")
+    assert len({u for _c, u in preview}) == 3, "the SHAP overview repeats a promise"

@@ -114,3 +114,5 @@ Pour ressortir un fichier : `git mv` vers son ancien chemin, puis retirer sa lig
 | `archive/claude-config/commands/rex-promote.md` | `.claude/commands/rex-promote.md` | promotion de `pending-rex.md`, retirée avec son générateur (R417) | 2026-10-06 |
 | `archive/claude-config/commands/dev-docs.md` | `.claude/commands/dev-docs.md` | écrivait dans `work-in-progress/`, inutilisé depuis R201 ; nommé par `feature-development.md`, jamais suivi (R417) | 2026-10-06 |
 | `archive/tests/test_draft_rex_drafts_from_the_session.py` | `tests/test_draft_rex_drafts_from_the_session.py` | garde de `draft_rex.py`, archivé avec son sujet (R417) | 2026-10-06 |
+| `archive/tests/test_the_algo_preview_says_only_what_the_model_knows.py` | `tests/test_the_algo_preview_says_only_what_the_model_knows.py` | garde de `algo_preview.compose`, retiré avec le texte de l'aperçu (propriétaire : « en dessous, tu me supprimes tout le texte », R456) | 2026-10-08 |
+| `archive/tests/test_the_free_preview_names_guesses_not_weights.py` | `tests/test_the_free_preview_names_guesses_not_weights.py` | garde de la liste des critères devinés de l'aperçu (R410), retirée avec le texte (R456) | 2026-10-08 |

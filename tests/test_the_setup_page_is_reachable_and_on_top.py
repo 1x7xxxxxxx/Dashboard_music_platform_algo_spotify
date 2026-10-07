@@ -1095,7 +1095,8 @@ def test_every_example_chart_says_it_is_an_example():
         "the example badge no longer says the data is fictional")
     body = CHARTS.read_text(encoding="utf-8")
     tree = ast.parse(body)
-    for maker in ("dashboard_global", "discover_weekly_prediction", "meta_x_s4a"):
+    for maker in ("dashboard_global", "discover_weekly_prediction", "meta_x_s4a",
+                  "shap_overview"):
         fn = next(n for n in ast.walk(tree)
                   if isinstance(n, ast.FunctionDef) and n.name == maker)
         assert _call_lines(fn, "_example_badge"), (

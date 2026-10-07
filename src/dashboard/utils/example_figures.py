@@ -33,6 +33,10 @@ OVERVIEW = "dashboard-global.png"
 ALGO_PREDICTION = "prediction-discover-weekly.png"
 CAMPAIGN = "meta-x-s4a.png"
 PROMISES = (ALGO_PREDICTION, CAMPAIGN)   # the order the owner asked for (V12)
+SHAP_OVERVIEW = "shap-overview.png"
+# R456 (C8, C10): the free Road to Algo preview shows the two promises, then the SHAP
+# overview — every figure an example, never the tenant's data.
+ALGO_PREVIEW = (ALGO_PREDICTION, CAMPAIGN, SHAP_OVERVIEW)
 
 
 def example_caption() -> str:
