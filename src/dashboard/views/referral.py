@@ -76,7 +76,9 @@ def show():
         # tromper. Chacun perd du monde, et aucun n'était nécessaire :
         # `register.py` lit maintenant `?ref=` et pré-remplit le champ.
         #
-        # Le code reste affiché à côté : il se dit à l'oral, le lien non.
+        # Le code reste affiché à côté, pour un filleul qui s'inscrit sans le lien : il
+        # le tape dans le MÊME champ du formulaire d'inscription (R462 — la page disait
+        # « pour le dire à l'oral » sans dire où il se saisit).
         st.subheader(t("referral.your_link", "Ton lien d'invitation"))
         base = os.getenv("APP_BASE_URL", "http://localhost:8501").rstrip("/")
         lien = f"{base}/?page=register&ref={code}"
@@ -91,7 +93,10 @@ def show():
         )
         # V88 (2026-10-05) : le code se lit sous le lien, sans dépliant — replié, il
         # fallait savoir qu'il existait pour aller le chercher.
-        st.caption(t("referral.code_alone", "Ou juste le code, pour le dire à l'oral :"))
+        st.caption(t("referral.code_alone",
+                     "Sans le lien, ton filleul saisit ce code lui-même en créant son "
+                     "compte, dans le champ **« Code promo ou parrainage »** du "
+                     "formulaire d'inscription :"))
         st.code(code, language=None)
         st.caption(t("referral.code_caption",
                      "Code **unique** et permanent attribué à ton compte."))
@@ -119,6 +124,10 @@ def show():
                            "premier mois ; il est déduit de ta facture suivante."))
 
         # ⚠️ LA PHRASE A CHANGÉ LE 2026-09-21, ET C'EST UNE CORRECTION DE FOND.
+        #
+        # ⚠️ PÉRIMÉ DEPUIS R272/R283 (2026-09-28 / 2026-10-05) : le mois est désormais
+        # posé par un coupon Stripe (`src/utils/referral_rewards.py`, webhook
+        # `invoice.paid`). Le récit ci-dessous est celui du 2026-09-21.
         #
         # Elle disait : « Ils seront appliqués avant votre prochain cycle de
         # facturation. » — au futur, à la voix passive, comme si un mécanisme s'en
@@ -177,8 +186,15 @@ def show():
         # ── How it works ───────────────────────────────────────────────────
         with st.expander(t("referral.how_it_works", "Comment ça marche ?")):
             st.markdown(t("referral.how_body", """
+**Le parcours, étape par étape :**
+1. Tu envoies ton **lien d'invitation** (ou ton code) à un artiste.
+2. Il crée son compte : avec le lien, le code est déjà posé dans le champ
+   **« Code promo ou parrainage »** du formulaire d'inscription ; sans le lien, il l'y tape.
+3. Il reçoit ses **30 jours de Premium** offerts, comme tout nouvel inscrit.
+4. Quand il paie son **premier mois**, tu gagnes **+1 mois offert**, déduit de ta
+   prochaine facture Stripe.
+
 **Pour vous (parrain) :**
-- Partagez votre code avec n'importe quel artiste.
 - Quand il paie son premier mois avec votre code, vous gagnez **+1 mois offert**.
 - Chaque mois offert est déduit de votre prochaine facture Stripe, un mois à la fois.
 - Les mois offerts s'accumulent — sans plafond.

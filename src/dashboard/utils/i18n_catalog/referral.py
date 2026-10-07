@@ -7,7 +7,9 @@ EN = {
         "referee gets **20% off their first paid month**, and you earn **1 free "
         "month** when they subscribe. (Every new signup also gets **30 days of "
         "Premium** automatically, referral or not.)"),
-    "referral.code_alone": "Or just the code, to say out loud:",
+    "referral.code_alone": ("Without the link, your referral types this code when creating "
+                             "their account, in the **“Promo or referral code”** field of the "
+                             "sign-up form:"),
     "referral.title": "🎁 Referral Program",
     "referral.caption": "Share your code — earn 1 free month for each artist who "
                         "subscribes with it.",
@@ -29,8 +31,15 @@ EN = {
     "referral.joined_on": "Joined on",
     "referral.how_it_works": "How does it work?",
     "referral.how_body": """
+**Step by step:**
+1. You send your **invite link** (or your code) to an artist.
+2. They create their account: with the link, the code is already in the
+   **“Promo or referral code”** field of the sign-up form; without it, they type it there.
+3. They get their **30 days of Premium**, like every new account.
+4. When they pay their **first month**, you earn **+1 free month**, deducted from your
+   next Stripe invoice.
+
 **For you (referrer):**
-- Share your code with any artist.
 - When they pay their first month with your code, you earn **+1 free month**.
 - Each free month is deducted from your next Stripe invoice, one month at a time.
 - Free months accumulate — no cap.
