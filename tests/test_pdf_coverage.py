@@ -64,7 +64,7 @@ _PDF_MAP = {
     # sections of the algo page (`trigger_algo`), their keys kept as aliases. The PDF
     # section `revenue_forecast` stays in ALL_SECTIONS.
     # Deliberate exclusions (covered elsewhere or not report-shaped):
-    "sacem":                None,   # small account-ledger; royalties already in the ROI section
+    # R461 (2026-10-07): `sacem` left the menu — a section of `imusician`, key kept as alias.
     "saisie_s4a":           None,   # data-entry form, not a report
     "onboarding_health":    None,   # ops/status matrix, not a report
     "onboarding":           None,   # assistant de mise en route : un parcours,
