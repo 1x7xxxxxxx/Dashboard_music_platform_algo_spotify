@@ -11,7 +11,8 @@
 
 # R196 (2026-09-26): `pre-commit install` also installs the commit-msg hook, and every
 # existing hook stays on the pre-commit stage only.
-default_install_hook_types: [pre-commit, commit-msg]
+# R444 (2026-10-07): and the pre-push hook — the push carries the tree the suite saw green.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 default_stages: [pre-commit]
 
 repos:
@@ -27,6 +28,17 @@ repos:
         entry: python3 tools/dev/require_roadmap_id.py
         stages: [commit-msg]
         always_run: true
+
+      # R444 — main went red twice on 2026-10-07 (R438, R443) on guards `make test-changed`
+      # runs; both commits were pushed after targeted tests only. No suite here (~0.3 s):
+      # the hook compares the pushed tree with the one the last green run stamped.
+      - id: pre-push-tested-tree
+        name: push — the pushed tree is the tree `make test-changed` saw green (R444)
+        language: system
+        entry: python3 tools/dev/pre_push_gate.py
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
 
       # R250 — a new test committed without its duration turned main red three times on
       # 2026-09-27 (pytest-split gives it an AVERAGE and the CI gate refuses it). ~8 s of

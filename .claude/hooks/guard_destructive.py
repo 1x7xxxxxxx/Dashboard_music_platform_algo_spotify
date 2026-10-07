@@ -55,6 +55,9 @@ _BLOCK_PATTERNS: list[tuple[str, str]] = [
     # ── Repo policy: the pre-commit chain is the secret scanner ──────────
     ("git commit --no-verify",   "Skipping pre-commit hooks bypasses secret scanning"),
     ("git commit -n ",           "Skipping pre-commit hooks bypasses secret scanning"),
+    # R444: the pre-push hook refuses a tree never seen green; skipping it is the
+    # owner's call at the terminal, not a reflex of the model.
+    ("git push --no-verify",     "Skipping the pre-push hook pushes a tree make test-changed never saw green (R444)"),
 ]
 
 # Regex tier — the seven gates ARCH Ch.17 prescribes. These genuinely need

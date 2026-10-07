@@ -201,7 +201,8 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	@# vert serait infiniment pire que lente.
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
-	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; exit $$rc
+	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; \
+	  [ $$rc -ne 0 ] || python3 tools/dev/pre_push_gate.py stamp; exit $$rc
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'
@@ -315,7 +316,8 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	  | xargs -r $(SUITE_SCOPE) $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
-	    --changed 2>&1 | tee -a .pytest-last.log'
+	    --changed 2>&1 | tee -a .pytest-last.log'; \
+	  rc=$$?; [ $$rc -eq 0 ] || exit $$rc; python3 tools/dev/pre_push_gate.py stamp
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \
@@ -604,6 +606,9 @@ s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/
 	@# A fresh clone has NO hooks: its first commit would skip both secret scanners.
 	@[ -n "$$CI" ] || [ -f "$$(git rev-parse --git-path hooks/pre-commit)" ] \
 		|| { echo "❌ pre-commit hooks absent — a commit would skip the secret scan. Run: make hooks-install"; exit 1; }
+	@# R444: a clone whose hooks predate 2026-10-07 has no pre-push hook — its pushes skip the tested-tree gate.
+	@[ -n "$$CI" ] || [ -f "$$(git rev-parse --git-path hooks/pre-push)" ] \
+		|| { echo "❌ pre-push hook absent — a push would skip the tested-tree gate (R444). Run: make hooks-install"; exit 1; }
 	@echo "✅ env check passed (imports + base ; pip : voir au-dessus)"
 
 canary:      ## Create/refresh the canary tenant preflight needs. NAME="…" SPOTIFY=… YOUTUBE=… SOUNDCLOUD=… META=…
