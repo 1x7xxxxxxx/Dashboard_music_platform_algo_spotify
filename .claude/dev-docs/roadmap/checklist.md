@@ -87,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 <!-- reprise: open= -->
 
-**État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), à livrer une par une. R116 et R131
+**État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
