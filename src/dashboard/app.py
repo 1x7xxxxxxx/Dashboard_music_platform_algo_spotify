@@ -915,9 +915,11 @@ def _main_body():
     # Le miroir : l'URL nomme la page en cours, donc un rechargement la retrouve.
     # Écriture gardée — réécrire la même valeur relancerait le script en boucle.
     try:
-        if st.query_params.get("page") != page:
-            st.query_params["page"] = page
-        st.session_state['_page_mirrored'] = page
+        from src.dashboard.utils.navigation import url_key
+        _mirror = url_key(page, st.session_state.get('_nav_page'))
+        if st.query_params.get("page") != _mirror:
+            st.query_params["page"] = _mirror
+        st.session_state['_page_mirrored'] = _mirror
     except Exception:      # noqa: BLE001 — hors contexte Streamlit (tests headless)
         pass
 

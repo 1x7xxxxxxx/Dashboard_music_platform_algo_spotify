@@ -85,7 +85,9 @@ def render_absence(source: dict, *, plan: str, key: str) -> None:
                if verrouille else
                t("absence.cta", "Y aller →"))
     if st.button(libelle, key=f"absence_{key}", width="stretch"):
-        goto("upgrade" if verrouille else page)
+        # R454 — vers la page même quand elle est fermée : le menu y dessine le mur
+        # d'offre ; `goto("upgrade")` retombait sur l'accueil.
+        goto(page)
 
 
 def render_absence_list(sources: list[dict], *, plan: str,

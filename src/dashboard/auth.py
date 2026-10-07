@@ -1126,8 +1126,10 @@ def require_plan(min_plan: str) -> bool:
     )
     if st.button(_t("auth.paywall_btn", "→ Voir les plans et upgrader"),
                  key=f"_upgrade_btn_{min_plan}"):
-        st.query_params["page"] = "upgrade"
-        st.rerun()
+        # R454 — `?page=upgrade` n'est pas une clé du menu : le paramètre était
+        # ignoré et le clic ne menait nulle part. La facturation porte les plans.
+        from src.dashboard.utils.navigation import goto
+        goto("billing")
     # MEDIUM-02: st.stop() ensures the calling view never renders gated content,
     # even if the caller forgets to check the return value.
     st.stop()

@@ -66,9 +66,10 @@ def bouton_vers(page_key: str, *, ouvert: str, ferme: str,
                 type: str = "secondary", plan: str | None = None) -> bool:
     """Un bouton qui mène à la page, ou au plan qui l'ouvre.
 
-    Rend `True` **uniquement si cliqué ET ouvert** : l'appelant peut alors faire son
-    geste. Cliqué et fermé, la navigation vers `upgrade` a déjà eu lieu et rien
-    n'est rendu — l'appelant n'a pas à connaître le cas.
+    Rend `True` **uniquement si cliqué ET ouvert** : l'appelant DOIT alors faire son
+    geste (`if bouton_vers(...): goto(...)`) — un appel nu ne navigue jamais (R454,
+    « Ouvrir Road to Algo » ne faisait rien). Cliqué et fermé, la navigation a déjà
+    eu lieu : vers la page elle-même, que le menu remplace par le mur d'offre.
 
     ⚠️ Ce contrat est la raison d'être du module. Un `if st.button(...)` écrit à la
     main mène l'artiste sur une page qu'il ne peut pas voir, et le libellé lui avait
@@ -83,7 +84,10 @@ def bouton_vers(page_key: str, *, ouvert: str, ferme: str,
     if not clique:
         return False
     if verrouille:
-        goto("upgrade")
+        # R454 — `goto("upgrade")` retombait sur l'accueil : `upgrade` n'est ni au
+        # menu ni alias. La page verrouillée, elle, est au menu, et `render_navigation`
+        # dessine le mur d'offre à sa place.
+        goto(page_key)
         return False
     return True
 

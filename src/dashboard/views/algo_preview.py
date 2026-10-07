@@ -39,6 +39,7 @@ from src.dashboard.utils.algo_preview_data import (
     budget_pour_streams, cout_par_stream, load_ml_pred, proba_affichable)
 from src.dashboard.utils.example_figures import ALGO_PREDICTION, render_example
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.plan_gate import bouton_vers
 from src.utils.algo_order import named_algos
 
@@ -185,9 +186,10 @@ def show() -> None:
             st.caption(t("algo_preview.no_cost",
                          "Pas de dépense Meta sur les 90 derniers jours : impossible "
                          "d'estimer ce que coûte un stream, donc le budget."))
-        bouton_vers("trigger_algo",
+        if bouton_vers("trigger_algo",
                     ouvert=t("algo_preview.open", "🚀 Ouvrir Road to Algo"),
                     ferme=t("algo_preview.upgrade",
                             "🔒 Tout le catalogue, les simulations et le budget détaillé "
                             "→ Premium"),
-                    key="algo_preview_cta", type="primary")
+                    key="algo_preview_cta", type="primary"):
+            goto("trigger_algo")   # R454 — le clic était jeté : rien ne naviguait

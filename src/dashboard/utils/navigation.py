@@ -35,6 +35,12 @@ import streamlit as st
 _PAGE_KEY = "_nav_page"
 
 
+def url_key(page: str, nav_page: str | None) -> str:
+    """The key the URL mirrors: the PAGE asked for, never the `upgrade` wall drawn in
+    its place — `?page=upgrade` is not a menu key, so a reload landed on home (R454)."""
+    return nav_page if page == "upgrade" and nav_page else page
+
+
 def goto(page_key: str) -> None:
     """Navigue vers `page_key` et relance le script. Ne revient jamais."""
     # An old key (`upload_csv`…) is translated here as in app.py's URL handler:
