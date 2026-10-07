@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R452 | Un commit refusé ne doit pas laisser son index au commit suivant de la même commande : `guard_destructive` bloque un second `git commit` qui n'est pas atteint par `&&` depuis le premier (R448 est parti sous R449 ainsi le 2026-10-07) <!-- critic: non — garde de geste, même famille que le verdict tubé --> <!-- scope: .claude/hooks/, tests/, .test_durations --> | P2 | test : la commande R448 exacte bloquée, `A && B` passe ; balayage chiffré sur les transcriptions ; muté |
+| R453 | `night-status` affiche les refus répétés (hooks, pre-commit) des 7 derniers jours — la table de `make defect-log` n'est lue par rien <!-- critic: non — lecture d'un journal existant --> <!-- scope: tools/dev/, tests/, .test_durations --> | P4 | test : fonction pure sur évènements fabriqués ; muté |
 
 ---
 
@@ -85,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R452, R453 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
