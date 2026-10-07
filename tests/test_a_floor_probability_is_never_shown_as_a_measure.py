@@ -249,6 +249,8 @@ def test_s4a_insight_bar_label():
 
     _no_pct(_bar_label(FLOOR["dw"], FLOOR["rr"], FLOOR["radio"]), "s4a_entry_insight._bar_label")
     assert _bar_label(OFF, FLOOR["rr"], FLOOR["radio"]) == "60%"
+    # R442: a floor bar is unlabelled — the caption names the floor once.
+    assert _bar_label(FLOOR["dw"], FLOOR["rr"], FLOOR["radio"]) == ""
 
 
 def test_weekly_digest_top_candidate():

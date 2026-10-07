@@ -253,18 +253,20 @@ def _bar_label(dw, rr, radio) -> str:
     """The label of one « probabilité prédite » bar — via the shared floor door. Pure.
 
     The label is the best OFF-floor probability; when all three are on the
-    calibration floor it reads « pas d'estimation fiable », never « 7% » (the bar
-    length and the sum caption below are unchanged — the caption already says it
-    judges the bet, not the title).
+    calibration floor the bar carries NO label, never « 7% » (the bar length and the
+    sum caption below are unchanged — the caption already says it judges the bet,
+    not the title). R442 (owner, 2026-10-07): « pas d'estimation fiable » written on
+    every floor bar is removed — an unlabelled bar is the floor; a percentage only
+    ever appears where the model actually decided something.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable, texte_plancher
+    from src.dashboard.utils.algo_preview_data import proba_affichable
 
     from src.utils.algo_order import ALGO_ORDER
 
     vals = {"DW": dw, "RR": rr, "RADIO": radio}
     kept = [p for a in ALGO_ORDER
             if (p := proba_affichable(a.lower(), vals[a])) is not None]
-    return f"{max(kept):.0%}" if kept else texte_plancher()
+    return f"{max(kept):.0%}" if kept else ""
 
 
 def render_prediction_vs_reality(db, artist_id: int) -> None:
