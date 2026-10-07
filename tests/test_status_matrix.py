@@ -246,6 +246,10 @@ def test_the_next_step_column_is_silent_when_the_data_proves_it():
 
     Lecture STRUCTURELLE : le commentaire au-dessus du garde cite `_DATA_PROVES_IT`,
     donc une recherche de chaîne resterait verte après sa suppression.
+
+    Depuis R439 (2026-10-07) la décision vit dans `_row_action`, partagée par la
+    matrice et sa forme dense : le garde lit cette fonction, et vérifie que les deux
+    rendus l'appellent.
     """
     import ast
     import inspect
@@ -253,7 +257,7 @@ def test_the_next_step_column_is_silent_when_the_data_proves_it():
 
     from src.dashboard.utils import status_matrix
 
-    tree = ast.parse(textwrap.dedent(inspect.getsource(status_matrix.render_status_matrix)))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(status_matrix._row_action)))
     guarded = [
         n for n in ast.walk(tree)
         if isinstance(n, ast.BoolOp)
@@ -265,3 +269,8 @@ def test_the_next_step_column_is_silent_when_the_data_proves_it():
     assert guarded, (
         "la colonne « Prochaine étape » écrase de nouveau `next_action` par la "
         "raison d'une sonde, sans regarder si des données sont arrivées")
+    for renderer in (status_matrix.render_status_matrix, status_matrix._render_dense):
+        calls_it = any(
+            isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_row_action"
+            for n in ast.walk(ast.parse(textwrap.dedent(inspect.getsource(renderer)))))
+        assert calls_it, f"{renderer.__name__} recompute l'action à part"

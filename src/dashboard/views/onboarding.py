@@ -356,7 +356,7 @@ def _step_status(db, artist_id: int, plan: str) -> None:
     st.title(t("onboarding.status_title", "📋 Où tu en es"))
 
     if db is not None and artist_id is not None:
-        render_status_matrix(db, artist_id, key_suffix="onboarding")
+        render_status_matrix(db, artist_id, dense=True, key_suffix="onboarding")
         # Même raison qu'à la page Credentials : la légende vit dans la matrice.
         st.caption(t(
             "onboarding.matrix_legend",

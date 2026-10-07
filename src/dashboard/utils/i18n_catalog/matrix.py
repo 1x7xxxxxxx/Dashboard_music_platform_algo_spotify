@@ -11,6 +11,12 @@ EN = {
     "matrix.col_responds": "**Responds**",
     "matrix.col_data": "**Data**",
     "matrix.col_action": "**Next step**",
+    "matrix.col_platform_plain": "Platform",
+    "matrix.col_set_plain": "Set up",
+    "matrix.col_shape_plain": "Format",
+    "matrix.col_responds_plain": "Responds",
+    "matrix.col_data_plain": "Data",
+    "matrix.col_action_plain": "Next step",
 
     # Tooltips. Each says what the box MEANS, not what colour it is.
     "matrix.tip_set": "Identifier entered.",

@@ -55,13 +55,19 @@ _GREEN, _RED, _GREY, _AMBER = "#28a745", "#dc3545", "#adb5bd", "#e67e22"
 _DATA_PROVES_IT = frozenset({"ok", "stale", "quiet"})
 
 
-def _box(state: str, glyph: str, tip: str) -> str:
-    """One coloured cell. `state` ∈ green|red|grey|amber."""
+def _box(state: str, glyph: str, tip: str, small: bool = False) -> str:
+    """One coloured cell. `state` ∈ green|red|grey|amber. `small` : la matrice dense.
+
+    La forme pleine reste octet pour octet celle d'avant R439 : l'Accueil la rend,
+    et `tests/test_home_is_frozen.py` compare sa photo.
+    """
     colour = {"green": _GREEN, "red": _RED, "grey": _GREY, "amber": _AMBER}[state]
+    box, radius, pad, font = (("22px", "4px", "0 3px", "0.75em") if small
+                              else ("34px", "6px", "2px 6px", "0.95em"))
     return (f'<div title="{_html.escape(tip)}" style="display:inline-block;'
-            f'min-width:34px;text-align:center;border-radius:6px;padding:2px 6px;'
+            f'min-width:{box};text-align:center;border-radius:{radius};padding:{pad};'
             f'margin-right:4px;background:{colour}22;border:1px solid {colour};'
-            f'font-size:0.95em">{glyph}</div>')
+            f'font-size:{font}">{glyph}</div>')
 
 
 def _age_label(probed_at) -> str:
@@ -486,9 +492,70 @@ def _sharing_line(row: dict, remembered) -> str:
              "connexion dans l'onglet 📱 Meta Ads.")
 
 
+def _row_action(r: dict, remembered) -> str:
+    """La « Prochaine étape » d'une ligne — partagée par la matrice et sa forme dense."""
+    action = r["next_action"]
+    # LE MÊME ORDRE QUE `_responds_cell`, qui rend sur `status` AVANT de lire
+    # `probes`. Ici il manquait : `next_action(…, OK)` rend `""`, donc une ligne
+    # entièrement verte affichait en « Prochaine étape » la raison d'une sonde
+    # rouge — « User ID 377065610 joignable, mais aucun titre public », à côté de
+    # 358 lignes réellement collectées (2026-09-05). Une mesure qui a eu lieu bat
+    # une prédiction ; la sonde n'a rien à dire d'une source qui livre.
+    if (remembered is not None and not remembered[0]
+            and r["status"] not in _DATA_PROVES_IT):
+        action = remembered[1] or action
+    return action
+
+
+def _probe_button(db, artist_id: int, rows: list, allow_probe: bool,
+                  key_suffix: str) -> None:
+    """« 🔌 Vérifier maintenant » — sous la matrice, dense ou non."""
+    if allow_probe:
+        checkable = [r["key"] for r in rows if r["status"] != "todo"]
+        if checkable and st.button(
+                t("matrix.check_now", "🔌 Vérifier maintenant"),
+                key=f"matrix_probe_{artist_id}_{key_suffix}",
+                help=t("matrix.check_help",
+                       "Interroge chaque plateforme configurée et mémorise sa "
+                       "réponse. Rien n'est appelé tant que tu ne cliques pas.")):
+            with st.spinner(t("matrix.checking", "Vérification en cours…")):
+                n = run_probes_now(db, artist_id, checkable)
+            st.toast(t("matrix.checked", "{n} plateforme(s) vérifiée(s)").format(n=n),
+                     icon="✅")
+            st.rerun()
+
+
+def _render_dense(rows: list, identities, probes) -> None:
+    """La matrice en UN tableau : une ligne fine par plateforme (R439)."""
+    head = "".join(
+        f'<th style="text-align:left;padding:2px 6px;font-weight:600">{h}</th>'
+        for h in (t("matrix.col_platform_plain", "Plateforme"),
+                  t("matrix.col_set_plain", "Saisi"),
+                  t("matrix.col_shape_plain", "Format"),
+                  t("matrix.col_responds_plain", "Répond"),
+                  t("matrix.col_data_plain", "Données"),
+                  t("matrix.col_action_plain", "Prochaine étape")))
+    body = []
+    for r in rows:
+        cells = "".join(
+            f'<td style="padding:1px 6px">{_box(st_, g, tip, small=True)}</td>'
+            for st_, g, tip in row_cells(r, identities, probes))
+        action = _row_action(r, probes.get(r["key"]))
+        action_html = (_html.escape(action).replace("\n", "<br>")
+                       if action else "—")
+        body.append(
+            f'<tr><td style="padding:1px 6px;white-space:nowrap">'
+            f'{_html.escape(r["label"])}</td>{cells}'
+            f'<td style="padding:1px 6px;opacity:.75">{action_html}</td></tr>')
+    st.markdown(
+        '<table style="font-size:0.82em;border-collapse:collapse;width:100%">'
+        f'<thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>',
+        unsafe_allow_html=True)
+
+
 def render_status_matrix(db, artist_id: int, *, compact: bool = False,
-                         allow_probe: bool = True, key_suffix: str = "",
-                         rows: list | None = None) -> list:
+                         dense: bool = False, allow_probe: bool = True,
+                         key_suffix: str = "", rows: list | None = None) -> list:
     """Draw the matrix and return the readiness rows.
 
     NEVER opens a database connection: `db` is handed in. Every view file in this
@@ -497,6 +564,11 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
     spend theirs.
 
     `compact=True` collapses to a single line of glyphs, for the home banner.
+
+    `dense=True` — les mêmes lignes et les mêmes cellules dans UN tableau HTML aux
+    cases réduites, sans l'espacement d'une rangée `st.columns` par plateforme.
+    Demandé le 2026-10-07 (R439) pour « Où tu en es » : « c'est un peu gros et
+    j'aimerais qu'on puisse accéder directement au bouton Connecter mes sources ».
 
     `rows=` — la matrice DÉJÀ calculée, quand l'appelant l'a. Ajouté le 2026-09-17 :
     `onboarding_health` calculait `artist_readiness(db, aid)` pour composer l'en-tête
@@ -530,6 +602,10 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
     # « Format », il ne doit pas payer sa requête (règle transverse #9 — une vue
     # ouvre une connexion, on n'y ajoute pas des lectures qu'elle n'affiche pas).
     identities = read_identities(db, artist_id)
+    if dense:
+        _render_dense(rows, identities, probes)
+        _probe_button(db, artist_id, rows, allow_probe, key_suffix)
+        return rows
 
     # La légende, ICI et une seule fois — pas recopiée par chaque page qui appelle.
     # Trois surfaces l'écrivaient chacune à sa façon, et deux d'entre elles ne
@@ -585,16 +661,7 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
             cols[_i].markdown(_box(_state, _glyph, _tip), unsafe_allow_html=True)
 
         remembered = probes.get(r["key"])
-        action = r["next_action"]
-        # LE MÊME ORDRE QUE `_responds_cell`, qui rend sur `status` AVANT de lire
-        # `probes`. Ici il manquait : `next_action(…, OK)` rend `""`, donc une ligne
-        # entièrement verte affichait en « Prochaine étape » la raison d'une sonde
-        # rouge — « User ID 377065610 joignable, mais aucun titre public », à côté de
-        # 358 lignes réellement collectées (2026-09-05). Une mesure qui a eu lieu bat
-        # une prédiction ; la sonde n'a rien à dire d'une source qui livre.
-        if (remembered is not None and not remembered[0]
-                and r["status"] not in _DATA_PROVES_IT):
-            action = remembered[1] or action
+        action = _row_action(r, remembered)
         # `as_markdown` only fixes the line breaks: a single `\n` is not a break in
         # markdown, so the two bullets of a two-case diagnosis would run into one.
         # The escape stays — the tail of this string is a platform's own answer.
@@ -635,18 +702,5 @@ def render_status_matrix(db, artist_id: int, *, compact: bool = False,
                 sub[5].caption(_html.escape(
                     _SOURCE_HINTS.get(_src, _d["status_label"])))
 
-    if allow_probe:
-        checkable = [r["key"] for r in rows if r["status"] != "todo"]
-        if checkable and st.button(
-                t("matrix.check_now", "🔌 Vérifier maintenant"),
-                key=f"matrix_probe_{artist_id}_{key_suffix}",
-                help=t("matrix.check_help",
-                       "Interroge chaque plateforme configurée et mémorise sa "
-                       "réponse. Rien n'est appelé tant que tu ne cliques pas.")):
-            with st.spinner(t("matrix.checking", "Vérification en cours…")):
-                n = run_probes_now(db, artist_id, checkable)
-            st.toast(t("matrix.checked", "{n} plateforme(s) vérifiée(s)").format(n=n),
-                     icon="✅")
-            st.rerun()
-
+    _probe_button(db, artist_id, rows, allow_probe, key_suffix)
     return rows
