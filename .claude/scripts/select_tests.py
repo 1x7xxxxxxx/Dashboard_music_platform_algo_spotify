@@ -243,6 +243,37 @@ def source_roots(root: Path) -> list[Path]:
     return roots
 
 
+# R447 — an import written INSIDE a string a test executes elsewhere (`AppTest.from_string`,
+# `python -c`): `from src.dashboard.views.{view} import show` has no AST edge, and the test
+# was red in CI on 2026-10-05 for a view change the selector did not select it for. A name
+# followed by `.{` (or by the end of an f-string piece) is a TEMPLATE: every module under
+# it is a dependency. Prose that happens to say « from the … » resolves to nothing.
+_IMPORT_IN_STRING = re.compile(
+    r"\b(?P<kw>from|import)\s+(?P<name>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)"
+    r"(?P<tpl>\.(?:\{|$))?(?:\s+import\s+(?P<names>[\w, ]+))?", re.MULTILINE)
+
+
+def imports_in_strings(tree: ast.AST) -> tuple[set[str], set[str]]:
+    """(module names, templated package prefixes) imported from string literals. Pure."""
+    names: set[str] = set()
+    prefixes: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and "import" in node.value):
+            continue
+        for m in _IMPORT_IN_STRING.finditer(node.value):
+            if m["tpl"]:
+                prefixes.add(m["name"])
+                continue
+            names.add(m["name"])
+            if m["kw"] == "import":  # `import a.b, c.d` — every module of the list
+                tail = node.value[m.end():].split("\n", 1)[0]
+                names |= set(re.findall(r",\s*([A-Za-z_][\w.]*)", tail.split(";", 1)[0]))
+            if m["kw"] == "from" and m["names"]:
+                names |= {f"{m['name']}.{n.strip()}" for n in m["names"].split(",") if n.strip()}
+    return names, prefixes
+
+
 _PYTHONPATH_INI = re.compile(r"^\s*pythonpath\s*=\s*(.+)$", re.MULTILINE)
 _CONFIG_IMPORTS = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
 
@@ -518,6 +549,10 @@ def build_graph(root: Path,
                 dynamic.add(mod)
         if "importlib" in got:
             dynamic.add(mod)
+        in_strings, templated = imports_in_strings(tree)
+        got |= in_strings
+        for prefix in templated:
+            got |= {a for a in alias if a.startswith(prefix + ".")}
 
         # On ne garde que ce qui existe DANS le dépôt ; le reste est une
         # dépendance tierce, dont on ne suit pas les modifications ici.
