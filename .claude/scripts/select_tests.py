@@ -27,6 +27,12 @@ graphe d'imports non concluant, pas parce qu'elle est rare :
    rendait alors la suite entière — 9 656 tests, trois fois sur trois ce jour-là.
    Un autre non-`.py` sélectionne désormais par mention, par DOSSIER et par module
    VOISIN, chacun avec sa cellule rouge au `--self-test`) ;
+   ⚠️ `*.sql` reste ici, et le rétrécir a été REFUSÉ le 2026-10-08 (R469) : une
+   migration casse par un NOT NULL vu des fixtures, une vue or au-dessus de la table, un
+   trigger qu'aucun test ne nomme — pas par la mention de son nom ; et ce que le diff
+   change n'atteint la base qu'après `make migrate`, que le sélecteur ne voit pas. La
+   version minimale sûre (migration faite SEULEMENT d'`ALTER DATABASE|ROLE … SET`)
+   couvrait 0 des 144 migrations ce jour-là — 147 elle-même est un bloc `DO` ;
 3. un `conftest.py` a bougé — il s'applique à tout un sous-arbre sans qu'aucun
    `import` ne le nomme ;
 4. un fichier de configuration de la suite a bougé (`pyproject.toml`,
