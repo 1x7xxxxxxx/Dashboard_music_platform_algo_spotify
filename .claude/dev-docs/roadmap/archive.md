@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R468 — Leçons du catalogue msdr applicables ici (2026-10-08) : (a) aucune `idle_in_transaction… (livrée 2026-10-08)
+
+- [x] **R468 — Leçons du catalogue msdr applicables ici (2026-10-08) : (a) aucune `idle_in_transaction_session_timeout` sur `spotify_etl` — une transaction oubliée retient `xmin` et bloque le vacuum ; 5 chemins ouvrent une connexion SANS autocommit (`pg_connect.connect()` par défaut : stripe_webhook, circuit_breaker, dag_run_logger, credential_loader, meta_token_refresh) — mesurer `pg_stat_activity` en prod AVANT de poser la borne ; (b) rotation des logs Docker déclarée seulement dans `deploy/host/docker-daemon.json` — vérifier qu'elle est INSTALLÉE en prod ; (c) porter `check_stale_deliverables.py` (contrat opt-in `expires:`) ; (d) retirer la mention de `silent-failure-hunter`, agent absent, de `workflows/bug-resolution.md`** (P3) ✅ (2026-10-08, 91fad2d7)
+  Mesuré par : prod : `SELECT … FROM pg_stat_activity WHERE state LIKE 'idle in transaction%'` + `SHOW idle_in_transaction_session_timeout` ; `docker info --format '{{.LoggingDriver}} {{json .}}'` sur l'hôte ; garde muté rouge
+  CI verte sur 91fad2d7. (a) mig. 147 idle_in_transaction_session_timeout=5min (ALTER DATABASE), garde statique + base vive, muté rouge 4× — à appliquer en prod sur accord ; (b) prod déjà en json-file 10m×3, aucun changement ; (c) check_stale_deliverables non porté : câblé nulle part chez msdr ; (d) mention silent-failure-hunter remplacée par /audit-collectors
+  Commits : 91fad2d7 R468 : leçons du catalogue msdr — (a) idle_in_transaction_session_time
+
 ## ✅ R467 — Nightly rouge du 2026-10-08 : (a) `dev-discipline` compte 16 « contournements » qui n'e… (livrée 2026-10-08)
 
 - [x] **R467 — Nightly rouge du 2026-10-08 : (a) `dev-discipline` compte 16 « contournements » qui n'en sont pas — `roadmap_discipline.py` rejuge chaque commit avec la porte d'AUJOURD'HUI (R450 a élargi le périmètre à tout fichier le 2026-10-07) au lieu de celle de son PARENT, ce que sa docstring promet ; (b) `guard-mutation` : 4 gardes récents jamais vus rouges — les muter à la main sur leur défaut et les inscrire dans `SEEN_RED`** (P4) ✅ (2026-10-08, 6997edf5, 9b283508)
