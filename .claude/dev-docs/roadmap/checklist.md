@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R466 | Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (règle de boucle d'ingénierie seule — plus NEXT.md, audit_fleet, verify_loop_wiring), et `test_the_baseline_pointer_survives` exige désormais leur ABSENCE. Cause : le 2026-10-08 une séance streaMLytics a fait tout un après-midi de travail de flotte (fleet, payload, banc) parce que ce CLAUDE.md le lui présentait comme le sien <!-- critic: non — retrait de documentation hors sujet + inversion d'un garde, aucun code produit --> <!-- scope: CLAUDE.md, tests/test_claude_config_floor.py, .claude/dev-docs/tooling-reference.md --> | P4 | `pytest tests/test_claude_config_floor.py` vert ; `grep -c deployment_baseline CLAUDE.md` = 1 (provenance des règles mesurées) |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R466 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R466 — Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (… (livrée 2026-10-08)
+
+- [x] **R466 — Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (règle de boucle d'ingénierie seule — plus NEXT.md, audit_fleet, verify_loop_wiring), et `test_the_baseline_pointer_survives` exige désormais leur ABSENCE. Cause : le 2026-10-08 une séance streaMLytics a fait tout un après-midi de travail de flotte (fleet, payload, banc) parce que ce CLAUDE.md le lui présentait comme le sien** (P4) ✅ (2026-10-08, 251cca03)
+  Mesuré par : `pytest tests/test_claude_config_floor.py` vert ; `grep -c deployment_baseline CLAUDE.md` = 1 (provenance des règles mesurées)
+  Pointeur baseline v5 dans CLAUDE.md (règle de boucle d'ingénierie seule), test plancher exige l'absence de NEXT.md/audit_fleet/verify_loop_wiring (muté rouge dans les deux sens), section governance déplacée vers presets/governance/README.md du baseline (4a6d48c). CI verte sur 251cca03.
+  Commits : 251cca03 R466 : la baseline de config sort de streaMLytics — pointeur v5 (règle
+
 ## ✅ R465 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 60 > 59 — la récidive du 2026-1… (livrée 2026-10-08)
 
 - [x] **R465 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 60 > 59 — la récidive du 2026-10-07 de `ci-gate-with-no-local-counterpart` (R438/R443 poussées sans test), réponse structurelle R444 + R464. `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 59 → 60, nommé dans le commentaire** (P2) ✅ (2026-10-08, 76fedfb7, 2c737371)
