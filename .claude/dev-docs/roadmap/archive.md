@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R465 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 60 > 59 — la récidive du 2026-1… (livrée 2026-10-08)
+
+- [x] **R465 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 60 > 59 — la récidive du 2026-10-07 de `ci-gate-with-no-local-counterpart` (R438/R443 poussées sans test), réponse structurelle R444 + R464. `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 59 → 60, nommé dans le commentaire** (P2) ✅ (2026-10-08, 76fedfb7, 2c737371)
+  Mesuré par : `make reopen-check` sans ROUVRIR
+  CI verte sur 76fedfb7 ; seuil R122 59→60, reopen-check à 0 ROUVRIR
+  Commits : 76fedfb7 Roadmap : journal de nuit R465 · 2c737371 R465 : seuil R122 59 → 60 — la récidive du 2026-10-07 de ci-gate-with-
+
 ## ✅ R464 — Harnais : `make test-changed` lancé APRÈS un commit sélectionne 0 test (diff contre `HE… (livrée 2026-10-08)
 
 - [x] **R464 — Harnais : `make test-changed` lancé APRÈS un commit sélectionne 0 test (diff contre `HEAD`), estampille l'arbre vert et la porte pre-push laisse partir un commit jamais testé — vu le 2026-10-08 sur le catalogue, CI rouge. Diff contre `@{upstream}` quand il existe** (P4) ✅ (2026-10-08, 55458954, 00649e24)
