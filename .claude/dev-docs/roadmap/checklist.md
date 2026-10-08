@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R465 | `reopen-check` rouvre R122 : `ever_recurred_observed` = 60 > 59 — la récidive du 2026-10-07 de `ci-gate-with-no-local-counterpart` (R438/R443 poussées sans test), réponse structurelle R444 + R464. `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 59 → 60, nommé dans le commentaire <!-- critic: non — acquittement de seuil, précédents R340/R400 --> <!-- scope: tools/dev/reopen_check.py --> | P2 | `make reopen-check` sans ROUVRIR |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R465 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
