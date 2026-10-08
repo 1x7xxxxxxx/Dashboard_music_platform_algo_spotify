@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R468 | Leçons du catalogue msdr applicables ici (2026-10-08) : (a) aucune `idle_in_transaction_session_timeout` sur `spotify_etl` — une transaction oubliée retient `xmin` et bloque le vacuum ; 5 chemins ouvrent une connexion SANS autocommit (`pg_connect.connect()` par défaut : stripe_webhook, circuit_breaker, dag_run_logger, credential_loader, meta_token_refresh) — mesurer `pg_stat_activity` en prod AVANT de poser la borne ; (b) rotation des logs Docker déclarée seulement dans `deploy/host/docker-daemon.json` — vérifier qu'elle est INSTALLÉE en prod ; (c) porter `check_stale_deliverables.py` (contrat opt-in `expires:`) ; (d) retirer la mention de `silent-failure-hunter`, agent absent, de `workflows/bug-resolution.md` <!-- critic: requis — (a) une borne serveur qui TUE une session : un chemin qui garde une transaction ouverte pendant un appel API casserait en prod --> <!-- scope: migrations/, src/utils/pg_connect.py, .claude/scripts/, .claude/workflows/bug-resolution.md, tests/ --> | P3 | prod : `SELECT … FROM pg_stat_activity WHERE state LIKE 'idle in transaction%'` + `SHOW idle_in_transaction_session_timeout` ; `docker info --format '{{.LoggingDriver}} {{json .}}'` sur l'hôte ; garde muté rouge |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R468 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
