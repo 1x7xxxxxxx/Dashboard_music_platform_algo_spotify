@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R466 | Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (règle de boucle d'ingénierie seule — plus NEXT.md, audit_fleet, verify_loop_wiring), et `test_the_baseline_pointer_survives` exige désormais leur ABSENCE. Cause : le 2026-10-08 une séance streaMLytics a fait tout un après-midi de travail de flotte (fleet, payload, banc) parce que ce CLAUDE.md le lui présentait comme le sien <!-- critic: non — retrait de documentation hors sujet + inversion d'un garde, aucun code produit --> <!-- scope: CLAUDE.md, tests/test_claude_config_floor.py --> | P4 | `pytest tests/test_claude_config_floor.py` vert ; `grep -c deployment_baseline CLAUDE.md` = 1 (provenance des règles mesurées) |
+| R466 | Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (règle de boucle d'ingénierie seule — plus NEXT.md, audit_fleet, verify_loop_wiring), et `test_the_baseline_pointer_survives` exige désormais leur ABSENCE. Cause : le 2026-10-08 une séance streaMLytics a fait tout un après-midi de travail de flotte (fleet, payload, banc) parce que ce CLAUDE.md le lui présentait comme le sien <!-- critic: non — retrait de documentation hors sujet + inversion d'un garde, aucun code produit --> <!-- scope: CLAUDE.md, tests/test_claude_config_floor.py, .claude/dev-docs/tooling-reference.md --> | P4 | `pytest tests/test_claude_config_floor.py` vert ; `grep -c deployment_baseline CLAUDE.md` = 1 (provenance des règles mesurées) |
 
 ---
 
