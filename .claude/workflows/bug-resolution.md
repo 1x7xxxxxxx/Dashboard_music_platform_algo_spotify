@@ -22,7 +22,7 @@ A step that looks automatic but cannot be is marked as such — never disguised.
 | 6 | Challenger — if it touches a high-stakes surface | `code-critic`, mandatory (see below). Treat **REJECT as blocking**. | playbook |
 | 7 | Fix **+ a durable guard** | guard = a signature in `error-classes.md` (exit ≠ 0 = hit), and/or a test, and/or a hook | playbook |
 | 8 | **Mutation-verify the guard** | re-introduce the defect and watch the guard go RED. **A test never seen fail is not a guard.** | pytest |
-| 9 | Silent-failure sweep — if a background job or stream consumer | `silent-failure-hunter` where it exists | playbook |
+| 9 | Silent-failure sweep — if a background job or stream consumer | `/audit-collectors` (rule 6 — collectors must raise) ; no `silent-failure-hunter` agent exists here (R468) | playbook |
 | 10 | Security — if an endpoint, credential, or external surface | `security-specialist` + the `pre_commit_scan.py` hook | playbook + hook |
 | 11 | Deploy sync — if schema or deploy | a forward migration, never a manual edit on the target; then checksum repo↔target | playbook |
 | 12 | Lesson kept | the guard test is the lesson; a `rex:` entry in the tool's frontmatter only when it concerns a `.claude/` tool (**a human writes it**) | human |
