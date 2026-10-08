@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R467 — Nightly rouge du 2026-10-08 : (a) `dev-discipline` compte 16 « contournements » qui n'e… (livrée 2026-10-08)
+
+- [x] **R467 — Nightly rouge du 2026-10-08 : (a) `dev-discipline` compte 16 « contournements » qui n'en sont pas — `roadmap_discipline.py` rejuge chaque commit avec la porte d'AUJOURD'HUI (R450 a élargi le périmètre à tout fichier le 2026-10-07) au lieu de celle de son PARENT, ce que sa docstring promet ; (b) `guard-mutation` : 4 gardes récents jamais vus rouges — les muter à la main sur leur défaut et les inscrire dans `SEEN_RED`** (P4) ✅ (2026-10-08, 6997edf5, 9b283508)
+  Mesuré par : `roadmap_discipline.py --days 14` : 0 contournement sur les 16 ; `nightly_guard_mutation` : 0 à relire
+  nightly rouge du 2026-10-08 : la mesure de discipline juge chaque commit avec la porte de son parent (16 faux contournements → 0, 161/161) ; 6 gardes mutés à la main et inscrits dans SEEN_RED (guard-mutation rejoué : 0 à relire) ; le récap rouge de 14:04 avait la même cause. CI verte.
+  Commits : 6997edf5 Mails ops du 2026-10-07 22:51 au 2026-10-08 14:04 triés — 2 réels corr · 9b283508 R467 : nightly rouge du 2026-10-08 — (a) roadmap_discipline juge chaqu
+
 ## ✅ R466 — Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (… (livrée 2026-10-08)
 
 - [x] **R466 — Sortir la baseline de config de streaMLytics : le bloc `baseline-pointer` passe en v5 (règle de boucle d'ingénierie seule — plus NEXT.md, audit_fleet, verify_loop_wiring), et `test_the_baseline_pointer_survives` exige désormais leur ABSENCE. Cause : le 2026-10-08 une séance streaMLytics a fait tout un après-midi de travail de flotte (fleet, payload, banc) parce que ce CLAUDE.md le lui présentait comme le sien** (P4) ✅ (2026-10-08, 251cca03)

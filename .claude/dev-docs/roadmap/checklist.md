@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R467 | Nightly rouge du 2026-10-08 : (a) `dev-discipline` compte 16 « contournements » qui n'en sont pas — `roadmap_discipline.py` rejuge chaque commit avec la porte d'AUJOURD'HUI (R450 a élargi le périmètre à tout fichier le 2026-10-07) au lieu de celle de son PARENT, ce que sa docstring promet ; (b) `guard-mutation` : 4 gardes récents jamais vus rouges — les muter à la main sur leur défaut et les inscrire dans `SEEN_RED` <!-- critic: non — outil de mesure : juger avec la porte du parent est ce que la docstring annonce déjà ; aucune écriture en base, aucun code produit --> <!-- scope: tools/dev/roadmap_discipline.py, tools/dev/nightly_guard_mutation.py, tests/ --> | P4 | `roadmap_discipline.py --days 14` : 0 contournement sur les 16 ; `nightly_guard_mutation` : 0 à relire |
 
 ---
 
@@ -86,7 +85,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R467 -->
+<!-- reprise: open= -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
