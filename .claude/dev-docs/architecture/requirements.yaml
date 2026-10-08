@@ -741,7 +741,7 @@
   composants: [.claude/hooks/inject_context.py, .claude/workflows/bug-resolution.md, .claude/workflows/architecture-change.md, .claude/workflows/feature-development.md, .claude/workflows/continuous-improvement.md, .claude/workflows/architecture-requirements.md]
   preuve: {pytest: tests/test_skills_rules_and_injections_are_counted.py::test_an_injection_logged_by_the_hook_is_read_by_the_report}
   ecart: "journal ouvert le 2026-10-04 (R357) : aucune série avant"
-  opportunite: "un playbook jamais injecté en 30 jours est un candidat au retrait — le relevé existe depuis R357, la décision attend 30 jours de série"
+  opportunite: "un playbook jamais injecté en 30 jours est un candidat au retrait — le relevé existe depuis R357, la décision attend 30 jours de série. R473 (2026-10-08) : 4 jours seulement (bug-resolution 54, architecture-change 17, continuous-improvement 5, feature-development 1, architecture-requirements 1) — aucun playbook à 0 ; échéance 2026-11-03, rendue SEULE par le curateur hebdomadaire (curator.playbook_verdict), pas par cette prose"
   mutation: "désynchroniser le chemin du journal entre inject_context.py et usage_report.py"
 - id: REQ-HARN-08
   domaine: claude-wsl
@@ -809,7 +809,12 @@
   composants: [.claude/rules/python.md, .claude/rules/makefile-fail-fast.md, .claude/skills/dashboard-view/SKILL.md, .claude/skills/airflow-dag/SKILL.md, .claude/skills/db-schema/SKILL.md, .claude/skills/audit-collectors/SKILL.md, .claude/skills/impact-analysis/SKILL.md, .claude/skills/response-protocol/SKILL.md]
   preuve: {pytest: tests/test_a_skill_loads_when_its_subject_is_touched.py::test_a_rule_is_scoped_with_the_key_claude_code_reads}
   mutation: "remettre `globs:` dans python.md ; retirer `keywords:` de dashboard-view"
-  opportunite: "les 3 rules portaient `globs:` (chargées 40 séances sur 40) → `paths:` le 2026-10-04 ; les 4 skills à 0 appel ont reçu `keywords:`. Remesurer chargements et appels sur les séances postérieures au 2026-10-04 (usage_report)"
+  # R473 (2026-10-08), remesuré par usage_report sur les 4 séances postérieures au
+  # 2026-10-04 : `paths:` restreint bien — makefile-fail-fast chargée 2/4 (40/40 avant),
+  # python.md 4/4 parce que chaque séance touche du Python (pas un défaut de portée) ;
+  # skills 0 appel Skill mais injectées par `keywords:` — dashboard-view 55, audit-
+  # collectors 19, db-schema 16, airflow-dag 15. Opportunité close : le chargement suit
+  # le sujet. n = 4 séances : une rule chargée 0 fois sur 30 j rouvrirait la question.
 - id: REQ-HARN-13
   domaine: claude-wsl
   enonce: Chaque commande slash résout vers des chemins qui existent et sont versionnés

@@ -37,7 +37,7 @@ import argparse
 import re
 import sys
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Consolidation ast.parse()s every tool file; a stray invalid-escape in some
@@ -193,7 +193,7 @@ def _telemetry(claude_root: Path, transcripts: dict | None = None) -> tuple[list
     for name, r in sorted(acts.items(), key=lambda kv: -(kv[1]["invoked"] + kv[1]["injected"])):
         lines.append(f"- {name}: {r['invoked']} invoked · {r['injected']} injected · last {r['last'] or '?'}")
     lines.append(freshness(max((r["last"] for r in acts.values()), default="")))
-    usage: dict = {"skill_activity": acts}
+    usage: dict = {"skill_activity": acts, "injections": data.get("injections") or {}}
     if usage_telemetry is None or not usage_telemetry.usage_path().exists():
         return lines + ["", "**error_classes**: no usage.json — run `make audit` to record one."], usage
     import json
@@ -228,6 +228,30 @@ def _pinned(claude_root: Path) -> set[str]:
             if ln.strip() and not ln.startswith("#")}
 
 
+def playbook_verdict(claude_root: Path, inj: dict, stale_days: int, pinned: set[str],
+                     now: datetime) -> list[str]:
+    """Playbooks never injected over a series of ≥ stale_days — or why no verdict yet.
+
+    REQ-HARN-07 waited on « 30 days of series » written as a date in prose, which nothing
+    would ever have fired (R473): the weekly review now states the verdict itself.
+    """
+    first = (inj.get("first_seen") or "")[:10]
+    try:
+        span = (now - datetime.strptime(first, "%Y-%m-%d").replace(tzinfo=timezone.utc)).days
+    except ValueError:
+        return ["", "**Playbooks**: no injection journal — no verdict possible."]
+    if span < stale_days:
+        due = (now + timedelta(days=stale_days - span)).strftime("%Y-%m-%d")
+        return ["", f"**Playbooks**: injection series {span} d < {stale_days} d — verdict due {due}."]
+    counts = inj.get("counts") or {}
+    cold = [f"- {wf.stem} (0 injections over {span} d)"
+            for wf in sorted((claude_root / "workflows").glob("*.md"))
+            if wf.stem not in pinned and not counts.get(f"workflows/{wf.name}")]
+    if not cold:
+        return ["", f"**Playbooks**: every playbook injected over {span} d."]
+    return ["", f"**Playbooks never injected over {span} d** (retirement candidates — REQ-HARN-07):", *cold]
+
+
 def _lifecycle(claude_root: Path, usage: dict, stale_days: int) -> list[str]:
     lines: list[str] = []
     pinned = _pinned(claude_root)
@@ -251,6 +275,8 @@ def _lifecycle(claude_root: Path, usage: dict, stale_days: int) -> list[str]:
     if stale_skills:
         lines.append(f"**Skills not used in >{stale_days}d** (archive candidates — verify keywords first):")
         lines.extend(stale_skills)
+
+    lines.extend(playbook_verdict(claude_root, usage.get("injections") or {}, stale_days, pinned, now))
 
     # Fixed/closed error-classes that never hit → guard for a class that never recurs.
     cat_path = claude_root / "dev-docs/error-classes.md"

@@ -181,19 +181,23 @@ def injections() -> dict:
     """Playbook injections by inject_context.py (R357), one JSON line per injected file."""
     counts: collections.Counter = collections.Counter()
     last: dict = {}
+    first = ""  # oldest record: how long the series is, so « 0 in 30 d » can be judged (R473)
     try:
         lines = _INJECTIONS.read_text(encoding="utf-8").splitlines()
     except OSError:
-        return {"found": False, "counts": {}, "last_seen": {}}
+        return {"found": False, "counts": {}, "last_seen": {}, "first_seen": ""}
     for line in lines:
         try:
             d = json.loads(line)
         except ValueError:
             continue
+        ts = d.get("ts", "")
+        if ts and (not first or ts < first):
+            first = ts
         for f in d.get("files") or []:
             counts[f] += 1
-            last[f] = max(last.get(f, ""), d.get("ts", ""))
-    return {"found": True, "counts": dict(counts), "last_seen": last}
+            last[f] = max(last.get(f, ""), ts)
+    return {"found": True, "counts": dict(counts), "last_seen": last, "first_seen": first}
 
 
 def hook_runs(directory: pathlib.Path | None = None) -> dict:
