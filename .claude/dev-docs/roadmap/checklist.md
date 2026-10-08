@@ -30,6 +30,11 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R469 | `select_tests` : une migration NEUVE (`migrations/NNN_*.sql`) force la suite entière (9 min 46 pour R468 à 2 workers ; 38 commits sur 30 j touchent `migrations/`) — sélectionner les tests qui nomment `migrations/` + les tests atteignables depuis les modules qui nomment les tables de la migration ; suite entière gardée si aucune table n'est lisible (réglage de base, bloc dynamique) et pour `init_db.sql` <!-- critic: requis — un sélecteur plus étroit peut rendre un vert qui ne veut rien dire --> <!-- scope: .claude/scripts/select_tests.py, tests/ --> | P4 | `select_tests.py --dry` sur une migration de table → liste courte ; `--self-test` avec ses cellules rouges ; mutation |
+| R470 | Le curateur présente une télémétrie MORTE : compteur `skills` muet depuis 2026-07-28 (fbab253e retire l'appel dans `inject_context.py`), `error_classes` figé au 2026-09-27 (seul un `make audit` LOCAL l'alimente) — lire les injections dans les transcripts (comme `usage_report.py`) et dater chaque section, une section périmée dite périmée <!-- critic: non — rapport en lecture seule, ne décide rien --> <!-- scope: .claude/scripts/curator.py, .claude/scripts/usage_report.py, .claude/curator/, tests/ --> | P4 | `curator.py` : section skills ≠ juin, date de fraîcheur affichée ; test muté rouge |
+| R471 | 4 preuves « vu rouge périmé » (fichier modifié depuis la mutation) : REQ-CHART-05, REQ-HARN-06, REQ-HARN-14, REQ-ROAD-04 — re-muter chacune sur son défaut et dater `SEEN_RED` <!-- critic: non — re-mutation, aucun code produit --> <!-- scope: tools/dev/nightly_guard_mutation.py, tests/ --> | P4 | `make harness-report` : 0 « vu rouge périmé » |
+| R472 | `/audit-collectors` suggéré par un hook, invoqué 0 fois en 44 séances — rendre la suggestion suivie (déclencheur mécanique sur un diff de `src/collectors/`) ou la retirer <!-- critic: non — outillage de séance --> <!-- scope: .claude/hooks/, .claude/commands/, .claude/skills/audit-collectors/, .claude/workflows/, tests/ --> | P4 | `make harness-report` : plus de « suivi manqué » |
+| R473 | Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skills après `paths:`/`keywords:` du 2026-10-04) et REQ-HARN-07 (playbook jamais injecté en 30 j → retrait) — remesurer et trancher <!-- critic: non — mesure puis décision documentée --> <!-- scope: .claude/workflows/, .claude/skills/, .claude/rules/, .claude/dev-docs/architecture/requirements.yaml, tests/ --> | P4 | `usage_report.py` sur les séances postérieures au 2026-10-04 |
 
 ---
 
@@ -85,7 +90,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R469, R470, R471, R472, R473 -->
 
 **État au 2026-10-07** : retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
