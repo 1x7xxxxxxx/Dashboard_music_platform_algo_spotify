@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R473 — Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skil… (livrée 2026-10-08)
+
+- [x] **R473 — Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skills après `paths:`/`keywords:` du 2026-10-04) et REQ-HARN-07 (playbook jamais injecté en 30 j → retrait) — remesurer et trancher ; une échéance en prose ne se déclenche pas : le curateur hebdomadaire rend le verdict playbooks dès 30 j de série** (P4) ✅ (2026-10-08, 4aacd23b)
+  Mesuré par : `usage_report.py` sur les séances postérieures au 2026-10-04
+  CI verte sur 4aacd23b ; HARN-12 close (paths: makefile-fail-fast 2/4 séances contre 40/40, skills injectées 55/19/16/15) ; HARN-07 : 4 j de série, verdict rendu seul par curator.playbook_verdict à l'échéance 2026-11-03 ; garde muté rouge 3×
+  Commits : 4aacd23b R473 : mesures échues du rapport de harnais tranchées — HARN-12 close 
+
+## ✅ R472 — `/audit-collectors` suggéré par un hook, invoqué 0 fois en 44 séances — rendre la sugge… (livrée 2026-10-08)
+
+- [x] **R472 — `/audit-collectors` suggéré par un hook, invoqué 0 fois en 44 séances — rendre la suggestion suivie (déclencheur mécanique sur un diff de `src/collectors/`) ou la retirer** (P4) ✅ (2026-10-08, bba99784, 4fb9b5fd)
+  Mesuré par : `make harness-report` : plus de « suivi manqué »
+  CI verte sur 4aacd23b ; hook pre-commit collector-audit (R1 raise + R4 locataire, bloquant sur src/collectors/), suggestion retirée de bug-resolution, /audit-collectors déclarée manuelle pour R2/R3 ; garde muté rouge 3×
+  Commits : bba99784 R472 : /audit-collectors — R1 (raise) et R4 (locataire) bloqués au com · 4fb9b5fd Roadmap : R472 portée élargie à .pre-commit-config.yaml et CLAUDE.md —
+
 ## ✅ R470 — Le curateur présente une télémétrie MORTE : compteur `skills` muet depuis 2026-07-28 (f… (livrée 2026-10-08)
 
 - [x] **R470 — Le curateur présente une télémétrie MORTE : compteur `skills` muet depuis 2026-07-28 (fbab253e retire l'appel dans `inject_context.py`), `error_classes` figé au 2026-09-27 (seul un `make audit` LOCAL l'alimente) — lire les injections dans les transcripts (comme `usage_report.py`) et dater chaque section, une section périmée dite périmée** (P4) ✅ (2026-10-08, 7639bb54)

@@ -745,3 +745,6 @@
 {"at": "2026-10-08T20:13:46+00:00", "head": "f4b09cfc", "kind": "start", "task": "R471", "what": "re-mutation de 4 gardes périmés"}
 {"at": "2026-10-08T20:42:05+00:00", "kind": "done", "task": "R471", "what": "fermée par roadmap-close — 4 preuves re-mutées rouge le 2026-10-08, dates ajoutées en fin d'entrée SEEN_RED ; CI verte sur 94bcd232"}
 {"at": "2026-10-08T20:48:45+00:00", "head": "b8e38f60", "kind": "start", "task": "R472", "what": "/audit-collectors : déclencheur mécanique ou retrait"}
+{"at": "2026-10-08T21:07:04+00:00", "head": "ef658b6f", "kind": "start", "task": "R473", "what": "remesure HARN-12 / HARN-07"}
+{"at": "2026-10-08T21:35:45+00:00", "kind": "done", "task": "R472", "what": "fermée par roadmap-close — CI verte sur 4aacd23b ; hook pre-commit collector-audit (R1 raise + R4 locataire, bloquant sur src/collectors/), suggestion retirée de bug-resolution, /audit-collectors déclarée manuelle pour R2/R3 ; garde muté rouge 3×"}
+{"at": "2026-10-08T21:36:48+00:00", "kind": "done", "task": "R473", "what": "fermée par roadmap-close — CI verte sur 4aacd23b ; HARN-12 close (paths: makefile-fail-fast 2/4 séances contre 40/40, skills injectées 55/19/16/15) ; HARN-07 : 4 j de série, verdict rendu seul par curator.playbook_verdict à l'échéance 2026-11-03 ; garde muté rouge 3×"}
