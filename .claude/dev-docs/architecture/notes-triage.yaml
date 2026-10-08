@@ -3834,3 +3834,143 @@
   statut: livré
   priorite: P3
   preuve_statut: R393 (archivée) — ef7e2e89
+- ligne: 6
+  source: revue/notes-vocales-2026-10-09.md
+  note: W1
+  resume: "Accueil : camembert des streams, lignes Meta+Hypeddit et Shazam+Insta, % de déclenchement de la dernière release + budget Meta ; retirer « ce que ta pub a appris »… ; </div> visibles"
+  type: action-produit
+  domaine: home
+  statut: ouvert
+  priorite: P3
+  roadmap: R479
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 9
+  source: revue/notes-vocales-2026-10-09.md
+  note: W2
+  resume: "« Tout mon funnel » : redistribuer son contenu dans les vues pertinentes"
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  roadmap: R476
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 12
+  source: revue/notes-vocales-2026-10-09.md
+  note: W3
+  resume: "Mise en route : barre réduite à 2 étapes, graphiques génériques et alignés, palier 100 %, impact campagne puis algos, bouton suivant"
+  type: action-produit
+  domaine: onboarding
+  statut: ouvert
+  priorite: P3
+  roadmap: R480
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 16
+  source: revue/notes-vocales-2026-10-09.md
+  note: W4
+  resume: "Saisie S4A : une sous-vue, fraîcheur en admin, résultats et pari du modèle vers la prédiction, phrase courte"
+  type: action-produit
+  domaine: s4a-input
+  statut: ouvert
+  priorite: P3
+  roadmap: R481
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 20
+  source: revue/notes-vocales-2026-10-09.md
+  note: W5
+  resume: "Hypeddit : mode d'emploi, formulaire réagencé, valeurs par défaut sur la dernière track, historique replié, stats vers la vue croisée"
+  type: action-produit
+  domaine: hypeddit
+  statut: ouvert
+  priorite: P3
+  roadmap: R482
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 24
+  source: revue/notes-vocales-2026-10-09.md
+  note: W6
+  resume: "Spotify + S4A : seulement les titres qui bougent, indice de popularité lisible et axe dynamique, graphique Meta vers la vue croisée"
+  type: action-produit
+  domaine: spotify
+  statut: ouvert
+  priorite: P3
+  roadmap: R483
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 28
+  source: revue/notes-vocales-2026-10-09.md
+  note: W7
+  resume: "Apple Music : 686 affiché 68 (échelle) + balayage ; Shazam en graphique, totaux dans les graphiques, redesign, mêmes filtres"
+  type: action-produit
+  domaine: apple
+  statut: ouvert
+  priorite: P3
+  roadmap: R474
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 32
+  source: revue/notes-vocales-2026-10-09.md
+  note: W8
+  resume: "YouTube : deux axes, dégradé, Pareto vidéos/shorts, commentaires/1000 vues vide, redesign âge×vues"
+  type: action-produit
+  domaine: youtube
+  statut: ouvert
+  priorite: P3
+  roadmap: R485
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 36
+  source: revue/notes-vocales-2026-10-09.md
+  note: W9
+  resume: "SoundCloud : Pareto alignés orange, comparaison cumulée multi-titres, totaux dans les graphiques"
+  type: action-produit
+  domaine: soundcloud
+  statut: ouvert
+  priorite: P3
+  roadmap: R486
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 40
+  source: revue/notes-vocales-2026-10-09.md
+  note: W10
+  resume: "Aperçu algos : graphiques de la mise en route, position de notre track par critère SHAP, bouton Facturation"
+  type: action-produit
+  domaine: algo-preview
+  statut: ouvert
+  priorite: P3
+  roadmap: R487
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 44
+  source: revue/notes-vocales-2026-10-09.md
+  note: W11
+  resume: "Distributeur : saisie en tête, une sous-vue, un graphique €/mois+cumulé+prévision, filtre intelligent, SACEM en camembert, point mort vers la vue croisée"
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  roadmap: R488
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 48
+  source: revue/notes-vocales-2026-10-09.md
+  note: W12
+  resume: "Mon compte / Facturation : retirer comptes branchés, demande de suppression par mail, date de repassage en free"
+  type: action-produit
+  domaine: account
+  statut: ouvert
+  priorite: P3
+  roadmap: R489
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 52
+  source: revue/notes-vocales-2026-10-09.md
+  note: W13
+  resume: "Vue croisée : tout le reste dans une seule vue, mêmes filtres, renommée × Revenus, en fin d'Analytics"
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  roadmap: R476
+  preuve_statut: inscrite le 2026-10-09
+- ligne: 56
+  source: revue/notes-vocales-2026-10-09.md
+  note: W14
+  resume: "Prédiction algos : une seule vue, SHAP atteint vs requis, coût Meta du reste-à-faire, graphiques sans tableaux, absorbe CPR Optimizer"
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  roadmap: R477
+  preuve_statut: inscrite le 2026-10-09
