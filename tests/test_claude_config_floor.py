@@ -170,23 +170,29 @@ def test_the_probes_have_a_reader():
 
 
 def test_the_baseline_pointer_survives():
-    """CLAUDE.md must keep pointing at the design docs — and name NEXT.md.
+    """CLAUDE.md keeps the engineering-loop rule — and nothing about the baseline itself.
 
-    This is F1 applied to the documentation itself: a file nothing names is not
-    read. The pointer went one full day naming only ARCHITECTURE.md and
-    ROADMAP.md while the actionable backlog lived in NEXT.md, reachable only in
-    two hops. Nobody noticed, because nothing tested it.
+    F1 applied to the documentation: a rule nothing names is not followed, so the
+    block must stay. Until v5 (2026-10-08) it also listed the baseline's design docs
+    (NEXT.md, ARCHITECTURE.md, REX.md, ROADMAP.md) and its fleet audits: every
+    project session then read the fleet backlog as its own work, and a streaMLytics
+    session spent an afternoon on fleet checks. The baseline's work belongs to a
+    session opened IN the baseline, whose own CLAUDE.md carries it.
 
     Deliberately self-contained: it does NOT read the baseline. A test that goes
     red because a directory moved on one machine gets deleted, and then the
     floor is gone.
     """
     t = (REPO / "CLAUDE.md").read_text(encoding="utf-8", errors="ignore")
-    assert "<!-- baseline-pointer" in t, (
+    m = re.search(r"<!-- baseline-pointer.*?<!-- /baseline-pointer -->", t, re.S)
+    assert m, (
         "the baseline pointer block is gone from CLAUDE.md — reinstall it with "
         "tools/dev/install_conformance_ratchet.py --write")
-    for name in ("NEXT.md", "ARCHITECTURE.md", "ROADMAP.md"):
-        assert name in t, f"the pointer no longer names {name} — it predates NEXT.md"
+    assert "engineering-loop" in m.group(0), "the pointer lost the engineering-loop rule"
+    for name in ("NEXT.md", "audit_fleet.py", "verify_loop_wiring.py"):
+        assert name not in m.group(0), (
+            f"the pointer names the baseline's {name} again — fleet work leaks "
+            f"into this project's sessions")
 
 
 def test_the_error_class_catalogue_is_swept():
