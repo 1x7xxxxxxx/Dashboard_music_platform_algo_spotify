@@ -744,3 +744,4 @@
 {"at": "2026-10-08T11:37:22+00:00", "head": "2c737371", "kind": "done", "task": "R465", "what": ""}
 {"at": "2026-10-08T20:13:46+00:00", "head": "f4b09cfc", "kind": "start", "task": "R471", "what": "re-mutation de 4 gardes périmés"}
 {"at": "2026-10-08T20:42:05+00:00", "kind": "done", "task": "R471", "what": "fermée par roadmap-close — 4 preuves re-mutées rouge le 2026-10-08, dates ajoutées en fin d'entrée SEEN_RED ; CI verte sur 94bcd232"}
+{"at": "2026-10-08T20:48:45+00:00", "head": "b8e38f60", "kind": "start", "task": "R472", "what": "/audit-collectors : déclencheur mécanique ou retrait"}
