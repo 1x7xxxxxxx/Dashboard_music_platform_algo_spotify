@@ -86,6 +86,17 @@ repos:
         files: '^(pyproject\.toml|requirements\.txt|uv\.lock)$'
         pass_filenames: false
 
+      # R472 (2026-10-08): rule 6 said « run /audit-collectors after touching a collector »;
+      # 0 runs in 44 sessions. Its two mechanical rules now run at the commit itself —
+      # R1 (a collector raises in `except`) and R4 (a write names its tenant). R2/R3 are
+      # judgment and stay in .claude/commands/audit-collectors.md, invoked by hand.
+      - id: collector-audit
+        name: collectors — raise in except (R1) + tenant-named writes (R4)
+        language: system
+        entry: sh -c 'python3 .claude/scripts/audit_collectors_ast.py && python3 .claude/scripts/audit_tenant_writes.py'
+        files: '^src/collectors/.*\.py$'
+        pass_filenames: false
+
       # R186 (2026-09-26): the same check as the Claude Code Bash hook, for a `git commit`
       # typed in a terminal — which the hook never saw. A new class (or récidive) must be
       # bound to a sibling-sweeper / engineering-loop call that mentions it.

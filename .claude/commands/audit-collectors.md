@@ -1,10 +1,16 @@
 ---
+invocation: "manual — R2/R3 (silent break, absent≠failed) are judgment; R1/R4 are blocked at the commit by the pre-commit hook collector-audit (R472)"
 rex:
   - date: 2026-08-21
     issue: "Cross-cutting rule #6 mandates `/audit-collectors` after touching any collector, and this command audited another project's: acquisition.py (USB CDC STM32 frames), fanuc_reader.py (OPC UA CNC), background_ml.py. None exist here. It also pointed at `src/Application/`, an absent directory."
     fix: "Rewrote against the ten real modules in src/collectors/, around the one rule this repo actually enforces — a collector raises, it never returns None/[]/{} or breaks silently. The rule definitions and fix patterns now delegate to skills/audit-collectors/SKILL.md instead of being restated (and drifting) here."
     ref: "R36"
     severity: crit
+  - date: 2026-10-08
+    issue: "Rule 6 told the model to run this command after touching a collector, and the bug-resolution playbook printed it: suggested, then invoked 0 times in 44 sessions — the two rules that could be checked mechanically were checked by nobody."
+    fix: "R1 (audit_collectors_ast.py) and R4 (audit_tenant_writes.py) now run in the pre-commit hook collector-audit on any src/collectors/ change; the playbook no longer prints the command; it is declared invocation: manual for R2/R3."
+    ref: "R472"
+    severity: warn
 ---
 
 # /audit-collectors
