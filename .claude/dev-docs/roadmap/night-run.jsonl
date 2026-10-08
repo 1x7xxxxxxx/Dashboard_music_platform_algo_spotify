@@ -742,3 +742,5 @@
 {"at": "2026-10-07T23:00:15+00:00", "head": "00649e24", "kind": "done", "task": "R464", "what": ""}
 {"at": "2026-10-08T11:30:16+00:00", "head": "6eb7efa9", "kind": "start", "task": "R465", "what": "acquittement R122 59→60"}
 {"at": "2026-10-08T11:37:22+00:00", "head": "2c737371", "kind": "done", "task": "R465", "what": ""}
+{"at": "2026-10-08T20:13:46+00:00", "head": "f4b09cfc", "kind": "start", "task": "R471", "what": "re-mutation de 4 gardes périmés"}
+{"at": "2026-10-08T20:42:05+00:00", "kind": "done", "task": "R471", "what": "fermée par roadmap-close — 4 preuves re-mutées rouge le 2026-10-08, dates ajoutées en fin d'entrée SEEN_RED ; CI verte sur 94bcd232"}

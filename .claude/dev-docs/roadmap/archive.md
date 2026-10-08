@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R469 — `select_tests` : une migration NEUVE (`migrations/NNN_*.sql`) force la suite entière (9… (livrée 2026-10-08)
+
+- [x] **R469 — `select_tests` : une migration NEUVE (`migrations/NNN_*.sql`) force la suite entière (9 min 46 pour R468 à 2 workers ; 38 commits sur 30 j touchent `migrations/`) — sélectionner les tests qui nomment `migrations/` + les tests atteignables depuis les modules qui nomment les tables de la migration ; suite entière gardée si aucune table n'est lisible (réglage de base, bloc dynamique) et pour `init_db.sql`** (P4) ✅ (2026-10-08, e4cedaa7)
+  Mesuré par : `select_tests.py --dry` sur une migration de table → liste courte ; `--self-test` avec ses cellules rouges ; mutation
+  Refusé mesure à l'appui : la version minimale sûre du critic couvre 0/144 migrations ; refus écrit dans la règle 2 de select_tests.py ; CI verte sur e4cedaa7
+  Commits : e4cedaa7 R469 : rétrécir la sélection sur une migration est REFUSÉ, mesure à l'
+
+## ✅ R471 — 4 preuves « vu rouge périmé » (fichier modifié depuis la mutation) : REQ-CHART-05, REQ-… (livrée 2026-10-08)
+
+- [x] **R471 — 4 preuves « vu rouge périmé » (fichier modifié depuis la mutation) : REQ-CHART-05, REQ-HARN-06, REQ-HARN-14, REQ-ROAD-04 — re-muter chacune sur son défaut et dater `SEEN_RED`** (P4) ✅ (2026-10-08, 94bcd232)
+  Mesuré par : `make harness-report` : 0 « vu rouge périmé »
+  4 preuves re-mutées rouge le 2026-10-08, dates ajoutées en fin d'entrée SEEN_RED ; CI verte sur 94bcd232
+  Commits : 94bcd232 R471 : 4 preuves « vu rouge périmé » re-mutées rouge le 2026-10-08 — R
+
 ## ✅ R468 — Leçons du catalogue msdr applicables ici (2026-10-08) : (a) aucune `idle_in_transaction… (livrée 2026-10-08)
 
 - [x] **R468 — Leçons du catalogue msdr applicables ici (2026-10-08) : (a) aucune `idle_in_transaction_session_timeout` sur `spotify_etl` — une transaction oubliée retient `xmin` et bloque le vacuum ; 5 chemins ouvrent une connexion SANS autocommit (`pg_connect.connect()` par défaut : stripe_webhook, circuit_breaker, dag_run_logger, credential_loader, meta_token_refresh) — mesurer `pg_stat_activity` en prod AVANT de poser la borne ; (b) rotation des logs Docker déclarée seulement dans `deploy/host/docker-daemon.json` — vérifier qu'elle est INSTALLÉE en prod ; (c) porter `check_stale_deliverables.py` (contrat opt-in `expires:`) ; (d) retirer la mention de `silent-failure-hunter`, agent absent, de `workflows/bug-resolution.md`** (P3) ✅ (2026-10-08, 91fad2d7)
