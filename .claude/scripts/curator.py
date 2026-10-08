@@ -8,9 +8,15 @@ it proposes, never mutates (the human validates, like /rex-promote). Three passe
 
   1. Consolidation — parse every tool's `rex:` entries + the error-class catalogue,
      flag near-duplicate pairs (token-overlap) as umbrella-merge candidates.
-  2. Telemetry — read `.claude/curator/usage.json` (written by usage_telemetry via
-     inject_context + audit_runner): most/least triggered skills & error-classes.
-  3. Lifecycle — flag skills never auto-injected (file older than --stale-days) and
+  2. Telemetry — skills from the TRANSCRIPTS and `sessions/injections.jsonl` (read by
+     usage_report.py); error-classes from `.claude/curator/usage.json`, DATED.
+     R470 (2026-10-08): both used to come from usage.json. Its `skills` counter died on
+     2026-07-28 (fbab253e removed the call in inject_context.py) and the report went on
+     printing « audit-collectors: 6× · last 2026-06-19 » as if it were current; its
+     `error_classes` counter is fed only by a local `make audit` and stood still from
+     2026-09-27. A section now says when its source last moved, and a source still for
+     more than _FROZEN_DAYS days says so in the report instead of passing for a measure.
+  3. Lifecycle — flag skills never used (file older than --stale-days) and
      fixed/closed error-classes that never hit, as archive candidates. A name in
      `.claude/curator/pinned.txt` is exempt.
 
@@ -20,7 +26,7 @@ re-implementation. Output is a markdown report to stdout.
 Usage:  curator.py [--stale-days N] [--root .claude]
 
 Type: Utility (Claude Code config)
-Uses: validate_rex, audit_runner, usage_telemetry, error-classes.md
+Uses: validate_rex, audit_runner, usage_telemetry, usage_report, error-classes.md
 Persists in: — (markdown report to stdout)
 
 ---
@@ -48,6 +54,8 @@ try:
     import usage_telemetry  # noqa: E402
 except Exception:  # noqa: BLE001
     usage_telemetry = None
+
+_FROZEN_DAYS = 7
 
 _STOP = frozenset(
     "the and for that with this from into when then than only also have were was are "
@@ -130,31 +138,76 @@ def _consolidation(claude_root: Path, threshold: float) -> list[str]:
 
 # ── 2. Telemetry ─────────────────────────────────────────────────────────────
 
-def _telemetry(claude_root: Path) -> tuple[list[str], dict]:
-    if usage_telemetry is None:
-        return ["usage_telemetry unavailable — skipping telemetry pass."], {}
-    p = usage_telemetry.usage_path()
-    if not p.exists():
-        return ["No usage.json yet — telemetry accrues as hooks/audits run. "
-                "(Run `make audit` + submit a few bug-keyword prompts to seed it.)"], {}
+def skill_activity(data: dict) -> dict:
+    """{skill: {invoked, injected, last}} from usage_report.read(). Pure.
+
+    `invoked` = `Skill` tool calls in the transcripts; `injected` = files under
+    `skills/<name>/` that inject_context.py logged. `last` = newest date of either.
+    """
+    out: dict = {}
+    for name, n in (data.get("skills") or {}).items():
+        rec = out.setdefault(name, {"invoked": 0, "injected": 0, "last": ""})
+        rec["invoked"] += n
+        rec["last"] = max(rec["last"], (data.get("last_seen") or {}).get(f"skill:{name}", "")[:10])
+    inj = data.get("injections") or {}
+    for f, n in (inj.get("counts") or {}).items():
+        parts = f.split("/")
+        if len(parts) < 3 or parts[0] != "skills":
+            continue
+        rec = out.setdefault(parts[1], {"invoked": 0, "injected": 0, "last": ""})
+        rec["injected"] += n
+        rec["last"] = max(rec["last"], (inj.get("last_seen") or {}).get(f, "")[:10])
+    return out
+
+
+def freshness(last: str, today: datetime | None = None) -> str:
+    """One line saying when a telemetry source last moved — and if it stood still. Pure."""
+    if not last:
+        return "_source never recorded anything._"
+    now = today or datetime.now(timezone.utc)
+    try:
+        age = (now - datetime.strptime(last[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)).days
+    except ValueError:
+        return f"_last record: {last!r} (unreadable date)._"
+    if age > _FROZEN_DAYS:
+        return (f"⚠️ **source frozen since {last[:10]} ({age} d)** — these counts describe "
+                "that day, not this week.")
+    return f"_last record: {last[:10]} ({age} d ago)._"
+
+
+def _usage_report() -> dict:
+    try:
+        import usage_report
+        return usage_report.read()
+    except Exception as exc:  # noqa: BLE001 — a report-only pass must not crash the review
+        return {"found": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _telemetry(claude_root: Path, transcripts: dict | None = None) -> tuple[list[str], dict]:
+    data = transcripts if transcripts is not None else _usage_report()
+    lines: list[str] = []
+    acts = skill_activity(data)
+    lines.append("**skills** (transcripts + injections.jsonl — invoked / injected):")
+    if not acts:
+        lines.append(f"- none recorded{(' — ' + data['error']) if data.get('error') else ''}")
+    for name, r in sorted(acts.items(), key=lambda kv: -(kv[1]["invoked"] + kv[1]["injected"])):
+        lines.append(f"- {name}: {r['invoked']} invoked · {r['injected']} injected · last {r['last'] or '?'}")
+    lines.append(freshness(max((r["last"] for r in acts.values()), default="")))
+    usage: dict = {"skill_activity": acts}
+    if usage_telemetry is None or not usage_telemetry.usage_path().exists():
+        return lines + ["", "**error_classes**: no usage.json — run `make audit` to record one."], usage
     import json
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
+        ec = json.loads(usage_telemetry.usage_path().read_text(encoding="utf-8")).get("error_classes", {})
     except (OSError, ValueError):
-        return ["usage.json unreadable."], {}
-    lines: list[str] = []
-    for cat in ("skills", "error_classes"):
-        rows = data.get(cat, {})
-        if not rows:
-            continue
-        ranked = sorted(rows.items(), key=lambda kv: kv[1].get("count", 0), reverse=True)
-        lines.append(f"**{cat}** (by trigger count):")
-        for name, rec in ranked[:10]:
-            extra = ""
-            if cat == "error_classes":
-                extra = f" · runs={rec.get('runs', 0)} hits={rec.get('hits', 0)}"
-            lines.append(f"- {name}: {rec.get('count', 0)}× · last {rec.get('last', '?')}{extra}")
-    return (lines or ["usage.json present but empty."]), data
+        return lines + ["", "**error_classes**: usage.json unreadable."], usage
+    usage["error_classes"] = ec
+    lines += ["", "**error_classes** (usage.json — fed only by a local `make audit`):"]
+    for name, rec in sorted(ec.items(), key=lambda kv: kv[1].get("count", 0), reverse=True)[:10]:
+        lines.append(f"- {name}: {rec.get('count', 0)}× · last {rec.get('last', '?')}"
+                     f" · runs={rec.get('runs', 0)} hits={rec.get('hits', 0)}")
+    lines.append(freshness(max((r.get("last", "") for r in ec.values()), default="")))
+    return lines, usage
 
 
 # ── 3. Lifecycle ─────────────────────────────────────────────────────────────
@@ -180,21 +233,23 @@ def _lifecycle(claude_root: Path, usage: dict, stale_days: int) -> list[str]:
     pinned = _pinned(claude_root)
     now = datetime.now(timezone.utc)
 
-    # Skills never auto-injected and older than the staleness window.
-    skill_usage = usage.get("skills", {})
+    # Skills never used and older than the staleness window. A skill is a DIRECTORY
+    # (`skills/<name>/SKILL.md`): the flat `skills/*.md` glob this pass used matched only
+    # the `*.rex.md` side files, so it judged no skill at all (R470).
+    skill_usage = usage.get("skill_activity", {})
     stale_skills = []
-    for sk in sorted((claude_root / "skills").glob("*.md")):
-        name = sk.stem
+    for sk in sorted((claude_root / "skills").glob("*/SKILL.md")):
+        name = sk.parent.name
         if name in pinned:
             continue
         rec = skill_usage.get(name)
         age = (now - datetime.fromtimestamp(sk.stat().st_mtime, timezone.utc)).days
         if rec is None and age > stale_days:
-            stale_skills.append(f"- {name} (never injected, file {age}d old)")
+            stale_skills.append(f"- {name} (never invoked nor injected, file {age}d old)")
         elif rec and (ds := _days_since(rec.get("last", ""))) is not None and ds > stale_days:
-            stale_skills.append(f"- {name} (last injected {ds}d ago)")
+            stale_skills.append(f"- {name} (last used {ds}d ago)")
     if stale_skills:
-        lines.append(f"**Skills not injected in >{stale_days}d** (archive candidates — verify keywords first):")
+        lines.append(f"**Skills not used in >{stale_days}d** (archive candidates — verify keywords first):")
         lines.extend(stale_skills)
 
     # Fixed/closed error-classes that never hit → guard for a class that never recurs.
