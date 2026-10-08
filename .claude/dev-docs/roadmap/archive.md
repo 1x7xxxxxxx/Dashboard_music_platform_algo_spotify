@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R470 — Le curateur présente une télémétrie MORTE : compteur `skills` muet depuis 2026-07-28 (f… (livrée 2026-10-08)
+
+- [x] **R470 — Le curateur présente une télémétrie MORTE : compteur `skills` muet depuis 2026-07-28 (fbab253e retire l'appel dans `inject_context.py`), `error_classes` figé au 2026-09-27 (seul un `make audit` LOCAL l'alimente) — lire les injections dans les transcripts (comme `usage_report.py`) et dater chaque section, une section périmée dite périmée** (P4) ✅ (2026-10-08, 7639bb54)
+  Mesuré par : `curator.py` : section skills ≠ juin, date de fraîcheur affichée ; test muté rouge
+  CI verte sur 7639bb54 ; le curateur compte les skills depuis les appels Skill ET les injections skills/<nom>/, date chaque section (« source figée depuis … »), et son passage de cycle de vie lit skills/*/SKILL.md ; garde muté rouge 3×
+  Commits : 7639bb54 R470 : le curateur lit une télémétrie VIVANTE et date chaque section —
+
 ## ✅ R469 — `select_tests` : une migration NEUVE (`migrations/NNN_*.sql`) force la suite entière (9… (livrée 2026-10-08)
 
 - [x] **R469 — `select_tests` : une migration NEUVE (`migrations/NNN_*.sql`) force la suite entière (9 min 46 pour R468 à 2 workers ; 38 commits sur 30 j touchent `migrations/`) — sélectionner les tests qui nomment `migrations/` + les tests atteignables depuis les modules qui nomment les tables de la migration ; suite entière gardée si aucune table n'est lisible (réglage de base, bloc dynamique) et pour `init_db.sql`** (P4) ✅ (2026-10-08, e4cedaa7)
