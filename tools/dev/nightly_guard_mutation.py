@@ -135,11 +135,13 @@ SEEN_RED: dict[str, str] = {
     "tests/test_the_precompact_hook_saves_the_state.py":
         "2026-10-04 — court-circuit `_same_state` retiré (second instantané identique écrit) "
         "→ 1 rouge ; 2026-10-05 — R414 : bloc night-status gardé dans la comparaison, plafond "
-        "de lignes retiré, `status` → `check` → 1 rouge chacun",
+        "de lignes retiré, `status` → `check` → 1 rouge chacun"
+        " ; 2026-10-08 — R471 : `_same_state` court-circuité (`if False and …`) → 1 rouge",
     "tests/test_every_defect_kind_can_close.py":
         "2026-10-04 — un cron clos par le rc=0 de n'importe quelle étape → 1 rouge",
     "tests/test_every_harness_component_has_a_requirement.py":
-        "2026-10-04 — vérification de couverture des composants retirée → 1 rouge",
+        "2026-10-04 — vérification de couverture des composants retirée → 1 rouge"
+        " ; 2026-10-08 — R471 : `composants:` de pre_compact.py vidé dans requirements.yaml → 1 rouge (`return []` dans component_errors reste vert : mutation vide sur un arbre sain)",
     "tests/test_the_harness_report_renders_every_state.py":
         "2026-10-04 — branche « verte, non prouvée » retirée des opportunités → 1 rouge ; "
         "2026-10-05 — R413 : _never_invoked ignorant `manual` → 1 rouge ; "
@@ -233,7 +235,8 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py":
         "2026-10-04 — _continuous remplit les jours non mesurés par 0 (platform_chart.py:118) → 24 rouges",
     "tests/test_every_chart_says_what_it_lets_you_decide.py":
-        "2026-10-04 — entrée campaign_pair.py::render_day0#1 retirée (chart_decisions.py:9) → 1 rouge",
+        "2026-10-04 — entrée campaign_pair.py::render_day0#1 retirée (chart_decisions.py:9) → 1 rouge"
+        " ; 2026-10-08 — R471 : entrée render_day0#1 retirée de content/chart_decisions.py → 1 rouge",
     "tests/test_navigation_inside_the_app_opens_no_tab.py":
         "2026-10-04 — lien markdown ?page=upgrade ajouté à billing.show() → 1 rouge",
     "tests/test_a_render_opens_one_connection.py":
@@ -244,7 +247,8 @@ SEEN_RED: dict[str, str] = {
     "tests/test_no_shell_gesture_reads_a_dotenv.py":
         "2026-10-04 — _reads_an_env_file rend None (guard_destructive.py:756) → 14 rouges sur test_a_read_of_a_dotenv_is_blocked",
     "tests/test_a_commit_stays_in_its_rows_scope.py":
-        "2026-10-04 — out_of_scope rend [] sans condition (require_roadmap_id.py:91) → 1 rouge",
+        "2026-10-04 — out_of_scope rend [] sans condition (require_roadmap_id.py:91) → 1 rouge"
+        " ; 2026-10-08 — R471 : out_of_scope rend [] sans condition (require_roadmap_id.py:139) → 1 rouge",
     "tests/test_every_command_and_skill_has_a_trigger.py":
         "2026-10-04 — /zz-ghost nommé seulement dans tooling-reference.md → 1 rouge ; `.claude/workflows/*` retiré des surfaces → 1 rouge (db-schema) ; lookbehind retiré du motif → 1 rouge",
     "tests/test_the_schema_gate_decides_correctly.py":
