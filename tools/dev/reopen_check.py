@@ -97,7 +97,11 @@ def _health() -> dict:
 # `audit-reads-the-constraints-not-the-installed-set` ; `an-sdk-object-read-as-a-dict`,
 # R364 ; `check-then-insert-loses-the-race`, webhook Stripe). ACQUITTÉE la nuit même :
 # `make error-debt` rend 0 classe à traiter.
-_R122_SEUIL = 59
+# 59 → 60 le 2026-10-08 (R465) : a tiré à 60 — `ci-gate-with-no-local-counterpart`
+# récidivée le 2026-10-07 (R438 et R443 poussées sans test, `main` rouge deux fois) ;
+# réponse structurelle R444 (porte pre-push sur l'arbre testé) + R464 (la sélection voit
+# un commit non poussé). ACQUITTÉE : `make error-debt` rend 0 classe à traiter.
+_R122_SEUIL = 60
 
 
 def _r122() -> tuple[str, str]:
