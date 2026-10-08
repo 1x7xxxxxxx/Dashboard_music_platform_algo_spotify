@@ -31,7 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R472 | `/audit-collectors` suggéré par un hook, invoqué 0 fois en 44 séances — rendre la suggestion suivie (déclencheur mécanique sur un diff de `src/collectors/`) ou la retirer <!-- critic: non — outillage de séance --> <!-- scope: .claude/hooks/, .claude/commands/, .claude/skills/audit-collectors/, .claude/workflows/, .pre-commit-config.yaml, CLAUDE.md, tests/ --> | P4 | `make harness-report` : plus de « suivi manqué » |
-| R473 | Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skills après `paths:`/`keywords:` du 2026-10-04) et REQ-HARN-07 (playbook jamais injecté en 30 j → retrait) — remesurer et trancher <!-- critic: non — mesure puis décision documentée --> <!-- scope: .claude/workflows/, .claude/skills/, .claude/rules/, .claude/dev-docs/architecture/requirements.yaml, tests/ --> | P4 | `usage_report.py` sur les séances postérieures au 2026-10-04 |
+| R473 | Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skills après `paths:`/`keywords:` du 2026-10-04) et REQ-HARN-07 (playbook jamais injecté en 30 j → retrait) — remesurer et trancher ; une échéance en prose ne se déclenche pas : le curateur hebdomadaire rend le verdict playbooks dès 30 j de série <!-- critic: non — mesure puis décision documentée --> <!-- scope: .claude/scripts/curator.py, .claude/scripts/usage_report.py, .claude/workflows/, .claude/skills/, .claude/rules/, .claude/dev-docs/architecture/requirements.yaml, tests/ --> | P4 | `usage_report.py` sur les séances postérieures au 2026-10-04 |
 
 ---
 
