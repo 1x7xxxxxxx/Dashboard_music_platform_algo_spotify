@@ -96,6 +96,24 @@ def test_a_commit_is_judged_by_the_rules_of_its_parent() -> None:
     assert probe.classify(["tests/t.py"], "x", chk, 1, gated=True) is None
 
 
+def test_a_scope_widened_later_does_not_turn_an_old_commit_into_a_bypass() -> None:
+    """R467: R450 (2026-10-07) held EVERY file to the row's scope; judged by today's gate,
+    16 commits that passed the gate of their parent turned the nightly red each night."""
+    today = _text(_ROOT / "tools" / "dev" / "require_roadmap_id.py")
+    widened = "if not f.startswith(UNSCOPED) and not f.startswith(tuple(scopes))"
+    assert widened in today
+    before_r450 = today.replace(widened, "if is_product(f) and not f.startswith(tuple(scopes))")
+    chk = _HEAD + "| R5 | x <!-- critic: non --> <!-- scope: src/x.py --> | P3 | t |\n"
+    files, msg = ["src/x.py", "tools/dev/y.py"], "R5 : x"
+    assert probe.classify(files, msg, chk, 1, gated=True) == "bypass:not_open"
+    assert probe.classify(files, msg, chk, 1, gated=True,
+                          judge=probe.gate_at(before_r450)) == "ok"
+    row = {"files": files, "message": msg, "parent_checklist": chk, "parents": 1,
+           "gated": True, "gate_src": before_r450}
+    assert probe.git_half([row], baseline=False)["bypass"] == 0
+    assert probe.gate_at("import a_module_that_is_gone\n") is probe.gate
+
+
 def test_a_stale_open_row_fails_the_probe() -> None:
     report = {"git": {"bypass": 0, "bypasses": []}, "open_rows_age_days": {"R1": 20},
               "stale": ["R1"]}

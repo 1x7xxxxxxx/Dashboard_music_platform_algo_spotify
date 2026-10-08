@@ -52,14 +52,36 @@ def _git(*args: str, root: Path = ROOT) -> str:
                           text=True).stdout
 
 
+_GATES: dict[str, object] = {}
+
+
+def gate_at(source: str):
+    """The gate module as it was written in `source` (its parent's copy) — R467: R450
+    widened the scope rule on 2026-10-07 and 16 older commits, valid under the gate they
+    passed, were counted as bypasses every night. Today's gate when the source is empty
+    or no longer loads on its own."""
+    if not source:
+        return gate
+    if source not in _GATES:
+        mod = type(sys)("_gate_at_parent")
+        try:
+            exec(compile(source, gate.__file__, "exec"), mod.__dict__)
+        except Exception:  # an old copy may import what no longer exists
+            mod = gate
+        _GATES[source] = mod
+    return _GATES[source]
+
+
 def classify(files: list[str], message: str, parent_checklist: str, parents: int,
-             gated: bool, critic_gated: bool = True) -> str | None:
+             gated: bool, critic_gated: bool = True, judge=None) -> str | None:
     """None for a commit that is not product code; else ok | no_id | not_open |
     undecided — and `bypass:<reason>` once the gate existed. A commit is judged by the rules
-    that existed at its PARENT: before R198, an undecided row was the norm, not a fault. Pure."""
-    if gate.is_exempt(message, parents) or not any(gate.is_product(f) for f in files):
+    that existed at its PARENT (`judge`, the parent's gate): before R198, an undecided row
+    was the norm, not a fault; before R450, only product files were held to a scope."""
+    judge = judge or gate
+    if judge.is_exempt(message, parents) or not any(judge.is_product(f) for f in files):
         return None
-    reason = gate.verdict(files, message, parent_checklist, parents)
+    reason = judge.verdict(files, message, parent_checklist, parents)
     if reason is None:
         return "ok"
     kind = ("no_id" if "aucun Rnnn" in reason else
@@ -84,8 +106,9 @@ def commits(days: int, root: Path = ROOT) -> list[dict]:
             "message": _git("log", "-1", "--format=%B", sha, root=root),
             "parent_checklist": _git("show", f"{p}:{gate.CHECKLIST}", root=root),
             "parents": len(parents),
-            "gated": bool(_git("show", f"{p}:{gate._SELF}", root=root)),
-            "critic_gated": "def critic_decision" in _git("show", f"{p}:{gate._SELF}", root=root),
+            "gate_src": (src := _git("show", f"{p}:{gate._SELF}", root=root)),
+            "gated": bool(src),
+            "critic_gated": "def critic_decision" in src,
         })
     return out
 
@@ -97,7 +120,7 @@ def git_half(rows: list[dict], baseline: bool) -> dict:
         if not (baseline or c["gated"]):
             continue
         k = classify(c["files"], c["message"], c["parent_checklist"], c["parents"], c["gated"],
-                     c.get("critic_gated", True))
+                     c.get("critic_gated", True), gate_at(c.get("gate_src", "")))
         if k is None:
             continue
         counts["product"] += 1

@@ -64,6 +64,23 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_a_push_carries_the_tree_seen_green.py":
+        "2026-10-08 — R467 : `verdict` ne compte plus les fichiers changés depuis le run vert "
+        "(le push du 2026-10-07, R444) → 2 rouges",
+    "tests/test_the_onboarding_matrix_is_dense.py":
+        "2026-10-08 — R467 : la case compacte reprend 34px (la matrice qui poussait le bouton "
+        "sous la ligne de flottaison, R439) → 2 rouges",
+    "tests/test_a_committed_change_is_still_selected.py":
+        "2026-10-08 — R467 : `_unpushed_base` rend « HEAD » (le défaut R464) → 1 rouge",
+    "tests/test_the_welcome_offer_is_two_highlighted_plans.py":
+        "2026-10-08 — R467 : PLAN_HIGHLIGHT premium « violet » → « blue », une seule couleur "
+        "pour deux plans → 1 rouge",
+    "tests/test_every_navigation_button_reaches_its_page.py":
+        "2026-10-08 — R467 : plan_gate `goto(page_key)` → `goto(\"upgrade\")` (le défaut "
+        "R454, renvoi à l'accueil) → 1 rouge",
+    "tests/test_a_ci_red_says_how_it_escaped.py":
+        "2026-10-08 — R467 : `escape` rend « local-vs-ci » sans regarder la porte de push "
+        "(deux routes confondues) → 1 rouge",
     "tests/test_service_is_frozen.py":
         "2026-10-07 — R434 : ligne « Déclenchement des algos Spotify » font-size 1.9rem "
         "→ 1.2rem → 3 rouges (photos with_link, no_link, mail_open)",

@@ -11462,6 +11462,7 @@
     "tests/test_the_rex_gate_runs_before_the_push.py::test_the_hook_fires_on_the_files_the_validator_reads": 0.006994425997618237,
     "tests/test_the_rex_gate_runs_before_the_push.py::test_the_local_hook_refuses_what_the_ci_refuses": 0.0065085060050478205,
     "tests/test_the_roadmap_discipline_is_measured.py::test_a_commit_is_judged_by_the_rules_of_its_parent": 0.0007183819980127737,
+    "tests/test_the_roadmap_discipline_is_measured.py::test_a_scope_widened_later_does_not_turn_an_old_commit_into_a_bypass": 0.1339850079966709,
     "tests/test_the_roadmap_discipline_is_measured.py::test_a_stale_open_row_fails_the_probe": 0.0006137750024208799,
     "tests/test_the_roadmap_discipline_is_measured.py::test_an_old_open_row_is_found_stale_in_a_real_history": 0.02366153999173548,
     "tests/test_the_roadmap_discipline_is_measured.py::test_the_critic_half_counts_a_critic_only_before_the_code": 0.12935474500409327,
