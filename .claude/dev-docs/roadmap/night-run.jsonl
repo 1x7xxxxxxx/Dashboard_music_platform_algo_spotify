@@ -740,3 +740,5 @@
 {"at": "2026-10-07T22:26:28+00:00", "head": "b94025c9", "kind": "done", "task": "R456", "what": ""}
 {"at": "2026-10-07T22:54:25+00:00", "head": "1c7b0fbf", "kind": "start", "task": "R464", "what": "select_tests contre upstream"}
 {"at": "2026-10-07T23:00:15+00:00", "head": "00649e24", "kind": "done", "task": "R464", "what": ""}
+{"at": "2026-10-08T11:30:16+00:00", "head": "6eb7efa9", "kind": "start", "task": "R465", "what": "acquittement R122 59→60"}
+{"at": "2026-10-08T11:37:22+00:00", "head": "2c737371", "kind": "done", "task": "R465", "what": ""}
