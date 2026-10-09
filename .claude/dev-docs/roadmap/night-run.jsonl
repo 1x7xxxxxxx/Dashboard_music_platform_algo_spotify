@@ -773,3 +773,5 @@
 {"at": "2026-10-09T05:10:58+00:00", "kind": "done", "task": "R480", "what": "fermée par roadmap-close — CI verte 65c589e0 (run 37886640074)"}
 {"at": "2026-10-09T05:12:55+00:00", "head": "0dd340e1", "kind": "done", "task": "R480", "what": "CI verte 65c589e0, archivée"}
 {"at": "2026-10-09T05:13:03+00:00", "head": "0dd340e1", "kind": "start", "task": "R483", "what": "spotify : ce qui bouge = titres qui bougent, PI en barres à côté, axe borné"}
+{"at": "2026-10-09T05:33:52+00:00", "kind": "done", "task": "R482", "what": "fermée par roadmap-close — CI verte 21746552 (run 37887339093)"}
+{"at": "2026-10-09T05:34:56+00:00", "head": "ba65260b", "kind": "done", "task": "R482", "what": "CI verte 21746552, archivée"}

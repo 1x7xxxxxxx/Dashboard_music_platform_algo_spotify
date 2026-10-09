@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R482 — Hypeddit (W5) : dépliant « comment récupérer tes chiffres » (actions seules) ; type/cam… (livrée 2026-10-09)
+
+- [x] **R482 — Hypeddit (W5) : dépliant « comment récupérer tes chiffres » (actions seules) ; type/campagne/date sur une ligne puis visites/clics ; Enregistrer centré et plus gros, Réinitialiser retiré ; d'office la dernière track sortie, « nouvelle » si sans donnée, date du jour ; historique dans un dépliant fermé ; stats globales → R476** (P3) ✅ (2026-10-09, 21746552)
+  Mesuré par : AppTest hypeddit : valeurs par défaut
+  CI verte 21746552 (run 37887339093)
+  Commits : 21746552 R482 : hypeddit — type/campagne/date sur une ligne, Enregistrer centré
+
 ## ✅ R480 — Mise en route (W3) : barre gauche réduite à « Bienvenue et choix » + « Où tu en es » ;… (livrée 2026-10-09)
 
 - [x] **R480 — Mise en route (W3) : barre gauche réduite à « Bienvenue et choix » + « Où tu en es » ; graphique 1 générique (+ Hypeddit clics, Meta €) ; graphiques 2-3 même taille ; palier 100 % par playlist ; graphique 3 Meta € rouge / CPR / Hypeddit clics / streams avec impact campagne puis pics DW et Radio et prévision ; retirer « (exemple données fictives…) » et le texte YouTube/SoundCloud ; bouton « suivant » vers « Où tu en es »** (P3) ✅ (2026-10-09, 65c589e0)

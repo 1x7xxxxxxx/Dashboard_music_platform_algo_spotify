@@ -3880,10 +3880,9 @@
     replié, stats vers la vue croisée'
   type: action-produit
   domaine: hypeddit
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R482
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R482 (archivée) — 21746552
 - ligne: 24
   source: revue/notes-vocales-2026-10-09.md
   note: W6
