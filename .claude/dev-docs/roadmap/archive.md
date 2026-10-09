@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R476 — Vue croisée = la vue de tout le funnel (W13, W2) : architecture unique et filtres parta… (livrée 2026-10-09)
+
+- [x] **R476 — Vue croisée = la vue de tout le funnel (W13, W2) : architecture unique et filtres partagés ; absorbe Pub Meta, Visuels, Qui a vu tes pubs, Instagram, l'onglet « Tout mon funnel » (contenu redistribué), stats globales Hypeddit (W5), « mes sorties à âge égal » + Meta (W6), Shazam depuis la sortie + Meta (W7), point mort / revenu net redessiné (W11) ; renommée « … × Shazam × Revenus », placée en FIN d'« Analytics plateformes » ; funnel Insta → Hypeddit → Spotify, Insta Ads, Shazam** (P3) ✅ (2026-10-09, 74a6f430, 59e68078)
+  Mesuré par : une seule entrée de menu croisée ; chaque graphique déplacé rendu une fois (AppTest)
+  CI verte sur 74a6f430 (run 37878684278) — vue croisée en registre de 7 sections, ADR-032
+  Commits : 74a6f430 R476 : vue croisée = tout le funnel — registre de 7 sections (parcours · 59e68078 Roadmap : R474-R489 inscrites — retours vocaux W1-W14 du 2026-10-09 (u
+
 ## ✅ R490 — `make roadmap-close` écrit `notes-triage.yaml` (statut de la note → livré) et le hook c… (livrée 2026-10-09)
 
 - [x] **R490 — `make roadmap-close` écrit `notes-triage.yaml` (statut de la note → livré) et le hook commit-msg le juge hors du périmètre de la ligne fermée : le commit de clôture est refusé. Déclarer ce fichier comme comptabilité de roadmap (UNSCOPED), comme archive/checklist** (P3) ✅ (2026-10-09, c209a0ba)

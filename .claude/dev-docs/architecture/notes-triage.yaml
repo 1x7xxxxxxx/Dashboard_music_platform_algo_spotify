@@ -3851,10 +3851,9 @@
   resume: '« Tout mon funnel » : redistribuer son contenu dans les vues pertinentes'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R476
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R476 (archivée) — 74a6f430
 - ligne: 12
   source: revue/notes-vocales-2026-10-09.md
   note: W3
@@ -3967,10 +3966,9 @@
   resume: 'Vue croisée : tout le reste dans une seule vue, mêmes filtres, renommée × Revenus, en fin d''Analytics'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R476
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R476 (archivée) — 74a6f430
 - ligne: 56
   source: revue/notes-vocales-2026-10-09.md
   note: W14
