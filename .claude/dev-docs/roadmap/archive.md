@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R491 — Ligne « 🎯 décision » sous les graphiques retirée de toute l'app (consigne du 2026-10-09… (livrée 2026-10-09)
+
+- [x] **R491 — Ligne « 🎯 décision » sous les graphiques retirée de toute l'app (consigne du 2026-10-09 : « aucun texte d'aide sous les graphiques ») — REQ-CHART-05 retirée avec sa source** (P3) ✅ (2026-10-09, a4a576b7)
+  Mesuré par : AppTest des vues ; aucune `st.caption` de décision rendue
+  CI verte a4a576b7 (run 37914655653)
+  Commits : a4a576b7 R491 : plus de ligne « 🎯 décision » sous les graphiques
+
 ## ✅ R492 — Contrôle de contraste des figures (`figure_contrast_report.py`) : ne lit plus les comme… (livrée 2026-10-09)
 
 - [x] **R492 — Contrôle de contraste des figures (`figure_contrast_report.py`) : ne lit plus les commentaires ni les docstrings — un nom de couleur ou un hex dans un commentaire faisait échouer le garde** (P4) ✅ (2026-10-09, eb8498ef)
