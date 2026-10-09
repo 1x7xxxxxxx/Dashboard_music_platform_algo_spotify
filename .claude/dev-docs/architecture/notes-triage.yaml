@@ -3947,10 +3947,9 @@
     en free'
   type: action-produit
   domaine: account
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R489
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R489 (archivée) — 2a61d711
 - ligne: 52
   source: revue/notes-vocales-2026-10-09.md
   note: W13

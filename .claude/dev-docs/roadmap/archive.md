@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R489 — Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander l… (livrée 2026-10-09)
+
+- [x] **R489 — Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander la suppression » qui envoie la demande par mail ; date de repassage premium → free affichée dans les deux vues** (P3) ✅ (2026-10-09, 2a61d711, 59e68078)
+  Mesuré par : AppTest account/billing ; aucun mail réel en test
+  CI verte 2a61d711 (run 37904370571)
+  Commits : 2a61d711 R489 : Mon compte + Facturation — date à laquelle Premium repasse en F · 59e68078 Roadmap : R474-R489 inscrites — retours vocaux W1-W14 du 2026-10-09 (u
+
 ## ✅ R488 — Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en… (livrée 2026-10-09)
 
 - [x] **R488 — Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en tête (comme SACEM) ; textes retirés ; champ notes : usage prouvé ou supprimé ; €/mois + € cumulé + prévision + point mort sur UN graphique ; SACEM en camembert** (P3) ✅ (2026-10-09, 8dfabcfb, 74a6f430)

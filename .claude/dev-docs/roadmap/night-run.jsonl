@@ -791,3 +791,6 @@
 {"at": "2026-10-09T07:32:17+00:00", "kind": "done", "task": "R487", "what": "fermée par roadmap-close — CI verte c83fdfd8 (run 37899269080)"}
 {"at": "2026-10-09T07:34:14+00:00", "head": "432f59bd", "kind": "done", "task": "R487", "what": "CI verte c83fdfd8, archivée"}
 {"at": "2026-10-09T08:08:04+00:00", "kind": "done", "task": "R488", "what": "fermée par roadmap-close — CI verte 8dfabcfb (run 37902723497)"}
+{"at": "2026-10-09T08:10:13+00:00", "head": "595b2f12", "kind": "done", "task": "R488", "what": "CI verte 8dfabcfb, archivée"}
+{"at": "2026-10-09T08:10:13+00:00", "head": "595b2f12", "kind": "start", "task": "R489", "what": "date premium→free dans Mon compte et Facturation ; W12 items 1-2 déjà livrés par R390"}
+{"at": "2026-10-09T08:23:53+00:00", "kind": "done", "task": "R489", "what": "fermée par roadmap-close — CI verte 2a61d711 (run 37904370571)"}
