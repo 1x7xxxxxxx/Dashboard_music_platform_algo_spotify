@@ -17,6 +17,7 @@ The bar is drawn once, at the head of the page, and every section reads its resu
   - the period FOLLOWS the campaign when one is chosen (`campaign_window`: the campaign,
     the campaign + its tail, or up to today), and is the shared free filter on « Toutes »;
   - « Qui a vu tes pubs » has no date dimension: the period is shown greyed, `window=None`;
+  - the releases and revenue sections (R476) read the account at most, and say so;
   - Instagram (organic) sits outside the bar — no ad account, no campaign — and says so.
 
 Any other selector of these sections is allowlisted by key with its reason in
@@ -100,8 +101,8 @@ def _greyed_period() -> None:
 
 
 def _period(db, artist_id: int, spans: pd.DataFrame, scope: tuple[str, ...],
-            section: str) -> PeriodWindow | None:
-    if section == "breakdowns":
+            uses: frozenset[str]) -> PeriodWindow | None:
+    if "period" not in uses:
         _greyed_period()
         return None
     rows = spans[spans["campaign_name"].isin(scope)] if scope else spans
@@ -117,8 +118,31 @@ def _period(db, artist_id: int, spans: pd.DataFrame, scope: tuple[str, ...],
                           latest_release=None if pd.isna(launch) else launch.date())
 
 
-def filter_bar(db, artist_id: int, section: str) -> MetaFilters:
-    """Draw the bar once and return what every section reads."""
+# What each section of the cross view reads from the bar (R476, ADR-032) — the bar draws
+# those filters and STATES the others instead of guessing from a section name.
+BAR_FULL = frozenset({"account", "campaign", "second", "period"})
+BAR_JOURNEY = frozenset({"account", "campaign", "period"})      # ONE campaign's story
+BAR_UNDATED = frozenset({"account", "campaign", "second"})      # Meta does not date it
+BAR_ACCOUNT = frozenset({"account"})                            # releases, revenue
+BAR_NONE: frozenset[str] = frozenset()                          # Instagram (organic)
+
+
+def _account_only(db, artist_id: int, uses: frozenset[str]) -> MetaFilters:
+    """A section that reads the account at most: the campaign and the period are stated,
+    never silently ignored."""
+    account = None
+    if "account" in uses and len(tenant_ad_accounts(db, artist_id)) > 1:
+        account = account_scope(db, artist_id, key=ACCOUNT_KEY)
+    st.caption(t("meta_filter_bar.no_campaign_scope",
+                 "Cette section suit tes sorties, pas une campagne : chaque graphique "
+                 "garde sa propre période."))
+    return MetaFilters(account, (), None, None, None)
+
+
+def filter_bar(db, artist_id: int, uses: frozenset[str]) -> MetaFilters:
+    """Draw the bar once and return what the section reads (`uses`, R476)."""
+    if "campaign" not in uses:
+        return _account_only(db, artist_id, uses)
     # One ad account draws no account widget: its column would sit empty on the left.
     if len(tenant_ad_accounts(db, artist_id)) > 1:
         c_acct, c_camp, c_period = st.columns([1, 2, 2])
@@ -137,10 +161,10 @@ def filter_bar(db, artist_id: int, section: str) -> MetaFilters:
             format_func=lambda c: t("meta_filter_bar.all_campaigns", "Toutes") if c == ALL else c)
         campaign = picked if picked in names else None
         second = (second_campaign(list(names), campaign, key=SECOND_KEY)
-                  if campaign and section != "funnel" else None)
+                  if campaign and "second" in uses else None)
     scope = tuple(c for c in (campaign, second) if c)
     with c_period:
-        window = _period(db, artist_id, spans, scope, section)
+        window = _period(db, artist_id, spans, scope, uses)
     return MetaFilters(account, names, campaign, second, window)
 
 

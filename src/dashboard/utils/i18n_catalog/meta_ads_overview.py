@@ -33,8 +33,10 @@ EN = {
     "meta_ads_overview.section_creatives": "🎨 Campaign creatives",
     "meta_ads_overview.section_breakdowns": "🌍 Who saw your ads",
     "meta_ads_overview.section_instagram": "📸 Instagram",
-    "meta_ads_overview.title_cross": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam",
-    "meta_ads_overview.section_funnel": "🔀 My whole funnel — from the ad to the stream",
+    "meta_ads_overview.title_cross": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam × Revenue",
+    "meta_ads_overview.section_journey": "🛤️ A campaign's journey",
+    "meta_ads_overview.section_releases": "🚀 My releases",
+    "meta_ads_overview.section_revenue": "💶 Revenue",
     "meta_ads_overview.global_perf": "### 🚀 Overall Performance",
     "meta_ads_overview.capi_required": (
         "CPR empty: it requires CAPI (server-side events) — no custom "

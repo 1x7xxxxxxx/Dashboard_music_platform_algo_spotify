@@ -156,7 +156,7 @@ def _frag_releases(frag: str, params: tuple) -> None:
     from src.dashboard.utils.fragment_db import fragment_db
 
     with fragment_db() as (db, _artist_id):
-        _render_releases(db, frag, params)
+        render_release_cohort(db, frag, params, overlays=False, key="s4a_release_pick")
 
 
 def worth_a_panel(df: pd.DataFrame, col: str) -> bool:
@@ -230,14 +230,13 @@ def spend_curve(meta: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True)
 
 
-def _release_overlays(db, keys: list, horizon: int, frag: str,
-                      params: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(Meta € per day, Shazams per reading) by release title and day since release.
+def load_release_spend(db, releases: pd.DataFrame, horizon: int, frag: str,
+                       params: tuple) -> pd.DataFrame:
+    """Meta € per day by release (`releases`: artist_id, match_key, title, release_date).
 
-    Meta: the campaigns tied to the track (`campaign_track_mapping`) resolved to the
-    release by `track_platform_link.match_key` (`release_spend`), on the gold daily
-    spend. Shazams: the Apple title linked to the release (`track_platform_link`) on the
-    gold per-reading series — Apple publishes readings, not days.
+    The one loader of the campaign → release spend, for the Spotify releases chart and
+    the Apple Shazam-since-release chart of the cross view (R476) — `release_spend` is
+    the join, this is its three reads.
     """
     spend = _df(db, f"""
         SELECT artist_id, campaign_name, day, SUM(spend) AS spend FROM v_meta_daily
@@ -252,11 +251,23 @@ def _release_overlays(db, keys: list, horizon: int, frag: str,
         SELECT artist_id, match_key, platform_title FROM track_platform_link
          WHERE status = 'confirmed' {frag}
     """, params)
+    return release_spend(spend, mapping, links, releases, horizon)
+
+
+def _release_overlays(db, keys: list, horizon: int, frag: str,
+                      params: tuple) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(Meta € per day, Shazams per reading) by release title and day since release.
+
+    Meta: the campaigns tied to the track (`campaign_track_mapping`) resolved to the
+    release by `track_platform_link.match_key` (`release_spend`), on the gold daily
+    spend. Shazams: the Apple title linked to the release (`track_platform_link`) on the
+    gold per-reading series — Apple publishes readings, not days.
+    """
     releases = _df(db, f"""
         SELECT artist_id, match_key, title, release_date FROM track_release_reference
          WHERE match_key = ANY(%s) {frag}
     """, (keys, *params))
-    meta = release_spend(spend, mapping, links, releases, horizon)
+    meta = load_release_spend(db, releases, horizon, frag, params)
     shazam = _df(db, f"""
         SELECT r.title, (a.day - r.release_date) AS day_index,
                SUM(a.daily_shazams) AS shazams
@@ -343,8 +354,14 @@ def moving_songs(spans: pd.DataFrame, recent: pd.DataFrame) -> pd.DataFrame:
     return kept if not kept.empty else spans
 
 
-def _render_releases(db, frag: str, params: tuple) -> None:
+def render_release_cohort(db, frag: str, params: tuple, *, overlays: bool,
+                          key: str) -> None:
     """Les sorties recalées sur J+0, comparées à fenêtre ÉGALE.
+
+    R476 (owner W6 : « mes sorties à âge égal : nickel » ; « le graphique … dépenses Meta
+    en pointillé + Spotify → vue croisée ») — ONE builder, two callers : the Spotify page
+    draws the streams alone (`overlays=False`), the cross view's « Sorties » section adds
+    the Meta € per day and the Shazams (`overlays=True`).
 
     C'est la colonne vertébrale, et elle découle de l'import épisodique : autour
     d'une sortie, c'est le seul cadre où deux séries sont comparables. Comparer
@@ -371,7 +388,7 @@ def _render_releases(db, frag: str, params: tuple) -> None:
 
     chosen = release_picker(
         t("spotify_s4a_combined.pick_releases", "Sorties à comparer"),
-        reach["title"].tolist(), key="s4a_release_pick")
+        reach["title"].tolist(), key=key)
     if not chosen:
         st.info(t("spotify_s4a_combined.pick_at_least_one",
                   "Choisis au moins une sortie."))
@@ -399,7 +416,10 @@ def _render_releases(db, frag: str, params: tuple) -> None:
     # R436 (propriétaire, 2026-10-07) : la dépense Meta (par jour depuis R459) quitte son panneau et
     # devient une AIRE sur la figure des streams cumulés, à l'axe € de DROITE — des
     # euros et des écoutes, deux natures, jamais une échelle commune.
-    meta, shazam = _release_overlays(db, list(keys), horizon, frag, params)
+    if overlays:
+        meta, shazam = _release_overlays(db, list(keys), horizon, frag, params)
+    else:
+        meta = shazam = pd.DataFrame(columns=["title", "day_index"])
     # Seen on the render (2026-09-28): two readings at 0 drew a panel on a −1..1 axis. A
     # panel of zeros says nothing a caption cannot — it appears only once a reading gains.
     if not worth_a_panel(shazam, "shazams"):

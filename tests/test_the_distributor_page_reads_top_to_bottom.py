@@ -49,10 +49,10 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     assert len(at.tabs) == 0, "the page is split into tabs again"
     heads = [s.value for s in at.subheader]
     assert heads and "Saisie" in heads[0], f"the entry form is not on top: {heads}"
-    evo = next((i for i, h in enumerate(heads) if "Évolution" in h), None)
-    roi = next((i for i, h in enumerate(heads) if "Point mort" in h), None)
-    assert evo is not None and roi is not None and evo < roi, (
-        f"the evolution does not come before break-even: {heads}")
+    assert any("Évolution" in h for h in heads), f"the evolution is gone: {heads}"
+    # R476 (W11): the break-even left for the cross view's « Revenus » section.
+    assert not any("Point mort" in h for h in heads), (
+        f"the break-even is back on the distributor page: {heads}")
     # R461: the SACEM ledger joined this page, folded in its « Relevé détaillé » expander.
     # The property is « no table SHOWN in place of the chart », not « no table at all ».
     folded = sum(len(e.dataframe) for e in at.expander)

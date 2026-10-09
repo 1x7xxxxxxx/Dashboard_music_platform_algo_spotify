@@ -781,41 +781,15 @@ def _show_body(db, artist_id, bar) -> None:
     master = _merge(frames)
     _render_tiles(db, artist_id, master, d0, d1)
 
-    # TROIS ONGLETS, ET C'EST UN CHOIX DE CADRAGE — 2026-09-21.
-    #
-    # La page répond désormais à trois questions distinctes : « qu'a fait cette
-    # campagne dans le temps », « où se perdent les gens entre la pub et
-    # l'écoute », « dans quel pays l'euro rapporte le plus ». Les empiler
-    # donnerait sept figures au premier écran, au-dessus du plafond de cinq que
-    # `test_the_first_screen_counts_its_gauges` tient (Few : un tableau de bord
-    # tient dans un coup d'œil).
-    #
-    # Un onglet BORNE un écran — c'est la sortie que ce garde nomme lui-même.
-    #
-    # ⚠️ Le coût est réel et vaut d'être écrit : `st.tabs` exécute le corps de
-    # TOUS ses onglets à chaque rendu. Trois onglets, c'est trois fois le travail
-    # pour un seul regardé. On l'accepte ici parce que les trois sections lisent
-    # des tables différentes et qu'aucune n'est la plus chère de la page ; on l'a
-    # refusé sur `data_wrapped`, où le quatrième onglet interrogeait cinq
-    # domaines.
-    tab_impact, tab_funnel, tab_pays, tab_cmp = st.tabs([
-        t("meta_x_spotify.tab_impact", "📈 Impact dans le temps"),
-        t("meta_x_spotify.tab_funnel", "🔽 Le parcours complet"),
-        t("meta_x_spotify.tab_countries", "🌍 Par pays"),
-        t("meta_x_spotify.tab_compare", "🏁 Comparer mes campagnes"),  # R234
-    ])
-    with tab_impact:
-        _render_chart(master, campaign)
-        _render_shazam_lag(master)
-        _render_engagement(db, artist_id, d0, d1)
-        _render_absences(absences, d0, d1)
-    with tab_funnel:
-        _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
-    with tab_pays:
-        _render_countries(db, artist_id, acct, acct_p)
-    with tab_cmp:
-        from src.dashboard.utils.campaign_compare import render as _render_compare
-        _render_compare(db, artist_id, acct, acct_p)
+    # R476 (owner W2 : « tout mon funnel … c'est flou → déplacer le contenu dans les vues
+    # pertinentes ») — the four tabs are gone. This section tells ONE campaign's journey,
+    # top to bottom; « par pays » moved to « Qui a vu tes pubs », « comparer mes
+    # campagnes » to « Performance des campagnes » (ADR-032).
+    _render_chart(master, campaign)
+    _render_shazam_lag(master)
+    _render_engagement(db, artist_id, d0, d1)
+    _render_absences(absences, d0, d1)
+    _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
 
 
 def show():
@@ -1001,7 +975,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
 
 
 # ── Le croisement PAYS — où l'euro rapporte le plus d'écoutes ──────────────────
-def _render_countries(db, artist_id, acct, acct_p) -> None:
+def render_countries(db, artist_id, acct, acct_p) -> None:
     """Dépense Meta par pays × écoutes du distributeur par pays.
 
     Rapatrié de « Publicité Meta Ads » le 2026-09-21, à la demande du

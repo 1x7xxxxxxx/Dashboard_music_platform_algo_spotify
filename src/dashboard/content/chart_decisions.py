@@ -39,12 +39,12 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/alerts.py::_section_plan_evolution#1': (
         "Suivre combien d'artistes s'inscrivent et paient, pour juger tes campagnes d'acquisition.",
         'Follow how many artists sign up and pay, to judge your acquisition campaigns.'),
-    'views/apple_music.py::_render_shazam_launches#1': (
-        'Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche.',
-        'Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works.'),
     'views/apple_music.py::_render_song_series#1': (
         "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter.",
         'See whether a track still gains Apple and Shazam plays, a sign a campaign can still carry it.'),
+    'views/apple_music.py::render_shazam_launches#1': (
+        'Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche.',
+        'Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works.'),
     'views/apple_music.py::show#1': (
         'Identifier les titres qui portent Apple Music, pour y orienter tes campagnes hors Spotify.',
         'Identify the tracks carrying Apple Music, to aim your non-Spotify campaigns at them.'),
@@ -69,7 +69,7 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/imusician.py::_render_evolution#1': (
         "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus.",
         'See whether your sales rise or fall month to month, to judge what your latest release did to your revenue.'),
-    'views/imusician.py::_render_roi#1': (
+    'views/imusician.py::render_break_even#1': (
         'Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne.',
         "See where your cash stands, sales against spend, to set your next campaign's budget."),
     'views/instagram.py::_render_community#1': (
@@ -129,15 +129,15 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/meta_x_spotify.py::_render_chart#1': (
         'Voir si budget, clics et écoutes bougent ensemble pendant la campagne, pour juger son effet.',
         'See whether budget, clicks and streams move together during the campaign, to judge its effect.'),
-    'views/meta_x_spotify.py::_render_countries#1': (
-        "Choisir les pays où l'euro de pub rapporte le plus d'écoutes, pour y cibler.",
-        'Choose the countries where each ad euro brings the most streams, to target them.'),
     'views/meta_x_spotify.py::_render_funnel#1': (
         "Voir où les gens se perdent de la pub à l'écoute, pour corriger le maillon faible.",
         'See where people get lost from ad to stream, to fix the weak link.'),
     'views/meta_x_spotify.py::_render_listener_verdict#1': (
         'Savoir si ta dernière pub a amené des auditeurs, pour décider de la reconduire.',
         'Know whether your last ad brought listeners, to decide whether to renew it.'),
+    'views/meta_x_spotify.py::render_countries#1': (
+        "Choisir les pays où l'euro de pub rapporte le plus d'écoutes, pour y cibler.",
+        'Choose the countries where each ad euro brings the most streams, to target them.'),
     'views/onboarding.py::platform': (
         "Poser ton point de départ toutes plateformes, pour mesurer l'effet de tes prochaines campagnes.",
         'Set your all-platform starting point, to measure the effect of your next campaigns.'),
@@ -162,12 +162,12 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/spotify_s4a_combined.py::_render_momentum#1': (
         'Repérer le titre qui prend en ce moment, pour choisir lequel promouvoir en priorité.',
         'Spot the track that is taking off right now, to choose which one to promote first.'),
-    'views/spotify_s4a_combined.py::_render_releases#1': (
-        'Comparer ta dernière sortie aux précédentes au même âge, pour décider si elle mérite un coup de pub maintenant.',
-        'Compare your latest release with the previous ones at the same age, to decide whether it deserves an ad push now.'),
     'views/spotify_s4a_combined.py::_render_secondary#1': (
         'Savoir si un titre vit encore et si ton audience suit, pour décider de relancer sa promo ou de passer au suivant.',
         'Know whether a track is still alive and your audience follows, to decide whether to relaunch its promo or move on.'),
+    'views/spotify_s4a_combined.py::render_release_cohort#1': (
+        'Comparer ta dernière sortie aux précédentes au même âge, pour décider si elle mérite un coup de pub maintenant.',
+        'Compare your latest release with the previous ones at the same age, to decide whether it deserves an ad push now.'),
     'views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1': (
         'Voir, pour chaque playlist, le critère qui retient le plus ton titre, pour savoir quoi travailler en premier.',
         'See, for each playlist, the criterion holding your track back the most, to know what to work on first.'),

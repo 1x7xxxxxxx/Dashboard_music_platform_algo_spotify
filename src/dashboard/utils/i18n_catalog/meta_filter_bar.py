@@ -9,4 +9,6 @@ EN = {
     "meta_filter_bar.window_caption": "Campaign from {a} to {b}.",
     "meta_filter_bar.instagram_outside": "📸 Organic Instagram: no ad account and no campaign "
                                          "apply here — each chart keeps its own period.",
+    "meta_filter_bar.no_campaign_scope": "This section follows your releases, not a campaign: "
+                                         "each chart keeps its own period.",
 }

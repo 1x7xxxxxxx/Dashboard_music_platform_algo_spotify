@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Callable
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -10,7 +13,9 @@ from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0
-from src.dashboard.utils.meta_filter_bar import MetaFilters, filter_bar, say_instagram_is_outside
+from src.dashboard.utils.meta_filter_bar import (
+    BAR_FULL, BAR_JOURNEY, BAR_NONE, BAR_UNDATED, MetaFilters, filter_bar,
+    say_instagram_is_outside)
 
 # Meta gender targeting codes → labels (empty = no restriction = everyone).
 _GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
@@ -94,14 +99,101 @@ def _render_scope_notice(db, artist_id) -> None:
 
 
 # R378 (V8, V29, V30, V35, V36, V70 — owner's screen review, 2026-10-05): ONE page, the
-# « 🔀 Vue croisée », carries every Meta-and-Instagram reading as a section — the funnel
-# (Insta → Hypeddit → Spotify, Shazam), the campaign performance, the creatives, who saw
-# the ads, and Instagram. The page key stays `meta_ads_overview`: it is the Free-plan key
-# (`stripe_schema._FREE_FEATURES`), so no plan or migration moves. A segmented control
-# rather than `st.tabs`: tabs run every body on each rerun, and these five sections are
-# ~4,500 lines of queries — one is rendered at a time. The old routes are aliases to this
-# page and open the section they named. One shared filter set (R399): `meta_filter_bar`.
-SECTIONS = ("funnel", "perf", "creatives", "breakdowns", "instagram")
+# « 🔀 Vue croisée », carries every reading that crosses two sources as a section. R476
+# (owner W13, W2, W5, W6, W7, W11 — ADR-032) made it the whole funnel: the releases (from
+# Hypeddit, Spotify and Apple Music) and the revenue (from the distributors) joined it, and
+# the sections became a REGISTRY — `Section(label, render, bar)`, where `bar` is the set of
+# filters the section reads (`meta_filter_bar.BAR_*`), so the bar draws those and states
+# the rest instead of guessing from a section name. The page key stays
+# `meta_ads_overview`: it is the Free-plan key (`stripe_schema._FREE_FEATURES`), so no plan
+# or migration moves. A segmented control rather than `st.tabs`: tabs run every body on
+# each rerun — one section is rendered at a time. The old routes are aliases to this page
+# and open the section they named.
+
+
+@dataclass(frozen=True)
+class Section:
+    label: Callable[[], str]
+    render: Callable[..., None]          # (db, artist_id, bar: MetaFilters | None)
+    bar: frozenset[str] | None           # None = no bar at all (Instagram, organic)
+
+
+def _render_journey(db, artist_id, bar: MetaFilters) -> None:
+    from src.dashboard.views.meta_x_spotify import render_funnel
+    render_funnel(db, artist_id, bar)
+
+
+def _render_perf(db, artist_id, bar: MetaFilters) -> None:
+    _render_scope_notice(db, artist_id)
+    _show_meta_ads(db, artist_id, bar)
+    # « Comparer mes campagnes » — the funnel's fourth tab until R476 (W2).
+    from src.dashboard.utils.campaign_compare import render as render_compare
+    render_compare(db, artist_id, *bar.acct())
+    # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
+    # Credentials : cette page répond à « que veux-tu suivre », l'autre à
+    # « comment te connecter ».
+    from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
+    render_extra_ad_accounts(db, artist_id)
+
+
+def _render_releases(db, artist_id, bar: MetaFilters) -> None:
+    """Hypeddit campaigns compared (W5), releases at equal age with Meta € (W6), Shazam
+    since release with Meta € (W7) — each left its platform page in the R476 commit."""
+    from src.dashboard.views.apple_music import render_shazam_launches
+    from src.dashboard.views.hypeddit import render_campaign_stats
+    from src.dashboard.views.spotify_s4a_combined import render_release_cohort
+
+    render_campaign_stats(db, artist_id)
+    st.markdown("---")
+    render_release_cohort(db, " AND artist_id = %s", (artist_id,), overlays=True,
+                          key="cross_release_pick")
+    st.markdown("---")
+    render_shazam_launches(db, artist_id)
+
+
+def _render_creatives(db, artist_id, bar: MetaFilters) -> None:
+    from src.dashboard.views.meta_creatives import render as render_creatives
+    render_creatives(db, artist_id, bar)
+
+
+def _render_breakdowns(db, artist_id, bar: MetaFilters) -> None:
+    from src.dashboard.views.meta_breakdowns import render as render_breakdowns
+    from src.dashboard.views.meta_x_spotify import render_countries
+    render_breakdowns(db, artist_id, bar)
+    # « Par pays » — the funnel's third tab until R476 (W2): who saw the ads, where.
+    st.markdown("---")
+    render_countries(db, artist_id, *bar.acct())
+
+
+def _render_instagram(db, artist_id, bar: None) -> None:
+    say_instagram_is_outside()
+    from src.dashboard.views.instagram import render as render_instagram
+    render_instagram(db, artist_id)
+
+
+def _render_revenue(db, artist_id, bar: MetaFilters) -> None:
+    """The break-even treasury — left the distributors page in R476 (W11); its redesign
+    is R488."""
+    from src.dashboard.views.imusician import render_break_even
+    render_break_even(db, artist_id)
+
+
+SECTIONS: dict[str, Section] = {
+    "funnel": Section(lambda: t("meta_ads_overview.section_journey",
+                                "🛤️ Le parcours d'une campagne"), _render_journey, BAR_JOURNEY),
+    "perf": Section(lambda: t("meta_ads_overview.section_perf", "📣 Performance des campagnes"),
+                    _render_perf, BAR_FULL),
+    "releases": Section(lambda: t("meta_ads_overview.section_releases", "🚀 Mes sorties"),
+                        _render_releases, BAR_NONE),
+    "creatives": Section(lambda: t("meta_ads_overview.section_creatives",
+                                   "🎨 Visuels de campagne"), _render_creatives, BAR_FULL),
+    "breakdowns": Section(lambda: t("meta_ads_overview.section_breakdowns",
+                                    "🌍 Qui a vu tes pubs"), _render_breakdowns, BAR_UNDATED),
+    "instagram": Section(lambda: t("meta_ads_overview.section_instagram", "📸 Instagram"),
+                         _render_instagram, None),
+    "revenue": Section(lambda: t("meta_ads_overview.section_revenue", "💶 Revenus"),
+                       _render_revenue, BAR_NONE),
+}
 # The old page key → the section it used to be. Read on arrival only, so a click on the
 # control afterwards is never overridden.
 ALIAS_SECTION = {"meta_x_spotify": "funnel", "meta_creatives": "creatives",
@@ -110,13 +202,7 @@ SECTION_KEY = "meta_overview_section"
 
 
 def _section_label(key: str) -> str:
-    return {
-        "funnel": t("meta_ads_overview.section_funnel", "🔀 Tout mon funnel — de la pub à l'écoute"),
-        "perf": t("meta_ads_overview.section_perf", "📣 Performance des campagnes"),
-        "creatives": t("meta_ads_overview.section_creatives", "🎨 Visuels de campagne"),
-        "breakdowns": t("meta_ads_overview.section_breakdowns", "🌍 Qui a vu tes pubs"),
-        "instagram": t("meta_ads_overview.section_instagram", "📸 Instagram"),
-    }[key]
+    return SECTIONS[key].label()
 
 
 def arrival_section(alias: str | None) -> str | None:
@@ -128,7 +214,7 @@ def arrival_section(alias: str | None) -> str | None:
 def show(section: str | None = None):
     """`section` opens that section on a fresh session — the former pages' `show()`."""
     st.title(t("meta_ads_overview.title_cross",
-               "🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam"))
+               "🔀 Vue croisée — Meta × Hypeddit × Spotify × Insta × Shazam × Revenus"))
     from src.dashboard.routes import ALIAS_ARRIVAL_KEY
 
     landing = arrival_section(st.session_state.get(ALIAS_ARRIVAL_KEY))
@@ -136,7 +222,8 @@ def show(section: str | None = None):
     # screen (« created with a default value but also had its value set »).
     if landing:
         st.session_state[SECTION_KEY] = landing
-    st.session_state.setdefault(SECTION_KEY, section or "funnel")
+    if st.session_state.get(SECTION_KEY) not in SECTIONS:
+        st.session_state[SECTION_KEY] = section if section in SECTIONS else "funnel"
     section = st.segmented_control(
         t("meta_ads_overview.section", "Vue"), list(SECTIONS),
         format_func=_section_label, key=SECTION_KEY) or "funnel"
@@ -145,34 +232,13 @@ def show(section: str | None = None):
     # the creatives' fragments (`fragment_db`). ONE filter bar, read by every section.
     from src.dashboard.utils.fragment_db import page_db_scope
 
+    entry = SECTIONS[section]
     with view_session() as (db, artist_id), page_db_scope(db, artist_id):
-        if section == "instagram":
-            say_instagram_is_outside()
-            from src.dashboard.views.instagram import render as render_instagram
-            return render_instagram(db, artist_id)
-        bar = filter_bar(db, artist_id, section)
-        st.markdown("---")
-        _render_section(db, artist_id, section, bar)
-
-
-def _render_section(db, artist_id, section: str, bar: MetaFilters) -> None:
-    if section == "funnel":
-        from src.dashboard.views.meta_x_spotify import render_funnel
-        return render_funnel(db, artist_id, bar)
-    if section == "creatives":
-        from src.dashboard.views.meta_creatives import render as render_creatives
-        return render_creatives(db, artist_id, bar)
-    if section == "breakdowns":
-        from src.dashboard.views.meta_breakdowns import render as render_breakdowns
-        return render_breakdowns(db, artist_id, bar)
-    _render_scope_notice(db, artist_id)
-    _show_meta_ads(db, artist_id, bar)
-    # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
-    # Credentials : cette page répond à « que veux-tu suivre », l'autre à
-    # « comment te connecter ». Même mouvement que les titres SoundCloud
-    # hébergés ailleurs, partis sur leur page de performance le 2026-09-04.
-    from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
-    render_extra_ad_accounts(db, artist_id)
+        bar = None
+        if entry.bar is not None:
+            bar = filter_bar(db, artist_id, entry.bar)
+            st.markdown("---")
+        entry.render(db, artist_id, bar)
 
 
 def _nan(v):

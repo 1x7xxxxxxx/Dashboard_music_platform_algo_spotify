@@ -28,8 +28,9 @@ def _analytics() -> list[str]:
 
 def test_the_analytics_menu_is_the_platforms_and_the_cross_view() -> None:
     keys = [key for _l, key in _analytics()]
-    assert keys[:5] == ["spotify_s4a_combined", "meta_ads_overview", "apple_music",
-                        "youtube", "soundcloud"], keys
+    # R476 (W13 II) — the cross view closes the platforms instead of following Spotify.
+    assert keys[:5] == ["spotify_s4a_combined", "apple_music", "youtube", "soundcloud",
+                        "meta_ads_overview"], keys
     assert not set(_ABSORBED) & set(keys), "an absorbed page is back in the menu"
 
 
@@ -54,3 +55,38 @@ def test_an_alias_does_not_override_a_later_click() -> None:
     assert resolve_alias("meta_ads_overview") == ("meta_ads_overview", None)
     assert arrival_section(None) is None
     assert arrival_section("meta_ads_overview") is None
+
+
+def test_every_section_of_the_registry_resolves() -> None:
+    """R476 (ADR-032) — each entry names a label, a renderer and the filters it reads;
+    a renderer's lazy imports must resolve, or the section crashes only when clicked."""
+    import ast
+    import importlib
+    import inspect
+
+    from src.dashboard.utils import meta_filter_bar as bar
+
+    allowed = {bar.BAR_FULL, bar.BAR_JOURNEY, bar.BAR_UNDATED, bar.BAR_ACCOUNT, bar.BAR_NONE,
+               None}
+    assert list(SECTIONS) == ["funnel", "perf", "releases", "creatives", "breakdowns",
+                              "instagram", "revenue"], list(SECTIONS)
+    for key, entry in SECTIONS.items():
+        assert isinstance(entry.label(), str) and entry.label(), key
+        assert entry.bar in allowed, key
+        tree = ast.parse(inspect.getsource(entry.render))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                mod = importlib.import_module(node.module)
+                for alias in node.names:
+                    assert hasattr(mod, alias.name), f"{key}: {node.module}.{alias.name}"
+
+
+def test_the_moved_charts_left_their_origin() -> None:
+    """R476 — « un graphique déplacé disparaît de sa vue d'origine dans le même commit »."""
+    import inspect
+
+    from src.dashboard.views import apple_music, hypeddit, imusician
+
+    assert "render_shazam_launches" not in inspect.getsource(apple_music.show)
+    assert "render_campaign_stats" not in inspect.getsource(hypeddit.show)
+    assert "render_break_even" not in inspect.getsource(imusician.show)

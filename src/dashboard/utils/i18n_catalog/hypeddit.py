@@ -5,7 +5,7 @@ EN = {
     "hypeddit.invalid_session": "❌ Invalid session.",
     "hypeddit.save_success": "✅ Data saved successfully",
     "hypeddit.save_error": "❌ Error: {err}",
-    "hypeddit.global_stats": "📊 Global statistics",
+    "hypeddit.global_stats_cross": "🔗 My Hypeddit campaigns compared",
     "hypeddit.no_data_period": "📭 No data found for the selected period.",
     "hypeddit.chart_title": "My Hypeddit campaigns ({label})",
     "hypeddit.cmp_title": "Volumes compared, campaign by campaign",

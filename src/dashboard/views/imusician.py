@@ -223,8 +223,7 @@ def show():
         _render_entry_form(db, artist_id)
         st.markdown("---")
         _render_evolution(db, artist_id)
-        st.markdown("---")
-        _render_roi(db, artist_id)
+        # R476 (W11) : the break-even moved to the cross view, section « Revenus ».
         # R461 (owner, 2026-10-07): the SACEM page merged here, on the SAME connection.
         st.markdown("---")
         from src.dashboard.views.sacem import render_section
@@ -363,8 +362,12 @@ def _render_delete(db, artist_id):
                 st.error(t("common.error", "Erreur : {err}").format(err=e))
 
 
-def _render_roi(db, artist_id):
-    """The break-even, at the bottom: revenue against every spend, on one treasury."""
+def render_break_even(db, artist_id: int) -> None:
+    """The break-even: revenue against every spend, on one treasury.
+
+    R476 (owner W11 : « point mort / revenu net → vue croisée, renommée … × Revenus ») —
+    rendered by the cross view's « Revenus » section only. Its redesign is R488.
+    """
     st.subheader(t("imusician.roi_header", "💹 Point mort"))
     st.caption(t(
         "imusician.roi_caption",

@@ -82,10 +82,6 @@ EN = {
     "meta_x_spotify.no_data": "No data over this window.",
 
     # Les onglets, le funnel corrigé et le croisement pays (2026-09-21).
-    "meta_x_spotify.tab_impact": "📈 Impact over time",
-    "meta_x_spotify.tab_funnel": "🔽 The whole journey",
-    "meta_x_spotify.tab_countries": "🌍 By country",
-    "meta_x_spotify.tab_compare": "🏁 Compare my campaigns",
     "meta_x_spotify.funnel_header": "🔽 Meta × Spotify × Hypeddit — the whole journey",
     "meta_x_spotify.funnel_none": "No Meta data over this window.",
     "meta_x_spotify.funnel_thin": "Not enough measured steps to draw a journey.",

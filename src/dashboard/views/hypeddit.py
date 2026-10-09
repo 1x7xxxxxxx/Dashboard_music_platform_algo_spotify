@@ -183,11 +183,11 @@ def get_global_stats(start_date, end_date, db):
     return db.fetch_df(query, (start_date, end_date, artist_id))
 
 
-def get_campaign_stats(db):
+def get_campaign_stats(db, artist_id: int):
     """Every reading of every campaign of the tenant — the campaign filter bounds it (R377)."""
     return db.fetch_df(
         "SELECT campaign_name, day AS date, visits, clicks FROM v_hypeddit_daily "
-        "WHERE artist_id = %s ORDER BY day", (_resolve_artist_id(),))
+        "WHERE artist_id = %s ORDER BY day", (artist_id,))
 
 
 def default_campaigns(last_day: pd.Series, n: int = 2) -> list:
@@ -199,8 +199,12 @@ def default_campaigns(last_day: pd.Series, n: int = 2) -> list:
     return default_releases(list(last_day.sort_values(ascending=False).index), n)
 
 
-def _render_global_stats(db):
+def render_campaign_stats(db, artist_id: int) -> None:
     """Statistiques par CAMPAGNE : visites, clics et pub Meta, comparées (R377).
+
+    R476 (owner W5, 2026-10-09 : « on n'arrive pas à voir qui a le mieux performé ni les
+    data Meta → vue croisée ») : rendered by the cross view's « Sorties » section only,
+    with the tenant passed in (rule 7) — the Hypeddit page keeps entry + history.
 
     ⚠️ UN FILTRE CAMPAGNE, PLUS UN FILTRE DE PÉRIODE — 2026-10-05, revue d'écran du
     propriétaire (V22-V25). Une campagne Hypeddit sert UNE sortie : c'est elle l'unité
@@ -208,8 +212,8 @@ def _render_global_stats(db):
     sortie ») cachait justement la campagne de l'avant-dernière, celle à laquelle on veut
     comparer la dernière. Défaut : les deux campagnes relevées le plus récemment.
     """
-    st.header(t("hypeddit.global_stats", "📊 Statistiques globales"))
-    df = get_campaign_stats(db)
+    st.subheader(t("hypeddit.global_stats_cross", "🔗 Mes campagnes Hypeddit comparées"))
+    df = get_campaign_stats(db, artist_id)
     if df.empty:
         st.info(t("hypeddit.no_data_period", "📭 Aucune donnée trouvée pour la période sélectionnée."))
         return
@@ -238,7 +242,7 @@ def _render_global_stats(db):
     # rings already carry visits, clicks and conversion per campaign, so the proposal's ONE
     # new fact goes under each ring instead of a second chart repeating the first (R299).
     spend = db.fetch_df("SELECT day, SUM(spend) AS spend FROM v_meta_daily "
-                        "WHERE artist_id = %s GROUP BY day", (_resolve_artist_id(),))
+                        "WHERE artist_id = %s GROUP BY day", (artist_id,))
     _render_campaign_series(
         df, t("hypeddit.label_campaigns", "{n} campagne(s)").format(n=len(chosen)), spend)
 
@@ -478,8 +482,7 @@ def show():
         # seule chose qu'on y vient faire.
         _render_entry_form(db)
         st.markdown("---")
-        _render_global_stats(db)
-        st.markdown("---")
+        # R476 (W5) : the campaign comparison moved to the cross view, section « Sorties ».
         _render_history(db)
     finally:
         db.close()
@@ -526,8 +529,10 @@ def rings_figure(ringed, taux, label: str):
                                                            row.get('meta')),
                            font=dict(size=11))
     fig.update_layout(
-        height=300 * rows + 80, margin=dict(t=70, b=90),
-        legend=dict(orientation="h", y=-0.08),
+        # Legend above the rings, under the title: below them it sat on the first ring's
+        # label (seen on the rendered PNG at 1100 px, R476).
+        height=300 * rows + 100, margin=dict(t=100, b=90),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0.5, xanchor="center"),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
         .format(label=label))
     return fig

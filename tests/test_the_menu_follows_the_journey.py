@@ -130,13 +130,16 @@ def test_the_assistant_comes_before_the_check_of_what_it_produced() -> None:
         f"l'assistant n'est plus juste avant la santé onboarding : {d}")
 
 
-def test_the_ads_view_sits_right_under_spotify() -> None:
-    """La source qu'on croise le plus souvent avec les écoutes vient juste après."""
+def test_the_cross_view_closes_the_platforms() -> None:
+    """R476 (owner W13 II, 2026-10-09) : « déplacer la vue croisée à la toute fin de la
+    section Analytics plateformes » — it crosses the four platforms listed above it.
+    Before R476 this test held the opposite (right under Spotify)."""
     a = _items("analytics")
-    for k in ("spotify_s4a_combined", "meta_ads_overview"):
+    platforms = ("spotify_s4a_combined", "apple_music", "youtube", "soundcloud")
+    for k in (*platforms, "meta_ads_overview"):
         assert k in a, f"« {k} » n'est pas dans Analytics : {a}"
-    assert a.index("spotify_s4a_combined") + 1 == a.index("meta_ads_overview"), (
-        f"la vue Meta Ads n'est plus juste sous Spotify + S4A : {a}")
+    assert a.index("meta_ads_overview") == max(a.index(k) for k in platforms) + 1, (
+        f"la vue croisée ne suit plus directement les quatre plateformes : {a}")
 
 
 def test_the_report_opens_what_the_subscription_sells() -> None:

@@ -28,10 +28,12 @@ def test_a_panel_of_zeros_is_not_drawn():
 
 def test_the_overlays_read_gold_and_stop_at_the_common_horizon():
     src = (ROOT / "src/dashboard/views/spotify_s4a_combined.py").read_text(encoding="utf-8")
-    fn = next(n for n in ast.walk(ast.parse(src))
-              if isinstance(n, ast.FunctionDef) and n.name == "_release_overlays")
-    sql = " ".join(n.value for n in ast.walk(fn) if isinstance(n, ast.Constant)
-                   and isinstance(n.value, str))
+    # R476: the Meta read moved to `load_release_spend`, shared with the Apple chart.
+    fns = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef)
+           and n.name in {"_release_overlays", "load_release_spend"}]
+    assert len(fns) == 2
+    sql = " ".join(n.value for fn in fns for n in ast.walk(fn)
+                   if isinstance(n, ast.Constant) and isinstance(n.value, str))
     assert "v_meta_daily" in sql and "v_apple_song_daily" in sql
     # R349 (2026-10-04): the Meta overlay is joined and cut in the pure `release_spend`
     # (horizon checked there by test_a_release_receives_its_meta_spend_by_match_key);

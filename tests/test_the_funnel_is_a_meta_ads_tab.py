@@ -28,9 +28,22 @@ def test_the_menu_no_longer_lists_the_funnel() -> None:
 
 
 def test_the_meta_ads_page_renders_the_funnel() -> None:
-    # R399 — `show()` draws the filter bar and hands the section to `_render_section`.
+    # R476 — the sections are a registry; the « funnel » entry's renderer must reach
+    # `render_funnel` (the journey of one campaign, ADR-032).
+    from src.dashboard.views.meta_ads_overview import SECTIONS
+
+    name = SECTIONS["funnel"].render.__name__
     tree = ast.parse(OVERVIEW.read_text(encoding="utf-8"))
-    route = next(n for n in tree.body
-                 if isinstance(n, ast.FunctionDef) and n.name == "_render_section")
+    route = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     calls = {getattr(c.func, "id", "") for c in ast.walk(route) if isinstance(c, ast.Call)}
-    assert "render_funnel" in calls, "the Meta Ads page no longer offers the funnel tab (R348)"
+    assert "render_funnel" in calls, "the cross view no longer offers the journey (R348)"
+
+
+def test_the_journey_has_no_tabs() -> None:
+    """R476 (owner W2 : « c'est flou ») — the four sub-tabs are gone; their content was
+    redistributed to the perf and breakdowns sections."""
+    body = (OVERVIEW.parent / "meta_x_spotify.py").read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    tabs = [c for c in ast.walk(tree) if isinstance(c, ast.Call)
+            and getattr(c.func, "attr", "") == "tabs"]
+    assert not tabs, "le parcours a repris des onglets (R476, W2)"

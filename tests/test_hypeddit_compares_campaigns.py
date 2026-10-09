@@ -42,7 +42,7 @@ def _has_readings() -> bool:
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the Hypeddit page against the live DB")
-def test_the_page_compares_campaigns_and_folds_its_history() -> None:
+def test_the_page_folds_its_history_and_left_the_comparison() -> None:
     if not _has_readings():
         pytest.skip("artist 1 has no Hypeddit reading — the page renders its empty state")
     from streamlit.testing.v1 import AppTest
@@ -52,12 +52,9 @@ def test_the_page_compares_campaigns_and_folds_its_history() -> None:
     at.run(timeout=120)
     assert not at.exception, at.exception
 
-    pickers = [m for m in at.multiselect if "Campagnes" in m.label]
-    assert len(pickers) == 1, "the statistics have no campaign filter"
-    assert len(pickers[0].value) == min(2, len(pickers[0].options)), (
-        f"the default is not the two latest campaigns: {pickers[0].value}")
-    assert pickers[0].value == list(pickers[0].options[:len(pickers[0].value)]), (
-        "the default campaigns are not the most recent ones")
+    # R476 (W5): the campaign comparison left for the cross view's « Mes sorties ».
+    assert not [m for m in at.multiselect if "Campagnes" in m.label], (
+        "the campaign comparison is back on the Hypeddit page")
 
     folded = {e.label: e.proto.expanded for e in at.expander}
     history = [label for label in folded if "Historique" in label]
@@ -95,3 +92,23 @@ def test_without_meta_spend_the_comparison_has_two_panels() -> None:
     from src.dashboard.views.hypeddit import comparison_figure
 
     assert len(comparison_figure(_frame()).data) == 2
+
+
+@pytest.mark.skipif(not db_ready(), reason="renders the cross view against the live DB")
+def test_the_cross_view_compares_the_two_latest_campaigns() -> None:
+    """R476 (W5): the comparison lives in « Mes sorties », opened on the two latest."""
+    if not _has_readings():
+        pytest.skip("artist 1 has no Hypeddit reading — the section renders its empty state")
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
+                                                  artist_id=1))
+    at.session_state["meta_overview_section"] = "releases"
+    at.run(timeout=180)
+    assert not at.exception, at.exception
+    pickers = [m for m in at.multiselect if "Campagnes" in m.label]
+    assert len(pickers) == 1, "the cross view has no campaign comparison"
+    assert len(pickers[0].value) == min(2, len(pickers[0].options)), (
+        f"the default is not the two latest campaigns: {pickers[0].value}")
+    assert pickers[0].value == list(pickers[0].options[:len(pickers[0].value)]), (
+        "the default campaigns are not the most recent ones")

@@ -43,6 +43,7 @@ Deux choses mesurées, aucune inférée :
 La question « et sur combien de jours ? » devient donc une information de la
 figure, au lieu d'être le motif qui faisait jeter la ligne.
 """
+import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -172,10 +173,9 @@ def show():
             # ============================================================
             # Les sorties, la plus récente d'abord — UNE lecture, servie à la
             # comparaison ci-dessous ET à la présélection de la série d'un titre.
+            # R476 (W7) : « Shazam depuis la sortie » + Meta moved to the cross view
+            # (section « Sorties »). The launches still pick the series default below.
             launches = _launches(db, artist_id)
-            _render_shazam_launches(db, artist_id, launches)
-
-            st.markdown("---")
 
             # ============================================================
             # 4. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
@@ -373,14 +373,19 @@ def _launches(db, artist_id: int) -> list:
     return release_launches([sn for (sn,) in (songs or [])], rel_by_key)
 
 
-def _render_shazam_launches(db, artist_id: int, launches: list) -> None:
-    """Two releases, one clock: Shazams since J0 (R351)."""
+def render_shazam_launches(db, artist_id: int) -> None:
+    """Releases on one clock: Shazams since J0 (R351), Meta € per day on the right (R476).
+
+    R476 (owner W7 : « ce graphique + dépenses Meta (comme Spotify) → vue croisée ») —
+    rendered by the cross view's « Sorties » section only. The spend is drawn PER DAY,
+    the R459 convention of the Spotify releases chart, so both read the same way.
+    """
     from src.dashboard.utils.apple_launches import align_on_j0
     from src.dashboard.utils.platform_timeseries import apple_launch_readings
     from src.dashboard.utils.date_format import format_date
 
-    st.subheader(t("apple_music.launches_header",
-                   "⚡ Shazams depuis la sortie — deux sorties comparées"))
+    launches = _launches(db, artist_id)
+    st.subheader(t("apple_music.launches_header_cross", "⚡ Shazams depuis la sortie"))
     if not launches:
         st.info(t("apple_music.launches_none",
                   "Aucune date de sortie connue pour tes titres Apple Music : la "
@@ -401,27 +406,46 @@ def _render_shazam_launches(db, artist_id: int, launches: list) -> None:
                   "Aucun relevé Apple Music couvrant ces titres depuis leur sortie : "
                   "dépose un export « depuis le début » pour les voir ici."))
         return
-    charts.plotly_chart(_launches_figure(aligned, chosen), width="stretch")
-    st.caption(t("apple_music.launches_caption",
-                 "J0 = le jour de sortie de chaque titre, donc deux sorties d'années "
-                 "différentes se lisent côte à côte. Chaque point est un relevé CUMULÉ : "
-                 "les Shazams du titre depuis sa sortie. Le point creux à J0 vaut 0 par "
-                 "construction (aucun Shazam avant la sortie). Entre deux relevés, le "
-                 "trait relie deux mesures — ce n'est pas un rythme quotidien. Cette "
-                 "figure ne suit pas le sélecteur de période plus bas."))
-    if len(chosen) < 2:
-        st.caption(t("apple_music.launches_single",
-                     "Une seule sortie datée : il en faut deux pour comparer."))
+    horizon = int(aligned["offset"].max()) + 1
+    meta = _launch_spend(db, artist_id, chosen, horizon)
+    charts.plotly_chart(_launches_figure(aligned, chosen, meta), width="stretch")
 
 
-def _launches_figure(aligned, chosen: list):
-    """One line per release, x = days since J0, the J0 anchor drawn hollow."""
+def _launch_spend(db, artist_id: int, chosen: list, horizon: int) -> pd.DataFrame:
+    """Meta € per day by Apple title and day since J0 — through the CONFIRMED link (R476).
+
+    The release of an Apple title is the `normalize_track_title` key `_launches` already
+    resolved its J0 with; the campaign reaches it by the same confirmed-link join as the
+    Spotify releases chart (`release_spend`), never by a name.
+    """
+    from src.dashboard.views.spotify_s4a_combined import load_release_spend
+    from src.utils.track_matching import normalize_track_title
+
+    releases = pd.DataFrame(
+        [(artist_id, normalize_track_title(lc.song), lc.song, lc.j0) for lc in chosen],
+        columns=["artist_id", "match_key", "title", "release_date"])
+    return load_release_spend(db, releases, horizon, " AND artist_id = %s", (artist_id,))
+
+
+def _launches_figure(aligned, chosen: list, meta: pd.DataFrame | None = None):
+    """One line per release, x = days since J0, the J0 anchor drawn hollow; Meta € per
+    day as a dotted area of the release's colour on the right axis (R476). Pure."""
+    from plotly.subplots import make_subplots
     from src.dashboard.utils.platform_colors import DISTINCT
+    from src.dashboard.views.spotify_s4a_combined import meta_legend_trace, meta_spend_traces
 
-    fig = go.Figure()
-    for i, lc in enumerate(chosen):
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    colour = {lc.song: DISTINCT[i % len(DISTINCT)] for i, lc in enumerate(chosen)}
+    has_meta = meta is not None and not meta.empty
+    # The area takes the BASE axis (right), the Shazams the overlaying one (left): plotly
+    # draws the overlaying axis on top, so the lines stay above the area (R436).
+    if has_meta:
+        for trace in meta_spend_traces(meta, colour):
+            fig.add_trace(trace, secondary_y=False)
+        fig.add_trace(meta_legend_trace(), secondary_y=False)
+    for lc in chosen:
         s = aligned[aligned["song"] == lc.song]
-        color = DISTINCT[i % len(DISTINCT)]
+        color = colour[lc.song]
         fig.add_trace(go.Scatter(
             x=s["offset"], y=s["shazams"], mode="lines+markers", name=lc.song[:40],
             line=dict(color=color, width=2.5),
@@ -429,10 +453,15 @@ def _launches_figure(aligned, chosen: list):
                         symbol=["circle" if m else "circle-open" for m in s["measured"]]),
             hovertemplate=t("apple_music.launch_hover",
                             "J+%{x} · %{y:,.0f} Shazam(s) depuis la sortie"
-                            "<extra></extra>")))
+                            "<extra></extra>")), secondary_y=True)
+    fig.update_yaxes(title_text=t("apple_music.launch_y", "Shazams cumulés depuis J0"),
+                     rangemode="tozero", side="left", secondary_y=True)
+    fig.update_yaxes(title_text=(t("spotify_s4a_combined.meta_spend_axis", "Meta € / jour")
+                                 if has_meta else None),
+                     rangemode="tozero", side="right", showgrid=False,
+                     showticklabels=has_meta, secondary_y=False)
     fig.update_layout(
         height=420, hovermode="closest",
         xaxis_title=t("apple_music.launch_x", "Jours depuis la sortie (J0)"),
-        yaxis_title=t("apple_music.launch_y", "Shazams cumulés depuis J0"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=60))
     return fig

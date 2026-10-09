@@ -15,7 +15,7 @@ src/dashboard/utils/platform_chart.py::_render_facets#1:
     texte: 'Code mort (un seul interrupteur, ta décision du 2026-09-13) : retirer le mode « chacune à
       son échelle »'
     rid: R249
-src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
+src/dashboard/views/spotify_s4a_combined.py::render_release_cohort#1:
   valide: true
   actions: []
 src/dashboard/views/spotify_s4a_combined.py::_render_momentum#1:
@@ -223,7 +223,7 @@ src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   - qui: moi
     texte: Funnel complet par titre, comparaison jusqu'à 5 titres
     rid: R246
-src/dashboard/views/meta_x_spotify.py::_render_countries#1:
+src/dashboard/views/meta_x_spotify.py::render_countries#1:
   valide: false
   actions:
   - qui: moi

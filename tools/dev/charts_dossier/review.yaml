@@ -27,7 +27,7 @@ src/dashboard/utils/platform_chart.py::render_platform_chart#1:
   cause: arrivee-historique-lue-comme-hausse
   note: "Cumul empilé Spotify + YouTube + SoundCloud. La marche de YouTube fin 2025 (+118 k) est l'arrivée de son HISTORIQUE, pas une hausse — elle se lit comme un pic d'audience. Marquer le jour du premier relevé de chaque plateforme."
 # ── Spotify + S4A ────────────────────────────────────────────────────────────
-src/dashboard/views/spotify_s4a_combined.py::_render_releases#1:
+src/dashboard/views/spotify_s4a_combined.py::render_release_cohort#1:
   q: "Ma dernière sortie fait-elle mieux que les précédentes au même âge ?"
   decision: "Comparer ta dernière sortie aux précédentes au même âge, pour décider si elle mérite un coup de pub maintenant."
   decision_en: "Compare your latest release with the previous ones at the same age, to decide whether it deserves an ad push now."
@@ -116,7 +116,7 @@ src/dashboard/views/apple_music.py::_render_song_series#1:
   owner_v: garder
   owner: "On garde."
   note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
-src/dashboard/views/apple_music.py::_render_shazam_launches#1:
+src/dashboard/views/apple_music.py::render_shazam_launches#1:
   q: "Ma dernière sortie se fait-elle Shazamer plus vite que la précédente ?"
   decision: "Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche."
   decision_en: "Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works."
@@ -273,7 +273,7 @@ src/dashboard/views/imusician.py::_render_evolution#1:
   p: 3
   v: garder
   note: "R388 (V77, retour d'écran 2026-10-05) : remplace le tableau « Détail » — barres mensuelles empilées par distributeur, cumul sur l'axe de droite. Le tableau répétait les mêmes montants ligne à ligne sans montrer le sens."
-src/dashboard/views/imusician.py::_render_roi#1:
+src/dashboard/views/imusician.py::render_break_even#1:
   q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
   decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
   decision_en: "See where your cash stands, sales against spend, to set your next campaign's budget."
@@ -535,7 +535,7 @@ src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   owner: "Un graphe avec tout le funnel pour chaque titre, filtrable, comparable entre titres (jusqu'à 5)."
   cause: entonnoir-illisible
   note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
-src/dashboard/views/meta_x_spotify.py::_render_countries#1:
+src/dashboard/views/meta_x_spotify.py::render_countries#1:
   mq: M7
   q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
   decision: "Choisir les pays où l'euro de pub rapporte le plus d'écoutes, pour y cibler."
