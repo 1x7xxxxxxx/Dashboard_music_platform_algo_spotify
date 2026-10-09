@@ -168,16 +168,18 @@ def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
     # LE BANDEAU EST COMPACT : il partage la largeur avec la figure désormais.
     # « diminues la taille des box pour que tout rentre ». 2,6em débordait de sa
     # colonne dès six chiffres ; 1,8 était trop discret (V1, 2026-10-05) → 2,3.
+    # R479 (W1 « police pas assez grande ») : le bandeau a sa propre rangée depuis
+    # R426, donc 2,8em sur 440 px tient sept chiffres sans déborder.
     # R426 — with a `total_slot` the banner is a row of its own above both plots,
     # centred and narrow: it names the total the curve and the donut both split.
     (total_slot or st).markdown(
         f"""<div title="{_banner_title}" style="text-align:center; padding:8px 6px;
             background:#f0f2f6; border-radius:8px; margin:{
-                "0 auto 8px auto; max-width:320px" if total_slot is not None
+                "0 auto 8px auto; max-width:440px" if total_slot is not None
                 else "0 0 8px 0"};">
-            <div style="color:#555; font-size:0.78em; font-weight:600;">{
+            <div style="color:#555; font-size:0.95em; font-weight:600;">{
                 t("home.total_all_platforms", "🎧 Total streams")}</div>
-            <div style="font-size:1.9em; line-height:1.1; color:#1DB954;
+            <div style="font-size:2.8em; line-height:1.1; color:#1DB954;
                  font-weight:800;">{_grand_fmt}</div>
             <div style="color:#666; font-size:0.78em;">{
                 delta or ""}</div>
@@ -518,10 +520,13 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         # R421 — no sentence above or below (« Ta dernière sortie… », « Budget Meta
         # pour déclencher… » : « enlève les phrases inutiles », 2026-10-06). The title
         # and the nature of the number live in each box's tooltip.
+        # R479 (W1 « pour la dernière release, automatiquement, sans filtre, en le
+        # disant ») : the caption names the release the three boxes are about.
         st.caption(t(
             "home.gates_caption",
-            "Le pourcentage maximal prédit pour ta dernière sortie d'entrer dans "
-            "chaque playlist algorithmique de Spotify. ⬇️"))
+            "« {song} », ta dernière sortie : la chance maximale prédite d'entrer dans "
+            "chaque playlist algorithmique de Spotify. ⬇️").format(
+                song=_s.get("release_song") or "—"))
         g1, g2, g3 = st.columns(3)
         # R424 — under each percentage, « en tout petit […] comme Meta, Hypeddit,
         # Shazam et Instagram »: the streams left over 28 days and their price at the
@@ -554,5 +559,6 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
                                              "sortie."),
                                    sub=_gate_sub(_gaps.get(key), _cpr,
                                                  _rr_left if key == "release_rr"
-                                                 else None)),
+                                                 else None),
+                                   emphasis=True),
                          unsafe_allow_html=True)

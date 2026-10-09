@@ -80,7 +80,7 @@ EN = {
                            "threshold, and their cost at the best CPR, counting one "
                            "click as one stream. Release Radar only counts the "
                            "release's first 28 days."),
-    "home.gates_caption": ("The highest predicted percentage for your latest release "
+    "home.gates_caption": ("« {song} », your latest release: the highest predicted chance "
                            "to enter each Spotify algorithmic playlist. ⬇️"),
     "home.gate_help_max": ("HIGHEST probability PREDICTED that « {song} », your latest "
                            "release, enters this algorithmic playlist. It is not an "

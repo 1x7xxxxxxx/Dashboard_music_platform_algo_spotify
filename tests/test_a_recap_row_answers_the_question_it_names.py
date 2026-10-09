@@ -135,7 +135,7 @@ def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
          patch("streamlit.metric", _rec), \
          patch("src.dashboard.views.home_tiles.stat_box",
                # R346: the gates are HTML boxes now — recorded like a metric.
-               lambda label, value, help_text="", sub="": _rec(label, value, help=help_text)
+               lambda label, value, help_text="", sub="", **_k: _rec(label, value, help=help_text)
                or ""):
         render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
                       side=side, prev_grand=None)

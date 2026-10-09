@@ -28,14 +28,21 @@ def _txt(s: str) -> str:
     return html.escape(s, quote=False)
 
 
-def stat_box(label: str, value: str, help_text: str = "", sub: str = "") -> str:
-    """One bordered box: small label, the value, an optional small line under it. Pure."""
+def stat_box(label: str, value: str, help_text: str = "", sub: str = "",
+             emphasis: bool = False) -> str:
+    """One bordered box: small label, the value, an optional small line under it. Pure.
+
+    `emphasis` : the label is the reading itself (R479, W1 « pas d'emphase » on
+    Discover Weekly / Radio / Release Radar) — full opacity, bold, larger.
+    """
+    label_style = ("font-size:0.92em; font-weight:700;" if emphasis
+                   else "font-size:0.78em; opacity:.75;")
     sub_html = (f'<div style="font-size:0.72em; opacity:.7; margin-top:2px;">{_txt(sub)}</div>'
                 if sub else "")
     return (f'<div title="{html.escape(help_text)}" style="flex:1 1 140px; min-width:0; '
             'border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; '
             'text-align:center;">'
-            '<div style="font-size:0.78em; opacity:.75; white-space:nowrap; overflow:hidden; '
+            f'<div style="{label_style} white-space:nowrap; overflow:hidden; '
             f'text-overflow:ellipsis;">{_txt(label)}</div>'
             f'<div style="font-size:1.05em; font-weight:600;">{_txt(value)}</div>'
             f'{sub_html}</div>')
