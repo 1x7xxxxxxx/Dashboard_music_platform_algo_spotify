@@ -53,7 +53,7 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     # R476 (W11): the break-even left for the cross view's « Revenus » section.
     assert not any("Point mort" in h for h in heads), (
         f"the break-even is back on the distributor page: {heads}")
-    # R461: the SACEM ledger joined this page, folded in its « Relevé détaillé » expander.
-    # The property is « no table SHOWN in place of the chart », not « no table at all ».
-    folded = sum(len(e.dataframe) for e in at.expander)
-    assert len(at.dataframe) - folded == 0, "the detail table is back in place of the chart"
+    # R488 (W11): « pas de tableaux là où un graphique suffit » — the folded SACEM ledger
+    # left too; and the import is a button at the top, not a sentence.
+    assert len(at.dataframe) == 0, "a table is back on the distributor page"
+    assert any(b.key == "distributor_import" for b in at.button), "the import button is gone"

@@ -957,7 +957,7 @@ def pi_gate(tables, here=None) -> str | None:
 
 
 def treasury(cashflow) -> str | None:
-    """The PDF twin of `treasury_chart.treasury_figure` (R212): every month's money in
+    """The PDF treasury (R212; its screen twin `treasury_figure` became `breakeven_figure`, R488): every month's money in
     (above zero) and out (below), by source, and the running balance under it.
 
     Fed by the SAME rows as the app (`treasury_chart.load_cashflow`, i.e.

@@ -1,4 +1,4 @@
-"""SACEM: gross → deductions → net is one waterfall, and the import button opens the tab (R389).
+"""SACEM: the royalties are one donut, and the import button opens the tab (R389, R488).
 
 Type: Guard
 Uses: src.dashboard.views.sacem, src.dashboard.views.credentials.router, streamlit AppTest
@@ -8,6 +8,10 @@ Persists in: nothing
 Owner's screen review, 2026-10-05 (V79-V80): the three metric tiles become ONE figure
 that reads as a step, not a subtraction; the statement is an .xlsx, said on the page;
 and the button lands on the Credentials IMPORT tab, not on the page's first tab.
+
+R488 (owner W11, 2026-10-09): « camembert » — the waterfall becomes a donut of the gross
+royalties split into deductions / already paid / still to pay; the .xlsx note under the
+button left with every other helper text (the button label says .xlsx).
 
 R461 (owner, 2026-10-07): the SACEM page is now a section of the distributors page,
 so the render goes through `imusician` — the alias `sacem` lands there too.
@@ -22,14 +26,17 @@ from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
 
 
-def test_the_waterfall_steps_from_gross_to_an_absolute_net() -> None:
-    from src.dashboard.views.sacem import gross_to_net_figure
+def test_the_donut_splits_the_gross_into_what_it_became() -> None:
+    from src.dashboard.views.sacem import royalties_pie, royalties_split
 
-    trace = gross_to_net_figure(1000.0, 180.0, 815.0).data[0]
-    assert trace.type == "waterfall"
-    assert list(trace.measure) == ["absolute", "relative", "absolute"]
-    # The net is its OWN reading, never gross − deductions recomputed by plotly.
-    assert list(trace.y) == [1000.0, -180.0, 815.0]
+    parts = royalties_split(1000.0, -180.0, 815.0, 600.0)
+    # Each part is its OWN reading: deductions, paid, and the rest of the net still owed.
+    assert [round(v, 2) for _, v in parts] == [180.0, 600.0, 215.0]
+    trace = royalties_pie(1000.0, parts).data[0]
+    assert trace.type == "pie" and trace.hole > 0
+    assert len(trace.values) == 3
+    # Nothing paid yet → no empty « Déjà viré » slice.
+    assert len(royalties_split(1000.0, -180.0, 815.0, 0.0)) == 2
 
 
 def _run(at):
@@ -51,9 +58,9 @@ def test_the_page_has_no_tiles_and_its_button_opens_the_import_tab() -> None:
     # names « distrib. + SACEM », belongs to the distributors part and stays.
     tiles = [m.label for m in at.metric if any(k in m.label for k in ("brutes", "Net versé", "viré"))]
     assert not tiles, f"SACEM metric tiles are back: {tiles}"
-    assert any(".xlsx" in c.value for c in at.caption), "the .xlsx note is gone"
     buttons = [b for b in at.button if b.key == "sacem_import"]
     assert buttons, "the import button is gone"
+    assert ".xlsx" in buttons[0].label, "the button no longer says the statement is an .xlsx"
     buttons[0].click()
     at.run(timeout=120)
     assert at.session_state["_nav_page"] == "credentials"

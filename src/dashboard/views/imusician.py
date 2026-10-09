@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import date, datetime, timezone
 import sys
 from pathlib import Path
@@ -15,7 +14,6 @@ from src.dashboard.utils import filters
 from src.dashboard.utils.ui import flash
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.auth import is_admin, tenant_scope
-from src.dashboard.utils.kpi_helpers import get_roi_data
 from src.database.postgres_handler import validate_table
 
 # Label affiché → table de revenus mensuels (une table par distributeur, pattern iMusician).
@@ -24,6 +22,7 @@ DISTRIBUTOR_TABLES = {
     'DistroKid': 'distrokid_monthly_revenue',
 }
 _ALL_DISTRIBUTORS = 'Tous'
+_CUMUL = "#1F4E79"   # the running total — navy, apart from the distributors' greens
 
 
 def _roi_data_span(db, artist_id):
@@ -139,11 +138,6 @@ def _upsert_revenue(db, table, artist_id, year, month, revenue_eur, notes):
 def _render_entry_form(db, artist_id):
     """Formulaire de saisie manuelle d'un revenu mensuel (par distributeur)."""
     st.subheader(t("imusician.entry_header", "✍️ Saisie manuelle"))
-    st.caption(t(
-        "imusician.entry_caption",
-        "Renseignez le revenu d'un mois depuis votre relevé distributeur (montant en €). "
-        "Une saisie sur un mois déjà renseigné le remplace."
-    ))
 
     artist_opts = None
     if artist_id is None:
@@ -185,14 +179,16 @@ def _render_entry_form(db, artist_id):
             revenue = st.number_input(
                 t("common.revenue_eur", "Revenus (€)"), min_value=0.0, step=0.01, format="%.2f"
             )
-        notes = st.text_input(t("imusician.notes_optional", "Notes (optionnel)"), max_chars=500)
+        # R488 (W11 « à quoi servent les notes ? sinon supprimer ») : no reader ever
+        # read a manual note — not the page, the PDF, the CSV export nor a DAG. The
+        # column stays (the DistroKid rollup writes its FX trace there); the field goes.
 
         if st.form_submit_button(t("imusician.save_btn", "💾 Enregistrer"), type="primary"):
             target_id = artist_opts[target_name] if artist_opts is not None else artist_id
             try:
                 _upsert_revenue(
                     db, DISTRIBUTOR_TABLES[distributor],
-                    target_id, int(year), int(month), float(revenue), notes.strip()
+                    target_id, int(year), int(month), float(revenue), None
                 )
                 flash(t(
                     "imusician.entry_saved",
@@ -212,11 +208,12 @@ def show():
     # puis le point mort. Les onglets « Données » / « ROI » cachaient l'un à l'autre deux
     # lectures d'une même question : est-ce que ça rapporte ?
     st.title(t("imusician.title", "💰 Distributeur iMusician DistroKid + SACEM"))
-    st.caption(t(
-        "imusician.intro",
-        "Les exports iMusician et DistroKid s'importent depuis la page **📂 Ajouter mes "
-        "chiffres Spotify for Artists & Apple** ; un mois se saisit aussi à la main ici."
-    ))
+    # R488 (W11) : the import is a BUTTON at the top, like SACEM's — not a sentence
+    # naming another page.
+    if st.button(t("imusician.import_btn", "📂 Importer un export iMusician / DistroKid"),
+                 key="distributor_import", type="primary"):
+        from src.dashboard.views.credentials.router import CSV_TAB_KEY, goto_tab
+        goto_tab(CSV_TAB_KEY)
     db = require_db(get_db_connection())
     try:
         artist_id, _ = _get_artist_filter()
@@ -282,26 +279,63 @@ def evolution_frame(df: pd.DataFrame) -> pd.DataFrame:
                      validate='many_to_one')
 
 
-def _evolution_figure(evo: pd.DataFrame) -> go.Figure:
-    """Two panels on one time axis — small multiples, never a second y axis.
+FORECAST_MONTHS = 6
+FORECAST_BASIS = 12   # the rate is the mean of the last 12 months that have a figure
 
-    The monthly bars and the running total are two magnitudes (a month, a sum of
-    months); sharing one frame would make the bars read as tiny next to the total.
-    """
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        row_heights=[0.6, 0.4])
-    for name, grp in evo.groupby('distributor', sort=False):
-        fig.add_trace(go.Bar(x=grp['month_start'], y=grp['revenue_eur'],
-                             name=str(name)), row=1, col=1)
+
+def revenue_forecast(evo: pd.DataFrame, months: int = FORECAST_MONTHS,
+                     basis: int = FORECAST_BASIS) -> pd.DataFrame:
+    """The running total carried `months` ahead at the recent monthly rate. Pure.
+
+    Empty under three months of history: no rate reads from one or two points."""
+    monthly = evo.groupby('month_start')['revenue_eur'].sum().sort_index()
+    if len(monthly) < 3:
+        return pd.DataFrame(columns=['month_start', 'cumulative'])
+    rate = float(monthly.tail(basis).mean())
+    ahead = pd.date_range(monthly.index.max() + pd.offsets.MonthBegin(1),
+                          periods=months, freq='MS')
+    return pd.DataFrame({'month_start': ahead,
+                         'cumulative': float(monthly.sum()) + rate * (pd.RangeIndex(months) + 1)})
+
+
+def _evolution_figure(evo: pd.DataFrame, forecast: pd.DataFrame | None = None) -> go.Figure:
+    """€ per month, € cumulated and the forecast on ONE frame (R488, W11).
+
+    One euro axis: the bars are months, the area is their sum — both totals, so a
+    second axis is refused (two totals never share a frame on two scales). The
+    totals ride in the title, where the summary sentence under the chart used to be."""
+    from src.dashboard.utils.treasury_chart import FLUX_COLOURS
     cum = evo.drop_duplicates('month_start')
-    fig.add_trace(go.Scatter(x=cum['month_start'], y=cum['cumulative'],
-                             mode='lines+markers', line=dict(color='#2E7D32', width=2.5),
-                             name=t("imusician.cumulative", "Cumul")), row=2, col=1)
-    fig.update_yaxes(title_text=t("imusician.monthly_axis", "€ par mois"), row=1, col=1)
-    fig.update_yaxes(title_text=t("imusician.cumulative_axis", "€ cumulés"),
-                     rangemode='tozero', row=2, col=1)
-    fig.update_layout(barmode='stack', hovermode='x unified', height=460,
-                      legend=dict(orientation='h', y=1.08), margin=dict(t=40))
+    monthly = evo.groupby('month_start')['revenue_eur'].sum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=cum['month_start'], y=cum['cumulative'], mode='lines',
+        name=t("imusician.cumulative", "€ cumulés"),
+        line=dict(color=_CUMUL, width=2.5), fill='tozeroy',
+        fillcolor="rgba(31,78,121,0.12)",
+        hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
+    for name, grp in evo.groupby('distributor', sort=False):
+        fig.add_trace(go.Bar(
+            x=grp['month_start'], y=grp['revenue_eur'],
+            name=t("imusician.monthly_of", "{d} — € par mois").format(d=name),
+            marker_color=FLUX_COLOURS.get(str(name).lower(), "#8A8A8A"),
+            hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
+    if forecast is not None and not forecast.empty:
+        fig.add_trace(go.Scatter(
+            x=[cum['month_start'].iloc[-1], *forecast['month_start']],
+            y=[cum['cumulative'].iloc[-1], *forecast['cumulative']],
+            mode='lines', line=dict(color=_CUMUL, width=2, dash='dash'),
+            name=t("imusician.forecast", "prévision ({n} mois au rythme récent)"
+                   ).format(n=len(forecast)),
+            hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
+    fig.update_layout(
+        title=t("imusician.evolution_title",
+                "Ventes : {total} au total · {avg} par mois · {n} mois").format(
+            total=f"{monthly.sum():,.2f} €".replace(",", " "),
+            avg=f"{monthly.mean():,.2f} €".replace(",", " "), n=len(monthly)),
+        barmode='relative', hovermode='x unified', height=460, yaxis_title="€",
+        legend=dict(orientation='h', yanchor='top', y=-0.12, xanchor='left', x=0),
+        margin=dict(t=50, b=90))
     return fig
 
 
@@ -318,14 +352,9 @@ def _render_evolution(db, artist_id):
         ))
         return
     evo = evolution_frame(df)
-    # The three figures read as one sentence above the chart, not as three tiles:
-    # the first screen holds the gesture (the form) and one chart (R388).
-    st.caption(t("imusician.evolution_summary",
-                 "Total {total} · moyenne {avg} par mois · {n} mois renseignés").format(
-        total=f"{df['revenue_eur'].sum():,.2f} €",
-        avg=f"{evo.groupby('month_start')['revenue_eur'].sum().mean():,.2f} €",
-        n=evo['month_start'].nunique()))
-    charts.plotly_chart(_evolution_figure(evo), width="stretch")
+    # R488 (W11) : the totals are in the figure's title, and no line under it.
+    charts.plotly_chart(_evolution_figure(evo, revenue_forecast(evo)), width="stretch",
+                        decision=False)
     _render_delete(db, artist_id)
 
 
@@ -369,11 +398,6 @@ def render_break_even(db, artist_id: int) -> None:
     rendered by the cross view's « Revenus » section only. Its redesign is R488.
     """
     st.subheader(t("imusician.roi_header", "💹 Point mort"))
-    st.caption(t(
-        "imusician.roi_caption",
-        "Revenus nets (iMusician + DistroKid + royalties SACEM) contre toutes les "
-        "dépenses (Meta Ads + coûts saisis) sur la période sélectionnée"
-    ))
     span_min, span_max = _roi_data_span(db, artist_id)
     if span_min is None or span_max is None:
         st.info(t(
@@ -388,67 +412,21 @@ def render_break_even(db, artist_id: int) -> None:
                           artist_id=artist_id,
                           latest_release_resolver=lambda: filters.latest_release_date(
                               db, artist_id))
-    from_date, to_date = window.start, window.end
-    roi = get_roi_data(db, artist_id, from_date, to_date)
-
-    c1, c2, c3 = st.columns(3)
-    # `fmt_eur` rend « — » sur None : le revenu est mensuel, la fenêtre
-    # est élargie aux mois entiers (`effective_from`/`effective_to`), et
-    # une lecture qui échoue ne s'affiche plus « 0,00 € ».
-    from src.dashboard.utils.kpi_helpers import fmt_eur
-    c1.metric(t("imusician.roi_revenue", "💰 Revenus (distrib. + SACEM)"),
-              fmt_eur(roi['revenue_eur']))
-    c2.metric(t("imusician.roi_spend", "📱 Dépenses Meta"),
-              fmt_eur(roi['meta_spend']))
-    st.caption(t("imusician.roi_effective_window",
-                 "Période réellement couverte : {a} → {b} — le revenu est "
-                 "mensuel, la fenêtre est donc arrondie aux mois entiers."
-                 ).format(a=roi['effective_from'], b=roi['effective_to']))
-
-    if roi['roi_pct'] is not None:
-        roi_label = f"{roi['roi_pct']:.1f} %"
-        roi_delta = (t("imusician.roi_profitable", "✅ Rentable")
-                     if roi['profitable']
-                     else t("imusician.roi_unprofitable", "⚠️ Déficitaire"))
-        roi_help = t("imusician.roi_total_help",
-                     "ROI sur toutes les dépenses (Meta Ads + coûts saisis) = {total}").format(
-                         total=fmt_eur(roi['total_spend']))
-    elif roi['unreadable']:
-        # Le TROISIÈME état, demandé par la revue du design : une panne de
-        # lecture ne doit pas emprunter le texte d'une absence légitime.
-        roi_label, roi_delta = "—", None
-        roi_help = t("imusician.roi_unavailable_help",
-                     "Chiffres indisponibles — la lecture a échoué. "
-                     "Ce n'est pas « aucune dépense ».")
-    else:
-        roi_label, roi_delta = "—", None
-        roi_help = t("imusician.roi_no_spend_help",
-                     "Aucune dépense promo sur la période — élargissez le filtre")
-    c3.metric("📊 ROI", roi_label, roi_delta, help=roi_help,
-              delta_color="normal" if roi['profitable'] else "inverse")
-
-    # R212 — the ONE treasury figure (shared with « Mes revenus » and SACEM):
-    # sales, SACEM, Meta and entered costs on one ledger, from the same door
-    # as the tiles above.
+    # R488 (W11 « redesign (échelle) ») : the three tiles and the captions are gone —
+    # revenue, spend and ROI ride in the title — and the figure reads revenue against
+    # spend on a log axis, where 200 € of sales no longer flatten under 3 000 € of ads.
     from src.dashboard.utils.artist_cashflow import break_even, monthly_net
     from src.dashboard.utils.treasury_chart import (
-        add_trigger_point, breakeven_text, load_cashflow, treasury_figure,
-        within)
-    cashflow = within(load_cashflow(db, artist_id), from_date, to_date)
+        breakeven_figure, breakeven_text, load_cashflow, within)
+    cashflow = within(load_cashflow(db, artist_id), window.start, window.end)
     mensuel = monthly_net(cashflow)
-    if not mensuel.empty:
-        # R262 (notes L128, L538) — the break-even DURATION written on the
-        # figure, and what one algorithm trigger is worth as a point above
-        # the balance (code-critic a/a' : here, not on the forecast page).
-        fig = treasury_figure(cashflow, mensuel,
-                              verdict=breakeven_text(break_even(mensuel)))
-        trigger = _trigger_point(db, artist_id)
-        if trigger:
-            add_trigger_point(fig, mensuel, *trigger)
-        charts.plotly_chart(fig, width="stretch")
-    else:
+    if mensuel.empty:
         st.info(t("imusician.roi_empty_period",
                   "Aucune donnée de revenus ou dépenses sur cette période."))
+        return
+    fig = breakeven_figure(cashflow, mensuel, verdict=breakeven_text(break_even(mensuel)),
+                           trigger=_trigger_point(db, artist_id))
+    charts.plotly_chart(fig, width="stretch", decision=False)
 
 
 def _trigger_point(db, artist_id: int):

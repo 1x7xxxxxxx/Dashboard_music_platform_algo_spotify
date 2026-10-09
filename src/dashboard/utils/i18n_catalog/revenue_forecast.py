@@ -13,11 +13,6 @@ EN = {
     "revenue_forecast.no_money_yet": (
         "No money movement on record. Import a sales report from **CSV import**, "
         "or connect Meta in **🔑 API Credentials**."),
-    "revenue_forecast.frame_cumul":
-        "Where I stand overall (€) — break-even is at zero",
-    "revenue_forecast.line_cumul": "Net cumulative",
-    "revenue_forecast.line_proj": "Projection",
-    "revenue_forecast.breakeven_line": "break-even",
     "revenue_forecast.kpi_cumul": "💰 Where I stand overall",
     "revenue_forecast.kpi_cumul_delta": "{r:+,.0f} € in · {d:,.0f} € out",
     "revenue_forecast.kpi_rythme": "📆 My current pace",
@@ -164,4 +159,8 @@ EN = {
                                           "is in [↑ Budget & ROI](#budget): the gap between the "
                                           "two cumuls is what is left to recover, and they "
                                           "cross at break-even."),
+    # R488
+    "revenue_forecast.rev_cumul": "Cumulative revenue (sales + SACEM)",
+    "revenue_forecast.spend_cumul": "Cumulative spend (Meta + costs)",
+    "revenue_forecast.breakeven_title": "Revenue {r} against spend {s} · ROI {roi} — break-even where they cross",
 }

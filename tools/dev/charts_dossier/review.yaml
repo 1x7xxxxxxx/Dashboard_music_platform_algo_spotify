@@ -80,7 +80,7 @@ src/dashboard/views/apple_music.py::show#1:
   owner: "W7 (2026-10-09) : les Shazams en graphique à droite du top 10, les totaux dans les titres."
   note: "Une figure, deux panneaux sur les mêmes lignes (R484) : un titre se lit une fois, les totaux sont dans les titres des panneaux. Remplace show#1 + show#2."
 src/dashboard/views/sacem.py::render_section#1:
-  q: "Combien de mes royalties SACEM brutes me reste-t-il une fois les retenues payées ?"
+  q: "Où sont passées mes royalties SACEM brutes — retenues, déjà virées, encore à virer ?"
   decision: "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition."
   decision_en: "See what deductions take from your SACEM royalties, to plan the real net of a distribution."
   role: business
@@ -90,7 +90,7 @@ src/dashboard/views/sacem.py::render_section#1:
   v: garder
   owner_v: garder
   owner: "Demandé par le propriétaire (V79) : un graphique au lieu des tuiles brut / charges / net."
-  note: "Cascade brut → retenues → net (R389). Le net est sa propre lecture, pas brut − retenues recalculé."
+  note: "R488 (W11, 2026-10-09 : « camembert ») : la cascade R389 devient un anneau — retenues / déjà viré / à virer, le brut dans le titre. Trois montants, une seule question : la part. Le net reste sa propre lecture (vue nette), jamais brut − retenues. Regardé le 2026-10-09 sur l'artiste 1 : 43,06 € brut, 6,57 retenues, 36,49 viré."
 src/dashboard/views/apple_music.py::_render_song_series#1:
   q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
   decision: "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter."
@@ -269,9 +269,9 @@ src/dashboard/views/imusician.py::_render_evolution#1:
   c: 4
   p: 3
   v: garder
-  note: "R388 (V77, retour d'écran 2026-10-05) : remplace le tableau « Détail » — barres mensuelles empilées par distributeur, cumul sur l'axe de droite. Le tableau répétait les mêmes montants ligne à ligne sans montrer le sens."
+  note: "R388 (V77) : remplace le tableau « Détail ». R488 (W11, 2026-10-09) : un seul axe en euros — barres € par mois par distributeur (couleur du distributeur), cumul en aire, prévision 6 mois en pointillés au rythme des 12 derniers mois ; total, moyenne et nombre de mois dans le titre. L'axe double est interdit (plafond 0) et ici inutile : le cumul 210 € et les mois 0–23 € se lisent sur la même échelle. Regardé le 2026-10-09 sur l'artiste 1."
 src/dashboard/views/imusician.py::render_break_even#1:
-  q: "Ma trésorerie — ventes, SACEM et dépenses, où j'en suis au total ? (fusion R212 des anciens show#1 ventes et show#2 pub couverte)"
+  q: "Mes revenus cumulés rattrapent-ils mes dépenses cumulées — et quand ?"
   decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
   decision_en: "See where your cash stands, sales against spend, to set your next campaign's budget."
   role: business
@@ -281,7 +281,7 @@ src/dashboard/views/imusician.py::render_break_even#1:
   v: garder
   owner_v: fusionner
   owner: "Tout regrouper sur un même graphique, avec des cumuls qui retracent l'évolution."
-  note: "Revenus mensuels 0–25 €, avec deux mois négatifs (régularisations) — lisible. R388 : descend en bas de la page unique (plus d'onglets), et porte déjà la prédiction — la valeur d'un déclenchement Discover Weekly — comme point au-dessus du solde ; la prévision de revenus ne s'y ajoute pas, deux courbes projetées de plus rendraient le point mort illisible."
+  note: "R488 (W11 « redesign (échelle) », 2026-10-09) : 247 € de revenus contre 3 088 € de Meta s'écrasaient sur un axe linéaire. Deux cumuls positifs sur un axe LOG : l'écart entre les lignes est le rapport, le croisement reste un croisement. Le déclenchement Discover Weekly est une étoile au-dessus des revenus ; le verdict (durée) en encadré. Vit dans la section « Revenus » de la vue croisée (R476). Regardé le 2026-10-09 sur l'artiste 1."
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   mq: M2
   q: "Que m'a coûté et rapporté chaque campagne (dépense, impressions, clics, CPM, CPC, CPR) ?"

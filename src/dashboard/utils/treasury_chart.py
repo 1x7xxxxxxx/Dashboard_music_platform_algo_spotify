@@ -3,7 +3,7 @@
 Type: Utility
 Uses: plotly, pandas, src.dashboard.utils.artist_cashflow (monthly_net), i18n
 Depends on: v_artist_monthly_cashflow (migration 133)
-Triggers: views/revenue_forecast.py, views/imusician.py, views/sacem.py
+Triggers: views/revenue_forecast.py, views/imusician.py (breakeven_figure, R488)
 Persists in: nothing
 
 R212 (2026-09-27). The owner read four figures that each answered a slice of one question —
@@ -27,6 +27,8 @@ from src.dashboard.utils.semantic_colors import BON
 
 # Revenue pulls green, spend pulls warm: the reader who cannot tell hues apart still
 # reads the sign from the side of the zero line the bar sits on.
+REVENUE_CUMUL = "#1F4E79"   # the same navy as the distributors' cumul (imusician)
+
 FLUX_COLOURS = {
     "imusician":    BON,          # R260 — the semantic « good » green, not Spotify's
     "distrokid":    "#57C785",
@@ -81,37 +83,79 @@ def within(cashflow: pd.DataFrame, from_date, to_date) -> pd.DataFrame:
     return d[(first >= lo) & (first <= hi)]
 
 
-def treasury_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
-                    projection: pd.DataFrame | None = None,
-                    verdict: str | None = None) -> go.Figure:
-    """ONE graph, in cumulative totals: one line per money source (sales and SACEM climb,
-    spending falls below zero) and the net balance — the line that answers « am I back in
-    my costs ». `projection` and `verdict` are the premium page's additions.
-
-    R244 (owner, 2026-09-27, fiches 18/19/63 : « tout regrouper sur un même graphique, des
-    fonctions cumulées qui retracent l'évolution »). It was two panels — monthly bars on
-    top, the running balance below — and the same figure drawn on three pages."""
-    fig = go.Figure()
+def _dated(cashflow: pd.DataFrame) -> pd.DataFrame:
     d = cashflow.copy()
     d['date'] = pd.to_datetime(
         d['year'].astype(int).astype(str) + "-"
         + d['month'].astype(int).astype(str).str.zfill(2) + "-01")
     d['amount_eur'] = pd.to_numeric(d['amount_eur'], errors='coerce')
-    _add_source_cumuls(fig, d, mensuel['date'])
-    _add_balance(fig, mensuel, projection)
+    return d
+
+
+def flow_cumuls(cashflow: pd.DataFrame, months) -> tuple[pd.Series, pd.Series]:
+    """(revenue, spend) running totals over `months`, both POSITIVE. Pure (R488)."""
+    d = _dated(cashflow)
+    idx = pd.DatetimeIndex(pd.to_datetime(months))
+    out = []
+    for flux in ("revenu", "depense"):
+        serie = d[d['flux'] == flux].groupby('date')['amount_eur'].sum(min_count=1)
+        out.append(serie.reindex(idx).fillna(0).cumsum())
+    return out[0], out[1]
+
+
+def _positive(s: pd.Series) -> list:
+    """A log axis cannot draw 0 or a negative: those months are left blank, not faked."""
+    return [float(v) if v > 0 else None for v in s.values]
+
+
+def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
+                     verdict: str | None = None,
+                     trigger: tuple[str, float] | None = None) -> go.Figure:
+    """Revenue cumulated against spend cumulated, on a LOG axis — the break-even is
+    where the two lines cross (R488, owner W11 « redesign (échelle) »).
+
+    The net-balance figure drew 200 € of sales as a flat line under 3 000 € of ads:
+    on a linear axis two magnitudes fifteen times apart cannot both be read. On a log
+    axis the gap between the lines IS the ratio, and a crossing stays a crossing —
+    the transform is monotone. `trigger` is (label, €): what one Discover Weekly
+    trigger would add to the revenue total, as a point, never a line."""
+    rev, spend = flow_cumuls(cashflow, mensuel['date'])
+    fig = go.Figure()
+    for serie, name, colour in (
+            # Navy, not the « good » green: against Meta's orange it is ΔE 9.5 in protan.
+            (rev, t("revenue_forecast.rev_cumul", "Revenus cumulés (ventes + SACEM)"),
+             REVENUE_CUMUL),
+            (spend, t("revenue_forecast.spend_cumul", "Dépenses cumulées (Meta + coûts)"),
+             FLUX_COLOURS["meta_ads"])):
+        fig.add_trace(go.Scatter(
+            x=serie.index, y=_positive(serie), mode='lines', name=name,
+            line={'color': colour, 'width': 3}, connectgaps=False,
+            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:,.2f} €<extra></extra>"))
+    if trigger and trigger[1]:
+        label, value = trigger
+        y = float(rev.iloc[-1]) + float(value)
+        fig.add_trace(go.Scatter(
+            x=[rev.index[-1]], y=[y], mode='markers+text', name=label,
+            marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
+            text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
+            hovertemplate=f"{label}<br>revenus atteints : %{{y:,.2f}} €<extra></extra>"))
     if verdict:
         fig.add_annotation(
-            xref="paper", yref="paper", x=0.99, y=0.30, xanchor="right",
+            xref="paper", yref="paper", x=0.99, y=0.04, xanchor="right", yanchor="bottom",
             text=verdict, showarrow=False, align="right",
             bgcolor="rgba(0,0,0,0.55)", bordercolor="#FF6B35", borderwidth=1,
             borderpad=7, font={'size': 13, 'color': "#FFFFFF"})
+    r, s_ = float(rev.iloc[-1]), float(spend.iloc[-1])
+    roi = f"{100 * (r - s_) / s_:+.0f} %" if s_ else "—"
     fig.update_layout(
-        title=t("revenue_forecast.frame_cumul",
-                "Où j'en suis au total (€) — le point mort est à zéro"),
-        hovermode='x unified', height=460,
+        title=t("revenue_forecast.breakeven_title",
+                "Revenus {r} contre dépenses {s} · ROI {roi} — point mort au croisement"
+                ).format(r=f"{r:,.0f} €".replace(",", " "),
+                         s=f"{s_:,.0f} €".replace(",", " "), roi=roi),
+        hovermode='x unified', height=460, yaxis={'type': 'log', 'title': "€"},
         legend={'orientation': 'h', 'yanchor': 'top', 'y': -0.12,
                 'xanchor': 'left', 'x': 0},
-        margin={'t': 50, 'b': 90}, yaxis_title="€")
+        margin={'t': 50, 'b': 90})
     return fig
 
 
@@ -127,42 +171,6 @@ def source_cumuls(d: pd.DataFrame, months) -> dict[str, pd.Series]:
             serie = part[part['source'] == source].groupby('date')['amount_eur'].sum(min_count=1)
             out[source] = (serie.reindex(idx).fillna(0) * sign).cumsum()
     return out
-
-
-def _add_source_cumuls(fig: go.Figure, d: pd.DataFrame, months) -> None:
-    for source, cum in source_cumuls(d, months).items():
-        fig.add_trace(go.Scatter(
-            x=cum.index, y=cum.values, mode='lines',
-            name=t(f"revenue_forecast.source.{source}", FLUX_NAMES.get(source, source)),
-            line={'color': FLUX_COLOURS.get(source, "#8A8A8A"), 'width': 1.8},
-            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} cumulé : %{y:.2f} €<extra></extra>"))
-
-
-def _add_balance(fig: go.Figure, mensuel: pd.DataFrame,
-                 projection: pd.DataFrame | None) -> None:
-    """The running balance — the only curve that answers « am I back in my costs »."""
-    positive = mensuel['cumul'].iloc[-1] >= 0
-    fig.add_trace(go.Scatter(
-        x=mensuel['date'], y=mensuel['cumul'], mode='lines',
-        name=t("revenue_forecast.line_cumul", "Cumul net"),
-        line={'color': BON if positive else "#C0392B", 'width': 3},
-        fill='tozeroy',
-        fillcolor="rgba(39,117,26,0.12)" if positive else "rgba(192,57,43,0.10)",
-        hovertemplate="%{x|%m/%Y}<br>cumul : %{y:.2f} €<extra></extra>",
-    ))
-    if projection is not None and not projection.empty:
-        fig.add_trace(go.Scatter(
-            x=[mensuel['date'].iloc[-1], *projection['date']],
-            y=[mensuel['cumul'].iloc[-1], *projection['cumul']],
-            mode='lines', name=t("revenue_forecast.line_proj", "Projection"),
-            line={'color': "#FF6B35", 'width': 2, 'dash': 'dash'},
-            hovertemplate="%{x|%m/%Y}<br>projeté : %{y:.2f} €<extra></extra>",
-        ))
-    fig.add_hline(y=0, line={'color': "#888", 'width': 1, 'dash': 'dot'})
-    fig.add_annotation(
-        xref="x domain", yref="y", x=0.01, y=0,
-        text=t("revenue_forecast.breakeven_line", "point mort"),
-        showarrow=False, yshift=9, font={'size': 11, 'color': "#888"})
 
 
 def ledger_summary(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
@@ -236,18 +244,3 @@ def breakeven_text(pm: dict) -> str:
              "⏳ Point mort dans <b>{d}</b>{q}<br>"
              "il manque {c:,.0f} € au rythme de {r:+.2f} €/mois"
              ).format(d=duree, q=date, c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
-
-
-def add_trigger_point(fig: go.Figure, mensuel: pd.DataFrame, label: str,
-                      value: float) -> None:
-    """R262 (code-critic a') — what ONE algorithm trigger is worth, as a POINT above the
-    balance's last month: the cumul it would reach. A point and not a line — no cadence
-    of triggers has been measured, and a line would extrapolate one."""
-    if mensuel is None or mensuel.empty or not value:
-        return
-    x, y = mensuel['date'].iloc[-1], float(mensuel['cumul'].iloc[-1]) + float(value)
-    fig.add_trace(go.Scatter(
-        x=[x], y=[y], mode='markers+text', name=label,
-        marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
-        text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
-        hovertemplate=f"{label}<br>cumul atteint : %{{y:.2f}} €<extra></extra>"))

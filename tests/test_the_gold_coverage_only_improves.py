@@ -328,7 +328,9 @@ _FLOOR: dict[str, int] = {
     # live in the titles of the top-10 panels).
     # 2026-10-09 (R486) : 140 → 136 — the four SoundCloud KPI tiles are gone (W9 : « les
     # totaux du haut se retrouvent dans les graphiques »).
-    "tiles.total": 136,
+    # 2026-10-09 (R488) : 136 → 133 — the three ROI tiles under the break-even are gone
+    # (W11 : the totals and the ROI are in the figure's title).
+    "tiles.total": 133,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

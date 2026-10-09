@@ -414,6 +414,9 @@ _WIDEN_AND_FILL: dict[str, int] = {
     # LEDGER moved 0 €, and the zero only feeds a `cumsum` that carries the total forward
     # (a cumul never drops back). Never drawn as a monthly value.
     "src/dashboard/utils/treasury_chart.py:source_cumuls": 1,
+    # R488 — same reason for the break-even's two running totals (revenue, spend): a
+    # month without a ledger row moved 0 €, and the zero only feeds the `cumsum`.
+    "src/dashboard/utils/treasury_chart.py:flow_cumuls": 1,
     "src/dashboard/views/meta_ads_overview.py:_show_meta_ads": 6,
     "src/dashboard/views/meta_creatives.py:_prepare_timeline": 1,
     # Moved out of the view on 2026-09-26 with the breakeven itself (the two zeros
