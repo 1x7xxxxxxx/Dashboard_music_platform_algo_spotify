@@ -769,3 +769,4 @@
 {"at": "2026-10-09T04:39:26+00:00", "head": "a48a8dd7", "kind": "start", "task": "R480", "what": "mise en route : figures d'exemple sans badge, Meta/Hypeddit"}
 {"at": "2026-10-09T04:39:46+00:00", "kind": "done", "task": "R481", "what": "fermée par roadmap-close — CI verte ecc39859 (run 37884622445)"}
 {"at": "2026-10-09T04:41:48+00:00", "head": "9addafd0", "kind": "done", "task": "R481", "what": "CI verte ecc39859, archivée"}
+{"at": "2026-10-09T05:02:10+00:00", "head": "65c589e0", "kind": "start", "task": "R482", "what": "hypeddit : formulaire sur une ligne, défauts sur la dernière sortie"}

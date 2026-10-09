@@ -36,7 +36,6 @@ EN = {
     "hypeddit.visits_input": "👁️ Visits",
     "hypeddit.clicks_input": "🖱️ Clicks",
     "hypeddit.save_btn": "💾 Save",
-    "hypeddit.reset_btn": "🔄 Reset",
     "hypeddit.campaign_name_required": "Campaign name required",
     # Les campagnes nommées + le taux de conversion (2026-09-21).
     "hypeddit.conv_caption": "**{n} campaign(s)** compared. The **conversion "

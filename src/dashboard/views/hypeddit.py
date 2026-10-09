@@ -44,12 +44,13 @@ fois d'écart, et aucune surface ne le montrait.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import date
 from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.release_picker import default_releases, release_picker
+from src.dashboard.utils.s4a_entry_insight import load_release_dates
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_serie
@@ -59,13 +60,17 @@ from src.dashboard.utils.date_format import format_serie
 # sont de la MÊME source : elles se distinguent par l'opacité, pas par la teinte.
 _HYP = PALETTE_LIGHT["hypeddit"]
 
-# --- FONCTION DE CALLBACK POUR LE RESET ---
-def clear_form_data():
-    """Réinitialise les valeurs du formulaire dans le session state."""
-    st.session_state["h_visits"] = 0
-    st.session_state["h_clicks"] = 0
-    if "h_new_camp_name" in st.session_state:
-        st.session_state["h_new_camp_name"] = ""
+def entry_defaults(release_dates: dict, campaigns: list) -> tuple[bool, str | None]:
+    """(is_new, name) the entry form opens on — the LATEST release (R482, W5). Pure.
+
+    A campaign serves one release : the latest release is « new » until a campaign
+    carries its title. Without any release date, fall back to the newest campaign.
+    """
+    if not release_dates:
+        return (not campaigns, campaigns[0] if campaigns else None)
+    song = max(release_dates, key=release_dates.get)
+    match = next((c for c in campaigns if str(song).casefold() in str(c).casefold()), None)
+    return (False, match) if match else (True, song)
 
 
 def add_campaign_stats(db, campaign_name: str, date, visits: int, clicks: int):
@@ -400,34 +405,42 @@ def _render_entry_form(db):
             "4. Reporte ici la campagne, la date, les **visites** et les **clics**, "
             "puis **Enregistrer**."))
 
-    with st.form("hypeddit_entry_form"):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            existing_campaigns = get_campaigns_list(db)
-            _existing_lbl = t("hypeddit.type_existing", "Existante")
-            _new_lbl = t("hypeddit.type_new", "Nouvelle")
-            campaign_type = st.radio(t("hypeddit.type_label", "Type"), [_existing_lbl, _new_lbl], horizontal=True)
-
-            if campaign_type == _existing_lbl and existing_campaigns:
-                campaign_name = st.selectbox(t("hypeddit.campaign", "🎯 Campagne"), options=existing_campaigns)
-            else:
-                campaign_name = st.text_input(t("hypeddit.campaign_name", "🎯 Nom de la campagne"), key="h_new_camp_name")
-
-            entry_date = st.date_input(t("hypeddit.date", "📅 Date"), value=datetime.now().date() - timedelta(days=1))
-
-        with col2:
-            visits = st.number_input(t("hypeddit.visits_input", "👁️ Visites"), min_value=0, step=1, key="h_visits")
-            clicks = st.number_input(t("hypeddit.clicks_input", "🖱️ Clicks"), min_value=0, step=1, key="h_clicks")
-
-        st.markdown("---")
-
-        c1, c2, c3 = st.columns([2, 1, 1])
-        with c2:
-            submit = st.form_submit_button(t("hypeddit.save_btn", "💾 Enregistrer"), type="primary")
-        with c3:
-            # Reset button — side effect via on_click callback; return value unused
-            st.form_submit_button(t("hypeddit.reset_btn", "🔄 Réinitialiser"), on_click=clear_form_data)
+    # R482 (W5 II, owner 2026-10-09) : type, campaign and date on ONE line, visits and
+    # clicks next, then ONE centred call to action — « Réinitialiser » is gone. No
+    # `st.form` : inside a form the type radio could not swap the campaign field until
+    # the submit, so « Nouvelle » kept showing the list of existing campaigns.
+    existing = get_campaigns_list(db)
+    is_new, default_name = entry_defaults(load_release_dates(db, _resolve_artist_id()),
+                                          existing)
+    _existing_lbl = t("hypeddit.type_existing", "Existante")
+    _new_lbl = t("hypeddit.type_new", "Nouvelle")
+    c_type, c_name, c_date = st.columns([1, 2, 1])
+    with c_type:
+        campaign_type = st.radio(t("hypeddit.type_label", "Type"), [_existing_lbl, _new_lbl],
+                                 index=1 if is_new or not existing else 0,
+                                 horizontal=True, key="h_type")
+    with c_name:
+        if campaign_type == _existing_lbl and existing:
+            campaign_name = st.selectbox(
+                t("hypeddit.campaign", "🎯 Campagne"), options=existing,
+                index=existing.index(default_name) if default_name in existing else 0,
+                key="h_campaign")
+        else:
+            campaign_name = st.text_input(t("hypeddit.campaign_name", "🎯 Nom de la campagne"),
+                                          value=default_name if is_new and default_name else "",
+                                          key="h_new_camp_name")
+    with c_date:
+        entry_date = st.date_input(t("hypeddit.date", "📅 Date"), value=date.today(),
+                                   key="h_date")
+    c_visits, c_clicks = st.columns(2)
+    with c_visits:
+        visits = st.number_input(t("hypeddit.visits_input", "👁️ Visites"), min_value=0, step=1, key="h_visits")
+    with c_clicks:
+        clicks = st.number_input(t("hypeddit.clicks_input", "🖱️ Clics"), min_value=0, step=1, key="h_clicks")
+    _, c_save, _ = st.columns([1, 2, 1])
+    with c_save:
+        submit = st.button(t("hypeddit.save_btn", "💾 Enregistrer"), type="primary",
+                           width="stretch", key="h_save")
 
     if submit:
         if not campaign_name:
