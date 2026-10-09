@@ -764,3 +764,4 @@
 {"at": "2026-10-09T04:14:37+00:00", "kind": "done", "task": "R477", "what": "fermée par roadmap-close — CI verte 3341c34c (run 37882107287) — une vue, 0 tableau, CPR Optimizer en alias de section, seuils en graphique"}
 {"at": "2026-10-09T04:17:00+00:00", "head": "cad93fc4", "kind": "done", "task": "R477", "what": "CI verte 3341c34c, archivée"}
 {"at": "2026-10-09T04:26:15+00:00", "head": "0f724e10", "kind": "start", "task": "R481", "what": "saisie S4A : une sous-vue ; résultats + autre fenêtre → page algo"}
+{"at": "2026-10-09T04:35:53+00:00", "kind": "done", "task": "R479", "what": "fermée par roadmap-close — CI verte 0f724e10 (run 37883823156)"}

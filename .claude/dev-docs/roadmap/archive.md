@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R479 — Accueil (W1) : total streams plus grand + camembert étiqueté par plateforme ; ligne Met… (livrée 2026-10-09)
+
+- [x] **R479 — Accueil (W1) : total streams plus grand + camembert étiqueté par plateforme ; ligne Meta Ads + Hypeddit, ligne Shazam + Instagram ; accents DW/Radio/RR ; dernière release (dite) : % de déclenchement par playlist + budget Meta au meilleur CPR traduit en streams ; retirer « ce que ta publicité a appris » → « générer mon rapport PDF » (déplacer ce qui manque ailleurs)** (P3) ✅ (2026-10-09, 0f724e10)
+  Mesuré par : AppTest de l'accueil
+  CI verte 0f724e10 (run 37883823156)
+  Commits : 0f724e10 R479 : accueil — total plus grand, noms des playlists accentués, derni
+
 ## ✅ R477 — Prédiction déclenchement algos : UNE seule vue (4 sous-vues fusionnées), traits de lect… (livrée 2026-10-09)
 
 - [x] **R477 — Prédiction déclenchement algos : UNE seule vue (4 sous-vues fusionnées), traits de lecture haut→bas, playlists en badges ; retirer « prochain geste titre par titre » et « le vrai pour tout ton catalogue » ; 2 releases au lieu de 5 en graphiques ; SHAP décroissant atteint vs requis par playlist (DW, Radio, RR) + seuils ; reste-à-faire → coût Meta au meilleur CPR et au CPR moyen ; budget/ROI en graphiques ; absorbe CPR Optimizer (W14) et, depuis Saisie S4A, résultats réalisés, pari du modèle, streams algo 28 j, tableau autre fenêtre (W4)** (P3) ✅ (2026-10-09, 3341c34c, 59e68078)
