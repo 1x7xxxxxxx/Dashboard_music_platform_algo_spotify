@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R484 — Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés… (livrée 2026-10-09)
+
+- [x] **R484 — Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés aux graphiques, séparateur retiré ; blabla retiré ; titre simplifié ; « écoutes et Shazam dans le temps » redessiné pour une décision** (P3) ✅ (2026-10-09, 2ddddb74)
+  Mesuré par : AppTest + PNG regardé
+  CI verte 2ddddb74 (run 37891471696)
+  Commits : 2ddddb74 R484 : Apple Music — totaux dans les titres, Shazams en panneau du top
+
 ## ✅ R483 — Spotify + S4A (W6) : « ce qui bouge » = seulement les titres qui bougent ; indice de po… (livrée 2026-10-09)
 
 - [x] **R483 — Spotify + S4A (W6) : « ce qui bouge » = seulement les titres qui bougent ; indice de popularité 28 j en barres/intégré avec légende, axe borné dynamiquement au max ; graphique Meta €/jour → R476** (P3) ✅ (2026-10-09, ba65260b)

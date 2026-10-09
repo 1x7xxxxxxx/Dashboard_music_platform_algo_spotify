@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R484 | Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés aux graphiques, séparateur retiré ; blabla retiré ; titre simplifié ; « écoutes et Shazam dans le temps » redessiné pour une décision <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest + PNG regardé |
 | R485 | YouTube (W8) : abonnés + vues cumulées sur un graphique à deux axes, deux couleurs ; dégradé rouge sur vues gagnées par vidéo ; « commentaires / 1000 vues » vide → corriger ; deux Pareto (vidéos, shorts) à la place du type de contenu ; vue « âge × vues » redessinée ; graphique vues/likes + abonnés générés si la donnée existe ; textes retirés <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, src/collectors/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest + PNG regardé |
 | R486 | SoundCloud (W9) : totaux écoutes/likes/reposts/commentaires DANS les graphiques ; Pareto alignés (écoutes, engagement, likes, reposts, commentaires) en dégradé orange ; comparaison multi-titres cumulée à âge égal sur tout le catalogue ; taux d'engagement défini ; textes retirés ; le plus pertinent en haut <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest + PNG regardé |
 | R487 | Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) » ; « ce qui pèse le plus » + position de NOTRE track par critère (score, dépense Meta), texte de droite retiré ; bouton vers Facturation si non premium <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest algo_preview free/premium |
@@ -91,7 +90,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R484, R485, R486, R487, R488, R489 -->
+<!-- reprise: open=R485, R486, R487, R488, R489 -->
 
 **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
