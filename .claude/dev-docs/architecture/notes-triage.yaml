@@ -3909,10 +3909,9 @@
   resume: 'YouTube : deux axes, dégradé, Pareto vidéos/shorts, commentaires/1000 vues vide, redesign âge×vues'
   type: action-produit
   domaine: youtube
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R485
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R485 (archivée) — 867e4a9a
 - ligne: 36
   source: revue/notes-vocales-2026-10-09.md
   note: W9

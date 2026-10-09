@@ -781,3 +781,5 @@
 {"at": "2026-10-09T06:02:46+00:00", "head": "2ddddb74", "kind": "start", "task": "R485", "what": "youtube : deux axes, dégradés, vues/likes, Pareto vidéos/shorts, rythme récent"}
 {"at": "2026-10-09T06:05:34+00:00", "kind": "done", "task": "R484", "what": "fermée par roadmap-close — CI verte 2ddddb74 (run 37891471696)"}
 {"at": "2026-10-09T06:07:46+00:00", "head": "1306827e", "kind": "done", "task": "R484", "what": "CI verte 2ddddb74, archivée"}
+{"at": "2026-10-09T06:34:00+00:00", "head": "867e4a9a", "kind": "start", "task": "R486", "what": "soundcloud : totaux dans les figures, Pareto orange, âge égal tout le catalogue, sans textes"}
+{"at": "2026-10-09T06:37:27+00:00", "kind": "done", "task": "R485", "what": "fermée par roadmap-close — CI verte 867e4a9a (run 37894151230)"}

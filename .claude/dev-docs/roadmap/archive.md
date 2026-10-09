@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R485 — YouTube (W8) : abonnés + vues cumulées sur un graphique à deux axes, deux couleurs ; dé… (livrée 2026-10-09)
+
+- [x] **R485 — YouTube (W8) : abonnés + vues cumulées sur un graphique à deux axes, deux couleurs ; dégradé rouge sur vues gagnées par vidéo ; « commentaires / 1000 vues » vide → corriger ; deux Pareto (vidéos, shorts) à la place du type de contenu ; vue « âge × vues » redessinée ; graphique vues/likes + abonnés générés si la donnée existe ; textes retirés** (P3) ✅ (2026-10-09, 867e4a9a)
+  Mesuré par : AppTest + PNG regardé
+  CI verte 867e4a9a (run 37894151230)
+  Commits : 867e4a9a R485 : YouTube — abonnés et vues en deux panneaux, top vues × likes, P
+
 ## ✅ R484 — Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés… (livrée 2026-10-09)
 
 - [x] **R484 — Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés aux graphiques, séparateur retiré ; blabla retiré ; titre simplifié ; « écoutes et Shazam dans le temps » redessiné pour une décision** (P3) ✅ (2026-10-09, 2ddddb74)
