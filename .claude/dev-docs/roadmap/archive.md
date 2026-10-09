@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R480 — Mise en route (W3) : barre gauche réduite à « Bienvenue et choix » + « Où tu en es » ;… (livrée 2026-10-09)
+
+- [x] **R480 — Mise en route (W3) : barre gauche réduite à « Bienvenue et choix » + « Où tu en es » ; graphique 1 générique (+ Hypeddit clics, Meta €) ; graphiques 2-3 même taille ; palier 100 % par playlist ; graphique 3 Meta € rouge / CPR / Hypeddit clics / streams avec impact campagne puis pics DW et Radio et prévision ; retirer « (exemple données fictives…) » et le texte YouTube/SoundCloud ; bouton « suivant » vers « Où tu en es »** (P3) ✅ (2026-10-09, 65c589e0)
+  Mesuré par : AppTest onboarding ; PNG des 3 figures regardés
+  CI verte 65c589e0 (run 37886640074)
+  Commits : 65c589e0 R480 : mise en route — figures d'exemple sans « (exemple données ficti
+
 ## ✅ R481 — Saisie S4A (W4) : une seule sous-vue ; fraîcheur des saisies → admin ; titres couverts… (livrée 2026-10-09)
 
 - [x] **R481 — Saisie S4A (W4) : une seule sous-vue ; fraîcheur des saisies → admin ; titres couverts en bas des signaux ; une phrase courte (« ces données affinent la prédiction de déclenchement ») à la place des deux paragraphes ; le reste part en R477** (P3) ✅ (2026-10-09, ecc39859)
