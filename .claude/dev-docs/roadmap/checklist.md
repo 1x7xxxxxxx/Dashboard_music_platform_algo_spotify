@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R487 | Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) » ; « ce qui pèse le plus » + position de NOTRE track par critère (score, dépense Meta), texte de droite retiré ; bouton vers Facturation si non premium <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest algo_preview free/premium |
+| R487 | Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) » ; « ce qui pèse le plus » + position de NOTRE track par critère (score, dépense Meta), texte de droite retiré ; bouton vers Facturation si non premium <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/, tools/dev/make_example_charts.py --> | P3 | AppTest algo_preview free/premium |
 | R488 | Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en tête (comme SACEM) ; textes retirés ; champ notes : usage prouvé ou supprimé ; €/mois + € cumulé + prévision + point mort sur UN graphique ; SACEM en camembert <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest imusician |
 | R489 | Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander la suppression » qui envoie la demande par mail ; date de repassage premium → free affichée dans les deux vues <!-- critic: non — vue unique, envoi mail via utilitaire existant --> <!-- scope: src/dashboard/, src/utils/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest account/billing ; aucun mail réel en test |
 
