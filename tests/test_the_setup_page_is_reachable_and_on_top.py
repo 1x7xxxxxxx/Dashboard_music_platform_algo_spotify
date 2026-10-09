@@ -1082,25 +1082,24 @@ def test_the_example_charts_exist_and_are_committed():
         assert f.stat().st_size > 10_000, f"{name} looks empty ({f.stat().st_size} B)"
 
 
-def test_every_example_chart_says_it_is_an_example():
-    """An example that does not announce itself is a lie with a chart around it.
+def test_no_example_chart_carries_the_fictional_data_badge():
+    """R480 (owner, 2026-10-09, W3) : « retirer "(exemple données fictives…)" ».
 
-    The repo has already shipped a demo value read as real (the public artist counter
-    that counted our own canaries). The badge is drawn INTO the image, so it survives
-    a screenshot, a copy-paste and a forwarded e-mail.
+    The badge used to be drawn into every image by `_example_badge` and repeated as a
+    caption. Both are gone; this holds that neither comes back — in the generator, in
+    the renderer, or in the catalogue.
     """
-    fn = _fn(CHARTS, "_example_badge")
-    src = ast.get_source_segment(CHARTS.read_text(encoding="utf-8"), fn) or ""
-    assert "Exemple" in src and "fictives" in src, (
-        "the example badge no longer says the data is fictional")
-    body = CHARTS.read_text(encoding="utf-8")
-    tree = ast.parse(body)
-    for maker in ("dashboard_global", "discover_weekly_prediction", "meta_x_s4a",
-                  "shap_overview"):
-        fn = next(n for n in ast.walk(tree)
-                  if isinstance(n, ast.FunctionDef) and n.name == maker)
-        assert _call_lines(fn, "_example_badge"), (
-            f"{maker}() ships a figure with no example badge")
+    tree = ast.parse(CHARTS.read_text(encoding="utf-8"))
+    drawn = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant)
+             and isinstance(n.value, str) and "données fictives" in n.value
+             and n is not ast.get_docstring(tree, clean=False)]
+    drawn = [v for v in drawn if v != ast.get_docstring(tree, clean=False)]
+    names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "_example_badge" not in names and not drawn, (
+        f"the example badge is back in make_example_charts.py: {drawn}")
+    render = (REPO / "src" / "dashboard" / "utils" / "example_figures.py").read_text(
+        encoding="utf-8")
+    assert "caption=" not in render, "an example figure has a caption again"
 
 
 def test_the_charts_never_use_a_second_y_axis():

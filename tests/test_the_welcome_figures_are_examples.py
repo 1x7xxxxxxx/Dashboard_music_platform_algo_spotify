@@ -108,17 +108,18 @@ def _images(view: str, artist_id: int) -> list[tuple[str, str]]:
 def test_an_empty_tenant_sees_three_example_figures(empty_tenant) -> None:
     images = _images("onboarding", empty_tenant)
     assert len(images) == 3, f"expected overview + two promises, got {len(images)}"
-    unlabelled = [url for caption, url in images if "Exemple" not in caption]
-    assert not unlabelled, f"an example figure does not say it is one: {unlabelled}"
+    # R480 (owner, 2026-10-09, W3) : « retirer "(exemple données fictives…)" ».
+    captioned = [caption for caption, _url in images if caption]
+    assert not captioned, f"an example figure carries a caption again: {captioned}"
     assert len({url for _c, url in images}) == 3, "the same figure is shown twice"
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo preview against the live DB")
 def test_the_algo_preview_shows_the_welcome_figures_then_shap(empty_tenant) -> None:
-    """R456 (C8, C10): the two welcome promises, then the SHAP overview — all examples."""
+    """R456 (C8, C10): the two welcome promises, then the SHAP overview — no caption (R480)."""
     welcome = _images("onboarding", empty_tenant)
     preview = _images("algo_preview", empty_tenant)
-    assert len(preview) == 3 and all("Exemple" in c for c, _u in preview), preview
+    assert len(preview) == 3 and not any(c for c, _u in preview), preview
     assert [u for _c, u in preview[:2]] == [u for _c, u in welcome[1:]], (
         "the algo preview shows other figures than the welcome step's two promises")
     assert len({u for _c, u in preview}) == 3, "the SHAP overview repeats a promise"

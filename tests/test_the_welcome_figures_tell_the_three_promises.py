@@ -47,11 +47,14 @@ def _texts(ax) -> str:
     return " ".join(t.get_text() for t in ax.texts) + " " + ax.get_title(loc="left")
 
 
-def test_shazam_is_the_fifth_stacked_band(built):
-    (ax,) = built("dashboard_global").axes
+def test_shazam_and_hypeddit_are_stacked_and_meta_spend_sits_apart(built):
+    """R455 : Shazam is the 5th band. R480 (W3) : Hypeddit clicks the 6th ; Meta is in
+    euros, another unit, so it gets its own panel instead of joining the stack."""
+    ax, axm = built("dashboard_global").axes
     bands = [c for c in ax.collections if type(c).__name__ in {"PolyCollection", "FillBetweenPolyCollection"}]
-    assert len(bands) == 5, f"{len(bands)} stacked bands, the owner asked for five"
-    assert "Shazam" in _texts(ax)
+    assert len(bands) == 6, f"{len(bands)} stacked bands, the owner asked for six"
+    assert "Shazam" in _texts(ax) and "Hypeddit" in _texts(ax)
+    assert axm.patches and "Meta" in _texts(axm), "Meta spend has no panel of its own"
 
 
 def test_the_prediction_is_three_forecast_probabilities(built):

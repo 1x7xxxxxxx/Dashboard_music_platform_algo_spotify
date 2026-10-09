@@ -10,6 +10,5 @@ EN = {
     "charts.gloss.pi": "PI = Spotify popularity index (0 to 100)",
     "charts.gloss.ltv": "LTV = what a subscriber brings over the whole subscription",
     "charts.gloss.mrr": "MRR = monthly recurring subscription revenue",
-    "charts.example_caption": "Example — made-up data, for illustration only",
     "charts.gloss.shap": "SHAP = each variable's share in the model's prediction",
 }

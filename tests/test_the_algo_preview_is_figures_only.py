@@ -60,4 +60,5 @@ def test_the_shap_example_ranks_the_three_playlists(monkeypatch) -> None:
     labels = " ".join(t.get_text() for t in ax.texts)
     assert all(p in labels for p in ("Discover Weekly", "Release Radar", "Radio"))
     assert any(p.get_width() < 0 for p in ax.patches), "a criterion that slows down is drawn left"
-    assert "Exemple" in " ".join(t.get_text() for t in figures[SHAP_OVERVIEW].texts + ax.texts)
+    # R480 (W3) : no « Exemple — données fictives » drawn into the image any more.
+    assert "fictives" not in " ".join(t.get_text() for t in figures[SHAP_OVERVIEW].texts + ax.texts)

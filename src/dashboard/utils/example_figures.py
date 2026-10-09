@@ -11,10 +11,10 @@ platform legend, its decision sentence and its period comparison. The owner want
 figure back, but a GENERIC one, always available: a new tenant has no data, and the
 figure must say what the tool does, not what it has collected so far.
 
-Each image carries « Exemple — données fictives » drawn into the pixels (see
-`tools/dev/make_example_charts.py::_example_badge`) and the caption repeats it, so a
-screenshot and a screen reader both say it. The two promise figures are generated at the
-same pixel height so they sit level side by side.
+R480 (2026-10-09, W3) : no « Exemple — données fictives » any more, neither in the pixels
+nor as a caption — the owner's call. The figures are shown only where the sentence beside
+them presents what the tool will show. The two promise figures are generated at the same
+pixel height so they sit level side by side.
 
 ONE module so the algo preview shows the SAME prediction figure (V55: DW / RR / Radio had
 no chart) instead of a second illustration that would drift from the first.
@@ -25,7 +25,6 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.dashboard.utils.i18n import t
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "assets" / "examples"
 
@@ -39,10 +38,6 @@ SHAP_OVERVIEW = "shap-overview.png"
 ALGO_PREVIEW = (ALGO_PREDICTION, CAMPAIGN, SHAP_OVERVIEW)
 
 
-def example_caption() -> str:
-    return t("charts.example_caption", "Exemple — données fictives, à titre d'illustration")
-
-
 def render_example(name: str) -> None:
     """Show one prebuilt example figure at the width of its container.
 
@@ -50,4 +45,4 @@ def render_example(name: str) -> None:
     """
     path = EXAMPLES_DIR / name
     if path.exists():
-        st.image(str(path), caption=example_caption(), width="stretch")
+        st.image(str(path), width="stretch")
