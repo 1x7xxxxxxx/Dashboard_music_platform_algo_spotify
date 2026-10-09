@@ -778,3 +778,6 @@
 {"at": "2026-10-09T05:36:09+00:00", "head": "9d1f0f14", "kind": "start", "task": "R484", "what": "apple : totaux dans les titres, rythme /30 j avec verdict"}
 {"at": "2026-10-09T05:40:21+00:00", "kind": "done", "task": "R483", "what": "fermée par roadmap-close — CI verte ba65260b (run 37889165410)"}
 {"at": "2026-10-09T05:41:18+00:00", "head": "9d1f0f14", "kind": "done", "task": "R483", "what": "CI verte ba65260b, archivée"}
+{"at": "2026-10-09T06:02:46+00:00", "head": "2ddddb74", "kind": "start", "task": "R485", "what": "youtube : deux axes, dégradés, vues/likes, Pareto vidéos/shorts, rythme récent"}
+{"at": "2026-10-09T06:05:34+00:00", "kind": "done", "task": "R484", "what": "fermée par roadmap-close — CI verte 2ddddb74 (run 37891471696)"}
+{"at": "2026-10-09T06:07:46+00:00", "head": "1306827e", "kind": "done", "task": "R484", "what": "CI verte 2ddddb74, archivée"}

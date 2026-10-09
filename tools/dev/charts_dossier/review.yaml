@@ -148,19 +148,19 @@ src/dashboard/views/soundcloud.py::_render_top_chart#1:
   owner_v: garder
   owner: "On garde."
   note: "Volume et taux d'engagement côte à côte, noms complets — lisible. R385 (V43) : le volume se choisit parmi les quatre compteurs ; passé en tête de page."
-src/dashboard/views/youtube.py::show#1:
+src/dashboard/views/youtube.py::_channel_section#1:
   q: "Ma chaîne gagne-t-elle abonnés et vues ?"
   decision: "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo."
   decision_en: "Judge whether your YouTube channel gains views and subscribers, to decide whether to run a video campaign."
   role: plateforme
   d: 3
-  c: 3
+  c: 4
   p: 4
   v: garder
   owner_v: garder
   owner: "On garde."
-  note: "La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
-src/dashboard/views/youtube.py::show#2:
+  note: "R485 (W8) : abonnés (escalier, axe gauche, rouge) et vues cumulées (axe droit, gris-bleu) sur un seul graphique, titres d'axes à la couleur de leur série. La marche −100 abonnés en février est-elle réelle (purge YouTube) ou un changement de source ? À vérifier."
+src/dashboard/views/youtube.py::_channel_section#2:
   q: "Quelles vidéos ont gagné des vues sur la période ?"
   decision: "Voir quelles vidéos ont pris des vues sur la période, pour savoir lesquelles relancer ou mettre en avant."
   decision_en: "See which videos gained views over the period, to know which ones to push again."
@@ -169,27 +169,37 @@ src/dashboard/views/youtube.py::show#2:
   c: 4
   p: 4
   v: garder
-  note: "R384 (V39) : écart dernier − premier relevé par vidéo, la règle de période d'un compteur (platform_totals). Barres horizontales, titres coupés au milieu pour garder la fin d'une série."
-src/dashboard/views/youtube.py::show#3:
-  q: "Quelles vidéos plaisent le plus à ceux qui les voient ?"
-  decision: "Repérer les vidéos qui plaisent le plus pour 1 000 vues, à réutiliser comme créas de pub."
-  decision_en: "Spot the videos people like most per 1,000 views, to reuse as ad creatives."
+  note: "R384 (V39) : écart dernier − premier relevé par vidéo. R485 (W8) : dégradé de rouge qui fonce avec le gain."
+src/dashboard/views/youtube.py::_videos_section#1:
+  q: "Quelles vidéos marchent, en vues et en likes ?"
+  decision: "Voir d'un coup d'œil quelles vidéos font le plus de vues et lesquelles plaisent, pour choisir celle à promouvoir."
+  decision_en: "See at a glance which videos get the most views and which are liked, to pick the one to promote."
   role: plateforme
   d: 3
   c: 4
   p: 4
   v: garder
-  note: "R384 (V40) : remplace la bulle vues × likes × vues/like. Likes et commentaires pour 1 000 vues, deux panneaux d'un même graphique, axes séparés ; classé par ratio de likes."
-src/dashboard/views/youtube.py::show#4:
-  q: "Une vidéo a-t-elle des vues parce qu'elle est vieille ou parce qu'elle plaît ?"
-  decision: "Distinguer une vidéo qui accumule avec le temps d'une vidéo qui part vite, avant d'en promouvoir une."
-  decision_en: "Tell a video that accumulates over time from one that takes off fast, before promoting one."
+  note: "R485 (W8) : remplace le classement par ratio. Vues (dégradé rouge) et likes (gris-bleu) sur les mêmes lignes, triées par vues ; likes pour 1 000 vues au survol. Commentaires non tracés : 63 sur 67 vidéos, un panneau de zéros. Abonnés gagnés par vidéo non collectés (R394)."
+src/dashboard/views/youtube.py::_videos_section#2:
+  q: "Quelques vidéos (ou shorts) font-elles toutes les vues ?"
+  decision: "Savoir si tes vues tiennent à deux ou trois vidéos ou shorts, pour décider entre relancer un format qui marche et diversifier."
+  decision_en: "Know whether your views rest on two or three videos or shorts, to choose between pushing a winning format and diversifying."
   role: plateforme
-  d: 2
-  c: 3
-  p: 3
+  d: 3
+  c: 4
+  p: 4
   v: garder
-  note: "R384 (V41) : jours depuis la publication contre vues acquises, axes log. Sur l'artiste 1, 15 vidéos partagent la même date de publication : la colonne verticale est la donnée, pas un défaut."
+  note: "R485 (W8) : remplace le sélecteur « type de contenu ». Deux Pareto alignés (vidéos, shorts ≤ 60 s) : barres de vues et part cumulée dans un panneau à part — tracée par-dessus, la ligne cachait les étiquettes."
+src/dashboard/views/youtube.py::_videos_section#3:
+  q: "Quelles vidéos prennent encore des vues ?"
+  decision: "Repérer les vidéos qui prennent encore des vues ce mois-ci, pour mettre en avant celles qui vivent encore."
+  decision_en: "Spot the videos still drawing views this month, to promote the ones that are still alive."
+  role: plateforme
+  d: 3
+  c: 4
+  p: 4
+  v: garder
+  note: "R485 (W8) : remplace le nuage âge × vues (tout sur une verticale, 15 vidéos à la même date). Vues des 30 derniers jours de relevés — fenêtre ancrée au dernier relevé, pas à aujourd'hui. La moyenne depuis la sortie est au survol : un pic de lancement la rend 100× plus grande et écrasait l'axe."
 src/dashboard/views/instagram.py::_render_community#1:
   q: "Ma communauté Instagram grandit-elle ?"
   decision: "Suivre ta communauté Instagram pour savoir si tes campagnes la font grandir."

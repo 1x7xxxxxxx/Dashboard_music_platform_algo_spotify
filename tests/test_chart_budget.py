@@ -42,7 +42,9 @@ _BUDGET = {
     # La base 100 reste ABRITÉE dans `secondary_analyses` : elle compare des
     # métriques entre elles et n'ouvre aucune action.
     "soundcloud.py": 3,
-    "youtube.py": 4,               # channel trend, views gained, ratio ranking, age × views (R384)
+    "youtube.py": 5,               # channel, views gained, top views+likes, Pareto (one call, two
+                                   # columns), recent pace — raised for R485 (W8 « on n'exploite
+                                   # pas assez YouTube, propose d'autres graphiques »)
     # ⚠️ 3 → 6 le 2026-09-22, DÉLIBÉRÉMENT, et le chiffre d'avant était un angle mort
     # que le code annonçait déjà. Le bloc « 📊 Analyses détaillées » était un
     # `secondary_analyses(expanded=True)` depuis le 2026-09-21 : OUVERT à l'écran, donc

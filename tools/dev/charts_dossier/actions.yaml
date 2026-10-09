@@ -61,10 +61,10 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
 src/dashboard/views/soundcloud.py::_render_top_chart#1:
   valide: true
   actions: []
-src/dashboard/views/youtube.py::show#1:
+src/dashboard/views/youtube.py::_channel_section#1:
   valide: true
   actions: []
-src/dashboard/views/youtube.py::show#2:
+src/dashboard/views/youtube.py::_videos_section#1:
   valide: false
   actions:
   - qui: moi

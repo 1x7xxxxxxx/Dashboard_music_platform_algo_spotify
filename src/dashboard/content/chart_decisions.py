@@ -225,16 +225,19 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/usage_analytics.py::show#1': (
         "Voir si l'app est utilisée jour après jour, pour mesurer l'effet d'une campagne d'acquisition.",
         'See whether the app is used day after day, to measure the effect of an acquisition campaign.'),
-    'views/youtube.py::show#1': (
+    'views/youtube.py::_channel_section#1': (
         "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo.",
         'Judge whether your YouTube channel gains views and subscribers, to decide whether to run a video campaign.'),
-    'views/youtube.py::show#2': (
+    'views/youtube.py::_channel_section#2': (
         'Voir quelles vidéos ont pris des vues sur la période, pour savoir lesquelles relancer ou mettre en avant.',
         'See which videos gained views over the period, to know which ones to push again.'),
-    'views/youtube.py::show#3': (
-        'Repérer les vidéos qui plaisent le plus pour 1 000 vues, à réutiliser comme créas de pub.',
-        'Spot the videos people like most per 1,000 views, to reuse as ad creatives.'),
-    'views/youtube.py::show#4': (
-        "Distinguer une vidéo qui accumule avec le temps d'une vidéo qui part vite, avant d'en promouvoir une.",
-        'Tell a video that accumulates over time from one that takes off fast, before promoting one.'),
+    'views/youtube.py::_videos_section#1': (
+        "Voir d'un coup d'œil quelles vidéos font le plus de vues et lesquelles plaisent, pour choisir celle à promouvoir.",
+        'See at a glance which videos get the most views and which are liked, to pick the one to promote.'),
+    'views/youtube.py::_videos_section#2': (
+        'Savoir si tes vues tiennent à deux ou trois vidéos ou shorts, pour décider entre relancer un format qui marche et diversifier.',
+        'Know whether your views rest on two or three videos or shorts, to choose between pushing a winning format and diversifying.'),
+    'views/youtube.py::_videos_section#3': (
+        'Repérer les vidéos qui prennent encore des vues ce mois-ci, pour mettre en avant celles qui vivent encore.',
+        'Spot the videos still drawing views this month, to promote the ones that are still alive.'),
 }
