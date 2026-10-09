@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R492 — Contrôle de contraste des figures (`figure_contrast_report.py`) : ne lit plus les comme… (livrée 2026-10-09)
+
+- [x] **R492 — Contrôle de contraste des figures (`figure_contrast_report.py`) : ne lit plus les commentaires ni les docstrings — un nom de couleur ou un hex dans un commentaire faisait échouer le garde** (P4) ✅ (2026-10-09, eb8498ef)
+  Mesuré par : test : un commentaire « BON »/hex n'ajoute aucune couleur ; mutation
+  CI verte eb8498ef (run 37911478781)
+  Commits : eb8498ef R492 : le rapport de contraste ne lit plus les commentaires ni les doc
+
 ## ✅ R489 — Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander l… (livrée 2026-10-09)
 
 - [x] **R489 — Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander la suppression » qui envoie la demande par mail ; date de repassage premium → free affichée dans les deux vues** (P3) ✅ (2026-10-09, 2a61d711, 59e68078)
