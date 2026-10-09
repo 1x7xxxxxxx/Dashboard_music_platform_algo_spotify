@@ -35,8 +35,8 @@ EN = {
     "spotify_s4a_combined.momentum_header": "🔥 What is moving right now",
     "spotify_s4a_combined.no_recent": "No track measured over the last {n} imported days.",
     "spotify_s4a_combined.lifetime": "Lifetime total",
-    "spotify_s4a_combined.recent_window": "last {n} measured days",
-    "spotify_s4a_combined.pi_tag": "PI {v}",
+    "spotify_s4a_combined.recent_window": "last {n} days",
+    "spotify_s4a_combined.pi_panel": "Popularity",
 
     # The drawer
     "spotify_s4a_combined.detail_header": "🎸 The track and your audience",
@@ -67,7 +67,6 @@ EN = {
                                           "publishes them once a year, in your Wrapped for "
                                           "Artists. Enter them here and the year-over-year "
                                           "curve builds itself.",
-    "spotify_s4a_combined.recent_tag": "{r} recent",
     "spotify_s4a_combined.meta_spend_axis": "Meta € / day",
     "spotify_s4a_combined.meta_spend_legend": "┈ Meta € / day (dotted)",
     "spotify_s4a_combined.shazam_axis": "Shazams (per reading)",

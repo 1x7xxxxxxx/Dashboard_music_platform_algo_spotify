@@ -533,7 +533,10 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
                 .format(n=_MOMENTUM_DAYS))
         return
 
-    merged = spans.merge(recent, on="song", how="inner").sort_values("recent")
+    # R483 (owner W6 : « seulement les titres qui bougent ») — the same bar as the
+    # selector (`moving_songs`), so the chart and the title list agree on what moves.
+    merged = (moving_songs(spans, recent).merge(recent, on="song", how="inner")
+              .sort_values("recent"))
     # ⚠️ `excluded = len(spans) - len(merged)` a été RETIRÉ avec la légende qu'il
     # nourrissait (2026-09-22). Il ne servait qu'à écrire « N titre(s) écarté(s) », et
     # un calcul qui n'alimente plus rien pourrit — ce dépôt a payé deux fois « une
@@ -561,52 +564,61 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     merged = merged.merge(pi, on="song", how="left") if not pi.empty else merged
     if "popularity" not in merged.columns:
         merged["popularity"] = pd.NA
-    # R209 — the RECENT value is written too: when the window is quiet the recent bar is
-    # a sliver beside the lifetime ghost, and the dossier read it as nothing.
-    pi_labels = [
-        " · ".join(x for x in (
-            t("spotify_s4a_combined.recent_tag", "{r} récents").format(
-                r=num(int(r), 0)),
-            t("spotify_s4a_combined.pi_tag", "PI {v}").format(v=int(v)) if pd.notna(v) else "",
-        ) if x)
-        for r, v in zip(merged["recent"], merged["popularity"])
-    ]
-    # ⚠️ `without_pi` a été RETIRÉ avec la même légende : il comptait les titres sans
-    # indice de popularité pour l'annoncer sous la figure. Les barres concernées
-    # portent déjà l'absence dans leur étiquette.
+    recent_labels = [num(int(r), 0) for r in merged["recent"]]
+    pi_values = pd.to_numeric(merged["popularity"], errors="coerce")
+    pi_labels = ["" if pd.isna(v) else str(int(v)) for v in pi_values]
 
-    # R290 (owner, fiche 4, 2026-09-28 : « on a du mal à voir les 28 derniers jours ») —
-    # TWO panels sharing the titles, each on its OWN scale: on one axis next to a lifetime
-    # sum, a quiet 28-day window was a sliver. Left, what moves now (the sort key, in
-    # colour, its value written); right, the lifetime, in grey. Two x axes, not two y
-    # axes: the visual-rules gate counts secondary Y axes, and these are two panels.
+    # R290 then R483 (owner W6 II : « popularity index sur 28 jours illisible → barres à
+    # côté ») — THREE panels sharing the titles, each on its own scale: the 28-day window
+    # (the sort key, in colour), the popularity index as bars on 0..max (no longer a
+    # suffix of the recent label), and the lifetime in grey. Each panel is named by its
+    # title — the legend sits on the chart, not under it.
     from plotly.subplots import make_subplots
-    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06,
-                        column_widths=[0.55, 0.45],
-                        subplot_titles=(t("spotify_s4a_combined.recent_window",
-                                          "{n} derniers jours mesurés").format(n=_MOMENTUM_DAYS),
+    recent_title = t("spotify_s4a_combined.recent_window",
+                     "{n} derniers jours").format(n=_MOMENTUM_DAYS)
+    pi_title = t("spotify_s4a_combined.pi_panel", "Popularité")
+    fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.07,
+                        column_widths=[0.42, 0.2, 0.38],
+                        subplot_titles=(recent_title, pi_title,
                                         t("spotify_s4a_combined.lifetime", "Cumul à vie")))
     fig.add_trace(go.Bar(
-        y=merged["song"], x=merged["recent"], orientation="h",
-        name=t("spotify_s4a_combined.recent_window", "{n} derniers jours mesurés")
-              .format(n=_MOMENTUM_DAYS),
+        y=merged["song"], x=merged["recent"], orientation="h", name=recent_title,
         # Le titre choisi dans le filtre commun est en couleur pleine, les autres atténués :
         # c'est le lien visuel entre cette figure et le détail posé à côté.
         marker_color=[_SPOTIFY_GREEN if x == song else "#A5D6A7" for x in merged["song"]],
-        text=pi_labels, textposition="outside", cliponaxis=False,
-        textfont=dict(color=_PI_INK, size=12),
+        text=recent_labels, textposition="outside", cliponaxis=False,
+        textfont=dict(size=12),
         hovertemplate="%{x:,.0f}<extra>fenêtre récente</extra>"), row=1, col=1)
+    fig.add_trace(go.Bar(
+        y=merged["song"], x=pi_values, orientation="h", name=pi_title,
+        marker_color=_PI_INK, text=pi_labels, textposition="outside", cliponaxis=False,
+        textfont=dict(color=_PI_INK, size=12),
+        hovertemplate="PI %{x}<extra></extra>"), row=1, col=2)
     fig.add_trace(go.Bar(
         y=merged["song"], x=merged["streams_total"], orientation="h",
         name=t("spotify_s4a_combined.lifetime", "Cumul à vie"),
         marker_color=_GHOST_INK,
-        hovertemplate="%{x:,.0f}<extra>cumul à vie</extra>"), row=1, col=2)
+        hovertemplate="%{x:,.0f}<extra>cumul à vie</extra>"), row=1, col=3)
     fig.update_layout(height=_PAIR_HEIGHT, showlegend=False,
                       margin=dict(r=40, t=40, b=40))
-    fig.update_xaxes(title_text=t("common.streams", "Streams"))
+    fig.update_xaxes(title_text=t("common.streams", "Streams"), row=1, col=1)
+    fig.update_xaxes(title_text=t("common.streams", "Streams"), row=1, col=3)
     # Room for the written value at the end of the longest recent bar.
-    fig.update_xaxes(range=[0, float(merged["recent"].max() or 1) * 1.5], row=1, col=1)
-    fig.update_yaxes(automargin=True)   # R209: titles were cut at the left edge
+    fig.update_xaxes(range=[0, float(merged["recent"].max() or 1) * 1.35], row=1, col=1)
+    # R382/R483 : the PI axis is bounded by the observed max (0-20 here, 0-60 elsewhere),
+    # never a fixed 0-100 that crushes a PI of 12 against the floor.
+    fig.update_xaxes(range=[0, popularity_axis_max(pi_values.dropna()) * 1.25
+                            if pi_values.notna().any() else 100], row=1, col=2,
+                     tickfont=dict(color=_PI_INK))
+    # R483 — on half a page the titles took half the width (R194 said it already) : the
+    # name rides ABOVE its bar, the y axis carries no label, and the bars leave it room.
+    band = (_PAIR_HEIGHT - 80) / max(len(merged), 1)
+    for name in merged["song"]:
+        fig.add_annotation(x=0, y=name, xref="x", yref="y", text=name, showarrow=False,
+                           xanchor="left", yshift=band * 0.25 + 9, font=dict(size=12))
+    fig.update_layout(bargap=0.5)
+    fig.update_xaxes(nticks=3, tickangle=0)
+    fig.update_yaxes(showticklabels=False)
     charts.plotly_chart(fig, width="stretch")
 
     # ⚠️ LÉGENDE RETIRÉE le 2026-09-22, demandé en regardant l'écran. Elle disait
