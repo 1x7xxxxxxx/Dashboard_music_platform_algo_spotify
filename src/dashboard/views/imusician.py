@@ -234,8 +234,8 @@ def show():
 
 
 def _revenue_filters(db, artist_id):
-    """Distributor · years · months on ONE row, everything selected by default."""
-    c_dist, c_year, c_month = st.columns([2, 2, 3])
+    """Distributor · the app's common period selector (R478), whole history by default."""
+    c_dist, c_period = st.columns([2, 5])
     with c_dist:
         selected = st.segmented_control(
             t("imusician.distributor", "Distributeur"),
@@ -249,20 +249,27 @@ def _revenue_filters(db, artist_id):
     df = _load_revenues(db, artist_id, tables)
     if df.empty:
         return df
-    years = sorted(df['year'].astype(int).unique(), reverse=True)
-    months = sorted(df['month'].astype(int).unique())
-    with c_year:
-        sel_years = st.multiselect(t("common.filter_by_year", "Filtrer par année"),
-                                   options=years, default=years, format_func=str,
-                                   placeholder=t("imusician.all_years", "Toutes les années"))
-    with c_month:
-        sel_months = st.multiselect(t("common.filter_by_month", "Filtrer par mois"),
-                                    options=months, default=months, format_func=_month_name,
-                                    placeholder=t("imusician.all_months", "Tous les mois"))
-    # An emptied picker means « all », like the placeholder says — never an empty page.
-    mask = (df['year'].astype(int).isin(sel_years or years)
-            & df['month'].astype(int).isin(sel_months or months))
-    return df[mask]
+    starts = _month_starts(df)
+    with c_period:
+        window = filters.span(starts.min().date(), starts.max().date(),
+                              key="imusician_period", artist_id=artist_id,
+                              latest_release_resolver=lambda: filters.latest_release_date(
+                                  db, artist_id))
+    return df[months_in_window(starts, window.start, window.end)]
+
+
+def _month_starts(df: pd.DataFrame) -> pd.Series:
+    return pd.to_datetime(dict(year=df['year'].astype(int),
+                               month=df['month'].astype(int), day=1))
+
+
+def months_in_window(month_starts: pd.Series, start: date, end: date) -> pd.Series:
+    """A revenue month belongs to the window when the window touches it. Pure.
+
+    Revenues are monthly: a window starting mid-month (« semaine en cours ») must keep
+    that month, not drop it because its first day is before the start."""
+    first = pd.Timestamp(start).replace(day=1)
+    return (month_starts >= first) & (month_starts <= pd.Timestamp(end))
 
 
 def evolution_frame(df: pd.DataFrame) -> pd.DataFrame:
@@ -373,7 +380,7 @@ def _render_roi(db, artist_id):
             "ci-dessus, ou lancez la collecte Meta depuis l'accueil."
         ))
         return
-    # R259 — the shared selector (same presets, « depuis la dernière sortie »).
+    # R259/R478 — the shared selector (same presets, whole history by default).
     window = filters.span(span_min, span_max, key="imusician_roi",
                           artist_id=artist_id,
                           latest_release_resolver=lambda: filters.latest_release_date(

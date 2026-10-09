@@ -20,7 +20,7 @@ Ce que le sélecteur maison de YouTube perdait, mesuré
 Il offrait cinq préréglages écrits à la main convertis en `timedelta`. Par rapport
 à `smart_period_filter`, il perdait :
 
-  · l'**ancrage sur la dernière sortie**, qui est le défaut de toute l'app ;
+  · l'**ancrage sur la dernière sortie** (à un clic ; le défaut est toute la durée, R478) ;
   · la **plage personnalisée** ;
   · et surtout la borne sur l'**étendue RÉELLE** des données — un artiste pouvait
     y choisir « 30 derniers jours » sur une chaîne sans publication récente et
@@ -73,7 +73,6 @@ _HORS_PARCOURS = {
     "usage_analytics.py": "ops : fenêtre d'usage produit, public exploitant",
     "export_pdf.py": "paramètre d'un RAPPORT, pas la fenêtre d'une figure à l'écran",
     "upload_csv.py": "période COUVERTE par un export déposé — une métadonnée du fichier",
-    "imusician.py": "mois de RELEVÉ : on choisit un document comptable, pas un intervalle",
     "meta_x_spotify.py": "fenêtre de CAMPAGNE, bespoke et documentée : tous les "
                          "préréglages partagés finissent aujourd'hui, ce qui étirait "
                          "l'axe d'une campagne de 31 jours sur 662",
@@ -83,8 +82,10 @@ _HORS_PARCOURS = {
 
 # Les mots qui, dans un LIBELLÉ de widget, annoncent un intervalle de temps.
 _LIBELLE_TEMPOREL = re.compile(
-    r"(p[ée]riode|fen[êe]tre|derniers?\s+(jours|mois)|depuis|intervalle)", re.I)
-_WIDGETS = {"selectbox", "radio", "segmented_control", "slider", "date_input"}
+    r"(p[ée]riode|fen[êe]tre|derniers?\s+(jours|mois)|depuis|intervalle"
+    # R478 — iMusician filtered its revenues by « année » and « mois » multiselects.
+    r"|par\s+ann[ée]e|par\s+mois)", re.I)
+_WIDGETS = {"selectbox", "radio", "segmented_control", "slider", "date_input", "multiselect"}
 
 
 def _libelle(node: ast.Call) -> str:

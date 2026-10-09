@@ -28,6 +28,7 @@ import streamlit as st
 
 from src.database.postgres_handler import PostgresHandler
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.release_picker import default_releases
 
 # ⚠️ UNE TABLE À FILTRE OBLIGATOIRE N'ENTRE PAS ICI.
 #
@@ -253,7 +254,7 @@ def smart_period_filter(
     key: str,
     latest_release: Optional[_dt.date] = None,
     latest_release_resolver: Optional[Callable[[], Optional[_dt.date]]] = None,
-    default_override: Optional[str] = "last_release",
+    default_override: Optional[str] = "all",
     artist_column: str = "artist_id",
 ) -> PeriodWindow:
     """Render the shared period selector over a table's data span and return the window."""
@@ -272,15 +273,20 @@ def span_period_filter(
     artist_id: Optional[int],
     latest_release: Optional[_dt.date] = None,
     latest_release_resolver: Optional[Callable[[], Optional[_dt.date]]] = None,
-    default_override: Optional[str] = "last_release",
+    default_override: Optional[str] = "all",
 ) -> PeriodWindow:
     """The SAME selector over a span the caller already knows (several sources, a frame
     in memory). R259 : `ui.smart_date_range` was a second selector with other labels and
     another default (full span) ; it is gone, both paths now render this one.
 
-    The default is « depuis la dernière sortie » — the owner's rule for the whole app
-    (notes L89-L91, 2026-09-27) lives HERE, not repeated at every call site. With no
-    release known, the window starts at the beginning of the history and says so."""
+    The default is the WHOLE history — the owner's rule for the whole app lives HERE,
+    not repeated at every call site. R478 (W7, W11, 2026-10-09 : « d'office toute la
+    durée », « mêmes filtres cohérents dans toute l'app ») reversed R259's « depuis la
+    dernière sortie » (2026-09-27), which hid the previous release a comparison needs.
+    The rule has two halves : the PERIOD opens on everything, the TITLES open on the
+    latest releases (`release_picker`, and the entity default below). « Depuis la
+    dernière sortie » stays one click away ; with no release known it starts at the
+    beginning of the history and says so."""
     span_min = span_min.date() if isinstance(span_min, _dt.datetime) else span_min
     span_max = span_max.date() if isinstance(span_max, _dt.datetime) else span_max
     # Toutes les clés de CE sélecteur portent le locataire, pour la raison écrite dans
@@ -360,10 +366,11 @@ def _validate_entity(spec: EntitySpec) -> None:
 
 
 def _entity_default(options: list, multi: bool, n: int):
-    """Pure: latest-N (multi) or latest (single) from release-DESC options."""
+    """Pure: latest-N (multi) or latest (single) from release-DESC options — the same
+    rule as `release_picker` (R478), from the same definition."""
     if not options:
         return [] if multi else None
-    return options[:max(1, n)] if multi else options[0]
+    return default_releases(options, max(1, n)) if multi else options[0]
 
 
 def _entity_key(prefix: str, primary: Optional[str]) -> str:
@@ -406,7 +413,7 @@ def entity_period_filter(
     artist_id: Optional[int],
     key_prefix: str,
     label: str = "Filtrer",
-    default_override: Optional[str] = "last_release",
+    default_override: Optional[str] = "all",
     preferred_default=None,
 ):
     """Render entity selector + the shared period filter (release-anchored).

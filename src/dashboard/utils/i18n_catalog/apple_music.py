@@ -36,8 +36,8 @@ EN = {
                                  "comparison is anchored on release day. Dates come from "
                                  "Spotify for Artists — link your tracks in **🔗 Mapping "
                                  "cross-plateforme**.",
-    "apple_music.launch_a": "Release (latest by default)",
-    "apple_music.launch_b": "Compare with",
+    "apple_music.launch_pick": "Releases to compare",
+    "apple_music.launch_pick_none": "Pick at least one release.",
     "apple_music.launches_no_reading": "No Apple Music reading covers these tracks since "
                                        "their release: drop an \"all time\" export to see "
                                        "them here.",

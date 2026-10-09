@@ -49,6 +49,7 @@ import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.release_picker import release_picker
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
 from src.dashboard.utils.ui import say_why_it_is_empty
 
@@ -194,17 +195,15 @@ def show():
             #
             # Apple n'expose pas de date de sortie : on passe par la référence
             # canonique (`track_release_reference`, nourrie par les dates S4A),
-            # titre Apple → match_key → release_date. Seulement au premier
-            # affichage ; un choix ultérieur de l'artiste persiste en session.
-            _ent_key = "apple_daily_ent"
-            if _ent_key not in st.session_state and launches:
-                st.session_state[_ent_key] = launches[0].song
+            # titre Apple → match_key → release_date, passée en `preferred_default`
+            # (R478 : plus d'écriture directe en session, le filtre commun décide).
 
             selected_song, window = entity_period_filter(
                 db,
                 spec=EntitySpec("v_apple_song_cumulative", "song_name", "day",
                                 multi=False, default_count=1),
                 artist_id=artist_id, key_prefix="apple_daily",
+                preferred_default=launches[0].song if launches else None,
                 label=t("apple_music.song_select",
                         "🔍 Chanson (dernière sortie par défaut)"),
             )
@@ -390,13 +389,11 @@ def _render_shazam_launches(db, artist_id: int, launches: list) -> None:
                   "cross-plateforme**."))
         return
     label = lambda lc: f"{lc.song} · {format_date(lc.j0)}"      # noqa: E731
-    col_a, col_b = st.columns(2)
-    first = col_a.selectbox(t("apple_music.launch_a", "Sortie (la dernière par défaut)"),
-                            launches, index=0, format_func=label, key="apple_launch_a")
-    others = [lc for lc in launches if lc != first]
-    second = col_b.selectbox(t("apple_music.launch_b", "Comparer avec"), others, index=0,
-                             format_func=label, key="apple_launch_b") if others else None
-    chosen = [first] + ([second] if second else [])
+    chosen = release_picker(t("apple_music.launch_pick", "Sorties à comparer"),
+                            launches, key="apple_launch_pick", format_func=label)
+    if not chosen:
+        st.info(t("apple_music.launch_pick_none", "Choisis au moins une sortie."))
+        return
     readings = apple_launch_readings(db, artist_id, [lc.song for lc in chosen])
     aligned = align_on_j0(readings, chosen)
     if not aligned["measured"].any():

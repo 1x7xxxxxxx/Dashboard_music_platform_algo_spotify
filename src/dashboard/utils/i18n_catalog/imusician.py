@@ -57,8 +57,6 @@ EN = {
         "or launch the Meta collection from the home page."
     ),
     "imusician.evolution_header": "📈 Sales over time",
-    "imusician.all_years": "All years",
-    "imusician.all_months": "All months",
     "imusician.cumulative": "Running total",
     "imusician.monthly_axis": "€ per month",
     "imusician.cumulative_axis": "€ cumulated",

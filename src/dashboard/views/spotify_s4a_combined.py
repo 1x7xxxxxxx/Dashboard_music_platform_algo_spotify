@@ -67,6 +67,7 @@ from src.dashboard.utils.formats import num
 from src.dashboard.utils.platform_colors import DISTINCT, platform_color
 from src.dashboard.utils import project_db, charts
 from src.dashboard.utils.date_format import format_date
+from src.dashboard.utils.release_picker import release_picker
 from src.dashboard.utils.followers_agreement import comparer
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
@@ -368,11 +369,9 @@ def _render_releases(db, frag: str, params: tuple) -> None:
             goto("meta_mapping")
         return
 
-    labels = reach["title"].tolist()
-    default = labels[:2]
-    chosen = st.multiselect(
+    chosen = release_picker(
         t("spotify_s4a_combined.pick_releases", "Sorties à comparer"),
-        labels, default=default, key="s4a_release_pick")
+        reach["title"].tolist(), key="s4a_release_pick")
     if not chosen:
         st.info(t("spotify_s4a_combined.pick_at_least_one",
                   "Choisis au moins une sortie."))

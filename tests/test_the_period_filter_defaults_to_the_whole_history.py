@@ -1,4 +1,4 @@
-"""R259 — one period filter, one default: « depuis la dernière sortie », for the whole app.
+"""R259, R478 — one period filter, one default for the whole app: the WHOLE history.
 
 Type: Test
 Uses: src/dashboard/utils/period_filter.py, src/dashboard/views/*.py (AST + text)
@@ -8,6 +8,11 @@ fais ça pour toute l'app », « il faut qu'on ait les mêmes filtres à chaque 
 R259 the rule lived at SEVEN call sites (`default_override="last_release"`), the layer's own
 default was « current », and two views rendered another selector (`ui.smart_date_range`,
 other labels, full span by default). The rule now lives in ONE place ; this keeps it there.
+
+R478, owner 2026-10-09 (W7, W11) : « d'office toute la durée ». The default flipped from
+« depuis la dernière sortie » to the whole history — the latest-release half of the rule
+moved to the TITLES (`release_picker`, two latest by default). Measured before the flip,
+alternating, on the biggest tenant : no render-time difference beyond noise.
 """
 import ast
 import inspect
@@ -41,11 +46,13 @@ EXEMPT = {
 }
 
 
-def test_the_layer_defaults_to_the_last_release():
+def test_the_layer_defaults_to_the_whole_history():
     for fn in (pf.smart_period_filter, pf.span_period_filter, pf.entity_period_filter):
-        assert inspect.signature(fn).parameters["default_override"].default == "last_release", (
-            f"{fn.__name__} ne s'ouvre plus sur « depuis la dernière sortie »")
-    assert pf._default_preset(400, "last_release")[0] == "last_release"
+        assert inspect.signature(fn).parameters["default_override"].default == "all", (
+            f"{fn.__name__} ne s'ouvre plus sur toute la durée")
+    assert pf._default_preset(400, "all")[0] == "all"
+    assert pf._default_preset(400, "last_release")[0] == "last_release", (
+        "« depuis la dernière sortie » doit rester un choix à un clic")
 
 
 def _redundant_defaults(source: str) -> int:
@@ -55,7 +62,7 @@ def _redundant_defaults(source: str) -> int:
         if isinstance(node, ast.Call):
             for kw in node.keywords:
                 if (kw.arg == "default_override" and isinstance(kw.value, ast.Constant)
-                        and kw.value.value == "last_release"):
+                        and kw.value.value == "all"):
                     n += 1
     return n
 
@@ -114,8 +121,8 @@ def test_every_view_drawing_a_daily_series_goes_through_the_shared_filter():
 
 
 def test_the_detectors_see_the_defects_they_are_written_for():
-    assert _redundant_defaults('f(db, default_override="last_release")') == 1
-    assert _redundant_defaults('f(db, default_override="all")') == 0
+    assert _redundant_defaults('f(db, default_override="all")') == 1
+    assert _redundant_defaults('f(db, default_override="last_release")') == 0
     drawing = 'db.fetch_df("SELECT * FROM v_meta_daily"); charts.plotly_chart(fig)'
     assert _draws_daily_series(drawing) and not _uses_the_layer(drawing)
     assert _uses_the_layer("from src.dashboard.utils import filters\nw = filters.period(db)\n" + drawing)

@@ -195,9 +195,10 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — la branche sans-garde verse toute l'exposition dans « avec-garde » (error_class_health.py:882) → 1 rouge",
     "tests/test_every_object_has_a_layer.py":
         "2026-10-04 — clé REGISTRY v_s4a_song_measured_span renommée (metric_registry.py:52) → 1 rouge",
-    "tests/test_the_period_filter_defaults_to_the_last_release.py":
+    "tests/test_the_period_filter_defaults_to_the_whole_history.py":
         "2026-10-04 — default_override=\"last_release\" → None (period_filter.py:275) → 1 rouge"
-        " ; 2026-10-05 — R368 : _uses_the_layer comptant un import du filtre de COMPTE → 2 vues sans période vues",
+        " ; 2026-10-05 — R368 : _uses_the_layer comptant un import du filtre de COMPTE → 2 vues sans période vues"
+        " ; 2026-10-09 — R478 : default_override \"all\" → \"last_release\" dans span_period_filter → 1 rouge",
     "tests/test_a_number_is_written_one_way.py":
         "2026-10-04 — st.dataframe(df) brut ajouté à recap.py:37 → 1 rouge ; .style.map retiré (meta_mapping/_tracks.py:341) → 1 rouge"
         " ; 2026-10-05 — R368 : _SEPARATORS réduit à l'espace seul → 1 rouge (16 hacks à espace fine insécable)",

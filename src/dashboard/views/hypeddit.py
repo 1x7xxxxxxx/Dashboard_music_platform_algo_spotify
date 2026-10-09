@@ -49,6 +49,7 @@ from src.dashboard.utils import get_db_connection, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.cache_invalidation import purge_after_write
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.release_picker import default_releases, release_picker
 from src.dashboard.auth import get_artist_id, is_admin
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_serie
@@ -195,7 +196,7 @@ def default_campaigns(last_day: pd.Series, n: int = 2) -> list:
     `last_day` maps a campaign name to its last day with a reading. A campaign serves
     one release, so its last reading dates the release it served.
     """
-    return list(last_day.sort_values(ascending=False).index[:n])
+    return default_releases(list(last_day.sort_values(ascending=False).index), n)
 
 
 def _render_global_stats(db):
@@ -222,10 +223,9 @@ def _render_global_stats(db):
     df['date'] = pd.to_datetime(df['date'])
 
     last = df.groupby('campaign_name')['date'].max()
-    chosen = st.multiselect(
+    chosen = release_picker(
         t("hypeddit.campaign_filter", "🎯 Campagnes comparées"),
-        list(last.sort_values(ascending=False).index),
-        default=default_campaigns(last), key="hyp_campaigns",
+        list(last.sort_values(ascending=False).index), key="hyp_campaigns",
         help=t("hypeddit.campaign_filter_help",
                "Par défaut, les deux campagnes les plus récentes — tes deux dernières "
                "sorties."))

@@ -48,6 +48,7 @@ from src.dashboard.utils.age_aligned import age_aligned_traces
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.release_picker import release_picker
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.platform_colors import DISTINCT, PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
@@ -302,8 +303,8 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     titles = by_release["title"].tolist()
     metrics = _metric_labels()
     c1, c2 = st.columns([3, 1])
-    picked = c1.multiselect(t("soundcloud.age_pick", "Titres à comparer"), titles,
-                            default=titles[:2], key=f"sc_age_pick_{artist_id}")
+    picked = release_picker(t("soundcloud.age_pick", "Titres à comparer"), titles,
+                            key=f"sc_age_pick_{artist_id}", container=c1)
     metric_lbl = c2.selectbox(t("soundcloud.age_metric", "Compteur"),
                               list(metrics.values()), key=f"sc_age_metric_{artist_id}")
     metric = next(c for c, lbl in metrics.items() if lbl == metric_lbl)
