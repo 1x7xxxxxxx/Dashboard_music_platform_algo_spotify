@@ -324,7 +324,9 @@ _FLOOR: dict[str, int] = {
     # 2026-10-09 (R477) : 144 → 142 — the catalogue's three summary tiles are gone (W14
     # « des graphiques, pas de tableaux » : the catalogue chart carries them) ; the
     # pareto's Meta cost is one tile (+1).
-    "tiles.total": 142,
+    # 2026-10-09 (R484) : 142 → 140 — the Apple Music KPI tiles are gone (W7 : the totals
+    # live in the titles of the top-10 panels).
+    "tiles.total": 140,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

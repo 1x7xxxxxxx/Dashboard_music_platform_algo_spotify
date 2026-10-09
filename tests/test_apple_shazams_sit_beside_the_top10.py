@@ -1,13 +1,14 @@
 """Apple Music: the Shazams are a chart beside the top 10, not a folded table (R383).
 
 Type: Guard
-Uses: src.dashboard.views.apple_music (_shazam_bar), tests/render_harness.py (TENANT_SCRIPT)
+Uses: src.dashboard.views.apple_music (_top10_figure), tests/render_harness.py (TENANT_SCRIPT)
 Depends on: live Postgres with artist 1's Apple readings for the render (skipped without)
 Persists in: nothing
 
 V37 (owner's screen review, 2026-10-05): « Shazams par chanson » was an expander under the
 top-10 chart. It becomes a chart on the same row, to the right, in the same title order —
-one title reads across both frames.
+one title reads across both frames. R484 (W7 II) makes them the right PANEL of the same
+figure, sharing the y axis: on two half-page charts the names were written twice.
 """
 from __future__ import annotations
 
@@ -20,14 +21,19 @@ from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
 
 
-def test_the_shazam_chart_keeps_the_streams_order() -> None:
-    from src.dashboard.views.apple_music import _shazam_bar
+def test_the_shazams_share_the_rows_of_the_streams() -> None:
+    from src.dashboard.views.apple_music import _top10_figure
 
     df = pd.DataFrame({"song_name": ["a", "b", "c"], "plays": [30, 10, 20],
                        "shazam_count": [1, 9, 5]})
-    fig = _shazam_bar(df)
-    assert list(fig.layout.yaxis.categoryarray) == ["b", "c", "a"], (
-        "the Shazam bars are not in the streams order of the chart beside them")
+    fig = _top10_figure(df, "60", "15")
+    streams, shazams = fig.data
+    assert list(streams.y) == list(shazams.y) == ["b", "c", "a"], (
+        "the Shazam bars are not on the rows of the streams beside them")
+    assert fig.layout.yaxis2.matches == "y", "the two panels do not share the titles"
+    titles = [a.text for a in fig.layout.annotations]
+    assert any("60" in x for x in titles) and any("15" in x for x in titles), (
+        f"the totals are not in the panel titles : {titles}")
 
 
 def _has_apple() -> bool:
@@ -42,7 +48,7 @@ def _has_apple() -> bool:
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the Apple Music page against the live DB")
-def test_the_top10_row_holds_two_charts_and_no_shazam_expander() -> None:
+def test_the_page_draws_the_top10_with_its_shazams_and_no_expander() -> None:
     if not _has_apple():
         pytest.skip("artist 1 has no Apple reading — the page renders its empty state")
     from streamlit.testing.v1 import AppTest
@@ -53,18 +59,4 @@ def test_the_top10_row_holds_two_charts_and_no_shazam_expander() -> None:
     assert not at.exception, at.exception
     assert not [e.label for e in at.expander if "Shazams par chanson" in e.label], (
         "the Shazams are folded in an expander again")
-    assert any(_both_columns_chart(b) for b in _blocks(at._tree)), (
-        "no st.columns(2) row carries the top 10 and the Shazams side by side")
-
-
-def _blocks(node):
-    for child in getattr(node, "children", {}).values():
-        yield child
-        yield from _blocks(child)
-
-
-def _both_columns_chart(block) -> bool:
-    """A horizontal row of exactly two columns, each drawing a Plotly chart."""
-    cols = [c for c in getattr(block, "children", {}).values() if c.type == "column"]
-    return (len(cols) == 2 == len(block.children)
-            and all(c.get("plotly_chart") for c in cols))
+    assert len(at.get("plotly_chart")) == 2, "top 10 + Shazams, then the pace of one title"

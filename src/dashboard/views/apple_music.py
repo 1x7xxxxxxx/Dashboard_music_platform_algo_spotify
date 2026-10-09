@@ -45,10 +45,10 @@ figure, au lieu d'être le motif qui faisait jeter la ligne.
 """
 import pandas as pd
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import view_session, charts
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.release_picker import release_picker
 from src.dashboard.utils.filters import EntitySpec, entity_period_filter
@@ -79,29 +79,9 @@ def show():
 
     with view_session() as (db, artist_id):
         try:
-            # ============================================================
-            # 1. KPIs GLOBAUX
-            # ============================================================
-            st.subheader(t("apple_music.overview", "📊 Vue d'ensemble"))
-
-            # DEUX TUILES, PAS TROIS — « 🎵 Chansons Suivies » est partie le
-            # 2026-09-21. Elle comptait les LIGNES d'`apple_songs_performance`,
-            # donc un titre une fois par dépôt de CSV : le nombre grandissait à
-            # chaque import sans qu'un titre soit ajouté. Et la question qu'elle
-            # prétendait poser — « ai-je le bon nombre de titres ? » — n'a de
-            # réponse que croisée avec les autres plateformes. Elle vit donc
-            # désormais dans **🔗 Mapping cross-plateforme**, où la grille de
-            # couverture la confronte au catalogue canonique, en vert et rouge.
-            col2, col3 = st.columns(2)
-
-            # LE TOTAL PASSE PAR LA RÈGLE COMMUNE, pas par un SUM nu.
-            #
-            # `SUM(plays)` sur toute la table était juste tant qu'un artiste n'avait
-            # qu'UN relevé — ce que la clé lui imposait avant la migration 093. Depuis
-            # qu'il peut déposer un export « depuis le début » ET un export par année,
-            # la somme brute compte deux fois les années contenues dans le cumul. Cette
-            # page affichait donc un total Apple différent de celui de l'accueil, pour
-            # le même artiste au même instant.
+            # R484 (owner W7 II : « total streams cumulés intégré au graphique top 10 ; total
+            # Shazam intégré au graphique Shazam ; retirer la barre de séparation ») — the
+            # two tiles and both separators are gone; the totals are the chart titles.
             from src.dashboard.utils.platform_timeseries import (
                 apple_lifetime_plays, apple_lifetime_shazams,
             )
@@ -111,23 +91,13 @@ def show():
             total_plays = apple_lifetime_plays(db, artist_id)
             total_shazams = apple_lifetime_shazams(db, artist_id)
 
-            # `None` = pas de mesure, et une tuile doit le DIRE plutôt que d'écrire
-            # « 0 ». Depuis le 2026-09-12 les portes distinguent les trois cas —
-            # aucune ligne, mesuré à zéro, lecture échouée — et `f"{None:,}"` lève.
-            # Un artiste sans import Apple lit « — », pas « 0 écoute ».
-            _tile = lambda v: "—" if v is None else f"{v:,}"      # noqa: E731
-            col2.metric(t("apple_music.kpi_streams", "▶️ Total Streams (Cumul)"),
-                        _tile(total_plays))
-            col3.metric(t("apple_music.kpi_shazams", "⚡ Total Shazams (Cumul)"),
-                        _tile(total_shazams))
-
-            st.markdown("---")
+            # `None` = pas de mesure : the title says « — », never « 0 ». Since 2026-09-12 the
+            # gates tell no row / measured zero / failed read apart, and `f"{None:,}"` raises.
+            _total = lambda v: "—" if v is None else num(v, 0)      # noqa: E731
 
             # ============================================================
             # 2. TOP CHANSONS (Barres)
             # ============================================================
-            st.subheader(t("apple_music.top_header", "🏆 Top Chansons (Cumulé)"))
-
             # UN TITRE, UNE LIGNE. Sans le relevé le plus récent, le classement
             # listait le même titre une fois par dépôt de CSV, et plaçait son export
             # « depuis le début » au-dessus de l'année d'un autre titre.
@@ -135,38 +105,11 @@ def show():
             df_top = db.fetch_df(top_query, (artist_id,))
 
             if not df_top.empty:
-                fig = px.bar(
-                    df_top,
-                    x='plays',
-                    y='song_name',
-                    orientation='h',
-                    text='plays',
-                    # R209 — say what this is: a CUMULATIVE snapshot, not a period.
-                    title=t("apple_music.top10_title",
-                            "Top 10 — streams cumulés au dernier relevé"),
-                    labels={'plays': t("common.streams", "Streams"), 'song_name': ''},
-                    color='plays',
-                    color_continuous_scale='Reds',
-                    custom_data=['shazam_count'],
-                )
-                fig.update_traces(
-                    texttemplate='%{text:,.0f}', textposition='outside',
-                    hovertemplate=t("apple_music.top_hover",
-                                    '%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}<extra></extra>'),
-                )
-                # automargin: the titles were cut at the left edge (« en le français »).
-                fig.update_layout(yaxis={'categoryorder': 'total ascending', 'automargin': True},
-                                  height=500, margin=dict(l=10, r=40))
-                # R383 (V37) : les Shazams étaient un tableau replié sous le graphique ;
-                # ils sont un second graphique, à droite, dans l'ordre des écoutes —
-                # un titre se lit sur la même ligne dans les deux cadres.
-                col_streams, col_shazams = st.columns(2)
-                with col_streams:
-                    charts.plotly_chart(fig, width="stretch")
-                with col_shazams:
-                    charts.plotly_chart(_shazam_bar(df_top), width="stretch")
-
-            st.markdown("---")
+                # R383 then R484 (W7 II) : the Shazams sit on the right of the top 10, in
+                # ONE figure whose two panels share the titles — on two half-page charts
+                # the names were written twice and took half of each frame.
+                charts.plotly_chart(_top10_figure(df_top, _total(total_plays),
+                                                  _total(total_shazams)), width="stretch")
 
             # ============================================================
             # 3. DEUX SORTIES, UNE HORLOGE (R351)
@@ -184,7 +127,7 @@ def show():
             # espacés de 12 à 179 jours chez le locataire 1, et promettre un quotidien
             # qu'on ne mesure pas est ce qui a fait jeter 100 % des points.
             st.subheader(t("apple_music.daily_growth",
-                           "📈 Écoutes & Shazams dans le temps"))
+                           "📈 Le rythme d'un titre"))
 
             # LA DERNIÈRE SORTIE, D'OFFICE — et elle lit la vue OR.
             #
@@ -258,105 +201,120 @@ if __name__ == "__main__":
     show()
 
 
-def _shazam_bar(df_top):
-    """Shazams of the top-10 titles, in the streams order of the chart beside it (R383)."""
+def _top10_figure(df_top, total_plays: str = "—", total_shazams: str = "—"):
+    """Top 10 by cumulative streams, Shazams on the right on the same rows (R383, R484).
+
+    One figure, two panels sharing the y axis: a title is written once and reads across
+    both. Each total is the title of its panel (owner W7 II), the colour scale is gone —
+    it repeated the bar length."""
+    from plotly.subplots import make_subplots
+
     from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 
-    order = df_top.sort_values("plays")["song_name"].tolist()
-    fig = px.bar(
-        df_top, x="shazam_count", y="song_name", orientation="h", text="shazam_count",
-        title=t("apple_music.shazams_title", "⚡ Shazams — mêmes titres, même ordre"),
-        labels={"shazam_count": "Shazams", "song_name": ""},
-        color_discrete_sequence=[PALETTE_LIGHT["apple"]],
-    )
-    fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside",
-                      hovertemplate=t("apple_music.shazams_hover",
-                                      "%{y}<br>⚡ Shazams : %{x:,.0f}<extra></extra>"))
-    fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": order,
-                             "automargin": True},
-                      height=500, margin=dict(l=10, r=40))
+    df = df_top.sort_values("plays")
+    fig = make_subplots(
+        rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06, column_widths=[0.6, 0.4],
+        subplot_titles=(
+            t("apple_music.top10_title", "Top 10 — streams cumulés · total {n}").format(n=total_plays),
+            t("apple_music.shazams_title", "⚡ Shazams · total {n}").format(n=total_shazams)))
+    fig.add_trace(go.Bar(
+        y=df["song_name"], x=df["plays"], orientation="h", marker_color="#C62828",
+        text=[num(v, 0) for v in df["plays"]], textposition="outside", cliponaxis=False,
+        customdata=df[["shazam_count"]].values,
+        hovertemplate=t("apple_music.top_hover",
+                        "%{y}<br>Streams : %{x:,.0f}<br>⚡ Shazams : %{customdata[0]:,.0f}"
+                        "<extra></extra>")), row=1, col=1)
+    fig.add_trace(go.Bar(
+        y=df["song_name"], x=df["shazam_count"], orientation="h",
+        marker_color=PALETTE_LIGHT["apple"],
+        text=[num(v, 0) for v in df["shazam_count"]], textposition="outside",
+        cliponaxis=False,
+        hovertemplate=t("apple_music.shazams_hover",
+                        "%{y}<br>⚡ Shazams : %{x:,.0f}<extra></extra>")), row=1, col=2)
+    for col, field in ((1, "plays"), (2, "shazam_count")):
+        top = float(pd.to_numeric(df[field], errors="coerce").max() or 1)
+        fig.update_xaxes(range=[0, top * 1.3], nticks=4, row=1, col=col)
+    fig.update_yaxes(automargin=True)   # the titles were cut at the left edge
+    fig.update_layout(height=460, showlegend=False, margin=dict(l=10, r=30, t=60))
     return fig
 
 
-def _render_song_series(df, song: str, window) -> None:
-    """Le cumul et le gain d'un titre — deux cadres, une horloge.
+def rate_per_30_days(gains: "pd.Series", days: "pd.Series") -> "pd.Series":
+    """A gain between two readings, as a pace per 30 days. Pure (R484).
 
-    DEUX CADRES ET NON DEUX AXES. Les Shazams se comptent en unités quand les
-    écoutes se comptent en centaines : sur un repère commun la barre est
-    invisible, sur un second axe son croisement avec la courbe est un artefact de
-    cadrage et non un fait. La règle du dépôt est que deux séries d'ordres
-    incomparables prennent deux petits multiples.
-
-    ⚠️ LE GAIN PORTE SA DURÉE, écrite sur la barre. C'est la correction du
-    2026-09-21 : la version d'avant écartait toute paire dont l'écart n'était pas
-    d'UN jour — « 11 paires, 0 consécutive », donc zéro point dessiné. Un gain de
-    36 écoutes sur 179 jours est un fait ; le diviser par 179 pour afficher « 0,2
-    par jour » inventerait une régularité que personne n'a mesurée.
-    """
+    Comparable across intervals of 12 and 179 days, which raw gains are not; the hover keeps
+    the raw gain and its duration, so the average is never mistaken for a daily count."""
     import pandas as pd
+
+    d = pd.to_numeric(days, errors="coerce")
+    return (pd.to_numeric(gains, errors="coerce") / d.where(d > 0) * 30).round(0)
+
+
+def pace_verdict(rates: "pd.Series") -> str:
+    """« accélère / ralentit / stable » from the last two paces; "" below two. Pure (R484)."""
+    r = rates.dropna()
+    if len(r) < 2:
+        return ""
+    if r.iloc[-2] <= 0:
+        return t("apple_music.pace_start", "↗ démarre") if r.iloc[-1] > 0 else ""
+    change = r.iloc[-1] / r.iloc[-2] - 1
+    if change > 0.10:
+        return t("apple_music.pace_up", "↗ accélère ({p:+.0%})").format(p=change)
+    if change < -0.10:
+        return t("apple_music.pace_down", "↘ ralentit ({p:+.0%})").format(p=change)
+    return t("apple_music.pace_flat", "→ stable")
+
+
+def _render_song_series(df, song: str, window) -> None:
+    """The pace of one title between readings — and whether it speeds up (R484).
+
+    Owner W7 II : « je ne comprends pas quelle décision prendre → redesign ». The cumulative
+    curve and the raw gains (« +36 / 179 j ») only said that a title grew. The decision is
+    whether to push it again: each interval becomes a pace per 30 days, comparable across
+    readings 12 or 179 days apart, and the title states the verdict from the last two paces.
+    Streams and Shazams keep two panels: their orders of magnitude are not comparable.
+    """
     from plotly.subplots import make_subplots
 
     from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 
     apple = PALETTE_LIGHT["apple"]
+    gains = df[df["daily_plays"].notna()].copy()
+    gains["plays_pace"] = rate_per_30_days(gains["daily_plays"], gains["days_since_previous"])
+    gains["shazam_pace"] = rate_per_30_days(gains["daily_shazams"],
+                                            gains["days_since_previous"])
+    if gains["plays_pace"].dropna().empty:
+        st.info(t("apple_music.not_enough_history",
+                  "📉 Un seul relevé pour ce titre : il faut deux dépôts "
+                  "d'export pour mesurer un gain."))
+        return
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12,
-        row_heights=[0.55, 0.45],
-        subplot_titles=[
-            t("apple_music.cumulative_panel", "Cumul à chaque relevé"),
-            t("apple_music.gain_panel", "Gagné entre deux relevés")])
-
-    fig.add_trace(go.Scatter(
-        x=df["day"], y=df["plays"], mode="lines+markers",
-        name=t("common.streams", "Écoutes"),
-        line=dict(color=apple, width=2.5), marker=dict(size=7)), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=df["day"], y=df["shazam_count"], mode="lines+markers",
-        name=t("apple_music.shazams", "Shazams"),
-        line=dict(color=apple, width=2, dash="dot"), marker=dict(size=6)), row=1, col=1)
-
-    # L'étiquette DIT la durée : « +36 / 179 j ». Sans elle, deux barres de même
-    # hauteur couvrant 12 et 179 jours se lisent comme deux faits comparables.
-    gains = df[df["daily_plays"].notna()]
-    etiquettes = [
-        t("apple_music.gain_label", "+{n} / {d} j").format(
-            n=int(g), d=int(j) if pd.notna(j) else "?")
-        for g, j in zip(gains["daily_plays"], gains["days_since_previous"])]
-    fig.add_trace(go.Bar(
-        x=gains["day"], y=gains["daily_plays"],
-        name=t("apple_music.gain_plays", "Écoutes gagnées"),
-        marker_color=apple, opacity=0.85,
-        text=etiquettes, textposition="outside", cliponaxis=False,
-        customdata=gains["days_since_previous"],
-        hovertemplate=t("apple_music.gain_hover",
-                        "%{y:,.0f} écoute(s) gagnée(s) sur %{customdata} jour(s)"
-                        "<extra></extra>")), row=2, col=1)
-    fig.add_trace(go.Bar(
-        x=gains["day"], y=gains["daily_shazams"],
-        name=t("apple_music.gain_shazams", "Shazams gagnés"),
-        marker_color=apple, opacity=0.4,
-        hovertemplate=t("apple_music.gain_sh_hover",
-                        "%{y:,.0f} Shazam(s) gagné(s)<extra></extra>")), row=2, col=1)
-
-    fig.update_layout(
-        height=620, hovermode="x unified", barmode="group",
-        margin=dict(t=90),
-        legend=dict(orientation="h", y=1.10),
-        title_text=t("apple_music.series_title", "{song} · {label}")
-        .format(song=song, label=window.label))
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.14, row_heights=[0.6, 0.4],
+        subplot_titles=[t("apple_music.pace_plays", "Écoutes / 30 jours"),
+                        t("apple_music.pace_shazams", "Shazams / 30 jours")])
+    hover = t("apple_music.pace_hover",
+              "≈ %{y:,.0f} / 30 j<br>+%{customdata[0]:,.0f} sur %{customdata[1]} j"
+              "<extra></extra>")
+    days = pd.to_numeric(gains["days_since_previous"], errors="coerce").fillna(1)
+    mid = pd.to_datetime(gains["day"]) - pd.to_timedelta(days / 2, unit="D")
+    span_ms = (days * 86_400_000 * 0.96).tolist()
+    for row, pace, raw, opacity in ((1, "plays_pace", "daily_plays", 0.9),
+                                    (2, "shazam_pace", "daily_shazams", 0.5)):
+        # Each bar spans ITS interval, from the previous reading to this one: the pace
+        # holds over those days, not on the reading date.
+        fig.add_trace(go.Bar(
+            x=mid, width=span_ms, y=gains[pace], marker_color=apple, opacity=opacity,
+            text=[num(v, 0) if v == v else "" for v in gains[pace]],
+            textposition="outside", cliponaxis=False,
+            customdata=gains[[raw, "days_since_previous"]].values,
+            hovertemplate=hover, showlegend=False), row=row, col=1)
+        top = gains[pace].max()
+        fig.update_yaxes(range=[0, (top if top == top and top > 0 else 1) * 1.25],
+                         row=row, col=1)
+    verdict = pace_verdict(gains["plays_pace"])
+    fig.update_layout(height=520, margin=dict(t=90),
+                      title_text=" · ".join(x for x in (song, verdict, window.label) if x))
     charts.plotly_chart(fig, width="stretch")
-
-    # CE QUE LA FIGURE NE DIT PAS, dit ici : sur quoi les gains sont étalés.
-    if not gains.empty:
-        jours = gains["days_since_previous"].dropna()
-        st.caption(t("apple_music.series_caption",
-                     "**{n} relevé(s)** sur la période. Un export Apple se dépose à "
-                     "la main : les relevés ne sont pas quotidiens, et l'écart entre "
-                     "deux va de **{mini} à {maxi} jours** ici. Chaque barre porte "
-                     "donc sa durée — un gain n'est comparable à un autre qu'à durée "
-                     "égale.")
-                   .format(n=len(df), mini=int(jours.min()) if len(jours) else "—",
-                           maxi=int(jours.max()) if len(jours) else "—"))
 
 
 def _launches(db, artist_id: int) -> list:

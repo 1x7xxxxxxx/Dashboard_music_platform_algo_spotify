@@ -68,30 +68,17 @@ src/dashboard/views/spotify_s4a_combined.py::_render_secondary#1:
 # ── Bilan annuel (Wrapped) ───────────────────────────────────────────────────
 # ── Plateformes ──────────────────────────────────────────────────────────────
 src/dashboard/views/apple_music.py::show#1:
-  q: "Quels titres portent mon Apple Music ?"
-  decision: "Identifier les titres qui portent Apple Music, pour y orienter tes campagnes hors Spotify."
-  decision_en: "Identify the tracks carrying Apple Music, to aim your non-Spotify campaigns at them."
+  q: "Quels titres portent mon Apple Music, et sont-ils aussi ceux qu'on Shazame ?"
+  decision: "Identifier les titres qui portent Apple Music et Shazam, pour y orienter tes campagnes hors Spotify."
+  decision_en: "Identify the tracks carrying Apple Music and Shazam, to aim your non-Spotify campaigns at them."
   role: plateforme
   d: 3
-  c: 3
-  p: 3
-  v: corriger
-  owner_v: corriger
-  owner: "Non garanti pour la couche or. Garantis que ça soit garanti. J'arrive pas à savoir ce qu'il faut corriger : si tu me proposes de corriger ou fusionner, mets-moi ce qu'il faut corriger ou fusionner."
-  cause: libelles-tronques
-  note: "Noms de titres coupés à gauche (« en le français »). Un instantané cumulé, pas une série."
-src/dashboard/views/apple_music.py::show#2:
-  q: "Les titres qui portent mon Apple Music sont-ils aussi ceux qu'on Shazame ?"
-  decision: "Voir si tes titres les plus écoutés sur Apple sont aussi les plus Shazamés, pour cibler une campagne hors Spotify."
-  decision_en: "See whether your most-streamed Apple tracks are also the most Shazamed, to aim a non-Spotify campaign."
-  role: plateforme
-  d: 3
-  c: 3
+  c: 4
   p: 3
   v: garder
   owner_v: garder
-  owner: "Demandé par le propriétaire (V37) : les Shazams en graphique, pas en tableau replié."
-  note: "Même ordre que le graphique des écoutes à côté (R383). Instantané cumulé, un titre se lit sur la même ligne dans les deux cadres."
+  owner: "W7 (2026-10-09) : les Shazams en graphique à droite du top 10, les totaux dans les titres."
+  note: "Une figure, deux panneaux sur les mêmes lignes (R484) : un titre se lit une fois, les totaux sont dans les titres des panneaux. Remplace show#1 + show#2."
 src/dashboard/views/sacem.py::render_section#1:
   q: "Combien de mes royalties SACEM brutes me reste-t-il une fois les retenues payées ?"
   decision: "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition."

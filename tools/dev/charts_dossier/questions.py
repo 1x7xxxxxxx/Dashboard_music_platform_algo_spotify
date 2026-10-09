@@ -73,10 +73,6 @@ SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
          "faux doublons — par accroche, dans le temps, par étape, par fréquence, par semaine "
          "active",
          frozenset({_CR + "_render_scatter#1"})),
-    frozenset({"src/dashboard/views/apple_music.py::show#1",
-               "src/dashboard/views/apple_music.py::show#2"}):
-        ("faux doublon — écoutes cumulées vs Shazams des mêmes dix titres, côte à côte dans "
-         "le même ordre pour qu'un titre se lise sur une ligne (R383, V37)", frozenset()),
 }
 
 #: Merged on 2026-09-28 (R299): the retired fiche, the fiche that now carries it, why.

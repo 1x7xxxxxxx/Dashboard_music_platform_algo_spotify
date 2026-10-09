@@ -46,11 +46,8 @@ DECISIONS: dict[str, tuple[str, str]] = {
         'Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche.',
         'Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works.'),
     'views/apple_music.py::show#1': (
-        'Identifier les titres qui portent Apple Music, pour y orienter tes campagnes hors Spotify.',
-        'Identify the tracks carrying Apple Music, to aim your non-Spotify campaigns at them.'),
-    'views/apple_music.py::show#2': (
-        'Voir si tes titres les plus écoutés sur Apple sont aussi les plus Shazamés, pour cibler une campagne hors Spotify.',
-        'See whether your most-streamed Apple tracks are also the most Shazamed, to aim a non-Spotify campaign.'),
+        'Identifier les titres qui portent Apple Music et Shazam, pour y orienter tes campagnes hors Spotify.',
+        'Identify the tracks carrying Apple Music and Shazam, to aim your non-Spotify campaigns at them.'),
     'views/db_health.py::_show_ingestion_gaps#1': (
         'Vérifier que les données arrivent chaque jour, sinon ne pas juger une campagne sur des chiffres incomplets.',
         'Check that data lands every day, otherwise do not judge a campaign on incomplete figures.'),

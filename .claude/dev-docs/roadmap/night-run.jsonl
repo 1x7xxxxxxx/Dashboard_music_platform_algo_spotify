@@ -775,3 +775,6 @@
 {"at": "2026-10-09T05:13:03+00:00", "head": "0dd340e1", "kind": "start", "task": "R483", "what": "spotify : ce qui bouge = titres qui bougent, PI en barres à côté, axe borné"}
 {"at": "2026-10-09T05:33:52+00:00", "kind": "done", "task": "R482", "what": "fermée par roadmap-close — CI verte 21746552 (run 37887339093)"}
 {"at": "2026-10-09T05:34:56+00:00", "head": "ba65260b", "kind": "done", "task": "R482", "what": "CI verte 21746552, archivée"}
+{"at": "2026-10-09T05:36:09+00:00", "head": "9d1f0f14", "kind": "start", "task": "R484", "what": "apple : totaux dans les titres, rythme /30 j avec verdict"}
+{"at": "2026-10-09T05:40:21+00:00", "kind": "done", "task": "R483", "what": "fermée par roadmap-close — CI verte ba65260b (run 37889165410)"}
+{"at": "2026-10-09T05:41:18+00:00", "head": "9d1f0f14", "kind": "done", "task": "R483", "what": "CI verte ba65260b, archivée"}
