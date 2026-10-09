@@ -77,3 +77,44 @@ def test_a_row_quoting_the_marker_syntax_keeps_its_real_scope():
     row = ("| R450 | judged by (`<!-- scope: … -->`) <!-- critic: non — x --> "
            "<!-- scope: tools/dev/, tests/ --> | P3 | m |")
     assert gate.scope_of(row) == ["tools/dev/", "tests/"]
+
+
+def _paths_built_under_root(source: str) -> set[str]:
+    """Every `ROOT / "a" / "b" / …` chain of string literals, joined — the files a tool
+    reads or writes in the repo, read from the AST, never from a variable name. Pure."""
+    import ast
+    import os
+
+    def parts(node):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            left = parts(node.left)
+            if left is not None and isinstance(node.right, ast.Constant) and isinstance(node.right.value, str):
+                return left + [node.right.value]
+            return None
+        return [] if isinstance(node, ast.Name) and node.id == "ROOT" else None
+
+    out = set()
+    for node in ast.walk(ast.parse(source)):
+        p = parts(node)
+        if p and os.path.splitext(p[-1])[1]:  # a file, not a dot-directory
+            out.add("/".join(p))
+    return out
+
+
+def test_every_file_roadmap_close_writes_is_roadmap_bookkeeping():
+    """R490 — 2026-10-09: `make roadmap-close R474` rewrote notes-triage.yaml (R268) and
+    the commit-msg gate refused the closing commit, the file being outside R474's scope.
+    A file the closing tool writes is bookkeeping, like the archive : never judged."""
+    src = (ROOT / "tools/dev/roadmap.py").read_text(encoding="utf-8")
+    written = _paths_built_under_root(src)
+    assert ".claude/dev-docs/architecture/notes-triage.yaml" in written, "le détecteur ne voit plus le fichier"
+    row = "| R474 | x <!-- critic: non --> <!-- scope: src/dashboard/, tests/ --> | P2 | m |"
+    assert gate.out_of_scope(sorted(written), [row]) == [], "roadmap-close écrit hors comptabilité"
+    assert gate.out_of_scope(["src/api/main.py"], [row]) == ["src/api/main.py"], "le garde ne juge plus rien"
+
+
+def test_the_root_path_detector_reads_the_chain():
+    """Non-vacuité : la chaîne `ROOT / "x" / "y.md"` est vue, un nom ou un dossier ne l'est pas."""
+    assert _paths_built_under_root('p = ROOT / ".claude" / "a.yaml"') == {".claude/a.yaml"}
+    assert not _paths_built_under_root('p = OTHER / ".claude" / "a.yaml"')
+    assert not _paths_built_under_root('p = ROOT / ".claude" / "dir"')

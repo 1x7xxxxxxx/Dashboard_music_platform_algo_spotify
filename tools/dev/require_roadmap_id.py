@@ -129,7 +129,9 @@ def scope_of(row: str) -> list[str] | None:
 # A test may accompany any task; the durations and the roadmap's own files are bookkeeping.
 UNSCOPED = ("tests/", ".test_durations", ".claude/dev-docs/roadmap/checklist.md",
             ".claude/dev-docs/roadmap/archive.md", ".claude/dev-docs/roadmap/night-run.jsonl",
-            ".claude/dev-docs/ops-mail-journal.md")
+            ".claude/dev-docs/ops-mail-journal.md",
+            # written by `make roadmap-close` (R268) — bookkeeping, like the archive (R490)
+            ".claude/dev-docs/architecture/notes-triage.yaml")
 
 
 def out_of_scope(files: list[str], rows: list[str]) -> list[str]:
