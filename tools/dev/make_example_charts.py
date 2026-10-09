@@ -378,7 +378,7 @@ def meta_x_s4a() -> Path:
 
 
 def shap_overview() -> Path:
-    """Ce qui pèse le plus sur chaque playlist — un aperçu SHAP, factice.
+    """Ce qui pèse le plus sur chaque playlist, et où en est TA track — un aperçu SHAP, factice.
 
     R456 (2026-10-07, commentaire vocal C10) : « un aperçu des algorithmes de SHAP qui
     liste l'impact de chaque paramètre sur ce qui va déclencher en priorité Discover
@@ -386,19 +386,24 @@ def shap_overview() -> Path:
     rangé du plus influent au moins influent ; trois barres par critère, une par
     playlist, aux couleurs de la figure de prévision. Une barre vers la gauche FREINE
     le déclenchement : le signe d'une contribution SHAP est la moitié de sa lecture.
+
+    R487 (2026-10-09, W10) : « ajouter NOTRE track, sa position sur chaque critère avec
+    un score et la dépense Meta associée ». Second panneau sur les MÊMES lignes : le score
+    de la track sur 100 par critère, et la dépense Meta qui l'y a portée — « — » sur un
+    critère qu'aucune publicité ne fait bouger (l'âge de la sortie).
     """
-    params = (   # (critère, Release Radar, Discover Weekly, Radio) — contributions fictives
-        ("Streams des 7 derniers jours", 0.21, 0.17, 0.12),
-        ("Taux de sauvegarde", 0.08, 0.15, 0.10),
-        ("Ajouts en playlist d'auditeurs", 0.05, 0.12, 0.14),
-        ("Abonnés qui écoutent la sortie", 0.16, 0.04, 0.03),
-        ("Taux de skip", -0.04, -0.11, -0.09),
-        ("Jours depuis la sortie", -0.12, -0.03, 0.02),
+    params = (   # (critère, Release Radar, Discover Weekly, Radio, score /100, € Meta)
+        ("Streams des 7 derniers jours", 0.21, 0.17, 0.12, 64, 120),
+        ("Taux de sauvegarde", 0.08, 0.15, 0.10, 41, 60),
+        ("Ajouts en playlist d'auditeurs", 0.05, 0.12, 0.14, 28, 45),
+        ("Abonnés qui écoutent la sortie", 0.16, 0.04, 0.03, 72, 30),
+        ("Taux de skip", -0.04, -0.11, -0.09, 58, None),
+        ("Jours depuis la sortie", -0.12, -0.03, 0.02, 80, None),
     )
     playlists = (("Release Radar", BLUE), ("Discover Weekly", AQUA), ("Radio", YELLOW))
-    order = sorted(params, key=lambda r: sum(abs(v) for v in r[1:]))
-    # 5.14 in: the long criterion names widen the PNG; it sits beside the others at one height.
-    fig, ax = plt.subplots(figsize=(9, 4.80))
+    order = sorted(params, key=lambda r: sum(abs(v) for v in r[1:4]))
+    fig, (ax, mine) = plt.subplots(1, 2, figsize=(11, 6.72), sharey=True,
+                                   gridspec_kw={"width_ratios": [2.1, 1], "wspace": 0.06})
     y = np.arange(len(order))
     h = 0.26
     for i, (name, colour) in enumerate(playlists):
@@ -406,10 +411,6 @@ def shap_overview() -> Path:
                 color=colour, linewidth=0)
     ax.axvline(0, color=INK_MUTED, linewidth=1)
     _frame(ax)
-    # After `_frame`: it puts a thousands formatter on y, which would print the row
-    # indexes instead of the criteria.
-    ax.set_yticks(y, [r[0] for r in order], fontsize=10, color=INK)
-    ax.yaxis.set_major_formatter(plt.FixedFormatter([r[0] for r in order]))
     ax.grid(axis="y", visible=False)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:+.0%}".replace("+0%", "0")))
     ax.set_xlabel("effet sur la chance de déclencher", fontsize=9)
@@ -418,8 +419,26 @@ def shap_overview() -> Path:
         _series_tag(ax, 0.62, 0.475 - i * 0.06, name, colour)
     ax.set_title("Ce qui pèse le plus sur chaque playlist", fontsize=14,
                  fontweight="700", color=INK, loc="left", pad=18)
-    ax.text(0, 1.035, "Du critère le plus influent (en haut) au moins influent — à gauche, il freine",
-            transform=ax.transAxes, fontsize=10, color=INK_MUTED)
+
+    scores = [r[4] for r in order]
+    mine.barh(y, [100] * len(order), height=0.55, color=GRID, linewidth=0)
+    mine.barh(y, scores, height=0.55, color=META, linewidth=0)
+    for yi, r in zip(y, order):
+        spend = f"{r[5]} € Meta" if r[5] is not None else "—"
+        mine.text(102, yi, f"{r[4]}/100 · {spend}", va="center", ha="left",
+                  fontsize=9.5, color=INK)
+    _frame(mine)
+    mine.set_xlim(0, 100)
+    mine.set_xticks([0, 50, 100])
+    mine.xaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f}"))
+    mine.grid(axis="y", visible=False)
+    mine.tick_params(axis="y", left=False, labelleft=False)
+    # After BOTH `_frame` calls: each puts a thousands formatter on the SHARED y axis,
+    # which would print the row indexes instead of the criteria.
+    ax.set_yticks(y, [r[0] for r in order], fontsize=10, color=INK)
+    ax.yaxis.set_major_formatter(plt.FixedFormatter([r[0] for r in order]))
+    mine.set_xlabel("score de ta track", fontsize=9)
+    mine.set_title("Ta track", fontsize=14, fontweight="700", color=INK, loc="left", pad=18)
     return _save(fig, "shap-overview.png")
 
 

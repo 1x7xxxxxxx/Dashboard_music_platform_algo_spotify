@@ -1,7 +1,7 @@
 """Aperçu : déclencher les algos — ce que Road to Algo fait, en trois figures d'exemple. GRATUIT.
 
 Type: Feature
-Uses: example_figures (ALGO_PREVIEW), plan_gate.bouton_vers, navigation.goto, i18n
+Uses: example_figures (ALGO_PREVIEW), plan_gate.est_verrouille, navigation.goto, i18n
 Depends on: src/dashboard/assets/examples/*.png (built by `make example-charts`)
 Persists in: — (lecture seule)
 
@@ -19,6 +19,10 @@ la porte la plus proche, l'écart, le levier, le budget en ordre de grandeur, et
 critères devinés (R410) — a été RETIRÉ, pas déplacé : c'est le contenu de Road to Algo, que
 le bouton ouvre. Trois figures égales en trois colonnes : l'image prend un tiers de la
 largeur au lieu de toute la page.
+
+R487 (2026-10-09, W10) : la figure SHAP gagne « Ta track » (score par critère + dépense
+Meta), la phrase sous les figures disparaît, et un compte gratuit voit « Passer Premium »,
+qui mène à Facturation, au lieu d'un cadenas vers Road to Algo.
 """
 from __future__ import annotations
 
@@ -27,7 +31,7 @@ import streamlit as st
 from src.dashboard.utils.example_figures import ALGO_PREVIEW, render_example
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
-from src.dashboard.utils.plan_gate import bouton_vers
+from src.dashboard.utils.plan_gate import est_verrouille
 
 
 def show() -> None:
@@ -35,13 +39,11 @@ def show() -> None:
     for col, name in zip(st.columns(len(ALGO_PREVIEW), gap="medium"), ALGO_PREVIEW):
         with col:
             render_example(name)
-    st.caption(t("algo_preview.shap_line",
-                 "À droite : ce qui pèse le plus sur chaque playlist — plus la barre est "
-                 "longue, plus le critère compte ; vers la gauche, il freine."))
-    if bouton_vers("trigger_algo",
-                   ouvert=t("algo_preview.open", "🚀 Ouvrir Road to Algo"),
-                   ferme=t("algo_preview.upgrade",
-                           "🔒 Tout le catalogue, les simulations et le budget détaillé "
-                           "→ Premium"),
-                   key="algo_preview_cta", type="primary"):
-        goto("trigger_algo")   # R454 — le clic était jeté : rien ne naviguait
+    # R487 (W10) : « Ouvrir Road to Algo » → un bouton vers Facturation pour qui n'est pas
+    # premium. Le texte sous les figures est retiré : la figure SHAP porte ses légendes.
+    # Le libellé suit la cible : jamais un bouton qui promet une page qu'on ne verra pas.
+    locked = est_verrouille("trigger_algo")
+    label = (t("algo_preview.upgrade", "⭐ Passer Premium") if locked
+             else t("algo_preview.open", "🚀 Ouvrir Road to Algo"))
+    if st.button(label, key="algo_preview_cta", type="primary", width="stretch"):
+        goto("billing" if locked else "trigger_algo")
