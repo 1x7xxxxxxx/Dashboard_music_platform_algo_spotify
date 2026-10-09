@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R490 — `make roadmap-close` écrit `notes-triage.yaml` (statut de la note → livré) et le hook c… (livrée 2026-10-09)
+
+- [x] **R490 — `make roadmap-close` écrit `notes-triage.yaml` (statut de la note → livré) et le hook commit-msg le juge hors du périmètre de la ligne fermée : le commit de clôture est refusé. Déclarer ce fichier comme comptabilité de roadmap (UNSCOPED), comme archive/checklist** (P3) ✅ (2026-10-09, c209a0ba)
+  Mesuré par : commit de clôture R474 accepté ; test qui rejoue roadmap-close → out_of_scope vide
+  CI verte sur 51aa480f (run 37873392729) — R478 livré par 98df0e91 (période = toute la durée, titres = release_picker) ; R475 : défaut déjà corrigé par R346, garde de rendu locataire + skip CI honnête (98df0e91) ; R490 : c209a0ba
+  Commits : c209a0ba R490 : notes-triage.yaml déclaré comptabilité de roadmap (UNSCOPED) — 
+
+## ✅ R475 — Accueil : balises `</div>` visibles sous « ce qui alimente tes chiffres » — trouver pou… (livrée 2026-10-09)
+
+- [x] **R475 — Accueil : balises `</div>` visibles sous « ce qui alimente tes chiffres » — trouver pourquoi (collect_xxx ?) et corriger à la cause (W1)** (P3) ✅ (2026-10-09, 51aa480f, 98df0e91, c209a0ba)
+  Mesuré par : rendu AppTest sans `</div>` littéral
+  CI verte sur 51aa480f (run 37873392729) — R478 livré par 98df0e91 (période = toute la durée, titres = release_picker) ; R475 : défaut déjà corrigé par R346, garde de rendu locataire + skip CI honnête (98df0e91) ; R490 : c209a0ba
+  Commits : 51aa480f Journal des mails ops : CI rouge du 2026-10-09 01:09 (5efe580c, garde  · 98df0e91 R478 : filtres de comparaison identiques dans toute l'app — période =  · c209a0ba R490 : notes-triage.yaml déclaré comptabilité de roadmap (UNSCOPED) — 
+
+## ✅ R478 — Filtres de comparaison identiques dans toute l'app (W7, W11) : un seul composant périod… (livrée 2026-10-09)
+
+- [x] **R478 — Filtres de comparaison identiques dans toute l'app (W7, W11) : un seul composant période/titres, d'office toute la durée et les deux dernières sorties ; remplace le filtre années×mois du distributeur et la comparaison Apple divergente** (P3) ✅ (2026-10-09, 98df0e91, 59e68078)
+  Mesuré par : garde : aucune vue n'instancie son propre filtre de période
+  CI verte sur 51aa480f (run 37873392729) — R478 livré par 98df0e91 (période = toute la durée, titres = release_picker) ; R475 : défaut déjà corrigé par R346, garde de rendu locataire + skip CI honnête (98df0e91) ; R490 : c209a0ba
+  Commits : 98df0e91 R478 : filtres de comparaison identiques dans toute l'app — période =  · 59e68078 Roadmap : R474-R489 inscrites — retours vocaux W1-W14 du 2026-10-09 (u
+
 ## ✅ R474 — Apple Music : « Je ne parle pas très bien le français » 686 streams affiché 68 — erreur… (livrée 2026-10-09)
 
 - [x] **R474 — Apple Music : « Je ne parle pas très bien le français » 686 streams affiché 68 — erreur d'échelle ; cause lue dans le code, balayage du même défaut dans toutes les vues et le PDF (règles 11/14), garde (W7)** (P2) ✅ (2026-10-09, c9fe0ae5, 59e68078)
