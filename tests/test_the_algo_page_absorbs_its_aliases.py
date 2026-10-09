@@ -15,7 +15,8 @@ Mutations, 2026-10-05:
   - `revenue_forecast` routed back to `views.revenue_forecast` → RED (alias);
   - `arrival_section` answering a non-alias key with a section → RED;
   - `meta_campaign_settings` put back in the Premium nav → RED;
-  - the `render_outcomes(db, artist_id)` call dropped from saisie_s4a → RED.
+  - the `render_outcomes(db, artist_id)` call dropped from saisie_s4a → RED (until R481,
+    2026-10-09, which moved it to the algo page only — the guard is inverted).
 """
 from __future__ import annotations
 
@@ -51,8 +52,13 @@ def test_the_premium_menu_no_longer_lists_the_absorbed_pages() -> None:
     assert not keys & set(ALIAS_SECTION), f"absorbed pages still in the menu: {keys & set(ALIAS_SECTION)}"
 
 
-def test_the_free_entry_page_draws_the_shared_outcomes() -> None:
-    tree = ast.parse(Path("src/dashboard/views/saisie_s4a.py").read_text(encoding="utf-8"))
-    calls = [c for c in ast.walk(tree) if isinstance(c, ast.Call)
-             and getattr(c.func, "id", getattr(c.func, "attr", "")) == "render_outcomes"]
-    assert calls, "the S4A entry page (Free) no longer draws the shared outcome module"
+def test_the_outcomes_live_on_the_algo_page_only() -> None:
+    """R481 (W4, 2026-10-09) reverses R405's second site : ONE place, the algo page."""
+    def calls(path: str) -> list:
+        tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+        return [c for c in ast.walk(tree) if isinstance(c, ast.Call)
+                and getattr(c.func, "id", getattr(c.func, "attr", "")) == "render_outcomes"]
+    assert not calls("src/dashboard/views/saisie_s4a.py"), (
+        "the S4A entry page draws the outcomes again — W4 moved them to the algo page")
+    assert calls("src/dashboard/views/trigger_algo/router.py"), (
+        "the algo page no longer draws the outcome entry")

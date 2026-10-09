@@ -40,7 +40,9 @@ import pytest
 from src.dashboard.utils.entry_period import DEFAULT, PRESETS, resolve
 
 _ROOT = Path(__file__).resolve().parents[1]
-_PAGE = _ROOT / "src" / "dashboard" / "views" / "saisie_s4a.py"
+# R481 (W4) : the « autre fenêtre » grid — the page's only period — moved to the algo page.
+_PAGE = _ROOT / "src" / "dashboard" / "views" / "trigger_algo" / "_custom_window_entry.py"
+_ROUTER = _ROOT / "src" / "dashboard" / "views" / "trigger_algo" / "router.py"
 _TODAY = _dt.date(2026, 9, 22)
 
 
@@ -145,7 +147,11 @@ def test_the_selector_is_reachable_from_the_page():
         and n.module == "src.dashboard.utils.entry_period"
         and any(a.name == "entry_period_selector" for a in n.names)
         for n in ast.walk(arbre))
-    assert importe, "saisie_s4a.py n'importe pas `entry_period_selector`"
+    assert importe, "_custom_window_entry.py n'importe pas `entry_period_selector`"
+    appelle = any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "render_custom_grid"
+                  for n in ast.walk(ast.parse(_ROUTER.read_text(encoding="utf-8"))))
+    assert appelle, (
+        "la page algo n'appelle plus la grille « autre fenêtre »")
 
 
 # ── R441 (2026-10-07) : les premiers jours après une sortie ─────────────────
@@ -186,9 +192,10 @@ def test_the_custom_grid_offers_the_post_release_windows():
     import ast
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[1] / "src/dashboard/views/saisie_s4a.py"
+    src = (Path(__file__).resolve().parents[1]
+           / "src/dashboard/views/trigger_algo/_custom_window_entry.py")
     fn = next(n for n in ast.walk(ast.parse(src.read_text("utf-8")))
-              if isinstance(n, ast.FunctionDef) and n.name == "_render_custom_grid")
+              if isinstance(n, ast.FunctionDef) and n.name == "render_custom_grid")
     call = next(n for n in ast.walk(fn) if isinstance(n, ast.Call)
                 and getattr(n.func, "id", "") == "entry_period_selector")
     kw = {k.arg: k.value for k in call.keywords}

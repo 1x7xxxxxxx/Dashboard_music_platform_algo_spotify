@@ -2,14 +2,11 @@
 
 EN = {
     "saisie_s4a.title": "📝 S4A manual entry",
-    "saisie_s4a.intro": "**Spotify for Artists only** signals (no API) to enter per track. "
-                        "They feed the ML prediction « 🚀 Road to Algo ».",
+    "saisie_s4a.intro": "This data sharpens the algo-trigger prediction.",
     "saisie_s4a.invalid_session": "Invalid session.",
     "saisie_s4a.no_tracks": "No track available (S4A timeline is empty).",
     # Fixed grid
     "saisie_s4a.fixed_header": "📊 Playlist adds per window + Discovery Mode",
-    "saisie_s4a.fixed_caption": "Enter, per track, the playlist adds as shown in S4A "
-                               "(7 days / 28 days / 12 months) and the Discovery Mode state. Bulk save.",
     "saisie_s4a.help_feeds_ml": "Feeds the ML",
     "saisie_s4a.howto_header": "ℹ️ Where to find these values in Spotify for Artists?",
     "saisie_s4a.howto_nonalgo": "**Non-algo streams (28d)** — per song:\n"

@@ -17,6 +17,7 @@ from ._tab_budget_roi import _show_tab_budget_roi
 from ._tab_catalogue import _show_tab_catalogue
 from ._tab_lifecycle import _show_tab_lifecycle
 from ._outcome_entry import render_outcomes
+from ._custom_window_entry import render_custom_grid
 from ._sections import arrival_section, guide_sections_md, section_label
 
 
@@ -204,6 +205,8 @@ def show():
         # R405 : le MÊME module est rendu par « 📝 Saisie S4A » (Free) — la saisie
         # nourrit le modèle, elle ne s'enferme pas derrière le paywall.
         render_outcomes(db, artist_id)
+        # R481 (W4) : la grille « autre fenêtre » vient de « 📝 Saisie S4A », elle aussi.
+        render_custom_grid(db, artist_id)
         _section("budget")
         _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
                              ml_pred=ml_pred)

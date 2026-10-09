@@ -20,13 +20,10 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import view_session
-from src.dashboard.utils.entry_period import POST_RELEASE, entry_period_selector
 from src.dashboard.utils.s4a_entry_insight import (
     load_entry_tracks,
-    load_release_dates,
     render_completeness,
 )
-from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 
 from src.dashboard.utils.ui import flash
@@ -73,10 +70,6 @@ def _latest_radio_count(db, artist_id) -> int:
 
 def _render_fixed_grid(db, artist_id, tracks) -> None:
     st.subheader(t("saisie_s4a.fixed_header", "📊 Ajouts en playlist par fenêtre + Discovery Mode"))
-    st.caption(t("saisie_s4a.fixed_caption",
-                 "Saisissez, par titre, les ajouts en playlist tels qu'affichés dans S4A "
-                 "(7 jours / 28 jours / 12 mois) et l'état Discovery Mode. Sauvegarde groupée."))
-
     # Step-by-step on where to read each value in the Spotify for Artists UI.
     with st.expander(t("saisie_s4a.howto_header",
                        "ℹ️ Où trouver ces valeurs dans Spotify for Artists ?")):
@@ -175,56 +168,12 @@ def _save_fixed(db, artist_id, edited: pd.DataFrame, radio_count: int) -> None:
         st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
-def _render_custom_grid(db, artist_id, tracks) -> None:
-    st.subheader(t("saisie_s4a.custom_header",
-                   "📅 Autre fenêtre (ex. premiers jours post-release)"))
-    # Même raison qu'au-dessus. J+1 … J+7 et « Depuis la sortie » sont ici les
-    # raccourcis utiles : c'est exactement le cas que ce bloc existe pour servir. Ils
-    # se comptent depuis la sortie D'UN titre — on le choisit, le plus récent d'abord
-    # (R441, 2026-10-07). Avant, `release` n'était jamais passé : « Depuis la sortie »
-    # retombait toujours sur 28 jours.
-    releases = load_release_dates(db, artist_id)
-    ref = st.selectbox(
-        t("saisie_s4a.custom_release", "Sortie de référence"), tracks,
-        format_func=lambda s: (f"{s} — {format_date(releases[s])}" if s in releases
-                               else s),
-        key=f"custom_ref_{artist_id}")
-    fenetre = entry_period_selector(key=f"custom_{artist_id}", release=releases.get(ref),
-                                    post_release=True)
-    start, end = fenetre.start, fenetre.end
-    # Une fenêtre comptée depuis UNE sortie ne vaut que pour ce titre-là.
-    anchored = fenetre.preset == "release" or fenetre.preset in POST_RELEASE
-    rows_for = [ref] if anchored else tracks
-
-    df = pd.DataFrame([{"Titre": s, "Ajouts playlist": 0} for s in rows_for])
-    edited = st.data_editor(
-        df, hide_index=True, width="stretch", num_rows="fixed",
-        column_config={
-            "Titre": st.column_config.TextColumn(disabled=True),
-            "Ajouts playlist": st.column_config.NumberColumn(min_value=0, step=1),
-        },
-        key=f"grid_custom_{artist_id}",
-    )
-    if st.button(t("saisie_s4a.save_custom", "💾 Enregistrer la plage personnalisée"), type="primary"):
-        rows = [{"artist_id": artist_id, "song": r["Titre"], "time_window": "custom",
-                 "recorded_at": end, "count": int(r["Ajouts playlist"] or 0),
-                 "period_start": start, "period_end": end} for _, r in edited.iterrows()]
-        try:
-            db.upsert_many("s4a_song_playlist_adds", rows,
-                           ["artist_id", "song", "time_window", "recorded_at"],
-                           ["count", "period_start", "period_end"])
-            flash(t("saisie_s4a.saved_custom", "Plage {start} → {end} enregistrée pour {n} titres.")
-                       .format(start=start, end=end, n=len(rows)))
-            st.rerun()
-        except Exception as exc:
-            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
-
-
 def show():
     st.title(t("saisie_s4a.title", "📝 Saisie S4A"))
-    st.markdown(t("saisie_s4a.intro",
-                  "Signaux **Spotify for Artists uniquement** (aucune API) à saisir par titre. "
-                  "Alimentent la prédiction ML « 🚀 Road to Algo »."))
+    # R481 (W4 II) : one short sentence instead of the two paragraphs (« signaux S4A
+    # uniquement, aucune API… » and « saisie séparée par titre… sauvegarde groupée »).
+    st.caption(t("saisie_s4a.intro",
+                 "Ces données affinent la prédiction de déclenchement des algos."))
     with view_session() as (db, artist_id):
         if not artist_id:
             st.error(t("saisie_s4a.invalid_session", "Session invalide."))
@@ -248,14 +197,11 @@ def show():
         #   · ici restent les signaux du mois, puis les titres qu'ils couvrent.
         _render_fixed_grid(db, artist_id, tracks)
         st.markdown("---")
-        _render_custom_grid(db, artist_id, tracks)
-        st.markdown("---")
         render_completeness(db, artist_id, tracks)
-        # R405 (V74) : les résultats réalisés et « Le pari du modèle » sont REVENUS ici,
-        # par le même module que la page algo — la saisie est Free, la page algo Premium,
-        # et ce qui nourrit le modèle ne s'enferme pas derrière le paywall.
-        st.markdown("---")
-        from src.dashboard.views.trigger_algo._outcome_entry import render_outcomes
-        render_outcomes(db, artist_id)
+        # R481 (W4, owner 2026-10-09) : « Résultats réalisés » and the realised-streams
+        # windows go to the algo prediction page — ONE place, beside the prediction they
+        # judge (`trigger_algo/router.py`, section « realise »). This reverses R405 (V74),
+        # which drew them here too so the Free plan could enter outcomes : the owner's
+        # newer voice asks for a single sub-view here.
         # R249 (fiche 59, owner 2026-09-27 : « retire ») : l'historique des ajouts en
         # playlist est parti — la complétude juste au-dessus dit déjà ce qui manque.

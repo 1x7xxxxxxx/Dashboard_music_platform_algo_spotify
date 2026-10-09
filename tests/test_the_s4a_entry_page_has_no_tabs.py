@@ -77,9 +77,12 @@ def test_the_entry_page_is_signals_then_coverage(data: dict) -> None:
     assert not gone, f"a section moved by R376 is back on the entry page: {gone}"
     covered = next((i for i, h in enumerate(heads) if _COVERED in h), None)
     assert covered is not None, f"no coverage section: {heads}"
-    at_ = [i for i, h in enumerate(heads) if _OUTCOMES in h]
-    assert at_ and at_[0] > covered, (
-        f"« {_OUTCOMES} » (shared, R405) is not after the coverage on the Free page: {heads}")
+    # R481 (W4, 2026-10-09) : the outcomes left this page — the algo page only.
+    assert not any(_OUTCOMES in h for h in heads), (
+        f"« {_OUTCOMES} » is back on the entry page (W4 moved it to the algo page): {heads}")
+    assert covered == len(heads) - 1 or all(_COVERED in h or i < covered
+                                            for i, h in enumerate(heads)), (
+        f"the coverage is not the last section: {heads}")
     # R442 (owner, 2026-10-07): the bet moved to the admin ML page.
     assert not any(_BET in h for h in heads), f"« {_BET} » is back on the entry page: {heads}"
 

@@ -2,8 +2,8 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, src.dashboard.utils.ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« 📈 Ce qui s'est vraiment passé ») AND
-          views/saisie_s4a.py (Free) — `render_outcomes`, shared since R405
+Triggers: views/trigger_algo/router.py (« 📈 Ce qui s'est vraiment passé ») — the only
+          caller since R481 (W4) ; R405 had drawn it on views/saisie_s4a.py too
 Persists in: s4a_song_algo_outcomes
 
 R376 (2026-10-05, owner's screen review): the S4A entry page carried three tabs —
