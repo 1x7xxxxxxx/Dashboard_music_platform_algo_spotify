@@ -250,14 +250,14 @@
 
 - id: REQ-CHART-05
   domaine: chart-door
-  enonce: Tout graphique de l'app dit, sous la figure, ce qu'il permet de décider dans la gestion des campagnes marketing (une ligne FR/EN, une action, pas une question)
-  sources: [{kpi: "retour du propriétaire 2026-09-28, fiche 1"}]
+  enonce: Aucun texte d'aide sous un graphique de l'app — pas de ligne « 🎯 décision » ; la décision qu'un graphique permet vit dans le dossier des graphiques (review.yaml), pas à l'écran
+  sources: [{kpi: "retour du propriétaire 2026-09-28, fiche 1 (R314, la ligne sous chaque graphique)"}, {kpi: "retour du propriétaire 2026-10-09 : « aucun texte d'aide sous les graphiques » — renverse R314"}]
   priorite: P3
   statut: conforme
-  preuve: {pytest: tests/test_every_chart_says_what_it_lets_you_decide.py::test_every_app_chart_has_its_decision_line}
-  ecart: "R314 : 64/64 sites de l'app ; la clé d'exécution est celle du dossier ; Grafana exclu (question DevOps)"
-  mutation: "retirer une ligne de src/dashboard/content/chart_decisions.py"
-  roadmap: R314
+  preuve: {pytest: tests/test_no_chart_writes_a_decision_line.py::test_the_door_writes_no_decision_line}
+  ecart: "R491 : la porte charts.plotly_chart/pyplot n'écrit plus la ligne et n'a plus de paramètre pour la rappeler ; chaque graphique de l'app garde sa décision dans review.yaml (78/78)"
+  mutation: "rétablir target.caption('🎯 …') dans charts.plotly_chart"
+  roadmap: R491
 
 - id: REQ-FORMAT-01
   domaine: formats

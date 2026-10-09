@@ -156,7 +156,7 @@ def show():
         # counters, then the titles at equal age, then the catalogue in time.
         df_top = _with_engagement(df_latest).sort_values("playback_count", ascending=False)
         st.subheader(t("soundcloud.top_tracks", "🏆 Mes titres comparés"))
-        charts.plotly_chart(top_figure(df_top, totals), width="stretch", decision=False)
+        charts.plotly_chart(top_figure(df_top, totals), width="stretch")
 
         _render_age_comparison(db, artist_id, df_top)
         _render_catalog_series(db, artist_id, totals)
@@ -295,7 +295,7 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
                       yaxis_title=t("soundcloud.age_value_axis", "{m} cumulés")
                       .format(m=metric_lbl))
     fig.update_yaxes(tickformat="~s", rangemode="tozero")
-    charts.plotly_chart(fig, width="stretch", decision=False)
+    charts.plotly_chart(fig, width="stretch")
 
 
 def _render_catalog_series(db, artist_id, totals: dict | None = None) -> None:
@@ -384,7 +384,7 @@ def _render_catalog_series(db, artist_id, totals: dict | None = None) -> None:
                      title_text=t("soundcloud.engagement_axis",
                                   "Likes, reposts, commentaires (cumul)"),
                      title_font_color=_ENGAGEMENT_INK)
-    charts.plotly_chart(fig, width="stretch", decision=False)
+    charts.plotly_chart(fig, width="stretch")
 
     # R486 (W9) : « retirer tout le blabla (… 129 relevés …) » — the reading count is
     # gone. What stays is CONDITIONAL and is not help text : a day dropped from the

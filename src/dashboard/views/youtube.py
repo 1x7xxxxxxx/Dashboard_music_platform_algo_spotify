@@ -303,12 +303,12 @@ def _channel_section(db, artist_id: int) -> None:
         (d, v) for d, v in pts.youtube_cumulative_views(db, artist_id)
         if window.is_all_history or window.start <= d <= window.end
     ]
-    charts.plotly_chart(channel_figure(df_hist, views_series), width="stretch", decision=False)
+    charts.plotly_chart(channel_figure(df_hist, views_series), width="stretch")
     gained = views_gained(_readings(db, artist_id,
                                     None if window.is_all_history else window.start,
                                     None if window.is_all_history else window.end))
     if not gained.empty:
-        charts.plotly_chart(views_gained_figure(gained), width="stretch", decision=False)
+        charts.plotly_chart(views_gained_figure(gained), width="stretch")
 
 
 def _readings(db, artist_id: int, since=None, until=None) -> pd.DataFrame:
@@ -345,7 +345,7 @@ def _videos_section(db, artist_id: int) -> None:
     # title says the counts are to date, in the chart, not in a caption under it (W8).
     charts.plotly_chart(top_figure(df_videos, top_n, t(
         "youtube.top_title", "Les vidéos sorties sur la période — vues et likes acquis à ce jour")),
-        width="stretch", decision=False)
+        width="stretch")
     # W8 : « type de contenu » retiré — deux Pareto alignés, vidéos et shorts.
     seconds = df_videos["duration"].apply(parse_duration)
     is_short = (seconds > 0) & (seconds <= 60)
@@ -355,10 +355,10 @@ def _videos_section(db, artist_id: int) -> None:
             (col_s, df_videos[is_short], t("youtube.pareto_shorts", "Shorts — part cumulée des vues"))):
         if not part.empty:
             charts.plotly_chart(pareto_figure(part, title, top_n), container=col,
-                                width="stretch", pareto=False, decision=False)
+                                width="stretch", pareto=False)
     paced = pace(df_videos, _readings(db, artist_id))
     if not paced.empty and (30 * paced["recent"] >= 0.5).any():
-        charts.plotly_chart(pace_figure(paced, top_n), width="stretch", pareto=False, decision=False)
+        charts.plotly_chart(pace_figure(paced, top_n), width="stretch", pareto=False)
 
 
 def show():

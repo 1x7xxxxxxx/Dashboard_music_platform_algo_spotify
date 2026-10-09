@@ -353,8 +353,7 @@ def _render_evolution(db, artist_id):
         return
     evo = evolution_frame(df)
     # R488 (W11) : the totals are in the figure's title, and no line under it.
-    charts.plotly_chart(_evolution_figure(evo, revenue_forecast(evo)), width="stretch",
-                        decision=False)
+    charts.plotly_chart(_evolution_figure(evo, revenue_forecast(evo)), width="stretch")
     _render_delete(db, artist_id)
 
 
@@ -426,7 +425,7 @@ def render_break_even(db, artist_id: int) -> None:
         return
     fig = breakeven_figure(cashflow, mensuel, verdict=breakeven_text(break_even(mensuel)),
                            trigger=_trigger_point(db, artist_id))
-    charts.plotly_chart(fig, width="stretch", decision=False)
+    charts.plotly_chart(fig, width="stretch")
 
 
 def _trigger_point(db, artist_id: int):

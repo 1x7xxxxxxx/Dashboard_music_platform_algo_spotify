@@ -195,8 +195,7 @@ def _render_total_and_share(_t: dict, _grand_fmt: str, _banner_title: str,
         # R423 — no decision line under the donut: « Voir quelle plateforme porte tes
         # écoutes… » was « inutile » (the owner, 2026-10-06).
         with share_slot if share_slot is not None else contextlib.nullcontext():
-            charts.plotly_chart(_pie, width="stretch", key="home_platform_share",
-                                decision=False)
+            charts.plotly_chart(_pie, width="stretch", key="home_platform_share")
 
 
 def render_tiles(totals: dict, grand_total: int, ig_count: int,

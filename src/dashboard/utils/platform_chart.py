@@ -607,7 +607,6 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           recap=None, recap_extra=None,
                           recap_metrics=None,
                           key: str = "platform_chart",
-                          decision_key: str | None = None,
                           notes: bool = True, log_periodic: bool = False) -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
@@ -615,8 +614,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
     « aucune donnée » ni un exemple à la place : les deux se sont déjà lus comme une
     panne ailleurs dans ce dépôt.
 
-    `notes=False` (R421, l'Accueil) : aucun texte sous la figure — ni la phrase de
-    décision, ni le glossaire, ni les notes. Les boîtes du récapitulatif restent.
+    `notes=False` (R421, l'Accueil) : aucun texte sous la figure — ni le glossaire,
+    ni les notes (la phrase de décision n'existe plus depuis R491). Les boîtes du récapitulatif restent.
 
     `log_periodic=True` (R427, l'Accueil) : en mode non cumulé, l'axe Y est
     logarithmique — YouTube et SoundCloud (≈ 30/mois) ne sont plus collés au zéro
@@ -1093,9 +1092,7 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         mark_counter_arrivals(fig, first_plotted(_arrivals, aligned, span),
                               PLATFORM_LABELS, muted, palette)
 
-    # R314 — a helper drawn on several pages: each page names its own decision line.
-    charts.plotly_chart(fig, width="stretch", key=key, decision_key=decision_key,
-                        decision=notes, glossary=notes)
+    charts.plotly_chart(fig, width="stretch", key=key, glossary=notes)
     if recap is not None:
         _render_recap(recap, span, aligned, aligned_raw, order, thin, mode,
                       step, extra=recap_extra,

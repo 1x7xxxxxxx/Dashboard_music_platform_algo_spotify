@@ -797,3 +797,4 @@
 {"at": "2026-10-09T08:25:50+00:00", "head": "c2141564", "kind": "done", "task": "R489", "what": "CI verte 2a61d711, archivée"}
 {"at": "2026-10-09T09:19:25+00:00", "head": "e33ae10e", "kind": "start", "task": "R492", "what": "contraste : commentaires et docstrings ignorés"}
 {"at": "2026-10-09T09:32:18+00:00", "kind": "done", "task": "R492", "what": "fermée par roadmap-close — CI verte eb8498ef (run 37911478781)"}
+{"at": "2026-10-09T09:34:32+00:00", "head": "68166e44", "kind": "start", "task": "R491", "what": "ligne 🎯 décision retirée sous les graphiques"}

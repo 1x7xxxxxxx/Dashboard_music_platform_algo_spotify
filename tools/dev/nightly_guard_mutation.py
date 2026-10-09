@@ -235,9 +235,6 @@ SEEN_RED: dict[str, str] = {
         "2026-10-04 — lecture de meta_insights_performance_day ajoutée à meta_breakdowns.show() → 1 rouge",
     "tests/test_a_figure_never_draws_a_zero_it_did_not_measure.py":
         "2026-10-04 — _continuous remplit les jours non mesurés par 0 (platform_chart.py:118) → 24 rouges",
-    "tests/test_every_chart_says_what_it_lets_you_decide.py":
-        "2026-10-04 — entrée campaign_pair.py::render_day0#1 retirée (chart_decisions.py:9) → 1 rouge"
-        " ; 2026-10-08 — R471 : entrée render_day0#1 retirée de content/chart_decisions.py → 1 rouge",
     "tests/test_navigation_inside_the_app_opens_no_tab.py":
         "2026-10-04 — lien markdown ?page=upgrade ajouté à billing.show() → 1 rouge",
     "tests/test_a_render_opens_one_connection.py":

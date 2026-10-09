@@ -119,4 +119,4 @@ def render_section(db, artist_id) -> None:
     # gross split into deductions, transferred and still to transfer.
     from src.dashboard.utils import charts
     parts = royalties_split(gross, deductions, net, -totals.get('payout', 0.0))
-    charts.plotly_chart(royalties_pie(gross, parts), width="stretch", decision=False)
+    charts.plotly_chart(royalties_pie(gross, parts), width="stretch")
