@@ -31,7 +31,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R480 | Mise en route (W3) : barre gauche réduite à « Bienvenue et choix » + « Où tu en es » ; graphique 1 générique (+ Hypeddit clics, Meta €) ; graphiques 2-3 même taille ; palier 100 % par playlist ; graphique 3 Meta € rouge / CPR / Hypeddit clics / streams avec impact campagne puis pics DW et Radio et prévision ; retirer « (exemple données fictives…) » et le texte YouTube/SoundCloud ; bouton « suivant » vers « Où tu en es » <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/make_example_charts.py --> | P3 | AppTest onboarding ; PNG des 3 figures regardés |
-| R481 | Saisie S4A (W4) : une seule sous-vue ; fraîcheur des saisies → admin ; titres couverts en bas des signaux ; une phrase courte (« ces données affinent la prédiction de déclenchement ») à la place des deux paragraphes ; le reste part en R477 <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/ --> | P3 | AppTest saisie_s4a |
 | R482 | Hypeddit (W5) : dépliant « comment récupérer tes chiffres » (actions seules) ; type/campagne/date sur une ligne puis visites/clics ; Enregistrer centré et plus gros, Réinitialiser retiré ; d'office la dernière track sortie, « nouvelle » si sans donnée, date du jour ; historique dans un dépliant fermé ; stats globales → R476 <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/ --> | P3 | AppTest hypeddit : valeurs par défaut |
 | R483 | Spotify + S4A (W6) : « ce qui bouge » = seulement les titres qui bougent ; indice de popularité 28 j en barres/intégré avec légende, axe borné dynamiquement au max ; graphique Meta €/jour → R476 <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/ --> | P3 | AppTest + PNG regardé |
 | R484 | Apple Music (W7) : Shazam par chanson en graphique à droite du top 10 ; totaux intégrés aux graphiques, séparateur retiré ; blabla retiré ; titre simplifié ; « écoutes et Shazam dans le temps » redessiné pour une décision <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/ --> | P3 | AppTest + PNG regardé |
@@ -95,7 +94,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R480, R481, R482, R483, R484, R485, R486, R487, R488, R489 -->
+<!-- reprise: open=R480, R482, R483, R484, R485, R486, R487, R488, R489 -->
 
 **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.

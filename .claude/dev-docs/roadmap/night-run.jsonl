@@ -765,3 +765,6 @@
 {"at": "2026-10-09T04:17:00+00:00", "head": "cad93fc4", "kind": "done", "task": "R477", "what": "CI verte 3341c34c, archivée"}
 {"at": "2026-10-09T04:26:15+00:00", "head": "0f724e10", "kind": "start", "task": "R481", "what": "saisie S4A : une sous-vue ; résultats + autre fenêtre → page algo"}
 {"at": "2026-10-09T04:35:53+00:00", "kind": "done", "task": "R479", "what": "fermée par roadmap-close — CI verte 0f724e10 (run 37883823156)"}
+{"at": "2026-10-09T04:37:50+00:00", "head": "b62df2a7", "kind": "done", "task": "R479", "what": "CI verte 0f724e10, archivée"}
+{"at": "2026-10-09T04:39:26+00:00", "head": "a48a8dd7", "kind": "start", "task": "R480", "what": "mise en route : figures d'exemple sans badge, Meta/Hypeddit"}
+{"at": "2026-10-09T04:39:46+00:00", "kind": "done", "task": "R481", "what": "fermée par roadmap-close — CI verte ecc39859 (run 37884622445)"}

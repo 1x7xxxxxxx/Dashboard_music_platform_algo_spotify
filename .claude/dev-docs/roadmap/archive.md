@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R481 — Saisie S4A (W4) : une seule sous-vue ; fraîcheur des saisies → admin ; titres couverts… (livrée 2026-10-09)
+
+- [x] **R481 — Saisie S4A (W4) : une seule sous-vue ; fraîcheur des saisies → admin ; titres couverts en bas des signaux ; une phrase courte (« ces données affinent la prédiction de déclenchement ») à la place des deux paragraphes ; le reste part en R477** (P3) ✅ (2026-10-09, ecc39859)
+  Mesuré par : AppTest saisie_s4a
+  CI verte ecc39859 (run 37884622445)
+  Commits : ecc39859 R481 : saisie S4A — une sous-vue, une phrase ; résultats réalisés et g
+
 ## ✅ R479 — Accueil (W1) : total streams plus grand + camembert étiqueté par plateforme ; ligne Met… (livrée 2026-10-09)
 
 - [x] **R479 — Accueil (W1) : total streams plus grand + camembert étiqueté par plateforme ; ligne Meta Ads + Hypeddit, ligne Shazam + Instagram ; accents DW/Radio/RR ; dernière release (dite) : % de déclenchement par playlist + budget Meta au meilleur CPR traduit en streams ; retirer « ce que ta publicité a appris » → « générer mon rapport PDF » (déplacer ce qui manque ailleurs)** (P3) ✅ (2026-10-09, 0f724e10)

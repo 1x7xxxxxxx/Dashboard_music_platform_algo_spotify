@@ -3871,10 +3871,9 @@
     courte'
   type: action-produit
   domaine: s4a-input
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R481
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R481 (archivée) — ecc39859
 - ligne: 20
   source: revue/notes-vocales-2026-10-09.md
   note: W5
