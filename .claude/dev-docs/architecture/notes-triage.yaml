@@ -3918,10 +3918,9 @@
   resume: 'SoundCloud : Pareto alignés orange, comparaison cumulée multi-titres, totaux dans les graphiques'
   type: action-produit
   domaine: soundcloud
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R486
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R486 (archivée) — 983ca8d8
 - ligne: 40
   source: revue/notes-vocales-2026-10-09.md
   note: W10

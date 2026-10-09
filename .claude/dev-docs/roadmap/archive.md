@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R486 — SoundCloud (W9) : totaux écoutes/likes/reposts/commentaires DANS les graphiques ; Paret… (livrée 2026-10-09)
+
+- [x] **R486 — SoundCloud (W9) : totaux écoutes/likes/reposts/commentaires DANS les graphiques ; Pareto alignés (écoutes, engagement, likes, reposts, commentaires) en dégradé orange ; comparaison multi-titres cumulée à âge égal sur tout le catalogue ; taux d'engagement défini ; textes retirés ; le plus pertinent en haut** (P3) ✅ (2026-10-09, 983ca8d8)
+  Mesuré par : AppTest + PNG regardé
+  CI verte 983ca8d8 (run 37896668109)
+  Commits : 983ca8d8 R486 : SoundCloud — totaux dans les figures, cinq compteurs alignés en
+
 ## ✅ R485 — YouTube (W8) : abonnés + vues cumulées sur un graphique à deux axes, deux couleurs ; dé… (livrée 2026-10-09)
 
 - [x] **R485 — YouTube (W8) : abonnés + vues cumulées sur un graphique à deux axes, deux couleurs ; dégradé rouge sur vues gagnées par vidéo ; « commentaires / 1000 vues » vide → corriger ; deux Pareto (vidéos, shorts) à la place du type de contenu ; vue « âge × vues » redessinée ; graphique vues/likes + abonnés générés si la donnée existe ; textes retirés** (P3) ✅ (2026-10-09, 867e4a9a)
