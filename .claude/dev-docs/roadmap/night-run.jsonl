@@ -786,3 +786,6 @@
 {"at": "2026-10-09T06:39:43+00:00", "head": "dc318a9b", "kind": "done", "task": "R485", "what": "CI verte 867e4a9a, archivée"}
 {"at": "2026-10-09T07:01:49+00:00", "head": "983ca8d8", "kind": "start", "task": "R487", "what": "aperçu algos : graphiques de la mise en route, sans exemple, notre track par critère, bouton facturation"}
 {"at": "2026-10-09T07:04:48+00:00", "kind": "done", "task": "R486", "what": "fermée par roadmap-close — CI verte 983ca8d8 (run 37896668109)"}
+{"at": "2026-10-09T07:06:57+00:00", "head": "88455b1c", "kind": "done", "task": "R486", "what": "CI verte 983ca8d8, archivée"}
+{"at": "2026-10-09T07:31:33+00:00", "head": "c83fdfd8", "kind": "start", "task": "R488", "what": "distributeur + SACEM : import en tête, un graphique €/mois+cumul+prévision+point mort, SACEM camembert, textes retirés"}
+{"at": "2026-10-09T07:32:17+00:00", "kind": "done", "task": "R487", "what": "fermée par roadmap-close — CI verte c83fdfd8 (run 37899269080)"}

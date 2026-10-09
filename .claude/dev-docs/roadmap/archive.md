@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R487 — Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) »… (livrée 2026-10-09)
+
+- [x] **R487 — Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) » ; « ce qui pèse le plus » + position de NOTRE track par critère (score, dépense Meta), texte de droite retiré ; bouton vers Facturation si non premium** (P3) ✅ (2026-10-09, c83fdfd8)
+  Mesuré par : AppTest algo_preview free/premium
+  CI verte c83fdfd8 (run 37899269080)
+  Commits : c83fdfd8 R487 : Aperçu algos — « Ta track » sur chaque critère (score + dépense
+
 ## ✅ R486 — SoundCloud (W9) : totaux écoutes/likes/reposts/commentaires DANS les graphiques ; Paret… (livrée 2026-10-09)
 
 - [x] **R486 — SoundCloud (W9) : totaux écoutes/likes/reposts/commentaires DANS les graphiques ; Pareto alignés (écoutes, engagement, likes, reposts, commentaires) en dégradé orange ; comparaison multi-titres cumulée à âge égal sur tout le catalogue ; taux d'engagement défini ; textes retirés ; le plus pertinent en haut** (P3) ✅ (2026-10-09, 983ca8d8)

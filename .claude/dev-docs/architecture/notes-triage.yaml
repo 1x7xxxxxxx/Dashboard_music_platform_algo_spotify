@@ -3927,10 +3927,9 @@
   resume: 'Aperçu algos : graphiques de la mise en route, position de notre track par critère SHAP, bouton Facturation'
   type: action-produit
   domaine: algo-preview
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R487
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R487 (archivée) — c83fdfd8
 - ligne: 44
   source: revue/notes-vocales-2026-10-09.md
   note: W11
