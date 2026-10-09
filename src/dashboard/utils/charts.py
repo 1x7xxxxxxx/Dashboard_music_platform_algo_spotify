@@ -157,7 +157,63 @@ def apply_defaults(fig, *, pareto: bool | None = None):
                 ref = (tr.yaxis if horiz else tr.xaxis) or axis[0]
                 key = axis + ref[1:]
                 fig.layout[key].categoryorder = "total ascending" if horiz else "total descending"
+    _unclip_outside_labels(fig)
     return fig
+
+
+_LABELLED = ("bar", "waterfall", "funnel")
+_LABEL_HEADROOM = 1.15
+
+
+def _unclip_outside_labels(fig) -> None:
+    """R474 — a label drawn outside its bar must not be cut by the plot edge.
+
+    Apple Music showed 686 as « 68 »: the default `cliponaxis=True` clips the text at the
+    axis, and Plotly's autorange leaves no room for it. Unclip every outside/auto label, and
+    give the value axis headroom when the figure set no range and every value is ≥ 0."""
+    axes: dict[str, list] = {}
+    for tr in fig.data:
+        if tr.type not in _LABELLED or tr.textposition not in ("outside", "auto"):
+            continue
+        if tr.cliponaxis is None:
+            tr.cliponaxis = False
+        if tr.type == "bar" and tr.textposition == "outside":
+            horiz = tr.orientation == "h"
+            ref = (tr.xaxis if horiz else tr.yaxis) or "x"
+            axes.setdefault(("xaxis" if horiz else "yaxis") + ref[1:], [])
+    for tr in fig.data:             # every trace on a padded axis counts, labelled or not
+        if not hasattr(tr, "yaxis"):
+            continue                # a Pie or an Indicator has no axis
+        horiz = tr.type == "bar" and tr.orientation == "h"
+        key = ("xaxis" if horiz else "yaxis") + (((tr.xaxis if horiz else tr.yaxis) or "x")[1:])
+        if key in axes:
+            axes[key].append(tr)
+    for key, traces in axes.items():
+        top = _value_top(traces, stacked=fig.layout.barmode in ("stack", "relative"))
+        axis = fig.layout[key]
+        if top and axis.range is None and axis.type in (None, "linear", "-"):
+            axis.range = [0, top * _LABEL_HEADROOM]
+
+
+def _value_top(traces, *, stacked: bool) -> float | None:
+    """The highest bar end on one axis — None when a trace is not a plain ≥ 0 bar. Pure."""
+    ends: dict = {}
+    for tr in traces:
+        if tr.type != "bar":
+            return None
+        horiz = tr.orientation == "h"
+        vals, cats = (tr.x, tr.y) if horiz else (tr.y, tr.x)
+        vals = list(vals) if vals is not None else []
+        cats = list(cats) if cats is not None else list(range(len(vals)))
+        for cat, v in zip(cats, vals):
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                return None
+            if v != v or v < 0:
+                return None
+            ends[cat] = ends.get(cat, 0.0) + v if stacked else max(ends.get(cat, 0.0), v)
+    return max(ends.values(), default=0.0) or None
 
 
 # R260 (fiches 28, 29, 33 : « toujours tracer en Pareto ») — Pareto is the DEFAULT for bars
