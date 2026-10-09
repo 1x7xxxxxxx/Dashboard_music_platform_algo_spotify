@@ -760,3 +760,5 @@
 {"at": "2026-10-09T03:18:51+00:00", "head": "74a6f430", "kind": "start", "task": "R477", "what": "prédiction algos : une vue, 0 tableau, CPR Optimizer en alias"}
 {"at": "2026-10-09T03:23:48+00:00", "kind": "done", "task": "R476", "what": "fermée par roadmap-close — CI verte sur 74a6f430 (run 37878684278) — vue croisée en registre de 7 sections, ADR-032"}
 {"at": "2026-10-09T03:27:14+00:00", "head": "93dae00e", "kind": "done", "task": "R476", "what": "CI verte 74a6f430, archivée"}
+{"at": "2026-10-09T04:07:22+00:00", "head": "a516db0e", "kind": "start", "task": "R479", "what": "accueil : total plus grand, portes accentuées, dernière sortie nommée"}
+{"at": "2026-10-09T04:14:37+00:00", "kind": "done", "task": "R477", "what": "fermée par roadmap-close — CI verte 3341c34c (run 37882107287) — une vue, 0 tableau, CPR Optimizer en alias de section, seuils en graphique"}

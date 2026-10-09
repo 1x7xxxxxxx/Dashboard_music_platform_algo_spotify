@@ -3976,7 +3976,6 @@
     tableaux, absorbe CPR Optimizer'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R477
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R477 (archivée) — 3341c34c

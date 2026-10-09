@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R477 — Prédiction déclenchement algos : UNE seule vue (4 sous-vues fusionnées), traits de lect… (livrée 2026-10-09)
+
+- [x] **R477 — Prédiction déclenchement algos : UNE seule vue (4 sous-vues fusionnées), traits de lecture haut→bas, playlists en badges ; retirer « prochain geste titre par titre » et « le vrai pour tout ton catalogue » ; 2 releases au lieu de 5 en graphiques ; SHAP décroissant atteint vs requis par playlist (DW, Radio, RR) + seuils ; reste-à-faire → coût Meta au meilleur CPR et au CPR moyen ; budget/ROI en graphiques ; absorbe CPR Optimizer (W14) et, depuis Saisie S4A, résultats réalisés, pari du modèle, streams algo 28 j, tableau autre fenêtre (W4)** (P3) ✅ (2026-10-09, 3341c34c, 59e68078)
+  Mesuré par : 0 `st.dataframe` dans la vue ; CPR Optimizer hors du menu, route alias
+  CI verte 3341c34c (run 37882107287) — une vue, 0 tableau, CPR Optimizer en alias de section, seuils en graphique
+  Commits : 3341c34c R477 : prédiction algos = une vue, 0 tableau — CPR Optimizer en sectio · 59e68078 Roadmap : R474-R489 inscrites — retours vocaux W1-W14 du 2026-10-09 (u
+
 ## ✅ R476 — Vue croisée = la vue de tout le funnel (W13, W2) : architecture unique et filtres parta… (livrée 2026-10-09)
 
 - [x] **R476 — Vue croisée = la vue de tout le funnel (W13, W2) : architecture unique et filtres partagés ; absorbe Pub Meta, Visuels, Qui a vu tes pubs, Instagram, l'onglet « Tout mon funnel » (contenu redistribué), stats globales Hypeddit (W5), « mes sorties à âge égal » + Meta (W6), Shazam depuis la sortie + Meta (W7), point mort / revenu net redessiné (W11) ; renommée « … × Shazam × Revenus », placée en FIN d'« Analytics plateformes » ; funnel Insta → Hypeddit → Spotify, Insta Ads, Shazam** (P3) ✅ (2026-10-09, 74a6f430, 59e68078)
