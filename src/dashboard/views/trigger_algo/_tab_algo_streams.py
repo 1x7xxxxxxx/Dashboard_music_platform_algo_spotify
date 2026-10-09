@@ -35,10 +35,6 @@ _SOURCE_COLORS = {"Discover Weekly": ALGO_COLORS["DW"], "Release Radar": ALGO_CO
 def _show_tab_algo_streams(db, song, artist_id):
     st.subheader(t("trigger_algo.algostreams_header",
                    "📈 Streams générés par les playlists algorithmiques"))
-    st.caption(t("trigger_algo.algostreams_caption",
-                 "Une fois un titre capté par les algos, combien de streams chaque playlist a "
-                 "réellement généré. Saisie dans 📝 Saisie S4A. Le total = somme des 3 sources."))
-
     _render_estimates()   # R247 (fiche 43) — visible même sans aucune saisie
     if not song:
         st.info(t("trigger_algo.algostreams_no_track", "Sélectionne un titre ci-dessus."))
@@ -101,9 +97,6 @@ def _show_tab_algo_streams(db, song, artist_id):
     with secondary_analyses(t("trigger_algo.algostreams_history", "📊 Historique de tes saisies")):
         charts.plotly_chart(fig, width="stretch")
 
-    with st.expander(t("trigger_algo.algostreams_table", "📋 Détail chiffré")):
-        show = df.rename(columns={"recorded_at": "Date", **_SOURCE_LABELS, "total": "Total"})
-        st.dataframe(show, hide_index=True, width="stretch")
 
 
 # ── R247 (fiche 43) — what an algorithm usually brings once it has triggered ──────────

@@ -38,11 +38,12 @@ from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 
+from src.dashboard.utils import charts
 from src.dashboard.utils.algo_preview_data import (
-    format_proba, proba_affichable, texte_plancher)
+    budget_fourchette, format_proba, lire_cpr_bornes, proba_affichable, texte_plancher)
+from src.dashboard.utils.semantic_colors import ATTENTION, BON
 from src.dashboard.utils.algo_knowledge import nearest_gate
-from ._pareto import LEVIERS_CHIFFRES, pareto
-from ._sections import detail
+from ._pareto import pareto
 
 _NOMS = {"DW": "Discover Weekly", "RR": "Release Radar", "RADIO": "Radio"}
 
@@ -123,7 +124,7 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
 
     # ── Le Pareto ────────────────────────────────────────────────────────────
     st.subheader(t("trigger_algo.titre.pareto_header", "🪜 Ce qu'il te reste à faire"))
-    _render_pareto(plan["leviers"], valeur_algo)
+    _render_pareto(db, artist_id, plan["leviers"])
 
     _render_money_note(valeurs, source_taux, eur_stream)
 
@@ -143,35 +144,7 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
     """
     if not isinstance(valeurs, pd.DataFrame) or valeurs.empty:
         return
-    lignes = []
-    for _, r in valeurs.iterrows():
-        algo = r["algo"]
-        raw = ml_pred.get(f"{algo.lower()}_probability")
-        proba = proba_affichable(algo.lower(), raw)
-        valeur = float(r["valeur_eur"])
-        # On relit les leviers de CHAQUE algo : `pareto` ne rend que la porte la
-        # plus proche, et les trois lignes afficheraient alors le même levier.
-        from src.dashboard.utils.algo_knowledge import split_coach_actions
-        titre, _artiste = split_coach_actions(algo, feats)
-        premier = next((a for a in titre if a.get("kind") != "smooth"), None)
-        lignes.append({
-            t("trigger_algo.titre.col_algo", "Algorithme"): _NOMS.get(algo, algo),
-            t("trigger_algo.titre.col_chance", "Ta chance"):
-                format_proba(algo.lower(), raw, decimals=1),
-            t("trigger_algo.titre.col_worth", "Vaut si ça s'ouvre"):
-                eur(valeur, 0),
-            t("trigger_algo.titre.col_expect", "Espérance"): (
-                ("—" if raw is None else texte_plancher()) if proba is None
-                else eur(proba * valeur, 2)),
-            t("trigger_algo.titre.col_next", "Prochain levier"): (
-                "—" if premier is None
-                else f"{premier['label']} · {premier['gap']:,.0f} {premier['unit']}"
-                     .replace(",", " ")),
-            t("trigger_algo.titre.col_cohort", "Cohorte"): int(r["n"]),
-        })
     _pastilles(valeurs, ml_pred)
-    with detail():
-        st.dataframe(pd.DataFrame(lignes), hide_index=True, width="stretch")
 
     # ── OÙ METTRE L'EFFORT : la meilleure espérance, nommée ─────────────────
     # Trois lignes de chiffres laissent l'arbitrage au lecteur. Mesuré sur la
@@ -195,12 +168,6 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
             "des deux. À chance égale, vise la plus riche ; à valeur égale, la plus "
             "probable."
         ).format(algo=_NOMS.get(meilleur, meilleur), val=valeur_max))
-
-    st.caption(t(
-        "trigger_algo.titre.three_gates_note",
-        "La porte la plus PROCHE n'est pas la plus RICHE : Discover Weekly vaut "
-        "environ 3,4 fois un Release Radar. « Cohorte » est le nombre de titres sur "
-        "lesquels la valeur est mesurée."))
 
 
 def _pastilles(valeurs: pd.DataFrame, ml_pred: dict) -> None:
@@ -235,40 +202,62 @@ def _valeur_de(valeurs, algo) -> float | None:
     return float(ligne["valeur_eur"].iloc[0]) if not ligne.empty else None
 
 
-def _render_pareto(leviers: list[dict], valeur_algo: float | None) -> None:
-    aff = pd.DataFrame({
-        "#": list(range(1, len(leviers) + 1)),
-        t("trigger_algo.titre.col_lever", "Levier"): [a["label"] for a in leviers],
-        t("trigger_algo.titre.col_now", "Aujourd'hui"): [
-            num(a['current'], 2) for a in leviers],
-        t("trigger_algo.titre.col_target", "Objectif"): [
-            f"{a['target']:,.0f} {a['unit']}".replace(",", " ") for a in leviers],
-        t("trigger_algo.titre.col_gap", "Il me manque"): [
-            num(a['gap'], 0) for a in leviers],
-        t("trigger_algo.titre.col_progress", "Avancement"): [
-            min(1.0, max(0.0, a["current"] / a["target"])) if a.get("target") else 0.0
-            for a in leviers],
-        t("trigger_algo.titre.col_pays", "Ce que ça rapporte"): [
-            "—" if a.get("valeur_eur") is None
-            else f"+{a['valeur_eur']:,.2f} €".replace(",", " ") for a in leviers],
-        t("trigger_algo.titre.col_how", "Comment"): [a["lever"] for a in leviers],
-    })
-    with detail():
-        st.dataframe(
-            aff, hide_index=True, width="stretch",
-            column_config={
-                t("trigger_algo.titre.col_progress", "Avancement"):
-                    st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
-            },
-        )
-    st.caption(t(
-        "trigger_algo.titre.pareto_note",
-        "⚠️ **Ce tableau est trié par EFFORT, pas par impact** — le levier le plus "
-        "proche de sa cible d'abord. Lis la colonne « ce que ça rapporte » avant de "
-        "choisir : mesuré sur ce catalogue, le levier le plus proche s'est déjà "
-        "révélé **trente fois moins rentable** que le plus lointain. Les {n} premiers "
-        "leviers seulement sont chiffrés — chacun demande de rejouer le modèle."
-    ).format(n=LEVIERS_CHIFFRES))
+def pareto_figure(leviers: list[dict]):
+    """R477 (W14) — the levers as bars: how far each one is from its target. Pure.
+
+    Effort order, the closest on top — the order the coach ranks them in. The text on
+    each bar is what is still missing and, when the model was replayed for it, what
+    closing it is worth: the « ce que ça rapporte » column the table carried, which
+    is what makes the effort order contestable.
+    """
+    import plotly.graph_objects as go
+
+    rows = list(reversed(leviers))
+    progress = [min(1.0, max(0.0, a["current"] / a["target"])) if a.get("target") else 0.0
+                for a in rows]
+    def _gap(a: dict) -> str:
+        g = float(a["gap"] or 0)
+        # A ratio gap (0.16) rounded to 0 decimals read « il manque 0 ratio » on the PNG.
+        return num(g, 2 if abs(g) < 10 else 0)
+
+    text = [(t("trigger_algo.titre.bar_done", "✓ objectif atteint") if p >= 1 else
+             t("trigger_algo.titre.bar_gap", "il manque {gap} {unit}")
+             .format(gap=_gap(a), unit=a["unit"])
+             + ("" if (a.get("valeur_eur") or 0) < 0.5 else f" · +{eur(a['valeur_eur'], 0)}"))
+            for a, p in zip(rows, progress)]
+    labels = [a["label"] for a in rows]
+    # Done in colour, the missing part in grey on the same bar : the gap IS the reading.
+    fig = go.Figure([
+        go.Bar(x=progress, y=labels, orientation="h",
+               marker_color=[BON if p >= 1 else ATTENTION for p in progress],
+               hovertemplate="%{y}<br>%{x:.0%}<extra></extra>", showlegend=False),
+        go.Bar(x=[1 - p for p in progress], y=labels, orientation="h", text=text,
+               textposition="inside", insidetextanchor="end", marker_color="rgba(128,128,128,0.18)",
+               hoverinfo="skip", showlegend=False)])
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(range=[0, 1.02], tickformat=".0%",
+                     title=t("trigger_algo.titre.bar_axis", "Avancement vers l'objectif"))
+    fig.update_yaxes(automargin=True)
+    fig.update_layout(height=80 + 46 * len(rows), margin=dict(t=20, l=10, r=10, b=40))
+    return fig
+
+
+def streams_gap(leviers: list[dict]) -> float | None:
+    """The 7-day streams still missing — the only lever Meta Ads can buy. Pure."""
+    lev = next((a for a in leviers if a.get("feature") == "StreamsLast7Days"), None)
+    return float(lev["gap"]) if lev and lev.get("gap") else None
+
+
+def _render_pareto(db, artist_id, leviers: list[dict]) -> None:
+    charts.plotly_chart(pareto_figure(leviers), width="stretch")
+    # W14 « lier à ce que ça coûterait en Meta Ads au meilleur CPR et au CPR moyen,
+    # sans tableaux » — one tile, one formula (`budget_fourchette`, R372) : the first
+    # screen of this section is capped at 5 gauges (first-screen-ceilings.json).
+    cout = budget_fourchette(streams_gap(leviers), lire_cpr_bornes(db, artist_id))
+    if cout:
+        st.metric(t("trigger_algo.titre.cost_range",
+                    "En Meta Ads, du meilleur CPR au CPR moyen"),
+                  f"{eur(cout[0], 0)} → {eur(cout[1], 0)}")
 
 
 def _render_money_note(valeurs, source_taux: str, eur_stream: float | None) -> None:
@@ -284,8 +273,6 @@ def _render_money_note(valeurs, source_taux: str, eur_stream: float | None) -> N
             st.caption(t("trigger_algo.titre.rate",
                          "Taux utilisé : **{taux:.6f} € / écoute** ({origine}).")
                        .format(taux=eur_stream, origine=origine))
-        if isinstance(valeurs, pd.DataFrame) and not valeurs.empty:
-            st.dataframe(valeurs, hide_index=True, width="stretch")
         st.caption(t(
             "trigger_algo.titre.money_caveat",
             "⚠️ **Ce n'est pas le gain d'un déclenchement.** La cohorte de référence "

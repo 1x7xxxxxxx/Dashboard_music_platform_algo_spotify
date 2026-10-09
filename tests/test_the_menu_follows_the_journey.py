@@ -376,7 +376,8 @@ def test_the_arrows_skip_the_pages_the_plan_blocks() -> None:
 
 # `export_pdf` en est sorti le 2026-09-26 : il est gratuit depuis ADR-029.
 # `revenue_forecast` en est sorti le 2026-10-05 (R405) : c'est un alias de `trigger_algo`.
-@pytest.mark.parametrize("page", ["trigger_algo", "meta_cpr_optimizer"])
+# `meta_cpr_optimizer` en est sorti le 2026-10-09 (R477) : alias de `trigger_algo`.
+@pytest.mark.parametrize("page", ["trigger_algo"])
 def test_a_locked_page_is_never_a_dead_end(page: str) -> None:
     """LE DÉFAUT MESURÉ LE 2026-09-22 : les deux flèches mouraient.
 

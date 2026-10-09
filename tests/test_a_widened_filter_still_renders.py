@@ -95,6 +95,13 @@ def _views_with_a_partial_default() -> list[str]:
 def has_a_partial_default(source: str) -> bool:
     """Does `source` carry a `st.multiselect` whose default is not all its options?"""
     for node in ast.walk(ast.parse(source)):
+        # R478/R477 : the shared `release_picker` IS a multiselect whose default is the
+        # two latest releases — partial by construction. Without this branch the
+        # population emptied the day the last hand-written default moved into it.
+        if isinstance(node, ast.Call) and (
+                getattr(node.func, "id", "") == "release_picker"
+                or getattr(node.func, "attr", "") == "release_picker"):
+            return True
         if not (isinstance(node, ast.Call)
                 and getattr(node.func, "attr", "") == "multiselect"):
             continue

@@ -45,7 +45,6 @@ from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
 
 from ._reglages import classer, recommandation
-from ._sections import detail
 
 # ⚠️ LES TROIS AXES LISENT `v_meta_ad_daily` (migration 138), plus la jointure
 # `meta_ads × meta_insights` sur `ad_id` SEUL. Celle-ci ne nommait le locataire que
@@ -104,21 +103,8 @@ def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
     if df.empty:
         st.caption(t("trigger_algo.reg.axis_empty", "Pas encore de données sur cet axe."))
         return None
-    aff = pd.DataFrame({
-        t("trigger_algo.reg.col_value", "Réglage"): [
-            v if f else f"{v} ⚠️" for v, f in zip(df["valeur"], df["fiable"])],
-        t("trigger_algo.reg.col_ads", "Annonces"): df["ads"],
-        t("trigger_algo.reg.col_spend", "Dépensé"): [
-            eur(v, 0) for v in df["depense"]],
-        t("trigger_algo.reg.col_cpc", "Coût / clic"): [
-            "—" if pd.isna(v) else eur(v, 4) for v in df["cpc"]],
-        t("trigger_algo.reg.col_ctr", "Taux de clic"): [
-            "—" if pd.isna(v) else f"{v:.2f} %" for v in df["ctr"]],
-    })
     reco = recommandation(df)
     charts.plotly_chart(_figure_axe(df, reco), width="stretch")
-    with detail():
-        st.dataframe(aff, hide_index=True, width="stretch")
     if reco:
         # ⚠️ L'espacement des milliers s'applique au NOMBRE, pas à la phrase.
         # Le premier jet faisait `.format(...).replace(",", " ")` sur la chaîne

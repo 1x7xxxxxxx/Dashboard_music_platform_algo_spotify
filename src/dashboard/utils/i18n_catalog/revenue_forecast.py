@@ -130,12 +130,6 @@ EN = {
     "revenue_forecast.by_source_net": (
         "NET amounts — charges and VAT deducted, same as the chart and the "
         "break-even date."),
-    "revenue_forecast.col_in": "In (€)",
-    "revenue_forecast.col_out": "Out (€)",
-    "revenue_forecast.col_net": "Net (€)",
-    "revenue_forecast.col_cumul": "Cumulative (€)",
-    "revenue_forecast.ml_expander":
-        "🤖 Which of my tracks is closest — ML scores",
     # Entry point
     # Tab 1 — Current MRR
     # Tab 2 — MRR projection
@@ -157,30 +151,8 @@ EN = {
     "revenue_forecast.no_active_artist": "No active artist.",
     "revenue_forecast.no_artist_id": "Unable to determine your artist identifier.",
     "revenue_forecast.horizon": "Projection horizon (months)",
-    "revenue_forecast.col_month": "Month",
     # Meta Ads ROI
     # ML predictions
-    "revenue_forecast.no_ml": (
-        'No prediction yet. They are recomputed every day, late morning, from the data already collected.'),
-    "revenue_forecast.ml_unreadable": (
-        "The ML scores could not be read ({err}): this is not an absence of prediction."),
-    "revenue_forecast.ml_caption": (
-        "🛡️ The *floor* columns are **worst-case estimates**: the volume model "
-        "underestimates hits, the real potential is often higher. "
-        "Release Radar and Discover Weekly have no volume column: their volume is not "
-        "predictable (notification open rate for RR, R²<0 for DW) — we rely on their "
-        "classification (AUC 0.94 and 0.92, validated per song)."
-    ),
-    "revenue_forecast.col_track": "Track",
-    "revenue_forecast.col_last_prediction": "Last prediction",
-    "revenue_forecast.col_dw_prob": "Discovery Weekly (%)",
-    "revenue_forecast.col_rr_prob": "Release Radar (%)",
-    "revenue_forecast.col_radio_prob": "Radio (%)",
-    "revenue_forecast.col_dw_streams": "DW streams 7d (floor ≥)",
-    "revenue_forecast.col_rr_streams": "RR streams 7d (floor ≥)",
-    "revenue_forecast.col_radio_streams": "Radio streams 7d (floor ≥)",
-    "revenue_forecast.col_streams_7d": "Streams 7d (actual)",
-    "revenue_forecast.col_streams_28d": "Streams 28d (actual)",
     # Net margin
     "revenue_forecast.ledger_head": "| Revenue | Spend | of which ads | Financial result | Streams (all platforms) | Ads per stream |",
     "revenue_forecast.ledger_caption": "Since the start. « Ads per stream » divides ad spend by ALL streams, organic included: it is a ceiling, not what a gained stream cost — that one is in « Meta Ads › My whole funnel », campaign by campaign.",

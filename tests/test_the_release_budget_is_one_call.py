@@ -43,7 +43,9 @@ def test_both_surfaces_call_the_shared_budget() -> None:
     # owner's request; the two algo-view surfaces that still price a trigger remain.
     for path in (_VIEWS / "trigger_algo" / "_tab_reglages.py",
                  _VIEWS / "trigger_algo" / "_playlist_detail.py"):
-        assert "budget_declenchement" in _calls(path), (
+        # R477 (2026-10-09): `_playlist_detail` now prices through `budget_fourchette`
+        # — both names go through `budget_pour_streams`, the one formula.
+        assert {"budget_declenchement", "budget_fourchette"} & _calls(path), (
             f"{path.name} no longer prices the trigger with budget_declenchement — a "
             "second formula will drift from the first")
 

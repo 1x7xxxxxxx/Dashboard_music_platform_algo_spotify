@@ -33,7 +33,7 @@ from src.dashboard.utils.algo_preview_data import (
 from src.dashboard.utils.formats import eur
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
-from src.dashboard.utils.semantic_colors import BON, MAUVAIS
+from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 from src.utils.algo_order import named_algos
 from src.utils.artist_name_filter import ARTIST_NAME_LIKE
 from src.utils.ml_outcome_labeling import TARGET_THRESHOLDS
@@ -135,14 +135,49 @@ def _figure(shown: list[dict]):
     return fig
 
 
+def seuils_figure(seuils: list[dict], fourchettes: list, commune) :
+    """Reached vs entry threshold, one bar per playlist, in % of its threshold. Pure.
+
+    The thresholds differ per playlist (DW, RR, Radio), so raw streams on one axis
+    would flatten the smallest; the 100 % line is the entry for all three.
+    """
+    import plotly.graph_objects as go
+
+    names, pct, colors, texts = [], [], [], []
+    for s, f in zip(seuils, fourchettes):
+        name = s["name"]
+        if f is not None and commune is None and not s["entered"]:
+            name += f" · {eur(f[0], 0)} à {eur(f[1], 0)}"   # the price of THIS gap
+        if s["reached"] is None:
+            name += " — " + t("trigger_algo.detail.not_entered_short", "pas encore saisi")
+        names.append(name)
+        if s["reached"] is None:
+            pct.append(0)
+            colors.append(NEUTRE)
+            texts.append("")
+            continue
+        pct.append(100 * s["reached"] / s["threshold"])
+        colors.append(BON if s["entered"] else ATTENTION)
+        texts.append(f"{s['reached']:,.0f} / {s['threshold']:,.0f}".replace(",", " "))
+    fig = go.Figure(go.Bar(
+        x=pct, y=names, orientation="h", marker_color=colors, text=texts,
+        textposition="outside", cliponaxis=False, showlegend=False,
+        hovertemplate="%{y}<br>%{x:.0f} %% du seuil<extra></extra>"))
+    fig.add_vline(x=100, line_dash="dash", line_color=NEUTRE, layer="below",
+                  annotation_text=t("trigger_algo.detail.threshold", "seuil d'entrée"),
+                  annotation_position="top")
+    fig.update_xaxes(title=t("trigger_algo.detail.pct_axis", "streams algo 28 j, en % du seuil"),
+                     range=[0, max([130] + [p * 1.35 for p in pct])], ticksuffix=" %")
+    fig.update_yaxes(autorange="reversed", automargin=True)
+    fig.update_layout(height=80 + 50 * len(names), margin=dict(t=40, l=10, r=10, b=40))
+    return fig
+
+
 def render_ce_qui_pese(db, track: str, artist_id, ml_pred: dict, feats: dict) -> None:
     """V56/V64/V66 — the three answers for the selected title, without a table."""
     st.subheader(t("trigger_algo.detail.header", "🔬 Playlist par playlist"))
     shown, floored = shap_par_playlist(feats, ml_pred)
     if shown:
-        st.markdown(t("trigger_algo.detail.shap_head",
-                      "**Ce qui pèse le plus**, du critère le plus lourd au plus léger. "
-                      "Vert : il pousse vers la playlist ; rouge : il retient."))
         charts.plotly_chart(_figure(shown), width="stretch")
     if floored:
         st.caption(t("trigger_algo.detail.shap_floor",
@@ -162,52 +197,11 @@ def render_ce_qui_pese(db, track: str, artist_id, ml_pred: dict, feats: dict) ->
     seuils = seuils_atteints(outcome)
     fourchettes = [budget_fourchette(gaps.get(s["algo"]), bornes) for s in seuils]
     commune = cout_commun(fourchettes)
-    for s, f in zip(seuils, fourchettes):
-        st.markdown(_ligne(s, None if commune else f))
+    charts.plotly_chart(seuils_figure(seuils, fourchettes, commune), width="stretch")
     if commune:
         # One shared lever (the 7-day streams): one budget, never three to add up.
         st.markdown(t("trigger_algo.detail.cost_shared",
                       "Les {n} playlists demandent **la même chose** : combler l'écart "
                       "coûte **{lo} à {hi}** — un seul budget, pas trois.").format(
                           n=len(seuils), lo=eur(commune[0], 0), hi=eur(commune[1], 0)))
-    st.caption(t("trigger_algo.detail.cost_note",
-                 "Seuil d'entrée : les streams algo sur 28 jours au-delà desquels un titre "
-                 "compte comme entré (le seuil d'entraînement du modèle). Coût : l'écart "
-                 "de streams sur 7 jours × ton meilleur CPR ↔ ton CPR moyen — un "
-                 "**ordre de grandeur**, qui suppose qu'un clic vaut une écoute."))
     st.caption(disclosure_caption())
-
-
-def _ligne(s: dict, fourchette: tuple[float, float] | None) -> str:
-    if s["reached"] is None:
-        etat = t("trigger_algo.detail.not_entered",
-                 "réalisé : pas encore saisi (plus bas, « Ce qui s'est vraiment passé »)")
-    else:
-        etat = t("trigger_algo.detail.reached", "réalisé **{v:,.0f}** / seuil {s}").format(
-            v=s["reached"], s=s["threshold"]).replace(",", " ")
-        etat += " ✅" if s["entered"] else ""
-    cout = ("" if fourchette is None else " · " + t(
-        "trigger_algo.detail.cost", "combler l'écart : **{lo} à {hi}**").format(
-            lo=eur(fourchette[0], 0), hi=eur(fourchette[1], 0)))
-    return f"- **{s['name']}** — {etat}{cout}"
-
-
-def render_recos_derniere_sortie(db, artist_id) -> None:
-    """V71 — the CPR Optimizer's detailed recommendations, for the latest release."""
-    from src.dashboard.utils.algo_preview_data import budget_declenchement
-    from src.dashboard.views.meta_cpr_optimizer import (
-        for_track, recommendations, render_cards)
-
-    sortie = (budget_declenchement(db, artist_id) or {}).get("song")
-    if not sortie:
-        return
-    recos = for_track(recommendations(db, artist_id), sortie)
-    st.markdown(t("trigger_algo.detail.recos_head",
-                  "**🃏 Recommandations détaillées — {song}** (ta dernière sortie)")
-                .format(song=sortie))
-    if recos.empty:
-        st.caption(t("trigger_algo.detail.recos_none",
-                     "Aucune campagne reliée à ce titre — relie-la dans 🔗 Mapping "
-                     "cross-plateforme pour obtenir une recommandation."))
-        return
-    render_cards(recos)

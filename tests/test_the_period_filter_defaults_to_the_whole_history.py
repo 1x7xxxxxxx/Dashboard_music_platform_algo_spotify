@@ -25,6 +25,7 @@ VIEWS = ROOT / "src" / "dashboard" / "views"
 
 # Views that draw a daily series WITHOUT the shared filter — each with its reason.
 EXEMPT = {
+    "trigger_algo/_common/_budget_roi.py": "CPR par campagne mappée au titre, sur TOUTE la vie : une barre par campagne, pas une série temporelle (R477)",
     "db_health.py": "admin : la fenêtre est « hier » par construction (anomalie d'ingestion)",
     "admin.py": "supervision : on y choisit un mois de facturation, pas une fenêtre",
     "airflow_kpi.py": "ops : fenêtre de supervision des DAG, public exploitant",

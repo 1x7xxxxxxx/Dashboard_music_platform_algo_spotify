@@ -56,7 +56,7 @@ ROUTES: dict[str, str] = {
     "account": "views.account",
     "meta_creatives": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "meta_breakdowns": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
-    "meta_cpr_optimizer": "views.meta_cpr_optimizer",
+    "meta_cpr_optimizer": "views.trigger_algo",  # alias — R477 made it the budget section of the algo page
     "referral": "views.referral",
     "referral_kpi": "views.referral_admin",
     "promo_admin": "views.promo_admin",
@@ -78,6 +78,7 @@ PAGE_ALIASES: dict[str, str] = {
     "meta_breakdowns": "meta_ads_overview",
     "revenue_forecast": "trigger_algo",
     "meta_campaign_settings": "trigger_algo",
+    "meta_cpr_optimizer": "trigger_algo",
     "recap": "home",
     "upload_csv": "credentials",
     "process_guide": "onboarding_health",

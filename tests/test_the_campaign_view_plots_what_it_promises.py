@@ -313,9 +313,8 @@ def test_the_prediction_opens_what_the_subscription_sells() -> None:
     p = sections["premium"]
     assert "trigger_algo" in p, (
         f"la prédiction de déclenchement a quitté Premium : {p}")
-    assert p.index("trigger_algo") < p.index("meta_cpr_optimizer"), (
-        f"la prédiction ne précède plus l'optimiseur : {p}. C'est la promesse du "
-        "produit ; elle vient avant ce qui la raffine.")
+    # R477 : l'optimiseur est une section de `trigger_algo`, il n'a plus d'entrée.
+    assert "meta_cpr_optimizer" not in p, f"l'optimiseur a repris une entrée de menu : {p}"
     from src.dashboard.utils.nav_badges import FREE_PREVIEW_PAGES
     assert p[0] in FREE_PREVIEW_PAGES and p[1] == "trigger_algo", (
         f"l'aperçu gratuit doit ouvrir la section, juste au-dessus de Road to Algo : {p}")

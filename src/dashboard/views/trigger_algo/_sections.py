@@ -37,6 +37,7 @@ PAGE_SECTIONS = (
 ALIAS_SECTION = {
     "meta_campaign_settings": "budget",
     "revenue_forecast": "argent",
+    "meta_cpr_optimizer": "budget",  # R477 (W14)
 }
 
 

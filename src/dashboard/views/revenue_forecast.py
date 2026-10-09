@@ -23,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
-from src.dashboard.utils import algo_knowledge as ak
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
@@ -47,40 +46,6 @@ from src.utils.algo_order import ALGO_ORDER
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
 # (refactor R6 — calc/UI split). Imported above; call sites unchanged via aliases.
 
-
-def _format_ml_table(ml_df: pd.DataFrame) -> pd.DataFrame:
-    """The « scores ML » table: sorted and formatted through the shared floor door. Pure.
-
-    A floor probability (`proba_affichable` → None) prints `texte_plancher()`, never
-    « 6.5% », and sorts LAST: sorting on raw floor values ranked titles on the
-    calibration intercept (2026-09-26 — 33 of 33 production values on the floor).
-    NULL (a model that failed to score) still prints « — ».
-    """
-    from src.dashboard.utils.algo_preview_data import format_proba, proba_affichable
-
-    out = ml_df.copy()
-    if 'dw_probability' in out.columns:
-        key = [proba_affichable("dw", v) for v in out['dw_probability']]
-        out['_sort'] = pd.to_numeric(pd.Series(key, index=out.index, dtype=object),
-                                     errors='coerce')
-        out = (out.sort_values('_sort', ascending=False, na_position='last')
-               .drop(columns=['_sort']).reset_index(drop=True))
-    for col in ['dw_probability', 'rr_probability', 'radio_probability']:
-        if col in out.columns:
-            algo = col.split("_", 1)[0]
-            out[col] = [format_proba(algo, v, decimals=1) for v in out[col]]
-    return out
-
-
-# R405 : the « MRR actuel » tab is gone. It recomputed the MRR in pandas — the third
-# definition R140 had already named — beside « 💳 Facturation », which reads the single
-# one (`src.utils.mrr`). The page itself is now a section of the algo page.
-
-# R249 (fiche 61, owner 2026-09-27 : « à retirer ») : the MRR growth simulation tab is gone.
-
-# ─────────────────────────────────────────────
-# Tab 3 — LTV & Churn
-# ─────────────────────────────────────────────
 
 @st.fragment
 def _frag_ltv() -> None:
@@ -418,16 +383,20 @@ def _render_cost_entry(db, artist_id: int) -> None:
                       "ta publicité — il est OPTIMISTE de tout ce que tu as payé "
                       "pour mettre ta musique en ligne."))
             return
-        st.dataframe(
-            deja.rename(columns={
-                'category': t("revenue_forecast.cost_category", "Type de coût"),
-                'label': t("revenue_forecast.cost_label", "Libellé (facultatif)"),
-                'amount_eur': t("revenue_forecast.cost_amount", "Montant (€)"),
-                'billing_period': t("revenue_forecast.cost_period", "Fréquence"),
-                'start_month': t("revenue_forecast.cost_start", "À partir de"),
-                'end_month': t("revenue_forecast.cost_end", "Jusqu'à"),
-            }).drop(columns=['id']),
-            width='stretch', hide_index=True)
+        # R477 (« pas de tableaux ») — one line per entered cost, not a grid.
+        st.markdown("\n".join(cost_lines(deja)))
+
+
+def cost_lines(deja: pd.DataFrame) -> list[str]:
+    """One markdown bullet per entered cost: what, how much, how often, since when. Pure."""
+    out = []
+    for r in deja.to_dict("records"):
+        quoi = r.get("label") or r.get("category") or "—"
+        fin = f" → {r['end_month']}" if r.get("end_month") else ""
+        out.append(f"- **{quoi}** — {float(r['amount_eur']):,.2f} € · "
+                   f"{r.get('billing_period') or ''} · {r.get('start_month') or ''}{fin}"
+                   .replace(",", " "))
+    return out
 
 
 def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
@@ -611,18 +580,6 @@ def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
 _FLOOR_COLUMNS = tuple((a, f"{a.lower()}_streams_forecast_7d") for a in ALGO_ORDER)
 
 
-def drop_suppressed_floor_columns(ml_df: pd.DataFrame) -> pd.DataFrame:
-    """Drop every floor column whose volume regressor the single-source gate suppresses.
-
-    This read only `"RR"` until 2026-09-26, so the DW floor column (DW volume R²<0,
-    suppressed since v3) stayed in the ROI table.
-    Guard: tests/test_a_suppressed_forecast_is_never_drawn.py
-    """
-    return ml_df.drop(columns=[col for algo, col in _FLOOR_COLUMNS
-                               if not ak.volume_forecast_reliable(algo)],
-                      errors='ignore')
-
-
 def _tab_artist_forecast(db, artist_id: int | None) -> None:
     # ⚠️ `show_infra` a été RETIRÉ le 2026-09-21, pas mis en commentaire. Il ne
     # servait qu'au champ « Coût infra VPS (€/mois) » du waterfall de marge, que
@@ -758,21 +715,6 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
                 st.caption(t("revenue_forecast.by_source_net",
                              "Montants NETS — charges et TVA déduites, comme dans "
                              "la figure et dans le point mort."))
-            table = mensuel[['date', 'revenus', 'depenses', 'net', 'cumul']].copy()
-            table['date'] = table['date'].dt.strftime('%Y-%m')
-            st.dataframe(
-                table.rename(columns={
-                    'date': t("revenue_forecast.col_month", "Mois"),
-                    'revenus': t("revenue_forecast.col_in", "Encaissé (€)"),
-                    'depenses': t("revenue_forecast.col_out", "Dépensé (€)"),
-                    'net': t("revenue_forecast.col_net", "Net (€)"),
-                    'cumul': t("revenue_forecast.col_cumul", "Cumul (€)"),
-                }).style.format("{:,.2f}", subset=[
-                    t("revenue_forecast.col_in", "Encaissé (€)"),
-                    t("revenue_forecast.col_out", "Dépensé (€)"),
-                    t("revenue_forecast.col_net", "Net (€)"),
-                    t("revenue_forecast.col_cumul", "Cumul (€)")], na_rep="—"),
-                width='stretch', hide_index=True)
 
     # ── LE « ROI Meta » A DISPARU, ABSORBÉ — 2026-09-21 ──────────────────────
     #
@@ -789,80 +731,10 @@ def _tab_artist_forecast(db, artist_id: int | None) -> None:
     # La dépense Meta n'est pas perdue : elle est une série de la figure
     # d'ouverture, dans `v_artist_monthly_cashflow`, à côté des autres dépenses.
 
-    st.markdown("---")
-    # ── Quel de MES titres est le plus près de déclencher ? — REPLIÉ ─────────
-    #
-    # La figure ci-dessus dit ce qu'un déclenchement VAUT ; ce tableau dit lequel
-    # de tes titres en est le plus près. C'est la question d'après, pas la même :
-    # elle se pose une fois qu'on a décidé que le montant valait l'effort.
-    with secondary_analyses(t("revenue_forecast.ml_expander",
-                              "🤖 Lequel de mes titres est le plus près — scores ML")):
-        # ── ML — scores par track ─────────────────────────────────────────────────
+    # R477 (W14 « pas de tableaux », « sans redondances ») — the ML scores table that
+    # stood here (« lequel de mes titres est le plus près ») is gone: the algo page
+    # answers that question above, in its gauges, for the two latest releases.
 
-        try:
-            ml_df = db.fetch_df(
-                """
-                SELECT DISTINCT ON (song)
-                    song,
-                    prediction_date,
-                    dw_probability,
-                    rr_probability,
-                    radio_probability,
-                    dw_streams_forecast_7d,
-                    rr_streams_forecast_7d,
-                    radio_streams_forecast_7d,
-                    streams_7d,
-                    streams_28d
-                FROM ml_song_predictions
-                WHERE artist_id = %s
-                  AND song NOT ILIKE '%%1x7xxxxxxx%%'
-                ORDER BY song, prediction_date DESC
-                """,
-                (target_id,),
-            )
-            ml_read_failed = False
-        except Exception as exc:  # noqa: BLE001 — shown below, never as an absence
-            ml_df, ml_read_failed = pd.DataFrame(), True
-            st.warning(t("revenue_forecast.ml_unreadable",
-                         "Les scores ML n'ont pas pu être lus ({err}) : ce n'est pas une "
-                         "absence de prédiction.").format(err=type(exc).__name__))
-
-        if ml_read_failed:
-            pass
-        elif ml_df.empty:
-            st.info(t("revenue_forecast.no_ml",
-                      "Pas encore de prédiction. Elles sont recalculées chaque jour en fin de "
-                      "matinée, à partir des données déjà collectées."))
-        else:
-            ml_df = _format_ml_table(ml_df)
-            ml_df['prediction_date'] = pd.to_datetime(ml_df['prediction_date']).dt.strftime('%Y-%m-%d')
-
-            ml_df = drop_suppressed_floor_columns(ml_df)
-
-            st.caption(
-                t("revenue_forecast.ml_caption",
-                  "🛡️ Les colonnes *plancher* sont des **estimations worst-case** : le modèle "
-                  "de volume sous-estime les hits, le potentiel réel est souvent supérieur. "
-                  "Release Radar et Discover Weekly n'ont pas de colonne volume : leur "
-                  "volume n'est pas prédictible (taux d'ouverture des notifications pour RR, "
-                  "R²<0 pour DW) — on s'appuie sur leur classification (AUC 0.94 et 0.92, "
-                  "validée par chanson).")
-            )
-            st.dataframe(
-                ml_df.rename(columns={
-                    'song': t("revenue_forecast.col_track", "Track"),
-                    'prediction_date': t("revenue_forecast.col_last_prediction", "Dernière prédiction"),
-                    'dw_probability': t("revenue_forecast.col_dw_prob", "Discovery Weekly (%)"),
-                    'rr_probability': t("revenue_forecast.col_rr_prob", "Release Radar (%)"),
-                    'radio_probability': t("revenue_forecast.col_radio_prob", "Radio (%)"),
-                    'dw_streams_forecast_7d': t("revenue_forecast.col_dw_streams", "Streams DW 7j (plancher ≥)"),
-                    'rr_streams_forecast_7d': t("revenue_forecast.col_rr_streams", "Streams RR 7j (plancher ≥)"),
-                    'radio_streams_forecast_7d': t("revenue_forecast.col_radio_streams", "Streams Radio 7j (plancher ≥)"),
-                    'streams_7d': t("revenue_forecast.col_streams_7d", "Streams 7j (réels)"),
-                    'streams_28d': t("revenue_forecast.col_streams_28d", "Streams 28j (réels)"),
-                }),
-                width='stretch', hide_index=True,
-            )
     # ── LE « WATERFALL DE MARGE » A DISPARU, ET C'ÉTAIT LE PLUS TROMPEUR ─────
     #
     # Il projetait une marge sur l'horizon choisi à partir d'un champ à remplir à

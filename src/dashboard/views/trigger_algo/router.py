@@ -207,12 +207,13 @@ def show():
         _section("budget")
         _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
                              ml_pred=ml_pred)
-        # R405 (V72) : « ⚙️ Paramètres de mes campagnes » — la liste, sous le budget.
-        from src.dashboard.views.meta_campaign_settings import render as render_settings
-        render_settings(db, artist_id)
-        # R381 (V71) : les recommandations détaillées du CPR Optimizer, dernière sortie.
-        from ._playlist_detail import render_recos_derniere_sortie
-        render_recos_derniere_sortie(db, artist_id)
+        # R477 (W14 « Budget et ROI : graphiques, pas de tableaux ») : la liste des
+        # réglages par campagne (R405) est retirée — le graphique des réglages
+        # (`_tab_reglages`) répond à la même question ; l'ancienne route reste un alias.
+        # R477 (W14) : « 📊 CPR Optimizer » n'est plus une page — ses cartes par
+        # campagne sont rendues ici, sous le budget ; l'ancienne route est un alias.
+        from src.dashboard.views.meta_cpr_optimizer import render as render_cpr
+        render_cpr(db, artist_id)
         _section("argent")
         from src.dashboard.views.revenue_forecast import render_money
         render_money(artist_id)

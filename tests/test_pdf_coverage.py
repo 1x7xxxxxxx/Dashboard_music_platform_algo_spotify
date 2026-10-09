@@ -62,7 +62,8 @@ _PDF_MAP = {
     "imusician":            "roi",
     # R405 (2026-10-05): `meta_campaign_settings` and `revenue_forecast` left the menu —
     # sections of the algo page (`trigger_algo`), their keys kept as aliases. The PDF
-    # section `revenue_forecast` stays in ALL_SECTIONS.
+    # section `revenue_forecast` stays in ALL_SECTIONS. R477 (2026-10-09): `meta_cpr_optimizer`
+    # left the menu too — rendered under the algo page's budget section, key kept as alias.
     # Deliberate exclusions (covered elsewhere or not report-shaped):
     # R461 (2026-10-07): `sacem` left the menu — a section of `imusician`, key kept as alias.
     "saisie_s4a":           None,   # data-entry form, not a report
@@ -71,7 +72,6 @@ _PDF_MAP = {
                                     # pas un rapport. Entré dans la navigation le
                                     # 2026-08-23 — il n'était joignable que depuis
                                     # l'e-mail de vérification.
-    "meta_cpr_optimizer":   None,   # interactive optimiser tool
     "algo_preview":         None,   # free preview of Road to Algo (R193), not a report
 }
 

@@ -313,7 +313,6 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `meta_creatives.py` | Créatives Meta — 6 tabs (Classement/Comparaison/Funnel/Évolution/Fatigue/Activité) + per-creative multi-metric timeline since 2026-05-29 | meta_insights (ad grain), meta_ads | all |
 | `meta_breakdowns.py` | 🌍 Breakdowns Meta (since 2026-05-29) — campaign→adset→creative cascade, dimension (country/placement/age) × metric-family (perf/engagement); choropleth (utils/geo.py) + Pareto (utils/charts.py::pareto_spend_cpr) | all |
 | `meta_x_spotify.py` | Meta × Spotify | meta_insights, tracks, track_popularity_history, campaign_track_mapping (read-only) | all |
-| `meta_campaign_settings.py` | Paramètres de mes campagnes | meta_campaigns, meta_adsets, meta_ads (réglages, jamais sommés) ; v_meta_campaign_daily (résultat, or) ; `utils.ratios` | all (Premium) |
 | `meta_mapping/` (package) | Mapping Spotify × Meta Ads (nom de campagne) — under "Données" section since 2026-05-28 | campaign_track_mapping (read+write, artist_id NOT NULL) | all |
 | `youtube.py` | YouTube | youtube_* | all |
 | `platform_status.py` | 📋 État de tes plateformes — la matrice complète des six sources. **Hors du menu depuis le 2026-09-05** (chaque onglet de Credentials porte les quatre pastilles de SA plateforme) mais toujours ROUTÉE : des messages y renvoient | lecture seule (artist_readiness) | all |
@@ -337,7 +336,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `onboarding.py` | 🚀 Mise en route (assistant) — 3 étapes post-inscription. Verrouillé par aucun plan depuis le 2026-08-23 : faire payer le droit de brancher ses propres comptes n'aurait pas de sens | saas_artists, artist_credentials | all |
 | `onboarding_health.py` | 🚦 Santé onboarding — matrice de préparation par artiste | `src.utils.artist_readiness` | all |
 | `db_health.py` | 🗄️ Santé des données — imports et fraîcheur | pg_stat_user_tables, colonnes `collected_at` | admin (`_ADMIN_ONLY`, `app.py:94-96`) |
-| `meta_cpr_optimizer.py` | 📊 CPR Optimizer — score ML × CPR et recommandations de budget | meta_insights_*, ml_song_predictions | premium |
+| `meta_cpr_optimizer.py` | 📊 CPR Optimizer — **hors du menu depuis R477** : ses cartes par campagne sont rendues sous la section budget de `trigger_algo` (`render`), la clé reste un alias | meta_insights_*, ml_song_predictions | premium |
 | `sacem.py` | 🎼 SACEM — SECTION de `imusician` depuis R461 (`?page=sacem` est un alias) : brut → retenues → net, virements, relevé | sacem_statement | all |
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution — **hors navigation** : absente de `NAV_SECTIONS`, atteinte par sa seule route (`app.py:590`) | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |

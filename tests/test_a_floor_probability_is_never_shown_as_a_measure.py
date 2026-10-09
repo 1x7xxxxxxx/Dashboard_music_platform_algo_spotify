@@ -228,22 +228,6 @@ def test_cpr_optimizer_labels():
     assert _ml_label(OFF, FLOOR["rr"], FLOOR["radio"]) == "60%"
 
 
-def test_revenue_forecast_ml_table():
-    from src.dashboard.views.revenue_forecast import _format_ml_table
-
-    df = pd.DataFrame({"song": ["floor", "real"],
-                       "dw_probability": [FLOOR["dw"], OFF],
-                       "rr_probability": [FLOOR["rr"], FLOOR["rr"]],
-                       "radio_probability": [FLOOR["radio"], None]})
-    out = _format_ml_table(df)
-    assert list(out["song"]) == ["real", "floor"], "sorted on a floor value"
-    cells = " | ".join(str(v) for c in ("dw_probability", "rr_probability",
-                                        "radio_probability") for v in out[c])
-    assert "60.0%" in cells
-    _no_pct(cells.replace("60.0%", ""), "revenue_forecast._format_ml_table")
-    assert out["radio_probability"].iloc[0] == "—", "NULL must stay a dash, not a floor"
-
-
 def test_s4a_insight_bar_label():
     from src.dashboard.utils.s4a_entry_insight import _bar_label
 
@@ -265,14 +249,6 @@ def test_algos_tab_curve_leaves_gaps():
     from src.dashboard.views.trigger_algo._tab_algos import _proba_series
 
     assert _proba_series("radio", [FLOOR["radio"], OFF]) == [None, pytest.approx(60.0)]
-
-
-def test_catalogue_refuses_instead_of_marking():
-    from src.dashboard.views.trigger_algo._tab_catalogue import _proba
-
-    for a in ALGOS:
-        _no_pct(_proba(a, FLOOR[a]), "_tab_catalogue._proba")
-    assert _proba("dw", OFF) == "60.0%"
 
 
 # ── (b) the CPR SCORE, not its rendering ─────────────────────────────────────

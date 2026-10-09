@@ -168,9 +168,15 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/spotify_s4a_combined.py::render_release_cohort#1': (
         'Comparer ta dernière sortie aux précédentes au même âge, pour décider si elle mérite un coup de pub maintenant.',
         'Compare your latest release with the previous ones at the same age, to decide whether it deserves an ad push now.'),
+    'views/trigger_algo/_common/_budget_roi.py::_show_meta_lever_scoring#1': (
+        'Repérer la campagne au meilleur CPR, pour y remettre le budget de la prochaine sortie.',
+        "Spot the campaign with the best CPR, to put the next release's budget back on it."),
     'views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1': (
         'Voir, pour chaque playlist, le critère qui retient le plus ton titre, pour savoir quoi travailler en premier.',
         'See, for each playlist, the criterion holding your track back the most, to know what to work on first.'),
+    'views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#2': (
+        "Voir quel seuil est le plus loin d'être atteint, pour savoir où mettre l'effort en premier.",
+        'See which threshold is furthest from being met, to know where to put the effort first.'),
     'views/trigger_algo/_tab_algo_streams.py::_render_estimates#1': (
         "Estimer ce qu'un déclenchement d'algorithme rapporte, pour chiffrer le budget qui vaut la peine.",
         'Estimate what an algorithm trigger brings, to size the budget worth spending.'),
@@ -216,6 +222,9 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/trigger_algo/_tab_reglages.py::_rendre_axe#1': (
         'Savoir quel réglage garder sur ta prochaine campagne : le vert est celui qui coûte le moins par clic.',
         'Know which setting to keep on your next campaign: green is the one with the lowest cost per click.'),
+    'views/trigger_algo/_tab_titre.py::_render_pareto#1': (
+        "Voir le levier qui comble le plus de l'écart, pour décider où mettre le budget Meta en premier.",
+        'See the lever that closes most of the gap, to decide where to put the Meta budget first.'),
     'views/usage_analytics.py::show#1': (
         "Voir si l'app est utilisée jour après jour, pour mesurer l'effet d'une campagne d'acquisition.",
         'See whether the app is used day after day, to measure the effect of an acquisition campaign.'),

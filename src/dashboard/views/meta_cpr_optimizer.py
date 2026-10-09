@@ -1,6 +1,7 @@
-"""Vue CPR Optimizer — Score ML × CPR + recommandations de budget.
+"""CPR Optimizer — Score ML × CPR + recommandations de budget, section de la page algo.
 
-Type: Feature
+Type: Sub
+Triggers: views/trigger_algo/router.py (section « budget », R477) — no page of its own
 Uses: get_db_connection, get_artist_id, require_plan
 Depends on: meta_insights_performance, campaign_track_mapping, ml_song_predictions
 Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
@@ -13,14 +14,12 @@ Score: max(dw_prob, rr_prob, radio_prob) × (cpr_median / cpr_campaign)
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import view_session
 from src.dashboard.utils.algo_preview_data import (
     format_proba, proba_affichable, texte_plancher)
 from src.dashboard.utils.filters import account_clause, account_scope
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
-from src.dashboard.auth import require_plan
 from src.utils.algo_order import ALGO_ORDER
 from src.utils.track_matching import canonical_song_sql
 
@@ -233,39 +232,6 @@ def _render_summary_kpi(df: pd.DataFrame) -> None:
     col4.metric(t("meta_cpr_optimizer.kpi_reduce", "Recommandation réduction"), int(n_reduce))
 
 
-def _render_table(df: pd.DataFrame) -> None:
-    display = df.copy()
-
-    display['Score'] = display['score_10'].apply(lambda x: f"{x:.1f} / 10")
-    display['CPR actuel'] = display['cpr'].apply(
-        lambda x: f"{x:.2f}€" if pd.notna(x) else "—"
-    )
-    display['Dépense'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
-    display['Résultats'] = display['total_results'].astype(int)
-    display['ML max'] = [_ml_label(a, b, c) for a, b, c in zip(
-        display['dw_prob'], display['rr_prob'], display['radio_prob'])]
-
-    st.dataframe(
-        display[[
-            'rec_label', 'campaign_name', 'track_name',
-            'Score', 'CPR actuel', 'budget_delta',
-            'Dépense', 'Résultats', 'ML max',
-        ]].rename(columns={
-            'rec_label':     t("meta_cpr_optimizer.col_action", "Action"),
-            'campaign_name': t("meta_cpr_optimizer.col_campaign", "Campagne"),
-            'track_name':    t("meta_cpr_optimizer.col_track", "Track liée"),
-            'budget_delta':  t("meta_cpr_optimizer.col_budget", "Budget suggéré"),
-            'Score':         t("meta_cpr_optimizer.col_score", "Score"),
-            'CPR actuel':    t("meta_cpr_optimizer.col_current_cpr", "CPR actuel"),
-            'Dépense':       t("meta_cpr_optimizer.col_spend", "Dépense"),
-            'Résultats':     t("meta_cpr_optimizer.col_results", "Résultats"),
-            'ML max':        t("meta_cpr_optimizer.col_ml_max", "ML max"),
-        }),
-        width="stretch",
-        hide_index=True,
-    )
-
-
 def _render_detail_cards(df: pd.DataFrame) -> None:
     """Expandable cards per campaign with full explanation."""
     for _, row in df.iterrows():
@@ -317,32 +283,19 @@ def _render_detail_cards(df: pd.DataFrame) -> None:
                 ).format(cpr=cpr_str, ml=ml_txt))
 
 
-def show() -> None:
-    if not require_plan('premium'):
-        return
+def render(db, artist_id) -> None:
+    """The CPR Optimizer as a section of the algo page (R477, owner W14 II).
 
-    st.title("📊 CPR Optimizer")
-    st.caption(t(
-        "meta_cpr_optimizer.subtitle",
-        "Score composite ML × CPR pour chaque campagne. "
-        "Basé sur `campaign_track_mapping` + `ml_song_predictions` + `meta_insights_performance`."
-    ))
-    # R146 — CETTE PAGE RECOMMANDE D'AUGMENTER OU DE RÉDUIRE UN BUDGET.
-    # Toutes ses recommandations sont assises sur le CPR, c'est-à-dire sur un coût
-    # par CLIC SORTANT. C'est la surface où la limite compte le plus : ailleurs on
-    # lit un chiffre, ici on agit dessus. Elle est donc en tête de page, visible
-    # sans survol, et pas dans une info-bulle.
-    st.info(disclosure_caption())
-
-    with view_session() as (db, artist_id):
-        # Un nom de campagne peut exister dans DEUX comptes publicitaires : sans ce
-        # filtre, la sous-requête `mip` additionnerait leurs dépenses et le CPR
-        # affiché ne serait celui d'aucun des deux (R53 / ADR-013).
-        # ⚠️ Les lectures restent DANS le `with` (règle #9) : `recommendations`
-        # les fait toutes, la connexion n'est rouverte par personne.
-        df = recommendations(db, artist_id,
-                             account_scope(db, artist_id, key="meta_cpr_acct"))
-
+    « Déplacer la vue CPR Optimizer dans cette vue » : the page left the menu and its
+    key is an alias that opens the algo page's budget section. What it showed is kept
+    minus its table tab (« pas de tableaux ») and the explanatory captions under it —
+    the cards ARE the recommendations, and the CPR disclosure is the section's own.
+    Reads on the caller's connection (rule #9).
+    """
+    # Un nom de campagne peut exister dans DEUX comptes publicitaires : sans ce
+    # filtre, la sous-requête `mip` additionnerait leurs dépenses (R53 / ADR-013).
+    df = recommendations(db, artist_id, account_scope(db, artist_id, key="meta_cpr_acct"))
+    st.subheader(t("meta_cpr_optimizer.section", "📊 Que faire du budget de chaque campagne"))
     if df.empty:
         st.info(t(
             "meta_cpr_optimizer.no_mapping",
@@ -351,51 +304,11 @@ def show() -> None:
             "matin et redémarre dès que tu enregistres un identifiant."
         ))
         return
-
-    cpr_median, k_conf = df.attrs["cpr_median"], df.attrs["k_conf"]
-    if not df.attrs.get('ml_in_score'):
-        st.caption(t(
-            "meta_cpr_optimizer.ml_neutral",
-            "ℹ️ Le facteur ML est **neutre** dans ce score : au moins une campagne "
-            "porte un titre sans estimation fiable (probabilités au plancher de la "
-            "calibration). Le classement repose sur le CPR, la confiance et l'âge."))
-    # R409 — the age finding left for the free breakdowns (« Qui a vu tes pubs »):
-    # Meta Ads shows that data for free. The affinity stays in this score.
-    st.caption(t("meta_cpr_optimizer.age_moved",
-                 "🎂 La tranche d'âge qui clique le moins cher est dans **🔀 Vue croisée "
-                 "→ Qui a vu tes pubs**. Ce score en tient compte."))
-    st.caption(t("meta_cpr_optimizer.confidence_note",
-                 "Le score pondère aussi par la CONFIANCE : une campagne est crue à "
-                 "moitié à **{k:.0f} résultats**, et presque pas en dessous de "
-                 "quelques dizaines. Un CPR flatteur sur dix euros de dépense ne "
-                 "remonte plus le classement.").format(k=k_conf))
-
-    st.markdown(t("meta_cpr_optimizer.account_median",
-                  "CPR médian du compte : **{v}€**").format(v=f"{cpr_median:.2f}"))
-    st.markdown("---")
-
+    # R146 — this section RECOMMENDS raising or cutting a budget on a cost per CLICK:
+    # the limit is stated where one acts on the number.
+    st.caption(disclosure_caption())
     _render_summary_kpi(df)
-    st.markdown("---")
-
-    tab_cards, tab_table = st.tabs([
-        t("meta_cpr_optimizer.tab_cards", "🃏 Recommandations détaillées"),
-        t("meta_cpr_optimizer.tab_table", "📋 Tableau"),
-    ])
-
-    with tab_cards:
-        render_cards(df)
-
-    with tab_table:
-        _render_table(df.sort_values('score_10', ascending=False))
-
-    st.markdown("---")
-    st.caption(t(
-        "meta_cpr_optimizer.disclaimer",
-        "⚠️ Ces recommandations sont indicatives. "
-        "Le score est calculé sur les données disponibles — "
-        "plus il y a de jours de collecte, plus le score est fiable."
-    ))
-
+    render_cards(df)
 
 
 def recommendations(db, artist_id, account: str | None = None) -> pd.DataFrame:

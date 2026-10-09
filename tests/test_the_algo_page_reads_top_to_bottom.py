@@ -57,16 +57,15 @@ def test_the_page_has_no_tabs_and_its_four_sections_in_order(page) -> None:
     assert len(page.divider) >= len(section_labels()) - 1, "the sections are not separated"
 
 
-def test_no_table_is_read_outside_a_detail_fold(page) -> None:
-    folded = [df for df, anc in _walk(page._tree)
-              if type(df).__name__ == "Dataframe" and "Expander" in anc]
-    assert len(folded) > 0, "no table rendered at all — the check below would hold on nothing"
-    loose = [list(df.value.columns)[:4] for df, anc in _walk(page._tree)
-             if type(df).__name__ == "Dataframe" and "Expander" not in anc
-             and not df.proto.editing_mode]
-    assert not loose, (
-        "a read-only table renders outside an expander on the algo page — wrap it in "
-        f"`with detail():` (trigger_algo/_sections.py): {loose}")
+def test_no_table_is_read_on_the_algo_page(page) -> None:
+    """R477 (W14) : « pas de tableaux là où un graphique suffit » — 0 table en lecture.
+
+    The editors (`editing_mode`) are inputs, not readings: they stay.
+    """
+    assert len(list(_walk(page._tree))) > 20, "the page rendered nothing — the check holds on nothing"
+    read_only = [list(df.value.columns)[:4] for df, _anc in _walk(page._tree)
+                 if type(df).__name__ == "Dataframe" and not df.proto.editing_mode]
+    assert not read_only, f"a read-only table renders on the algo page: {read_only}"
 
 
 # ── R404 (V61, V63, V68) ────────────────────────────────────────────────────
@@ -85,14 +84,6 @@ def test_the_trigger_values_compare_two_tracks() -> None:
     from src.dashboard.views.trigger_algo._release_targets import MAX_TRACKS
 
     assert MAX_TRACKS == 2, "V63: « 2 au lieu de 5 »"
-
-
-def test_budget_shows_no_static_rate_table(page) -> None:
-    tables = [list(df.value.columns) for df, _ in _walk(page._tree)
-              if type(df).__name__ == "Dataframe"]
-    assert len(tables) > 0, "no table at all — the probe sees nothing"
-    assert not [c for c in tables if "Coût/soumission (€)" in c], (
-        "the Groover/Fluence rate table is back — the rates live in the selector")
 
 
 def test_the_settings_chart_greens_the_setting_to_keep() -> None:

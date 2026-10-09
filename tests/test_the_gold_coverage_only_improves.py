@@ -321,7 +321,10 @@ _FLOOR: dict[str, int] = {
     # 2026-10-06 (R421) : 145 → 144 — the home's Spotify / YouTube / Apple Music /
     # SoundCloud boxes are gone (owner): the pie carries their totals. One site, not
     # four: the four boxes were drawn by one shared `_box` helper.
-    "tiles.total": 144,
+    # 2026-10-09 (R477) : 144 → 142 — the catalogue's three summary tiles are gone (W14
+    # « des graphiques, pas de tableaux » : the catalogue chart carries them) ; the
+    # pareto's Meta cost is one tile (+1).
+    "tiles.total": 142,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

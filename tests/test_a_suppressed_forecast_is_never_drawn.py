@@ -170,29 +170,6 @@ def test_the_gate_is_read_not_a_literal_rr(monkeypatch: pytest.MonkeyPatch) -> N
     _assert_matches_gate(at)
 
 
-_FLOOR_COLS = {"DW": "dw_streams_forecast_7d", "RR": "rr_streams_forecast_7d",
-               "RADIO": "radio_streams_forecast_7d"}
-
-
-@pytest.mark.parametrize("flip", [None, "RADIO"])
-def test_the_roi_table_drops_every_suppressed_floor_column(
-        flip: str | None, monkeypatch: pytest.MonkeyPatch) -> None:
-    """revenue_forecast read only "RR": the DW floor column stayed in the ROI table."""
-    import pandas as pd
-
-    from src.dashboard.views.revenue_forecast import drop_suppressed_floor_columns
-
-    if flip:
-        monkeypatch.setitem(ak.ALGO_REGRESSOR_METRICS, flip,
-                            dict(ak.ALGO_REGRESSOR_METRICS[flip], volume_reliable=False))
-    df = pd.DataFrame({"song": ["s"], **{c: [1] for c in _FLOOR_COLS.values()}})
-    kept = set(drop_suppressed_floor_columns(df).columns)
-    for algo, col in _FLOOR_COLS.items():
-        assert (col in kept) == ak.volume_forecast_reliable(algo), (
-            f"{col} {'kept' if col in kept else 'dropped'} although "
-            f"volume_forecast_reliable({algo!r}) is {ak.volume_forecast_reliable(algo)}")
-
-
 def test_no_scatter_claims_a_forecast_and_an_actual_are_one_quantity() -> None:
     """No y=x "perfect prediction" line: the two axes carry different quantities."""
     at = _render()

@@ -667,6 +667,37 @@ src/dashboard/views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1:
   p: 3
   v: garder
   note: "R381 (V56, V64) : un panneau par playlist, empilés DW → Radio → RR (côte à côte, les noms d'un panneau recouvraient le suivant — vu sur le PNG), critères triés du plus lourd au plus léger, vert pousse / rouge retient, « ⚠ manquant » sur une donnée non reçue ; une playlist au plancher n'est pas expliquée."
+src/dashboard/views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#2:
+  q: "Où en est ce titre de chaque seuil qu'une playlist algorithmique demande ?"
+  decision: "Voir quel seuil est le plus loin d'être atteint, pour savoir où mettre l'effort en premier."
+  decision_en: "See which threshold is furthest from being met, to know where to put the effort first."
+  role: prediction
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R477 (W14 « des graphiques, pas de tableaux ») : remplace le tableau des seuils ; une barre par critère en % du seuil, ligne à 100 %, « non saisi » quand la donnée manque."
+src/dashboard/views/trigger_algo/_tab_titre.py::_render_pareto#1:
+  q: "Quels leviers manquent à ce titre, et combien de streams chacun représente-t-il ?"
+  decision: "Voir le levier qui comble le plus de l'écart, pour décider où mettre le budget Meta en premier."
+  decision_en: "See the lever that closes most of the gap, to decide where to put the Meta budget first."
+  role: prediction
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R477 (W14 « pareto, il manque X · € ») : barres triées, ce qui est fait vs ce qui manque ; le coût en Meta Ads (meilleur CPR → CPR moyen) en une tuile dessous."
+src/dashboard/views/trigger_algo/_common/_budget_roi.py::_show_meta_lever_scoring#1:
+  q: "Quelle campagne Meta liée à ce titre a coûté le moins cher par clic sortant ?"
+  decision: "Repérer la campagne au meilleur CPR, pour y remettre le budget de la prochaine sortie."
+  decision_en: "Spot the campaign with the best CPR, to put the next release's budget back on it."
+  role: meta
+  mq: M3
+  d: 4
+  c: 4
+  p: 3
+  v: garder
+  note: "R477 (W14) : remplace le tableau des leviers Meta ; une barre par campagne, la meilleure en vert, axe « CPR € par clic sortant » (la limite du proxy est dans le libellé)."
 src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1:
   q: "La prévision de volume colle-t-elle au réel ? (seules les prévisions que la porte de fiabilité autorise)"
   decision: "Vérifier si le volume prédit colle au réel, pour savoir si tu peux budgéter une campagne dessus."

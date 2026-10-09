@@ -199,11 +199,9 @@ NAV_SECTIONS: list = [
      # « voilà tes plateformes, voilà leur résumé ». Ici le résumé est loin de ce qu'il
      # résume. C'est un arbitrage entre deux récits, pas une correction.
      [("Aperçu : déclencher les algos", "algo_preview"),
-      ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo"),
-      # R405 : « Paramètres de mes campagnes » et « Prévisions revenus » sont des
-      # sections de la page algo (leurs clés restent routées, en alias). CPR Optimizer
-      # garde son entrée jusqu'à R381, qui reprend ses recommandations, et R406.
-      ("📊 CPR Optimizer", "meta_cpr_optimizer")]),
+      ("🚀 Prédiction déclenchement algos Spotify (DW, Radio, RR…)", "trigger_algo")]),
+      # R405/R477 : « Paramètres de mes campagnes », « Prévisions revenus » et
+      # « CPR Optimizer » sont des sections de la page algo (clés routées en alias).
     ("revenue",   "💶 Revenus",
      [("💰 Distributeur iMusician DistroKid + SACEM", "imusician")]),
     ("account",   "👤 Compte",

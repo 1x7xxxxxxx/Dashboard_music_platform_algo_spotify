@@ -759,3 +759,4 @@
 {"at": "2026-10-09T02:18:27+00:00", "head": "8c17ef29", "kind": "start", "task": "R476", "what": "vue croisée : registre de 7 sections + ADR-032"}
 {"at": "2026-10-09T03:18:51+00:00", "head": "74a6f430", "kind": "start", "task": "R477", "what": "prédiction algos : une vue, 0 tableau, CPR Optimizer en alias"}
 {"at": "2026-10-09T03:23:48+00:00", "kind": "done", "task": "R476", "what": "fermée par roadmap-close — CI verte sur 74a6f430 (run 37878684278) — vue croisée en registre de 7 sections, ADR-032"}
+{"at": "2026-10-09T03:27:14+00:00", "head": "93dae00e", "kind": "done", "task": "R476", "what": "CI verte 74a6f430, archivée"}

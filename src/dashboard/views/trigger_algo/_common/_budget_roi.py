@@ -1,8 +1,13 @@
 """trigger_algo budget_roi — move-only split of _common."""
-from src.dashboard.utils import algo_knowledge as ak
-from src.dashboard.utils.i18n import t
 import pandas as pd
 import streamlit as st
+
+from src.dashboard.utils import algo_knowledge as ak
+from src.dashboard.utils import charts
+from src.dashboard.utils.formats import eur
+from src.dashboard.utils.i18n import t
+from src.dashboard.utils.labels import unique_short_labels
+from src.dashboard.utils.semantic_colors import BON, NEUTRE
 from src.utils.track_matching import canonical_song_sql
 
 _CANON = canonical_song_sql('ctm.track_name')
@@ -190,16 +195,11 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
     df = df.copy()
     df["cpr"] = pd.to_numeric(df["cpr"], errors="coerce")
     df["ctr"] = pd.to_numeric(df["ctr"], errors="coerce")
-    show = df.rename(columns={
-        "campaign_name": t("trigger_algo.common.meta_col_campaign", "Campagne"),
-        # R146 — « Results » nommait un clic sortant comme un aboutissement.
-        "spend": "Spend €", "results": "Clics sortants",
-        "cpr": "CPR € (/clic sortant)",
-        # A LINK-click rate: it is not the all-click CTR of the Créatives page.
-        "ctr": t("trigger_algo.common.meta_col_link_ctr", "CTR lien %"),
-        "link_clicks": t("trigger_algo.common.meta_col_clicks", "Clics"), "ctas": "CTA",
-    })
-    st.dataframe(show, hide_index=True, width='stretch')
+    # R477 (W14 « Budget et ROI : graphiques, pas de tableaux ») — the CPR of each
+    # mapped campaign as a bar, cheapest on top; the best/worst lines below name them.
+    fig = lever_cpr_figure(df)
+    if fig is not None:
+        charts.plotly_chart(fig, width="stretch")
 
     scored = df.dropna(subset=["cpr"])
     if not scored.empty:
@@ -218,3 +218,26 @@ def _show_meta_lever_scoring(db, track: str, artist_id) -> None:
                  "CPR = coût par **clic sortant** vers la plateforme, pas par écoute "
                  "(plus bas = mieux). Croise avec le levier SHAP "
                  "pénalisé : le CTA « Ajouter en playlist » bat « Écouter » sur le DW."))
+
+
+def lever_cpr_figure(df: pd.DataFrame):
+    """Cost per outbound click of each campaign mapped to the title — or None. Pure."""
+    import plotly.graph_objects as go
+
+    scored = df.dropna(subset=["cpr"]).sort_values("cpr", ascending=False)
+    if scored.empty:
+        return None
+    best = scored["cpr"].min()
+    # A campaign name runs to 150 characters (an interest list) : unclipped, it ate
+    # the plot on the PNG. The bar carries a short label, the hover the full name.
+    names = unique_short_labels(scored["campaign_name"], 40)
+    fig = go.Figure(go.Bar(
+        x=scored["cpr"], y=names, orientation="h", customdata=scored["campaign_name"],
+        marker_color=[BON if v == best else NEUTRE for v in scored["cpr"]],
+        text=[eur(v, 3) for v in scored["cpr"]], textposition="outside", cliponaxis=False,
+        hovertemplate="%{customdata}<br>%{x:.3f} € / clic sortant<extra></extra>", showlegend=False))
+    fig.update_xaxes(title=t("trigger_algo.common.meta_cpr_axis", "CPR € par clic sortant"),
+                     range=[0, float(scored["cpr"].max()) * 1.25])
+    fig.update_yaxes(automargin=True)
+    fig.update_layout(height=80 + 40 * len(scored), margin=dict(t=20, l=10, r=10, b=40))
+    return fig

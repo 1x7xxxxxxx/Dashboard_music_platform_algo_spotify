@@ -108,27 +108,37 @@ def last_releases(df: pd.DataFrame, n: int = MAX_TRACKS) -> list[str]:
 
 
 def indicators_figure(tracks: list[str], levers_by_track: dict):
-    """One gauge per (algorithm, track): the shortest route, 0-100 %. Pure."""
+    """One gauge per (algorithm, track): the shortest route, 0-100 %. Pure.
+
+    R477 (W14 « nom des playlists dans une petite case ») — each row opens on its
+    playlist's name in a small box drawn in the playlist's colour, in a narrow first
+    column; the gauges keep the track names as their titles.
+    """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
     cols = max(len(tracks), 1)
     names = dict(zip(tracks, short_labels(tracks, 24)))
-    fig = make_subplots(rows=len(ALGOS), cols=cols,
-                        specs=[[{"type": "indicator"}] * cols] * len(ALGOS),
+    fig = make_subplots(rows=len(ALGOS), cols=cols + 1,
+                        column_widths=[0.2] + [0.8 / cols] * cols,
+                        specs=[[None] + [{"type": "indicator"}] * cols] * len(ALGOS),
                         vertical_spacing=0.12, horizontal_spacing=0.04)
     for r, algo in enumerate(ALGOS, start=1):
-        for c, song in enumerate(tracks, start=1):
+        for c, song in enumerate(tracks, start=2):
             route = shortest_route(levers_by_track.get(song, {}), algo)
             value = None if route is None else round(100 * route["progress"])
             fig.add_trace(go.Indicator(
                 mode="gauge+number", value=value, number={"suffix": " %", "font": {"size": 18}},
-                title={"text": (f"<b>{ALGO_NAMES[algo]}</b><br>" if c == 1 else "")
-                       + (f"<span style='font-size:11px'>{names[song]}</span>" if r == 1 else ""),
-                       "font": {"size": 11}},
+                title={"text": (f"<b>{names[song]}</b>"
+                                if r == 1 else ""), "font": {"size": 14}},
                 gauge={"axis": {"range": [0, 100], "visible": False},
                        "bar": {"color": ALGO_COLORS[algo]},
                        "threshold": {"line": {"color": "#333", "width": 2}, "value": 100}}),
                 row=r, col=c)
+        y0, y1 = fig.data[-1].domain.y
+        fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
+                           xanchor="left", showarrow=False, text=f"<b>{ALGO_NAMES[algo]}</b>",
+                           font={"size": 12}, bordercolor=ALGO_COLORS[algo], borderwidth=2,
+                           borderpad=5, bgcolor="rgba(0,0,0,0)")
     fig.update_layout(height=150 * len(ALGOS) + 40, margin=dict(t=40, b=10, l=10, r=10))
     return fig
 

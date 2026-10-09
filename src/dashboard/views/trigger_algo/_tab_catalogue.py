@@ -25,51 +25,22 @@ par les lectures de sa tranche ; une figure fabriquée ailleurs devient
 """
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
 
-from src.dashboard.utils.algo_preview_data import format_proba
 
-from ._sections import detail
 from ._catalogue import _feats as _feats_json, construire
 from src.dashboard.utils import charts
 
+# R477 : no probability column — the tab shows none since « 📋 Le tableau complet » left.
 _Q_CATALOGUE = """
-SELECT song, days_since_release, streams_28d,
-       dw_probability, rr_probability, radio_probability, features_json
+SELECT song, days_since_release, streams_28d, features_json
   FROM ml_song_predictions
  WHERE artist_id = %s
    AND prediction_date = (SELECT MAX(prediction_date)
                             FROM ml_song_predictions WHERE artist_id = %s)
 """
-
-# Sous 40 % on est loin, au-dessus de 80 % la porte est à portée. Les bornes sont
-# des repères de lecture, pas des seuils du modèle — elles n'entrent dans aucun calcul.
-_PRESQUE, _EN_ROUTE = 0.80, 0.40
-
-
-def _teinte(avancement) -> str:
-    if avancement is None or pd.isna(avancement):
-        return NEUTRE
-    if avancement >= _PRESQUE:
-        return BON
-    return ATTENTION if avancement >= _EN_ROUTE else MAUVAIS
-
-
-def _age(jours) -> str:
-    if jours is None or pd.isna(jours):
-        return "—"
-    j = int(jours)
-    if j < 60:
-        return f"{j} j"
-    if j < 365:
-        return f"{j // 30} mois"
-    annees, mois = divmod(j, 365)[0], (j % 365) // 30
-    return f"{annees} an{'s' if annees > 1 else ''}" + (f" {mois} mois" if mois else "")
-
 
 def _show_tab_catalogue(db, artist_id) -> None:
     """Les dix titres, classés par ce qui leur manque le moins."""
@@ -99,23 +70,17 @@ def _show_tab_catalogue(db, artist_id) -> None:
 
     df = construire(lignes.to_dict("records"))
 
-    # ── COMPARER DEUX OU TROIS TITRES CÔTE À CÔTE ───────────────────────────
-    # Le tableau complet classe tout le catalogue ; il ne répond pas à « celui-ci
-    # ou celui-là ? ». Le sélecteur FILTRE la figure et le tableau existants au
-    # lieu d'ouvrir une seconde surface : deux vues du même chiffre finissent
-    # toujours par diverger, et le cliquet de figures de premier écran ne laisse
-    # pas la place à une figure de plus.
-    # R247 (fiche 42) : tes DERNIÈRES SORTIES d'office, cinq au plus — la question de
-    # l'artiste est « où en sont mes nouveautés », pas le classement de tout le catalogue.
+    # R477 (owner W14, 2026-10-09) : « dernière release sélectionnée automatiquement »,
+    # « deux releases au lieu de cinq, pas de tableau, des graphiques ». The three tiles,
+    # the head texts, the note under the gauges and « 📋 Le tableau complet » (with its
+    # note — « le vrai pour tout ton catalogue ») are gone: the two figures ARE the answer.
+    # The selector is the app's shared one (`release_picker`, R478), newest release first.
+    from src.dashboard.utils.release_picker import release_picker
     from ._release_targets import (MAX_TRACKS, by_proximity, indicators_figure,
                                    last_releases, track_levers, values_figure)
-    choix = st.multiselect(
-        t("trigger_algo.cat.releases", "🎵 Tes deux dernières sorties"),
-        options=list(df["song"]), default=last_releases(df),
-        key=f"cat_compare_{artist_id}",
-        help=t("trigger_algo.cat.releases_help",
-               "Tes deux sorties les plus récentes sont choisies d'office ; remplace-les "
-               "par d'autres titres pour les comparer."))
+    newest_first = last_releases(df, n=len(df))
+    choix = release_picker(t("trigger_algo.cat.releases", "🎵 Tes deux dernières sorties"),
+                           newest_first, key=f"cat_compare_{artist_id}")
     # The cap is applied HERE, not by `max_selections`: Streamlit RAISES when the session
     # already holds more (this key served the uncapped selector before R247), and a
     # widened filter crashed the tab (test_a_widened_filter_still_renders).
@@ -123,91 +88,10 @@ def _show_tab_catalogue(db, artist_id) -> None:
         st.caption(t("trigger_algo.cat.releases_cut",
                      "Les {n} premiers titres choisis sont montrés.").format(n=MAX_TRACKS))
         choix = choix[:MAX_TRACKS]
-    if choix:
-        df = df[df["song"].isin(choix)].reset_index(drop=True)
+    if not choix:
+        return
     feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
     levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}
-
-    avec_porte = df[df["avancement"].notna()]
-
-    # ── Trois tuiles ────────────────────────────────────────────────────────
-    c1, c2, c3 = st.columns(3)
-    c1.metric(t("trigger_algo.cat.tile_active", "Titres avec un levier"),
-              f"{len(avec_porte)}/{len(df)}",
-              help=t("trigger_algo.cat.tile_active_help",
-                     "Titres dont au moins une métrique mesurée est sous son "
-                     "objectif — c'est là qu'une action change quelque chose."))
-    if not avec_porte.empty:
-        tete = avec_porte.iloc[0]
-        c2.metric(t("trigger_algo.cat.tile_closest", "Le plus proche d'une porte"),
-                  str(tete["song"])[:24],
-                  delta=f"{tete['gate_label']} : il manque "
-                        f"{tete['gate_gap']:,.0f} {tete['gate_unit']}".replace(",", " "),
-                  delta_color="off")
-        c3.metric(t("trigger_algo.cat.tile_progress", "Son avancement"),
-                  f"{tete['avancement']:.0%}",
-                  help=t("trigger_algo.cat.tile_progress_help",
-                         "Où il en est sur ce levier précis, pas sa chance globale."))
-
-    # ── R247 (fiche 42) — deux figures, dans l'ordre de la question ──────────
-    if choix:
-        st.markdown(t("trigger_algo.cat.gauges_head",
-                      "**Où chaque titre en est, algorithme par algorithme** — le chemin "
-                      "le plus court : le levier le plus proche de la valeur où le modèle "
-                      "passe à 80 % de chances."))
-        charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers),
-                            width="stretch")
-        st.markdown(t("trigger_algo.cat.values_head",
-                      "**Les valeurs qui déclencheraient** — ta valeur (barre) et, pour "
-                      "chaque algorithme, la valeur visée (trait). Trait vif : calculée par "
-                      "le modèle pour CE titre ; trait pâle : un repère général, là où le "
-                      "modèle n'atteint jamais 80 %."))
-        charts.plotly_chart(values_figure(choix, levers), width="stretch")
-        st.caption(t("trigger_algo.cat.gauges_note",
-                     "Pourquoi pas le pourcentage de chances directement : sur ton catalogue, "
-                     "il ne varie que de quelques centièmes de point d'un titre à l'autre (il "
-                     "est posé sur le plancher de la calibration) — il ne dirait rien. Le "
-                     "chemin parcouru, lui, bouge quand tu agis."))
-
-    # ── Le tableau comparatif ───────────────────────────────────────────────
-    _render_table(df)
-
-
-def _render_table(df: pd.DataFrame) -> None:
-    """La comparaison titre par titre. Les probabilités viennent EN DERNIER."""
-    aff = pd.DataFrame({
-        t("trigger_algo.cat.col_track", "Titre"): df["song"],
-        t("trigger_algo.cat.col_age", "Âge"): [_age(v) for v in df["days_since_release"]],
-        t("trigger_algo.cat.col_gate", "Porte la plus proche"): df["gate_algo"],
-        t("trigger_algo.cat.col_missing", "Il me manque"): [
-            "—" if pd.isna(g) else f"{g:,.0f} {u}".replace(",", " ")
-            for g, u in zip(df["gate_gap"], df["gate_unit"])],
-        t("trigger_algo.cat.col_progress", "Avancement"): df["avancement"],
-        t("trigger_algo.cat.col_levers", "Leviers restants"): df["n_leviers"],
-        t("trigger_algo.cat.col_saves", "Saves 28j"): df["saves_28d"],
-        t("trigger_algo.cat.col_adds", "Ajouts playlist 28j"): df["adds_28d"],
-        t("trigger_algo.cat.col_streams", "Streams 28j"): df["streams_28d"],
-        # DW → Radio → RR, the one order (`ALGO_ORDER`, R380).
-        "DW %": [_proba("dw", v) for v in df["dw_probability"]],
-        "Radio %": [_proba("radio", v) for v in df["radio_probability"]],
-        "RR %": [_proba("rr", v) for v in df["rr_probability"]],
-    })
-    with detail(t("trigger_algo.cat.detail", "📋 Le tableau complet")):
-        st.dataframe(
-            aff, hide_index=True, width="stretch",
-            column_config={
-                t("trigger_algo.cat.col_progress", "Avancement"):
-                    st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
-            },
-        )
-    st.caption(t(
-        "trigger_algo.cat.table_note",
-        "⚠️ **« pas d'estimation fiable »** remplace une probabilité dont le score "
-        "brut est négligeable : le modèle n'a pas tranché pour ce titre, il n'hésite "
-        "pas, et ce chiffre ne distinguerait rien — c'est pourquoi il n'est pas "
-        "affiché, et pourquoi le tableau est trié sur l'avancement."))
-
-
-def _proba(algo: str, valeur) -> str:
-    """REFUSE, not mark (2026-09-26): one policy for every surface — the shared door."""
-    return format_proba(algo, valeur, decimals=1)
+    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers),
+                        width="stretch")
+    charts.plotly_chart(values_figure(choix, levers), width="stretch")
