@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R474 — Apple Music : « Je ne parle pas très bien le français » 686 streams affiché 68 — erreur… (livrée 2026-10-09)
+
+- [x] **R474 — Apple Music : « Je ne parle pas très bien le français » 686 streams affiché 68 — erreur d'échelle ; cause lue dans le code, balayage du même défaut dans toutes les vues et le PDF (règles 11/14), garde (W7)** (P2) ✅ (2026-10-09, c9fe0ae5, 59e68078)
+  Mesuré par : test rouge sur 686→68 puis vert ; balayage `swept:` chiffré
+  cause : cliponaxis=True par défaut de Plotly rognait l'étiquette outside de la plus longue barre (686 → « 68 ») ; fix à la porte apply_defaults (cliponaxis=False + marge d'axe 15 %), couvre les 7 sites outside/auto des vues et du PDF ; garde tests/test_outside_bar_labels_are_never_clipped.py rouge 4× puis vert ; CI verte sur c9fe0ae5
+  Commits : c9fe0ae5 R474 : étiquettes de barres « outside » jamais rognées — fix à la port · 59e68078 Roadmap : R474-R489 inscrites — retours vocaux W1-W14 du 2026-10-09 (u
+
 ## ✅ R473 — Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skil… (livrée 2026-10-08)
 
 - [x] **R473 — Mesures arrivées à échéance du rapport de harnais : REQ-HARN-12 (chargements rules/skills après `paths:`/`keywords:` du 2026-10-04) et REQ-HARN-07 (playbook jamais injecté en 30 j → retrait) — remesurer et trancher ; une échéance en prose ne se déclenche pas : le curateur hebdomadaire rend le verdict playbooks dès 30 j de série** (P4) ✅ (2026-10-08, 4aacd23b)

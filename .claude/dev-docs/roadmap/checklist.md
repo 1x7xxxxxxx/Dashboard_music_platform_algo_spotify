@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R474 | Apple Music : « Je ne parle pas très bien le français » 686 streams affiché 68 — erreur d'échelle ; cause lue dans le code, balayage du même défaut dans toutes les vues et le PDF (règles 11/14), garde (W7) <!-- critic: non — bug d'affichage, fix + garde --> <!-- scope: src/dashboard/, src/utils/, tests/ --> | P2 | test rouge sur 686→68 puis vert ; balayage `swept:` chiffré |
 | R475 | Accueil : balises `</div>` visibles sous « ce qui alimente tes chiffres » — trouver pourquoi (collect_xxx ?) et corriger à la cause (W1) <!-- critic: non — bug de rendu --> <!-- scope: src/dashboard/, tests/ --> | P3 | rendu AppTest sans `</div>` littéral |
 | R476 | Vue croisée = la vue de tout le funnel (W13, W2) : architecture unique et filtres partagés ; absorbe Pub Meta, Visuels, Qui a vu tes pubs, Instagram, l'onglet « Tout mon funnel » (contenu redistribué), stats globales Hypeddit (W5), « mes sorties à âge égal » + Meta (W6), Shazam depuis la sortie + Meta (W7), point mort / revenu net redessiné (W11) ; renommée « … × Shazam × Revenus », placée en FIN d'« Analytics plateformes » ; funnel Insta → Hypeddit → Spotify, Insta Ads, Shazam <!-- critic: requis — refactor de structure de vue, déplacements multi-vues --> <!-- scope: src/dashboard/, docs/adr/, .claude/dev-docs/, tests/ --> | P3 | une seule entrée de menu croisée ; chaque graphique déplacé rendu une fois (AppTest) |
 | R477 | Prédiction déclenchement algos : UNE seule vue (4 sous-vues fusionnées), traits de lecture haut→bas, playlists en badges ; retirer « prochain geste titre par titre » et « le vrai pour tout ton catalogue » ; 2 releases au lieu de 5 en graphiques ; SHAP décroissant atteint vs requis par playlist (DW, Radio, RR) + seuils ; reste-à-faire → coût Meta au meilleur CPR et au CPR moyen ; budget/ROI en graphiques ; absorbe CPR Optimizer (W14) et, depuis Saisie S4A, résultats réalisés, pari du modèle, streams algo 28 j, tableau autre fenêtre (W4) <!-- critic: requis — fusion de vues et retrait d'une entrée de menu --> <!-- scope: src/dashboard/, tests/ --> | P3 | 0 `st.dataframe` dans la vue ; CPR Optimizer hors du menu, route alias |
@@ -102,7 +101,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R474,R475,R476,R477,R478,R479,R480,R481,R482,R483,R484,R485,R486,R487,R488,R489,R490 -->
+<!-- reprise: open=R475, R476, R477, R478, R479, R480, R481, R482, R483, R484, R485, R486, R487, R488, R489, R490 -->
 
 **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
