@@ -122,7 +122,7 @@ src/dashboard/views/soundcloud.py::_render_age_comparison#1:
   c: 3
   p: 3
   v: garder
-  note: "R385 (V44) : remplace la croissance datée et la base 100 ; même tracé que « Mes sorties, à âge égal » de Spotify (age_aligned_traces). La collecte par titre commence 420 à 2 258 jours après l'upload : chaque courbe ne couvre que ses âges mesurés, sans origine (0, 0) inventée."
+  note: "R385 (V44) : remplace la croissance datée et la base 100 ; même tracé que « Mes sorties, à âge égal » de Spotify (age_aligned_traces). La collecte par titre commence 420 à 2 258 jours après l'upload : chaque courbe ne couvre que ses âges mesurés, sans origine (0, 0) inventée. R486 (W9) : tous les titres d'office ; au-delà de 4 courbes, ni étiquettes de fin ni légende (elles se chevauchaient), le titre est dans le survol."
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   q: "Mes écoutes et mon engagement SoundCloud progressent-ils ?"
   decision: "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo."
@@ -136,7 +136,7 @@ src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   owner: "Fusionne tout sur un même graphique : les écoutes cumulées, l'engagement cumulé, likes, reposts, commentaires. Pas en base 100, mais tout sur un même graphe."
   cause: absence-ecrite-zero
   note: "L'engagement cumulé plonge à 0 en avril puis revient — même défaut que la croissance. Doublon partiel de « Croissance »."
-src/dashboard/views/soundcloud.py::_render_top_chart#1:
+src/dashboard/views/soundcloud.py::show#1:
   q: "Quels titres SoundCloud marchent, et engagent ?"
   decision: "Choisir les titres SoundCloud qui engagent le plus, à mettre en avant dans tes campagnes."
   decision_en: "Pick the SoundCloud tracks that engage most, to feature in your campaigns."
@@ -147,7 +147,7 @@ src/dashboard/views/soundcloud.py::_render_top_chart#1:
   v: garder
   owner_v: garder
   owner: "On garde."
-  note: "Volume et taux d'engagement côte à côte, noms complets — lisible. R385 (V43) : le volume se choisit parmi les quatre compteurs ; passé en tête de page."
+  note: "Volume et taux d'engagement côte à côte, noms complets — lisible. R385 (V43) : le volume se choisit parmi les quatre compteurs ; passé en tête de page. R486 (W9) : cinq panneaux alignés (écoutes, engagement défini dans le titre, likes, reposts, commentaires), dégradé orange, total dans chaque titre de panneau — les quatre tuiles et le tableau sont retirés."
 src/dashboard/views/youtube.py::_channel_section#1:
   q: "Ma chaîne gagne-t-elle abonnés et vues ?"
   decision: "Juger si ta chaîne YouTube gagne vues et abonnés, pour décider d'y lancer une campagne vidéo."

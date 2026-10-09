@@ -96,7 +96,7 @@ def _has_readings() -> bool:
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the SoundCloud page against the live DB")
-def test_the_page_puts_four_counters_on_one_row_and_compares_at_equal_age() -> None:
+def test_the_page_has_no_tiles_and_compares_every_title_at_equal_age() -> None:
     if not _has_readings():
         pytest.skip("artist 1 has no SoundCloud reading — the page renders its empty state")
     from streamlit.testing.v1 import AppTest
@@ -106,15 +106,16 @@ def test_the_page_puts_four_counters_on_one_row_and_compares_at_equal_age() -> N
     at.run(timeout=120)
     assert not at.exception, at.exception
 
-    assert len(at.metric) == 4, [m.label for m in at.metric]
-    assert sorted(_metric_rows(at._tree)) == [4], (
-        f"the four counters are not on one row of four: {_metric_rows(at._tree)}")
+    # R486 (W9) : the four tiles moved INTO the figures — « on gagne une ligne ».
+    assert len(at.metric) == 0, [m.label for m in at.metric]
+    assert not _metric_rows(at._tree), _metric_rows(at._tree)
 
     heads = [s.value for s in at.subheader]
     assert heads and "compar" in heads[0], f"the comparison is not on top: {heads}"
     pickers = [m for m in at.multiselect if "Titres à comparer" in m.label]
     assert len(pickers) == 1, "the equal-age comparison has no title picker"
-    assert len(pickers[0].value) == min(2, len(pickers[0].options))
+    # R486 (W9) : « n'a que deux titres → toutes les tracks ».
+    assert len(pickers[0].value) == len(pickers[0].options)
     assert any("à âge égal" in h for h in heads), heads
 
 

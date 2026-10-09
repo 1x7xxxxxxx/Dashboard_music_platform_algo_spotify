@@ -46,13 +46,11 @@ import streamlit as st
 from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.age_aligned import age_aligned_traces
 from src.dashboard.utils.formats import num
-from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.release_picker import release_picker
-from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.platform_colors import DISTINCT, PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
-from src.dashboard.utils.date_format import format_date, format_serie
+from src.dashboard.utils.date_format import format_serie
 
 # L'orange MESURÉ de SoundCloud — pas `#FF5500`, la teinte de marque exacte, que
 # le balayage du 2026-09-08 a refusée (ΔE 4,6 contre YouTube en deutéranopie).
@@ -122,37 +120,18 @@ def show():
                     _r = _dernier.iloc[0]
                     total_plays, total_likes = int(_r["plays"]), int(_r["likes"])
                     total_reposts, total_comments = int(_r["reposts"]), int(_r["comments"])
-                    total_tracks = int(_r["tracks"])
                 else:
                     total_plays = df_latest['playback_count'].sum()
                     total_likes = df_latest['likes_count'].sum()
                     total_reposts = df_latest['reposts_count'].sum()
                     total_comments = df_latest['comment_count'].sum()
-                    total_tracks = len(df_latest)
 
-                # Récupération de la dernière date de collecte
-                # timestamptz across a DST change → mixed offsets (utils/tz.py).
-                last_date_str = format_date(to_local_datetime(df_latest['collected_at']).max())
-
-                # ⚠️ QUATRE TUILES, PAS SIX — 2026-09-21, à la demande du
-                # propriétaire. « 🎵 Titres en ligne » et « 📅 Dernière mise à
-                # jour » ne décident rien : le nombre de titres se lit dans le
-                # classement juste en dessous, et une date de collecte est un
-                # fait de PLOMBERIE. Elle descend dans la légende.
-                # R385 (V42) : les quatre sur UNE ligne — elles étaient sur deux.
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric(t("soundcloud.kpi_plays", "🎧 Total Écoutes"), f"{int(total_plays):,}")
-                c2.metric(t("soundcloud.kpi_likes", "❤️ Total Likes"), f"{int(total_likes):,}")
-                c3.metric(t("soundcloud.kpi_reposts", "🔄 Total Reposts"), f"{int(total_reposts):,}")
-                c4.metric(t("soundcloud.kpi_comments", "💬 Total Commentaires"),
-                          f"{int(total_comments):,}")
-
-                st.caption(t(
-                    "soundcloud.likes_caption",
-                    "ℹ️ **{n} titres**, dernier relevé le **{d}**. Likes et "
-                    "historique fiables depuis le 15/05/2026 (collecte OAuth "
-                    "user-token). Sources CSV S4A/Apple non liées — autre sujet."
-                ).format(n=total_tracks, d=last_date_str))
+                # R486 (W9, 2026-10-09) : « les totaux du haut se retrouvent dans les
+                # graphiques (on gagne une ligne) » — the four tiles and their caption
+                # are gone ; the totals ride in the figure titles below.
+                totals = {"playback_count": int(total_plays), "likes_count": int(total_likes),
+                          "reposts_count": int(total_reposts),
+                          "comment_count": int(total_comments)}
 
             else:
                 st.warning(t("soundcloud.no_data", "Aucune donnée SoundCloud trouvée. Lancez le collecteur."))
@@ -173,43 +152,18 @@ def show():
             st.error(t("soundcloud.sql_error_kpi", "Erreur SQL (KPIs) : {err}").format(err=e))
             return
 
-        st.markdown("---")
-
-        # R385 (V46) : peu de figures, la plus utile en haut — comparer les sorties,
-        # puis les comparer à âge égal, puis le catalogue dans le temps.
-        # =========================================================================
-        # 1. LES SORTIES COMPARÉES SUR LES QUATRE COMPTEURS (V43, V45)
-        # =========================================================================
+        # R385 (V46), R486 (W9) : the most useful first — every title on the five
+        # counters, then the titles at equal age, then the catalogue in time.
+        df_top = _with_engagement(df_latest).sort_values("playback_count", ascending=False)
         st.subheader(t("soundcloud.top_tracks", "🏆 Mes titres comparés"))
-        df_top = _with_engagement(df_latest)
-        _metrics = _metric_labels()
-        sort_by = st.segmented_control(
-            t("soundcloud.sort_by", "Comparer sur"), list(_metrics.values()),
-            default=_metrics["playback_count"], key="sc_sort",
-        ) or _metrics["playback_count"]
-        sort_col = next(c for c, lbl in _metrics.items() if lbl == sort_by)
-        df_top = df_top.sort_values(by=sort_col, ascending=False)
-        _render_top_chart(df_top, sort_col, sort_by, _metrics["playback_count"])
+        charts.plotly_chart(top_figure(df_top, totals), width="stretch", decision=False)
 
-        st.markdown("---")
-
-        # =========================================================================
-        # 2. TOUT LE CATALOGUE, À ÂGE ÉGAL (V44)
-        # =========================================================================
         _render_age_comparison(db, artist_id, df_top)
-
-        st.markdown("---")
-
-        # =========================================================================
-        # 3. LE CATALOGUE DANS LE TEMPS — les quatre compteurs, une horloge
-        # =========================================================================
-        _render_catalog_series(db, artist_id)
+        _render_catalog_series(db, artist_id, totals)
 
         # Les titres sortis sous le compte d'un label ou d'un collectif — déclarés
-        # ICI depuis le 2026-09-04, et plus dans Credentials. C'est en lisant ce
-        # tableau qu'on s'aperçoit qu'une sortie manque ; c'est donc ici qu'on la
-        # réclame. Replié : le cas ne concerne pas la majorité.
-        st.markdown("---")
+        # ICI depuis le 2026-09-04 : c'est en lisant le classement qu'on s'aperçoit
+        # qu'une sortie manque.
         render_claimed_tracks(db, artist_id)
 
 
@@ -289,6 +243,9 @@ def latest_first(df: pd.DataFrame) -> pd.DataFrame:
                           ascending=[False, False], na_position="last")
 
 
+_LABELLED_CURVES = 4   # past this, end labels collide (PNG read, R486)
+
+
 def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     """Choose titles, compare their cumulative counter at EQUAL AGE (R385, V44).
 
@@ -297,6 +254,10 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     owner, 2026-10-07: « d'office les deux dernières sorties »), which reverses R385's
     most-played default: the question this chart answers is « how is my new release
     doing against the previous one ».
+
+    R486 (W9, 2026-10-09) : « n'a que deux titres → toutes les tracks ». The page has
+    one catalogue and this chart is titled « tout le catalogue » : every title opens
+    selected, newest first, through the same shared picker (n = all).
     """
     st.subheader(t("soundcloud.age_header", "📈 Tout le catalogue, à âge égal"))
     by_release = latest_first(df_top)
@@ -304,12 +265,11 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     metrics = _metric_labels()
     c1, c2 = st.columns([3, 1])
     picked = release_picker(t("soundcloud.age_pick", "Titres à comparer"), titles,
-                            key=f"sc_age_pick_{artist_id}", container=c1)
+                            key=f"sc_age_pick_{artist_id}", n=len(titles), container=c1)
     metric_lbl = c2.selectbox(t("soundcloud.age_metric", "Compteur"),
                               list(metrics.values()), key=f"sc_age_metric_{artist_id}")
     metric = next(c for c, lbl in metrics.items() if lbl == metric_lbl)
     if not picked:
-        st.info(t("soundcloud.age_pick_one", "Choisis au moins un titre."))
         return
     chosen = by_release.set_index("title").loc[picked].reset_index()
     frame = _age_frame(db, artist_id, chosen, metric)
@@ -318,22 +278,27 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
                   "Aucun relevé lisible de ce compteur pour ces titres."))
         return
     colour = dict(zip(picked, _nuances(len(picked))))
-    fig = go.Figure(age_aligned_traces(frame, x="age", y="value", series="title",
-                                       colour=colour, markers=True))
+    traces = age_aligned_traces(frame, x="age", y="value", series="title",
+                                colour=colour, markers=True)
+    crowded = len(traces) > _LABELLED_CURVES
+    if crowded:
+        # R486 : the whole catalogue is ~20 curves. End labels stack on each other and a
+        # legend of twenty oranges maps nothing — the title rides in the hover instead,
+        # and the shade still says recency (newest darkest).
+        for tr in traces:
+            tr.update(mode="lines+markers", text=None, showlegend=False,
+                      hovertemplate=f"{tr.name}<br>%{{x}} j · %{{y:,.0f}}<extra></extra>")
+    fig = go.Figure(traces)
     fig.update_layout(height=420, margin=dict(r=90, t=30),
                       legend=dict(orientation="h", y=-0.2, x=0),
                       xaxis_title=t("soundcloud.age_axis", "Jours depuis la mise en ligne"),
                       yaxis_title=t("soundcloud.age_value_axis", "{m} cumulés")
                       .format(m=metric_lbl))
     fig.update_yaxes(tickformat="~s", rangemode="tozero")
-    charts.plotly_chart(fig, width="stretch")
-    st.caption(t("soundcloud.age_caption",
-                 "SoundCloud ne donne que le compteur du jour : chaque courbe commence à "
-                 "l'âge qu'avait le titre au premier relevé collecté, pas à sa mise en "
-                 "ligne. Deux titres se comparent là où leurs courbes se recouvrent."))
+    charts.plotly_chart(fig, width="stretch", decision=False)
 
 
-def _render_catalog_series(db, artist_id) -> None:
+def _render_catalog_series(db, artist_id, totals: dict | None = None) -> None:
     """Les quatre compteurs du CATALOGUE sur un axe de temps.
 
     Demandé le 2026-09-21 — « il n'y a pas un moyen pour mettre le total écoute
@@ -409,8 +374,9 @@ def _render_catalog_series(db, artist_id) -> None:
             line=dict(color=_ENGAGEMENT_INK, width=2, dash=dash)), secondary_y=True)
 
     fig.update_layout(height=460, hovermode="x unified",
+                      title=totals_line(totals) if totals else None,
                       legend=dict(orientation="h", y=-0.15, x=0),
-                      margin=dict(t=30))
+                      margin=dict(t=60 if totals else 30))
     fig.update_yaxes(tickformat="~s", secondary_y=False,
                      title_text=t("soundcloud.plays_axis", "Écoutes cumulées"),
                      title_font_color=_SC)
@@ -418,14 +384,14 @@ def _render_catalog_series(db, artist_id) -> None:
                      title_text=t("soundcloud.engagement_axis",
                                   "Likes, reposts, commentaires (cumul)"),
                      title_font_color=_ENGAGEMENT_INK)
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(fig, width="stretch", decision=False)
 
-    legende = t("soundcloud.catalog_caption",
-                "**{n} relevé(s)** sur {t} titre(s). Ces compteurs sont des CUMULS "
-                "à vie : la courbe monte ou reste plate, elle ne redescend jamais.")\
-        .format(n=len(ok), t=int(ok.iloc[-1]["tracks"]))
+    # R486 (W9) : « retirer tout le blabla (… 129 relevés …) » — the reading count is
+    # gone. What stays is CONDITIONAL and is not help text : a day dropped from the
+    # curve is a measure withheld, and the page says which one (P2 over P3).
+    legende = ""
     if not ecartes.empty:
-        legende += " " + t(
+        legende += t(
             "soundcloud.catalog_dropped",
             "⚠️ **{k} jour(s) écarté(s)** ({d}) : le cumul y redescendait sous son "
             "maximum — une collecte qui a répondu faux, pas une perte d'audience. "
@@ -439,90 +405,74 @@ def _render_catalog_series(db, artist_id) -> None:
             "⚠️ **{k} jour(s) sans likes lisibles** : un titre au moins y lisait 0 "
             "like après en avoir compté — une lecture ratée, pas des likes "
             "retirés. La courbe des likes les saute.").format(k=len(_likes_ko))
-    st.caption(legende)
+    if legende:
+        st.caption(legende.strip())
 
 
-def _render_top_chart(df_top, sort_col: str, sort_by: str, plays_lbl: str) -> None:
-    """Le classement des titres, en FIGURE — demandé le 2026-09-21.
+_ORANGES = [[0.0, "#FFE0CC"], [1.0, _SC]]   # R486 (W9) — « dégradé orange »
 
-    Le tableau de sept colonnes était exact et ne se lisait pas : pour savoir quel
-    titre sur-performe, il fallait comparer mentalement une colonne d'écoutes en
-    milliers à un taux d'engagement en pourcents, ligne à ligne, sur dix-neuf
-    lignes.
 
-    DEUX CADRES QUI RÉPONDENT À DEUX QUESTIONS :
+def engagement_rate(totals: dict) -> float | None:
+    """(likes + reposts + comments) / plays, in %. Pure. None without a play."""
+    plays = totals.get("playback_count") or 0
+    eng = sum(totals.get(c) or 0 for c in ("likes_count", "reposts_count", "comment_count"))
+    return 100.0 * eng / plays if plays else None
 
-      · à gauche, le VOLUME — barres horizontales, la longueur se compare d'un
-        coup d'œil et le tri suit le sélecteur ;
-      · à droite, le TAUX d'engagement — parce qu'un titre peu écouté mais très
-        réagi est précisément ce qu'un classement par volume enterre. Mesuré sur
-        ce catalogue : le titre le plus écouté (3 794 écoutes) engage à 8,1 %
-        quand un autre à 1 389 écoutes engage à 16,8 % — deux fois mieux, et
-        invisible dans un tri par écoutes.
 
-    UNE SEULE TEINTE. Les deux cadres parlent de la même plateforme ; leur donner
-    deux couleurs inventerait deux familles. L'intensité porte la valeur.
+def totals_line(totals: dict) -> str:
+    """« Écoutes 23 486 · Likes 1 309 · … » — the four totals the tiles used to carry."""
+    return "  ·  ".join(f"{lbl} {num(int(totals.get(col) or 0), 0)}"
+                        for col, lbl in _metric_labels().items())
+
+
+def top_figure(df_top: pd.DataFrame, totals: dict) -> go.Figure:
+    """Every title on the five counters, one row each, side by side (R486, W9).
+
+    « Plusieurs Pareto sur une même ligne : écoutes, engagement, likes, reposts,
+    commentaires par track. » One panel per counter, the rows SHARED and ordered by
+    plays — a title reads across the row, a counter reads down its panel. Each panel's
+    title carries its total (the tiles that sat above are gone) ; the engagement panel
+    carries its definition, which the owner asked to see explained.
     """
-    n = min(len(df_top), 15)
-    d = df_top.head(n).iloc[::-1]      # plotly empile de bas en haut
-
     from plotly.subplots import make_subplots
-    fig = make_subplots(
-        rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.04,
-        subplot_titles=[
-            t("soundcloud.top_volume", "Volume — {m}").format(m=sort_by),
-            t("soundcloud.top_rate", "Taux d'engagement (%)")])
 
-    _valeurs = pd.to_numeric(d[sort_col], errors="coerce").fillna(0)
-    fig.add_trace(go.Bar(
-        y=d["title"], x=_valeurs, orientation="h", name=sort_by,
-        marker_color=_SC, opacity=0.9,
-        text=[num(int(v), 0) for v in _valeurs],
-        textposition="outside", cliponaxis=False,
-        hovertemplate="%{y}<br>%{x:,.0f}<extra></extra>"), row=1, col=1)
-
-    _taux = pd.to_numeric(d["eng_rate"], errors="coerce")
-    fig.add_trace(go.Bar(
-        y=d["title"], x=_taux, orientation="h",
-        name=t("soundcloud.eng_rate", "Engagement %"),
-        marker_color=_SC, opacity=0.45,
-        text=[("—" if pd.isna(v) else f"{v:.1f} %") for v in _taux],
-        textposition="outside", cliponaxis=False,
-        hovertemplate="%{y}<br>%{x:.1f} %<extra></extra>"), row=1, col=2)
-
-    fig.update_layout(
-        height=max(380, 34 * n), showlegend=False, bargap=0.25,
-        margin=dict(l=10, r=70, t=70),
-        yaxis=dict(automargin=True))
-    charts.plotly_chart(fig, width="stretch")
-
-    st.caption(t(
-        "soundcloud.top_caption",
-        "Les {n} premiers titres, triés par **{m}**. À droite, le **taux "
-        "d'engagement** — (likes + reposts + commentaires) ÷ écoutes : c'est lui "
-        "qui distingue un titre beaucoup diffusé d'un titre qui fait RÉAGIR, et "
-        "un tri par volume l'enterre. Le détail chiffré reste dans le tiroir "
-        "ci-dessous.").format(n=n, m=sort_by))
-
-    # Le tableau n'est pas SUPPRIMÉ, il descend d'un cran : on y revient pour
-    # chercher une valeur précise, pas pour comparer.
-    with secondary_analyses(t("soundcloud.top_table", "🔢 Le détail chiffré")):
-        st.dataframe(
-            df_top[['title', 'playback_count', 'likes_count', 'reposts_count',
-                    'comment_count', 'eng_rate', 'days_since']],
-            column_config={
-                "title": t("soundcloud.col_title", "Titre"),
-                "playback_count": st.column_config.NumberColumn(plays_lbl, format="%d"),
-                "likes_count": st.column_config.NumberColumn("❤️ Likes", format="%d"),
-                "reposts_count": st.column_config.NumberColumn("🔄 Reposts", format="%d"),
-                "comment_count": st.column_config.NumberColumn(
-                    t("soundcloud.col_comments", "💬 Coms"), format="%d"),
-                "eng_rate": st.column_config.NumberColumn(
-                    t("soundcloud.col_eng_rate", "💯 Engagement %"), format="%.1f"),
-                "days_since": st.column_config.NumberColumn(
-                    t("soundcloud.col_days_since", "📅 Sorti il y a (j)"), format="%d"),
-            },
-            hide_index=True, width="stretch")
+    d = df_top.sort_values("playback_count", ascending=False, kind="stable").iloc[::-1]
+    labels = metric_labels = _metric_labels()
+    rate = engagement_rate(totals)
+    panels = [("playback_count", metric_labels["playback_count"],
+               num(totals.get("playback_count") or 0, 0)),
+              ("eng_rate", t("soundcloud.eng_rate", "Engagement %"),
+               "—" if rate is None else f"{rate:.1f} %"),
+              ("likes_count", labels["likes_count"], num(totals.get("likes_count") or 0, 0)),
+              ("reposts_count", labels["reposts_count"],
+               num(totals.get("reposts_count") or 0, 0)),
+              ("comment_count", labels["comment_count"],
+               num(totals.get("comment_count") or 0, 0))]
+    fig = make_subplots(rows=1, cols=len(panels), shared_yaxes=True,
+                        horizontal_spacing=0.025,
+                        column_widths=[0.28, 0.24, 0.16, 0.16, 0.16],
+                        subplot_titles=[f"{lbl}<br><b>{tot}</b>" for _, lbl, tot in panels])
+    for i, (col, lbl, _) in enumerate(panels, start=1):
+        v = pd.to_numeric(d[col], errors="coerce")
+        is_rate = col == "eng_rate"
+        fig.add_trace(go.Bar(
+            y=d["title"], x=v.fillna(0), orientation="h", name=lbl,
+            marker=dict(color=v.fillna(0), colorscale=_ORANGES),
+            text=[("—" if pd.isna(x) else (f"{x:.1f}" if is_rate else num(int(x), 0)))
+                  for x in v],
+            textposition="outside", cliponaxis=False,
+            hovertemplate="%{y}<br>%{x:,.1f} %<extra></extra>" if is_rate
+            else "%{y}<br>%{x:,.0f}<extra></extra>"), row=1, col=i)
+        top = float(v.max()) if v.notna().any() else 0.0
+        fig.update_xaxes(range=[0, top * 1.35 or 1], showticklabels=False,
+                         showgrid=False, row=1, col=i)
+    fig.update_annotations(font_size=12)
+    fig.update_layout(title=dict(text=t("soundcloud.eng_rate_def",
+                                        "Engagement % = (likes + reposts + commentaires) "
+                                        "÷ écoutes"), font_size=13),
+                      height=150 + 26 * len(d), showlegend=False, bargap=0.25,
+                      margin=dict(l=10, r=10, t=100, b=10), yaxis=dict(automargin=True))
+    return fig
 
 
 def _nuances(n: int) -> list[str]:

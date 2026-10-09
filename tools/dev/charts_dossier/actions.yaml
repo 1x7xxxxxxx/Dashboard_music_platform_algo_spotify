@@ -42,23 +42,13 @@ src/dashboard/views/apple_music.py::show#1:
 src/dashboard/views/apple_music.py::_render_song_series#1:
   valide: true
   actions: []
-src/dashboard/views/soundcloud.py::show#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Lire SoundCloud par une vue or (soundcloud_tracks_daily lu en brut) ; vérifier le retour à
-      0 sur l'instantané neuf
-    rid: R289
-src/dashboard/views/soundcloud.py::show#2:
-  valide: true
-  actions: []
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:
   valide: false
   actions:
   - qui: moi
     texte: Écoutes, likes, reposts et commentaires SoundCloud sur un seul graphique
     rid: R290
-src/dashboard/views/soundcloud.py::_render_top_chart#1:
+src/dashboard/views/soundcloud.py::show#1:
   valide: true
   actions: []
 src/dashboard/views/youtube.py::_channel_section#1:

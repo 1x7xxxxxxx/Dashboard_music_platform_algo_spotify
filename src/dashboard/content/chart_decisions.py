@@ -153,7 +153,7 @@ DECISIONS: dict[str, tuple[str, str]] = {
     'views/soundcloud.py::_render_catalog_series#1': (
         "Savoir si écoutes et engagement SoundCloud progressent ensemble, pour décider d'y investir du temps promo.",
         'Know whether SoundCloud plays and engagement grow together, to decide whether to invest promo time there.'),
-    'views/soundcloud.py::_render_top_chart#1': (
+    'views/soundcloud.py::show#1': (
         'Choisir les titres SoundCloud qui engagent le plus, à mettre en avant dans tes campagnes.',
         'Pick the SoundCloud tracks that engage most, to feature in your campaigns.'),
     'views/spotify_s4a_combined.py::_render_momentum#1': (

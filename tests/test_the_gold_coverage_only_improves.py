@@ -326,7 +326,9 @@ _FLOOR: dict[str, int] = {
     # pareto's Meta cost is one tile (+1).
     # 2026-10-09 (R484) : 142 → 140 — the Apple Music KPI tiles are gone (W7 : the totals
     # live in the titles of the top-10 panels).
-    "tiles.total": 140,
+    # 2026-10-09 (R486) : 140 → 136 — the four SoundCloud KPI tiles are gone (W9 : « les
+    # totaux du haut se retrouvent dans les graphiques »).
+    "tiles.total": 136,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,
