@@ -26,9 +26,12 @@ place de l'œil.
 from __future__ import annotations
 
 import argparse
+import ast
+import io
 import json
 import re
 import sys
+import tokenize
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -189,6 +192,35 @@ def _pire_paire(couleurs: list[str]) -> tuple[float, str, str, str]:
     return pire
 
 
+def _code_seul(texte: str) -> str:
+    """The source with its comments and docstrings blanked, line count unchanged (R492).
+
+    A colour NAMED in prose is not a colour drawn: « BON » or `#1DB954` in a comment
+    added a series colour to the figure below it, and the gate failed on a commit that
+    only documented the figure. Blanked by span, so every line number still points to
+    the same line. A file that does not parse is returned unchanged.
+    """
+    lignes = texte.splitlines(keepends=True)
+    spans = []
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(texte).readline):
+            if tok.type == tokenize.COMMENT:
+                spans.append((tok.start, tok.end))
+        for n in ast.walk(ast.parse(texte)):
+            if (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+                    and isinstance(n.value.value, str)):
+                spans.append(((n.lineno, n.col_offset), (n.end_lineno, n.end_col_offset)))
+    except (SyntaxError, tokenize.TokenError):
+        return texte
+    for (l0, c0), (l1, c1) in spans:
+        for ln in range(l0, l1 + 1):
+            ligne = lignes[ln - 1]
+            a = c0 if ln == l0 else 0
+            b = c1 if ln == l1 else len(ligne.rstrip("\r\n"))
+            lignes[ln - 1] = ligne[:a] + " " * (b - a) + ligne[b:]
+    return "".join(lignes)
+
+
 def figures(racine: Path = RACINE) -> list[dict]:
     """Une entrée par FIGURE portant au moins deux couleurs de série non neutres."""
     trouvees: list[dict] = []
@@ -196,7 +228,7 @@ def figures(racine: Path = RACINE) -> list[dict]:
         for f in sorted((racine / arbre).rglob("*.py")):
             if "__pycache__" in str(f):
                 continue
-            texte = f.read_text(encoding="utf-8-sig")
+            texte = _code_seul(f.read_text(encoding="utf-8-sig"))
             lignes = texte.splitlines()
             debuts = [i for i, ligne in enumerate(lignes) if _OUVRE_UNE_FIGURE.search(ligne)]
             for n, debut in enumerate(debuts):
