@@ -19,6 +19,7 @@ EN = {
     "account.email_verified": "Email verified",
     "account.yes": "✅ Yes",
     "account.pending": "⏳ Pending",
+    "account.premium_until": "Premium until **{date}**, then Free.",
     "account.email_caption": "Email: **{email}**",
     "account.artist_caption": "Artist: **{name}**",
     "account.member_since": "Member since: {date}",

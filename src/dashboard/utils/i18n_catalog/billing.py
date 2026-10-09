@@ -31,6 +31,7 @@ EN = {
     "billing.up_to_10": "Up to 10 artists",
     "billing.feat_everything_free": "Everything in Free",
     # Current plan
+    "billing.premium_until": "Premium until **{date}**, then Free.",
     "billing.trial_active": "🎁 **{plan}** access active (welcome trial). "
                             "See the offers below for what comes next.",
     "billing.status_active": "Active",

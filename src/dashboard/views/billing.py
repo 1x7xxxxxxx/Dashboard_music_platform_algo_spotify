@@ -161,6 +161,15 @@ def _render_plan_status(current_plan: str, status: str | None) -> None:
                        else t("billing.status_inactive", "Non souscrit"))
 
 
+def _show_premium_end(db, artist_id: int) -> None:
+    """The date premium falls back to free — nothing when it does not end (R489, W12)."""
+    from src.utils.plan_resolver import premium_end
+    end = premium_end(db, artist_id)
+    if end is not None:
+        st.info(t("billing.premium_until",
+                  "Premium jusqu'au **{date}**, puis Free.").format(date=format_date(end)))
+
+
 def _show_current_plan(db, artist_id: int, current_plan: str):
     row = db.fetch_query(
         """
@@ -186,10 +195,14 @@ def _show_current_plan(db, artist_id: int, current_plan: str):
                   "Voir les offres ci-dessous pour la suite.").format(
                       plan=current_plan.capitalize())
             )
+            _show_premium_end(db, artist_id)
         return
 
     _, _, status, period_end, cancel_at_end, customer_id, _ = row[0]
     _render_plan_status(current_plan, status)
+    if not cancel_at_end:
+        # A cancelling subscription already says its end in `billing.cancel_warning`.
+        _show_premium_end(db, artist_id)
 
     free_months_row = db.fetch_query(
         "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)

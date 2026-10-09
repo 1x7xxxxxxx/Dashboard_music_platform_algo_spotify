@@ -16,7 +16,7 @@ from src.dashboard.utils.i18n import t
 from src.dashboard.auth import verify_password, hash_password, _validate_password_strength
 from src.dashboard.utils.tz import to_local_datetime
 from src.dashboard.utils.ui import flash
-from src.dashboard.utils.date_format import format_datetime
+from src.dashboard.utils.date_format import format_date, format_datetime
 
 
 def _get_user_row(db, username: str) -> dict | None:
@@ -97,6 +97,15 @@ def _section_profile(db, user: dict) -> None:
               t("account.on", "🔐 Activée") if user.get("totp_enabled")
               else t("account.off", "—"))
 
+    if plan == "premium":
+        # R489 (W12) : « afficher la date à laquelle le plan premium repasse en free ».
+        from src.dashboard.auth import get_artist_id
+        from src.utils.plan_resolver import premium_end
+        artist_id = get_artist_id()
+        end = premium_end(db, artist_id) if artist_id is not None else None
+        if end is not None:
+            st.info(t("account.premium_until",
+                      "Premium jusqu'au **{date}**, puis Free.").format(date=format_date(end)))
     st.caption(t("account.email_caption", "Email : **{email}**").format(email=user['email']))
     if user.get("artist_name"):
         st.caption(t("account.artist_caption", "Artiste : **{name}**").format(
