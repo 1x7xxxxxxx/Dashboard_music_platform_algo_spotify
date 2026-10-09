@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R491 | Ligne « 🎯 décision » sous les graphiques retirée de toute l'app (consigne du 2026-10-09 : « aucun texte d'aide sous les graphiques ») — REQ-CHART-05 retirée avec sa source <!-- critic: requis — renverse R314 --> <!-- scope: src/dashboard/, tests/, tools/dev/, .claude/dev-docs/architecture/, Makefile --> | P3 | AppTest des vues ; aucune `st.caption` de décision rendue |
+| R492 | Contrôle de contraste des figures (`figure_contrast_report.py`) : ne lit plus les commentaires ni les docstrings — un nom de couleur ou un hex dans un commentaire faisait échouer le garde <!-- critic: non — outil de dev --> <!-- scope: tools/dev/, tests/, .claude/dev-docs/ --> | P4 | test : un commentaire « BON »/hex n'ajoute aucune couleur ; mutation |
 
 ---
 
@@ -85,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R491,R492 -->
 
 **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
