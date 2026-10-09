@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R483 — Spotify + S4A (W6) : « ce qui bouge » = seulement les titres qui bougent ; indice de po… (livrée 2026-10-09)
+
+- [x] **R483 — Spotify + S4A (W6) : « ce qui bouge » = seulement les titres qui bougent ; indice de popularité 28 j en barres/intégré avec légende, axe borné dynamiquement au max ; graphique Meta €/jour → R476** (P3) ✅ (2026-10-09, ba65260b)
+  Mesuré par : AppTest + PNG regardé
+  CI verte ba65260b (run 37889165410)
+  Commits : ba65260b R483 : Spotify — « ce qui bouge » ne montre que les titres qui bougent
+
 ## ✅ R482 — Hypeddit (W5) : dépliant « comment récupérer tes chiffres » (actions seules) ; type/cam… (livrée 2026-10-09)
 
 - [x] **R482 — Hypeddit (W5) : dépliant « comment récupérer tes chiffres » (actions seules) ; type/campagne/date sur une ligne puis visites/clics ; Enregistrer centré et plus gros, Réinitialiser retiré ; d'office la dernière track sortie, « nouvelle » si sans donnée, date du jour ; historique dans un dépliant fermé ; stats globales → R476** (P3) ✅ (2026-10-09, 21746552)

@@ -3890,10 +3890,9 @@
     Meta vers la vue croisée'
   type: action-produit
   domaine: spotify
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R483
-  preuve_statut: inscrite le 2026-10-09
+  preuve_statut: R483 (archivée) — ba65260b
 - ligne: 28
   source: revue/notes-vocales-2026-10-09.md
   note: W7
