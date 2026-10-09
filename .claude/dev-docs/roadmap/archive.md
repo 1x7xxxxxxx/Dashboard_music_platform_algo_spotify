@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R488 — Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en… (livrée 2026-10-09)
+
+- [x] **R488 — Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en tête (comme SACEM) ; textes retirés ; champ notes : usage prouvé ou supprimé ; €/mois + € cumulé + prévision + point mort sur UN graphique ; SACEM en camembert** (P3) ✅ (2026-10-09, 8dfabcfb, 74a6f430)
+  Mesuré par : AppTest imusician
+  CI verte 8dfabcfb (run 37902723497)
+  Commits : 8dfabcfb R488 : Distributeur + SACEM — import en tête, un graphique €/mois + cu · 74a6f430 R476 : vue croisée = tout le funnel — registre de 7 sections (parcours
+
 ## ✅ R487 — Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) »… (livrée 2026-10-09)
 
 - [x] **R487 — Aperçu algos (W10) : mêmes graphiques que la mise en route (R480), sans « (exemple…) » ; « ce qui pèse le plus » + position de NOTRE track par critère (score, dépense Meta), texte de droite retiré ; bouton vers Facturation si non premium** (P3) ✅ (2026-10-09, c83fdfd8)

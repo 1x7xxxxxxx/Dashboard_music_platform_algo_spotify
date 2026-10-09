@@ -789,3 +789,5 @@
 {"at": "2026-10-09T07:06:57+00:00", "head": "88455b1c", "kind": "done", "task": "R486", "what": "CI verte 983ca8d8, archivée"}
 {"at": "2026-10-09T07:31:33+00:00", "head": "c83fdfd8", "kind": "start", "task": "R488", "what": "distributeur + SACEM : import en tête, un graphique €/mois+cumul+prévision+point mort, SACEM camembert, textes retirés"}
 {"at": "2026-10-09T07:32:17+00:00", "kind": "done", "task": "R487", "what": "fermée par roadmap-close — CI verte c83fdfd8 (run 37899269080)"}
+{"at": "2026-10-09T07:34:14+00:00", "head": "432f59bd", "kind": "done", "task": "R487", "what": "CI verte c83fdfd8, archivée"}
+{"at": "2026-10-09T08:08:04+00:00", "kind": "done", "task": "R488", "what": "fermée par roadmap-close — CI verte 8dfabcfb (run 37902723497)"}

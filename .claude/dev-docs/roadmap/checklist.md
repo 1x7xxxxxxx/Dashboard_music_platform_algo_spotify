@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R488 | Distributeur + SACEM (W11) : saisie en tête, une seule sous-vue ; bouton Import CSV en tête (comme SACEM) ; textes retirés ; champ notes : usage prouvé ou supprimé ; €/mois + € cumulé + prévision + point mort sur UN graphique ; SACEM en camembert <!-- critic: non — vue unique --> <!-- scope: src/dashboard/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest imusician |
 | R489 | Mon compte / Facturation (W12) : retirer « mes comptes branchés » ; bouton « demander la suppression » qui envoie la demande par mail ; date de repassage premium → free affichée dans les deux vues <!-- critic: non — vue unique, envoi mail via utilitaire existant --> <!-- scope: src/dashboard/, src/utils/, tests/, tools/dev/charts_dossier/ --> | P3 | AppTest account/billing ; aucun mail réel en test |
 
 ---
@@ -87,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R488, R489 -->
+<!-- reprise: open=R489 -->
 
 **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
