@@ -39,6 +39,41 @@ _ROOT = Path(__file__).resolve().parents[2]
 _DUR = _ROOT / ".test_durations"
 
 
+def _base(node_id: str) -> str:
+    """The test FUNCTION a node-id belongs to: the id without its `[param]`."""
+    return node_id.split("[", 1)[0]
+
+
+def inherited(sans, phantoms, durees, collectes) -> tuple[list[str], dict]:
+    """R497 — what is left to judge once a parametrized id inherits from its function.
+
+    A new `[param]` of a function that already has measured params (a catalogue class
+    added to a test parametrized over the catalogue) is given by `pytest-split` the mean
+    of its file, which is already measured: re-measuring it bought nothing and was the
+    first refusal of the commit hook (`test-durations-missing`, 68 in 7 days). Likewise
+    a phantom `[param]` whose function is still collected weighs one param of a known
+    function. A function never measured, or a phantom whose function is gone, still
+    fails. Pure: `--fix` still drops every phantom and measures what is returned."""
+    mesurees = {_base(k) for k in durees if "[" in k}
+    vivantes = {_base(k) for k in collectes}
+    reste = [k for k in sans if "[" not in k or _base(k) not in mesurees]
+    fantomes = {k: v for k, v in phantoms.items()
+                if "[" not in k or _base(k) not in vivantes}
+    return reste, fantomes
+
+
+def load_durations() -> dict | None:
+    """`.test_durations` parsed, or None with the remedy printed — a half-written or
+    conflicted file raised a bare JSONDecodeError (defect log, 2026-10-09)."""
+    try:
+        return json.loads(_DUR.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"❌ `.test_durations` n'est pas du JSON lisible ({exc}) — écriture "
+              "interrompue ou conflit de fusion. Remède : `git checkout -- .test_durations` "
+              "si rien n'y est à garder, puis `make test-durations-missing`.")
+        return None
+
+
 def collection_errors(stdout: str) -> list[str]:
     """The test files pytest failed to import, from its `--collect-only -q` output."""
     return sorted({ligne.split()[1] for ligne in stdout.splitlines()
@@ -127,7 +162,9 @@ def fix(fantomes: dict, sans: list[str]) -> int:
     Added 2026-09-26: main's CI was red all night on this check and on its file-level
     twin, and the only remedy named was the full serial run.
     """
-    durees = json.loads(_DUR.read_text(encoding="utf-8"))
+    durees = load_durations()
+    if durees is None:
+        return 1
     for k in fantomes:
         durees.pop(k, None)
     _DUR.write_text(json.dumps(durees, sort_keys=True, indent=4) + "\n", encoding="utf-8")
@@ -232,12 +269,16 @@ def main() -> int:
         print(f"\n{r.stdout[-1500:]}")
         return 1
 
-    durees = json.loads(_DUR.read_text(encoding="utf-8"))
+    durees = load_durations()
+    if durees is None:
+        return 1
     if hook and ".test_durations" in fichiers and \
             _refuse_staged_entries_for_untracked(durees, hors, noms):
         return 1
     fantomes = {k: v for k, v in durees.items() if k not in collectes}
     sans = sorted(collectes - set(durees))
+    tous_fantomes = fantomes
+    sans, fantomes = inherited(sans, fantomes, durees, collectes)
     laisses = _named([*fantomes, *sans], hors, noms)
     if hook:
         # Neither judged NOR measured by `--fix-once`: the hook never writes a duration
@@ -260,7 +301,7 @@ def main() -> int:
                   "l'index — ne commitez `.test_durations` qu'avec eux (le hook refuse "
                   "sinon) :", laisses)
         print("\n→ --fix")
-        return fix(fantomes, sans) or main_check_again()
+        return fix(tous_fantomes, sans) or main_check_again()
     if "--fix-once" in sys.argv:
         return fix_once(fantomes, sans)
     print("\n   Remède : `make test-durations-missing` — retire les fantômes et mesure "
