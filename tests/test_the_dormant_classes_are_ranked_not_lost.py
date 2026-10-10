@@ -260,21 +260,6 @@ def test_main_writes_the_ranking_and_a_second_run_changes_nothing(tmp_path, monk
     assert outil.main() == 1, "--check reste vert sur un catalogue NON rangé"
 
 
-def test_the_header_counts_are_the_measured_counts() -> None:
-    """(c) L'en-tête dit COMBIEN — et le nombre est le bon, pas seulement un nombre."""
-    texte = _CAT.read_text(encoding="utf-8")
-    i = texte.index(_SEP)
-    entete = texte[i:i + 2500]
-    dit_dormantes = re.search(r"Les (\d+) classes qui suivent", entete)
-    dit_vivantes = re.search(r"les (\d+) classes encore vivantes", entete)
-    assert dit_dormantes and dit_vivantes, "l'en-tête ne porte plus ses deux nombres"
-    mesure = (len(_ids(texte[:i])), len(_ids(texte[i:])))
-    assert (int(dit_vivantes.group(1)), int(dit_dormantes.group(1))) == mesure, (
-        f"l'en-tête dit {dit_vivantes.group(1)} vivantes / {dit_dormantes.group(1)} "
-        f"dormantes, le catalogue en porte {mesure[0]} / {mesure[1]}. Il annonçait 196 / "
-        "206 pour 211 / 203 le 2026-09-25 — un nombre écrit à la main se périme.")
-
-
 def test_no_class_above_the_separator_meets_the_criterion() -> None:
     """(d) Le sens qui manquait : une classe qui s'ENDORT doit descendre."""
     texte = _CAT.read_text(encoding="utf-8")

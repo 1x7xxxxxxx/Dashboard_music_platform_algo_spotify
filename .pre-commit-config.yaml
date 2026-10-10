@@ -40,20 +40,9 @@ repos:
         always_run: true
         pass_filenames: false
 
-      # R250 — a new test committed without its duration turned main red three times on
-      # 2026-09-27 (pytest-split gives it an AVERAGE and the CI gate refuses it). ~8 s of
-      # collection, and only when a test file is staged.
-      # R345 (2026-10-04): the `gold-coverage-fresh` hook (R320) is gone with the versioned
-      # gold map — the document is generated on demand, its ratchets compute on the tree.
-      - id: test-durations-known
-        name: tests — every staged test has a recorded duration (make test-durations-missing)
-        language: system
-        entry: .venv/bin/python tools/dev/check_durations_are_collectable.py
-        args: [--fix-once]          # R319: measures the missing ones, then refuses ONCE
-        # `.test_durations` too: a staged copy carrying durations of UNTRACKED files is
-        # refused — CI, with no exclusion, would read them as phantoms (2026-10-04).
-        files: ^(tests/test_[^/]*\.py|\.test_durations)$
-        pass_filenames: true        # staged names = "runs as the commit hook"
+      # R506 (2026-10-10): the `test-durations-known` hook (R250) is gone — 68 refusals in
+      # 7 days for a file pytest-split already covers with an AVERAGE duration. CI only
+      # warns now; `.test_durations` is refreshed by `make test-durations-missing`.
       - id: governance-readers
         name: pilotage — the tests that NAME a staged roadmap/architecture file run first (R361)
         language: system

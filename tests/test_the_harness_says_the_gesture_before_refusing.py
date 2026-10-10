@@ -26,12 +26,6 @@ PARENT = ("## 📋 Tâches ouvertes\n\n| id | Tâche | P | Mesuré par |\n|---|-
           "| R9 | x <!-- critic: non — t --> <!-- scope: src/dashboard/views/a.py --> | P3 | t |\n")
 
 
-def test_test_changed_says_to_stage_the_durations_it_wrote():
-    body = (ROOT / "Makefile").read_text().split("\ntest-changed:", 1)[1].split("\n\n", 1)[0]
-    line = next((ln for ln in body.splitlines() if "git diff --quiet -- .test_durations" in ln), "")
-    assert "git add .test_durations" in line, "test-changed no longer says to stage the durations"
-
-
 def test_a_roadmap_commit_carrying_stray_code_names_the_files_to_unstage():
     files = [rid.CHECKLIST, "src/dashboard/views/b.py"]
     reason = rid.verdict(files, "Roadmap : R9 — périmètre élargi", PARENT)

@@ -36,6 +36,8 @@ EXEMPT = frozenset({
     ".claude/dev-docs/roadmap/checklist.md",
     ".claude/dev-docs/roadmap/archive.md",
     ".claude/dev-docs/roadmap/night-run.jsonl",
+    # R506: detect-secrets rewrites it when a line number shifts — no test reads it.
+    ".secrets.baseline",
 })
 _ZERO = "0" * 40
 

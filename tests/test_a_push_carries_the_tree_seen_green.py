@@ -97,10 +97,12 @@ def test_the_hook_runs_at_push_and_make_stamps_only_when_green():
 
 def test_only_the_roadmap_files_and_the_night_journal_are_exempt():
     """Widening EXEMPT is widening what reaches main untested — it must be a decision.
-    R463 (2026-10-07) decided the third: the append-only night journal."""
+    R463 (2026-10-07) decided the third: the append-only night journal. R506 the fourth:
+    `.secrets.baseline`, which detect-secrets rewrites after the green run."""
     assert gate.EXEMPT == {".claude/dev-docs/roadmap/checklist.md",
                            ".claude/dev-docs/roadmap/archive.md",
-                           ".claude/dev-docs/roadmap/night-run.jsonl"}
+                           ".claude/dev-docs/roadmap/night-run.jsonl",
+                           ".secrets.baseline"}
 
 
 def test_a_night_journal_entry_after_the_green_run_passes(tmp_path):

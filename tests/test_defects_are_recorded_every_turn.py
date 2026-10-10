@@ -24,6 +24,7 @@ until a green on ANOTHER file was asserted).
 from __future__ import annotations
 
 import ast
+import os
 import json
 import subprocess
 import sys
@@ -98,7 +99,11 @@ def test_the_transcript_is_read_once_and_a_half_line_waits(tmp_path) -> None:
 
 
 def test_the_log_is_gitignored_and_the_stop_hook_reaches_it() -> None:
-    rel = dc.LOG.relative_to(ROOT).as_posix()
+    # R506: the conftest points DEFECT_LOG at a temp file; the DEFAULT path is the one
+    # that must stay out of the public repo.
+    rel = ".claude/sessions/defects.jsonl"
+    assert os.environ.get("DEFECT_LOG") and dc.LOG != ROOT / rel, (
+        "a test run writes into the real defect journal again")
     assert subprocess.run(["git", "check-ignore", "-q", rel], cwd=ROOT).returncode == 0, (
         f"{rel} would be committed to a PUBLIC repo")
     tree = ast.parse((ROOT / ".claude/hooks/session_summary.py").read_text(encoding="utf-8"))

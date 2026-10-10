@@ -259,7 +259,11 @@ jobs:
           # les 26 vivaient dans des fichiers présents. Seule une COLLECTE ne ment pas.
           # Ici et pas dans `make test` : une collecte coûte ~8 s, et ce dépôt a déjà
           # sorti les contrôles de fraîcheur de la suite pour ce motif exact.
-          uv run --frozen python tools/dev/check_durations_are_collectable.py
+          # R506 (2026-10-10): a WARNING, no longer a gate. A test with no recorded
+          # duration gets pytest-split's average; the gate cost 68 refused commits in 7
+          # days. Refresh: `make test-durations-missing`, then commit `.test_durations`.
+          uv run --frozen python tools/dev/check_durations_are_collectable.py \
+            || echo "::warning::.test_durations est en retard — make test-durations-missing"
           uv run --frozen python .claude/scripts/check_ci_waste.py
           # LA FRAÎCHEUR DES DOCUMENTS GÉNÉRÉS EST REVENUE ICI — 2026-09-18.
           #

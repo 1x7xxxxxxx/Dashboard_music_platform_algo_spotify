@@ -1,32 +1,10 @@
-"""R250 — the commit that adds a test brings its duration (main went red on it 3× on 2026-09-27)."""
+"""R250 — the durations checker's logic (the commit hook itself was retired by R506)."""
 import re
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _hook() -> dict | None:
-    with open(ROOT / ".pre-commit-config.yaml", encoding="utf-8") as fh:   # YAML, no Python read
-        cfg = yaml.safe_load(fh)
-    return next((h for repo in cfg["repos"] for h in repo.get("hooks", [])
-                 if h.get("id") == "test-durations-known"), None)
-
-
-def test_the_commit_hook_checks_the_durations_of_staged_tests():
-    hook = _hook()
-    assert hook, "the pre-commit hook test-durations-known is gone"
-    assert Path(hook["entry"].split()[-1]).stem == "check_durations_are_collectable"
-    # R319: the hook may MEASURE the missing durations (`--fix-once`), but it still refuses
-    # the commit once — never `--fix`, whose green exit would let a rewrite through unseen.
-    assert "--fix" not in hook["entry"] and hook.get("args", []) in ([], ["--fix-once"]), (
-        "a commit hook must refuse — measuring is allowed, a silent rewrite is not")
-    pattern = re.compile(hook["files"])
-    assert pattern.search("tests/test_new_guard.py"), "a new test file would not trigger it"
-    assert not pattern.search("src/dashboard/app.py")
-    assert hook.get("pass_filenames", True), (
-        "the staged file names tell the script it runs as the commit hook")
 
 
 def test_the_hook_judges_every_tracked_test_not_only_the_staged_files():

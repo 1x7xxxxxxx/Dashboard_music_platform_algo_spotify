@@ -19,6 +19,11 @@ GIT_BINDING_VARS = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_OBJECT_DI
 for _var in GIT_BINDING_VARS:
     os.environ.pop(_var, None)
 
+# R506: a test that runs a hook or `defect_capture` writes its symptoms here, never into
+# `.claude/sessions/defects.jsonl` — 26 refusals in 7 days were our own tests (`probe`).
+os.environ["DEFECT_LOG"] = os.path.join(
+    __import__("tempfile").gettempdir(), f"streamlytics-test-defects-{os.getpid()}.jsonl")
+
 
 # ---------------------------------------------------------------------------
 # Helpers CSV en mémoire (pas de fichiers temporaires nécessaires)

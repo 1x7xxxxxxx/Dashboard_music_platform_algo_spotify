@@ -264,12 +264,12 @@ test-durations: ## Régénère .test_durations — SORT EN ERREUR 1 QUAND ELLE R
 	@# Coût sur ext4 : **297 s en série** pour 7 054 tests (1 146 s sur /mnt/c avant R117).
 	$(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q --store-durations
 
-catalogue-sync: error-health test-durations-missing ## Ce qu'une édition du catalogue ou un test NEUF demande : rangement + durées (R345 : plus de documents à régénérer)
+catalogue-sync: error-health ## Ce qu'une édition du catalogue demande : son rangement (R506 : les durées ne sont plus exigées)
 	@# Le 2026-09-26, en /loop R169 : chaque lot touchait le catalogue et/ou ajoutait un
 	@# test, et chacun des quatre documents générés a fait rougir la CI ou la porte au
 	@# moins une fois, un par un — santé, familles, carte or, durées. Les régénérer
 	@# ensemble est le geste ; les oublier un par un était le défaut.
-	@echo "✅ catalogue-sync : santé, familles, carte or et durées régénérées — commiter les quatre"
+	@echo "✅ catalogue-sync : rangement du catalogue vérifié"
 
 error-management-probe: ## [MINUTES] Chaque porte du catalogue d'erreurs refuse-t-elle son défaut ? (R184)
 	@# Un défaut fabriqué par porte, dans un worktree jetable, contre les VRAIES portes. Tourne
@@ -298,13 +298,6 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@# `xargs -r` : une sélection VIDE (aucun fichier modifié) lançait `pytest -q` sans
 	@# cible, c'est-à-dire la suite entière. `|| true` : sous pipefail, un `grep` qui
 	@# ne trouve rien sortirait 1 et ferait passer « rien à tester » pour un échec.
-	@# Durations BEFORE the tests (2026-09-26): main went red three times that day on « test
-	@# collecté sans durée », which only CI measured, and the suite's own file-level check
-	@# fails first — a step after a green run never ran. Any test file changed (tree or
-	@# unpushed commits, subfolders included) ⇒ one collection (~8 s) + the new tests only.
-	@if { git status --porcelain -- tests; git diff --name-only @{u}.. -- tests 2>/dev/null; } \
-	   | grep -qE '(^|/)test_[^/]*\.py$$'; then \
-	  $(MAKE) --no-print-directory test-durations-missing; fi
 	@# R228: a changed test that writes rows, or a migration ⇒ local↔canonical schema
 	@# on shared tables (~26 s). Two fixtures green here went red in CI on a NOT NULL
 	@# only canonical carried (R219). Skipped, and said, when the local Postgres is down.
@@ -318,9 +311,6 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
 	    --changed 2>&1 | tee -a .pytest-last.log'; \
 	  rc=$$?; [ $$rc -eq 0 ] || exit $$rc; python3 tools/dev/pre_push_gate.py stamp
-	@# R463: the durations above are written, never staged — 41 refusals of the commit
-	@# hook in 7 days were exactly that. Said here, at the moment the commit is built.
-	@git diff --quiet -- .test_durations || echo "▶ .test_durations a changé — \`git add .test_durations\` AVEC le test, sinon le hook refuse le commit (R463)"
 
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \

@@ -26,13 +26,16 @@ rex: []
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-LOG = ROOT / ".claude" / "sessions" / "defects.jsonl"
+# R506: a test run sets DEFECT_LOG to a temporary file — 26 refusals in 7 days carried
+# `session:"probe"`, our own tests writing into the real journal and inflating its counts.
+LOG = Path(os.environ.get("DEFECT_LOG") or ROOT / ".claude" / "sessions" / "defects.jsonl")
 EXCERPT = 200
 FIRST_READ_MAX = 2_000_000  # bytes read on the first Stop of a session born BEFORE R315
 CAPTURE_SINCE = "2026-09-29"  # R315 shipped: a session born after it is read from byte 0

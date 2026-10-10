@@ -131,7 +131,9 @@ UNSCOPED = ("tests/", ".test_durations", ".claude/dev-docs/roadmap/checklist.md"
             ".claude/dev-docs/roadmap/archive.md", ".claude/dev-docs/roadmap/night-run.jsonl",
             ".claude/dev-docs/ops-mail-journal.md",
             # written by `make roadmap-close` (R268) — bookkeeping, like the archive (R490)
-            ".claude/dev-docs/architecture/notes-triage.yaml")
+            ".claude/dev-docs/architecture/notes-triage.yaml",
+            # rewritten by detect-secrets whenever a line number moves (R506)
+            ".secrets.baseline")
 
 
 def out_of_scope(files: list[str], rows: list[str]) -> list[str]:
