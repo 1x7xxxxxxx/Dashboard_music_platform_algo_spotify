@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R497 — La porte des durées est le 1ᵉʳ refus de commit (`test-durations-missing` ×68 en 7 j) :… (livrée 2026-10-10)
+
+- [x] **R497 — La porte des durées est le 1ᵉʳ refus de commit (`test-durations-missing` ×68 en 7 j) : un id PARAMÉTRÉ neuf (une classe de catalogue de plus) dont la fonction de base a déjà une durée force une remesure ; le tolérer (pytest-split lui donne la moyenne de son fichier déjà mesuré), et tolérer un fantôme dont la base est encore collectée — `--fix` nettoie toujours** (P3) ✅ (2026-10-10, df579209)
+  Mesuré par : id paramétré neuf sur base mesurée ⇒ vert ; base jamais mesurée ⇒ rouge ; refus 7 j en baisse
+  CI verte df579209 (run 38077080508) ; id paramétré neuf sur fonction mesurée toléré, 4 mutations tuées ; JSONDecodeError → message + remède
+  Commits : df579209 R497 : un id paramétré neuf hérite de la durée de sa fonction déjà mes
+
 ## ✅ R496 — `reopen_check._r114` :218 ne lit que le libellé du déclencheur 1 (« ✅ sous le seuil »)… (livrée 2026-10-10)
 
 - [x] **R496 — `reopen_check._r114` :218 ne lit que le libellé du déclencheur 1 (« ✅ sous le seuil ») : le déclencheur 2 imprime « ✅ p50 = N ms, sous le seuil de … », donc un p50 > 200 ms avec des sessions sous le seuil ne rouvre JAMAIS R87/R114 — lire « SEUIL FRANCHI » (classe `a-crash-credited-as-a-judgement`, reste du balayage R495)** (P3) ✅ (2026-10-10, 95e306f6)
