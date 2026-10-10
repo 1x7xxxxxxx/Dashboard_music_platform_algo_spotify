@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R508 — Cibles `make` : 97 cibles (CLAUDE.md en annonce 11), 30 jamais lancées, 7 disparues enc… (livrée 2026-10-11)
+
+- [x] **R508 — Cibles `make` : 97 cibles (CLAUDE.md en annonce 11), 30 jamais lancées, 7 disparues encore appelées, 15 hors `.PHONY`, `lint` ≠ CI ; `make help` en sections, cibles `ci-wait`/`test-verdict`/`suite-status`/`psql`/`ARGS=`, `SUITE_SCOPE` qui dit quand le plafond mémoire est inactif, garde « aucune cible appelée n'est absente »** (P3) ✅ (2026-10-11, 78b0cd42)
+  Mesuré par : `make help` = liste de CLAUDE.md ; 0 cible fantôme appelée
+  CI verte 78b0cd42 (run 38090880875, attendue par la nouvelle cible make ci-wait — premier usage réel) ; garde test_the_makefile_is_its_own_index.py, 5 mutations vues rouges ; garde des cibles fantômes étendu aux commands/workflows/agents/skills
+  Commits : 78b0cd42 R508 : make help est l'index (sections ##@), cibles test-verdict/suite
+
 ## ✅ R507 — Dependabot casse la CI 5 fois en 14 j (pyproject et requirements montés, `uv.lock` non)… (livrée 2026-10-10)
 
 - [x] **R507 — Dependabot casse la CI 5 fois en 14 j (pyproject et requirements montés, `uv.lock` non) — TRANCHÉE 2026-10-10, option (a) : workflow `pull_request_target` limité à une PR ouverte PAR `dependabot[bot]` depuis CE dépôt, qui lance `uv lock` sur la branche, pousse le lock s'il a bougé, puis relance `ci.yml` par `workflow_dispatch` (un push du `GITHUB_TOKEN` ne déclenche pas la CI) ; l'écosystème `pip` reste (il monte déjà pyproject ET requirements, seul le lock manquait) ; garde : le workflow n'exécute aucun code de la PR hors `uv lock`, et un test refuse un `pull_request_target` sans la condition d'acteur** (P3) ✅ (2026-10-10, efc89aae, 1c16976a, d5acb104)
