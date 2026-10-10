@@ -32,6 +32,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 |---|---|---|---|
 | R494 | Résolution d'imports au NOM importé : `select_tests.py` (imports dans une chaîne :274/:293 et relatifs dans un `__init__` :550 — tests non sélectionnés, vert silencieux), `mutate_guards.sources_read` (capture gloutonne :81-92, `import pkg.mod` non géré) — classe `selector-blind-to-the-import-prefix`, balayage 2026-10-10 <!-- critic: requis --> <!-- scope: .claude/scripts/select_tests.py, tools/dev/mutate_guards.py, tests/, .test_durations, .claude/dev-docs/ --> | P3 | un test réel non sélectionné quand `soundcloud.py` change devient sélectionné |
 | R495 | Un plantage n'est pas un verdict : `audit_runner.run_signature` (traceback ⇒ HIT, :302) et `_failed_nodes` (ERROR ⇒ HIT, :362), `probe_error_management` :253/:264, `reopen_check._r114` :207 (ssh mort ⇒ seuil franchi), étape « Keep the dated reds » non lue (`security-nightly.yml`) — classes `a-crash-credited-as-a-judgement` et `a-run-conclusion-blind-to-a-job-allowed-to-fail` <!-- critic: requis --> <!-- scope: .claude/scripts/audit_runner.py, tools/dev/probe_error_management.py, tools/dev/reopen_check.py, .github/workflows/security-nightly.yml, tools/dev/, tests/, .test_durations, .claude/dev-docs/ --> | P3 | chaque site rend un 3ᵉ état (cassé) sur un plantage fabriqué |
+| R496 | `reopen_check._r114` :218 ne lit que le libellé du déclencheur 1 (« ✅ sous le seuil ») : le déclencheur 2 imprime « ✅ p50 = N ms, sous le seuil de … », donc un p50 > 200 ms avec des sessions sous le seuil ne rouvre JAMAIS R87/R114 — lire « SEUIL FRANCHI » (classe `a-crash-credited-as-a-judgement`, reste du balayage R495) <!-- critic: non --> <!-- scope: tools/dev/reopen_check.py, tests/, .test_durations, .claude/dev-docs/ --> | P3 | p50 franchi seul ⇒ R114 rouvert, garde muté |
 
 ---
 
@@ -87,9 +88,9 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R494,R495 -->
+<!-- reprise: open=R494,R495,R496 -->
 
-**État au 2026-10-10** : R494-R495 — restes vivants des trois balayages de R493 (résolution d'imports au nom importé ; un plantage n'est pas un verdict). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
+**État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
