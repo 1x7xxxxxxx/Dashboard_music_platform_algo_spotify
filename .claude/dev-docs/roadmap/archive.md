@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R493 — Mutation des gardes neufs (job `guard-mutation`, rouge 2 nuits sur les gardes R483/R485… (livrée 2026-10-10)
+
+- [x] **R493 — Mutation des gardes neufs (job `guard-mutation`, rouge 2 nuits sur les gardes R483/R485/R486) : le harnais mute les fonctions que le garde APPELLE, pas la 1ʳᵉ occurrence d'une constante dans le fichier ; le verdict nomme ses essais ; un rouge de ce job (continue-on-error) apparaît dans le récap et `night-status` au lieu d'un « Sécurité : vert » ; un suspect reste suivi jusqu'à preuve** (P3) ✅ (2026-10-10, 66ff1dfb, 5ef043f5, c7b4e6d7)
+  Mesuré par : les 3 gardes vus rouges sur une mutation qui incarne leur défaut ; test : run `success` + étape `failure` ⇒ récap non vert ; mutation
+  CI verte 66ff1dfb (run 38067079906) — 3 gardes vus rouges à la main (SEEN_RED) ; harnais : module importé seul, plantage ≠ jugement, essais nommés ; récap et night-status voient un job nightly rouge (annotation notify)
+  Commits : 66ff1dfb Ops mails 2026-10-09/10 requalifiés : fausses alertes R493 · 5ef043f5 R493 : un job rouge du nightly se lit dans le récap et dans night-stat · c7b4e6d7 R493 : le harnais de mutation vise le module importé et ne crédite pas
+
 ## ✅ R491 — Ligne « 🎯 décision » sous les graphiques retirée de toute l'app (consigne du 2026-10-09… (livrée 2026-10-09)
 
 - [x] **R491 — Ligne « 🎯 décision » sous les graphiques retirée de toute l'app (consigne du 2026-10-09 : « aucun texte d'aide sous les graphiques ») — REQ-CHART-05 retirée avec sa source** (P3) ✅ (2026-10-09, a4a576b7)

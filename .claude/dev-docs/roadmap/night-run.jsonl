@@ -800,3 +800,5 @@
 {"at": "2026-10-09T09:34:32+00:00", "head": "68166e44", "kind": "start", "task": "R491", "what": "ligne 🎯 décision retirée sous les graphiques"}
 {"at": "2026-10-09T10:02:32+00:00", "kind": "done", "task": "R491", "what": "fermée par roadmap-close — CI verte a4a576b7 (run 37914655653)"}
 {"at": "2026-10-10T15:46:55+00:00", "head": "587e2fbf", "kind": "start", "task": "R493", "what": "gardes neufs : harnais de mutation + visibilité du rouge"}
+{"at": "2026-10-10T16:21:32+00:00", "kind": "done", "task": "R493", "what": "fermée par roadmap-close — CI verte 66ff1dfb (run 38067079906) — 3 gardes vus rouges à la main (SEEN_RED) ; harnais : module importé seul, plantage ≠ jugement, essais nommés ; récap et night-status voient un job nightly rouge (annotation notify)"}
+{"at": "2026-10-10T16:22:24+00:00", "head": "66ff1dfb", "kind": "done", "task": "R493", "what": "fermée — CI verte 66ff1dfb (run 38067079906)"}
