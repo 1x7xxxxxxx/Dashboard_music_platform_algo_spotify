@@ -137,6 +137,8 @@ dev = [
     # fichier séparés par la découpe ne peuvent pas se courir après (ce qui est
     # arrivé quatre fois en local sous `--dist loadgroup`).
     "pytest-split>=0.9.0",
+    # R499 — property-based tests on the pure parsers (`tests/test_parsers_hold_their_properties.py`).
+    "hypothesis>=6.100.0",
     # Le seul client qui parle vraiment le websocket de Streamlit : un navigateur.
     # `tools/loadtest_dashboard.py:27-40` explique pourquoi la mesure de concurrence
     # ne peut PAS se faire sous `AppTest` — il se sature lui-même (un `st.write` passe

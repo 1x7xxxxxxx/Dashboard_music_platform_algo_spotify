@@ -69,6 +69,14 @@ def sniff_separator(text: str) -> str:
     return winners[0]
 
 
+def without_spaces(value) -> str:
+    """`value` as text with EVERY Unicode space removed — the plain one, and the no-break
+    (U+00A0) and narrow no-break (U+202F) spaces a French-locale Excel groups thousands
+    with. A list of known characters (`.replace(' ', '')`) missed the last two, and four
+    export parsers read `1\u00a0000` streams as 0 (R499, found by a property test)."""
+    return "".join(str(value).split())
+
+
 def describe(sep: str) -> str:
     """A separator named the way a person would say it, for an error message."""
     return {",": "virgule", ";": "point-virgule", "\t": "tabulation",

@@ -19,6 +19,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from src.transformers.csv_dialect import without_spaces
+
 logger = logging.getLogger(__name__)
 
 # Dedup/upsert key — mirrors the UNIQUE constraint on distrokid_sales_detail.
@@ -113,7 +115,7 @@ class DistroKidParser:
         if pd.isna(val):
             return dtype(0)
         try:
-            return dtype(float(str(val).replace(',', '.').strip()))
+            return dtype(float(without_spaces(val).replace(',', '.')))
         except (ValueError, TypeError):
             return dtype(0)
 

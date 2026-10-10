@@ -15,6 +15,8 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from src.transformers.csv_dialect import without_spaces
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +99,7 @@ class IMusicianCSVParser:
         if pd.isna(val):
             return dtype(0)
         try:
-            return dtype(str(val).replace(',', '.').strip())
+            return dtype(without_spaces(val).replace(',', '.'))
         except (ValueError, TypeError):
             return dtype(0)
 

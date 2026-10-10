@@ -6,6 +6,7 @@ import logging
 import re  # Indispensable pour gérer les noms de fichiers changeants
 
 from src.utils.track_matching import canonical_song
+from src.transformers.csv_dialect import without_spaces
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class MissingFromFilenameError(ValueError):
 def _to_int(value, default: int = 0) -> int:
     """Convert a raw CSV value (may contain commas or spaces) to int."""
     try:
-        return int(str(value).replace(',', '').replace(' ', '').split('.')[0])
+        return int(without_spaces(value).replace(',', '').split('.')[0])
     except Exception:
         return default
 

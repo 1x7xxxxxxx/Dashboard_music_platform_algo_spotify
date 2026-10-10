@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import logging
+from src.transformers.csv_dialect import without_spaces
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class AppleMusicCSVParser:
             return int(value)
         if isinstance(value, str):
             # Enlever les espaces, virgules, etc.
-            value = value.replace(',', '').replace(' ', '').strip()
+            value = without_spaces(value).replace(',', '')
             try:
                 return int(float(value))
             except Exception:

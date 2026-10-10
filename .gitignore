@@ -149,3 +149,4 @@ revue/
 # CI artifact `guard-red-log`, merged locally by `nightly_guard_mutation.py --fetch`)
 .claude/dev-docs/guard-red-log.jsonl
 .pytest-green-tree
+.hypothesis/
