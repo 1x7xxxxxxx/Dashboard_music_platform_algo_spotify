@@ -31,6 +31,10 @@ Two decisions worth stating, because the naive version of each is wrong:
 """
 from __future__ import annotations
 
+import math
+import numbers
+import re
+
 # Ordered by how likely a real export uses it. Order only breaks ties in `max`, and
 # ties are refused below, so this is documentation rather than logic.
 SEPARATORS = (",", ";", "\t", "|")
@@ -81,3 +85,75 @@ def describe(sep: str) -> str:
     """A separator named the way a person would say it, for an error message."""
     return {",": "virgule", ";": "point-virgule", "\t": "tabulation",
             "|": "barre verticale"}.get(sep, repr(sep))
+
+
+# What a cell holds when it holds NO number — legitimately 0 to the caller, never a
+# rejection. Anything else that does not read is unreadable (R502 counts those).
+_BLANK = frozenset({"", "-", "—", "–", "nan", "none", "n/a", "null"})
+
+
+def decimal_for(sep: str) -> str:
+    """The decimal mark of a file, decided ONCE from its column separator (R503).
+
+    A `;` file is what a French-locale Excel writes, and that locale writes `1 234,5`;
+    every other separator comes from a `.`-decimal locale. Deciding per FILE is what
+    removes the ambiguity: `1.234` alone is either 1.234 or 1234, the file is not.
+    """
+    return "," if sep == ";" else "."
+
+
+def read_csv_options(sep: str) -> dict:
+    """The `pd.read_csv` keywords for a file of this separator: pandas converts a cell
+    it recognises BEFORE any reader of ours sees it, so `1.234` in a `;` file became
+    1.234 unless pandas is told the file's decimal mark too (R503)."""
+    dec = decimal_for(sep)
+    return {"sep": sep, "decimal": dec, "thousands": "." if dec == "," else None}
+
+
+def _split_decimal(text: str, decimal: str) -> tuple[str, str | None]:
+    """(grouping marks, decimal mark) for one number written with `.`/`,`."""
+    marks = {c for c in text if c in ".,"}
+    if len(marks) == 2:
+        # Both present: the rightmost is the decimal mark, whatever the file says.
+        dec = text[max(text.rfind("."), text.rfind(","))]
+        return ("." if dec == "," else ","), dec
+    if not marks:
+        return "", None
+    (mark,) = marks
+    if text.count(mark) > 1:
+        return mark, None
+    if mark == decimal:
+        return "", mark
+    # The file's OTHER mark, once: grouping only if exactly three digits follow it.
+    head, tail = text.split(mark)
+    if len(tail) == 3 and 1 <= len(head.lstrip("+-")) <= 3:
+        return mark, None
+    return "", mark
+
+
+def read_number(value, decimal: str = ".") -> float | None:
+    """`value` as a number, `None` when the cell is blank, `ValueError` when unreadable.
+
+    `decimal` is the FILE's decimal mark (`decimal_for`). Grouping by any Unicode space,
+    or by the other mark in groups of three, is read; anything else raises instead of
+    reading 0 — `1.234,5` read 1, 0 or 0.0 depending on which of five readers saw it.
+    """
+    if decimal not in (".", ","):
+        raise ValueError(f"decimal mark must be '.' or ',', got {decimal!r}")
+    if isinstance(value, bool):
+        raise ValueError(f"a boolean is not a number: {value!r}")
+    if isinstance(value, numbers.Real):
+        number = float(value)
+        return None if math.isnan(number) else number
+    text = without_spaces("" if value is None else value)
+    if text.lower() in _BLANK:
+        return None
+    group, dec = _split_decimal(text, decimal)
+    whole, _, frac = text.partition(dec) if dec else (text, "", "")
+    sign = whole[:1] if whole[:1] in "+-" else ""
+    whole = whole[len(sign):]
+    pattern = (rf"\d{{1,3}}(?:{re.escape(group)}\d{{3}})+" if group else r"\d*")
+    if not re.fullmatch(pattern, whole) or not re.fullmatch(r"\d*", frac) \
+            or not (whole or frac):
+        raise ValueError(f"unreadable number: {str(value)[:40]!r}")
+    return float(f"{sign}{whole.replace(group, '') if group else whole or '0'}.{frac or '0'}")

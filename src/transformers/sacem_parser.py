@@ -16,6 +16,8 @@ from datetime import date, datetime
 
 import pandas as pd
 
+from src.transformers.csv_dialect import read_number
+
 _SHEET = "Mon relevé de compte"
 _EXPECTED_COLS = ("date", "libellé", "mouvement", "solde")
 
@@ -42,13 +44,12 @@ def classify_line(libelle: str) -> str:
 
 
 def _to_float(v) -> float:
-    if v is None or (isinstance(v, float) and pd.isna(v)):
-        return 0.0
-    s = str(v).replace(" ", "").replace("\xa0", "").replace(" ", "").replace(",", ".")
+    """A SACEM amount — a French ledger, so `,` is the decimal mark (R503)."""
     try:
-        return float(s)
+        number = read_number(v, ",")
     except ValueError:
         return 0.0
+    return 0.0 if number is None else number
 
 
 def _to_date(v):

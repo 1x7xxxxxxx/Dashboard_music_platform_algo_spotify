@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import logging
-from src.transformers.csv_dialect import without_spaces
+from src.transformers.csv_dialect import read_number
 
 logger = logging.getLogger(__name__)
 
@@ -95,20 +95,14 @@ class AppleMusicCSVParser:
 
         return None
 
-    def clean_number(self, value) -> int:
-        """Nettoie et convertit une valeur en entier."""
-        if pd.isna(value):
+    def clean_number(self, value, decimal: str = '.') -> int:
+        """A count as int, through the one number reader (R503) — `decimal` is the
+        FILE's mark. Blank or unreadable → 0 (R502 counts the unreadable)."""
+        try:
+            number = read_number(value, decimal)
+        except ValueError:
             return 0
-        if isinstance(value, (int, float)):
-            return int(value)
-        if isinstance(value, str):
-            # Enlever les espaces, virgules, etc.
-            value = without_spaces(value).replace(',', '')
-            try:
-                return int(float(value))
-            except Exception:
-                return 0
-        return 0
+        return 0 if number is None else int(number)
 
     def parse_songs_performance(self, df: pd.DataFrame) -> List[Dict]:
         """
@@ -117,6 +111,7 @@ class AppleMusicCSVParser:
         Format: Morceau, Écoutes, Auditeurs, Shazam, Radio Spins, Achats, etc.
         """
         logger.info("📊 Parsing CSV 'Songs Performance'...")
+        dec = df.attrs.get('decimal', '.')
 
         # Trouver les colonnes
         song_col = self.find_column(df, 'song')
@@ -150,8 +145,8 @@ class AppleMusicCSVParser:
                 record = {
                     'song_name': str(row[song_col]),
                     'album_name': str(row[album_col]) if album_col and not pd.isna(row[album_col]) else None,
-                    'plays': self.clean_number(row[plays_col]),
-                    'listeners': self.clean_number(row[listeners_col]) if listeners_col else 0,
+                    'plays': self.clean_number(row[plays_col], dec),
+                    'listeners': self.clean_number(row[listeners_col], dec) if listeners_col else 0,
                     'collected_at': datetime.now(timezone.utc),
                     # Le jour du dépôt : l'export Apple ne porte pas sa propre date de
                     # période, donc c'est la seule que nous connaissions. Elle entre
@@ -162,11 +157,11 @@ class AppleMusicCSVParser:
 
                 # Champs optionnels (si tables étendues)
                 if shazam_col:
-                    record['shazam_count'] = self.clean_number(row[shazam_col])
+                    record['shazam_count'] = self.clean_number(row[shazam_col], dec)
                 if radio_col:
-                    record['radio_spins'] = self.clean_number(row[radio_col])
+                    record['radio_spins'] = self.clean_number(row[radio_col], dec)
                 if purchases_col:
-                    record['purchases'] = self.clean_number(row[purchases_col])
+                    record['purchases'] = self.clean_number(row[purchases_col], dec)
 
                 data.append(record)
 
@@ -184,6 +179,7 @@ class AppleMusicCSVParser:
         Format: Date, Morceau, Écoutes
         """
         logger.info("📊 Parsing CSV 'Daily Plays'...")
+        dec = df.attrs.get('decimal', '.')
 
         date_col = self.find_column(df, 'date')
         song_col = self.find_column(df, 'song')
@@ -206,7 +202,7 @@ class AppleMusicCSVParser:
                 record = {
                     'song_name': str(row[song_col]) if song_col else 'Unknown',
                     'date': date,
-                    'plays': self.clean_number(row[plays_col]),
+                    'plays': self.clean_number(row[plays_col], dec),
                     'collected_at': datetime.now(timezone.utc)
                 }
 
@@ -226,6 +222,7 @@ class AppleMusicCSVParser:
         Format: Date, Auditeurs
         """
         logger.info("📊 Parsing CSV 'Listeners'...")
+        dec = df.attrs.get('decimal', '.')
 
         date_col = self.find_column(df, 'date')
         listeners_col = self.find_column(df, 'listeners')
@@ -245,7 +242,7 @@ class AppleMusicCSVParser:
 
                 record = {
                     'date': date,
-                    'listeners': self.clean_number(row[listeners_col]),
+                    'listeners': self.clean_number(row[listeners_col], dec),
                     'collected_at': datetime.now(timezone.utc)
                 }
 

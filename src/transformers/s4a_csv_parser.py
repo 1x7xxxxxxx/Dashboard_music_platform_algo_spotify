@@ -6,7 +6,7 @@ import logging
 import re  # Indispensable pour gérer les noms de fichiers changeants
 
 from src.utils.track_matching import canonical_song
-from src.transformers.csv_dialect import without_spaces
+from src.transformers.csv_dialect import read_number
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +44,14 @@ class MissingFromFilenameError(ValueError):
         self.suggestion = suggestion
 
 
-def _to_int(value, default: int = 0) -> int:
-    """Convert a raw CSV value (may contain commas or spaces) to int."""
+def _to_int(value, default: int = 0, decimal: str = '.') -> int:
+    """A raw CSV count as int — through the one number reader (R503), `decimal` being
+    the FILE's mark. Blank → `default`; unreadable → `default` too, until R502 counts it."""
     try:
-        return int(without_spaces(value).replace(',', '').split('.')[0])
-    except Exception:
+        number = read_number(value, decimal)
+    except ValueError:
         return default
+    return default if number is None else int(number)
 
 
 class S4ACSVParser:
@@ -100,6 +102,7 @@ class S4ACSVParser:
         returning [] under a message that blames the contents.
         """
         df.columns = df.columns.str.strip().str.lower()
+        dec = df.attrs.get('decimal', '.')
         song_name = (song_name or '').strip()
         if not song_name:
             song_name = self._extract_song_name_from_filename(filename) if filename else ''
@@ -121,7 +124,7 @@ class S4ACSVParser:
                     'artist_id': artist_id,
                     'song': song_name,
                     'date': pd.to_datetime(row['date']).date(),
-                    'streams': _to_int(row[stream_col]),
+                    'streams': _to_int(row[stream_col], decimal=dec),
                 })
             except Exception:
                 continue
@@ -166,6 +169,7 @@ class S4ACSVParser:
         window is derived from the filename marker (28d vs 12m); raises if absent.
         """
         df.columns = df.columns.str.strip().str.lower()
+        dec = df.attrs.get('decimal', '.')
         window = self._detect_window(filename, window)
 
         data = []
@@ -190,9 +194,9 @@ class S4ACSVParser:
                     'artist_id':    artist_id,
                     'song':         song,
                     'time_window':       window,
-                    'listeners':    _to_int(row.get('listeners', 0)),
-                    'streams':      _to_int(row.get('streams', 0)),
-                    'saves':        _to_int(row.get('saves', 0)),
+                    'listeners':    _to_int(row.get('listeners', 0), decimal=dec),
+                    'streams':      _to_int(row.get('streams', 0), decimal=dec),
+                    'saves':        _to_int(row.get('saves', 0), decimal=dec),
                     'release_date': release_date,
                 })
             except Exception:
@@ -206,6 +210,7 @@ class S4ACSVParser:
         playlist_adds (← 'playlist adds'), saves.
         """
         df.columns = df.columns.str.strip().str.lower()
+        dec = df.attrs.get('decimal', '.')
 
         data = []
         for _, row in df.iterrows():
@@ -213,11 +218,11 @@ class S4ACSVParser:
                 data.append({
                     'artist_id':    artist_id,
                     'date':         pd.to_datetime(row['date']).date(),
-                    'listeners':    _to_int(row.get('listeners', 0)),
-                    'streams':      _to_int(row.get('streams', 0)),
-                    'followers':    _to_int(row.get('followers', 0)),
-                    'playlist_adds': _to_int(row.get('playlist adds', 0)),
-                    'saves':        _to_int(row.get('saves', 0)),
+                    'listeners':    _to_int(row.get('listeners', 0), decimal=dec),
+                    'streams':      _to_int(row.get('streams', 0), decimal=dec),
+                    'followers':    _to_int(row.get('followers', 0), decimal=dec),
+                    'playlist_adds': _to_int(row.get('playlist adds', 0), decimal=dec),
+                    'saves':        _to_int(row.get('saves', 0), decimal=dec),
                 })
             except Exception:
                 continue
@@ -236,11 +241,13 @@ class S4ACSVParser:
             # jamais nommer la raison. « Mon CSV ne marche pas » était tout le
             # diagnostic disponible, pour l'artiste comme pour nous (R52).
             from src.transformers.csv_dialect import (
-                AmbiguousSeparatorError, describe, sniff_separator)
+                AmbiguousSeparatorError, decimal_for, describe, read_csv_options,
+                sniff_separator)
             try:
                 with open(file_path, encoding='utf-8-sig', errors='replace') as fh:
                     head = fh.readline() + fh.readline()
                 sep = sniff_separator(head)
+                dec = decimal_for(sep)
             except AmbiguousSeparatorError as e:
                 logger.error("CSV %s refusé : %s", file_path.name, e)
                 return {'type': None, 'data': [], 'reason': str(e)}
@@ -249,10 +256,10 @@ class S4ACSVParser:
                 return {'type': None, 'data': [], 'reason': f"unreadable file: {e}"}
 
             try:
-                df = pd.read_csv(file_path, sep=sep)
+                df = pd.read_csv(file_path, **read_csv_options(sep))
                 if 'date' not in df.columns.str.lower() and len(df) > 0:
                     # Une ligne de préambule au-dessus des en-têtes : deuxième essai.
-                    df = pd.read_csv(file_path, sep=sep, header=1)
+                    df = pd.read_csv(file_path, header=1, **read_csv_options(sep))
             except Exception as e:  # noqa: BLE001 — narrowed to a NAMED refusal
                 # Jamais un `except:` nu ici : il avalait aussi bien un fichier
                 # corrompu qu'un séparateur inattendu, et rendait les deux comme
@@ -283,7 +290,7 @@ class S4ACSVParser:
                             data.append({
                                 'song': clean_song_name,
                                 'date': pd.to_datetime(row['date']).date(),
-                                'streams': _to_int(row[stream_col]),
+                                'streams': _to_int(row[stream_col], decimal=dec),
                             })
                         except Exception:
                             continue

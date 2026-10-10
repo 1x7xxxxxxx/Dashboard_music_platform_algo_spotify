@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from src.transformers.csv_dialect import without_spaces
+from src.transformers.csv_dialect import read_number
 
 logger = logging.getLogger(__name__)
 
@@ -94,18 +94,15 @@ class IMusicianCSVParser:
         return int(parts[0]), int(parts[1])
 
     @staticmethod
-    def _clean_numeric(val, dtype=float):
-        """Convert value to float (or int), returning 0 on null/error.
-
-        Through ``float`` first: one empty cell makes pandas read the whole column as
-        float64, and ``int("3.0")`` raises — every count of that column read 0 (R501).
-        """
-        if pd.isna(val):
-            return dtype(0)
+    def _clean_numeric(val, dtype=float, decimal: str = '.'):
+        """A cell as `dtype`, through the one number reader (R503) — `decimal` is the
+        FILE's mark (`df.attrs['decimal']`). Through float first: one empty cell makes
+        pandas read the whole column as float64 (R501). Blank or unreadable → 0."""
         try:
-            return dtype(float(without_spaces(val).replace(',', '.')))
-        except (ValueError, TypeError):
+            number = read_number(val, decimal)
+        except ValueError:
             return dtype(0)
+        return dtype(0) if number is None else dtype(number)
 
     @staticmethod
     def _col(df: pd.DataFrame, name: str) -> Optional[str]:
@@ -128,6 +125,7 @@ class IMusicianCSVParser:
 
     def parse_release_summary(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a 'Résumé par sortie' CSV into a list of dicts for imusician_release_summary."""
+        dec = df.attrs.get('decimal', '.')
         df = df.dropna(how='all')
         self._require_cols(df, ['Statement date', 'Release title', 'Total revenue'])
         stmt_col = self._col(df, 'Statement date')
@@ -143,13 +141,13 @@ class IMusicianCSVParser:
                     'month':                      month,
                     'release_title':              _text(row[self._col(df, 'Release title')]),
                     'barcode':                    _text(row[self._col(df, 'Barcode')]) if self._col(df, 'Barcode') else None,
-                    'track_downloads':            self._clean_numeric(row.get(self._col(df, 'Track downloads') or ''), int),
-                    'track_streams':              self._clean_numeric(row.get(self._col(df, 'Track streams') or ''), int),
-                    'release_downloads':          self._clean_numeric(row.get(self._col(df, 'Release downloads') or ''), int),
-                    'track_downloads_revenue':    self._clean_numeric(row.get(self._col(df, 'Track downloads revenue') or '')),
-                    'track_streams_revenue':      self._clean_numeric(row.get(self._col(df, 'Track streams revenue') or '')),
-                    'release_downloads_revenue':  self._clean_numeric(row.get(self._col(df, 'Release downloads revenue') or '')),
-                    'total_revenue':              self._clean_numeric(row.get(self._col(df, 'Total revenue') or '')),
+                    'track_downloads':            self._clean_numeric(row.get(self._col(df, 'Track downloads') or ''), int, decimal=dec),
+                    'track_streams':              self._clean_numeric(row.get(self._col(df, 'Track streams') or ''), int, decimal=dec),
+                    'release_downloads':          self._clean_numeric(row.get(self._col(df, 'Release downloads') or ''), int, decimal=dec),
+                    'track_downloads_revenue':    self._clean_numeric(row.get(self._col(df, 'Track downloads revenue') or ''), decimal=dec),
+                    'track_streams_revenue':      self._clean_numeric(row.get(self._col(df, 'Track streams revenue') or ''), decimal=dec),
+                    'release_downloads_revenue':  self._clean_numeric(row.get(self._col(df, 'Release downloads revenue') or ''), decimal=dec),
+                    'total_revenue':              self._clean_numeric(row.get(self._col(df, 'Total revenue') or ''), decimal=dec),
                     'collected_at':               datetime.now(timezone.utc),
                 })
             except Exception as e:
@@ -161,6 +159,7 @@ class IMusicianCSVParser:
 
     def parse_sales_detail(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a 'Rapport de vente' CSV into a list of dicts for imusician_sales_detail."""
+        dec = df.attrs.get('decimal', '.')
         df = df.dropna(how='all')
         self._require_cols(df, ['Sales date', 'Statement date', 'ISRC', 'Shop'])
         sales_col = self._col(df, 'Sales date')
@@ -187,8 +186,8 @@ class IMusicianCSVParser:
                     'shop':            _text(row[self._col(df, 'Shop')]),
                     'transaction_type': _text(row.get(self._col(df, 'Transaction type') or '', '')),
                     'country':         _text(row.get(self._col(df, 'Country') or '', '')),
-                    'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int),
-                    'revenue_eur':     self._clean_numeric(row.get(self._col(df, 'Revenue EUR') or '')),
+                    'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int, decimal=dec),
+                    'revenue_eur':     self._clean_numeric(row.get(self._col(df, 'Revenue EUR') or ''), decimal=dec),
                     'collected_at':    datetime.now(timezone.utc),
                 })
             except Exception as e:

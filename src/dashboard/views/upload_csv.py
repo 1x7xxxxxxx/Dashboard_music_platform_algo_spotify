@@ -318,7 +318,11 @@ def _parse_file(platform_key: str, file, artist_id: int,
     # Même séparateur et même repli d'encodage que la DÉTECTION : sans ça un fichier
     # correctement détecté (tabulé, point-virgulé, latin-1) explosait ici, et l'artiste
     # recevait l'exception brute de pandas au lieu d'une cause.
-    df = pd.read_csv(file, sep=_sniff_sep(file), encoding_errors='replace')
+    _sep = _sniff_sep(file)
+    # La décimale se décide UNE fois pour le fichier (R503) et voyage avec le tableau.
+    from src.transformers.csv_dialect import decimal_for, read_csv_options
+    df = pd.read_csv(file, encoding_errors='replace', **read_csv_options(_sep))
+    df.attrs['decimal'] = decimal_for(_sep)
 
     if platform_key == 's4a':
         from src.transformers.s4a_csv_parser import S4ACSVParser

@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from src.transformers.csv_dialect import without_spaces
+from src.transformers.csv_dialect import decimal_for, read_csv_options, read_number
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,10 @@ class DistroKidParser:
         if text is None:
             return None
         try:
-            return pd.read_csv(io.StringIO(text), sep=self._sniff_sep(text))
+            sep = self._sniff_sep(text)
+            df = pd.read_csv(io.StringIO(text), **read_csv_options(sep))
+            df.attrs['decimal'] = decimal_for(sep)  # once per FILE (R503)
+            return df
         except Exception as e:
             logger.error(f"DistroKid read failed: {e}")
             return None
@@ -111,13 +114,15 @@ class DistroKidParser:
             return fallback
 
     @staticmethod
-    def _clean_numeric(val, dtype=float):
-        if pd.isna(val):
-            return dtype(0)
+    def _clean_numeric(val, dtype=float, decimal: str = '.'):
+        """A cell as `dtype`, through the one number reader (R503) — `decimal` is the
+        FILE's mark (`df.attrs['decimal']`). Through float first: one empty cell makes
+        pandas read the whole column as float64 (R501). Blank or unreadable → 0."""
         try:
-            return dtype(float(without_spaces(val).replace(',', '.')))
-        except (ValueError, TypeError):
+            number = read_number(val, decimal)
+        except ValueError:
             return dtype(0)
+        return dtype(0) if number is None else dtype(number)
 
     @staticmethod
     def _col(df: pd.DataFrame, name: str) -> Optional[str]:
@@ -138,6 +143,7 @@ class DistroKidParser:
 
     def parse_sales(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a bank-details DataFrame into rows for distrokid_sales_detail."""
+        dec = df.attrs.get('decimal', '.')
         df = df.dropna(how='all')
         sale_col = self._col(df, 'Sale Month')
         earn_col = self._col(df, 'Earnings (USD)')
@@ -163,14 +169,14 @@ class DistroKidParser:
                     'title':           self._text(df, row, 'Title'),
                     'isrc':            self._text(df, row, 'ISRC'),
                     'upc':             self._text(df, row, 'UPC') or None,
-                    'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int),
-                    'team_percentage': self._clean_numeric(row.get(self._col(df, 'Team Percentage') or '')),
+                    'quantity':        self._clean_numeric(row.get(self._col(df, 'Quantity') or ''), int, decimal=dec),
+                    'team_percentage': self._clean_numeric(row.get(self._col(df, 'Team Percentage') or ''), decimal=dec),
                     'source_type':     source_type,
                     'country':         self._text(df, row, 'Country of Sale'),
                     'songwriter_royalties_usd': self._clean_numeric(
-                        row.get(self._col(df, 'Songwriter Royalties Withheld (USD)') or '')),
-                    'earnings_usd':    self._clean_numeric(row.get(earn_col)),
-                    'recoup_usd':      self._clean_numeric(row.get(self._col(df, 'Recoup (USD)') or '')),
+                        row.get(self._col(df, 'Songwriter Royalties Withheld (USD)') or ''), decimal=dec),
+                    'earnings_usd':    self._clean_numeric(row.get(earn_col), decimal=dec),
+                    'recoup_usd':      self._clean_numeric(row.get(self._col(df, 'Recoup (USD)') or ''), decimal=dec),
                     'collected_at':    datetime.now(timezone.utc),
                 })
             except Exception as e:
