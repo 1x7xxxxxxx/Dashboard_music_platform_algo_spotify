@@ -174,10 +174,15 @@ EN = {
         "autoplay). Below this threshold, the impact on volume is flat; above it, Spotify "
         "\"opens the floodgates\" and multiplies the throughput."
     ),
-    "trigger_algo.roi.organic_scaling_caption": (
-        "⚠️ The live organic value (NonAlgoStreams by source) is not yet "
-        "collected (Phase 2 — split by S4A source): this threshold is shown as a "
-        "**target**, not a gap computed on your data."
+    "trigger_algo.roi.organic_gap_none": (
+        "Enter this track's non-algo streams (28 d) in « 📝 Saisie S4A » to see the gap "
+        "to this threshold."
+    ),
+    "trigger_algo.roi.organic_gap_reached": (
+        "✅ Your entry of {day}: {n:,} non-algo streams over 28 d — threshold reached."
+    ),
+    "trigger_algo.roi.organic_gap_missing": (
+        "Your entry of {day}: {n:,} non-algo streams over 28 d — **{gap:,}** to go."
     ),
     "trigger_algo.roi.playlist_budget_expander": "💶 Playlist budget — Groover & Fluence",
     "trigger_algo.roi.reference_rates": "Reference rates — check current prices on the platforms.",

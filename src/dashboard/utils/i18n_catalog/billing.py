@@ -57,8 +57,8 @@ EN = {
     "billing.included": "Included in your plan",
     "billing.free_no_action": "Free plan — no action required",
     "billing.upgrade_to": "Upgrade to {plan}",
-    "billing.payment_soon": "💳 Online payment is coming soon. In the meantime, "
-                            "contact us to activate this plan right away.",
+    "billing.payment_soon": "💳 Online payment is coming soon. In the meantime, write to "
+                            "[{email}](mailto:{email}) to activate this plan right away.",
     "billing.offers_header": "Our plans",
     # Admin view
     "billing.admin_header": "All artist subscriptions",

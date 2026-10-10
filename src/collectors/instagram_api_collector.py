@@ -313,9 +313,9 @@ class InstagramCollector:
                         'artist_id': self.artist_id,
                         'ig_user_id': d.get('id') or self.ig_user_id,
                         'username': d.get('username') or self.ig_username,
-                        'followers_count': d.get('followers_count', 0),
-                        'follows_count': d.get('follows_count', 0),
-                        'media_count': d.get('media_count', 0),
+                        'followers_count': d.get('followers_count'),
+                        'follows_count': d.get('follows_count'),
+                        'media_count': d.get('media_count'),
                         'collected_at': datetime.now(timezone.utc),
                     }
                 raise ValueError(
@@ -327,13 +327,15 @@ class InstagramCollector:
             response.raise_for_status()
             data = response.json()
 
+            # R510 — a field the API omits is written NULL, never 0: a 0 reads as a
+            # drop from 1 500 followers to none, and readers already skip NULL.
             stats = {
                 'artist_id': self.artist_id,
                 'ig_user_id': data.get('id'),
                 'username': data.get('username'),
-                'followers_count': data.get('followers_count', 0),
-                'follows_count': data.get('follows_count', 0),
-                'media_count': data.get('media_count', 0),
+                'followers_count': data.get('followers_count'),
+                'follows_count': data.get('follows_count'),
+                'media_count': data.get('media_count'),
                 'collected_at': datetime.now(timezone.utc)
             }
 

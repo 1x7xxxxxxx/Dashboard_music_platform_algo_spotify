@@ -129,7 +129,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                      "Budget Meta indisponible : {err}").format(err=e))
 
 
-    # 1bis. Organic scaling threshold (volume) — static target until Phase 2 data.
+    # 1bis. Organic scaling threshold (volume) — the gap reads the Saisie S4A entry.
     st.subheader(t("trigger_algo.roi.organic_scaling_header",
                    "🔊 Seuil de scaling organique (volume DW)"))
     _scale = ak.volume_scaling_threshold("DW")
@@ -141,12 +141,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
             "autoplay). Sous ce seuil, l'impact sur le volume est plat ; au-delà, Spotify "
             "« ouvre les vannes » et multiplie le débit."
         ).format(scale=_scale))
-        st.caption(t(
-            "trigger_algo.roi.organic_scaling_caption",
-            "⚠️ La valeur organique live (NonAlgoStreams par source) n'est pas encore "
-            "collectée (Phase 2 — split par source S4A) : ce seuil est affiché comme "
-            "**cible**, pas comme un écart calculé sur vos données."
-        ))
+        st.caption(organic_gap_caption(_latest_track_nonalgo(db, artist_id, track), _scale))
 
     _show_budget_pacing_calculator(db, artist_id)
 
@@ -201,6 +196,34 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
 
     _show_roi_regression(db, artist_id)
     _show_breakeven(db, track, artist_id, ml_pred)
+
+
+def _latest_track_nonalgo(db, artist_id, track: str):
+    """(streams_28d, recorded_at) of the latest manual Saisie S4A entry for this track, or None."""
+    rows = db.fetch_query(
+        """SELECT streams_28d, recorded_at FROM s4a_song_nonalgo_streams
+           WHERE artist_id = %s AND song = %s ORDER BY recorded_at DESC LIMIT 1""",
+        (artist_id, track)) if artist_id and track else []
+    return (int(rows[0][0]), rows[0][1]) if rows else None
+
+
+def organic_gap_caption(entry, scale: int) -> str:
+    """R510 — the gap to the DW volume threshold, computed from the MANUAL entry (mig. 052).
+
+    The caption used to say the value was « not yet collected (Phase 2) » while the
+    Saisie S4A page had been collecting it since mig. 052."""
+    if entry is None:
+        return t("trigger_algo.roi.organic_gap_none",
+                 "Saisis les streams non-algo (28 j) de ce titre dans « 📝 Saisie S4A » "
+                 "pour voir l'écart à ce seuil.")
+    streams, day = entry
+    if streams >= scale:
+        return t("trigger_algo.roi.organic_gap_reached",
+                 "✅ Ta saisie du {day} : {n:,} streams non-algo sur 28 j — seuil atteint."
+                 ).format(day=format_date(day), n=streams)
+    return t("trigger_algo.roi.organic_gap_missing",
+             "Ta saisie du {day} : {n:,} streams non-algo sur 28 j — il en manque "
+             "**{gap:,}**.").format(day=format_date(day), n=streams, gap=scale - streams)
 
 
 def _show_roi_regression(db, artist_id) -> None:

@@ -307,10 +307,13 @@ def _upgrade_cta(target_plan: str, current_plan: str | None) -> None:
     else:
         # No Stripe configured: enabled button that surfaces the manual path.
         if st.button(label, type="primary", key=f"upgrade_{target_plan}"):
+            # R510 — « contactez-nous » named no one: the address is the service one.
+            from src.database.stripe_schema import SERVICE_CONTACT_EMAIL
             st.info(
                 t("billing.payment_soon",
-                  "💳 Le paiement en ligne arrive bientôt. En attendant, "
-                  "contactez-nous pour activer ce plan dès maintenant.")
+                  "💳 Le paiement en ligne arrive bientôt. En attendant, écris-nous à "
+                  "[{email}](mailto:{email}) pour activer ce plan dès maintenant.")
+                .format(email=SERVICE_CONTACT_EMAIL)
             )
 
 

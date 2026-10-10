@@ -127,7 +127,7 @@ def render(db, artist_id) -> None:
         query = f"""
             SELECT collected_at, followers_count, follows_count, media_count
             FROM instagram_daily_stats
-            WHERE artist_id = %s {frag}
+            WHERE artist_id = %s AND followers_count IS NOT NULL {frag}
             ORDER BY collected_at ASC
         """
         df_hist = db.fetch_df(query, (artist_id, *frag_params))
