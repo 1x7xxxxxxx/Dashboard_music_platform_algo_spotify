@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R503 — La locale d'un nombre se décide par FICHIER : `csv_dialect.read_number(text, decimal)`… (livrée 2026-10-10)
+
+- [x] **R503 — La locale d'un nombre se décide par FICHIER : `csv_dialect.read_number(text, decimal)` pour les cinq lecteurs, décimale déduite du séparateur détecté — « 1.234,5 » rend 1234,5 (aujourd'hui 1, 0 ou 0.0 selon le lecteur)** (P2) ✅ (2026-10-10, c0f458c5)
+  Mesuré par : `read_number(formats.num(x, lang), decimal(lang)) == x`
+  read_number + decimal_for + read_csv_options, 5 lecteurs ; CI verte c0f458c5 (run 38086385722), dashboard déployé, prod read_number('1.234,5', ',') = 1234.5
+  Commits : c0f458c5 R503 : la décimale d'un nombre se décide par FICHIER — un seul lecteur
+
 ## ✅ R506 — Ne plus exiger un document régénéré qui ne sert à personne : retirer la porte des durée… (livrée 2026-10-10)
 
 - [x] **R506 — Ne plus exiger un document régénéré qui ne sert à personne : retirer la porte des durées (pytest-split donne la moyenne à un test inconnu ; rafraîchir `.test_durations` à la demande), registre des graphiques en avertissement, compte d'en-tête du catalogue calculé, lecteurs de gouvernance ciblés, les tests n'écrivent plus dans le journal réel des refus (26 `probe` en 7 j)** (P3) ✅ (2026-10-10, a9dc56d4)
