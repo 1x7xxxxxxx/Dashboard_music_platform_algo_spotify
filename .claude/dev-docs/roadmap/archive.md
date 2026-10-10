@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R502 — Une valeur ILLISIBLE n'est plus lue 0 en silence : les lecteurs comptent les rejets par… (livrée 2026-10-10)
+
+- [x] **R502 — Une valeur ILLISIBLE n'est plus lue 0 en silence : les lecteurs comptent les rejets par colonne (ligne, colonne, texte brut), l'import les affiche et les écrit dans `csv_upload_log` (à côté de `serialization`), une colonne > 5 % illisible refuse le fichier en la nommant ; `upload_csv.py:338` (`to_numeric().fillna(0)`) passe par le lecteur partagé — vide/`-` reste 0 légitime** (P2) ✅ (2026-10-10, 531f1f47, c0f458c5)
+  Mesuré par : un fichier à valeurs illisibles affiche leur nombre ; export FR « 1 234 » accepté
+  CI verte 531f1f47 (run 38089056401) ; migration 148 en prod après sauvegarde 20261010_215332 ; dashboard déployé efc89aae ; vérifié en prod : 2/20 illisibles importés et comptés, 1/1 refusé par nom, « 1 234 » lu 1234
+  Commits : 531f1f47 R502 : une valeur illisible est mise de côté et comptée, plus jamais l · c0f458c5 R503 : la décimale d'un nombre se décide par FICHIER — un seul lecteur
+
 ## ✅ R503 — La locale d'un nombre se décide par FICHIER : `csv_dialect.read_number(text, decimal)`… (livrée 2026-10-10)
 
 - [x] **R503 — La locale d'un nombre se décide par FICHIER : `csv_dialect.read_number(text, decimal)` pour les cinq lecteurs, décimale déduite du séparateur détecté — « 1.234,5 » rend 1234,5 (aujourd'hui 1, 0 ou 0.0 selon le lecteur)** (P2) ✅ (2026-10-10, c0f458c5)
