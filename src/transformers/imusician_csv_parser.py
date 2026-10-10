@@ -95,11 +95,15 @@ class IMusicianCSVParser:
 
     @staticmethod
     def _clean_numeric(val, dtype=float):
-        """Convert value to float (or int), returning 0 on null/error."""
+        """Convert value to float (or int), returning 0 on null/error.
+
+        Through ``float`` first: one empty cell makes pandas read the whole column as
+        float64, and ``int("3.0")`` raises — every count of that column read 0 (R501).
+        """
         if pd.isna(val):
             return dtype(0)
         try:
-            return dtype(without_spaces(val).replace(',', '.'))
+            return dtype(float(without_spaces(val).replace(',', '.')))
         except (ValueError, TypeError):
             return dtype(0)
 

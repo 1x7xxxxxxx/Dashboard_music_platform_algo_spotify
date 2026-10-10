@@ -57,6 +57,24 @@ def test_a_stream_count_reads_back_whatever_its_thousands_separator(n, reader, d
     assert lire(_grouped(n, data.draw(separateurs))) == n
 
 
+_CELL_READERS = st.sampled_from([
+    ("s4a", _to_int),
+    ("apple", lambda v: AppleMusicCSVParser.clean_number(None, v)),
+    ("distrokid", lambda v: DistroKidParser._clean_numeric(v, int)),
+    ("imusician", lambda v: IMusicianCSVParser._clean_numeric(v, int)),
+])
+
+
+@_DETERMINISTIC
+@given(n=st.integers(min_value=0, max_value=10**9), reader=_CELL_READERS,
+       form=st.sampled_from([int, float, str]))
+def test_a_count_reads_back_whatever_type_pandas_gave_the_cell(n, reader, form):
+    """R501 — one empty cell makes pandas read the whole column as float64: iMusician
+    then read `3.0` through `int("3.0")` and every count of the column became 0."""
+    _, lire = reader
+    assert lire(form(n)) == n
+
+
 @_DETERMINISTIC
 @given(cents=st.integers(min_value=-10**9, max_value=10**9), sep=_THOUSANDS_FR)
 def test_a_french_amount_reads_back_to_the_cent(cents, sep):
