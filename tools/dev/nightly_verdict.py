@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Mail the owner when a job of `security-nightly.yml` failed — the workflow itself stays green.
+"""Mail the owner when a job of `security-nightly.yml` failed — including the jobs allowed to fail.
 
 Type: Utility
 Uses: tools/dev/mail_red_verdict.py (build_message, send, _REQUIRED), env RESULTS (= toJSON(needs))
 Triggers: .github/workflows/security-nightly.yml, job `notify`
 Persists in: nothing — one mail, or nothing on a clean night
 
-Measured 2026-09-25: every nightly job carries `continue-on-error`, so the workflow was
+Measured 2026-09-25: every nightly job then carried `continue-on-error`, so the workflow was
 always green; `gitleaks` had failed 5 nights out of 5 and the random-order suite 4 out of
 5, read by nobody. A job FAILURE triggers the mail. The pip-audit and audit counters —
 present every night, known false positives among them — ride in the body only: a mail that
@@ -27,9 +27,10 @@ import mail_red_verdict as mail  # noqa: E402
 _FAILED = {"failure", "cancelled", "skipped"}
 
 
-# R493 — read by src/utils/nightly_recap.py::FAILED_JOBS_TITLE: with `continue-on-error` on
-# every job and step, GitHub shows the whole run green, and this annotation is the only
-# trace of a failed job that the recap can read without a token.
+# R493 — read by src/utils/nightly_recap.py::FAILED_JOBS_TITLE: a job under
+# `continue-on-error` reads `success` to the run, the job and its steps on GitHub, so this
+# annotation is the only trace of its failure that the recap can read without a token.
+# (pip-audit and gitleaks are blocking since R267: they turn the run red by themselves.)
 FAILED_JOBS_TITLE = "nightly-failed-jobs"
 
 
@@ -73,7 +74,9 @@ def verdict(needs: dict) -> str | None:
                      "roadmap-discipline` les nomme (R197).")
     if "guard-mutation" in failed:
         lines.append("guard-mutation : un garde ajouté ces deux derniers jours n'a rougi sur AUCUNE "
-                     "mutation, ou était rouge avant — le log du job le nomme ; le relire (règle 15ter).")
+                     "mutation, ou était rouge avant — le log du job le nomme ; le relire (règle 15ter). "
+                     "Ou l'artefact des rouges datés n'a pas été conservé (étape « Keep the dated "
+                     "reds ») : `--fetch` ne pourra pas les fusionner (R495).")
     if "p1-classes" in failed:
         lines.append("p1-classes : une classe d'erreur CRITIQUE (P1) est touchée, ou une P1 "
                      "n'a plus aucun garde exécutable — `audit_runner.py --severity P1` la nomme.")

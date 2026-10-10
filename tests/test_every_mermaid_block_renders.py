@@ -35,4 +35,6 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path, monkeypatch) -
     (tmp_path / "bad.md").write_text("# x\n\n```mermaid\ngantt\n  not mermaid ((((\n```\n")
     monkeypatch.setattr(cm, "_ROOTS", (tmp_path,))
     monkeypatch.setattr(cm, "_REPO", tmp_path)
-    assert cm.main() != 0
+    # R495 — `== 1`, not `!= 0`: exit 2 is « mmdc could not run », a crash, and must not
+    # pass as the detector having SEEN the malformed block.
+    assert cm.main() == 1

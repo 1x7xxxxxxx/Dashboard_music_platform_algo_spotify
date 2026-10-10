@@ -348,21 +348,54 @@ def tonight(backlog: list[str], day: date, limit: int) -> list[str]:
     return (backlog[start:] + backlog[:start])[:limit]
 
 
+# What `gh run download -n NAME` prints (exit 1) when the run has no artifact of that name,
+# measured 2026-10-10 with gh 2.92.0. Two wordings, one per case: a run with NO artifact at all
+# (ci.yml run 38070553586) and a run with other artifacts but not this one (run 37110245294).
+# Every other exit 1 (HTTP 401, HTTP 404 — measured the same day) is a read that failed.
+_NO_ARTIFACT = ("no valid artifacts found to download", "no artifact matches")
+
+
+def download_outcome(rc: int, output: str, file_present: bool) -> str:
+    """'ok', 'none' (the run uploaded no red log) or 'broken' (nothing was read). Pure.
+
+    A non-zero exit is « no red that night » only on one of the two measured gh wordings;
+    every other non-zero exit is a failed read, never an empty night (R495)."""
+    if rc == 0:
+        return "ok" if file_present else "broken"
+    low = output.lower()
+    return "none" if any(m in low for m in _NO_ARTIFACT) else "broken"
+
+
 def fetch(log: Path = RED_LOG) -> int:
-    """Merge the last nightly run's `guard-red-log` artifact into the local log (needs gh)."""
-    run = subprocess.run(["gh", "run", "list", "--workflow", "security-nightly.yml", "-L", "1",
+    """Merge the last COMPLETED nightly run's `guard-red-log` artifact into the local log (needs gh).
+
+    R495: an in-progress run (`-L 1` alone took the newest whatever its status) and a gh or
+    auth failure both read as « no red that night ». Only gh's own « no artifact » does now.
+    It still cannot tell a quiet night from a failed upload (`if-no-files-found: ignore`):
+    that one reaches the owner through `notify`, which reads the upload step's outcome."""
+    run = subprocess.run(["gh", "run", "list", "--workflow", "security-nightly.yml",
+                          "--status", "completed", "-L", "1",
                           "--json", "databaseId", "-q", ".[0].databaseId"],
                          capture_output=True, text=True, cwd=_ROOT).stdout.strip()
     if not run:
-        print("❌ no security-nightly run found — run: gh auth status")
+        print("❌ no completed security-nightly run found — run: gh auth status")
         return 1
     with tempfile.TemporaryDirectory() as tmp:
         got = subprocess.run(["gh", "run", "download", run, "-n", "guard-red-log", "-D", tmp],
                              capture_output=True, text=True, cwd=_ROOT)
         remote = Path(tmp) / log.name
-        if got.returncode or not remote.is_file():
-            print(f"ℹ️ run {run}: no guard-red-log artifact (no red that night)")
+        absent = download_outcome(got.returncode, (got.stdout or "") + (got.stderr or ""),
+                                  remote.is_file())
+        if absent == "none":
+            print(f"ℹ️ run {run}: no guard-red-log artifact (no red that night — a failed "
+                  "upload is mailed by `notify`)")
             return 0
+        if absent == "broken":
+            # R495 — an auth error, a network error or an artifact without the file is
+            # NOT « no red that night »: no verdict was read at all.
+            why = (got.stderr or "").strip().splitlines()[-1:] or [f"artifact without {log.name}"]
+            print(f"❌ run {run}: guard-red-log illisible (gh exit {got.returncode}) — {why[0]}")
+            return 1
         known = set(log.read_text(encoding="utf-8").splitlines()) if log.is_file() else set()
         new = [ln for ln in remote.read_text(encoding="utf-8").splitlines() if ln and ln not in known]
     if new:

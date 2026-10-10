@@ -70,6 +70,19 @@ def _changed_tests() -> list[str]:
     return sorted(n for n in names if Path(n).name.startswith("test_") and n.endswith(".py"))
 
 
+def suite_did_not_run(rc: int, output: str) -> bool:
+    """pytest exited without judging a single test. Pure.
+
+    R495 — exit 2/3/4/5 with no FAILED/ERROR line is an interrupted collection, an
+    internal error, a usage error (a plugin that does not load) or nothing collected.
+    None of these says a guard changed verdict without `.env`. A failing TEST that
+    crashes on a missing variable still counts: that is precisely the defect hunted here.
+    """
+    if rc in (0, 1):
+        return False
+    return not any(ln.startswith(("FAILED", "ERROR")) for ln in output.splitlines())
+
+
 def main() -> int:
     files = _files_loading_a_tool()
     # `--changed` : only the test files this working tree touches — the replay the CI
@@ -98,6 +111,11 @@ def main() -> int:
         print(f"✅ {len(files)} fichier(s) rendent le même verdict sans `.env` — "
               "aucun garde ne lit la configuration du poste")
         return 0
+    if suite_did_not_run(proc.returncode, proc.stdout + proc.stderr):
+        last = [ln for ln in (proc.stdout + proc.stderr).splitlines() if ln.strip()][-1:]
+        print(f"⊘ la suite ne s'est pas exécutée (pytest exit {proc.returncode}) — aucun "
+              f"verdict sur les gardes : {last[0] if last else '(muet)'}")
+        return 2
 
     print(f"❌ un garde change de verdict quand le `.env` du poste disparaît "
           f"({len(files)} fichier(s) rejoués). Il est vert là où il a été écrit et "

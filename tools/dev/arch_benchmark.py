@@ -43,6 +43,10 @@ METHODES = ("hook", "commit", "ci", "nuit", "regle-agent", "playbook", "humain",
 PORTEES = ("generique", "streamlytics")
 SETTINGS = ROOT / ".claude" / "settings.json"
 _HOOK_PATH = re.compile(r"\.claude/[\w/-]+\.py")
+sys.path.insert(0, str(ROOT / ".claude" / "scripts"))
+from judgement import (GREEN, RED, classify, is_pytest_command,  # noqa: E402 — R495
+                       node_kind, summary_nodes)
+
 PY = str(ROOT / ".venv" / "bin" / "python") if (ROOT / ".venv" / "bin" / "python").exists() \
     else sys.executable
 
@@ -185,6 +189,8 @@ def proof_state(req: dict, proof: str, seen_red: dict, self_proving) -> dict:
         red = {"comment": "auto-prouvant", "detail": "fabrique son défaut à chaque run"}
     if proof == "rouge":
         etat = "rouge"
+    elif proof == "⊘":                 # R495 — the proof crashed: no verdict either way
+        etat = "illisible"
     elif proof == "—":
         etat = "non rejouée"
     else:
@@ -215,7 +221,10 @@ def _ci_runs(workflow: str) -> dict | None:
         return None
     return {"kind": "ci", "n": len(runs), "last": runs[0]["createdAt"][:10] if runs else None,
             "echecs": sum(r["conclusion"] == "failure" for r in runs),
-            "note": "50 derniers runs GitHub"}
+            # R495 — `echecs` counts run CONCLUSIONS: a job under `continue-on-error` that
+            # failed (security-nightly.yml) is not in it. Documented latent, not fetched.
+            "note": "50 derniers runs GitHub — conclusions du run seulement, jobs "
+                    "continue-on-error exclus"}
 
 
 # R366 — where a command or a skill can be TRIGGERED: the surfaces that act (hooks, scripts,
@@ -384,22 +393,54 @@ def replay(reqs: list[dict], timeout: int = 900) -> dict[str, str]:
         res = subprocess.run([PY, "-m", "pytest", *sorted(set(nodes.values())), "-q",
                               "-p", "no:randomly", "-rA", "--no-header"],
                              cwd=ROOT, capture_output=True, text=True, timeout=timeout)
-        passed = {ln.split(" ", 1)[1].strip() for ln in res.stdout.splitlines()
-                  if ln.startswith("PASSED ")}
-        for rid, node in nodes.items():
-            hits = [p for p in passed if p == node or p.startswith(node + "::")
-                    or p.startswith(node + "[")]
-            out[rid] = "vert" if hits else "rouge"
+        out.update(pytest_proofs(res.returncode, res.stdout + res.stderr, nodes))
     for r in reqs:
         cmd = (r.get("preuve") or {}).get("cmd")
         if cmd:
-            try:
-                rc = subprocess.run(cmd, shell=True, cwd=ROOT, capture_output=True,
-                                    timeout=timeout).returncode
-            except subprocess.TimeoutExpired:
-                rc = 124
-            out[r["id"]] = "vert" if rc == 0 else "rouge"
+            out[r["id"]] = command_proof(cmd, timeout)
     return out
+
+
+UNREADABLE = "⊘"
+
+
+def _owns(node: str, reported: str) -> bool:
+    return reported == node or reported.startswith((node + "::", node + "["))
+
+
+def pytest_proofs(rc: int, output: str, nodes: dict[str, str]) -> dict[str, str]:
+    """{id: 'vert'|'rouge'|'⊘'} from ONE pytest run's `-rA` summary. Pure.
+
+    R495 — a node that ERRORs, dies on a NameError, is skipped or never collected did
+    not JUDGE its requirement: '⊘', never 'rouge' (which `verdict` prints RÉGRESSION).
+    A pytest exit outside {0, 1} judged nothing at all.
+    """
+    if rc not in (0, 1):
+        return {rid: UNREADABLE for rid in nodes}
+    passed = {ln.split(" ", 1)[1].strip() for ln in output.splitlines()
+              if ln.startswith("PASSED ")}
+    failures = summary_nodes(output)
+    res = {}
+    for rid, node in nodes.items():
+        kinds = {node_kind(k, m) for k, n, m in failures if _owns(node, n)}
+        if RED in kinds:
+            res[rid] = "rouge"
+        elif kinds:
+            res[rid] = UNREADABLE
+        else:
+            res[rid] = "vert" if any(_owns(node, p) for p in passed) else UNREADABLE
+    return res
+
+
+def command_proof(cmd: str, timeout: int = 900) -> str:
+    """'vert'|'rouge'|'⊘' for a `cmd:` proof — a traceback or a timeout is not a verdict."""
+    try:
+        p = subprocess.run(cmd, shell=True, cwd=ROOT, capture_output=True, text=True,
+                           timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return UNREADABLE
+    v = classify(p.returncode, p.stdout + p.stderr, pytest=is_pytest_command(cmd))
+    return {GREEN: "vert", RED: "rouge"}.get(v, UNREADABLE)
 
 
 def verdict(declared: str, proof: str) -> str:
@@ -408,6 +449,8 @@ def verdict(declared: str, proof: str) -> str:
         return "RÉGRESSION"
     if proof == "rouge":
         return f"{declared} (preuve rouge)"
+    if proof == UNREADABLE:
+        return f"{declared} (preuve illisible ⊘)"
     return declared
 
 
@@ -444,7 +487,7 @@ def render(domains: dict, reqs: list[dict], proofs: dict[str, str] | None) -> st
             theory = "; ".join(s["theorie"] for s in r["sources"] if "theorie" in s) or "—"
             gap = (r.get("ecart") or "—") + (f" → {r['roadmap']}" if r.get("roadmap") else "")
             lines.append(f"| {r['id']} | {r['enonce']} | {verdict(r['statut'], state)} "
-                         f"| `{proof}` {'✅' if state == 'vert' else '❌' if state == 'rouge' else ''} "
+                         f"| `{proof}` {'✅' if state == 'vert' else '❌' if state == 'rouge' else '⊘' if state == UNREADABLE else ''} "
                          f"| {theory} | {gap} |")
         lines.append("")
     if holes:

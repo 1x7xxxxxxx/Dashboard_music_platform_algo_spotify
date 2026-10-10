@@ -31,8 +31,11 @@ import pathlib
 import re
 import subprocess
 import sys
+import textwrap
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / ".claude" / "scripts"))
+from judgement import is_judgement_pytest  # noqa: E402 — R495, one reading for every tool
 from src.utils.env_files import load_project_env  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -53,6 +56,99 @@ def guard_targets(guard: pathlib.Path) -> list[str]:
             if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{3,60}", v) and " " not in v:
                 out.add(v)
     return sorted(out)
+
+
+_IMPORT_ROOTS = ("src", "tools")
+
+
+def _under_roots(dotted: str) -> bool:
+    return dotted.split(".", 1)[0] in _IMPORT_ROOTS
+
+
+def _module_file(dotted: str) -> pathlib.Path | None:
+    """`src.a.b` → `src/a/b.py`, ou `src/a/b/__init__.py` pour un paquet."""
+    base = ROOT / dotted.replace(".", "/")
+    for cand in (base.with_name(base.name + ".py"), base / "__init__.py"):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _docstring_ids(tree: ast.AST) -> set[int]:
+    out: set[int] = set()
+    for f in ast.walk(tree):
+        if not isinstance(f, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = f.body
+        if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                and isinstance(body[0].value.value, str):
+            out.add(id(body[0].value))
+    return out
+
+
+def _script_trees(script: str) -> list[ast.AST]:
+    """Les imports d'un script écrit dans une chaîne (AppTest, subprocess).
+
+    ⚠️ Un parse du texte entier échoue sur une indentation (bloc triple-quoté dans une
+    fonction), un gabarit `{}` ou un fragment. Rejeter la chaîne entière reproduirait
+    exactement le défaut corrigé — une source perdue. D'où : dedent, puis repli ligne à
+    ligne sur les seules lignes `import`/`from`, parenthèses de continuation jointes.
+    """
+    try:
+        return [ast.parse(textwrap.dedent(script))]
+    except SyntaxError:
+        pass
+    trees: list[ast.AST] = []
+    lines = script.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        i += 1
+        if not line.startswith(("import ", "from ")):
+            continue
+        if "(" in line and ")" not in line:
+            while i < len(lines) and ")" not in line:
+                line += " " + lines[i].strip()
+                i += 1
+        try:
+            trees.append(ast.parse(line))
+        except SyntaxError:
+            continue
+    return trees
+
+
+def _imported_sources(tree: ast.AST, depth: int = 0) -> set[pathlib.Path]:
+    """Les fichiers `src/`/`tools/` que ces nœuds importent — au NOM importé.
+
+    Ne couvre pas : l'import relatif, `importlib.import_module("src.x")`, `__import__`, ni
+    un module dont le nom est un gabarit (`views.{view}`).
+    """
+    out: set[pathlib.Path] = set()
+    docs = _docstring_ids(tree)
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and n.level == 0 and n.module and _under_roots(n.module):
+            pkg = ROOT / n.module.replace(".", "/")
+            mod = pkg.with_name(pkg.name + ".py")
+            if mod.is_file():
+                out.add(mod)
+            for alias in n.names:
+                # ordre explicite : module `.py`, puis sous-paquet, puis le paquet lui-même
+                # (un symbole ré-exporté par son `__init__`)
+                if alias.name != "*" and (sub := pkg / f"{alias.name}.py").is_file():
+                    out.add(sub)
+                elif alias.name != "*" and (sub := pkg / alias.name / "__init__.py").is_file():
+                    out.add(sub)
+                elif not mod.is_file() and (init := pkg / "__init__.py").is_file():
+                    out.add(init)
+        elif isinstance(n, ast.Import):
+            for alias in n.names:
+                if _under_roots(alias.name) and (f := _module_file(alias.name)):
+                    out.add(f)
+        elif (depth < 2 and isinstance(n, ast.Constant) and isinstance(n.value, str)
+              and id(n) not in docs and "import" in n.value):
+            for sub_tree in _script_trees(n.value):
+                out |= _imported_sources(sub_tree, depth + 1)
+    return out
 
 
 def sources_read(guard: pathlib.Path) -> list[pathlib.Path]:
@@ -78,20 +174,17 @@ def sources_read(guard: pathlib.Path) -> list[pathlib.Path]:
     # résoudre au paquet entier rendait les 49 vues, triées : les six mutations d'une nuit
     # tombaient dans account.py, admin.py, billing.py — des fichiers que le garde n'importe
     # pas — et trois gardes sains ont été mailés « personne ne l'a vu mordre ».
-    for m in re.finditer(r"from\s+((?:src|tools)[\w.]*)\s+import\s+\(?([\w\s,]+)", text):
-        pkg = m.group(1).replace(".", "/")
-        p = ROOT / (pkg + ".py")
-        if p.exists():
-            paths.add(p)
-            continue
-        if not (d := ROOT / pkg).is_dir():
-            continue
-        names = re.findall(r"(\w+)(?:\s+as\s+\w+)?", m.group(2))
-        modules = [d / f"{n}.py" for n in names if (d / f"{n}.py").exists()]
-        if modules:
-            paths.update(modules)
-        elif (d / "__init__.py").exists():
-            paths.add(d / "__init__.py")
+    # ⚠️ R494 : les imports se lisent à l'AST, plus par regex sur le texte brut. La regex
+    # débordait de sa ligne et avalait l'import suivant (93 fichiers perdaient 108 sources
+    # réelles), ignorait `import src.x.y`, comptait les docstrings, et résolvait un
+    # sous-paquet à l'`__init__` de son parent. Un garde qui ne parse pas garde ses chemins
+    # littéraux ci-dessus : seule l'étape d'import est sautée, rien ne lève.
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        tree = None
+    if tree is not None:
+        paths.update(_imported_sources(tree))
     return sorted(p for p in paths if p.exists() and p.suffix == ".py")
 
 
@@ -162,8 +255,12 @@ def is_crash(output: str) -> bool:
     réécrit par pytest s'affiche `E   assert [1000, 400, 100] == [100, 400, 1000]`, SANS le
     mot `AssertionError` — la première version l'aurait classé plantage (mesuré sur le garde
     YouTube, R493). Et un `AssertionError` cité dans un message de log ne juge rien.
+
+    R495 : la lecture vit désormais dans `.claude/scripts/judgement.py`, partagée avec
+    `audit_runner`, `arch_benchmark` et la sonde de la gestion d'erreurs — une seule
+    définition de « a jugé », au lieu d'une copie par outil.
     """
-    return not re.search(r"^E\s+(?:AssertionError\b|assert\b|Failed:)", output, re.M)
+    return not is_judgement_pytest(output)
 
 
 def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:

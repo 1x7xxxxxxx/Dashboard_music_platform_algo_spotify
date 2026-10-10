@@ -62,6 +62,9 @@ def test_the_door_does_not_import_streamlit_at_module_level() -> None:
     )
 
 
+_LOADED = 3   # the probe's own « streamlit is loaded » — distinct from a crash's exit 1
+
+
 def test_importing_the_door_really_leaves_streamlit_out() -> None:
     """L'EFFET, mesuré dans un interpréteur neuf — pas l'artefact.
 
@@ -71,10 +74,14 @@ def test_importing_the_door_really_leaves_streamlit_out() -> None:
     code = (
         "import sys;"
         "import src.dashboard.utils;"
-        "sys.exit(1 if 'streamlit' in sys.modules else 0)"
+        f"sys.exit({_LOADED} if 'streamlit' in sys.modules else 0)"
     )
     out = subprocess.run([sys.executable, "-c", code], cwd=_ROOT,
                          capture_output=True, text=True, timeout=300)
+    assert out.returncode in (0, _LOADED), (
+        f"la sonde a PLANTÉ (rc={out.returncode}) — aucun verdict sur Streamlit.\n"
+        f"stderr:\n{out.stderr[-2000:]}"
+    )
     assert out.returncode == 0, (
         "importer `src.dashboard.utils` charge Streamlit dans un interpréteur neuf.\n"
         "Le niveau module est peut-être propre, mais une des dépendances importées en "
@@ -87,10 +94,13 @@ def test_the_effect_probe_can_actually_fail() -> None:
     """Non-vacuité : la sonde doit savoir dire NON, sinon elle dit toujours OUI."""
     code = ("import sys;"
             "import streamlit;"
-            "sys.exit(1 if 'streamlit' in sys.modules else 0)")
+            f"sys.exit({_LOADED} if 'streamlit' in sys.modules else 0)")
     out = subprocess.run([sys.executable, "-c", code], cwd=_ROOT,
                          capture_output=True, text=True, timeout=300)
-    assert out.returncode == 1, (
-        "la sonde rend 0 alors que Streamlit vient d'être importé explicitement : "
-        "elle ne peut pas détecter ce qu'elle prétend détecter."
+    # R495 — `== _LOADED`, never `== 1`: a probe that crashes (an ImportError, a typo)
+    # exits 1 too, and used to pass here as « the probe can say no ».
+    assert out.returncode == _LOADED, (
+        f"la sonde rend {out.returncode} (attendu {_LOADED}) alors que Streamlit vient "
+        "d'être importé explicitement : 0 = elle ne peut pas détecter ce qu'elle prétend "
+        f"détecter, 1 = elle a PLANTÉ.\nstderr:\n{out.stderr[-1500:]}"
     )

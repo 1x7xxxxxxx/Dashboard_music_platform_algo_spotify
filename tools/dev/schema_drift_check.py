@@ -118,6 +118,14 @@ def on_shared_tables(drift: dict) -> dict:
     return out
 
 
+def unreadable_dumps(dumps: dict[str, dict[str, set[str]]]) -> list[str]:
+    """Paths whose dump carries no column at all. Pure.
+
+    A real schema always has columns; a dump with none is a read that failed.
+    """
+    return [path for path, dump in dumps.items() if not dump["col"]]
+
+
 def _used_in_src(column: str) -> bool:
     """True if `column` (the bare name) appears in src/ outside schema/init files."""
     try:
@@ -144,6 +152,14 @@ def main() -> None:
     # a report that misnames what it measured is how a green gets misread.
     side = sys.argv[3] if len(sys.argv) == 4 else "prod"
     prod_all, canon_all = _load(sys.argv[1]), _load(sys.argv[2])
+    unreadable = unreadable_dumps({sys.argv[1]: prod_all, sys.argv[2]: canon_all})
+    if unreadable:
+        # R495 — an empty dump is a psql/ssh that never answered. Diffed, it reports
+        # every column of the other side as « absent » and exits 1: a crash read as
+        # drift. Exit 2 is « no verdict », distinct from drift (1) and clean (0).
+        print(f"⊘ dump illisible, sans aucune colonne : {', '.join(unreadable)} — la "
+              "lecture du schéma a échoué, ce n'est PAS une dérive", file=sys.stderr)
+        sys.exit(2)
     prod, canon = prod_all["col"], canon_all["col"]
     prod_tables = {x.split(".", 1)[0] for x in prod}
     canon_tables = {x.split(".", 1)[0] for x in canon}

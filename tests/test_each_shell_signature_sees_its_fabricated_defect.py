@@ -24,6 +24,7 @@ import pytest
 from tests.catalogue_source import signatures
 
 ROOT = Path(__file__).resolve().parents[1]
+_BROKEN_CODES = {2, 5, 126, 127}   # audit_runner._BROKEN_CODES — exits that are not a verdict
 
 
 def _signature(cid: str) -> str:
@@ -90,9 +91,13 @@ CASES = {
 
 
 def _run(sig: str, cwd: Path) -> int:
+    return _run_full(sig, cwd).returncode
+
+
+def _run_full(sig: str, cwd: Path) -> subprocess.CompletedProcess:
     env = {"PATH": f"{cwd / 'bin'}:/usr/bin:/bin", "HOME": str(cwd), "GITHUB_REPOSITORY": ""}
     return subprocess.run(["bash", "-c", sig], cwd=cwd, capture_output=True, text=True,
-                          timeout=60, env=env).returncode
+                          timeout=60, env=env)
 
 
 def _healthy(cid: str, t: Path) -> None:
@@ -116,4 +121,10 @@ def test_the_detector_sees_the_defect_it_is_written_for(cid: str, tmp_path: Path
     _healthy(cid, tmp_path)
     assert _run(sig, tmp_path) == 0, f"{cid}: red WITHOUT its defect — it proves nothing"
     CASES[cid](tmp_path)
-    assert _run(sig, tmp_path) != 0, f"{cid}: its signature stays green on its own defect"
+    red = _run_full(sig, tmp_path)
+    assert red.returncode != 0, f"{cid}: its signature stays green on its own defect"
+    # R495 — a red that is a CRASH (grep exit 2 on a missing file, command not found 127,
+    # a Python traceback) is not the signature seeing its defect.
+    out = red.stdout + red.stderr
+    assert red.returncode not in _BROKEN_CODES and "Traceback (most recent call last)" not in out, (
+        f"{cid}: exit {red.returncode} is a crash, not a verdict on the defect:\n{out[-1500:]}")

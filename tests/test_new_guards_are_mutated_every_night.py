@@ -7,6 +7,7 @@ Depends on: nothing — the verdict is pure
 import importlib.util
 from pathlib import Path
 
+import pytest
 import yaml
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +118,63 @@ def test_importing_one_view_points_the_harness_at_that_view_only(tmp_path) -> No
     assert mg.sources_read(guard) == [_ROOT / "src/dashboard/views/soundcloud.py"]
 
 
+# R494 — the one-line case above stayed green while four defects reproduced: the regex
+# spilled past its line and swallowed the next import, ignored `import src.x.y`, read
+# docstrings, and resolved a subpackage to its parent's __init__. Every case is checked
+# with ==, so a lost source and an extra one both fail.
+_V, _U, _DU = "src/dashboard/views", "src/utils", "src/dashboard/utils"
+_IMPORT_FORMS = {
+    "consecutive_imports": (
+        "from src.dashboard.views import soundcloud\nfrom src.utils import metrics\n",
+        [f"{_V}/soundcloud.py", f"{_U}/metrics.py"]),
+    # live shape: tests/test_in_memory_limits_forbid_replicas.py, throttle then `labels = …`
+    "no_spill_into_the_next_identifier": (
+        "from src.dashboard.utils import throttle\n\nlabels = 1\n",
+        [f"{_DU}/throttle.py"]),
+    "import_dotted_as": ("import src.utils.metrics as m\n", [f"{_U}/metrics.py"]),
+    "docstring_is_not_an_import": (
+        "'''from src.utils.safe_error import safe_error'''\n", []),
+    "subpackage_resolves_to_its_own_init": (
+        "from src.dashboard.utils import pdf_exporter\n",
+        [f"{_DU}/pdf_exporter/__init__.py"]),
+    # AppTest / subprocess scripts live in strings; 27 guards depend on this form
+    "script_in_a_string": (
+        'S = "from src.dashboard.views.home import show"\n', [f"{_V}/home.py"]),
+    # an indented script whose import continues on the next line: needs the dedent
+    "indented_script_with_a_continued_import": (
+        "def f():\n"
+        "    return '''\n"
+        "        from src.dashboard.utils import \\\\\n"
+        "            throttle\n"
+        "        x = 1\n"
+        "    '''\n",
+        [f"{_DU}/throttle.py"]),
+    # a template placeholder makes the whole script unparseable: needs the line fallback
+    "indented_template_with_two_imports": (
+        "def f(view):\n"
+        "    return '''\n"
+        "        from src.dashboard.views import soundcloud\n"
+        "        from src.utils import metrics\n"
+        "        from src.dashboard.views.{} import show\n"
+        "    '''.format(view)\n",
+        [f"{_V}/soundcloud.py", f"{_U}/metrics.py"]),
+}
+
+
+@pytest.mark.parametrize("form", sorted(_IMPORT_FORMS))
+def test_sources_read_resolves_each_import_form(tmp_path, form: str) -> None:
+    code, expected = _IMPORT_FORMS[form]
+    guard = tmp_path / "test_g.py"
+    guard.write_text(code)
+    assert mg.sources_read(guard) == sorted(_ROOT / e for e in expected), form
+
+
+def test_an_unparseable_guard_keeps_its_literal_paths(tmp_path) -> None:
+    guard = tmp_path / "test_g.py"
+    guard.write_text('P = "src/utils/metrics.py"\ndef broken(:\n')
+    assert mg.sources_read(guard) == [_ROOT / "src/utils/metrics.py"]
+
+
 def test_a_crash_is_not_credited_as_a_judgement() -> None:
     """A renamed column fails every call: the line ran, nothing was judged."""
     assert mg.is_crash("E   KeyError: 'recent'\n")
@@ -134,3 +192,27 @@ def test_a_suspect_names_what_it_tried() -> None:
     lines = ngm.attempts(result)
     assert len(lines) == 2 and "a.py:3 `x`" in lines[0] and "vert" in lines[0]
     assert "plantage" in lines[1]
+
+
+def _fake_gh(monkeypatch, rc: int, stderr: str, calls: list) -> None:
+    import subprocess as sp
+
+    def run(argv, **kw):
+        calls.append(argv)
+        if argv[:3] == ["gh", "run", "list"]:
+            return sp.CompletedProcess(argv, 0, "123\n", "")
+        return sp.CompletedProcess(argv, rc, "", stderr)
+    monkeypatch.setattr(ngm.subprocess, "run", run)
+
+
+def test_fetch_says_unreadable_on_a_gh_failure_and_no_red_only_on_no_artifact(
+        tmp_path, monkeypatch, capsys) -> None:
+    """R495: every non-zero `gh run download` read as « no red that night ». gh's own message
+    for a missing artifact was MEASURED (gh 2.92.0, run 37110245294); 401/404 also exit 1."""
+    calls: list = []
+    _fake_gh(monkeypatch, 1, "no artifact matches any of the names or patterns provided\n", calls)
+    assert ngm.fetch(tmp_path / "log.jsonl") == 0 and "no red" in capsys.readouterr().out
+    assert "--status" in calls[0] and "completed" in calls[0], "an in-progress run has no artifact yet"
+    _fake_gh(monkeypatch, 1, "error fetching artifacts: HTTP 401: Bad credentials\n", calls)
+    assert ngm.fetch(tmp_path / "log.jsonl") == 1
+    assert "illisible" in capsys.readouterr().out

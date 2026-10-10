@@ -51,6 +51,28 @@ def _mmdc() -> str | None:
     return str(hits[-1]) if hits else None
 
 
+# R495 — what a renderer that never STARTED prints. Each block then « fails » with the same
+# launch error, and the run used to report N malformed diagrams: a crash credited as a
+# judgement on every one of them.
+_LAUNCH = re.compile(r"Failed to launch the browser|Could not find (?:Chrome|expected browser)"
+                     r"|error while loading shared libraries|No usable sandbox"
+                     r"|Running as root without --no-sandbox|Cannot find module", re.I)
+
+
+def renderer_unavailable(errors: list[str], n_blocks: int) -> bool:
+    """Did mmdc fail to RUN, rather than reject the diagrams? Pure.
+
+    True when every failure carries a launch error, or when every block failed with the
+    very same last line (n ≥ 2) — distinct diagrams do not share one parse error.
+    """
+    if not errors:
+        return False
+    if all(_LAUNCH.search(e) for e in errors):
+        return True
+    lasts = {(e.strip().splitlines() or [""])[-1] for e in errors}
+    return n_blocks >= 2 and len(errors) == n_blocks and len(lasts) == 1
+
+
 def main() -> int:
     exe = _mmdc()
     if exe is None:
@@ -65,7 +87,7 @@ def main() -> int:
         print("no mermaid blocks found — nothing to validate")
         return 0
 
-    bad = []
+    bad, errors = [], []
     with tempfile.TemporaryDirectory() as tmp:
         for path, idx, src in blocks:
             f = pathlib.Path(tmp) / f"b{idx}.mmd"
@@ -76,9 +98,14 @@ def main() -> int:
             r = subprocess.run([exe, "-i", str(f), "-o", str(f.with_suffix(".svg")), *extra],
                                capture_output=True, text=True, timeout=120)
             if r.returncode != 0:
+                errors.append(r.stderr or r.stdout or "")
                 err = (r.stderr or r.stdout or "").strip().splitlines()
                 bad.append(f"{path.relative_to(_REPO)} block #{idx}: {err[-1] if err else 'failed'}")
 
+    if renderer_unavailable(errors, len(blocks)):
+        print(f"⊘ renderer unavailable — mmdc could not run ({bad[0]}). "
+              f"{len(blocks)} block(s) NOT validated: this is not a verdict on the diagrams.")
+        return 2
     for b in bad:
         print(f"  ❌ {b}")
     print(f"\n{len(blocks) - len(bad)}/{len(blocks)} mermaid blocks valid")

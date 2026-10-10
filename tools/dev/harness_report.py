@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / ".claude" / "dev-docs" / "architecture" / "benchmark.json"
 DEFECTS = ROOT / ".claude" / "sessions" / "defect-log.json"   # R362, written by make defect-log
 OUT = ROOT / "revue" / "harness-report.html"
-ETATS = ("active", "verte, non prouvée", "rouge", "trou", "non rejouée")
+ETATS = ("active", "verte, non prouvée", "rouge", "illisible", "trou", "non rejouée")
 _INVOKED = ("agent", "skill", "command", "workflow", "playbook", "make")
 
 
@@ -55,6 +55,9 @@ def inventory(data: dict) -> list[dict]:
 def _items(data: dict) -> list[dict]:
     out = []
     for r in data["exigences"]:
+        if r["etat"] == "illisible":       # R495 — the proof crashed: neither red nor green
+            out.append({"rang": 0, "type": "preuve illisible", "ref": r["id"],
+                        "texte": f"{r['enonce']} — la preuve a PLANTÉ, elle n'a rien jugé"})
         if r["etat"] == "rouge":
             out.append({"rang": 0, "type": "preuve rouge", "ref": r["id"],
                         "texte": f"{r['enonce']} — la preuve est rouge aujourd'hui"})

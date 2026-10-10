@@ -34,6 +34,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / ".claude" / "scripts"))
+from judgement import RED, classify, looks_like_traceback  # noqa: E402 — sibling tree, R495
+
 CATALOGUE = ".claude/dev-docs/error-classes.md"
 PY = sys.executable
 CID = "a-probe-class-fabricated-by-the-error-management-probe"
@@ -158,7 +161,40 @@ def insert_class(text: str, fields: dict) -> str:
     return text.rstrip("\n") + "\n" + render(fields)
 
 
-def run_gates(root: Path, regenerate: bool) -> dict[str, int]:
+GREEN, REFUSED, CRASH = "green", "refused", "crash"
+
+# R495 — the exit code a gate uses to REFUSE, and the line it prints when it does. A gate
+# that exits non-zero without its marker (a traceback, a missing file, a usage error)
+# refused nothing: it fell over, and the probe used to credit that as a refusal.
+_REFUSAL = {
+    "admission": (2, re.compile(r"^\s*⊘\s", re.M)),
+    "sweep-verdict": (1, re.compile(r"^❌ ", re.M)),
+    "health --check": (1, re.compile(r"n'est pas rangé")),
+}
+
+
+def gate_outcome(label: str, rc: int, output: str) -> str:
+    """GREEN, REFUSED or CRASH for one gate run. Pure."""
+    if rc == 0:
+        return GREEN
+    if label not in _REFUSAL:            # the catalogue tests: pytest's own judgement
+        return REFUSED if classify(rc, output, pytest=True) == RED else CRASH
+    code, marker = _REFUSAL[label]
+    if rc == code and marker.search(output) and not looks_like_traceback(output):
+        return REFUSED
+    return CRASH
+
+
+def probe_refused(outcomes: dict[str, str]) -> bool:
+    """A defect is refused when one gate judged it AND no gate crashed. Pure.
+
+    A crash next to a refusal leaves the probe unproven: the crashed gate is the one whose
+    refusal it was meant to test, and nobody knows what it would have said."""
+    vals = outcomes.values()
+    return REFUSED in vals and CRASH not in vals
+
+
+def run_gates(root: Path, regenerate: bool) -> dict[str, str]:
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     if regenerate:
         # R345: only the health tool still writes a TRACKED file — the catalogue's ranking.
@@ -168,24 +204,35 @@ def run_gates(root: Path, regenerate: bool) -> dict[str, int]:
     out = {}
     for label, argv in GATES:
         r = subprocess.run(argv, cwd=root, capture_output=True, text=True, env=env, timeout=900)
-        out[label] = r.returncode
+        out[label] = gate_outcome(label, r.returncode, r.stdout + r.stderr)
     return out
 
 
-def probe_hook(root: Path) -> int:
+def probe_hook(root: Path) -> tuple[int, str]:
     """The commit hook on a catalogue diff adding the probe class, in a worktree whose
-    transcripts hold no sweeper call. Returns the hook's exit code."""
+    transcripts hold no sweeper call. Returns the hook's exit code and output."""
     payload = {"tool_name": "Bash", "tool_input": {"command": "git add -A && git commit -m probe"},
                "cwd": str(root)}
     # The worktree lives under a temp path: its transcript folder (~/.claude/projects/<slug>)
     # is empty, so no sweeper call can be found — the hook must refuse.
     r = subprocess.run([PY, ".claude/hooks/require_sweep_before_catalogue.py"], cwd=root,
                        input=json.dumps(payload), capture_output=True, text=True, timeout=120)
-    return r.returncode
+    return r.returncode, r.stdout + r.stderr
 
 
-def probe_terminal_commit(root: Path) -> int:
-    """A plain `git commit` of the probe class, outside Claude Code: its exit code."""
+def hook_refused(rc: int, output: str) -> bool:
+    """The Claude Code hook refused — exit 2 AND its own `🚫 BLOCKED` line. Pure."""
+    return rc == 2 and "🚫 BLOCKED" in output and not looks_like_traceback(output)
+
+
+def commit_refused(rc: int, output: str) -> bool:
+    """The terminal commit was refused BY the catalogue-sweep check, not by any other
+    pre-commit failure (a missing tool, a crashing hook). Pure."""
+    return rc != 0 and "🚫 catalogue-sweep —" in output
+
+
+def probe_terminal_commit(root: Path) -> tuple[int, str]:
+    """A plain `git commit` of the probe class, outside Claude Code: exit code and output."""
     subprocess.run(["git", "add", CATALOGUE], cwd=root, capture_output=True)
     # An EMPTY transcript folder: the check must find no sweep and refuse. Without one it
     # stands aside by design (CI, another machine) — which would read as a pass here.
@@ -195,7 +242,7 @@ def probe_terminal_commit(root: Path) -> int:
     r = subprocess.run(["git", "-c", "user.email=p@p", "-c", "user.name=probe", "commit", "-q",
                         "-m", "probe", "--", CATALOGUE], cwd=root, capture_output=True, text=True,
                        env=env, timeout=600)
-    return r.returncode
+    return r.returncode, r.stdout + r.stderr
 
 
 def main() -> int:
@@ -233,13 +280,13 @@ def main() -> int:
         cat = wt / CATALOGUE
         original = cat.read_text(encoding="utf-8")
 
-        def attempt(fields: dict, regenerate: bool) -> dict[str, int]:
+        def attempt(fields: dict, regenerate: bool) -> dict[str, str]:
             subprocess.run(["git", "checkout", "-q", "--", "."], cwd=wt, capture_output=True)
             cat.write_text(insert_class(original, fields), encoding="utf-8")
             return run_gates(wt, regenerate)
 
         control = attempt(dict(CONTROL), True)
-        control_ok = all(rc == 0 for rc in control.values())
+        control_ok = all(o == GREEN for o in control.values())
         ok &= control_ok
         rows.append(("CONTROL (valid new class)", "all green", control, control_ok, "—"))
         wanted = {n.strip() for n in a.only.split(",") if n.strip()}
@@ -250,21 +297,23 @@ def main() -> int:
             for k, v in p.breaks.items():
                 fields[k] = v
             res = attempt(fields, p.regenerate)
-            refused = any(rc != 0 for rc in res.values())
+            refused = probe_refused(res)
             ok &= refused
             rows.append((p.name, "refused", res, refused, p.guaranteed_by))
         subprocess.run(["git", "checkout", "-q", "--", "."], cwd=wt, capture_output=True)
         cat.write_text(insert_class(original, dict(CONTROL)), encoding="utf-8")
-        hook_rc = probe_hook(wt)
-        hook_ok = hook_rc == 2
+        hook_rc, hook_out = probe_hook(wt)
+        hook_ok = hook_refused(hook_rc, hook_out)
         ok &= hook_ok
         rows.append(("commit via Claude Code, no sweeper call", "hook exit 2",
-                     {"hook": hook_rc}, hook_ok, "test_the_catalogue_needs_a_real_sweep.py"))
-        term_rc = probe_terminal_commit(wt)
-        term_ok = term_rc != 0
+                     {"hook": REFUSED if hook_ok else f"{CRASH if hook_rc else GREEN} (exit {hook_rc})"},
+                     hook_ok, "test_the_catalogue_needs_a_real_sweep.py"))
+        term_rc, term_out = probe_terminal_commit(wt)
+        term_ok = commit_refused(term_rc, term_out)
         ok &= term_ok
         rows.append(("plain `git commit` from a terminal, no sweep", "refused",
-                     {"git commit": term_rc}, term_ok, "R186 — pre-commit hook catalogue-sweep"))
+                     {"git commit": REFUSED if term_ok else f"{CRASH if term_rc else GREEN} (exit {term_rc})"},
+                     term_ok, "R186 — pre-commit hook catalogue-sweep"))
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO,
                        capture_output=True)
@@ -277,7 +326,7 @@ def main() -> int:
         print("| probe | expected | red gates | verdict | guaranteed by |")
         print("|---|---|---|---|---|")
         for name, exp, res, good, by in rows:
-            red = ", ".join(f"{k} ({v})" for k, v in res.items() if v != 0) or "—"
+            red = ", ".join(f"{k} ({v})" for k, v in res.items() if v not in (0, GREEN)) or "—"
             print(f"| {name} | {exp} | {red} | {'✅' if good else '❌'} | {by} |")
         print(f"\n{'✅ every gate refuses its defect' if ok else '❌ at least one gate does not refuse'}")
     return 0 if ok else 1

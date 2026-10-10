@@ -73,3 +73,28 @@ def test_the_parser_reads_templates_fstring_pieces_and_ignores_prose():
     assert {"api.routers.kpis", "api.routers.ml"} <= names
     # prose yields names that resolve to no module of the repo — harmless, but no prefix
     assert "the" in names and "src.utils" not in prefixes
+
+
+# R494 — `from pkg.views import page as p` captured `page as p` as the imported name;
+# `pkg.views.page as p` resolved to nothing and fell back to the PACKAGE `pkg.views`.
+# The body below deliberately never spells the file name nor the views directory: the
+# mention rule rescued the real case (`test_new_guards_are_mutated_every_night.py`
+# says "soundcloud.py" literally), and that rescue is exactly what hid the defect.
+def test_an_aliased_import_in_a_string_selects_its_test(tmp_path):
+    body = ('CODE = "from pkg.views import page as p"\n\n'
+            "def test_run():\n    assert CODE\n")
+    root = _repo(tmp_path, body)
+    assert "page.py" not in body and "views/" not in body, "the guard must not be rescued"
+    assert "tests/test_render.py" in _picked(root, "pkg/views/page.py")
+
+
+def test_an_alias_or_a_parenthesis_does_not_corrupt_the_imported_name():
+    names, _ = st.imports_in_strings(ast.parse('A = "from src.a import b as c, d"'))
+    assert {n for n in names if n != "src.a"} == {"src.a.b", "src.a.d"}, names
+    names, _ = st.imports_in_strings(ast.parse(
+        'A = "from src.a import (b,  # note\\n c as k,)"'))
+    assert {n for n in names if n != "src.a"} == {"src.a.b", "src.a.c"}, names
+    names, _ = st.imports_in_strings(ast.parse('A = "import a.b as c, d as e"'))
+    assert {"a.b", "d"} <= names, names
+    for n in names:
+        assert " " not in n and "(" not in n, n

@@ -5,15 +5,12 @@ name: Security — Nightly audit
 #   - error-class-audit: heuristic grep sweep (.claude/dev-docs/error-classes.md)
 #   - gitleaks:          full git history secret scan
 #
-# Every job is NON-BLOCKING (the workflow stays green), but since 2026-09-25 a failing
-# job MAILS the owner through the `notify` job: each job publishes its real step
-# `outcome` (needs.<job>.result says `success` under continue-on-error), every `| tee`
-# runs under pipefail, and a step skipped behind a failed one counts as a failure.
-# Guard: tests/test_a_nightly_red_reaches_the_inbox.py.
-#
-# Pre-prod hardening backlog (re-enable blocking selectively before going live):
-#   - pip-audit:  pin apache-airflow-core to the Docker image version, then
-#                 restore `--strict` so real CVEs block.
+# Observational jobs carry `continue-on-error`; pip-audit and gitleaks BLOCK since R267
+# (2026-09-28) and can turn the run red. Either way a failing job MAILS the owner through
+# the `notify` job: each job publishes its real `outcome` (needs.<job>.result says `success`
+# under continue-on-error), chained through EVERY step that can fail after the first one
+# (a step skipped behind a failed one reads `skipped`, which counts as a failure), and every
+# `| tee` runs under pipefail. Guard: tests/test_a_red_nightly_job_reaches_the_owner.py.
 #
 # 2026-08-24 (R49) — l'audit lisait `requirements.txt`, que RIEN n'installe tel
 # quel : ce fichier porte des PLANCHERS (`weasyprint>=62.0`, `cryptography>=42`),
@@ -21,11 +18,9 @@ name: Security — Nightly audit
 # pendant que la CI installait `uv.lock` — qui épinglait pyjwt 2.12.1, starlette
 # 1.0.0, python-multipart 0.0.28 : 127 avis sur 18 paquets. L'audit vérifiait un
 # fichier de contraintes, pas un parc. Il lit désormais le lock RÉSOLU.
-#   - gitleaks:   triage the ~27 historical findings (true secrets vs FPs like
-#                 the 1x7xxxxxxx filter / config.example.yaml), add a
-#                 .gitleaks.toml allowlist or rotate + baseline, then block.
-#   - error-class-audit: stays heuristic/non-blocking (known FPs, e.g.
-#                 cosmetic datetime.now() allowed by .claude/rules/python.md).
+#
+# error-class-audit stays heuristic/non-blocking (known FPs, e.g. cosmetic
+# datetime.now() allowed by .claude/rules/python.md).
 
 on:
   schedule:
@@ -202,9 +197,8 @@ jobs:
     # BLOCKING since R267 (2026-09-28): the full history scans clean against
     # .gitleaksignore (0 finding, measured locally and on the last nightly), so a finding
     # now is a NEW secret — it must fail, not ride in a summary.
-    # ⚠️ `continue-on-error` fait rapporter `success` à `needs.gitleaks.result` MÊME quand
-    # le job échoue (mesuré le 2026-09-25 : job `failure`, needs `success`). L'issue réelle
-    # de l'étape est donc publiée ici, et c'est elle que `notify` lit.
+    # The step's real outcome is published here and `notify` reads it: an `outcome`
+    # output, when present, wins over `needs.<job>.result` (tools/dev/nightly_verdict.py).
     outputs:
       outcome: ${{ steps.scan.outcome }}
     steps:
@@ -449,7 +443,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
-      outcome: ${{ steps.mutate.outcome }}
+      # R495 : `Keep the dated reds` runs AFTER `mutate` (always()), so its failure skipped
+      # nothing and reached nobody — `mutate` alone read `success`. First non-success wins.
+      outcome: ${{ steps.mutate.outcome != 'success' && steps.mutate.outcome || steps.keep.outcome }}
     services:
       postgres:
         image: postgres:17
@@ -486,6 +482,7 @@ jobs:
       # R360: the dated reds the job saw (guard, date, mutation) — no secret, only test paths.
       # Merged locally by `python3 tools/dev/nightly_guard_mutation.py --fetch`.
       - name: Keep the dated reds
+        id: keep
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -532,9 +529,9 @@ jobs:
           python3 tools/dev/roadmap_discipline.py --days 14 | tee -a "$GITHUB_STEP_SUMMARY"
 
   # ── Un rouge qui n'arrive nulle part n'est pas une alerte (2026-09-25, R167) ──
-  # Tous les jobs ci-dessus portent `continue-on-error` : le workflow est TOUJOURS vert.
-  # `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4 sur 5, lus par
-  # personne. Ce job mail le propriétaire quand un job ÉCHOUE ; les compteurs de pip-audit
+  # Les jobs observationnels portent `continue-on-error` : leur rouge ne colore pas le run.
+  # Le 2026-09-25, `gitleaks` était rouge 5 nuits sur 5 et la suite en ordre aléatoire 4
+  # sur 5, lus par personne. Ce job mail le propriétaire quand un job ÉCHOUE ; les compteurs de pip-audit
   # et de l'audit, présents chaque nuit (faux positifs connus), vont dans le corps du mail
   # et ne le déclenchent pas seuls — sinon il partirait chaque nuit et serait ignoré.
   notify:

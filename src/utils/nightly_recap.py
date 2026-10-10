@@ -117,9 +117,10 @@ def verdict(runs: "list[dict] | None") -> dict:
     return {"state": "red", "since": (since or "")[:10], "url": newest.get("html_url")}
 
 
-# R493 — `security-nightly.yml` puts `continue-on-error` on every job AND every step, so the
-# run, each job and each step all read `success` on GitHub even when its `notify` job mails
-# red (measured on run 38040290890, 2026-10-10: guard-mutation failed, every API field green).
+# R493 — `security-nightly.yml` puts `continue-on-error` on its observational jobs (all but
+# pip-audit and gitleaks, blocking since R267), so the run, such a job and its steps all read
+# `success` on GitHub even when its `notify` job mails red (measured on run 38040290890,
+# 2026-10-10: guard-mutation failed, every API field green).
 # `notify` therefore publishes the failed jobs as an annotation with this title, and the
 # recap reads it. The title is the contract — tools/dev/nightly_verdict.py writes it.
 FAILED_JOBS_TITLE = "nightly-failed-jobs"

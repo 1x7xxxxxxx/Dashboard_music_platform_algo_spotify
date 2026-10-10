@@ -204,7 +204,18 @@ def _r114() -> tuple[str, str]:
             "PROD_SSH", "")})
     if prod.returncode != 0 and "PROD_SSH" in prod.stderr:
         raise RuntimeError("PROD_SSH non défini — ce contrôle n'a RIEN vérifié")
-    fired = "✅ sous le seuil" not in prod.stdout
+    # R495 — any other non-zero exit is a dead ssh, a psql that never answered, or a
+    # p50 nobody measured (`scale_check.sh` exits 2 on an unreadable trigger). Its
+    # stdout then lacks « ✅ sous le seuil » for the wrong reason, and the line below
+    # read that absence as « threshold crossed ». A crash is never a verdict: it goes
+    # to `Trigger.run`, which renders INDÉCIDABLE.
+    if prod.returncode != 0:
+        tail = (prod.stderr or prod.stdout).strip().splitlines()[-1:] or ["(muet)"]
+        raise RuntimeError(f"scale_check.sh exit {prod.returncode} — aucun verdict : {tail[0]}")
+    # R496 — read the CROSSING, not trigger 1's « all clear »: trigger 2 prints
+    # « ✅ p50 = N ms, sous le seuil de … », so a p50 over 200 ms next to sessions under
+    # their threshold still matched « ✅ sous le seuil » and never reopened R87/R114.
+    fired = "SEUIL FRANCHI" in prod.stdout
     return (MET if fired else NOT_MET), (
         "au moins un des deux seuils franchi" if fired
         else "les deux déclencheurs sous le seuil")

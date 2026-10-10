@@ -271,7 +271,19 @@ def source_roots(root: Path) -> list[Path]:
 # it is a dependency. Prose that happens to say « from the … » resolves to nothing.
 _IMPORT_IN_STRING = re.compile(
     r"\b(?P<kw>from|import)\s+(?P<name>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)"
-    r"(?P<tpl>\.(?:\{|$))?(?:\s+import\s+(?P<names>[\w, ]+))?", re.MULTILINE)
+    r"(?P<tpl>\.(?:\{|$))?"
+    r"(?:\s+import\s+(?:\((?P<paren>[^)]*)\)|(?P<names>[\w, ]+)))?", re.MULTILINE)
+
+
+def _imported_names(group: str) -> list[str]:
+    """`b as c, d` or a parenthesised `(b,  # note\n c)` → ['b', 'd'] / ['b', 'c'].
+
+    R494 — the `as` alias was kept in the name (`pkg.views.soundcloud as sc`), which
+    resolves to nothing and fell back to the PACKAGE. The first token of each element is
+    the imported name; prose (`errors are shown`) still yields a name nothing resolves.
+    """
+    group = re.sub(r"#[^\n]*", "", group)
+    return [n.split()[0] for n in group.split(",") if n.split()]
 
 
 def imports_in_strings(tree: ast.AST) -> tuple[set[str], set[str]]:
@@ -290,8 +302,9 @@ def imports_in_strings(tree: ast.AST) -> tuple[set[str], set[str]]:
             if m["kw"] == "import":  # `import a.b, c.d` — every module of the list
                 tail = node.value[m.end():].split("\n", 1)[0]
                 names |= set(re.findall(r",\s*([A-Za-z_][\w.]*)", tail.split(";", 1)[0]))
-            if m["kw"] == "from" and m["names"]:
-                names |= {f"{m['name']}.{n.strip()}" for n in m["names"].split(",") if n.strip()}
+            listed = m["paren"] if m["paren"] is not None else m["names"]
+            if m["kw"] == "from" and listed:
+                names |= {f"{m['name']}.{n}" for n in _imported_names(listed)}
     return names, prefixes
 
 
@@ -405,6 +418,21 @@ def module_name(root: Path, path: Path, roots: list[Path] | None = None) -> str:
     if parts and parts[-1] == "__init__":
         parts.pop()
     return ".".join(parts)
+
+
+def relative_anchor(mod: str, is_init: bool, level: int) -> list[str]:
+    """The package a level-`level` relative import resolves against. Pure.
+
+    R494 — `module_name()` drops `__init__`, so `pkg/sub/__init__.py` is `pkg.sub`, and
+    Python resolves its `from ._impl import f` against `pkg.sub` itself. Stripping one
+    component as for a plain module gave `pkg._impl`, a module that does not exist, and
+    the edge fell back to the parent package. Beyond the top package → [] (unresolved).
+    """
+    parts = [x for x in mod.split(".") if x]
+    anchor = parts if is_init else parts[:-1]
+    if level - 1 >= len(anchor):
+        return []
+    return anchor[:len(anchor) - (level - 1)]
 
 
 def module_aliases(root: Path, path: Path, roots: list[Path] | None = None) -> set[str]:
@@ -548,7 +576,7 @@ def build_graph(root: Path,
                     got.add(a.name)
             elif isinstance(node, ast.ImportFrom):
                 if node.level:  # relatif : résoudre contre le paquet du fichier
-                    pkg = mod.split(".")[:-node.level] if node.level <= mod.count(".") + 1 else []
+                    pkg = relative_anchor(mod, p.name == "__init__.py", node.level)
                     prefix = ".".join(pkg + ([node.module] if node.module else []))
                 else:
                     prefix = node.module or ""

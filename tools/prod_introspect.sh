@@ -65,6 +65,15 @@ audit_env() {
   section "(a) Central-app env presence per container (SET / MISSING)"
   for c in "${CONTAINERS[@]}"; do
     printf '\n--- container: %s ---\n' "$c"
+    # R495 — `docker exec` on an absent or stopped container fails exactly like
+    # `printenv` on an unset variable: every variable read MISSING, a crash credited as
+    # a verdict on the env. Ask first whether the container runs at all.
+    running=$(run_remote "docker inspect -f '{{.State.Running}}' \"$c\"" 2>/dev/null || true)
+    if [ "$running" != "true" ]; then
+      printf '  ⊘ conteneur absent ou arrêté (docker inspect: %s) — aucun verdict sur son env\n' \
+        "${running:-injoignable}"
+      continue
+    fi
     for v in "${ENV_VARS[@]}"; do
       status=$(run_remote \
         "docker exec \"$c\" printenv \"$v\" >/dev/null 2>&1 && echo SET || echo MISSING" \
@@ -123,4 +132,6 @@ main() {
   printf '\nDone.\n'
 }
 
-main "$@"
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi

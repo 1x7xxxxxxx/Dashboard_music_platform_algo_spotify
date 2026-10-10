@@ -15,7 +15,13 @@
 # seuil de charge rapprochait artificiellement la décision de son déclencheur.
 #
 # Usage : make scale-check PROD_SSH=user@host
+#
+# Exit codes (R495) : 0 = both triggers READ (✅ or 🔴, printed) · 2 = at least one
+# trigger unreadable (⊘) — a dead ssh or a missing p50 is never « sous le seuil ».
 set -euo pipefail
+
+# shellcheck source=tools/scale_check_verdicts.sh
+. "$(dirname "$0")/scale_check_verdicts.sh"
 
 PROD_SSH="${PROD_SSH:?set PROD_SSH=user@host}"
 PG_CONT="${PROD_PG:-postgres_spotify_airflow}"
@@ -62,12 +68,8 @@ PIC_BRUT="${LIGNE##*|}"
 printf '  pic humain      : %s\n  pic brut        : %s  (canaris et bac à sable inclus)\n' \
        "$PIC_HUMAIN" "$PIC_BRUT"
 
-if [ "${PIC_HUMAIN:-0}" -gt "$SEUIL_SESSIONS" ]; then
-  echo "  🔴 SEUIL FRANCHI — R87 se rouvre. Voir l'inventaire de ce qui casse à N>1 :"
-  echo "     tests/test_in_memory_limits_forbid_replicas.py"
-else
-  echo "  ✅ sous le seuil — répliques toujours injustifiées"
-fi
+V1=0
+sessions_verdict "$PIC_HUMAIN" "$SEUIL_SESSIONS" || V1=$?
 
 echo
 echo "▶ Déclencheur 2/2 — p50 de rendu sous 12 rendus, SUR LE SERVEUR"
@@ -99,11 +101,8 @@ SORTIE=$(ssh -o ConnectTimeout=20 "$PROD_SSH" \
 echo "$SORTIE" | sed -n '/rendus mesurés/,$p' | sed 's/^/  /'
 
 P50=$(echo "$SORTIE" | sed -n 's/.*p50 *\([0-9]\+\) ms.*/\1/p' | head -1)
-if [ -n "${P50:-}" ] && [ "$P50" -gt "${SEUIL_P50:-200}" ]; then
-  echo "  🔴 SEUIL FRANCHI — R87 se rouvre."
-else
-  echo "  ✅ p50 = ${P50:-?} ms, sous le seuil de ${SEUIL_P50:-200} ms"
-fi
+V2=0
+p50_verdict "${P50:-}" "${SEUIL_P50:-200}" || V2=$?
 
 echo
 # Guillemets SIMPLES : une apostrophe inverse dans une chaîne double devient une
@@ -115,3 +114,11 @@ echo '   rend 12 fois EN SÉRIE puis divise, et il le dit lui-même (lignes 27-4
 echo "   AppTest, un st.write('hello') passe de 352 ms à un fil à 2 144 ms à six."
 echo "   Le plafond d'utilisateurs qu'il imprime est une ARITHMÉTIQUE sur p50, pas une"
 echo "   observation. Pour le vrai chiffre : tools/loadtest_concurrency.py."
+
+# R495 — an unreadable trigger exits 2: `reopen_check._r114` reads it as INDÉCIDABLE,
+# never as « seuil franchi » nor as « sous le seuil ».
+if [ "$V1" -eq 2 ] || [ "$V2" -eq 2 ]; then
+  echo
+  echo "⊘ au moins un déclencheur n'a RIEN mesuré — ce contrôle ne rend pas de verdict." >&2
+  exit 2
+fi

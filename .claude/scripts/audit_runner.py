@@ -55,6 +55,10 @@ except Exception:  # noqa: BLE001 — telemetry is optional
     def _telemetry_record(*_a, **_k):
         return None
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from judgement import (CRASH, RED, classify,  # noqa: E402 — sibling module, R495
+                       node_kind, summary_nodes)
+
 _REPO = Path(__file__).resolve().parents[2]            # .claude/scripts/ -> repo root
 _CATALOGUE = _REPO / ".claude/dev-docs/error-classes.md"
 
@@ -303,6 +307,13 @@ def run_signature(sig: str) -> tuple[str, str]:
         return CLEAN, out
     if proc.returncode in _BROKEN_CODES:
         return BROKEN, f"exit {proc.returncode} — {out}"
+    # R495 — a non-zero exit is a verdict only if the command JUDGED something. A pytest
+    # signature whose test died on a NameError/ImportError, or a script that dumped a
+    # traceback, never looked at the class: crediting it as HIT reads a crash as a
+    # recurrence. The classifier is tool-specific: for a grep, only a traceback counts.
+    if classify(proc.returncode, out, pytest=pytest_targets(sig) is not None) == CRASH:
+        return BROKEN, (f"exit {proc.returncode} — la signature a PLANTÉ au lieu de juger "
+                        f"(traceback ou ERROR, aucune assertion) — {out}")
     return HIT, out
 
 
@@ -357,9 +368,29 @@ def pytest_targets(sig: str) -> list[str] | None:
     return targets or None
 
 
-def _failed_nodes(output: str) -> set[str]:
-    """Node-ids pytest reported as FAILED or ERROR in its short summary."""
-    return set(re.findall(r"^(?:FAILED|ERROR)\s+(\S+?)(?:\s+-.*)?$", output, re.M))
+def _batched_verdicts(output: str, targets: dict[str, list[str]]
+                      ) -> tuple[dict[str, tuple[bool, str]], list[str]]:
+    """Split a batch's short summary per class. Pure.
+
+    R495 — FAILED and ERROR are not the same outcome. An ERROR (fixture, collection,
+    setup) never ran the test body; a FAILED whose message is a NameError/ImportError
+    fell over before judging. Neither is credited as a hit: the class goes back to an
+    individual run, whose whole output `run_signature` can read. Only a class whose
+    every reported node is a JUDGEMENT (assert / AssertionError / Failed:) is a hit.
+
+    Returns ({class_id: (hit, detail)}, [class ids to run individually]).
+    """
+    nodes = summary_nodes(output)
+    results: dict[str, tuple[bool, str]] = {}
+    again: list[str] = []
+    for cid, ts in targets.items():
+        mine = [(k, n, m) for k, n, m in nodes
+                if any(n == t or n.startswith(t + "::") for t in ts)]
+        if any(node_kind(k, m) != RED for k, _n, m in mine):
+            again.append(cid)
+            continue
+        results[cid] = (bool(mine), "\n".join(n for _k, n, _m in mine))
+    return results, again
 
 
 def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[dict]]:
@@ -391,7 +422,7 @@ def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[
     print(f"▶ batching {len(targets)} pytest signature(s) → 1 invocation "
           f"({len(union)} node-ids)\n")
     proc = subprocess.run(
-        [_venv_python(), "-m", "pytest", *union, "-q", "--tb=no", "-rfE"],
+        [_venv_python(), "-m", "pytest", *union, "-q", "--tb=short", "-rfE"],
         cwd=_REPO, env=signature_env(), capture_output=True, text=True, timeout=1800,
     )
     out = proc.stdout + proc.stderr
@@ -400,13 +431,12 @@ def run_batched(classes: list[dict]) -> tuple[dict[str, tuple[bool, str]], list[
               f"falling back to one run per signature")
         return {}, classes
 
-    failed = _failed_nodes(out)
-    results: dict[str, tuple[bool, str]] = {}
-    for cid, ts in targets.items():
-        hit_nodes = [f for f in failed
-                     if any(f == t or f.startswith(t + "::") for t in ts)]
-        detail = "\n".join(hit_nodes) if hit_nodes else ""
-        results[cid] = (bool(hit_nodes), detail)
+    results, again = _batched_verdicts(out, targets)
+    if again:
+        print(f"  {len(again)} classe(s) PLANTÉE(S) dans le lot (ERROR ou exception hors "
+              f"assertion) — relancée(s) une par une : {', '.join(sorted(again))}")
+        by_id = {c["id"]: c for c in classes}
+        rest.extend(by_id[cid] for cid in again)
     return results, rest
 
 

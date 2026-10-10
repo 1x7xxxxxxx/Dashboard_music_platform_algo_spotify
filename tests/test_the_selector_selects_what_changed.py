@@ -263,3 +263,65 @@ def test_the_detector_sees_the_defect_it_is_written_for(st, graph) -> None:
 
     assert meta not in st.tests_scanning_the_test_files(["src/dashboard/auth.py"], tests, known)
     assert walker not in st.tests_scanning_the_tree(["README.md"], tests, known, REPO)
+
+
+# R494 — `module_name()` drops `__init__`, so `pkg/sub/__init__.py` is `pkg.sub`; its
+# `from ._impl import f` resolves against `pkg.sub` itself. The selector stripped one
+# component too many (`pkg._impl`, nonexistent) and fell back to the PARENT package:
+# 4 packages of this repo (pdf_exporter, credentials, trigger_algo, trigger_algo._common)
+# lost their re-exported submodules. The test body below never spells the changed file
+# nor its directory, so neither the mention rule nor the directory rule can rescue it.
+# Under `src/` so that `src` is the import root and `pkg` (the parent) is an alias:
+# without it the `pkg.sub -> pkg` fallback edge could not appear and its absence
+# would prove nothing.
+_REEXPORT_TEST = "from pkg.sub import f\n\ndef test_f():\n    assert f()\n"
+
+
+def _init_reexport_repo(root: Path) -> Path:
+    files = {
+        "src/pkg/__init__.py": "",
+        "src/pkg/sub/__init__.py": "from ._impl import f\nfrom . import _other\n",
+        "src/pkg/sub/_impl.py": "def f():\n    return 1\n",
+        "src/pkg/sub/_other.py": "X = 1\n",
+        "src/pkg/top.py": "Y = 1\n",
+        "src/pkg/sub/deep/__init__.py": "from .. import _other\nfrom ... import top\n",
+        "tests/test_reexport.py": _REEXPORT_TEST,
+    }
+    for rel, body in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(body)
+    return root
+
+
+def test_a_relative_import_in_an_init_resolves_against_the_package_itself(st, tmp_path):
+    root = _init_reexport_repo(tmp_path)
+    assert "_impl" not in _REEXPORT_TEST and "sub/" not in _REEXPORT_TEST, "the guard must not be rescued"
+    imports, _, _, _ = st.build_graph(root, st.source_roots(root))
+    assert "pkg.sub._impl" in imports["pkg.sub"], imports["pkg.sub"]
+    assert "pkg.sub._other" in imports["pkg.sub"], "`from . import x` in an __init__"
+    deep = imports["pkg.sub.deep"]  # level 2 / 3 in an __init__: the parent, then its parent
+    assert {"pkg.sub._other", "pkg.top"} <= deep, deep
+    assert "pkg" not in imports["pkg.sub"], (
+        "spurious edge pkg.sub -> pkg: the relative import climbed one level too far")
+    assert "tests/test_reexport.py" in st.select(root, _changed=["src/pkg/sub/_impl.py"])["paths"]
+
+
+def test_the_relative_anchor_stops_at_the_top_package(st):
+    """Pure bounds of the anchor: an __init__ and a plain module, inside and beyond."""
+    assert st.relative_anchor("pkg.sub", True, 1) == ["pkg", "sub"]
+    assert st.relative_anchor("pkg.sub", True, 2) == ["pkg"]
+    assert st.relative_anchor("pkg.sub", True, 3) == []
+    assert st.relative_anchor("pkg.sub.m", False, 1) == ["pkg", "sub"]
+    assert st.relative_anchor("pkg.m", False, 1) == ["pkg"]
+    assert st.relative_anchor("pkg.m", False, 2) == []
+
+
+def test_a_test_reaches_a_submodule_its_package_re_exports(graph, st):
+    """SECONDARY real-tree pin (breaks on a rename; the synthetic repo above carries
+    the mutation): `test_pdf_exporter` imports `pdf_exporter`, whose `__init__` does
+    `from ._report import …`. Measured on 2026-10-10 before the fix: not reached."""
+    imports, _, _ = graph
+    seed = st.module_name(REPO, REPO / "src" / "dashboard" / "utils" / "pdf_exporter"
+                          / "_report.py", st.source_roots(REPO))
+    reached = st.importers_closure(imports, {seed})
+    assert any(m.endswith("test_pdf_exporter") for m in reached), seed
