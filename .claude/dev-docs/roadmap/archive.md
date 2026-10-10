@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R509 — Mutation du code PRODUIT (étude E1) : `mutmut` borné à `src/transformers/` en tâche de… (livrée 2026-10-11)
+
+- [x] **R509 — Mutation du code PRODUIT (étude E1) : `mutmut` borné à `src/transformers/` en tâche de nuit (une cible make à écrire), rapport des survivants généré à la demande (non versionné) ; critère de maintien fixé d'avance : ≥1 survivant qui soit un vrai trou de test sur le premier mois, sinon retrait** (P4) ✅ (2026-10-11, c5958ad4, 1c16976a)
+  Mesuré par : la nuit rend un nombre de survivants par module
+  CI verte c5958ad4 (run 38093152752) — sacem_parser 22 → 8 survivants (équivalents), make mutate-parsers + workflow hebdo, critère de maintien atteint au 1er essai
+  Commits : c5958ad4 R509 : mutation du code produit — `make mutate-parsers` (mutmut 2.5.1  · 1c16976a Roadmap : R507 tranchée (a), R509–R511 inscrites (mutmut, inachevés, Y
+
 ## ✅ R508 — Cibles `make` : 97 cibles (CLAUDE.md en annonce 11), 30 jamais lancées, 7 disparues enc… (livrée 2026-10-11)
 
 - [x] **R508 — Cibles `make` : 97 cibles (CLAUDE.md en annonce 11), 30 jamais lancées, 7 disparues encore appelées, 15 hors `.PHONY`, `lint` ≠ CI ; `make help` en sections, cibles `ci-wait`/`test-verdict`/`suite-status`/`psql`/`ARGS=`, `SUITE_SCOPE` qui dit quand le plafond mémoire est inactif, garde « aucune cible appelée n'est absente »** (P3) ✅ (2026-10-11, 78b0cd42)
