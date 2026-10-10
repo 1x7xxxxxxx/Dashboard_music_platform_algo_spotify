@@ -32,7 +32,8 @@ Les abonnés gagnés par vidéo, la durée de visionnage, la rétention et les s
 trafic ne sont pas dans la Data API v3 que l'app lit. L'inventaire de ce que l'Analytics
 API exposerait, avec son geste de branchement et cinq métriques recommandées, est
 `.claude/dev-docs/youtube-analytics-inventory.md`. Ce que le propriétaire en retient
-repart dans la roadmap comme une tâche de collecte.
+repart dans la roadmap comme une tâche de collecte. **Tranché le 2026-10-10 : trois
+métriques (abonnés gagnés par vidéo, durée de visionnage, sources de trafic) → R511.**
 
 ## 📚 R148, R150, R151 — ce que les dix livres du 2026-09-22 ont changé
 
