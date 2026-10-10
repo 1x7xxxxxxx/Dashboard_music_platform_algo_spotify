@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R497 | La porte des durées est le 1ᵉʳ refus de commit (`test-durations-missing` ×68 en 7 j) : un id PARAMÉTRÉ neuf (une classe de catalogue de plus) dont la fonction de base a déjà une durée force une remesure ; le tolérer (pytest-split lui donne la moyenne de son fichier déjà mesuré), et tolérer un fantôme dont la base est encore collectée — `--fix` nettoie toujours <!-- critic: non — relâche bornée à une base déjà mesurée, garde muté dans les deux sens --> <!-- scope: tools/dev/check_durations_are_collectable.py, tests/, .test_durations, .claude/dev-docs/, Makefile --> | P3 | id paramétré neuf sur base mesurée ⇒ vert ; base jamais mesurée ⇒ rouge ; refus 7 j en baisse |
 
 ---
 
@@ -85,9 +86,9 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R497 -->
 
-**État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
+**État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
