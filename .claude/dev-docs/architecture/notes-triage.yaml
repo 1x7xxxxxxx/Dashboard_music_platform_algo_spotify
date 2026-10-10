@@ -1496,7 +1496,7 @@
   domaine: formats
   statut: ouvert
   priorite: P2
-  preuve_statut: 'Porté par R277 (🙋 checklist.md, déclencheur « KPI validés ») — aucun code encore.'
+  preuve_statut: Porté par R277 (🙋 checklist.md, déclencheur « KPI validés ») — aucun code encore.
   preuve_ciblee: 'test to write: le rapport de prospection rend ≤ 2 pages, on file src/dashboard/utils/pdf_exporter/_report.py:1'
   roadmap: R277
 - ligne: 168
@@ -2572,7 +2572,7 @@
   domaine: product-offer
   statut: ouvert
   priorite: P4
-  preuve_statut: 'Carried by R276 (checklist.md, trigger « KPI validés ») — no code yet.'
+  preuve_statut: Carried by R276 (checklist.md, trigger « KPI validés ») — no code yet.
   preuve_ciblee: 'test to write: n/a — opens when R276 is triggered'
   roadmap: R276
 - ligne: 456
@@ -3973,9 +3973,9 @@
   resume: 'Accueil : tuiles en deux rangées de deux (Meta+Hypeddit, Shazam+Instagram) ; reste de W1 livré par R479'
   type: action-produit
   domaine: home
-  statut: partiel
+  statut: livré
   priorite: P3
-  roadmap: R512
+  preuve_statut: R512 (archivée) — e8d66d57
 - ligne: 12
   source: revue/notes-vocales-2026-10-11.md
   note: X2
@@ -3988,7 +3988,8 @@
 - ligne: 15
   source: revue/notes-vocales-2026-10-11.md
   note: X3
-  resume: 'Mise en route : figures d''exemple — CPR sur la bande Meta, bosse Release Radar mesuré/prédit, retirer les barres rouges conseillées'
+  resume: 'Mise en route : figures d''exemple — CPR sur la bande Meta, bosse Release Radar mesuré/prédit, retirer
+    les barres rouges conseillées'
   type: action-produit
   domaine: onboarding
   statut: ouvert
@@ -4000,13 +4001,13 @@
   resume: 'Saisie S4A : le chapeau Prédiction promet encore « le pari du modèle » passé en admin'
   type: action-produit
   domaine: algo-preview
-  statut: partiel
+  statut: livré
   priorite: P3
-  roadmap: R512
+  preuve_statut: R512 (archivée) — e8d66d57
 - ligne: 23
   source: revue/notes-vocales-2026-10-11.md
   note: X5
-  resume: 'Hypeddit — identique à W5'
+  resume: Hypeddit — identique à W5
   type: action-produit
   domaine: hypeddit
   statut: livré
@@ -4018,9 +4019,9 @@
   resume: 'Spotify : axe de popularité au max réel (sans +25 %), légende de l''indice sur « Ce qui bouge »'
   type: action-produit
   domaine: spotify
-  statut: partiel
+  statut: livré
   priorite: P3
-  roadmap: R512
+  preuve_statut: R512 (archivée) — e8d66d57
 - ligne: 29
   source: revue/notes-vocales-2026-10-11.md
   note: X7

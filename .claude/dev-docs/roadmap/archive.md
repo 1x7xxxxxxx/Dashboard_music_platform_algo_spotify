@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R512 — Restes mesurés des retours W (X1, X4, X6 du 2026-10-11) : (1) Accueil — tuiles en **deu… (livrée 2026-10-11)
+
+- [x] **R512 — Restes mesurés des retours W (X1, X4, X6 du 2026-10-11) : (1) Accueil — tuiles en **deux rangées de deux** (Meta Ads + Hypeddit, puis Shazam + Instagram), aujourd'hui 4 sur une ligne ; (2) Spotify « Ce qui bouge » — axe de popularité borné au max arrondi à la dizaine **sans** les +25 % (max 20 ⇒ 0-20), légende « Indice de popularité (0-{max}) » sur ce graphique, et le « 0-100 » du détail de titre suit l'axe ; (3) le chapeau de section de la Prédiction promet « le pari du modèle », passé en admin par R442 (option A) : la phrase est retirée** (P3) ✅ (2026-10-11, e8d66d57, 3ffcc707)
+  Mesuré par : 4 tuiles en 2×2 ; axe = max arrondi ; 0 promesse sans section
+  Livré : Accueil en deux rangées de deux (Meta+Hypeddit, Shazam+Instagram), axe popularité au max arrondi + titre Popularité (0-N), légende du détail 0-N, chapeau de la Prédiction sans « pari du modèle » ; photo Accueil régénérée. CI verte e8d66d57 (run 38096251200)
+  Commits : e8d66d57 R512 : Accueil en deux rangées de deux (Meta+Hypeddit, Shazam+Instagra · 3ffcc707 Roadmap : R512-R519 inscrites — retours vocaux X1-X12 du 2026-10-11 (t
+
 ## ✅ R510 — Fonctionnalités inachevées relevées le 2026-10-10 : (1) Instagram — un champ absent de… (livrée 2026-10-11)
 
 - [x] **R510 — Fonctionnalités inachevées relevées le 2026-10-10 : (1) Instagram — un champ absent de l'API (`followers_count`, …) s'écrit `None`, plus 0 (un 0 se lit comme une chute) ; (2) `_tab_budget_roi.py:146` — l'écart NonAlgo se calcule depuis la saisie MANUELLE (mig. 052) au lieu d'une légende « non collecté, Phase 2 » ; (3) route orpheline `data_wrapped` (page hors menu, section déjà incluse dans `spotify_s4a_combined`) retirée de `routes.py` et de `plan_pitch.py` ; (4) `billing.py:311` — sans Stripe, « contactez-nous » nomme une adresse cliquable (texte seulement, aucun appel Stripe)** (P3) ✅ (2026-10-11, 91c9a72e)
