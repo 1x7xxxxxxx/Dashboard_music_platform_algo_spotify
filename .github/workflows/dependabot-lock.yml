@@ -1,0 +1,58 @@
+# R507 — a Dependabot pip PR also refreshes `uv.lock`, then re-runs CI.
+#
+# Dependabot's `pip` ecosystem bumps `pyproject.toml` + `requirements*.txt` but never
+# touches `uv.lock`; `ci.yml` installs with `uv sync --frozen`, so every such PR was
+# red (5 of 8 red runs read on 2026-10-10). The `uv` ecosystem would refresh the lock
+# but not the hand-pinned `requirements*.txt` the Dockerfiles read — so we keep `pip`
+# and add the lock here.
+#
+# ⚠️ `pull_request_target` runs with a write token on the BASE repo. It is safe here
+# only because the job is gated on BOTH the actor being `dependabot[bot]` AND the head
+# branch living in THIS repository (no fork can reach it), and it executes no code
+# from the PR — `uv lock` resolves metadata, it does not run the project.
+# Guard: tests/test_dependabot_lock_workflow_is_gated.py.
+#
+# A push made with GITHUB_TOKEN does not trigger workflows, hence the explicit
+# `workflow_dispatch` of ci.yml on the PR branch.
+name: Dependabot lock refresh
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  relock:
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+      - name: Refresh uv.lock
+        run: uv lock
+      - name: Push the lock when it moved, then re-run CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "uv.lock already consistent — nothing to push"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "R507 : uv.lock rafraîchi pour la PR Dependabot"
+          git push origin "HEAD:$BRANCH"
+          gh workflow run ci.yml --ref "$BRANCH"
