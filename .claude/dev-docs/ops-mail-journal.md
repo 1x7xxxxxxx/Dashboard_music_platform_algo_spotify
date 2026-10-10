@@ -90,3 +90,4 @@ The last-entry date is read by `make night-status`, which says when the journal 
 | 2026-10-09 23:00 | 🚨 Dashboard Alert: NE COLLECTE PAS Benken (Meta), GRiNCH (SoundCloud) · 1 collecte bloquée · 5 sources stale | expected | inchangé depuis le 2026-10-06 (gestes d'artistes, CSV iMusician à déposer) | — |
 | 2026-10-10 09:23 | 🔴 Security — Nightly audit a échoué (`guard-mutation`) | false alarm | run 38040290890 : les MÊMES 3 gardes « vert sur 6 mutations, budget épuisé » — récidive de la nuit précédente | idem 2026-10-09 09:59 — fausse alerte, R493 |
 | 2026-10-10 13:05 | 📋 Récap de la nuit — nuit calme | false alarm | sécurité « vert » 4 h après le mail rouge de 09:23 — **faux vert**, même cause que le 2026-10-09 13:50 | R493 |
+| 2026-10-10 16:59 | 🔴 CI a échoué (job `gates`) | real | ma poussée R493 : 6 tests paramétrés neufs sans durée (porte statique) — corrigé par `make test-durations-missing`, commit d5ccb598, CI verte au run suivant | R493 |

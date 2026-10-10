@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R496 — `reopen_check._r114` :218 ne lit que le libellé du déclencheur 1 (« ✅ sous le seuil »)… (livrée 2026-10-10)
+
+- [x] **R496 — `reopen_check._r114` :218 ne lit que le libellé du déclencheur 1 (« ✅ sous le seuil ») : le déclencheur 2 imprime « ✅ p50 = N ms, sous le seuil de … », donc un p50 > 200 ms avec des sessions sous le seuil ne rouvre JAMAIS R87/R114 — lire « SEUIL FRANCHI » (classe `a-crash-credited-as-a-judgement`, reste du balayage R495)** (P3) ✅ (2026-10-10, 95e306f6)
+  Mesuré par : p50 franchi seul ⇒ R114 rouvert, garde muté
+  _r114 lit SEUIL FRANCHI ; garde muté rouge sur l'ancienne lecture — CI verte 95e306f6 (run 38074869398)
+  Commits : 95e306f6 R494, R495, R496 : imports au nom importé ; un plantage n'est pas un v
+
+## ✅ R495 — Un plantage n'est pas un verdict : `audit_runner.run_signature` (traceback ⇒ HIT, :302)… (livrée 2026-10-10)
+
+- [x] **R495 — Un plantage n'est pas un verdict : `audit_runner.run_signature` (traceback ⇒ HIT, :302) et `_failed_nodes` (ERROR ⇒ HIT, :362), `probe_error_management` :253/:264, `reopen_check._r114` :207 (ssh mort ⇒ seuil franchi), étape « Keep the dated reds » non lue (`security-nightly.yml`) — classes `a-crash-credited-as-a-judgement` et `a-run-conclusion-blind-to-a-job-allowed-to-fail`** (P3) ✅ (2026-10-10, 95e306f6, 81f4bfdb)
+  Mesuré par : chaque site rend un 3ᵉ état (cassé) sur un plantage fabriqué
+  judgement.py lecture unique ; 14 sites corrigés et mutés rouges un par un — CI verte 95e306f6 (run 38074869398)
+  Commits : 95e306f6 R494, R495, R496 : imports au nom importé ; un plantage n'est pas un v · 81f4bfdb Catalogue : 2 classes R493 + récidive selector-blind-to-the-import-pre
+
+## ✅ R494 — Résolution d'imports au NOM importé : `select_tests.py` (imports dans une chaîne :274/:… (livrée 2026-10-10)
+
+- [x] **R494 — Résolution d'imports au NOM importé : `select_tests.py` (imports dans une chaîne :274/:293 et relatifs dans un `__init__` :550 — tests non sélectionnés, vert silencieux), `mutate_guards.sources_read` (capture gloutonne :81-92, `import pkg.mod` non géré) — classe `selector-blind-to-the-import-prefix`, balayage 2026-10-10** (P3) ✅ (2026-10-10, 95e306f6, 81f4bfdb)
+  Mesuré par : un test réel non sélectionné quand `soundcloud.py` change devient sélectionné
+  select_tests : +16 arêtes, -5 parasites, 272 couples (test, module) gagnés, 0 perdu ; sources_read par AST — CI verte 95e306f6 (run 38074869398)
+  Commits : 95e306f6 R494, R495, R496 : imports au nom importé ; un plantage n'est pas un v · 81f4bfdb Catalogue : 2 classes R493 + récidive selector-blind-to-the-import-pre
+
 ## ✅ R493 — Mutation des gardes neufs (job `guard-mutation`, rouge 2 nuits sur les gardes R483/R485… (livrée 2026-10-10)
 
 - [x] **R493 — Mutation des gardes neufs (job `guard-mutation`, rouge 2 nuits sur les gardes R483/R485/R486) : le harnais mute les fonctions que le garde APPELLE, pas la 1ʳᵉ occurrence d'une constante dans le fichier ; le verdict nomme ses essais ; un rouge de ce job (continue-on-error) apparaît dans le récap et `night-status` au lieu d'un « Sécurité : vert » ; un suspect reste suivi jusqu'à preuve** (P3) ✅ (2026-10-10, 66ff1dfb, 5ef043f5, c7b4e6d7)
