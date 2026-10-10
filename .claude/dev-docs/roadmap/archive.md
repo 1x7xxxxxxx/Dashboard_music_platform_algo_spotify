@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R507 — Dependabot casse la CI 5 fois en 14 j (pyproject et requirements montés, `uv.lock` non)… (livrée 2026-10-10)
+
+- [x] **R507 — Dependabot casse la CI 5 fois en 14 j (pyproject et requirements montés, `uv.lock` non) — TRANCHÉE 2026-10-10, option (a) : workflow `pull_request_target` limité à une PR ouverte PAR `dependabot[bot]` depuis CE dépôt, qui lance `uv lock` sur la branche, pousse le lock s'il a bougé, puis relance `ci.yml` par `workflow_dispatch` (un push du `GITHUB_TOKEN` ne déclenche pas la CI) ; l'écosystème `pip` reste (il monte déjà pyproject ET requirements, seul le lock manquait) ; garde : le workflow n'exécute aucun code de la PR hors `uv lock`, et un test refuse un `pull_request_target` sans la condition d'acteur** (P3) ✅ (2026-10-10, efc89aae, 1c16976a, d5acb104)
+  Mesuré par : prochaine PR Dependabot verte sans retouche
+  CI verte efc89aae (run 38089335265) ; workflow gardé sur dependabot[bot] + branche du dépôt, mutation vue rouge ; vérification réelle sur la prochaine PR Dependabot pip
+  Commits : efc89aae R507 : une PR Dependabot pip rafraîchit aussi `uv.lock`, puis relance  · 1c16976a Roadmap : R507 tranchée (a), R509–R511 inscrites (mutmut, inachevés, Y · d5acb104 Études E1–E6 : verdicts outillage de test et lecteurs CSV (mutmut born
+
 ## ✅ R502 — Une valeur ILLISIBLE n'est plus lue 0 en silence : les lecteurs comptent les rejets par… (livrée 2026-10-10)
 
 - [x] **R502 — Une valeur ILLISIBLE n'est plus lue 0 en silence : les lecteurs comptent les rejets par colonne (ligne, colonne, texte brut), l'import les affiche et les écrit dans `csv_upload_log` (à côté de `serialization`), une colonne > 5 % illisible refuse le fichier en la nommant ; `upload_csv.py:338` (`to_numeric().fillna(0)`) passe par le lecteur partagé — vide/`-` reste 0 légitime** (P2) ✅ (2026-10-10, 531f1f47, c0f458c5)
