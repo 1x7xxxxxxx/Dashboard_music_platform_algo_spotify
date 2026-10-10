@@ -82,12 +82,15 @@ def valider_montant(valeur: str) -> str:
     un devis calculé, or c'est exactement ce qu'on ne vend pas — le prix est fixe
     et annoncé avant la proposition (Enns, règle nº 4).
     """
-    v = (valeur or "").strip().replace(" ", "").replace("\u202f", "")
+    v = (valeur or "").strip()
+    for espace in (" ", "\u00a0", "\u202f"):   # the three spaces a French locale writes
+        v = v.replace(espace, "")
     if not v:
         return ""
     if v.endswith("€"):
         v = v[:-1].strip()
-    if not v.isdigit():
+    # `isdigit` alone accepts « ² » and « ١٢٣ », and `int("²")` raised a bare ValueError.
+    if not (v.isascii() and v.isdigit()):
         raise ReglageInvalide(
             f"« {valeur[:40]} » n'est pas un montant. Attendu : un nombre entier "
             "d'euros, sans décimale (ex. `450`). Un prix affiché à la virgule près "

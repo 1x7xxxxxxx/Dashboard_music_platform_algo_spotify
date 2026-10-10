@@ -75,7 +75,9 @@ _ALLOWED_TABLES = frozenset({
     'tenant_platform_probe',
 })
 
-_VALID_IDENTIFIER_RE = re.compile(r'^[a-z_][a-z0-9_]*$')
+_VALID_IDENTIFIER_RE = re.compile(r'[a-z_][a-z0-9_]*')   # fullmatch: `$` admits a trailing \n
+# The one functional-index shape `upsert_many` accepts in ON CONFLICT (R504).
+_CONFLICT_EXPR_RE = re.compile(r'\([a-z_][a-z0-9_]*::date\)')
 
 
 # ── Pool de connexions, OPT-IN ───────────────────────────────────────────────
@@ -244,11 +246,20 @@ def validate_table(table: str) -> None:
 def validate_columns(columns: List[str]) -> None:
     """Raise ValueError if any column name contains non-identifier characters."""
     for col in columns:
-        # Allow functional index expressions like (collected_at::date)
-        if col.startswith('('):
-            continue
-        if not _VALID_IDENTIFIER_RE.match(col):
+        # No `(` escape here (R504): a data key starting with `(` used to pass. The one
+        # caller that needs an expression is ON CONFLICT — `validate_conflict_expression`.
+        if not isinstance(col, str) or not _VALID_IDENTIFIER_RE.fullmatch(col):
             raise ValueError(f"SQL injection guard: invalid column name '{col}'")
+
+
+def validate_conflict_expression(expr: str) -> None:
+    """Raise ValueError unless `expr` is the cast of ONE column, like `(collected_at::date)`.
+
+    The expression enters ON CONFLICT as raw SQL — no `Identifier` can quote it — so
+    it is held to the only shape a caller writes (`youtube_daily`), never `(` + anything.
+    """
+    if not _CONFLICT_EXPR_RE.fullmatch(expr):
+        raise ValueError(f"SQL injection guard: invalid conflict expression '{expr}'")
 
 
 def _union_columns(data: List[Dict[str, Any]]) -> List[str]:
@@ -611,6 +622,8 @@ class PostgresHandler:
             columns = _union_columns(data)
             validate_columns(columns)
             validate_columns([c for c in conflict_columns if not c.startswith('(')])
+            for expr in (c for c in conflict_columns if c.startswith('(')):
+                validate_conflict_expression(expr)
             validate_columns(update_columns)
             values = [[row.get(col) for col in columns] for row in data]
 

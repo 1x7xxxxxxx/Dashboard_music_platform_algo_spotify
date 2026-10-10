@@ -98,8 +98,12 @@ def resolve(preset: str, today: _dt.date,
     règle de dates se vérifie sur des dates, pas sur un widget.
     """
     if preset == "custom" and custom:
-        debut, fin = custom
+        debut, fin = sorted(custom)
         return EntryPeriod(debut, fin, "custom")
+    # A release dated in the future has no « since » yet: it falls back like an unknown
+    # one — kept, it gave a window ending before its start (R504).
+    if release is not None and release > today:
+        release = None
     if preset == "release":
         # Sans date de sortie connue, on ne devine pas : on retombe sur 28 jours
         # et l'appelant le DIT à l'écran. Inventer une borne de sortie écrirait
