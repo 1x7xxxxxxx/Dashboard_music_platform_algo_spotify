@@ -36,7 +36,7 @@ EN = {
     "spotify_s4a_combined.no_recent": "No track measured over the last {n} imported days.",
     "spotify_s4a_combined.lifetime": "Lifetime total",
     "spotify_s4a_combined.recent_window": "last {n} days",
-    "spotify_s4a_combined.pi_panel": "Popularity",
+    "spotify_s4a_combined.pi_panel": "Popularity (0-{top})",
 
     # The drawer
     "spotify_s4a_combined.detail_header": "🎸 The track and your audience",
@@ -44,7 +44,7 @@ EN = {
     "spotify_s4a_combined.engagement_panel": "Saves, playlists and followers — whole artist",
     "spotify_s4a_combined.select_song": "Track",
     "spotify_s4a_combined.streams_per_day": "Streams / day",
-    "spotify_s4a_combined.pi_series": "┈ Popularity index (dotted, 0-100)",
+    "spotify_s4a_combined.pi_series": "┈ Popularity index (dotted, 0-{top})",
     "spotify_s4a_combined.pi_axis": "Popularity index",
     "spotify_s4a_combined.pi_label": "Popularity index {v}",
     "spotify_s4a_combined.pi_missing": "No popularity index over this period: this track "

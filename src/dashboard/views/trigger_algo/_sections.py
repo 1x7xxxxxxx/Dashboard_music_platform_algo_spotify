@@ -23,7 +23,7 @@ PAGE_SECTIONS = (
      "le verdict du titre choisi, ses leviers et sa trajectoire J+28."),
     ("realise", "trigger_algo.tab_realise", "📈 Ce qui s'est vraiment passé",
      "trigger_algo.guide_section_realise",
-     "ce que chaque playlist t'a réellement rapporté, et le pari du modèle face au résultat."),
+     "ce que chaque playlist t'a réellement rapporté."),
     ("budget", "trigger_algo.tab_budget", "💰 Budget & ROI",
      "trigger_algo.guide_section_budget",
      "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),

@@ -265,7 +265,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -285,8 +285,13 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
-       },
+        "weight": 0.5
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
        {
         "children": [
          {
@@ -305,7 +310,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -325,7 +330,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        }
       ],
       "type": "flex_container"
@@ -766,7 +771,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -787,8 +792,13 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
-       },
+        "weight": 0.5
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
        {
         "children": [
          {
@@ -808,7 +818,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -827,7 +837,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        }
       ],
       "type": "flex_container"
@@ -1262,7 +1272,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -1283,8 +1293,13 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
-       },
+        "weight": 0.5
+       }
+      ],
+      "type": "flex_container"
+     },
+     {
+      "children": [
        {
         "children": [
          {
@@ -1304,7 +1319,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        },
        {
         "children": [
@@ -1323,7 +1338,7 @@
          }
         ],
         "type": "column",
-        "weight": 0.25
+        "weight": 0.5
        }
       ],
       "type": "flex_container"

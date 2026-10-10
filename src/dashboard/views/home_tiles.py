@@ -484,9 +484,10 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
     # Shazam vide ferait descendre Apple qui livre.
     _unites.sort(key=lambda u: not any(v for v, _f in u))
 
-    # R423 — the four boxes on ONE row, under the figure and the donut.
-    for _rangee in agencer(_unites, par_rangee=4):
-        _cols = st.columns(4)
+    # R512 (X1, 2026-10-11) — two rows of two: Meta Ads + Hypeddit, then Shazam +
+    # Instagram. R423 had put the four on one row; the owner asked for the pairs back.
+    for _rangee in agencer(_unites, par_rangee=2):
+        _cols = st.columns(2)
         for _col, (_valeur, _rendu) in zip(_cols, _rangee):
             _rendu(_col)
 

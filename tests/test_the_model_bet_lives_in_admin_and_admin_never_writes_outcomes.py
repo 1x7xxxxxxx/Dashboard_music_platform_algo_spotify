@@ -53,3 +53,11 @@ def test_the_artist_entry_no_longer_draws_the_bet() -> None:
     calls = _called(_ENTRY, "render_outcomes")
     assert "render_prediction_vs_reality" not in calls
     assert {"render_outcome_grid", "render_outcome_custom_grid"} <= calls
+
+
+def test_the_page_blurb_no_longer_promises_the_model_bet() -> None:
+    """R512 (X4) — the section blurb still announced « le pari du modèle » after it moved."""
+    from src.dashboard.views.trigger_algo._sections import PAGE_SECTIONS
+    from src.dashboard.utils.i18n_catalog.trigger_algo import EN as STRINGS
+    blurbs = [s[4] for s in PAGE_SECTIONS] + [STRINGS[s[3]] for s in PAGE_SECTIONS if s[3] in STRINGS]
+    assert not [b for b in blurbs if "pari du modèle" in b or "model's bet" in b], blurbs

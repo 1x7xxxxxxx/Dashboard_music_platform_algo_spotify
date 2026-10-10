@@ -56,3 +56,13 @@ def test_the_popularity_index_is_its_own_bars_on_a_bounded_axis(monkeypatch) -> 
     recent_bar = next(tr for tr in fig.data if 1_200 in list(tr.x))
     assert all("PI" not in str(t) for t in recent_bar.text), (
         "le PI est encore un suffixe de l'étiquette des 28 jours")
+
+
+def test_the_popularity_axis_is_the_rounded_max_and_its_title_says_so(monkeypatch) -> None:
+    """R512 (X6, 2026-10-11) : max PI 12 ⇒ axis 0-20, no +25 % headroom, title names the range."""
+    fig = _figure(monkeypatch)
+    pi_bars = next(tr for tr in fig.data if list(tr.x) and set(tr.x) <= {12, 9})
+    axis = fig.layout[pi_bars.xaxis.replace("x", "xaxis")]
+    assert list(axis.range) == [0, 20], f"axe PI : {axis.range} — attendu 0-20"
+    titles = [a.text for a in fig.layout.annotations]
+    assert any("(0-20)" in str(t) for t in titles), f"la légende de l'indice manque : {titles}"

@@ -58,7 +58,7 @@ EN = {
     "trigger_algo.guide_section_catalogue": "your catalogue ranked by progress toward the nearest door.",
     "trigger_algo.guide_section_titre": "the chosen track's verdict, its levers and its J+28 trajectory.",
     "trigger_algo.guide_section_realise": (
-        "what each playlist actually brought you, and the model's bet against the outcome."),
+        "what each playlist actually brought you."),
     "trigger_algo.guide_section_budget": "your campaign settings, remaining Meta budget and spend pace.",
     "trigger_algo.no_timeline": "No timeline data available.",
     "trigger_algo.sel_track": "🎵 Track",

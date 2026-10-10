@@ -576,7 +576,10 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     from plotly.subplots import make_subplots
     recent_title = t("spotify_s4a_combined.recent_window",
                      "{n} derniers jours").format(n=_MOMENTUM_DAYS)
-    pi_title = t("spotify_s4a_combined.pi_panel", "Popularité")
+    # R512 (X6) : the panel title IS the legend of the index, with the range it is drawn on.
+    pi_top = popularity_axis_max(pi_values.dropna()) if pi_values.notna().any() else 100
+    pi_title = t("spotify_s4a_combined.pi_panel",
+                 "Popularité (0-{top})").format(top=pi_top)
     fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.07,
                         column_widths=[0.42, 0.2, 0.38],
                         subplot_titles=(recent_title, pi_title,
@@ -607,9 +610,9 @@ def _render_momentum(db, spans: pd.DataFrame, frag: str, params: tuple, window,
     fig.update_xaxes(range=[0, float(merged["recent"].max() or 1) * 1.35], row=1, col=1)
     # R382/R483 : the PI axis is bounded by the observed max (0-20 here, 0-60 elsewhere),
     # never a fixed 0-100 that crushes a PI of 12 against the floor.
-    fig.update_xaxes(range=[0, popularity_axis_max(pi_values.dropna()) * 1.25
-                            if pi_values.notna().any() else 100], row=1, col=2,
-                     tickfont=dict(color=_PI_INK))
+    # R512 (X6) : no +25 % headroom — a max of 20 reads 0-20; the written value rides
+    # past the bar end (cliponaxis=False), it needs no room inside the axis.
+    fig.update_xaxes(range=[0, pi_top], row=1, col=2, tickfont=dict(color=_PI_INK))
     # R483 — on half a page the titles took half the width (R194 said it already) : the
     # name rides ABOVE its bar, the y axis carries no label, and the bars leave it room.
     band = (_PAIR_HEIGHT - 80) / max(len(merged), 1)
@@ -821,6 +824,7 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
                                     "Streams / jour"),
                              line=dict(color=_SPOTIFY_GREEN, width=2)),
                   row=panel, col=1, secondary_y=False)
+    pi_top = popularity_axis_max(pi["popularity"]) if not pi.empty else 100
     if not pi.empty:
         # R382 (V32) : la légende est SUR la courbe, au dernier point — la légende
         # horizontale sous la figure se lisait comme celle de l'autre panneau.
@@ -833,7 +837,8 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
                                  textfont=dict(color=_PI_INK, size=12),
                                  # R459: the legend names the DOTTED style, not only the solid one.
                                  name=t("spotify_s4a_combined.pi_series",
-                                        "┈ Indice de popularité (pointillés, 0-100)"),
+                                        "┈ Indice de popularité (pointillés, 0-{top})"
+                                        ).format(top=pi_top),
                                  showlegend=True,
                                  line=dict(color=_PI_INK, width=2, dash="dot"),
                                  marker=dict(size=5)),
@@ -843,7 +848,6 @@ def _song_detail(db, spans: pd.DataFrame, frag: str, params: tuple, song, window
     # R382 (V33) : borné au max observé arrondi à la dizaine (0-20 ici, 0-60 ailleurs),
     # plus 0-100 fixe qui écrasait un PI de 12 au plancher. Jamais sous 10 : un PI de 3
     # autoscalé remplirait la hauteur et se lirait comme un titre au sommet.
-    pi_top = popularity_axis_max(pi["popularity"]) if not pi.empty else 100
     fig.update_yaxes(title_text=t("spotify_s4a_combined.pi_axis", "Indice de popularité"),
                      row=panel, col=1, secondary_y=True, range=[0, pi_top], showgrid=False,
                      title_font=dict(color=_PI_INK), tickfont=dict(color=_PI_INK))
