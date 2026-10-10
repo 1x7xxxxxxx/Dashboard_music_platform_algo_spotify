@@ -19,7 +19,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from src.transformers.csv_dialect import decimal_for, read_csv_options, read_number
+from src.transformers.csv_dialect import (
+    Rejects, decimal_for, finish, read_csv_options, read_number)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,10 @@ CONFLICT_KEYS = [
 ]
 
 _ENCODINGS = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
+
+# The amount columns a parse reads as numbers — scanned for rejects up front (R502).
+_NUMERIC = ('Quantity', 'Team Percentage', 'Songwriter Royalties Withheld (USD)',
+            'Earnings (USD)', 'Recoup (USD)')
 
 
 class DistroKidParser:
@@ -150,6 +155,7 @@ class DistroKidParser:
         if sale_col is None or earn_col is None:
             raise ValueError("Missing required column(s): Sale Month, Earnings (USD)")
 
+        rejects = Rejects.scan(df, [self._col(df, c) for c in _NUMERIC], dec)
         rows = []
         for idx, row in df.iterrows():
             try:
@@ -179,11 +185,11 @@ class DistroKidParser:
                     'recoup_usd':      self._clean_numeric(row.get(self._col(df, 'Recoup (USD)') or ''), decimal=dec),
                     'collected_at':    datetime.now(timezone.utc),
                 })
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"Row {idx} skipped: {e}")
-                continue
+                rejects.drop_row(idx, row.get(sale_col, e))
 
-        return self._dedup(rows)
+        return finish(self._dedup(rows), rejects, len(df))
 
     @staticmethod
     def _dedup(rows: List[Dict]) -> List[Dict]:

@@ -157,3 +157,102 @@ def read_number(value, decimal: str = ".") -> float | None:
             or not (whole or frac):
         raise ValueError(f"unreadable number: {str(value)[:40]!r}")
     return float(f"{sign}{whole.replace(group, '') if group else whole or '0'}.{frac or '0'}")
+
+
+# ─────────────────────────────────────────────
+# Rejects — an unreadable cell is COUNTED, never read as 0 in silence (R502)
+# ─────────────────────────────────────────────
+#
+# Raising on the first bad cell would refuse a whole artist export for one line; reading
+# it as 0 lies. The middle is the dead-letter queue (Reis & Housley, *Fundamentals of
+# Data Engineering*, p.363): set aside what cannot be read, say how much, and refuse the
+# file only when a column is mostly unreadable — then the column is NAMED.
+
+ROW = "__row__"           # rows a parser dropped whole (unreadable date, …)
+REJECT_SHARE = 0.05       # a column above 5 % unreadable refuses the file…
+REJECT_FLOOR = 3          # …once it has at least 3 rejects (2 bad cells in 20 is noise)
+_SAMPLES = 3
+_SAMPLE_LEN = 40
+
+
+class UnreadableColumnError(ValueError):
+    """A column whose values cannot be read as numbers — the file is refused by name."""
+
+    def __init__(self, column: str, count: int, seen: int, samples: list[str],
+                 rejects: "Rejects") -> None:
+        self.column, self.count, self.seen, self.rejects = column, count, seen, rejects
+        what = "lignes" if column == ROW else f"valeurs de la colonne « {column} »"
+        shown = ", ".join(repr(s) for s in samples)
+        super().__init__(
+            f"{count} {what} sur {seen} illisibles (ex. {shown}) : le fichier est "
+            "refusé plutôt qu'importé avec des zéros. Vérifie l'export ou envoie-le-nous.")
+
+
+class Rejects:
+    """The cells one parse could not read, per column. A parse builds its own — never shared."""
+
+    def __init__(self) -> None:
+        self.seen: dict[str, int] = {}
+        self.bad: dict[str, list[tuple[object, str]]] = {}
+
+    @classmethod
+    def scan(cls, df, columns, decimal: str) -> "Rejects":
+        """Read every cell of `columns` (absent ones skipped) with the file's mark."""
+        rejects = cls()
+        for col in dict.fromkeys(c for c in columns if c is not None and c in df.columns):
+            for idx, value in df[col].items():
+                rejects.read(str(col), idx, value, decimal)
+        return rejects
+
+    def read(self, column: str, row, value, decimal: str) -> None:
+        try:
+            number = read_number(value, decimal)
+        except ValueError:
+            self.seen[column] = self.seen.get(column, 0) + 1
+            self.bad.setdefault(column, []).append((row, str(value)[:_SAMPLE_LEN]))
+            return
+        if number is not None:
+            self.seen[column] = self.seen.get(column, 0) + 1
+
+    def drop_row(self, row, reason) -> None:
+        self.bad.setdefault(ROW, []).append((row, str(reason)[:_SAMPLE_LEN]))
+
+    @property
+    def total(self) -> int:
+        return sum(len(items) for items in self.bad.values())
+
+    def as_json(self) -> dict | None:
+        """What `csv_upload_log.rejected` stores — None when nothing was set aside."""
+        if not self.bad:
+            return None
+        return {col: {"count": len(items), "seen": self.seen.get(col),
+                      "samples": [s for _, s in items[:_SAMPLES]]}
+                for col, items in self.bad.items()}
+
+    def describe(self) -> str:
+        """« streams (2), saves (1) » — the columns, worst first."""
+        ranked = sorted(self.bad.items(), key=lambda kv: -len(kv[1]))
+        return ", ".join(f"{'lignes' if c == ROW else c} ({len(v)})" for c, v in ranked)
+
+    def enforce(self, rows_in: int) -> None:
+        """Refuse when one column is all unreadable, or above the share past the floor."""
+        for col, items in self.bad.items():
+            seen = rows_in if col == ROW else self.seen.get(col, 0)
+            n = len(items)
+            if seen and (n >= seen or (n >= REJECT_FLOOR and n / seen > REJECT_SHARE)):
+                raise UnreadableColumnError(col, n, seen,
+                                            [s for _, s in items[:_SAMPLES]], self)
+
+
+class ParsedRows(list):
+    """A parser's rows, carrying the rejects of the parse that produced them."""
+
+    def __init__(self, rows, rejects: Rejects) -> None:
+        super().__init__(rows)
+        self.rejects = rejects
+
+
+def finish(rows, rejects: Rejects, rows_in: int) -> ParsedRows:
+    """The one exit of a parse: refuse a mostly-unreadable column, else return the rows."""
+    rejects.enforce(rows_in)
+    return ParsedRows(rows, rejects)

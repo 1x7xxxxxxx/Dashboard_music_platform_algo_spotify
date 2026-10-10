@@ -103,10 +103,13 @@ class TestParseSales:
         assert rows[0]['source_type'] == 'Song'
         assert rows[0]['reporting_date'] == date(2024, 11, 1)  # fallback
 
-    def test_invalid_sale_month_row_skipped(self, parser):
+    def test_a_file_whose_only_row_is_unreadable_is_refused_by_name(self, parser):
+        """R502: it returned `[]`, and the screen blamed « aucune ligne valide »."""
+        from src.transformers.csv_dialect import UnreadableColumnError
         raw = f"{_HEADER}\n{_ROW}".replace('"2026-02"', '"garbage"')
         df = parser.to_dataframe(raw.encode('utf-8'))
-        assert parser.parse_sales(df, artist_id=1) == []
+        with pytest.raises(UnreadableColumnError, match="garbage"):
+            parser.parse_sales(df, artist_id=1)
 
     def test_conflict_keys_unique_in_output(self, parser):
         result = parser.parse_file(FIXTURE, artist_id=1)

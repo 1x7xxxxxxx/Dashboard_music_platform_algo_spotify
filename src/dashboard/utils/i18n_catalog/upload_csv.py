@@ -13,6 +13,9 @@ EN = {
     "upload_csv.autostart_failed": (
         "⚠️ Automatic collection could not start — the reason is in the sidebar. "
         "Launch it again from the last step of the home page."),
+    "upload_csv.rejects_note": (
+        "⚠️ {file}: {n} unreadable value(s) set aside — {where}. "
+        "The rest of the file is imported."),
     # Header / intro (pre-existing keys)
     "upload_csv.uploader_label": "CSV / TSV / TXT / XLSX files",
     "upload_csv.uploader_help": (

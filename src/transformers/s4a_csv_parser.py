@@ -6,7 +6,7 @@ import logging
 import re  # Indispensable pour gérer les noms de fichiers changeants
 
 from src.utils.track_matching import canonical_song
-from src.transformers.csv_dialect import read_number
+from src.transformers.csv_dialect import Rejects, finish, read_number
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,8 @@ class MissingFromFilenameError(ValueError):
 
 def _to_int(value, default: int = 0, decimal: str = '.') -> int:
     """A raw CSV count as int — through the one number reader (R503), `decimal` being
-    the FILE's mark. Blank → `default`; unreadable → `default` too, until R502 counts it."""
+    the FILE's mark. Blank → `default`; unreadable → `default` too, and the parse COUNTS
+    it beforehand (`Rejects.scan`, R502) — the 0 is never silent."""
     try:
         number = read_number(value, decimal)
     except ValueError:
@@ -117,8 +118,9 @@ class S4ACSVParser:
         if 'date' not in df.columns or not stream_col:
             return []
 
+        rejects = Rejects.scan(df, [stream_col], dec)
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 data.append({
                     'artist_id': artist_id,
@@ -126,9 +128,9 @@ class S4ACSVParser:
                     'date': pd.to_datetime(row['date']).date(),
                     'streams': _to_int(row[stream_col], decimal=dec),
                 })
-            except Exception:
-                continue
-        return data
+            except Exception as exc:  # noqa: BLE001 — counted, not swallowed (R502)
+                rejects.drop_row(idx, row.get('date', exc))
+        return finish(data, rejects, len(df))
 
     _WINDOWS = ('28d', '12m')
 
@@ -171,9 +173,10 @@ class S4ACSVParser:
         df.columns = df.columns.str.strip().str.lower()
         dec = df.attrs.get('decimal', '.')
         window = self._detect_window(filename, window)
+        rejects = Rejects.scan(df, ['listeners', 'streams', 'saves'], dec)
 
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 song = str(row.get('song', '')).strip()
                 if not song or _ARTIST_FILTER.lower() in song.lower():
@@ -199,9 +202,9 @@ class S4ACSVParser:
                     'saves':        _to_int(row.get('saves', 0), decimal=dec),
                     'release_date': release_date,
                 })
-            except Exception:
-                continue
-        return data
+            except Exception as exc:  # noqa: BLE001 — counted, not swallowed (R502)
+                rejects.drop_row(idx, exc)
+        return finish(data, rejects, len(df))
 
     def parse_audience(self, df: pd.DataFrame, artist_id: int) -> list:
         """Parse an audience-timeline CSV.
@@ -211,9 +214,11 @@ class S4ACSVParser:
         """
         df.columns = df.columns.str.strip().str.lower()
         dec = df.attrs.get('decimal', '.')
+        rejects = Rejects.scan(
+            df, ['listeners', 'streams', 'followers', 'playlist adds', 'saves'], dec)
 
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 data.append({
                     'artist_id':    artist_id,
@@ -224,9 +229,9 @@ class S4ACSVParser:
                     'playlist_adds': _to_int(row.get('playlist adds', 0), decimal=dec),
                     'saves':        _to_int(row.get('saves', 0), decimal=dec),
                 })
-            except Exception:
-                continue
-        return data
+            except Exception as exc:  # noqa: BLE001 — counted, not swallowed (R502)
+                rejects.drop_row(idx, row.get('date', exc))
+        return finish(data, rejects, len(df))
 
     # ── Legacy method used by the Airflow DAG watcher ────────────────────────
 

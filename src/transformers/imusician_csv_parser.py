@@ -15,9 +15,15 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from src.transformers.csv_dialect import read_number
+from src.transformers.csv_dialect import Rejects, finish, read_number
 
 logger = logging.getLogger(__name__)
+
+
+# The amount columns of a release summary — scanned for rejects up front (R502).
+_SUMMARY_NUMERIC = ('Track downloads', 'Track streams', 'Release downloads',
+                    'Track downloads revenue', 'Track streams revenue',
+                    'Release downloads revenue', 'Total revenue')
 
 
 def _text(value) -> "str | None":
@@ -129,6 +135,7 @@ class IMusicianCSVParser:
         df = df.dropna(how='all')
         self._require_cols(df, ['Statement date', 'Release title', 'Total revenue'])
         stmt_col = self._col(df, 'Statement date')
+        rejects = Rejects.scan(df, [self._col(df, c) for c in _SUMMARY_NUMERIC], dec)
         rows = []
 
         for idx, row in df.iterrows():
@@ -150,12 +157,12 @@ class IMusicianCSVParser:
                     'total_revenue':              self._clean_numeric(row.get(self._col(df, 'Total revenue') or ''), decimal=dec),
                     'collected_at':               datetime.now(timezone.utc),
                 })
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"Row {idx} skipped: {e}")
-                continue
+                rejects.drop_row(idx, e)
 
         logger.info(f"release_summary: {len(rows)} rows parsed")
-        return rows
+        return finish(rows, rejects, len(df))
 
     def parse_sales_detail(self, df: pd.DataFrame, artist_id: int) -> List[Dict]:
         """Parse a 'Rapport de vente' CSV into a list of dicts for imusician_sales_detail."""
@@ -164,6 +171,7 @@ class IMusicianCSVParser:
         self._require_cols(df, ['Sales date', 'Statement date', 'ISRC', 'Shop'])
         sales_col = self._col(df, 'Sales date')
         stmt_col = self._col(df, 'Statement date')
+        rejects = Rejects.scan(df, [self._col(df, 'Quantity'), self._col(df, 'Revenue EUR')], dec)
         rows = []
 
         for idx, row in df.iterrows():
@@ -190,9 +198,9 @@ class IMusicianCSVParser:
                     'revenue_eur':     self._clean_numeric(row.get(self._col(df, 'Revenue EUR') or ''), decimal=dec),
                     'collected_at':    datetime.now(timezone.utc),
                 })
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"Row {idx} skipped: {e}")
-                continue
+                rejects.drop_row(idx, e)
 
         # Deduplicate: iMusician sometimes emits multiple sub-lines per
         # (isrc, shop, country, transaction_type, month) key. Aggregate
@@ -215,7 +223,7 @@ class IMusicianCSVParser:
             logger.info(f"sales_detail: {len(rows)} raw rows → {len(deduped)} after dedup")
         else:
             logger.info(f"sales_detail: {len(deduped)} rows parsed")
-        return deduped
+        return finish(deduped, rejects, len(df))
 
     # ─────────────────────────────────────────────
     # Entry point

@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import logging
-from src.transformers.csv_dialect import read_number
+from src.transformers.csv_dialect import Rejects, finish, read_number
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +139,10 @@ class AppleMusicCSVParser:
             logger.error("❌ Colonnes essentielles manquantes")
             return []
 
+        rejects = Rejects.scan(
+            df, [plays_col, listeners_col, shazam_col, radio_col, purchases_col], dec)
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 record = {
                     'song_name': str(row[song_col]),
@@ -165,12 +167,12 @@ class AppleMusicCSVParser:
 
                 data.append(record)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"⚠️ Erreur parsing ligne: {e}")
-                continue
+                rejects.drop_row(idx, e)
 
         logger.info(f"✅ {len(data)} chansons parsées")
-        return data
+        return finish(data, rejects, len(df))
 
     def parse_daily_plays(self, df: pd.DataFrame) -> List[Dict]:
         """
@@ -194,8 +196,9 @@ class AppleMusicCSVParser:
             logger.error("❌ Colonnes essentielles manquantes")
             return []
 
+        rejects = Rejects.scan(df, [plays_col], dec)
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 date = pd.to_datetime(row[date_col]).date()
 
@@ -208,12 +211,12 @@ class AppleMusicCSVParser:
 
                 data.append(record)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"⚠️ Erreur parsing ligne: {e}")
-                continue
+                rejects.drop_row(idx, e)
 
         logger.info(f"✅ {len(data)} enregistrements parsés")
-        return data
+        return finish(data, rejects, len(df))
 
     def parse_listeners(self, df: pd.DataFrame) -> List[Dict]:
         """
@@ -235,8 +238,9 @@ class AppleMusicCSVParser:
             logger.error("❌ Colonnes essentielles manquantes")
             return []
 
+        rejects = Rejects.scan(df, [listeners_col], dec)
         data = []
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 date = pd.to_datetime(row[date_col]).date()
 
@@ -248,12 +252,12 @@ class AppleMusicCSVParser:
 
                 data.append(record)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — counted, not swallowed (R502)
                 logger.warning(f"⚠️ Erreur parsing ligne: {e}")
-                continue
+                rejects.drop_row(idx, e)
 
         logger.info(f"✅ {len(data)} jours parsés")
-        return data
+        return finish(data, rejects, len(df))
 
     def parse_csv_file(self, file_path: Path) -> Dict:
         """

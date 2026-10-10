@@ -38,6 +38,7 @@ if _root not in sys.path:
 # Streamlit, pour huit chaînes). Un registre de données n'a pas à traîner un
 # importateur derrière lui.
 from src.dashboard.utils.csv_platforms import _PLATFORMS
+from src.dashboard.utils.csv_rejects import readable_numbers, rejected_json
 
 
 # ─────────────────────────────────────────────
@@ -336,13 +337,18 @@ def _parse_file(platform_key: str, file, artist_id: int,
         # qui le distingue est que Spotify y renvoie auditeurs ET sauvegardes à
         # ZÉRO. Un fichier renommé — ou suffixé « (1) » par le navigateur —
         # échappait au contrôle par nom et était accepté comme un catalogue valide.
+        #
+        # Les valeurs passent par le LECTEUR partagé (R502) : `to_numeric` lisait
+        # « 1 234 » (espace insécable, locale FR) comme NaN → 0, et un vrai export
+        # 12 mois était refusé comme « Depuis le début ». Une colonne entièrement
+        # ILLISIBLE n'est pas une colonne de zéros : le parseur la refuse en la
+        # nommant, plus bas.
         for _col in ('listeners', 'saves'):
             if _col not in df.columns:
                 break
         else:
-            _num = df[['listeners', 'saves']].apply(
-                pd.to_numeric, errors='coerce').fillna(0)
-            if len(_num) and (_num.to_numpy() == 0).all():
+            _num = readable_numbers(df, ('listeners', 'saves'), df.attrs['decimal'])
+            if _num is not None and len(_num) and (_num.to_numpy() == 0).all():
                 raise ValueError(t(
                     "upload_csv.err_songs_all_zero",
                     "Export « Depuis le début » : Spotify y renvoie les auditeurs et "
@@ -688,6 +694,8 @@ def render_uploader(db, target_artist_id: int) -> None:
                 entry['rows'] = _parse_file(
                     platform_key, f, target_artist_id,
                     _answers_for(target_artist_id, f.name))
+                # Ce que la lecture a mis de côté (R502) — affiché, puis journalisé.
+                entry['rejects'] = getattr(entry['rows'], 'rejects', None)
                 if not entry['rows']:
                     entry['error'] = t(
                         "upload_csv.err_no_valid_rows",
@@ -703,6 +711,8 @@ def render_uploader(db, target_artist_id: int) -> None:
             entry['error'] = str(exc)
         except Exception as exc:
             entry['error'] = str(exc)
+            # Un refus pour colonne illisible porte son décompte (R502).
+            entry['rejects'] = getattr(exc, 'rejects', None)
 
         file_results.append(entry)
 
@@ -727,11 +737,11 @@ def render_uploader(db, target_artist_id: int) -> None:
             db.execute_query(
                 "INSERT INTO csv_upload_log "
                 "(artist_id, filename, platform, row_count, status, error_message, "
-                " seen_columns, serialization) "
-                "VALUES (%s, %s, NULL, 0, 'rejected', %s, %s, %s)",
+                " seen_columns, serialization, rejected) "
+                "VALUES (%s, %s, NULL, 0, 'rejected', %s, %s, %s, %s)",
                 (target_artist_id, r['filename'], str(r['error'])[:500],
                  repr(r.get('seen_columns') or [])[:500],
-                 _serialization_label(r['file'])),
+                 _serialization_label(r['file']), rejected_json(r)),
             )
         except Exception:  # noqa: BLE001 — journaliser ne doit jamais bloquer l'écran
             pass
@@ -1009,10 +1019,11 @@ def render_uploader(db, target_artist_id: int) -> None:
                 r['file'].seek(0)
                 db.execute_query(
                     "INSERT INTO csv_upload_log "
-                    "(artist_id, filename, platform, row_count, status, serialization) "
-                    "VALUES (%s, %s, %s, %s, 'success', %s)",
+                    "(artist_id, filename, platform, row_count, status, serialization, "
+                    " rejected) "
+                    "VALUES (%s, %s, %s, %s, 'success', %s, %s)",
                     (target_artist_id, r['filename'], r['platform_key'], count,
-                     _serialization_label(r['file'])),
+                     _serialization_label(r['file']), rejected_json(r)),
                 )
             except Exception as exc:
                 total_err += 1
@@ -1025,9 +1036,11 @@ def render_uploader(db, target_artist_id: int) -> None:
                 try:
                     db.execute_query(
                         "INSERT INTO csv_upload_log "
-                        "(artist_id, filename, platform, row_count, status, error_message) "
-                        "VALUES (%s, %s, %s, 0, 'error', %s)",
-                        (target_artist_id, r['filename'], r['platform_key'], str(exc)[:500]),
+                        "(artist_id, filename, platform, row_count, status, error_message, "
+                        " rejected) "
+                        "VALUES (%s, %s, %s, 0, 'error', %s, %s)",
+                        (target_artist_id, r['filename'], r['platform_key'], str(exc)[:500],
+                         rejected_json(r)),
                     )
                 except Exception:
                     pass  # audit log failure must never block the UI
@@ -1044,6 +1057,16 @@ def render_uploader(db, target_artist_id: int) -> None:
         # rien une fois la première collecte enregistrée, donc à TOUS les
         # ré-imports — le cas courant d'un locataire installé. S'appuyer sur lui
         # pour purger revenait à ne jamais purger.
+        # Ce que la lecture a mis de côté se DIT (R502) : une valeur illisible
+        # n'est plus un 0 silencieux, elle est comptée, nommée, et journalisée.
+        for r in ok_results:
+            _rej = r.get('rejects')
+            if _rej is not None and _rej.total:
+                _notes.append(("warning", t(
+                    "upload_csv.rejects_note",
+                    "⚠️ {file} : {n} valeur(s) illisible(s) laissée(s) de côté — "
+                    "{where}. Le reste du fichier est importé.").format(
+                        file=r['filename'], n=_rej.total, where=_rej.describe())))
         purge_after_write(total_ok, target_artist_id)
         _launched = _not_launched = {}
         try:
