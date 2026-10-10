@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R506 — Ne plus exiger un document régénéré qui ne sert à personne : retirer la porte des durée… (livrée 2026-10-10)
+
+- [x] **R506 — Ne plus exiger un document régénéré qui ne sert à personne : retirer la porte des durées (pytest-split donne la moyenne à un test inconnu ; rafraîchir `.test_durations` à la demande), registre des graphiques en avertissement, compte d'en-tête du catalogue calculé, lecteurs de gouvernance ciblés, les tests n'écrivent plus dans le journal réel des refus (26 `probe` en 7 j)** (P3) ✅ (2026-10-10, a9dc56d4)
+  Mesuré par : REFUS 7 j sans `test-durations-missing` ; 0 refus `probe`
+  CI verte a9dc56d4 (run 38084104997) ; porte des durées retirée (hook, test-changed, catalogue-sync), CI en avertissement, borne 40 vue rouge à -1 ; registre graphiques en avertissement ; test d'en-tête retiré ; DEFECT_LOG en conftest ; .secrets.baseline exempté
+  Commits : a9dc56d4 R506 : les documents régénérés ne sont plus exigés là où ils ne serven
+
 ## ✅ R505 — 2ᵉ vague de propriétés Hypothesis : dédoublonnage DistroKid/iMusician conserve les tota… (livrée 2026-10-10)
 
 - [x] **R505 — 2ᵉ vague de propriétés Hypothesis : dédoublonnage DistroKid/iMusician conserve les totaux, `upsert_many` ne fusionne que des clés égales, `platform_chart._aggregate` partitionne les jours, `non_overlapping_cover` sans recouvrement, `track_title_matches` symétrique** (P2) ✅ (2026-10-10, 58c5b618)
