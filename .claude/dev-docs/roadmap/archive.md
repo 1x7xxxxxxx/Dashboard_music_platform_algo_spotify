@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R505 — 2ᵉ vague de propriétés Hypothesis : dédoublonnage DistroKid/iMusician conserve les tota… (livrée 2026-10-10)
+
+- [x] **R505 — 2ᵉ vague de propriétés Hypothesis : dédoublonnage DistroKid/iMusician conserve les totaux, `upsert_many` ne fusionne que des clés égales, `platform_chart._aggregate` partitionne les jours, `non_overlapping_cover` sans recouvrement, `track_title_matches` symétrique** (P2) ✅ (2026-10-10, 58c5b618)
+  Mesuré par : chaque propriété rougit sur sa mutation
+  CI verte 2e5409ff (run 38082973160) ; 5 propriétés vues rouges sous mutation, la 6ᵉ (S4A lignes = sorties + rejets) passe à R502
+  Commits : 58c5b618 R505 : six propriétés sur ce qui somme, groupe ou choisit
+
+## ✅ R504 — Bornes : `entry_period.resolve` rend fin < début pour une sortie future et 29 j pour «… (livrée 2026-10-10)
+
+- [x] **R504 — Bornes : `entry_period.resolve` rend fin < début pour une sortie future et 29 j pour « 28 j » ; `valider_montant` lève une `ValueError` brute sur « ² » et ignore `\xa0` ; `validate_columns` laisse passer tout ce qui commence par `(` et `"abc\n"` (`$` au lieu de `fullmatch`)** (P2) ✅ (2026-10-10, baeeb1f4)
+  Mesuré par : fin ≥ début ; N jours = N jours ; hors allowlist ⇒ refus
+  CI verte baeeb1f4 (run 38081518435) ; dashboard déployé a9dc56d4, prod : resolve(sortie future) start<=end, valider_montant('1 200' NBSP)=1200
+  Commits : baeeb1f4 R504 : une fenêtre ne finit plus avant son début, un validateur ne lèv
+
 ## ✅ R501 — iMusician lit une colonne ENTIÈRE comme 0 dès qu'une cellule est vide : pandas la passe… (livrée 2026-10-10)
 
 - [x] **R501 — iMusician lit une colonne ENTIÈRE comme 0 dès qu'une cellule est vide : pandas la passe en float et `_clean_numeric(3.0, int)` fait `int("3.0")` ⇒ 0 (trouvé par la passe Hypothesis du 2026-10-10, vérifié par appel) ; balayer `int(str(x))` sur une colonne pandas** (P1) ✅ (2026-10-10, 750de999)
