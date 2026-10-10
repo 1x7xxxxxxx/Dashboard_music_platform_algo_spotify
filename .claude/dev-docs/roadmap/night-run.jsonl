@@ -799,3 +799,4 @@
 {"at": "2026-10-09T09:32:18+00:00", "kind": "done", "task": "R492", "what": "fermée par roadmap-close — CI verte eb8498ef (run 37911478781)"}
 {"at": "2026-10-09T09:34:32+00:00", "head": "68166e44", "kind": "start", "task": "R491", "what": "ligne 🎯 décision retirée sous les graphiques"}
 {"at": "2026-10-09T10:02:32+00:00", "kind": "done", "task": "R491", "what": "fermée par roadmap-close — CI verte a4a576b7 (run 37914655653)"}
+{"at": "2026-10-10T15:46:55+00:00", "head": "587e2fbf", "kind": "start", "task": "R493", "what": "gardes neufs : harnais de mutation + visibilité du rouge"}

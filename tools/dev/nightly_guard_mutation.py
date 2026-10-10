@@ -275,6 +275,18 @@ SEEN_RED: dict[str, str] = {
         "2026-10-05 — claim_login_attempt sans la clause `locked_until` du WHERE → rouge "
         "(« ran bcrypt 12 times ») ; le contrôle du verrou retiré de _show_totp_challenge "
         "→ rouge (« cleared the lock ») ; le `raise` du collecteur rendu en warning → rouge",
+    # R493 — mailés « personne ne l'a vu mordre » deux nuits : le harnais mutait des vues
+    # que ces gardes n'importent pas. Mutés à la main sur LEUR défaut, chacun rouge en
+    # AssertionError (un jugement, pas un plantage).
+    "tests/test_the_soundcloud_page_reads_at_a_glance.py":
+        "2026-10-10 — top_figure trié `ascending=True` (soundcloud.py:439) → 1 rouge "
+        "(« ['Gros','Moyen','Petit'] == ['Petit','Moyen','Gros'] »)",
+    "tests/test_the_youtube_page_reads_at_a_glance.py":
+        "2026-10-10 — top_figure trié `ascending=True` (youtube.py:157) → 1 rouge "
+        "(« [1000, 400, 100] == [100, 400, 1000] »)",
+    "tests/test_the_momentum_chart_shows_only_what_moves.py":
+        "2026-10-10 — moving_songs rend `spans` sans filtre (spotify_s4a_combined.py:354) "
+        "→ 2 rouges (le titre immobile montré ; plus de barres PI propres)",
 }
 
 
@@ -372,6 +384,17 @@ def verdict(result: dict) -> str | None:
     return None          # a red mutation, or no applicable site (nothing to conclude)
 
 
+def attempts(result: dict) -> list[str]:
+    """What a suspect verdict was built on — each site tried, crashes marked. Pure.
+
+    R493 : « vert sur 6 mutations » sans les nommer ne sépare pas un garde aveugle d'un
+    harnais qui mute ailleurs ; trois gardes sains ont été mailés deux nuits ainsi.
+    """
+    crashes = set(result.get("crashes", []))
+    return [f"      · {w}" + (" — plantage, pas un jugement" if w in crashes else " — vert")
+            for w in result.get("tried", [])]
+
+
 def mutate_self_proving(today: str, limit: int = _SELF_PROVING_PER_NIGHT) -> int:
     """Mutate a few catalogue self-proving guards with no dated red; record each red.
     Green here is not a suspect (the fabrication may live in the test): it is only shown."""
@@ -418,6 +441,8 @@ def main() -> int:
         v = verdict(result)
         suspects += v is not None
         print(f"   {'✗' if v else '✓'} {rel}" + (f" — {v}" if v else ""))
+        if v:
+            print("\n".join(attempts(result)))
     mutate_self_proving(today, limit)
     print(f"{'❌' if suspects else '✅'} {suspects} garde(s) à relire")
     return 1 if suspects else 0

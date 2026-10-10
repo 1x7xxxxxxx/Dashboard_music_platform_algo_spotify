@@ -74,12 +74,24 @@ def sources_read(guard: pathlib.Path) -> list[pathlib.Path]:
         bits = re.findall(r'"([\w.-]+)"', m.group(0))
         if bits and bits[-1].endswith(".py"):
             paths.add(ROOT.joinpath(*bits))
-    for m in re.finditer(r"from\s+((?:src|tools)[\w.]*)\s+import", text):
-        p = ROOT / (m.group(1).replace(".", "/") + ".py")
+    # ⚠️ R493 : `from src.dashboard.views import soundcloud as sc` importe UN module. Le
+    # résoudre au paquet entier rendait les 49 vues, triées : les six mutations d'une nuit
+    # tombaient dans account.py, admin.py, billing.py — des fichiers que le garde n'importe
+    # pas — et trois gardes sains ont été mailés « personne ne l'a vu mordre ».
+    for m in re.finditer(r"from\s+((?:src|tools)[\w.]*)\s+import\s+\(?([\w\s,]+)", text):
+        pkg = m.group(1).replace(".", "/")
+        p = ROOT / (pkg + ".py")
         if p.exists():
             paths.add(p)
-        elif (d := ROOT / m.group(1).replace(".", "/")).is_dir():
-            paths.update(x for x in d.glob("*.py") if x.name != "__init__.py")
+            continue
+        if not (d := ROOT / pkg).is_dir():
+            continue
+        names = re.findall(r"(\w+)(?:\s+as\s+\w+)?", m.group(2))
+        modules = [d / f"{n}.py" for n in names if (d / f"{n}.py").exists()]
+        if modules:
+            paths.update(modules)
+        elif (d / "__init__.py").exists():
+            paths.add(d / "__init__.py")
     return sorted(p for p in paths if p.exists() and p.suffix == ".py")
 
 
@@ -124,12 +136,34 @@ def run_guard(guard: pathlib.Path) -> int:
     C'est très exactement le mode d'échec que ce harnais existe pour attraper, retourné
     contre lui : un outil qui rend un verdict PLAUSIBLE au lieu d'un verdict juste.
     """
+    return run_guard_output(guard)[0]
+
+
+def run_guard_output(guard: pathlib.Path) -> tuple[int, str]:
+    """(code de sortie, sortie) — la sortie dit si un rouge est un JUGEMENT ou un plantage."""
     load_project_env()
     r = subprocess.run([str(VENV), "-m", "pytest", str(guard.relative_to(ROOT)),
-                        "-q", "--no-header", "-x", "--tb=no"],
+                        "-q", "--no-header", "-x", "--tb=short"],
                        capture_output=True, text=True, cwd=ROOT, timeout=300,
                        env=os.environ.copy())
-    return r.returncode
+    return r.returncode, r.stdout + r.stderr
+
+
+def is_crash(output: str) -> bool:
+    """Le garde est-il TOMBÉ plutôt que d'avoir JUGÉ ? Pur.
+
+    R493 (critic) : renommer `x` en `x_MUTE` fait échouer tout appel — `name 'x_MUTE' is
+    not defined`, `KeyError: 'recent'`. Ce rouge prouve que la ligne s'exécute, pas que
+    le garde juge ce qu'elle produit ; le dater comme `seen_red` serait un crédit
+    silencieux, pire qu'un faux suspect visible. Seul un jugement compte : une assertion
+    (`AssertionError`) ou un `pytest.fail` (`Failed:`).
+
+    ⚠️ Lu sur les lignes `E` de `--tb=short`, pas sur un mot n'importe où : un `assert a == b`
+    réécrit par pytest s'affiche `E   assert [1000, 400, 100] == [100, 400, 1000]`, SANS le
+    mot `AssertionError` — la première version l'aurait classé plantage (mesuré sur le garde
+    YouTube, R493). Et un `AssertionError` cité dans un message de log ne juge rien.
+    """
+    return not re.search(r"^E\s+(?:AssertionError\b|assert\b|Failed:)", output, re.M)
 
 
 def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:
@@ -144,7 +178,7 @@ def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:
     if run_guard(guard) != 0:
         return {"skipped": "le garde n'est pas vert avant mutation"}
     cibles = guard_targets(guard)
-    essais = 0
+    essais, tried, crashes = 0, [], []
     for source in sources_read(guard):
         brut = source.read_bytes()           # l'ORIGINAL, octet pour octet
         original = brut.decode("utf-8")
@@ -154,21 +188,25 @@ def try_mutations(guard: pathlib.Path, budget: int = 6) -> dict:
             if not sites:
                 continue
             if essais >= budget:
-                return {"epuise": essais}
+                return {"epuise": essais, "tried": tried, "crashes": crashes}
             essais += 1
             ln, col = sites[0]
+            where = f"{source.relative_to(ROOT)}:{ln} `{needle}`"
+            tried.append(where)
             muted = list(lignes)
             muted[ln - 1] = (lignes[ln - 1][:col]
                              + lignes[ln - 1][col:].replace(needle, needle + "_MUTE", 1))
             try:
                 source.write_bytes("".join(muted).encode("utf-8"))
-                rc = run_guard(guard)
+                rc, out = run_guard_output(guard)
             finally:
                 source.write_bytes(brut)      # les OCTETS d'origine, pas un ré-encodage
-            if rc != 0:
+            if rc != 0 and is_crash(out):
+                crashes.append(where)         # atteint, pas jugé : on continue à chercher
+            elif rc != 0:
                 return {"source": str(source.relative_to(ROOT)), "cible": needle,
-                        "ligne": ln, "essais": essais}
-    return {"aucune": essais}
+                        "ligne": ln, "essais": essais, "tried": tried, "crashes": crashes}
+    return {"aucune": essais, "tried": tried, "crashes": crashes}
 
 
 def main(argv: list[str]) -> int:

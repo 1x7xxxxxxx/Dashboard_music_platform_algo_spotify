@@ -104,3 +104,33 @@ def test_the_nightly_keeps_its_dated_reds() -> None:
     keep = [s for s in wf["jobs"]["guard-mutation"]["steps"] if "upload-artifact" in str(s.get("uses", ""))]
     assert keep and keep[0]["with"]["name"] == "guard-red-log"
     assert keep[0]["with"]["path"].endswith(ngm.RED_LOG.name)
+
+
+# R493 — three sound guards were mailed as suspects two nights running. Mutating their
+# real defect by hand turned each one red; the harness had been mutating views they never import.
+mg = ngm.mg
+
+
+def test_importing_one_view_points_the_harness_at_that_view_only(tmp_path) -> None:
+    guard = tmp_path / "test_g.py"
+    guard.write_text("from src.dashboard.views import soundcloud as sc\n")
+    assert mg.sources_read(guard) == [_ROOT / "src/dashboard/views/soundcloud.py"]
+
+
+def test_a_crash_is_not_credited_as_a_judgement() -> None:
+    """A renamed column fails every call: the line ran, nothing was judged."""
+    assert mg.is_crash("E   KeyError: 'recent'\n")
+    assert mg.is_crash("E   NameError: name 'x_MUTE' is not defined\n")
+    assert mg.is_crash("log: AssertionError mentioned in passing\nE   KeyError: 'x'\n")
+    # pytest's rewritten assert prints no « AssertionError » — still a judgement
+    assert not mg.is_crash("E   assert [1000, 400, 100] == [100, 400, 1000]\n")
+    assert not mg.is_crash("E   AssertionError: l'indice n'a pas ses propres barres\n")
+    assert not mg.is_crash("E   Failed: no figure drawn\n")
+
+
+def test_a_suspect_names_what_it_tried() -> None:
+    result = {"epuise": 2, "tried": ["a.py:3 `x`", "a.py:9 `y`"], "crashes": ["a.py:9 `y`"]}
+    assert ngm.verdict(result)
+    lines = ngm.attempts(result)
+    assert len(lines) == 2 and "a.py:3 `x`" in lines[0] and "vert" in lines[0]
+    assert "plantage" in lines[1]
