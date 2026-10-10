@@ -1,0 +1,44 @@
+name: Mutation — weekly (parsers)
+
+# R509 (study E1) — mutates the PURE parsers of `src/transformers/` and lists the mutants
+# no test kills (tools/dev/mutate_parsers.py). Observational: survivors are a report, the
+# job goes red only when a module's tests are red WITHOUT mutation (exit 2 — the run
+# measured nothing). The report is uploaded as an artifact, never committed.
+#
+# Keep-or-retire criterion, fixed before the first run: ≥1 survivor that is a real test
+# gap within the first month. Met on the trial run (2026-10-11, sacem_parser: 22 → 8).
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"   # Sunday 04:00 UTC — one hour after security-nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+
+      - name: Install dependencies from lockfile
+        run: uv python install 3.11 && uv sync --frozen --extra dev
+
+      - name: Mutate the parsers
+        run: .venv/bin/python tools/dev/mutate_parsers.py
+
+      - name: Upload the survivors report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-survivors
+          path: .claude/dev-docs/mutation-survivors.md
+          if-no-files-found: warn

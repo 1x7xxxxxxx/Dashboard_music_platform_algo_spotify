@@ -26,7 +26,7 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: home-snapshot home-record pdf-report-snapshot service-snapshot select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review canon-pg chart-budget chart-decisions check-db check-env ci-wait db-app-role db-role-check dossier error-families-check gold-coverage-check index-report metric-check prod-psql psql schema-check schema-check-local schema-check-shared suite-status sync-check test-docs test-fast test-verdict
+.PHONY: mutate-parsers home-snapshot home-record pdf-report-snapshot service-snapshot select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review canon-pg chart-budget chart-decisions check-db check-env ci-wait db-app-role db-role-check dossier error-families-check gold-coverage-check index-report metric-check prod-psql psql schema-check schema-check-local schema-check-shared suite-status sync-check test-docs test-fast test-verdict
 
 ##@ Infrastructure
 help:        ## List available targets, by section — the ONE list; CLAUDE.md names only the daily ones
@@ -210,6 +210,13 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	  [ -n "$(ARGS)" ] && exit $$rc; \
 	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; \
 	  [ $$rc -ne 0 ] || python3 tools/dev/pre_push_gate.py stamp; exit $$rc
+
+mutate-parsers: ## Mutation du code PRODUIT (src/transformers/) : les mutants qu'aucun test ne tue → .claude/dev-docs/mutation-survivors.md. M=<module> pour un seul
+	@# R509. Un survivant est un comportement de parseur que la suite n'épingle pas. Hebdo
+	@# en CI (.github/workflows/mutation-weekly.yml) ; ~4 min par module ici.
+	@test -x $(PYTHON) || { echo "❌ venv absent. Run: make sync"; exit 1; }
+	@$(PYTHON) -c "import mutmut" 2>/dev/null || { echo "❌ mutmut absent. Run: make sync"; exit 1; }
+	@$(PYTHON) tools/dev/mutate_parsers.py $(M)
 
 test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant de commiter
 	@echo '⏩ sans les tests de documents — make test-docs les lance, make test lance tout.'

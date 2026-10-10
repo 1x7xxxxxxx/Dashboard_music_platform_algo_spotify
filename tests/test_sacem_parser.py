@@ -69,3 +69,51 @@ class TestParse:
     def test_wrong_sheet_raises(self):
         with pytest.raises(ValueError):
             parse_sacem_xlsx(_make_xlsx(sheet="Autre"))
+
+
+class TestWhatMutationFoundUnpinned:
+    """R509 — survivors of the first `make mutate-parsers` run, each now pinned."""
+
+    def test_a_blank_line_mid_statement_does_not_end_the_parse(self):
+        rows = parse_sacem_xlsx(_make_xlsx(pd.DataFrame({
+            "Date": ["07/04/2026", "", "07/01/2026"],
+            "Libellé": ["REPARTITION 674", "", "Solde antérieur"],
+            "Mouvements (€)": ["1,69", "", ""],
+            "Solde (€)": ["6,67", "", "4,98"],
+        })))
+        assert [r["line_type"] for r in rows] == ["repartition", "balance"]
+
+    def test_a_dated_line_without_a_label_is_skipped(self):
+        rows = parse_sacem_xlsx(_make_xlsx(pd.DataFrame({
+            "Date": ["07/04/2026", "07/04/2026"], "Libellé": ["REPARTITION 674", ""],
+            "Mouvements (€)": ["1,69", "9,99"], "Solde (€)": ["6,67", "16,66"],
+        })))
+        assert len(rows) == 1 and rows[0]["libelle"] == "REPARTITION 674"
+
+    def test_an_iso_date_a_fifth_column_and_cents(self):
+        rows = parse_sacem_xlsx(_make_xlsx(pd.DataFrame({
+            "Date": ["2026-04-07"], "Libellé": ["URSSAF RETRAITE"],
+            "Mouvements (€)": ["-1,234"], "Solde (€)": ["5,556"], "Extra": ["x"],
+        })))
+        assert rows[0]["line_date"].isoformat() == "2026-04-07"
+        assert rows[0]["line_type"] == "charge"
+        assert (rows[0]["mouvement_eur"], rows[0]["solde_eur"]) == (-1.23, 5.56)
+
+    def test_a_label_alone_is_classified(self):
+        assert classify_line("URSSAF") == "charge"
+        assert classify_line("COTISATION RAAP") == "charge"
+
+    def test_garbage_is_not_a_statement(self):
+        assert is_sacem_statement(io.BytesIO(b"not an xlsx")) is False
+
+    def test_an_unreadable_amount_reads_zero_not_one(self):
+        rows = parse_sacem_xlsx(_make_xlsx(pd.DataFrame({
+            "Date": ["07/04/2026"], "Libellé": ["REPARTITION 674"],
+            "Mouvements (€)": ["n.c."], "Solde (€)": ["6,67"],
+        })))
+        assert rows[0]["mouvement_eur"] == 0.0
+
+    def test_three_columns_is_refused_by_name(self):
+        with pytest.raises(ValueError, match="≥4 columns, got 3"):
+            parse_sacem_xlsx(_make_xlsx(pd.DataFrame({
+                "Date": ["07/04/2026"], "Libellé": ["X"], "Mouvements (€)": ["1"]})))
