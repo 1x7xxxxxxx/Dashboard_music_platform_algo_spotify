@@ -1496,8 +1496,7 @@
   domaine: formats
   statut: ouvert
   priorite: P2
-  preuve_statut: Aucune entrée archive/checklist sur un PDF de 2 pages de prospection (grep '2 pages|prospect' sans
-    résultat pertinent).
+  preuve_statut: 'Porté par R277 (🙋 checklist.md, déclencheur « KPI validés ») — aucun code encore.'
   preuve_ciblee: 'test to write: le rapport de prospection rend ≤ 2 pages, on file src/dashboard/utils/pdf_exporter/_report.py:1'
   roadmap: R277
 - ligne: 168
@@ -2573,9 +2572,8 @@
   domaine: product-offer
   statut: ouvert
   priorite: P4
-  preuve_statut: 'No roadmap line in checklist.md, archive.md or product-backlog.md (grep chatbot/FAQ: only RAG
-    book references)'
-  preuve_ciblee: 'test to write: n/a — register in product-backlog.md with a trigger first'
+  preuve_statut: 'Carried by R276 (checklist.md, trigger « KPI validés ») — no code yet.'
+  preuve_ciblee: 'test to write: n/a — opens when R276 is triggered'
   roadmap: R276
 - ligne: 456
   resume: 'Page S4A+Spotify : à quoi sert le graphe auditeurs-jour, quelle décision permet-il ?'
