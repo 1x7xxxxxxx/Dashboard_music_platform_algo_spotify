@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R501 — iMusician lit une colonne ENTIÈRE comme 0 dès qu'une cellule est vide : pandas la passe… (livrée 2026-10-10)
+
+- [x] **R501 — iMusician lit une colonne ENTIÈRE comme 0 dès qu'une cellule est vide : pandas la passe en float et `_clean_numeric(3.0, int)` fait `int("3.0")` ⇒ 0 (trouvé par la passe Hypothesis du 2026-10-10, vérifié par appel) ; balayer `int(str(x))` sur une colonne pandas** (P1) ✅ (2026-10-10, 750de999)
+  Mesuré par : propriété int/float/NaN/texte rouge avant, verte après ; prod `_clean_numeric(3.0, int) == 3`
+  CI verte 750de999 (run 38080589866) ; prod : _clean_numeric(3.0,int)=3 dans airflow_scheduler. Propriété test_a_count_reads_back_whatever_type_pandas_gave_the_cell rouge avant (n=1 imusician float → 0). Balayage : 443 candidats → 1 site vivant, pas de classe.
+  Commits : 750de999 R501 : une cellule vide ne fait plus lire toute une colonne iMusician 
+
 ## ✅ R499 — Pilote de tests par PROPRIÉTÉ (Hypothesis) sur les fonctions pures des parseurs : `s4a_… (livrée 2026-10-10)
 
 - [x] **R499 — Pilote de tests par PROPRIÉTÉ (Hypothesis) sur les fonctions pures des parseurs : `s4a_csv_parser._to_int`, `sacem_parser._to_float`, `csv_dialect.sniff_separator` — un garde « un exemple par classe » ne couvre que les cas imaginés ; une propriété couvre l'espace d'entrée (soupçon lu : milliers à espace insécable ⇒ 0 en silence)** (P2) ✅ (2026-10-10, 60c96fab)
