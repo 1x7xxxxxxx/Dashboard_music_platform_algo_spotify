@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R510 — Fonctionnalités inachevées relevées le 2026-10-10 : (1) Instagram — un champ absent de… (livrée 2026-10-11)
+
+- [x] **R510 — Fonctionnalités inachevées relevées le 2026-10-10 : (1) Instagram — un champ absent de l'API (`followers_count`, …) s'écrit `None`, plus 0 (un 0 se lit comme une chute) ; (2) `_tab_budget_roi.py:146` — l'écart NonAlgo se calcule depuis la saisie MANUELLE (mig. 052) au lieu d'une légende « non collecté, Phase 2 » ; (3) route orpheline `data_wrapped` (page hors menu, section déjà incluse dans `spotify_s4a_combined`) retirée de `routes.py` et de `plan_pitch.py` ; (4) `billing.py:311` — sans Stripe, « contactez-nous » nomme une adresse cliquable (texte seulement, aucun appel Stripe)** (P3) ✅ (2026-10-11, 91c9a72e)
+  Mesuré par : aucun 0 Instagram inventé ; plus de légende « Phase 2 » ; 0 route hors menu
+  Livré (1) Instagram : compte absent = NULL, l'historique l'écarte ; (2) écart NonAlgo calculé depuis la saisie S4A ; (4) sans Stripe, adresse mailto. (3) RÉFUTÉ : la route data_wrapped est tenue exprès par deux gardes (rendue dans Spotify, témoin hors-menu du pitch). CI verte 3ffcc707 (run 38094888993).
+  Commits : 91c9a72e R510 : Instagram — un compte absent de l'API s'écrit NULL (plus 0) et 
+
 ## ✅ R509 — Mutation du code PRODUIT (étude E1) : `mutmut` borné à `src/transformers/` en tâche de… (livrée 2026-10-11)
 
 - [x] **R509 — Mutation du code PRODUIT (étude E1) : `mutmut` borné à `src/transformers/` en tâche de nuit (une cible make à écrire), rapport des survivants généré à la demande (non versionné) ; critère de maintien fixé d'avance : ≥1 survivant qui soit un vrai trou de test sur le premier mois, sinon retrait** (P4) ✅ (2026-10-11, c5958ad4, 1c16976a)
