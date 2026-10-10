@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R499 — Pilote de tests par PROPRIÉTÉ (Hypothesis) sur les fonctions pures des parseurs : `s4a_… (livrée 2026-10-10)
+
+- [x] **R499 — Pilote de tests par PROPRIÉTÉ (Hypothesis) sur les fonctions pures des parseurs : `s4a_csv_parser._to_int`, `sacem_parser._to_float`, `csv_dialect.sniff_separator` — un garde « un exemple par classe » ne couvre que les cas imaginés ; une propriété couvre l'espace d'entrée (soupçon lu : milliers à espace insécable ⇒ 0 en silence)** (P2) ✅ (2026-10-10, 60c96fab)
+  Mesuré par : une propriété rouge sur un défaut réel puis verte ; profil CI déterministe
+  CI verte 60c96fab (run 38078023003), déployé et vérifié en prod (_to_int('1 000') = 1000 dans le planificateur) ; propriété Hypothesis rouge sur les 4 parseurs, verte après csv_dialect.without_spaces
+  Commits : 60c96fab R499 : un export en locale française ne lit plus 1 000 streams comme 0
+
 ## ✅ R497 — La porte des durées est le 1ᵉʳ refus de commit (`test-durations-missing` ×68 en 7 j) :… (livrée 2026-10-10)
 
 - [x] **R497 — La porte des durées est le 1ᵉʳ refus de commit (`test-durations-missing` ×68 en 7 j) : un id PARAMÉTRÉ neuf (une classe de catalogue de plus) dont la fonction de base a déjà une durée force une remesure ; le tolérer (pytest-split lui donne la moyenne de son fichier déjà mesuré), et tolérer un fantôme dont la base est encore collectée — `--fix` nettoie toujours** (P3) ✅ (2026-10-10, df579209)
