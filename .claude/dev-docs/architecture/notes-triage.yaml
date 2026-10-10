@@ -3967,3 +3967,111 @@
   statut: livré
   priorite: P3
   preuve_statut: R477 (archivée) — 3341c34c
+- ligne: 9
+  source: revue/notes-vocales-2026-10-11.md
+  note: X1
+  resume: 'Accueil : tuiles en deux rangées de deux (Meta+Hypeddit, Shazam+Instagram) ; reste de W1 livré par R479'
+  type: action-produit
+  domaine: home
+  statut: partiel
+  priorite: P3
+  roadmap: R512
+- ligne: 12
+  source: revue/notes-vocales-2026-10-11.md
+  note: X2
+  resume: 'Tout mon funnel : vue croisée — identique à W2'
+  type: action-produit
+  domaine: cross-view
+  statut: livré
+  priorite: P3
+  preuve_statut: R476 (archivée) — 74a6f430
+- ligne: 15
+  source: revue/notes-vocales-2026-10-11.md
+  note: X3
+  resume: 'Mise en route : figures d''exemple — CPR sur la bande Meta, bosse Release Radar mesuré/prédit, retirer les barres rouges conseillées'
+  type: action-produit
+  domaine: onboarding
+  statut: ouvert
+  priorite: P3
+  roadmap: R515
+- ligne: 20
+  source: revue/notes-vocales-2026-10-11.md
+  note: X4
+  resume: 'Saisie S4A : le chapeau Prédiction promet encore « le pari du modèle » passé en admin'
+  type: action-produit
+  domaine: algo-preview
+  statut: partiel
+  priorite: P3
+  roadmap: R512
+- ligne: 23
+  source: revue/notes-vocales-2026-10-11.md
+  note: X5
+  resume: 'Hypeddit — identique à W5'
+  type: action-produit
+  domaine: hypeddit
+  statut: livré
+  priorite: P3
+  preuve_statut: R482 (archivée) — 21746552
+- ligne: 26
+  source: revue/notes-vocales-2026-10-11.md
+  note: X6
+  resume: 'Spotify : axe de popularité au max réel (sans +25 %), légende de l''indice sur « Ce qui bouge »'
+  type: action-produit
+  domaine: spotify
+  statut: partiel
+  priorite: P3
+  roadmap: R512
+- ligne: 29
+  source: revue/notes-vocales-2026-10-11.md
+  note: X7
+  resume: 'Apple : « Le rythme d''un titre » ne mène à aucune décision — le remplacer'
+  type: action-produit
+  domaine: apple
+  statut: ouvert
+  priorite: P3
+  roadmap: R518
+- ligne: 34
+  source: revue/notes-vocales-2026-10-11.md
+  note: X8
+  resume: 'YouTube : abonnés et vues sur UNE figure à deux axes'
+  type: action-produit
+  domaine: youtube
+  statut: ouvert
+  priorite: P3
+  roadmap: R513
+- ligne: 39
+  source: revue/notes-vocales-2026-10-11.md
+  note: X9
+  resume: 'SoundCloud : axe inversé (ligne de vie), filtre « tout le catalogue » sans 20 titres pré-cochés'
+  type: action-produit
+  domaine: soundcloud
+  statut: ouvert
+  priorite: P3
+  roadmap: R517
+- ligne: 44
+  source: revue/notes-vocales-2026-10-11.md
+  note: X10
+  resume: 'Aperçu algos : lister en phrases simples les paramètres Meta qu''on règle grâce aux prédictions'
+  type: action-produit
+  domaine: algo-preview
+  statut: ouvert
+  priorite: P3
+  roadmap: R516
+- ligne: 49
+  source: revue/notes-vocales-2026-10-11.md
+  note: X11
+  resume: 'Distributeur → Trésorerie : un seul flux d''argent avec SACEM et Meta Ads'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  roadmap: R519
+- ligne: 54
+  source: revue/notes-vocales-2026-10-11.md
+  note: X12
+  resume: 'Mon compte : date de repassage en Free toujours dite, bouton vers Facturation, bouton rouge payer/prolonger'
+  type: action-produit
+  domaine: account
+  statut: ouvert
+  priorite: P3
+  roadmap: R514
