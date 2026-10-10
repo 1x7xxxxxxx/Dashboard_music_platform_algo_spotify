@@ -27,15 +27,31 @@ import mail_red_verdict as mail  # noqa: E402
 _FAILED = {"failure", "cancelled", "skipped"}
 
 
-def verdict(needs: dict) -> str | None:
-    """The mail body when a job failed, else None."""
+# R493 — read by src/utils/nightly_recap.py::FAILED_JOBS_TITLE: with `continue-on-error` on
+# every job and step, GitHub shows the whole run green, and this annotation is the only
+# trace of a failed job that the recap can read without a token.
+FAILED_JOBS_TITLE = "nightly-failed-jobs"
+
+
+def failed_jobs(needs: dict) -> list[str]:
+    """The jobs that failed, sorted. Pure."""
     # `result` alone LIES: a job under `continue-on-error` reports `success` to `needs` even
     # when it failed (measured on the first dispatch, 2026-09-25). A job that can fail
     # publishes its step's real `outcome`; that wins over `result`.
     def _state(v: dict) -> str:
         v = v or {}
         return (v.get("outputs") or {}).get("outcome") or v.get("result") or ""
-    failed = sorted(j for j, v in needs.items() if _state(v) in _FAILED)
+    return sorted(j for j, v in needs.items() if _state(v) in _FAILED)
+
+
+def annotation(failed: list[str]) -> str | None:
+    """The workflow command that leaves the failed jobs readable on GitHub. Pure."""
+    return f"::warning title={FAILED_JOBS_TITLE}::{','.join(failed)}" if failed else None
+
+
+def verdict(needs: dict) -> str | None:
+    """The mail body when a job failed, else None."""
+    failed = failed_jobs(needs)
     if not failed:
         return None
     out = lambda j, k: ((needs.get(j) or {}).get("outputs") or {}).get(k, "?")  # noqa: E731
@@ -76,6 +92,7 @@ def main() -> int:
     if body is None:
         print("✅ aucun job du nightly en échec — pas de mail")
         return 0
+    print(annotation(failed_jobs(needs)))   # before the mail: readable even if SMTP fails
     print(body)
     missing = [k for k in mail._REQUIRED if not os.environ.get(k)]
     if missing:

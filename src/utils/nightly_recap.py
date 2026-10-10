@@ -107,13 +107,62 @@ def verdict(runs: "list[dict] | None") -> dict:
         return {"state": "unknown", "since": None, "url": None}
     newest = judged[0]
     if newest.get("conclusion") == "success":
-        return {"state": "green", "since": None, "url": newest.get("html_url")}
+        return {"state": "green", "since": None, "url": newest.get("html_url"),
+                "id": newest.get("id")}
     since = newest.get("created_at")
     for r in judged:
         if r.get("conclusion") == "success":
             break
         since = r.get("created_at")
     return {"state": "red", "since": (since or "")[:10], "url": newest.get("html_url")}
+
+
+# R493 — `security-nightly.yml` puts `continue-on-error` on every job AND every step, so the
+# run, each job and each step all read `success` on GitHub even when its `notify` job mails
+# red (measured on run 38040290890, 2026-10-10: guard-mutation failed, every API field green).
+# `notify` therefore publishes the failed jobs as an annotation with this title, and the
+# recap reads it. The title is the contract — tools/dev/nightly_verdict.py writes it.
+FAILED_JOBS_TITLE = "nightly-failed-jobs"
+NIGHTLY_WORKFLOW = "security-nightly.yml"
+
+
+def notify_annotations_url(jobs: "dict | None") -> "str | None":
+    """The annotations URL of the run's completed `notify` job, or None. Pure."""
+    for job in (jobs or {}).get("jobs") or []:
+        if job.get("name") == "notify" and job.get("status") == "completed":
+            url = job.get("check_run_url")
+            return f"{url}/annotations" if url else None
+    return None
+
+
+def failed_jobs(annotations: object) -> "list[str] | None":
+    """The jobs `notify` declared failed: [] on a clean night, None when unreadable. Pure."""
+    if not isinstance(annotations, list):
+        return None
+    for a in annotations:
+        if isinstance(a, dict) and a.get("title") == FAILED_JOBS_TITLE:
+            return [j.strip() for j in str(a.get("message", "")).split(",") if j.strip()]
+    return []
+
+
+def _get_json(url: str, opener) -> object:
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                               "User-Agent": "streamlytics-recap"})
+    with opener(req, timeout=20) as r:
+        return json.load(r)
+
+
+def fetch_failed_jobs(run_id: object, repo: str = REPO,
+                      opener=urllib.request.urlopen) -> "list[str] | None":
+    """The failed jobs of a nightly run, read from its `notify` annotation; None = unreadable."""
+    if not run_id:
+        return None
+    try:
+        url = notify_annotations_url(_get_json(
+            f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs", opener))
+        return failed_jobs(_get_json(url, opener)) if url else None
+    except Exception:  # noqa: BLE001 — any failure is « unreadable », said as such
+        return None
 
 
 def github_section(verdicts: dict) -> "tuple[str, bool]":
@@ -127,8 +176,19 @@ def github_section(verdicts: dict) -> "tuple[str, bool]":
                 "red": f"ROUGE depuis le {v['since']} — le mail de cassure devait partir ce jour-là (sa livraison n'est pas vérifiée ici)",
                 "unreadable": "GitHub illisible cette nuit — état INCONNU, pas vert",
                 "unknown": "aucune exécution jugée"}[state]
+        if state == "green" and "jobs" in v:
+            # Amber, not red (R493 critic): the run did not fail, the owner already has the
+            # nightly's own mail — but the recap must not say plain « vert » beside it.
+            if v["jobs"] is None:
+                text = "run vert — détail des jobs ILLISIBLE, leur état est inconnu"
+            elif v["jobs"]:
+                text = ("run vert, mais à relire — job(s) en échec : "
+                        + html.escape(", ".join(v["jobs"])))
+            icon = "🟠" if v["jobs"] else ("⚠️" if v["jobs"] is None else icons[state])
+        else:
+            icon = icons[state]
         link = f' — <a href="{html.escape(v["url"])}">dernier run</a>' if v.get("url") else ""
-        rows.append(f"<li>{icons[state]} <b>{html.escape(label)}</b> : {text}{link}</li>")
+        rows.append(f"<li>{icon} <b>{html.escape(label)}</b> : {text}{link}</li>")
     return "<h3>GitHub</h3><ul>" + "".join(rows) + "</ul>", red
 
 
@@ -138,6 +198,8 @@ def github_verdicts(opener=urllib.request.urlopen) -> dict:
     for wf, label, branch in WORKFLOWS:
         runs = fetch_runs(wf, branch, opener=opener)
         out[label] = verdict(runs)
+        if wf == NIGHTLY_WORKFLOW and out[label]["state"] == "green":
+            out[label]["jobs"] = fetch_failed_jobs(out[label].get("id"), opener=opener)
         print(f"   {label} → {out[label]['state']} — lu : {describe(runs)}")
     return out
 

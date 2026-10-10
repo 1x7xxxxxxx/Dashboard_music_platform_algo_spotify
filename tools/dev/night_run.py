@@ -462,9 +462,44 @@ def cmd_status(_args) -> int:
         print(f"\n▶ MAILS     📬 journal {'absent' if age is None else f'vieux de {age} j'} — "
               "chercher `from:noreply@streamlytics.fr` depuis la dernière ligne et trier "
               f"dans {MAIL_JOURNAL.relative_to(REPO)}")
+    line = nightly_line(_nightly_verdict())
+    if line:
+        print(f"\n▶ NIGHTLY   {line}")
     _run_curator_if_due()
 
     return 0
+
+
+def nightly_line(v: "dict | None") -> "str | None":
+    """What the status screen says about last night's security run, or None. Pure.
+
+    R493 : every job of `security-nightly.yml` carries `continue-on-error`, so `gh run
+    list` shows it green while its `notify` mails red — two nights running, this screen
+    said nothing. The failed jobs are read from the `notify` annotation (nightly_recap).
+    """
+    if v is None or v.get("state") == "unreadable":
+        return "⚠️ nightly sécurité ILLISIBLE — état inconnu, pas vert"
+    if v.get("state") == "red":
+        return f"🔴 nightly sécurité ROUGE depuis le {v.get('since')} — {v.get('url')}"
+    jobs = v.get("jobs")
+    if v.get("state") == "green" and jobs is None:
+        return "⚠️ nightly sécurité : run vert, détail des jobs ILLISIBLE — état inconnu"
+    if jobs:
+        return (f"🟠 nightly sécurité : job(s) en échec — {', '.join(jobs)} — à relire "
+                f"({v.get('url')})")
+    return None
+
+
+def _nightly_verdict() -> "dict | None":
+    try:
+        sys.path.insert(0, str(REPO))
+        from src.utils import nightly_recap as nr
+        v = nr.verdict(nr.fetch_runs(nr.NIGHTLY_WORKFLOW, None))
+        if v["state"] == "green":
+            v["jobs"] = nr.fetch_failed_jobs(v.get("id"))
+        return v
+    except (ImportError, OSError, ValueError, KeyError):
+        return None
 
 
 def cmd_start(args) -> int:
@@ -572,7 +607,10 @@ def _main_head() -> "str | None":
 def _main_ci_runs() -> "list[dict] | None":
     try:
         r = subprocess.run(
-            ["gh", "run", "list", "--branch", "main", "--limit", "30", "--json",
+            # R493 : sans `--workflow`, un nightly planifié (vert, sur main lui aussi)
+            # s'intercalait entre deux runs CI rouges et coupait la série de rouges.
+            ["gh", "run", "list", "--workflow", "ci.yml", "--branch", "main", "--limit", "30",
+             "--json",
              "status,conclusion,createdAt,displayTitle,headSha"],
             capture_output=True, text=True, timeout=30, cwd=str(REPO))
     except (OSError, subprocess.TimeoutExpired):

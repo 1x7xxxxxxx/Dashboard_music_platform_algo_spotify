@@ -141,3 +141,14 @@ def test_the_structural_detectors_see_the_defects_they_are_written_for() -> None
     assert _dark_jobs(dark) == ["pip-audit"]
     dark["jobs"]["pip-audit"]["outputs"]["outcome"] = "${{ steps.count.outcome }}"
     assert _dark_jobs(dark) == []
+
+
+def test_a_blocking_advisory_reaches_notify() -> None:
+    """R493: `outcome` read the `count` step only; the two gates after it could fail and
+    the job still told notify « success »."""
+    wf = yaml.safe_load((_ROOT / ".github/workflows/security-nightly.yml").read_text(encoding="utf-8"))
+    job = wf["jobs"]["pip-audit"]
+    ids = {s.get("id") for s in job["steps"]}
+    outcome = job["outputs"]["outcome"]
+    for step in ("count", "gate", "gate_api"):
+        assert step in ids and f"steps.{step}.outcome" in outcome, step

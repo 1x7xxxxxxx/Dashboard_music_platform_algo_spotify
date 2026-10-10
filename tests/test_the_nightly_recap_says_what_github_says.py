@@ -101,3 +101,56 @@ def test_a_quiet_recap_says_that_silence_would_mean_a_dead_monitor() -> None:
                                    "<h3>GitHub</h3>")
     assert subject.startswith("📋 Récap de la nuit")
     assert "moniteur lui-même ne tourne plus" in body and "<h3>GitHub</h3>" in body
+
+
+# R493 — 2026-10-09 and 10: the nightly's `notify` mailed red (guard-mutation) while this recap
+# said « Sécurité — nuit : vert ». Every job and step carries `continue-on-error`, so GitHub
+# shows the whole run green; the failed jobs travel in a `notify` annotation.
+_NOTIFY_JOBS = {"jobs": [{"name": "gitleaks", "status": "completed",
+                          "check_run_url": "https://api/check-runs/1"},
+                         {"name": "notify", "status": "completed",
+                          "check_run_url": "https://api/check-runs/2"}]}
+
+
+def test_a_green_run_with_a_failed_job_is_not_rendered_green() -> None:
+    v = {"state": "green", "since": None, "url": None, "jobs": ["guard-mutation"]}
+    html, red = nr.github_section({"Sécurité — nuit": v})
+    assert "🟠" in html and "guard-mutation" in html and "✅" not in html
+    assert not red, "amber, not a headline red: the nightly already mailed it"
+    html, _ = nr.github_section({"Sécurité — nuit": {**v, "jobs": None}})
+    assert "ILLISIBLE" in html and "✅" not in html, "unreadable jobs are not green"
+    html, _ = nr.github_section({"Sécurité — nuit": {**v, "jobs": []}})
+    assert "✅" in html
+
+
+def test_the_failed_jobs_are_read_from_the_notify_annotation() -> None:
+    assert nr.notify_annotations_url(_NOTIFY_JOBS) == "https://api/check-runs/2/annotations"
+    assert nr.notify_annotations_url({"jobs": [{"name": "notify", "status": "in_progress"}]}) is None
+    ann = [{"title": "other", "message": "x"},
+           {"title": nr.FAILED_JOBS_TITLE, "message": "gitleaks,guard-mutation"}]
+    assert nr.failed_jobs(ann) == ["gitleaks", "guard-mutation"]
+    assert nr.failed_jobs([]) == []
+    assert nr.failed_jobs({"message": "API rate limit exceeded"}) is None
+
+
+def test_what_notify_writes_is_what_the_recap_reads() -> None:
+    """The title is a contract between two files; one round-trip proves both ends."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "nv", Path(__file__).resolve().parents[1] / "tools/dev/nightly_verdict.py")
+    nv = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nv)
+    cmd = nv.annotation(["gitleaks", "guard-mutation"])
+    title, message = cmd.removeprefix("::warning title=").split("::", 1)
+    assert nr.failed_jobs([{"title": title, "message": message}]) == ["gitleaks", "guard-mutation"]
+    assert nv.annotation([]) is None
+
+
+def test_an_unreadable_jobs_endpoint_is_unreadable() -> None:
+    def fake(req, timeout):
+        if req.full_url.endswith("/jobs"):
+            return _Resp(json.dumps(_NOTIFY_JOBS).encode())
+        raise OSError("rate limited")
+    assert nr.fetch_failed_jobs(42, opener=fake) is None
+    assert nr.fetch_failed_jobs(None, opener=fake) is None

@@ -43,7 +43,9 @@ jobs:
       vulns: ${{ steps.count.outputs.vulns }}
       # A step skipped because an earlier one failed (uv export…) reads `skipped`, which
       # notify counts as a failure — the job can no longer die green (2026-09-25).
-      outcome: ${{ steps.count.outcome }}
+      # R493 : the two GATES run after `count` — reading `count` alone let a blocking
+      # advisory leave this job « success » for notify. The first non-success wins.
+      outcome: ${{ steps.count.outcome != 'success' && steps.count.outcome || steps.gate.outcome != 'success' && steps.gate.outcome || steps.gate_api.outcome }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -85,9 +87,11 @@ jobs:
           [ "$n" != "?" ] || { echo "❌ pip-audit produced no JSON report"; exit 1; }
 
       - name: Block on an advisory nobody accepted (R267)
+        id: gate
         run: python3 tools/dev/pip_audit_gate.py pip-audit.json
 
       - name: Audit the API image's own requirements — same gate (R341)
+        id: gate_api
         # requirements-api.txt is what the API container installs. It carries no Airflow,
         # so the Airflow lines of the accepted list cannot match here: in practice only
         # PYSEC-2026-4146 (pyjwt, no fixed release) is accepted for it. Until R341 this
