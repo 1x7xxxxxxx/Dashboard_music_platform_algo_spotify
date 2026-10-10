@@ -68,7 +68,23 @@ def _documents() -> list[Path]:
     docs = list((_ROOT / ".claude" / "dev-docs").rglob("*.md"))
     docs += list((_ROOT / ".claude" / "rules").glob("*.md"))
     docs += [_ROOT / "CLAUDE.md"]
+    # R508: the playbooks the model EXECUTES name targets too — `error-families-check` was
+    # typed 70 times after its removal, from habit and from these files.
+    for sub in ("commands", "workflows", "agents"):
+        docs += list((_ROOT / ".claude" / sub).glob("*.md"))
+    docs += list((_ROOT / ".claude" / "skills").rglob("*.md"))
     return [d for d in docs if d.exists() and str(d.relative_to(_ROOT)) in tracked]
+
+
+def _tombstones() -> set[str]:
+    """R508: a retired target kept only to fail with its replacement's name. It exists,
+    so the phantom check above would accept a document naming it — it must not."""
+    text = (_ROOT / "Makefile").read_text(encoding="utf-8")
+    out: set[str] = set()
+    for head, recipe in re.findall(r"^([a-z][a-z0-9 _-]*):[^\n]*\n((?:\t[^\n]*\n)+)", text, re.M):
+        if "est retirée (R" in recipe:
+            out.update(head.split())
+    return out
 
 
 def test_the_scope_is_not_empty() -> None:
@@ -77,8 +93,12 @@ def test_the_scope_is_not_empty() -> None:
     assert len(_documents()) > 10, "aucun document scruté"
 
 
+def test_the_tombstones_are_seen() -> None:
+    assert {"error-families-check", "gold-coverage-check", "chart-decisions"} <= _tombstones()
+
+
 def test_no_document_names_a_make_target_that_does_not_exist() -> None:
-    targets = _targets()
+    targets = _targets() - _tombstones()
     fantomes: dict[str, list[str]] = {}
     for doc in _documents():
         # Seulement ce qui est ENTRE BACKTICKS et complet : `make <cible>`. La forme
@@ -92,6 +112,6 @@ def test_no_document_names_a_make_target_that_does_not_exist() -> None:
         "des documents nomment des cibles `make` qui n'existent pas :\n  "
         + "\n  ".join(f"make {k} ← {', '.join(sorted(set(v)))}"
                       for k, v in sorted(fantomes.items()))
-        + "\n\nSoit la cible a été renommée et le document est resté en arrière, soit "
+        + "\n\nSoit la cible (ou une pierre tombale de R508, qui ne fait qu'échouer) a été renommée et le document est resté en arrière, soit "
           "elle n'a jamais existé. Dans les deux cas le lecteur lance une commande qui "
           "échoue, et rien ne le signalait.")

@@ -15,7 +15,7 @@
 # propre besoin : préférer le venv Linux quand il est là, retomber sur le Windows
 # sinon. Garde : `tests/test_the_make_target_uses_a_working_interpreter.py`.
 PYTHON  := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo venv/Scripts/python.exe)
-PG_CONT := $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
+PG_CONT = $(shell docker ps --format '{{.Names}}' | grep '^postgres_spotify' | head -1)
 # The guide PDF needs WeasyPrint's NATIVE stack (cairo/pango). The Windows venv in
 # $(PYTHON) does not carry it; the Linux one does. Resolved here rather than in the
 # recipe so `make guide` fails on its precondition (rule #10) and not mid-render.
@@ -26,10 +26,12 @@ GUIDE_PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo $(P
 AUDIT_VENV := .audit-venv
 PIP_AUDIT  := $(shell command -v pip-audit 2>/dev/null || echo $(AUDIT_VENV)/bin/pip-audit)
 
-.PHONY: home-snapshot home-record pdf-report-snapshot service-snapshot select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review
+.PHONY: home-snapshot home-record pdf-report-snapshot service-snapshot select-audit defect-log defect-close defect-ticket inventory error-management-probe error-debt reopen-check-prod schema-declared dip-calibrate dip-calibrate-prod figure-contrast figure-contrast-baseline error-health error-health-check error-health-history roadmap-close roadmap-sync reopen-check night-status night-check night-start night-done night-park night-note loadtest-concurrency scale-check test-durations test-durations-missing catalogue-sync example-charts error-inbox error-inbox-check error-resolve gold-coverage error-families help up down logs test test-changed lint migrate migrate-prod backup backup-test dashboard sync clean artist-sandbox graph graph-update graph-html hooks-install check-manifest audit audit-deps check-pipaudit config-check deploy artist-preflight artist-firstlook artist-firstlook-prod artist-preflight-prod canary tenant-check caddy-validate env-parity guide check-guide-deps roadmap-discipline arch-benchmark harness-report duplicates error-class-metrics charts-dossier charts-review canon-pg chart-budget chart-decisions check-db check-env ci-wait db-app-role db-role-check dossier error-families-check gold-coverage-check index-report metric-check prod-psql psql schema-check schema-check-local schema-check-shared suite-status sync-check test-docs test-fast test-verdict
 
-help:        ## List available targets
-	@grep -E '^[a-z_-]+:.*?##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-12s %s\n", $$1, $$2}'
+##@ Infrastructure
+help:        ## List available targets, by section — the ONE list; CLAUDE.md names only the daily ones
+	@awk '/^##@ /{printf "\n\033[1m%s\033[0m\n", substr($$0,5); next} \
+	  /^[a-z][a-z0-9_-]*:.*##/{split($$0,a,":.*##"); sub(/:.*/,"",a[1]); printf "  %-24s %s\n", a[1], a[2]}' $(MAKEFILE_LIST)
 
 up:          ## docker-compose up -d (postgres + airflow)
 	docker-compose up -d
@@ -158,8 +160,11 @@ HEAVY_WAIT ?= 900
 # a container) it degrades to `nice` alone. Guard: tests/test_the_suite_runs_in_a_capped_scope.py
 SUITE_MEM_HIGH ?= 4G
 SUITE_MEM_MAX ?= 5G
-SUITE_SCOPE = $(shell systemd-run --user --scope -q true >/dev/null 2>&1 && \
-  echo systemd-run --user --scope -q -p MemoryHigh=$(SUITE_MEM_HIGH) -p MemoryMax=$(SUITE_MEM_MAX) -p MemorySwapMax=1G --) nice -n 10
+# R508: the fallback SAYS so on stderr — under WSL `systemd-run` fails (« Failed to connect
+# to bus ») and the cap silently vanished, while this comment promised it.
+SUITE_SCOPE = $(shell if systemd-run --user --scope -q true >/dev/null 2>&1; then \
+  echo systemd-run --user --scope -q -p MemoryHigh=$(SUITE_MEM_HIGH) -p MemoryMax=$(SUITE_MEM_MAX) -p MemorySwapMax=1G --; \
+  else echo "⚠️  plafond mémoire INACTIF (systemd-run indisponible) — la suite tourne sous nice seul" >&2; fi) nice -n 10
 # R330 (2026-09-29): WSL froze mid-suite and kept no kernel log across the restart — the
 # cause could only be inferred. Every target holding the lock also samples memory into
 # ~/.cache/mem-trace.log (fsync'd, survives a restart) until its shell exits. `9>&-`: the
@@ -189,7 +194,8 @@ DOC_TESTS := tests/test_error_class_index_is_complete.py \
              tests/test_the_views_map_lists_every_view.py
 DOC_IGNORE := $(foreach f,$(DOC_TESTS),--ignore=$(f))
 
-test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer (son temps : .claude/dev-docs/test-suite-timing.json, écrit par elle)
+##@ Tests
+test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de livrer (son temps : .claude/dev-docs/test-suite-timing.json). ARGS=<fichiers de test> : un sous-ensemble AVEC les mêmes workers
 	@# La sortie va DANS UN FICHIER, et ce n'est pas du confort. Le 2026-09-16, j'ai
 	@# conclu QUATRE FOIS qu'une suite etait « morte en route » ; les quatre fois elle
 	@# tournait encore. Les executions passaient par `| tail -6`, qui ne rend rien avant
@@ -199,8 +205,9 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	@# ⚠️ `$${PIPESTATUS[0]}` et bash EXPLICITE : `cmd | tee f` rend le code de `tee`,
 	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
 	@# vert serait infiniment pire que lente.
-	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(SUITE_SCOPE) $(PYTHON) -m pytest tests/ -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(SUITE_SCOPE) $(PYTHON) -m pytest $(or $(ARGS),tests/) -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
+	  [ -n "$(ARGS)" ] && exit $$rc; \
 	  python3 tools/dev/suite_timing.py "$$(cat "$$HOME/.cache/pytest-last-workers")"; \
 	  [ $$rc -ne 0 ] || python3 tools/dev/pre_push_gate.py stamp; exit $$rc
 
@@ -210,6 +217,46 @@ test-fast:   ## [= test −38 s] La suite SANS les tests de documents — avant 
 
 test-docs:   ## [~38 s] Seulement les tests de documents — après avoir touché un document généré
 	$(PYTHON) -m pytest $(DOC_TESTS) -q
+
+# R508 — the raw commands that came back hundreds of times without a target
+# (`tail .pytest-last.log` ×390, `ps | grep` ×262, `gh run …` ×900, `docker exec psql` ×190).
+test-verdict: ## Verdict de la dernière suite (.pytest-last.log) : dernière ligne + tests rouges
+	@[ -f .pytest-last.log ] || { echo "❌ aucun journal — lancer : make test-changed"; exit 1; }
+	@tail -1 .pytest-last.log; grep -E '^(FAILED|ERROR) ' .pytest-last.log | head -20 || true
+
+suite-status: ## Une suite tourne-t-elle ? (le `ps` qui ne ment pas — pas de wrapper RTK ici)
+	@ps -eo pid,etimes,args | grep '[p]ytest tests/' || echo "aucune suite en cours"; \
+	  [ -f .pytest-last.log ] && tail -1 .pytest-last.log || true
+
+CI_TIMEOUT ?= 1500
+ci-wait:     ## Attend la CI (ci.yml) du commit HEAD poussé et rend son verdict — après chaque push
+	@command -v gh >/dev/null || { echo "❌ gh absent — installer GitHub CLI puis gh auth login"; exit 1; }
+	@sha=$$(git rev-parse HEAD); id=""; for i in $$(seq 1 30); do \
+	  id=$$(gh run list --commit $$sha --workflow ci.yml --json databaseId -q '.[0].databaseId'); \
+	  [ -n "$$id" ] && break; sleep 10; done; \
+	  [ -n "$$id" ] || { echo "❌ aucun run CI pour $$sha après 5 min — le commit est-il poussé ?"; exit 1; }; \
+	  echo "▶ run $$id ($$sha)"; timeout $(CI_TIMEOUT) gh run watch $$id --exit-status >/dev/null 2>&1; rc=$$?; \
+	  echo "   conclusion : $$(gh run view $$id --json conclusion -q .conclusion)"; exit $$rc
+
+psql:        ## Requête sur la base LOCALE. Q='select …'
+	@if [ -z "$(PG_CONT)" ]; then echo "❌ Postgres n'est pas en marche. Lancer : make up"; exit 1; fi
+	@[ -n "$$Q" ] || { echo "❌ Q='select …' manquant"; exit 1; }
+	@docker exec -i $(PG_CONT) psql -U postgres -d spotify_etl -c "$$Q"
+
+PROD_HOST ?= root@167.233.92.1
+prod-psql:   ## Requête LECTURE SEULE sur la base de PROD (transaction read-only). Q='select …' [PROD_HOST=…]
+	@[ -n "$$Q" ] || { echo "❌ Q='select …' manquant"; exit 1; }
+	@printf '%s\n' "$$Q" | ssh -o ConnectTimeout=10 $(PROD_HOST) \
+	  'docker exec -i -e PGOPTIONS="-c default_transaction_read_only=on" $$(docker ps -qf name=postgres | head -1) psql -U postgres -d spotify_etl'
+
+# R508 — tombstones: retired targets still typed from habit (error-families-check ×70,
+# gold-coverage-check ×52, chart-decisions ×30 in the transcripts). They fail NAMING the
+# replacement instead of « No rule to make target ».
+error-families-check gold-coverage-check: ## [retirée R345] le cliquet tourne dans pytest — make test-changed
+	@echo "❌ $@ est retirée (R345) : son cliquet est un test pytest. Lancer : make test-changed"; exit 1
+
+chart-decisions: ## [retirée R491] la ligne « décision » sous les graphiques n'existe plus
+	@echo "❌ $@ est retirée (R491) : plus de ligne « décision » à vérifier. Voir : make charts-review"; exit 1
 
 loadtest-concurrency: ## La concurrence RÉELLE, par navigateurs. URL=… [LOGIN=… PASSWORD=…]
 	@# Le seul chiffre que `loadtest_dashboard.py` ne peut pas produire : il rend en
@@ -312,6 +359,7 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	    --changed 2>&1 | tee -a .pytest-last.log'; \
 	  rc=$$?; [ $$rc -eq 0 ] || exit $$rc; python3 tools/dev/pre_push_gate.py stamp
 
+##@ Développement & base
 check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	@$(GUIDE_PY) -c "import weasyprint" >/dev/null 2>&1 || { \
 	  echo "❌ WeasyPrint is not importable by $(GUIDE_PY)."; \
@@ -327,8 +375,9 @@ guide: check-guide-deps ## Rebuild docs/guides/*.pdf + .guide_fingerprint from t
 	@# it compares digests instead of rendering. This target is the remedy it names.
 	@$(GUIDE_PY) -m src.dashboard.guides.guide_pdf
 
-lint:        ## Ruff lint on src/ and tests/
-	ruff check src/ tests/
+lint:        ## Ruff, EXACTLY the CI gate (`uv run --frozen ruff check .`, the locked version)
+	@command -v uv >/dev/null || { echo "❌ uv absent — lancer : make sync"; exit 1; }
+	uv run --frozen ruff check .
 
 migrate:     ## Apply every migrations/*.sql against the live PG, and NAME what errored
 	@# The logic lives in tools/migrate.sh, not here, for the reason deploy.sh
@@ -362,6 +411,7 @@ backup-test: ## Restore the latest backup into a throwaway DB + verify (drill)
 	@if [ -z "$(PG_CONT)" ]; then echo "Postgres container not running. Run 'make up' first."; exit 1; fi
 	@bash tools/db_restore_test.sh
 
+##@ Documents générés & instantanés
 example-charts: ## Régénère les 3 figures d'exemple de la mise en route (PNG committés)
 	@python3 tools/dev/make_example_charts.py
 
@@ -448,6 +498,7 @@ error-families: ## Familles de classes d'erreur → .claude/dev-docs/error-class
 # (`.claude/commands/roadmap-done.md`) est correcte et détaillée, et elle a laissé passer
 # DEUX erreurs dans une seule séance parce qu'elle ne nomme ni l'ancre ni le format
 # d'archive. Les tests les ont rattrapées — après coup. Ici, l'outil refuse avant.
+##@ Roadmap & séance de nuit
 reopen-check: ## Les conditions de RÉOUVERTURE des tâches closes sont-elles remplies ? — exit 1 si oui
 	@python3 tools/dev/reopen_check.py
 
@@ -530,6 +581,7 @@ night-note: ## Un fait à ne pas perdre — make night-note TASK=R122 W="…"
 	@test -n "$(TASK)" || { echo "❌ TASK= manquant."; exit 1; }
 	@python3 tools/dev/night_run.py note "$(TASK)" "$(W)"
 
+##@ Défauts & classes d'erreur
 error-debt: ## Les classes à payer d'abord (récidivées sans garde auto-prouvant, puis cause inconnue) + plafonds resserrables
 	@# La dette du catalogue était FIGÉE : 306 gardes non prouvés et 140 causes inconnues,
 	@# inchangés sur six commits (mesuré 2026-09-25). Les cliquets empêchent la hausse ;
@@ -573,6 +625,7 @@ error-resolve: check-db ## Ferme une entrée du registre. FP=<12 car.> NOTE="...
 	@test -n "$(NOTE)" || { echo "❌ NOTE manquant : une entrée fermée sans raison est une entrée perdue."; exit 1; }
 	@python3 tools/error_inbox.py --resolve "$(FP)" --note "$(NOTE)"
 
+##@ Artistes, locataires & prod
 check-env:   ## Vérifie imports + base joignable (BLOQUANT) ; incohérences pip RAPPORTÉES seulement
 	@# ⚠️ Deux corrections du 2026-09-17, trouvées en auditant les refus du dépôt sous
 	@# la question « ce critère peut-il être faux dans l'usage prévu ? ».
@@ -685,6 +738,7 @@ s=socket.socket(); s.settimeout(2); sys.exit(s.connect_ex((host,port)))" 2>/dev/
 chart-budget: ## Charts in the viewer's eye span per view (report-only; Few, IDD p.27)
 	@python3 tools/dev/chart_budget.py
 
+##@ Audits & cohérence
 check-pipaudit: ## (internal) fail fast with the install command, rule #10
 	@command -v pip-audit >/dev/null 2>&1 || test -x $(AUDIT_VENV)/bin/pip-audit || { \
 	  echo "❌ pip-audit absent. Run: python3 -m venv $(AUDIT_VENV) && $(AUDIT_VENV)/bin/pip install pip-audit"; \
@@ -824,6 +878,7 @@ caddy-validate: ## Validate deploy/Caddyfile with a real Caddy binary (docker, n
 	    echo "  ❌ INVALID Caddy config:"; echo "$$out" | tail -20; exit 1; \
 	  fi
 
+##@ Déploiement & environnement
 sync-check: schema-check ## Full repo↔prod sync: schema-drift + migration-ledger + deploy-drift
 	@[ -n "$(PROD_SSH)" ] || { echo "❌ set PROD_SSH=user@host"; exit 1; }
 	@echo "▶ migration-ledger + tool reachability on the target…"
@@ -920,12 +975,13 @@ hooks-install: ## Install pre-commit hooks (ruff + secret scan + hygiene)
 	@echo "✅ pre-commit hooks installed. Bypass once with: git commit --no-verify"
 	@echo "   Run on all files manually: pre-commit run --all-files"
 
-graph-update: ## Refresh graphify-out/graph.json + GRAPH_REPORT.md (AST only, no LLM)
+##@ Graphe & divers
+graph-update: # Refresh graphify-out/graph.json + GRAPH_REPORT.md (AST only, no LLM)
 	graphify update .
 	python3 tools/dev/graphify_prune.py
 	@echo "graph.json updated: $$(stat -c '%y' graphify-out/graph.json)"
 
-graph-html:   ## Re-render graphify-out/graph.html (standalone, no server needed)
+graph-html:   # Re-render graphify-out/graph.html (standalone, no server needed)
 	python3 tools/dev/graphify_render_html.py
 	@echo "Open graphify-out/graph.html directly in your browser (file://)"
 

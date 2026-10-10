@@ -217,7 +217,7 @@ Dashboard reads DB config from `config/config.yaml` exclusively (not `.env`).
 
 | Topic | File / Command | Notes |
 |---|---|---|
-| Common commands | `Makefile` | `make help` lists 11 targets (up/down/logs/test/lint/migrate/dashboard/sync/clean/graph/hooks-install). |
+| Common commands | `Makefile` | **`make help` is THE list** (~100 targets, by section — R508). Daily ones: `make test-changed`, `make test-verdict` (last suite's verdict), `make suite-status` (is a suite running?), `make ci-wait` (CI of the pushed HEAD), `make test ARGS=tests/x.py` (a subset WITH the workers), `make lint` (= the CI gate), `make psql Q='…'`, `make prod-psql Q='…'` (read-only), `make roadmap-close ID=…`, `make night-status`, `make migrate`, `make deploy`. A retired target fails naming its replacement. |
 | Dependency manifest | `pyproject.toml` | Canonical project deps + dev extras (pytest, ruff, pre-commit, detect-secrets). |
 | Lock file | `uv.lock` | Reproducible installs via `uv sync --frozen` (or `make sync`). |
 | Legacy install path | `requirements.txt` | Kept parallel for the existing Dockerfile + CI workflow. Dérivé de `pyproject.toml`. |

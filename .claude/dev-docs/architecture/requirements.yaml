@@ -969,6 +969,17 @@
   composants: []
   preuve: {pytest: tests/test_a_governance_commit_runs_its_readers.py::test_the_hook_and_the_closure_both_run_the_gate}
   mutation: "retirer le `|| exit 1` de la recette roadmap-close"
+- id: REQ-HARN-27
+  domaine: tests-ci
+  enonce: Le Makefile est son propre index — chaque cible est .PHONY et listée par section dans `make help`, le verdict et l'état d'une suite se lisent par une cible, et une cible retirée échoue en nommant sa remplaçante
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: conforme
+  methode: commit
+  portee: generique
+  composants: [Makefile:test-verdict]
+  preuve: {pytest: tests/test_the_makefile_is_its_own_index.py::test_every_target_is_phony}
+  mutation: "retirer ci-wait de la ligne .PHONY"
 - id: REQ-HARN-23
   domaine: claude-wsl
   enonce: Une séance longue sans interlocuteur reprend après chaque compaction depuis un journal append-only, une unité à la fois
