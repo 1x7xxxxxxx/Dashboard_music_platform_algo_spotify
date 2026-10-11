@@ -64,15 +64,21 @@ def test_the_recent_pace_reads_the_last_window_before_the_last_reading() -> None
     assert paced["recent"].tolist() == pytest.approx([5.0, 1.0])
 
 
-def test_the_channel_chart_stacks_subscribers_and_views() -> None:
+def test_the_channel_chart_is_one_figure_with_two_axes() -> None:
+    """R513 (X8, asked twice): one frame, subscribers left, cumulative views right."""
     hist = pd.DataFrame({"date": pd.to_datetime(["2026-01-01", "2026-02-01"]),
                          "subs": [10, 12]})
     fig = page.channel_figure(hist, [(pd.Timestamp("2026-01-01"), 100),
                                      (pd.Timestamp("2026-02-01"), 150)])
     subs, views = fig.data
-    assert views.yaxis == "y2" and not fig.layout.yaxis2.overlaying, "two panels, not a twin axis"
-    assert views.xaxis == "x2" and fig.layout.xaxis.matches == "x2", "one shared time axis"
-    assert subs.line.color != views.line.color, "W8 : « tout rouge = moche »"
+    assert subs.yaxis in (None, "y") and views.yaxis == "y2"
+    assert fig.layout.yaxis2.overlaying == "y" and fig.layout.yaxis2.side == "right"
+    assert {subs.xaxis, views.xaxis} <= {None, "x"}, "one time axis, no stacked panel"
+    assert "xaxis2" not in fig.layout.to_plotly_json(), "no second panel"
+    assert fig.layout.yaxis.range[0] > 0, "subscribers keep their tight range"
+    assert fig.layout.yaxis2.range is None, "the views axis is not pinned to the subscribers'"
+    assert fig.layout.yaxis.tickfont.color == subs.line.color != views.line.color \
+        == fig.layout.yaxis2.tickfont.color, "each axis wears its series' colour"
 
 
 def test_views_gained_is_a_difference_of_counters_not_a_sum() -> None:

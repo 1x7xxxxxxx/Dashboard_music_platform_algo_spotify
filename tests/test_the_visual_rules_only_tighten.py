@@ -98,6 +98,15 @@ _MAX_LITERAL_KEYS = 115
 #
 # L'exemption est nominative pour qu'un axe ajouté À CÔTÉ rougisse quand même.
 _DECLARED_AXES: dict[str, tuple[int, str]] = {
+    # Déclaré le 2026-10-11 (R513) sur une DEMANDE EXPLICITE du propriétaire, faite deux
+    # fois (X8 du 2026-10-09 et du 2026-10-11) : « une figure, deux axes ». R485 avait
+    # livré deux panneaux empilés, au nom de ce cliquet ; le propriétaire les a refusés.
+    # Abonnés (petit compte, plage serrée) à gauche, vues cumulées à droite : deux totaux,
+    # donc HORS du critère « deux natures » — c'est une exception de produit, pas une
+    # application de la règle. Chaque axe est teinté de sa seule série. Trois occurrences
+    # du prédicat : le `specs=`, le `add_trace(secondary_y=True)`, le `update_yaxes`.
+    "youtube.py": (3, "channel_figure : abonnés ← gauche · vues cumulées → droite — "
+                      "demandé deux fois par le propriétaire (X8, R513)"),
     "charts.py": (1, "pareto_spend_cpr : dépense (€, total) vs CPR (€/résultat, taux) "
                      "— deux natures, le seul cas admis"),
     # Déclaré le 2026-09-21, sur le MÊME critère que `charts.py` : deux natures, pas

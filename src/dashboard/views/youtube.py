@@ -101,32 +101,32 @@ _SECOND = "#455A64"   # blue-grey — the second series beside YouTube's red (W8
 
 
 def channel_figure(df_hist: pd.DataFrame, views_series: list) -> go.Figure:
-    """Subscribers (top, step) and cumulative views (bottom), two panels on one time axis
-    (R485, W8 « deux axes superposés, couleurs différentes »).
+    """Subscribers (left, step, tight range) and cumulative views (right) on ONE figure
+    (R513, X8 « une figure, deux axes », asked twice — R485's stacked panels did not).
 
-    Stacked, not overlaid on a twin y axis: two units on one frame make their crossing
-    look meaningful (ceiling `test_no_new_secondary_axis`). Each panel's axis is titled
-    in its series' colour."""
+    The one twin axis of this page, declared by name in `test_no_new_secondary_axis`:
+    each axis is tinted with its only series' colour, so the two scales never read as one."""
     from plotly.subplots import make_subplots
 
     subs = t("youtube.subscribers", "Abonnés")
     views = t("youtube.cumulative_views", "Vues cumulées")
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=df_hist["date"], y=df_hist["subs"], name=subs,
                              mode="lines+markers", line_shape="hv",
-                             line=dict(color=_YT, width=2)), row=1, col=1)
+                             line=dict(color=_YT, width=2)))
     fig.add_trace(go.Scatter(x=[d for d, _ in views_series], y=[v for _, v in views_series],
                              name=views, mode="lines",
-                             line=dict(color=_SECOND, width=2)), row=2, col=1)
+                             line=dict(color=_SECOND, width=2)), secondary_y=True)
     lo, hi = float(df_hist["subs"].min()), float(df_hist["subs"].max())
     pad = max((hi - lo) * 0.10, 1) if hi > lo else None
     fig.update_yaxes(title=dict(text=subs, font=dict(color=_YT)), tickformat="~s",
-                     tickfont=dict(color=_YT), row=1, col=1,
-                     range=[lo - pad, hi + pad] if pad else None)
+                     tickfont=dict(color=_YT), showgrid=True,
+                     range=[lo - pad, hi + pad] if pad else None, secondary_y=False)
     fig.update_yaxes(title=dict(text=views, font=dict(color=_SECOND)), tickformat="~s",
-                     tickfont=dict(color=_SECOND), row=2, col=1)
+                     tickfont=dict(color=_SECOND), showgrid=False, secondary_y=True)
     fig.update_layout(title=t("youtube.channel_chart_title", "Abonnés et vues cumulées"),
-                      hovermode="x unified", height=460, showlegend=False,
+                      hovermode="x unified", height=420,
+                      legend=dict(orientation="h", y=-0.15),
                       margin=dict(t=60, b=40))
     return fig
 
