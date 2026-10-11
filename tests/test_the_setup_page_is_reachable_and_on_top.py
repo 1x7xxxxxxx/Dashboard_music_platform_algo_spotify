@@ -1113,17 +1113,21 @@ def test_the_charts_never_use_a_second_y_axis():
     for ONE graph. One exception, scoped: `meta_x_s4a` may carry one euro axis, and
     BOTH its axes must start at zero — the setting that stops a scale from being
     pinned where it manufactures a correlation.
+
+    R515 (2026-10-11, X3 II): the owner asked for the CPR « superposée à la bande Meta €
+    sur son axe » in `dashboard_global` — a second exception, under the same rule.
     """
+    exceptions = {"meta_x_s4a": {"ax", "axe"}, "dashboard_global": {"axm", "axc"}}
     body = CHARTS.read_text(encoding="utf-8")
     tree = ast.parse(body)
     for fn in (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)):
         twins = [n.lineno for n in ast.walk(fn)
                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
                  and n.func.attr in {"twinx", "twiny"}]
-        if fn.name != "meta_x_s4a":
+        if fn.name not in exceptions:
             assert not twins, f"{fn.name}(): a dual-axis chart at line(s) {twins}"
             continue
-        assert len(twins) <= 1, f"meta_x_s4a(): more than one extra axis {twins}"
+        assert len(twins) <= 1, f"{fn.name}(): more than one extra axis {twins}"
         if not twins:
             continue
         zero_based = {n.func.value.id for n in ast.walk(fn)
@@ -1131,8 +1135,8 @@ def test_the_charts_never_use_a_second_y_axis():
                       and n.func.attr == "set_ylim" and isinstance(n.func.value, ast.Name)
                       and n.args and isinstance(n.args[0], ast.Constant)
                       and n.args[0].value == 0}
-        assert {"ax", "axe"} <= zero_based, (
-            f"meta_x_s4a(): both y axes must start at 0, found {sorted(zero_based)}")
+        assert exceptions[fn.name] <= zero_based, (
+            f"{fn.name}(): both y axes must start at 0, found {sorted(zero_based)}")
 
 
 def test_the_welcome_mail_embeds_its_image_and_reads_without_it():
