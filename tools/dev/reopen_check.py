@@ -101,7 +101,11 @@ def _health() -> dict:
 # récidivée le 2026-10-07 (R438 et R443 poussées sans test, `main` rouge deux fois) ;
 # réponse structurelle R444 (porte pre-push sur l'arbre testé) + R464 (la sélection voit
 # un commit non poussé). ACQUITTÉE : `make error-debt` rend 0 classe à traiter.
-_R122_SEUIL = 60
+# 60 → 61 le 2026-10-11 (R522) : a tiré à 61 — `selector-blind-to-the-import-prefix`
+# récidivée le 2026-10-10 (R493 : `mutate_guards.sources_read` résolvait
+# `from src.dashboard.views import soundcloud` au paquet entier, 49 vues), corrigée et
+# gardée le jour même. ACQUITTÉE : `make error-debt` rend 0 classe à traiter.
+_R122_SEUIL = 61
 
 
 def _r122() -> tuple[str, str]:
