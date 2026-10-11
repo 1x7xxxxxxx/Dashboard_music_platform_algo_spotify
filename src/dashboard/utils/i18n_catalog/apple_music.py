@@ -1,6 +1,7 @@
 """EN strings for the Apple Music view."""
 
 EN = {
+    "apple_music.no_data": "No Apple Music reading yet: import your Apple Music for Artists export from **Import CSV** to see your tracks and the track to push.",
     "apple_music.shazam_rate_header": "🎯 The track to push",
     "apple_music.shazam_rate_empty": "No track has {n} Apple plays yet: the rate would be noise.",
     "apple_music.shazam_rate_hover": "%{y}<br>%{x:,.0f} Shazams / 1,000 plays<br>%{customdata[0]:,.0f} Shazams · %{customdata[1]:,.0f} plays<extra></extra>",

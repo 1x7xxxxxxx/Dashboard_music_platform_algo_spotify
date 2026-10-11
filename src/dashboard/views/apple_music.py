@@ -125,6 +125,12 @@ def show():
             df_all = db.fetch_df(LATEST_QUERY, (artist_id,))
             if not df_all.empty:
                 _render_shazam_rate(df_all)
+            elif df_top.empty:
+                # No Apple reading at all: name the absence and the gesture, never a bare page.
+                st.info(t("apple_music.no_data",
+                          "Aucun relevé Apple Music pour l'instant : importe ton export "
+                          "Apple Music for Artists depuis **Import CSV** pour voir tes "
+                          "titres et le titre à pousser."))
 
         except Exception as e:
             st.error(t("apple_music.error", "❌ Erreur : {err}").format(err=e))
