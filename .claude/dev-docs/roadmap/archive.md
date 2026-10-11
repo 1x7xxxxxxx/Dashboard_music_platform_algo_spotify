@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R522 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 61 > 60 — la récidive du 2026-1… (livrée 2026-10-11)
+
+- [x] **R522 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 61 > 60 — la récidive du 2026-10-10 de `selector-blind-to-the-import-prefix` (R493 : `mutate_guards.sources_read` résolvait un import au paquet entier), corrigée et gardée le jour même. `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 60 → 61, nommé dans le commentaire** (P2) ✅ (2026-10-11, 5a327c8e)
+  Mesuré par : `make reopen-check` à 0 ROUVRIR
+  Livré 5a327c8e, CI verte (run 38109946904) ; seuil R122 60→61, reopen-check à 0 ROUVRIR
+  Commits : 5a327c8e R522 : seuil R122 60 → 61 — la récidive du 2026-10-10 de selector-blin
+
 ## ✅ R519 — Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seu… (livrée 2026-10-11)
 
 - [x] **R519 — Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seule figure du flux d'argent mensuel depuis `v_artist_monthly_cashflow` — revenus distributeurs et SACEM en barres positives, coût Meta Ads en barres négatives, solde cumulé en courbe ; le donut SACEM y entre comme série. Libellé de menu et titre renommés, route inchangée. **Décision prise** : « Trésorerie » (le mot du propriétaire)** (P3) ✅ (2026-10-11, d14cd24c, 9f82bb75, 3ffcc707)
