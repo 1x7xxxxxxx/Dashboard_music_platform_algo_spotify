@@ -243,6 +243,24 @@ def latest_first(df: pd.DataFrame) -> pd.DataFrame:
                           ascending=[False, False], na_position="last")
 
 
+def catalogue_selection(titles: list, whole: bool, chips: list) -> list:
+    """The titles drawn (R517). Pure: chosen titles win ; else the whole catalogue
+    when ticked ; else nothing."""
+    if chips:
+        return list(chips)
+    return list(titles) if whole else []
+
+
+def _untick_catalogue(cat_key: str, pick_key: str) -> None:
+    if st.session_state.get(pick_key):
+        st.session_state[cat_key] = False
+
+
+def _clear_picks(cat_key: str, pick_key: str) -> None:
+    if st.session_state.get(cat_key):
+        st.session_state[pick_key] = []
+
+
 _LABELLED_CURVES = 4   # past this, end labels collide (PNG read, R486)
 
 
@@ -258,14 +276,25 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
     R486 (W9, 2026-10-09) : « n'a que deux titres → toutes les tracks ». The page has
     one catalogue and this chart is titled « tout le catalogue » : every title opens
     selected, newest first, through the same shared picker (n = all).
+
+    R517 (X9 II, 2026-10-11) : the catalogue is a CHECKBOX, ticked by default, and the
+    title picker opens EMPTY (n = 0) — twenty pre-ticked chips were a list to untick,
+    not a choice. Choosing a title unticks the catalogue ; ticking it clears the
+    picker. The age axis is REVERSED : the oldest title on the left, so the catalogue
+    reads as one lifeline from the first upload to the last.
     """
     st.subheader(t("soundcloud.age_header", "📈 Tout le catalogue, à âge égal"))
     by_release = latest_first(df_top)
     titles = by_release["title"].tolist()
     metrics = _metric_labels()
-    c1, c2 = st.columns([3, 1])
-    picked = release_picker(t("soundcloud.age_pick", "Titres à comparer"), titles,
-                            key=f"sc_age_pick_{artist_id}", n=len(titles), container=c1)
+    c0, c1, c2 = st.columns([1, 2, 1])
+    cat_key, pick_key = f"sc_age_all_{artist_id}", f"sc_age_pick_{artist_id}"
+    whole = c0.checkbox(t("soundcloud.age_all", "Tout le catalogue"), value=True,
+                        key=cat_key, on_change=_clear_picks, args=(cat_key, pick_key))
+    chips = release_picker(t("soundcloud.age_pick", "Titres à comparer"), titles,
+                           key=pick_key, n=0, container=c1,
+                           on_change=_untick_catalogue, args=(cat_key, pick_key))
+    picked = catalogue_selection(titles, whole, chips)
     metric_lbl = c2.selectbox(t("soundcloud.age_metric", "Compteur"),
                               list(metrics.values()), key=f"sc_age_metric_{artist_id}")
     metric = next(c for c, lbl in metrics.items() if lbl == metric_lbl)
@@ -295,6 +324,7 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
                       yaxis_title=t("soundcloud.age_value_axis", "{m} cumulés")
                       .format(m=metric_lbl))
     fig.update_yaxes(tickformat="~s", rangemode="tozero")
+    fig.update_xaxes(autorange="reversed")   # R517 : the oldest title on the left
     charts.plotly_chart(fig, width="stretch")
 
 

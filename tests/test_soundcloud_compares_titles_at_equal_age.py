@@ -114,8 +114,11 @@ def test_the_page_has_no_tiles_and_compares_every_title_at_equal_age() -> None:
     assert heads and "compar" in heads[0], f"the comparison is not on top: {heads}"
     pickers = [m for m in at.multiselect if "Titres à comparer" in m.label]
     assert len(pickers) == 1, "the equal-age comparison has no title picker"
-    # R486 (W9) : « n'a que deux titres → toutes les tracks ».
-    assert len(pickers[0].value) == len(pickers[0].options)
+    # R486 (W9) : « n'a que deux titres → toutes les tracks » — since R517 through the
+    # « Tout le catalogue » checkbox, ticked, and an EMPTY picker.
+    assert pickers[0].value == []
+    whole = [c for c in at.checkbox if c.label == "Tout le catalogue"]
+    assert len(whole) == 1 and whole[0].value is True
     assert any("à âge égal" in h for h in heads), heads
 
 

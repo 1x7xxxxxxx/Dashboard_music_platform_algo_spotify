@@ -35,6 +35,7 @@ EN = {
     "soundcloud.eng_rate_def": "Engagement % = (likes + reposts + comments) ÷ plays",
     "soundcloud.age_header": "📈 The whole catalogue, at equal age",
     "soundcloud.age_pick": "Tracks to compare",
+    "soundcloud.age_all": "Whole catalogue",
     "soundcloud.age_metric": "Counter",
     "soundcloud.age_empty": "No readable reading of this counter for these tracks.",
     "soundcloud.age_axis": "Days since upload",

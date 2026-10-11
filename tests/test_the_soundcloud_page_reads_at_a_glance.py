@@ -72,4 +72,6 @@ def test_the_tiles_and_their_blabla_are_gone():
 
 
 def test_the_age_comparison_opens_on_every_title():
-    assert "n=len(titles)" in _src()
+    # R517 : every title through the « Tout le catalogue » checkbox, ticked by default —
+    # the picker itself opens empty.
+    assert "n=0" in _src() and "value=True" in _src()
