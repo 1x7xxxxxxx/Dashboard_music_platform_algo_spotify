@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R518 — Apple « Le rythme d'un titre » (X7 II) : **décision prise — remplacé**. Deux barres par… (livrée 2026-10-11)
+
+- [x] **R518 — Apple « Le rythme d'un titre » (X7 II) : **décision prise — remplacé**. Deux barres par relevé pour un titre ne mènent à aucune décision ; à la place, un classement « Shazam pour 1 000 écoutes (30 j) » par titre : le titre que les gens CHERCHENT après l'avoir entendu est celui à pousser en pub** (P3) ✅ (2026-10-11, 37540338, d96afe60, 4e541b75)
+  Mesuré par : la figure répond à « quel titre pousser »
+  Livré d96afe60 + 37540338 (état vide nommé, trouvé par la CI), CI verte (run 38106359563), déployé et vérifié en prod (shazams_per_thousand présent, _render_song_series absent)
+  Commits : 37540338 R518 : Apple — sans aucun relevé, la page nomme l'absence et le geste  · d96afe60 R518 : Apple — « Le rythme d'un titre » remplacé par « 🎯 Le titre à po · 4e541b75 Roadmap : R518 périmètre élargi à tools/dev/charts_dossier/ (le regist
+
 ## ✅ R517 — SoundCloud « tout le catalogue » (X9 II) : axe « jours depuis la mise en ligne » **inve… (livrée 2026-10-11)
 
 - [x] **R517 — SoundCloud « tout le catalogue » (X9 II) : axe « jours depuis la mise en ligne » **inversé** (le plus ancien à gauche, une ligne de vie) ; filtre simplifié — case « Tout le catalogue » cochée par défaut, et un sélecteur de titres VIDE ; choisir un titre décoche le catalogue. **Décision prise** : case + sélecteur plutôt qu'une liste de 20 titres pré-cochés** (P3) ✅ (2026-10-11, 1a103236)

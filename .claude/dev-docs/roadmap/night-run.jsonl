@@ -822,3 +822,6 @@
 {"at": "2026-10-11T02:10:05+00:00", "head": "7eefbd6f", "kind": "done", "task": "R516", "what": ""}
 {"at": "2026-10-11T02:10:05+00:00", "head": "7eefbd6f", "kind": "start", "task": "R517", "what": ""}
 {"at": "2026-10-11T02:20:13+00:00", "kind": "done", "task": "R517", "what": "fermée par roadmap-close — Livré 1a103236, CI verte (run 38104606575), déployé et vérifié en prod."}
+{"at": "2026-10-11T02:25:36+00:00", "head": "5ba2a24a", "kind": "done", "task": "R517", "what": ""}
+{"at": "2026-10-11T02:25:36+00:00", "head": "5ba2a24a", "kind": "start", "task": "R518", "what": ""}
+{"at": "2026-10-11T02:52:57+00:00", "kind": "done", "task": "R518", "what": "fermée par roadmap-close — Livré d96afe60 + 37540338 (état vide nommé, trouvé par la CI), CI verte (run 38106359563), déployé et vérifié en prod (shazams_per_thousand présent, _render_song_series absent)"}

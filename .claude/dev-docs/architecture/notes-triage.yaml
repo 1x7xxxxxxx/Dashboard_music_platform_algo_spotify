@@ -4028,9 +4028,9 @@
   resume: 'Apple : « Le rythme d''un titre » ne mène à aucune décision — le remplacer'
   type: action-produit
   domaine: apple
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R518
+  preuve_statut: R518 (archivée) — 37540338
 - ligne: 34
   source: revue/notes-vocales-2026-10-11.md
   note: X8
