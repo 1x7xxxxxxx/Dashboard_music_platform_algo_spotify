@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R511 — YouTube Analytics sur 3 métriques (R394 tranchée 2026-10-10) : abonnés gagnés par vidéo… (livrée 2026-10-11)
+
+- [x] **R511 — YouTube Analytics sur 3 métriques (R394 tranchée 2026-10-10) : abonnés gagnés par vidéo, durée de visionnage, sources de trafic — OAuth par locataire (`refresh_token` chiffré, script de mint sur le modèle SoundCloud), collecteur qui LÈVE, migration additive, tâche du DAG YouTube, section de vue ; l'autorisation de l'artiste est un geste humain (🙋 + runbook)** (P3) ✅ (2026-10-11, f31f19d2, 3730accb, 1c16976a)
+  Mesuré par : une ligne par (vidéo, jour) pour un locataire autorisé
+  Livré f31f19d2, CI verte (run 38098803395) : migration 149 appliquée en prod après sauvegarde hors-site, dashboard déployé sain, DAG youtube_daily porte collect_youtube_analytics en prod, compose de prod mappe GOOGLE_OAUTH_* (sauvegarde docker-compose.yml.bak-r511). 8 gardes mutés rouges. Données : attendent R520 (client OAuth + .env prod + autorisation de l'artiste).
+  Commits : f31f19d2 R511 : YouTube Analytics — abonnés gagnés par vidéo (fenêtre 28 j cons · 3730accb Roadmap : R511 périmètre élargi (credential_loader, compose d'exemple) · 1c16976a Roadmap : R507 tranchée (a), R509–R511 inscrites (mutmut, inachevés, Y
+
 ## ✅ R512 — Restes mesurés des retours W (X1, X4, X6 du 2026-10-11) : (1) Accueil — tuiles en **deu… (livrée 2026-10-11)
 
 - [x] **R512 — Restes mesurés des retours W (X1, X4, X6 du 2026-10-11) : (1) Accueil — tuiles en **deux rangées de deux** (Meta Ads + Hypeddit, puis Shazam + Instagram), aujourd'hui 4 sur une ligne ; (2) Spotify « Ce qui bouge » — axe de popularité borné au max arrondi à la dizaine **sans** les +25 % (max 20 ⇒ 0-20), légende « Indice de popularité (0-{max}) » sur ce graphique, et le « 0-100 » du détail de titre suit l'axe ; (3) le chapeau de section de la Prédiction promet « le pari du modèle », passé en admin par R442 (option A) : la phrase est retirée** (P3) ✅ (2026-10-11, e8d66d57, 3ffcc707)
