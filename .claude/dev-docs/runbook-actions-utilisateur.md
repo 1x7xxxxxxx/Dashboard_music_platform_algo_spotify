@@ -2176,3 +2176,29 @@ fonction Premium vers le plan gratuit. Le reste de R399 et de R381 se construit 
 1. Réponds dans le fil : « 1 oui, 2 non », par exemple.
 
 **Vérification** : ta réponse dans le fil ; une ligne Rnnn par « oui ».
+
+## 41. R520 — Autoriser YouTube Analytics pour un artiste
+
+**Pourquoi** : R511 collecte les abonnés gagnés par vidéo, la durée de visionnage et les
+sources de trafic, mais seulement avec l'accord du compte Google qui POSSÈDE la chaîne.
+Sans ce geste, la section « 🔑 YouTube Analytics » de la page YouTube dit quoi faire et la
+tâche `collect_youtube_analytics` saute l'artiste (`skipped`, jamais `failed`).
+
+1. Google Cloud Console → le client OAuth de streaMLytics (celui de `GOOGLE_OAUTH_CLIENT_ID`)
+   → *URI de redirection autorisés* : ajouter `http://127.0.0.1:8765/`.
+2. *Écran de consentement OAuth* → portées : `https://www.googleapis.com/auth/yt-analytics.readonly`
+   et `https://www.googleapis.com/auth/youtube.readonly` ; tant que l'app n'est pas vérifiée
+   par Google, ajouter l'adresse Google de l'artiste dans *Utilisateurs test*.
+3. En prod, vérifier que l'Airflow voit les identifiants d'app :
+   `ssh root@167.233.92.1 'cd /opt/streamlytics && docker compose exec -T airflow-scheduler sh -c "test -n \"\$GOOGLE_OAUTH_CLIENT_ID\" && echo set || echo unset"'`
+   — `unset` : ajouter `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` au `.env` de prod, puis
+   `docker compose up -d airflow-scheduler`.
+4. Avec l'artiste à côté de toi (c'est LUI qui se connecte), depuis ce poste :
+   ```bash
+   python3 tools/dev/youtube_analytics_authorize.py | ssh root@167.233.92.1 'cd /opt/streamlytics && docker compose exec -T airflow-scheduler python3 tools/dev/youtube_analytics_authorize.py --store --artist-id N'
+   ```
+   Le jeton ne s'affiche jamais ; le `--store` refuse s'il ouvre une autre chaîne que
+   celle déclarée par l'artiste.
+
+**Vérification** : le lendemain (ou après un déclenchement du DAG `youtube_daily`),
+`make prod-psql Q="SELECT count(*) FROM youtube_analytics_channel_daily WHERE artist_id = N"` > 0.

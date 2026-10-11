@@ -805,3 +805,4 @@
 {"at": "2026-10-10T23:04:10+00:00", "head": "0c556c75", "kind": "start", "task": "R510", "what": "4 inachevés : Instagram None, NonAlgo Phase 2, route data_wrapped, contact sans Stripe"}
 {"at": "2026-10-10T23:28:01+00:00", "kind": "done", "task": "R510", "what": "fermée par roadmap-close — Livré (1) Instagram : compte absent = NULL, l'historique l'écarte ; (2) écart NonAlgo calculé depuis la saisie S4A ; (4) sans Stripe, adresse mailto. (3) RÉFUTÉ : la route data_wrapped est tenue exprès par deux gardes (rendue dans Spotify, témoin hors-menu du pitch). CI verte 3ffcc707 (run 38094888993)."}
 {"at": "2026-10-10T23:33:57+00:00", "head": "48d4d820", "kind": "start", "task": "R511", "what": "YouTube Analytics 3 métriques, OAuth par locataire"}
+{"at": "2026-10-10T23:58:43+00:00", "head": "a5f30134", "kind": "done", "task": "R512", "what": ""}
