@@ -4037,9 +4037,9 @@
   resume: 'YouTube : abonnés et vues sur UNE figure à deux axes'
   type: action-produit
   domaine: youtube
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R513
+  preuve_statut: R513 (archivée) — 5e1d75fc
 - ligne: 39
   source: revue/notes-vocales-2026-10-11.md
   note: X9

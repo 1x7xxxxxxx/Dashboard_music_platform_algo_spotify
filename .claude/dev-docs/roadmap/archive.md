@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R521 — Garde de push (R444) : `worktree_tree` copie l'index par `write_bytes`, donc avec un mt… (livrée 2026-10-11)
+
+- [x] **R521 — Garde de push (R444) : `worktree_tree` copie l'index par `write_bytes`, donc avec un mtime NEUF — l'entrée « racy » d'un fichier réécrit à taille égale dans la même seconde passe pour propre, et le tampon enregistre l'ARBRE D'AVANT. Vu rouge en suite parallèle le 2026-10-11 (`test_the_tree_tested_before_the_commit_is_the_tree_pushed`). Copier avec `shutil.copy2` (mtime conservé) + reproduction déterministe par `os.utime`** (P2) ✅ (2026-10-11, 37779c4c)
+  Mesuré par : le test déterministe rougit sans `copy2`
+  Livré (commit R521 avant 5e1d75fc), CI verte run 38100059405. shutil.copy2 garde le mtime de l'index ; reproduction os.utime vue rouge avant le fix (arbre d'avant tamponné).
+  Commits : 37779c4c R521 : le tampon de push copie l'index avec copy2 (mtime conservé) — u
+
+## ✅ R513 — YouTube « Évolution de la chaîne » en **UNE figure à deux axes** (X8 II, demandé deux f… (livrée 2026-10-11)
+
+- [x] **R513 — YouTube « Évolution de la chaîne » en **UNE figure à deux axes** (X8 II, demandé deux fois) : abonnés à gauche avec sa plage serrée, vues cumulées à droite en `secondary_y`, couleurs d'axe = couleurs de série. Le plafond `test_no_new_secondary_axis` reçoit cette figure en exception NOMMÉE, avec la demande du propriétaire comme motif** (P3) ✅ (2026-10-11, 5e1d75fc)
+  Mesuré par : 1 figure, 2 axes y, plus de `make_subplots(rows=2)`
+  Livré 5e1d75fc, CI verte (run 38100059405), déployé et vérifié en prod (vues sur y2 superposé à y). Exception nommée youtube.py=3 au plafond des axes secondaires ; test muté rouge (secondary_y=False, couleur d'axe).
+  Commits : 5e1d75fc R513 : YouTube « Évolution de la chaîne » en une figure à deux axes — 
+
 ## ✅ R511 — YouTube Analytics sur 3 métriques (R394 tranchée 2026-10-10) : abonnés gagnés par vidéo… (livrée 2026-10-11)
 
 - [x] **R511 — YouTube Analytics sur 3 métriques (R394 tranchée 2026-10-10) : abonnés gagnés par vidéo, durée de visionnage, sources de trafic — OAuth par locataire (`refresh_token` chiffré, script de mint sur le modèle SoundCloud), collecteur qui LÈVE, migration additive, tâche du DAG YouTube, section de vue ; l'autorisation de l'artiste est un geste humain (🙋 + runbook)** (P3) ✅ (2026-10-11, f31f19d2, 3730accb, 1c16976a)

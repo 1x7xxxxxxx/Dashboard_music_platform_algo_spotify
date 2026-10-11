@@ -807,3 +807,6 @@
 {"at": "2026-10-10T23:33:57+00:00", "head": "48d4d820", "kind": "start", "task": "R511", "what": "YouTube Analytics 3 métriques, OAuth par locataire"}
 {"at": "2026-10-10T23:58:43+00:00", "head": "a5f30134", "kind": "done", "task": "R512", "what": ""}
 {"at": "2026-10-11T00:38:11+00:00", "kind": "done", "task": "R511", "what": "fermée par roadmap-close — Livré f31f19d2, CI verte (run 38098803395) : migration 149 appliquée en prod après sauvegarde hors-site, dashboard déployé sain, DAG youtube_daily porte collect_youtube_analytics en prod, compose de prod mappe GOOGLE_OAUTH_* (sauvegarde docker-compose.yml.bak-r511). 8 gardes mutés rouges. Données : attendent R520 (client OAuth + .env prod + autorisation de l'artiste)."}
+{"at": "2026-10-11T00:40:09+00:00", "head": "0184b033", "kind": "done", "task": "R511", "what": ""}
+{"at": "2026-10-11T00:40:12+00:00", "head": "0184b033", "kind": "start", "task": "R513", "what": ""}
+{"at": "2026-10-11T00:59:44+00:00", "kind": "done", "task": "R513", "what": "fermée par roadmap-close — Livré 5e1d75fc, CI verte (run 38100059405), déployé et vérifié en prod (vues sur y2 superposé à y). Exception nommée youtube.py=3 au plafond des axes secondaires ; test muté rouge (secondary_y=False, couleur d'axe)."}
