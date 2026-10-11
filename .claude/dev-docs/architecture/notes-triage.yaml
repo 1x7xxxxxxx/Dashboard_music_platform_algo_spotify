@@ -4073,6 +4073,6 @@
   resume: 'Mon compte : date de repassage en Free toujours dite, bouton vers Facturation, bouton rouge payer/prolonger'
   type: action-produit
   domaine: account
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R514
+  preuve_statut: R514 (archivée) — 79efc397

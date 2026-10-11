@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R514 — Mon compte / Facturation (X12 II) — la date de repassage en Free est **toujours dite**… (livrée 2026-10-11)
+
+- [x] **R514 — Mon compte / Facturation (X12 II) — la date de repassage en Free est **toujours dite** : quand rien ne finit (renouvellement automatique, accès accordé à la main, promo sans échéance) la ligne le dit (« Premium sans date de fin — … ») au lieu de se taire ; le faux « essai de bienvenue » d'un accès accordé à la main est corrigé ; bouton « Mon plan » → Facturation ; bouton principal rouge « 💳 Payer / prolonger mon abonnement » en Facturation, qui mène au chemin de paiement EXISTANT (Stripe ou mailto) — aucun appel Stripe neuf. **Décision prise** : dire « sans date de fin » plutôt qu'inventer une date** (P3) ✅ (2026-10-11, 79efc397)
+  Mesuré par : une phrase de fin de plan dans 100 % des cas premium ; 2 boutons
+  Livré 79efc397, CI verte (run 38101854945), déployé. Prod : 2/2 locataires premium ont leur phrase (artiste 1 « accordé à la main, sans échéance » — muet avant ; 18 « jusqu'au 17/10/2026 »). 4 mutations vues rouges.
+  Commits : 79efc397 R514 : la date de repassage en Free est toujours dite — « sans date de
+
 ## ✅ R521 — Garde de push (R444) : `worktree_tree` copie l'index par `write_bytes`, donc avec un mt… (livrée 2026-10-11)
 
 - [x] **R521 — Garde de push (R444) : `worktree_tree` copie l'index par `write_bytes`, donc avec un mtime NEUF — l'entrée « racy » d'un fichier réécrit à taille égale dans la même seconde passe pour propre, et le tampon enregistre l'ARBRE D'AVANT. Vu rouge en suite parallèle le 2026-10-11 (`test_the_tree_tested_before_the_commit_is_the_tree_pushed`). Copier avec `shutil.copy2` (mtime conservé) + reproduction déterministe par `os.utime`** (P2) ✅ (2026-10-11, 37779c4c)

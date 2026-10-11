@@ -810,3 +810,6 @@
 {"at": "2026-10-11T00:40:09+00:00", "head": "0184b033", "kind": "done", "task": "R511", "what": ""}
 {"at": "2026-10-11T00:40:12+00:00", "head": "0184b033", "kind": "start", "task": "R513", "what": ""}
 {"at": "2026-10-11T00:59:44+00:00", "kind": "done", "task": "R513", "what": "fermée par roadmap-close — Livré 5e1d75fc, CI verte (run 38100059405), déployé et vérifié en prod (vues sur y2 superposé à y). Exception nommée youtube.py=3 au plafond des axes secondaires ; test muté rouge (secondary_y=False, couleur d'axe)."}
+{"at": "2026-10-11T01:02:39+00:00", "head": "b582f36d", "kind": "done", "task": "R513", "what": ""}
+{"at": "2026-10-11T01:06:05+00:00", "head": "b582f36d", "kind": "start", "task": "R514", "what": ""}
+{"at": "2026-10-11T01:30:30+00:00", "kind": "done", "task": "R514", "what": "fermée par roadmap-close — Livré 79efc397, CI verte (run 38101854945), déployé. Prod : 2/2 locataires premium ont leur phrase (artiste 1 « accordé à la main, sans échéance » — muet avant ; 18 « jusqu'au 17/10/2026 »). 4 mutations vues rouges."}
