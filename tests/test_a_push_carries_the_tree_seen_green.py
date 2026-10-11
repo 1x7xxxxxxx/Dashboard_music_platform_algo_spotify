@@ -55,6 +55,23 @@ def test_the_tree_tested_before_the_commit_is_the_tree_pushed(tmp_path):
     assert gate.verdict(repo, sha)[0]
 
 
+def test_a_same_size_edit_in_the_same_second_is_still_stamped(tmp_path):
+    """R521: the stamp copied the index with a NEW mtime, so git's racy-entry check
+    trusted a same-size rewrite as clean and stamped the tree from BEFORE the edit.
+    Seen red in the parallel suite on 2026-10-11; pinned here with `os.utime`."""
+    import os
+    repo = _repo(tmp_path)
+    app, index = repo / "app.py", repo / ".git" / "index"
+    t0 = app.stat().st_mtime_ns - 100 * 10**9
+    os.utime(app, ns=(t0, t0))
+    _git(repo, "update-index", "--refresh")        # entry recorded at t0, not smudged
+    app.write_text("x = 2\n")                     # same size, same inode …
+    os.utime(app, ns=(t0, t0))                     # … same mtime: only racy-git sees it
+    os.utime(index, ns=(t0, t0))                   # the real index is racy for app.py
+    stamped = gate.stamp(repo)
+    assert stamped == _git(repo, "rev-parse", f"{_commit_all(repo, 'R1 : edit')}^{{tree}}")
+
+
 def test_code_changed_after_the_green_run_is_refused(tmp_path):
     """The 2026-10-07 shape: green on targeted tests, then more code, then push."""
     repo = _repo(tmp_path)

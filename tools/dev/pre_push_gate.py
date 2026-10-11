@@ -26,6 +26,7 @@ rex: []
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -53,7 +54,9 @@ def worktree_tree(root: Path) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         index = Path(tmp) / "index"
         if (git_dir / "index").exists():
-            index.write_bytes((git_dir / "index").read_bytes())
+            # copy2, not write_bytes: the copy must keep the index's mtime, or git's
+            # racy-entry check trusts a same-size edit made in the same second (R521).
+            shutil.copy2(git_dir / "index", index)
         env = {**os.environ, "GIT_INDEX_FILE": str(index)}
         _git(root, "add", "-A", env=env)
         return _git(root, "write-tree", env=env)
