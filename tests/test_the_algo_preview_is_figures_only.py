@@ -127,3 +127,39 @@ def test_no_help_text_below_the_figures() -> None:
     tree = ast.parse(VIEW.read_text(encoding="utf-8"))
     show = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "show")
     assert not {"caption", "markdown", "info", "write"} & _calls(show)
+
+
+_SETTINGS = ("set_budget", "set_interests", "set_countries", "set_age", "set_placements",
+             "set_creatives")
+
+
+def test_the_preview_lists_what_you_can_adjust_in_both_languages() -> None:
+    """R516 (X10 II) : « ce que tu peux régler » — six Meta settings, each with the
+    decision the prediction drives (accentuer / couper / déplacer), and the goal said
+    once : lower the cost per stream. FR in the code, EN in the catalog.
+
+    Mutation record (2026-10-11) : seen red with the `_render_settings()` call removed
+    from show(), and with « déplaces » rewritten out of the countries line."""
+    from src.dashboard.utils.i18n_catalog.algo_preview import EN
+    from src.dashboard.views import algo_preview as v
+
+    lines = v._settings()
+    assert len(lines) == 6
+    verbs = ("accentues", "coupes", "déplaces")
+    assert all(any(w in line for w in verbs) for line in lines), "a setting without a decision"
+    assert {w for line in lines for w in verbs if w in line} == set(verbs)
+    assert all(f"algo_preview.{k}" in EN for k in (*_SETTINGS, "settings_title", "settings_goal"))
+    assert "cost per stream" in EN["algo_preview.settings_goal"]
+    tree = ast.parse(VIEW.read_text(encoding="utf-8"))
+    show = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "show")
+    assert "_render_settings" in _calls(show), "the list is not rendered on the page"
+
+
+def test_the_list_is_rendered_under_the_figures() -> None:
+    from streamlit.testing.v1 import AppTest
+    at = AppTest.from_string(_CTA_SCRIPT.format(root=str(ROOT), locked=True))
+    at.run(timeout=60)
+    assert not at.exception, at.exception
+    text = " ".join(m.value for m in at.markdown)
+    assert "Ce que tu peux régler" in text and "coût par stream" in text
+    assert text.count("\n- ") == 5, "six settings, one bullet each"
