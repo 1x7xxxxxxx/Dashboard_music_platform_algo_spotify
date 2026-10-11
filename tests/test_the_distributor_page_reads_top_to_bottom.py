@@ -1,4 +1,4 @@
-"""Distributor page: entry form first, then the sales evolution, then break-even — no tabs (R388).
+"""Treasury page: entry form first, then the one money-flow figure — no tabs (R388, R519).
 
 Type: Guard
 Uses: src.dashboard.views.imusician, tests/render_harness.py
@@ -8,7 +8,8 @@ Persists in: nothing
 V75-V78 (owner's screen review, 2026-10-05): the « Données » / « ROI » tabs hid two
 readings of one question — does it pay? — from each other, and the detail table said
 less than a chart. ONE page now: the entry form on top (the gesture one comes for),
-the monthly sales stacked per distributor with their running total, then break-even.
+then — since R519 (X11 II) — one figure of the monthly money flow: distributors and SACEM
+above zero, Meta Ads below, the running balance as the line.
 """
 from __future__ import annotations
 
@@ -21,21 +22,35 @@ from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
 
 
-def test_the_evolution_stacks_distributors_and_runs_one_total() -> None:
-    from src.dashboard.views.imusician import evolution_frame
+def _cashflow() -> pd.DataFrame:
+    return pd.DataFrame({
+        "year":   [2026, 2026, 2026, 2026, 2026],
+        "month":  [1, 1, 1, 3, 3],
+        "flux":   ["revenu", "revenu", "depense", "revenu", "depense"],
+        "source": ["imusician", "sacem", "meta_ads", "imusician", "meta_ads"],
+        "amount_eur": [10.0, 5.0, 40.0, 20.0, 15.0],
+        "direction": [1, 1, -1, 1, -1]})
 
-    df = pd.DataFrame({"year": [2026, 2026, 2026, 2025],
-                       "month": [2, 1, 1, 12],
-                       "distributor": ["iMusician", "iMusician", "DistroKid", "iMusician"],
-                       "revenue_eur": [5.0, 1.0, 2.0, 10.0]})
-    evo = evolution_frame(df)
-    assert evo["month_start"].is_monotonic_increasing, "the months are not in order"
-    by_month = evo.drop_duplicates("month_start").set_index("month_start")["cumulative"]
-    assert by_month.tolist() == [10.0, 13.0, 18.0], (
-        "the running total does not add every distributor month after month")
-    jan = evo[evo["month_start"] == pd.Timestamp("2026-01-01")]
-    assert sorted(jan["revenue_eur"].tolist()) == [1.0, 2.0], (
-        "a distributor's month was merged into another's bar")
+
+def test_the_treasury_is_one_figure_revenue_up_spend_down_balance_as_a_line() -> None:
+    """R519 (owner X11 II): distributors, SACEM and Meta Ads on ONE money-flow figure.
+
+    Mutation record (2026-10-11): seen red with the direction dropped (spend drawn
+    above zero), the balance not cumulated, barmode « group », and the empty month
+    (February) dropped from the axis.
+    """
+    from src.dashboard.utils.treasury_chart import cashflow_figure
+
+    fig = cashflow_figure(_cashflow())
+    bars = {tr.name: list(tr.y) for tr in fig.data if tr.type == "bar"}
+    assert set(bars) == {"iMusician", "SACEM", "Publicité Meta"}, bars
+    assert bars["Publicité Meta"][0] == -40.0, "a spend is not drawn below zero"
+    assert bars["SACEM"][0] == 5.0, "SACEM is not a series of the treasury"
+    assert len(bars["iMusician"]) == 3, "a month without movement left the axis"
+    (line,) = [tr for tr in fig.data if tr.type == "scatter"]
+    assert list(line.y) == [-25.0, -25.0, -20.0], "the balance is not the running sum"
+    assert fig.layout.barmode == "relative"
+    assert "-20" in fig.layout.title.text and "35" in fig.layout.title.text, fig.layout.title.text
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the distributor page against the live DB")
@@ -49,7 +64,7 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     assert len(at.tabs) == 0, "the page is split into tabs again"
     heads = [s.value for s in at.subheader]
     assert heads and "Saisie" in heads[0], f"the entry form is not on top: {heads}"
-    assert any("Évolution" in h for h in heads), f"the evolution is gone: {heads}"
+    assert any("mois par mois" in h for h in heads), f"the treasury figure is gone: {heads}"
     # R476 (W11): the break-even left for the cross view's « Revenus » section.
     assert not any("Point mort" in h for h in heads), (
         f"the break-even is back on the distributor page: {heads}")

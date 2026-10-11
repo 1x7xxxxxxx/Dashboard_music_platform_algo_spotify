@@ -1,4 +1,4 @@
-"""SACEM: the royalties are one donut, and the import button opens the tab (R389, R488).
+"""SACEM: a section with the how-to and an import button that opens the tab (R389, R519).
 
 Type: Guard
 Uses: src.dashboard.views.sacem, src.dashboard.views.credentials.router, streamlit AppTest
@@ -8,6 +8,9 @@ Persists in: nothing
 Owner's screen review, 2026-10-05 (V79-V80): the three metric tiles become ONE figure
 that reads as a step, not a subtraction; the statement is an .xlsx, said on the page;
 and the button lands on the Credentials IMPORT tab, not on the page's first tab.
+
+R519 (owner X11 II, 2026-10-11): the donut left — the SACEM money is a series of the
+treasury's one money-flow figure (tests/test_the_distributor_page_reads_top_to_bottom.py).
 
 R488 (owner W11, 2026-10-09): « camembert » — the waterfall becomes a donut of the gross
 royalties split into deductions / already paid / still to pay; the .xlsx note under the
@@ -24,19 +27,6 @@ import pytest
 
 from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
-
-
-def test_the_donut_splits_the_gross_into_what_it_became() -> None:
-    from src.dashboard.views.sacem import royalties_pie, royalties_split
-
-    parts = royalties_split(1000.0, -180.0, 815.0, 600.0)
-    # Each part is its OWN reading: deductions, paid, and the rest of the net still owed.
-    assert [round(v, 2) for _, v in parts] == [180.0, 600.0, 215.0]
-    trace = royalties_pie(1000.0, parts).data[0]
-    assert trace.type == "pie" and trace.hole > 0
-    assert len(trace.values) == 3
-    # Nothing paid yet → no empty « Déjà viré » slice.
-    assert len(royalties_split(1000.0, -180.0, 815.0, 0.0)) == 2
 
 
 def _run(at):
@@ -69,7 +59,7 @@ def test_the_page_has_no_tiles_and_its_button_opens_the_import_tab() -> None:
 
 
 def test_sacem_is_a_section_of_the_distributors_page() -> None:
-    """R461: one menu entry « Distributeur iMusician DistroKid + SACEM »; `sacem` is an alias.
+    """R461: one menu entry (« 💶 Trésorerie » since R519); `sacem` is an alias.
 
     Mutation record (2026-10-07): the `render_section` call removed from imusician.show
     → red; the alias removed → red.

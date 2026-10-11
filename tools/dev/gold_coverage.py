@@ -1062,6 +1062,23 @@ def all_reads(files, slicer) -> list[Read]:
     return out
 
 
+def _unread_gold(gold: dict[str, GoldObject], reads: list[Read]) -> list[str]:
+    """Gold objects no `src/` reader reaches, directly or through another gold view.
+
+    A view that only feeds another READ view (R519: `v_artist_monthly_revenue_net`
+    feeds `v_artist_monthly_cashflow`) is live work, not frozen work.
+    """
+    live = {g.name for g in gold.values() if any(g.name in r.relations for r in reads)}
+    frontier = list(live)
+    while frontier:
+        g = gold.get(frontier.pop())
+        for t in (g.reads if g else ()):
+            if t in gold and t not in live:
+                live.add(t)
+                frontier.append(t)
+    return sorted(g.name for g in gold.values() if g.name not in live)
+
+
 def verdict(sl: Slice) -> str:
     if sl.flags and not sl.sources:
         return UNKNOWN
@@ -2015,8 +2032,7 @@ def render(gold, surfaces, files, reads) -> str:
                  for i, (n, c, b) in enumerate(steps)],
                 ["#", "étape", "ce qu'elle lance", "rôle"])
 
-    unread = sorted(g.name for g in gold.values()
-                    if not any(g.name in r.relations for r in reads))
+    unread = _unread_gold(gold, reads)
     gold_reads = {t: g.name for g in gold.values() for t in g.reads
                   if not t.startswith(("v_", "gold_"))}
     covered: dict[str, list[Read]] = defaultdict(list)

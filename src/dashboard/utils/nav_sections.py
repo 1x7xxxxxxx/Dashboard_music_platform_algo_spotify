@@ -203,7 +203,7 @@ NAV_SECTIONS: list = [
       # R405/R477 : « Paramètres de mes campagnes », « Prévisions revenus » et
       # « CPR Optimizer » sont des sections de la page algo (clés routées en alias).
     ("revenue",   "💶 Revenus",
-     [("💰 Distributeur iMusician DistroKid + SACEM", "imusician")]),
+     [("💶 Trésorerie (distributeurs, SACEM, Meta Ads)", "imusician")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
       ("💳 Facturation / Abonnement", "billing"),

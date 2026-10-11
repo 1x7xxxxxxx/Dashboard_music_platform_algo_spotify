@@ -231,7 +231,7 @@ def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
     st.info(_breakeven_text(pm).replace("<br>", " — "))
     st.caption(t("revenue_forecast.treasury_moved",
                  "Le graphique de trésorerie (ventes, SACEM, dépenses, cumulés) est sur la "
-                 "page 💰 Distributeurs."))
+                 "page 💶 Trésorerie."))
 
 
 from src.dashboard.utils.treasury_chart import (  # noqa: E402 — R262, one definition

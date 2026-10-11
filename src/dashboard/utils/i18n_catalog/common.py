@@ -19,7 +19,6 @@ EN = {
     "common.month.11": "November",
     "common.month.12": "December",
     # Generic UI words
-    "common.all": "All",
     "common.period": "Period",
     "common.year": "Year",
     "common.month": "Month",

@@ -1,8 +1,12 @@
 """EN strings for the Distributor (iMusician/DistroKid) revenue view."""
 
 EN = {
-    "imusician.title": "💰 Distributor iMusician DistroKid + SACEM",
+    "imusician.title": "💶 Treasury (distributors, SACEM, Meta Ads)",
     "imusician.distributor": "Distributor",
+    # R519 — one money-flow figure
+    "imusician.treasury_header": "💶 Money, month by month",
+    "imusician.balance": "Running balance",
+    "imusician.cashflow_title": "Balance {b} — {i} in, {o} out",
     # Data tab
     "imusician.delete_expander": "🗑️ Delete an entry",
     "imusician.entry_deleted": "Entry deleted: {distributor} — {month} {year}",
@@ -31,11 +35,6 @@ EN = {
         "Import an iMusician export (CSV Import page), enter a revenue above, "
         "or launch the Meta collection from the home page."
     ),
-    "imusician.evolution_header": "📈 Sales over time",
-    "imusician.cumulative": "Running total",
     # R488
     "imusician.import_btn": "📂 Import an iMusician / DistroKid export",
-    "imusician.monthly_of": "{d} — € per month",
-    "imusician.forecast": "forecast ({n} months at the recent pace)",
-    "imusician.evolution_title": "Sales: {total} in total · {avg} per month · {n} months",
 }

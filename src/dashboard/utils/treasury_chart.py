@@ -3,7 +3,8 @@
 Type: Utility
 Uses: plotly, pandas, src.dashboard.utils.artist_cashflow (monthly_net), i18n
 Depends on: v_artist_monthly_cashflow (migration 133)
-Triggers: views/revenue_forecast.py, views/imusician.py (breakeven_figure, R488)
+Triggers: views/revenue_forecast.py, views/imusician.py (breakeven_figure, R488;
+          cashflow_figure, R519)
 Persists in: nothing
 
 R212 (2026-09-27). The owner read four figures that each answered a slice of one question —
@@ -155,6 +156,45 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
         hovermode='x unified', height=460, yaxis={'type': 'log', 'title': "€"},
         legend={'orientation': 'h', 'yanchor': 'top', 'y': -0.12,
                 'xanchor': 'left', 'x': 0},
+        margin={'t': 50, 'b': 90})
+    return fig
+
+
+def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
+    """Every euro, month by month, on ONE frame (R519, owner X11 II « Trésorerie »).
+
+    Revenue (distributors, SACEM) stacks ABOVE zero, spending (Meta Ads, entered costs)
+    BELOW it, one colour per source; the running balance is the line. One euro axis:
+    the bars and the balance are both sums of the same signed amounts, so a second
+    scale has nothing to separate. The balance and both totals ride in the title."""
+    d = _dated(cashflow)
+    d['signed'] = d['amount_eur'] * pd.to_numeric(d['direction'], errors='coerce')
+    months = pd.date_range(d['date'].min(), d['date'].max(), freq='MS')
+    fig = go.Figure()
+    order = sorted(d.groupby(['flux', 'source']).groups,
+                   key=lambda k: (k[0] != 'revenu', FLUX_NAMES.get(k[1], k[1])))
+    for flux, source in order:
+        part = d[(d['flux'] == flux) & (d['source'] == source)]
+        serie = part.groupby('date')['signed'].sum(min_count=1).reindex(months)
+        fig.add_trace(go.Bar(
+            x=months, y=serie.values, name=FLUX_NAMES.get(source, source),
+            marker_color=FLUX_COLOURS.get(source, "#8A8A8A"),
+            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"))
+    balance = d.groupby('date')['signed'].sum().reindex(months).fillna(0).cumsum()
+    fig.add_trace(go.Scatter(
+        x=months, y=balance.values, mode='lines+markers',
+        name=t("imusician.balance", "Solde cumulé"),
+        line={'color': REVENUE_CUMUL, 'width': 3}, marker={'size': 5},
+        hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"))
+    money_in = float(d.loc[d['signed'] > 0, 'signed'].sum())
+    money_out = float(-d.loc[d['signed'] < 0, 'signed'].sum())
+    eur = lambda v, sign="": f"{v:{sign},.0f} €".replace(",", " ")   # noqa: E731
+    fig.update_layout(
+        title=t("imusician.cashflow_title", "Solde {b} — {i} entrés, {o} sortis").format(
+            b=eur(float(balance.iloc[-1]), "+"), i=eur(money_in), o=eur(money_out)),
+        barmode='relative', hovermode='x unified', height=460,
+        yaxis={'title': "€", 'zeroline': True, 'zerolinewidth': 2},
+        legend={'orientation': 'h', 'yanchor': 'top', 'y': -0.12, 'xanchor': 'left', 'x': 0},
         margin={'t': 50, 'b': 90})
     return fig
 

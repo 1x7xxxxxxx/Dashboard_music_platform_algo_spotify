@@ -1,7 +1,12 @@
-"""Vue Distributeur — revenus mensuels iMusician + DistroKid (saisie manuelle, import, ROI)."""
+"""Vue Trésorerie — distributeurs, SACEM et Meta Ads sur une seule figure (saisie, import).
+
+R519 (owner X11 II, 2026-10-11): the « Distributeur » page became « 💶 Trésorerie
+(distributeurs, SACEM, Meta Ads) ». The sales chart per distributor and the SACEM donut
+are ONE figure of the monthly money flow (`treasury_chart.cashflow_figure`, read from
+`v_artist_monthly_cashflow`); the route `imusician` is unchanged.
+"""
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 from datetime import date, datetime, timezone
 import sys
 from pathlib import Path
@@ -21,8 +26,6 @@ DISTRIBUTOR_TABLES = {
     'iMusician': 'imusician_monthly_revenue',
     'DistroKid': 'distrokid_monthly_revenue',
 }
-_ALL_DISTRIBUTORS = 'Tous'
-_CUMUL = "#1F4E79"   # the running total — navy, apart from the distributors' greens
 
 
 def _roi_data_span(db, artist_id):
@@ -77,32 +80,10 @@ def _get_artist_filter():
     """Retourne (artist_id, label) selon le rôle courant."""
     if is_admin():
         return None, "Tous les artistes"
-    # Not get_artist_id(): a None here would flow into _load_revenues' `artist_id is
-    # None` branch, which joins across saas_artists with no filter at all (R25).
+    # Not get_artist_id(): a None here would flow into load_cashflow's `artist_id is
+    # None` branch, the every-artist aggregate (R25).
     aid = tenant_scope()
     return aid, f"Artiste {aid}"
-
-
-_SOURCE_LABELS = {'imusician': 'iMusician', 'distrokid': 'DistroKid'}
-
-_REVENUES_SQL = """
-    SELECT source, year, month, revenue_eur
-      FROM v_artist_monthly_revenue
-     WHERE source = ANY(%s) AND (%s::int IS NULL OR artist_id = %s)
-"""
-
-
-def _load_revenues(db, artist_id, tables):
-    """Monthly distributor revenue, read from the gold view (R388).
-
-    `v_artist_monthly_revenue` is the one definition the treasury and the forecast
-    read too; the raw tables are only ever unioned there. `tables` ({label: table})
-    names the distributors kept; SACEM, also in the view, is not a distributor.
-    """
-    wanted = [src for src, label in _SOURCE_LABELS.items() if label in tables]
-    df = db.fetch_df(_REVENUES_SQL, (wanted, artist_id, artist_id))
-    df['distributor'] = df['source'].map(_SOURCE_LABELS)
-    return df
 
 
 def _delete_revenue(db, table, artist_id, year, month):
@@ -207,7 +188,7 @@ def show():
     # saisie en tête (c'est le geste qu'on vient faire ici), puis l'évolution des ventes,
     # puis le point mort. Les onglets « Données » / « ROI » cachaient l'un à l'autre deux
     # lectures d'une même question : est-ce que ça rapporte ?
-    st.title(t("imusician.title", "💰 Distributeur iMusician DistroKid + SACEM"))
+    st.title(t("imusician.title", "💶 Trésorerie (distributeurs, SACEM, Meta Ads)"))
     # R488 (W11) : the import is a BUTTON at the top, like SACEM's — not a sentence
     # naming another page.
     if st.button(t("imusician.import_btn", "📂 Importer un export iMusician / DistroKid"),
@@ -219,7 +200,7 @@ def show():
         artist_id, _ = _get_artist_filter()
         _render_entry_form(db, artist_id)
         st.markdown("---")
-        _render_evolution(db, artist_id)
+        _render_treasury(db, artist_id)
         # R476 (W11) : the break-even moved to the cross view, section « Revenus ».
         # R461 (owner, 2026-10-07): the SACEM page merged here, on the SAME connection.
         st.markdown("---")
@@ -229,121 +210,16 @@ def show():
         db.close()
 
 
-def _revenue_filters(db, artist_id):
-    """Distributor · the app's common period selector (R478), whole history by default."""
-    c_dist, c_period = st.columns([2, 5])
-    with c_dist:
-        selected = st.segmented_control(
-            t("imusician.distributor", "Distributeur"),
-            options=[_ALL_DISTRIBUTORS] + list(DISTRIBUTOR_TABLES.keys()),
-            default=_ALL_DISTRIBUTORS,
-            format_func=lambda d: t("common.all", "Tous") if d == _ALL_DISTRIBUTORS else d,
-            key="distributor_filter",
-        ) or _ALL_DISTRIBUTORS
-    tables = (DISTRIBUTOR_TABLES if selected == _ALL_DISTRIBUTORS
-              else {selected: DISTRIBUTOR_TABLES[selected]})
-    df = _load_revenues(db, artist_id, tables)
-    if df.empty:
-        return df
-    starts = _month_starts(df)
-    with c_period:
-        window = filters.span(starts.min().date(), starts.max().date(),
-                              key="imusician_period", artist_id=artist_id,
-                              latest_release_resolver=lambda: filters.latest_release_date(
-                                  db, artist_id))
-    return df[months_in_window(starts, window.start, window.end)]
+def _render_treasury(db, artist_id):
+    """Every euro in and out, month by month — ONE figure (R519, owner X11 II).
 
-
-def _month_starts(df: pd.DataFrame) -> pd.Series:
-    return pd.to_datetime(dict(year=df['year'].astype(int),
-                               month=df['month'].astype(int), day=1))
-
-
-def months_in_window(month_starts: pd.Series, start: date, end: date) -> pd.Series:
-    """A revenue month belongs to the window when the window touches it. Pure.
-
-    Revenues are monthly: a window starting mid-month (« semaine en cours ») must keep
-    that month, not drop it because its first day is before the start."""
-    first = pd.Timestamp(start).replace(day=1)
-    return (month_starts >= first) & (month_starts <= pd.Timestamp(end))
-
-
-def evolution_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Monthly revenue per distributor, plus the running total across distributors."""
-    out = df.assign(month_start=pd.to_datetime(
-        dict(year=df['year'].astype(int), month=df['month'].astype(int), day=1)))
-    out = (out.groupby(['month_start', 'distributor'], as_index=False)['revenue_eur']
-              .sum().sort_values('month_start'))
-    totals = out.groupby('month_start')['revenue_eur'].sum().cumsum()
-    return out.merge(totals.rename('cumulative').reset_index(), on='month_start',
-                     validate='many_to_one')
-
-
-FORECAST_MONTHS = 6
-FORECAST_BASIS = 12   # the rate is the mean of the last 12 months that have a figure
-
-
-def revenue_forecast(evo: pd.DataFrame, months: int = FORECAST_MONTHS,
-                     basis: int = FORECAST_BASIS) -> pd.DataFrame:
-    """The running total carried `months` ahead at the recent monthly rate. Pure.
-
-    Empty under three months of history: no rate reads from one or two points."""
-    monthly = evo.groupby('month_start')['revenue_eur'].sum().sort_index()
-    if len(monthly) < 3:
-        return pd.DataFrame(columns=['month_start', 'cumulative'])
-    rate = float(monthly.tail(basis).mean())
-    ahead = pd.date_range(monthly.index.max() + pd.offsets.MonthBegin(1),
-                          periods=months, freq='MS')
-    return pd.DataFrame({'month_start': ahead,
-                         'cumulative': float(monthly.sum()) + rate * (pd.RangeIndex(months) + 1)})
-
-
-def _evolution_figure(evo: pd.DataFrame, forecast: pd.DataFrame | None = None) -> go.Figure:
-    """€ per month, € cumulated and the forecast on ONE frame (R488, W11).
-
-    One euro axis: the bars are months, the area is their sum — both totals, so a
-    second axis is refused (two totals never share a frame on two scales). The
-    totals ride in the title, where the summary sentence under the chart used to be."""
-    from src.dashboard.utils.treasury_chart import FLUX_COLOURS
-    cum = evo.drop_duplicates('month_start')
-    monthly = evo.groupby('month_start')['revenue_eur'].sum()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=cum['month_start'], y=cum['cumulative'], mode='lines',
-        name=t("imusician.cumulative", "€ cumulés"),
-        line=dict(color=_CUMUL, width=2.5), fill='tozeroy',
-        fillcolor="rgba(31,78,121,0.12)",
-        hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
-    for name, grp in evo.groupby('distributor', sort=False):
-        fig.add_trace(go.Bar(
-            x=grp['month_start'], y=grp['revenue_eur'],
-            name=t("imusician.monthly_of", "{d} — € par mois").format(d=name),
-            marker_color=FLUX_COLOURS.get(str(name).lower(), "#8A8A8A"),
-            hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
-    if forecast is not None and not forecast.empty:
-        fig.add_trace(go.Scatter(
-            x=[cum['month_start'].iloc[-1], *forecast['month_start']],
-            y=[cum['cumulative'].iloc[-1], *forecast['cumulative']],
-            mode='lines', line=dict(color=_CUMUL, width=2, dash='dash'),
-            name=t("imusician.forecast", "prévision ({n} mois au rythme récent)"
-                   ).format(n=len(forecast)),
-            hovertemplate="%{x|%m/%Y}<br>%{y:,.2f} €<extra></extra>"))
-    fig.update_layout(
-        title=t("imusician.evolution_title",
-                "Ventes : {total} au total · {avg} par mois · {n} mois").format(
-            total=f"{monthly.sum():,.2f} €".replace(",", " "),
-            avg=f"{monthly.mean():,.2f} €".replace(",", " "), n=len(monthly)),
-        barmode='relative', hovermode='x unified', height=460, yaxis_title="€",
-        legend=dict(orientation='h', yanchor='top', y=-0.12, xanchor='left', x=0),
-        margin=dict(t=50, b=90))
-    return fig
-
-
-def _render_evolution(db, artist_id):
-    """What the distributors paid, month by month — a chart, not a ledger (V77)."""
-    st.subheader(t("imusician.evolution_header", "📈 Évolution des ventes"))
-    df = _revenue_filters(db, artist_id)
-    if df.empty:
+    Distributors and SACEM above zero, Meta Ads and entered costs below, the running
+    balance as the line; read from the one money door (`load_cashflow`), filtered by the
+    app's common period (R478), whole history by default."""
+    from src.dashboard.utils.treasury_chart import cashflow_figure, load_cashflow, within
+    st.subheader(t("imusician.treasury_header", "💶 L'argent, mois par mois"))
+    cashflow = load_cashflow(db, artist_id)
+    if cashflow.empty:
         st.info(t(
             "imusician.no_revenue",
             "Aucun revenu enregistré pour cette sélection. Importez un export "
@@ -351,9 +227,18 @@ def _render_evolution(db, artist_id):
             "ou saisissez un revenu manuellement ci-dessus."
         ))
         return
-    evo = evolution_frame(df)
-    # R488 (W11) : the totals are in the figure's title, and no line under it.
-    charts.plotly_chart(_evolution_figure(evo, revenue_forecast(evo)), width="stretch")
+    starts = pd.to_datetime(dict(year=cashflow['year'].astype(int),
+                                 month=cashflow['month'].astype(int), day=1))
+    window = filters.span(starts.min().date(), starts.max().date(),
+                          key="imusician_period", artist_id=artist_id,
+                          latest_release_resolver=lambda: filters.latest_release_date(
+                              db, artist_id))
+    shown = within(cashflow, window.start, window.end)
+    if shown.empty:
+        st.info(t("imusician.roi_empty_period",
+                  "Aucune donnée de revenus ou dépenses sur cette période."))
+    else:
+        charts.plotly_chart(cashflow_figure(shown), width="stretch")
     _render_delete(db, artist_id)
 
 

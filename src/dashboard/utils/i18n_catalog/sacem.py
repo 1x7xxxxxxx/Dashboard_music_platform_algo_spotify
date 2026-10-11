@@ -11,10 +11,5 @@ EN = {
                         "4. **Download the `.xlsx` file**.\n"
                         "5. Import it in the **📂 Add my figures** tab of Credentials "
                         "(the SACEM type is auto-detected).",
-    "sacem.deductions": "🧾 Deductions",
     "sacem.import_btn": "📂 Import my SACEM statement (.xlsx)",
-    # R488
-    "sacem.paid": "🏦 Already paid",
-    "sacem.pending": "⏳ To be paid",
-    "sacem.pie_title": "SACEM: {g} of gross royalties",
 }

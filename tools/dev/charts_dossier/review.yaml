@@ -79,18 +79,6 @@ src/dashboard/views/apple_music.py::show#1:
   owner_v: garder
   owner: "W7 (2026-10-09) : les Shazams en graphique à droite du top 10, les totaux dans les titres."
   note: "Une figure, deux panneaux sur les mêmes lignes (R484) : un titre se lit une fois, les totaux sont dans les titres des panneaux. Remplace show#1 + show#2."
-src/dashboard/views/sacem.py::render_section#1:
-  q: "Où sont passées mes royalties SACEM brutes — retenues, déjà virées, encore à virer ?"
-  decision: "Voir ce que les retenues prennent sur tes royalties SACEM, pour prévoir le net réel d'une répartition."
-  decision_en: "See what deductions take from your SACEM royalties, to plan the real net of a distribution."
-  role: business
-  d: 3
-  c: 3
-  p: 3
-  v: garder
-  owner_v: garder
-  owner: "Demandé par le propriétaire (V79) : un graphique au lieu des tuiles brut / charges / net."
-  note: "R488 (W11, 2026-10-09 : « camembert ») : la cascade R389 devient un anneau — retenues / déjà viré / à virer, le brut dans le titre. Trois montants, une seule question : la part. Le net reste sa propre lecture (vue nette), jamais brut − retenues. Regardé le 2026-10-09 sur l'artiste 1 : 43,06 € brut, 6,57 retenues, 36,49 viré."
 src/dashboard/views/apple_music.py::_render_shazam_rate#1:
   q: "Quel titre les gens cherchent-ils le plus après l'avoir entendu ?"
   decision: "Pousser en pub le titre qui se fait le plus Shazamer pour 1 000 écoutes."
@@ -260,16 +248,18 @@ src/dashboard/views/hypeddit.py::_render_campaign_series#2:
   p: 3
   v: garder
   note: "R443 (ta demande du 2026-10-07). Regardée le 2026-10-07 sur l'artiste 1 : Ô Chiotte 7 828 visites / 3 581 clics / 817 € contre Kimono 3 651 / 596 / 0 €. Premier rendu : l'étiquette « 817 » touchait le titre du panneau → marge de 25 % au-dessus de la plus haute barre."
-src/dashboard/views/imusician.py::_render_evolution#1:
-  q: "Combien mes distributeurs m'ont-ils versé, mois par mois, et où en est le cumul ?"
-  decision: "Voir si tes ventes montent ou retombent d'un mois à l'autre, pour juger l'effet de ta dernière sortie sur tes revenus."
-  decision_en: "See whether your sales rise or fall month to month, to judge what your latest release did to your revenue."
+src/dashboard/views/imusician.py::_render_treasury#1:
+  q: "Combien d'argent rentre et sort chaque mois — distributeurs, SACEM, pub Meta — et où en est mon solde ?"
+  decision: "Voir si ce que rapportent tes ventes et la SACEM couvre ta pub Meta, mois par mois, pour fixer le budget de ta prochaine campagne."
+  decision_en: "See whether what your sales and SACEM bring in covers your Meta ads, month by month, to set your next campaign's budget."
   role: business
-  d: 3
+  d: 4
   c: 4
-  p: 3
+  p: 4
   v: garder
-  note: "R388 (V77) : remplace le tableau « Détail ». R488 (W11, 2026-10-09) : un seul axe en euros — barres € par mois par distributeur (couleur du distributeur), cumul en aire, prévision 6 mois en pointillés au rythme des 12 derniers mois ; total, moyenne et nombre de mois dans le titre. L'axe double est interdit (plafond 0) et ici inutile : le cumul 210 € et les mois 0–23 € se lisent sur la même échelle. Regardé le 2026-10-09 sur l'artiste 1."
+  owner_v: fusionner
+  owner: "X11 II (2026-10-11) : « Trésorerie (distributeurs, SACEM, Meta Ads) » — une seule figure du flux d'argent."
+  note: "R519 : remplace « Évolution des ventes » (R488) et l'anneau SACEM. Barres relatives sur un seul axe en euros : revenus par source au-dessus de zéro (iMusician, DistroKid, SACEM), dépenses en dessous (Meta Ads, coûts saisis), solde cumulé en courbe ; solde, entrées et sorties dans le titre. Lit `v_artist_monthly_cashflow` par `load_cashflow`, filtré par la période commune. La prévision 6 mois de R488 est retirée : le point mort daté vit dans la vue croisée."
 src/dashboard/views/imusician.py::render_break_even#1:
   q: "Mes revenus cumulés rattrapent-ils mes dépenses cumulées — et quand ?"
   decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
