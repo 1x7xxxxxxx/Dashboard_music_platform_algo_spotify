@@ -3992,9 +3992,9 @@
     les barres rouges conseillées'
   type: action-produit
   domaine: onboarding
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R515
+  preuve_statut: R515 (archivée) — 6ad3f9a4
 - ligne: 20
   source: revue/notes-vocales-2026-10-11.md
   note: X4

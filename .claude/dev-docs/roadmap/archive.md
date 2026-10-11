@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R515 — Figures d'exemple (X3 II, reprises par l'Aperçu X10 II) : (1) « toutes tes données » —… (livrée 2026-10-11)
+
+- [x] **R515 — Figures d'exemple (X3 II, reprises par l'Aperçu X10 II) : (1) « toutes tes données » — courbe de CPR (~0,20-0,25 €, oscillante) superposée à la bande Meta € sur son axe ; (2) « tes chances » — bosse Release Radar APRÈS le déclenchement, mesuré en trait plein et prédit en pointillé ; (3) « optimise ton budget » — les barres hachurées rouges « conseillé » retirées, remplacées par deux annotations « couper à l'entrée en Discover Weekly » / « relancer avant la fenêtre Radio ». **Décision prise** : ces annotations suivent les fenêtres du modèle (`_verdict.py` : DW 35-90 j) et l'image reste étiquetée « exemple »** (P3) ✅ (2026-10-11, 6ad3f9a4)
+  Mesuré par : 3 PNG régénérés et relus (règle « un schéma se vérifie en le regardant »)
+  Livré 6ad3f9a4, CI verte (run 38102881705), déployé (PNG identique en prod). 3 PNG régénérés et relus : CPR sur la bande Meta, prévision mesurée/prévue avec bosse RR, conseils posés sur _PHASES. 4 mutations vues rouges.
+  Commits : 6ad3f9a4 R515 : figures d'exemple — CPR (0,20-0,25 €) superposé à la bande Meta
+
 ## ✅ R514 — Mon compte / Facturation (X12 II) — la date de repassage en Free est **toujours dite**… (livrée 2026-10-11)
 
 - [x] **R514 — Mon compte / Facturation (X12 II) — la date de repassage en Free est **toujours dite** : quand rien ne finit (renouvellement automatique, accès accordé à la main, promo sans échéance) la ligne le dit (« Premium sans date de fin — … ») au lieu de se taire ; le faux « essai de bienvenue » d'un accès accordé à la main est corrigé ; bouton « Mon plan » → Facturation ; bouton principal rouge « 💳 Payer / prolonger mon abonnement » en Facturation, qui mène au chemin de paiement EXISTANT (Stripe ou mailto) — aucun appel Stripe neuf. **Décision prise** : dire « sans date de fin » plutôt qu'inventer une date** (P3) ✅ (2026-10-11, 79efc397)

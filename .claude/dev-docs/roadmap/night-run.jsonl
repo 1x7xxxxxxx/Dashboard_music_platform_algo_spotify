@@ -813,3 +813,6 @@
 {"at": "2026-10-11T01:02:39+00:00", "head": "b582f36d", "kind": "done", "task": "R513", "what": ""}
 {"at": "2026-10-11T01:06:05+00:00", "head": "b582f36d", "kind": "start", "task": "R514", "what": ""}
 {"at": "2026-10-11T01:30:30+00:00", "kind": "done", "task": "R514", "what": "fermée par roadmap-close — Livré 79efc397, CI verte (run 38101854945), déployé. Prod : 2/2 locataires premium ont leur phrase (artiste 1 « accordé à la main, sans échéance » — muet avant ; 18 « jusqu'au 17/10/2026 »). 4 mutations vues rouges."}
+{"at": "2026-10-11T01:35:36+00:00", "head": "b2b34d19", "kind": "done", "task": "R514", "what": ""}
+{"at": "2026-10-11T01:35:40+00:00", "head": "b2b34d19", "kind": "start", "task": "R515", "what": ""}
+{"at": "2026-10-11T01:48:55+00:00", "kind": "done", "task": "R515", "what": "fermée par roadmap-close — Livré 6ad3f9a4, CI verte (run 38102881705), déployé (PNG identique en prod). 3 PNG régénérés et relus : CPR sur la bande Meta, prévision mesurée/prévue avec bosse RR, conseils posés sur _PHASES. 4 mutations vues rouges."}
