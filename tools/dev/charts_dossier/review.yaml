@@ -91,18 +91,18 @@ src/dashboard/views/sacem.py::render_section#1:
   owner_v: garder
   owner: "Demandé par le propriétaire (V79) : un graphique au lieu des tuiles brut / charges / net."
   note: "R488 (W11, 2026-10-09 : « camembert ») : la cascade R389 devient un anneau — retenues / déjà viré / à virer, le brut dans le titre. Trois montants, une seule question : la part. Le net reste sa propre lecture (vue nette), jamais brut − retenues. Regardé le 2026-10-09 sur l'artiste 1 : 43,06 € brut, 6,57 retenues, 36,49 viré."
-src/dashboard/views/apple_music.py::_render_song_series#1:
-  q: "Ce titre gagne-t-il encore des écoutes Apple / Shazam ?"
-  decision: "Voir si un titre gagne encore Apple et Shazam, signe qu'une campagne peut encore le porter."
-  decision_en: "See whether a track still gains Apple and Shazam plays, a sign a campaign can still carry it."
+src/dashboard/views/apple_music.py::_render_shazam_rate#1:
+  q: "Quel titre les gens cherchent-ils le plus après l'avoir entendu ?"
+  decision: "Pousser en pub le titre qui se fait le plus Shazamer pour 1 000 écoutes."
+  decision_en: "Push in ads the track that gets the most Shazams per 1,000 plays."
   role: plateforme
-  d: 3
+  d: 4
   c: 4
   p: 3
   v: garder
   owner_v: garder
-  owner: "On garde."
-  note: "Trois relevés en un an — honnête sur la rareté de la donnée ; le « gagné entre deux relevés » est la bonne lecture."
+  owner: "R518 (X7 II, 2026-10-11) : remplace « Le rythme d'un titre », qui ne menait à aucune décision."
+  note: "Cumul de vie, pas 30 jours : relevés Apple espacés de 12 à 179 j. Titres sous 100 écoutes non classés (53 Shazams sur 30 écoutes = bruit). Regardé le 2026-10-11 sur l'artiste 1."
 src/dashboard/views/apple_music.py::render_shazam_launches#1:
   q: "Ma dernière sortie se fait-elle Shazamer plus vite que la précédente ?"
   decision: "Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche."

@@ -46,6 +46,11 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/apple_music.py::show#1",
+               "src/dashboard/views/apple_music.py::_render_shazam_rate#1"}):
+        ("faux doublon — le top 10 en volumes (streams, Shazams) vs le RAPPORT Shazams pour "
+         "1 000 écoutes : quel titre est le plus écouté, et lequel se fait le plus chercher "
+         "(R518, regardé le 2026-10-11)", frozenset()),
     frozenset({"src/dashboard/views/youtube.py::_videos_section#1",
                "src/dashboard/views/youtube.py::_videos_section#2"}):
         ("faux doublon — le top 10 en vues et likes côte à côte vs la concentration des vues "

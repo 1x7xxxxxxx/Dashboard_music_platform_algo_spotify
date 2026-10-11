@@ -1,9 +1,9 @@
 """Apple Music — ce que le catalogue a gagné, et sur combien de jours.
 
 Type: Feature
-Uses: view_session, entity_period_filter, platform_colors, i18n,
+Uses: view_session, platform_colors, i18n,
       utils.apple_launches (R351 — two releases aligned on J0)
-Depends on: v_apple_song_cumulative / v_apple_song_daily (131),
+Depends on: v_apple_song_cumulative (131),
             apple_songs_performance, gold_apple_lifetime (103/113/114),
             track_release_reference (release dates = J0)
 Persists in: — (lecture seule)
@@ -42,6 +42,12 @@ Deux choses mesurées, aucune inférée :
 
 La question « et sur combien de jours ? » devient donc une information de la
 figure, au lieu d'être le motif qui faisait jeter la ligne.
+
+R518 (2026-10-11, owner X7 II) : CETTE FIGURE EST RETIRÉE. Même devenue un rythme
+par 30 jours (R484), elle ne menait à aucune décision. À la place, un classement :
+« Shazams pour 1 000 écoutes », un titre par barre — le titre que les gens CHERCHENT
+après l'avoir entendu est celui à pousser en pub. Cumul de vie, pas 30 jours : les
+relevés Apple sont espacés de 12 à 179 jours, une fenêtre de 30 jours serait vide.
 """
 import pandas as pd
 import streamlit as st
@@ -51,8 +57,6 @@ from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.release_picker import release_picker
-from src.dashboard.utils.filters import EntitySpec, entity_period_filter
-from src.dashboard.utils.ui import say_why_it_is_empty
 
 
 # R289 — the latest level of each title, from the gold view, then the 10 MOST PLAYED. The
@@ -112,86 +116,15 @@ def show():
                                                   _total(total_shazams)), width="stretch")
 
             # ============================================================
-            # 3. DEUX SORTIES, UNE HORLOGE (R351)
+            # 3. QUEL TITRE POUSSER (R518, owner X7 II)
             # ============================================================
-            # Les sorties, la plus récente d'abord — UNE lecture, servie à la
-            # comparaison ci-dessous ET à la présélection de la série d'un titre.
-            # R476 (W7) : « Shazam depuis la sortie » + Meta moved to the cross view
-            # (section « Sorties »). The launches still pick the series default below.
-            launches = _launches(db, artist_id)
-
-            # ============================================================
-            # 4. GRAPHIQUE DYNAMIQUE (CALCUL DIFFÉRENTIEL)
-            # ============================================================
-            # « Quotidienne » est parti du titre le 2026-09-21 : les relevés Apple sont
-            # espacés de 12 à 179 jours chez le locataire 1, et promettre un quotidien
-            # qu'on ne mesure pas est ce qui a fait jeter 100 % des points.
-            st.subheader(t("apple_music.daily_growth",
-                           "📈 Le rythme d'un titre"))
-
-            # LA DERNIÈRE SORTIE, D'OFFICE — et elle lit la vue OR.
-            #
-            # La version d'avant interrogeait `apple_songs_history`, la table que
-            # rien n'écrit : pour un artiste dont les seuls imports sont récents,
-            # la liste était VIDE et aucune présélection n'avait lieu. Le défaut
-            # de la page (mauvaise table) se propageait jusqu'à son confort.
-            #
-            # Apple n'expose pas de date de sortie : on passe par la référence
-            # canonique (`track_release_reference`, nourrie par les dates S4A),
-            # titre Apple → match_key → release_date, passée en `preferred_default`
-            # (R478 : plus d'écriture directe en session, le filtre commun décide).
-
-            selected_song, window = entity_period_filter(
-                db,
-                spec=EntitySpec("v_apple_song_cumulative", "song_name", "day",
-                                multi=False, default_count=1),
-                artist_id=artist_id, key_prefix="apple_daily",
-                preferred_default=launches[0].song if launches else None,
-                label=t("apple_music.song_select",
-                        "🔍 Chanson (dernière sortie par défaut)"),
-            )
-            selected_songs = [selected_song] if selected_song else []
-
-            if selected_songs:
-                frag, frag_params = window.sql_between("day")
-                df_daily = db.fetch_df(f"""
-                    SELECT day, song_name, plays, shazam_count,
-                           daily_plays, daily_shazams, days_since_previous
-                      FROM v_apple_song_daily
-                     WHERE artist_id = %s AND song_name = %s {frag}
-                     ORDER BY day
-                """, (artist_id, selected_songs[0], *frag_params))
-
-                if not df_daily.empty:
-                    _render_song_series(df_daily, selected_songs[0], window)
-                else:
-                    # DEUX SILENCES, DEUX GESTES OPPOSÉS. « Rien dans cette
-                    # fenêtre » fait ÉLARGIR ; « aucun relevé » fait IMPORTER.
-                    # Envoyer l'artiste chercher le mauvais geste est le coût réel
-                    # de la confusion — et c'est exactement ce qui lui est arrivé
-                    # le 2026-09-21, avec en plus une date qui venait d'une table
-                    # morte. On relit donc la série SANS la fenêtre.
-                    _hors = db.fetch_df(
-                        "SELECT MAX(day) AS last FROM v_apple_song_cumulative "
-                        "WHERE artist_id = %s AND song_name = %s",
-                        (artist_id, selected_songs[0]))
-                    _last = None if _hors.empty else _hors.iloc[0]["last"]
-                    say_why_it_is_empty(
-                        _last, window,
-                        empty_window=t(
-                            "apple_music.nothing_in_window",
-                            "Aucun relevé Apple Music pour **{song}** sur cette "
-                            "période. Le dernier date du **{last}** — élargis la "
-                            "fenêtre, ou dépose un export plus récent."
-                        ).format(song=selected_songs[0],
-                                 last="—" if _last is None else _last),
-                        no_history=t(
-                            "apple_music.not_enough_history",
-                            "📉 Un seul relevé pour ce titre : il faut deux dépôts "
-                            "d'export pour mesurer un gain."))
-            else:
-                st.info(t("apple_music.select_prompt",
-                          "👈 Sélectionnez une chanson — ou importez des CSV Apple Music plusieurs jours de suite."))
+            # « Le rythme d'un titre » (R484) is gone: two bars per reading for ONE
+            # title led to no decision. A Shazam is someone SEARCHING the title after
+            # hearing it — the title with the most Shazams per 1 000 plays is the one
+            # an ad would carry furthest.
+            df_all = db.fetch_df(LATEST_QUERY, (artist_id,))
+            if not df_all.empty:
+                _render_shazam_rate(df_all)
 
         except Exception as e:
             st.error(t("apple_music.error", "❌ Erreur : {err}").format(err=e))
@@ -239,82 +172,63 @@ def _top10_figure(df_top, total_plays: str = "—", total_shazams: str = "—"):
     return fig
 
 
-def rate_per_30_days(gains: "pd.Series", days: "pd.Series") -> "pd.Series":
-    """A gain between two readings, as a pace per 30 days. Pure (R484).
+# R518 — every title's latest cumulative level, for the Shazam rate ranking.
+LATEST_QUERY = """
+    SELECT DISTINCT ON (song_name) song_name, plays, shazam_count
+      FROM v_apple_song_cumulative
+     WHERE artist_id = %s
+     ORDER BY song_name, day DESC
+"""
 
-    Comparable across intervals of 12 and 179 days, which raw gains are not; the hover keeps
-    the raw gain and its duration, so the average is never mistaken for a daily count."""
-    import pandas as pd
-
-    d = pd.to_numeric(days, errors="coerce")
-    return (pd.to_numeric(gains, errors="coerce") / d.where(d > 0) * 30).round(0)
-
-
-def pace_verdict(rates: "pd.Series") -> str:
-    """« accélère / ralentit / stable » from the last two paces; "" below two. Pure (R484)."""
-    r = rates.dropna()
-    if len(r) < 2:
-        return ""
-    if r.iloc[-2] <= 0:
-        return t("apple_music.pace_start", "↗ démarre") if r.iloc[-1] > 0 else ""
-    change = r.iloc[-1] / r.iloc[-2] - 1
-    if change > 0.10:
-        return t("apple_music.pace_up", "↗ accélère ({p:+.0%})").format(p=change)
-    if change < -0.10:
-        return t("apple_music.pace_down", "↘ ralentit ({p:+.0%})").format(p=change)
-    return t("apple_music.pace_flat", "→ stable")
+# Below this many Apple plays a rate is noise : 53 Shazams on 30 plays reads 1 767 / 1 000
+# (artist 1, 2026-10-11). Those titles are named under the figure, never ranked.
+MIN_PLAYS = 100
 
 
-def _render_song_series(df, song: str, window) -> None:
-    """The pace of one title between readings — and whether it speeds up (R484).
+def shazams_per_thousand(df: pd.DataFrame, min_plays: int = MIN_PLAYS) -> pd.DataFrame:
+    """(song_name, plays, shazam_count, rate) ranked by Shazams per 1 000 Apple plays,
+    highest first ; titles under `min_plays` are left out. Pure (R518)."""
+    out = df.assign(plays=pd.to_numeric(df["plays"], errors="coerce"),
+                    shazam_count=pd.to_numeric(df["shazam_count"], errors="coerce"))
+    out = out[(out["plays"] >= min_plays) & out["shazam_count"].notna()].copy()
+    out["rate"] = (out["shazam_count"] / out["plays"] * 1000).round(0)
+    return out.sort_values("rate", ascending=False).reset_index(drop=True)
 
-    Owner W7 II : « je ne comprends pas quelle décision prendre → redesign ». The cumulative
-    curve and the raw gains (« +36 / 179 j ») only said that a title grew. The decision is
-    whether to push it again: each interval becomes a pace per 30 days, comparable across
-    readings 12 or 179 days apart, and the title states the verdict from the last two paces.
-    Streams and Shazams keep two panels: their orders of magnitude are not comparable.
-    """
-    from plotly.subplots import make_subplots
 
+def _render_shazam_rate(df_all: pd.DataFrame) -> None:
+    """Which title to push : Shazams per 1 000 plays, one bar per title (R518)."""
     from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 
-    apple = PALETTE_LIGHT["apple"]
-    gains = df[df["daily_plays"].notna()].copy()
-    gains["plays_pace"] = rate_per_30_days(gains["daily_plays"], gains["days_since_previous"])
-    gains["shazam_pace"] = rate_per_30_days(gains["daily_shazams"],
-                                            gains["days_since_previous"])
-    if gains["plays_pace"].dropna().empty:
-        st.info(t("apple_music.not_enough_history",
-                  "📉 Un seul relevé pour ce titre : il faut deux dépôts "
-                  "d'export pour mesurer un gain."))
+    ranked = shazams_per_thousand(df_all)
+    st.subheader(t("apple_music.shazam_rate_header", "🎯 Le titre à pousser"))
+    if ranked.empty:
+        st.info(t("apple_music.shazam_rate_empty",
+                  "Aucun titre n'a encore {n} écoutes Apple : le taux serait du bruit."
+                  ).format(n=MIN_PLAYS))
         return
-    fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.14, row_heights=[0.6, 0.4],
-        subplot_titles=[t("apple_music.pace_plays", "Écoutes / 30 jours"),
-                        t("apple_music.pace_shazams", "Shazams / 30 jours")])
-    hover = t("apple_music.pace_hover",
-              "≈ %{y:,.0f} / 30 j<br>+%{customdata[0]:,.0f} sur %{customdata[1]} j"
-              "<extra></extra>")
-    days = pd.to_numeric(gains["days_since_previous"], errors="coerce").fillna(1)
-    mid = pd.to_datetime(gains["day"]) - pd.to_timedelta(days / 2, unit="D")
-    span_ms = (days * 86_400_000 * 0.96).tolist()
-    for row, pace, raw, opacity in ((1, "plays_pace", "daily_plays", 0.9),
-                                    (2, "shazam_pace", "daily_shazams", 0.5)):
-        # Each bar spans ITS interval, from the previous reading to this one: the pace
-        # holds over those days, not on the reading date.
-        fig.add_trace(go.Bar(
-            x=mid, width=span_ms, y=gains[pace], marker_color=apple, opacity=opacity,
-            text=[num(v, 0) if v == v else "" for v in gains[pace]],
-            textposition="outside", cliponaxis=False,
-            customdata=gains[[raw, "days_since_previous"]].values,
-            hovertemplate=hover, showlegend=False), row=row, col=1)
-        top = gains[pace].max()
-        fig.update_yaxes(range=[0, (top if top == top and top > 0 else 1) * 1.25],
-                         row=row, col=1)
-    verdict = pace_verdict(gains["plays_pace"])
-    fig.update_layout(height=520, margin=dict(t=90),
-                      title_text=" · ".join(x for x in (song, verdict, window.label) if x))
+    df = ranked.iloc[::-1]            # plotly draws bottom-up : the best on top
+    fig = go.Figure(go.Bar(
+        y=df["song_name"], x=df["rate"], orientation="h",
+        marker_color=PALETTE_LIGHT["apple"],
+        text=[num(v, 0) for v in df["rate"]], textposition="outside", cliponaxis=False,
+        customdata=df[["shazam_count", "plays"]].values,
+        hovertemplate=t("apple_music.shazam_rate_hover",
+                        "%{y}<br>%{x:,.0f} Shazams / 1 000 écoutes<br>"
+                        "%{customdata[0]:,.0f} Shazams · %{customdata[1]:,.0f} écoutes"
+                        "<extra></extra>")))
+    fig.update_xaxes(range=[0, float(df["rate"].max() or 1) * 1.25], nticks=4)
+    fig.update_yaxes(automargin=True)
+    fig.update_layout(
+        height=max(260, 34 * len(df) + 90), showlegend=False, margin=dict(l=10, r=30, t=60),
+        title_text=t("apple_music.shazam_rate_title",
+                     "Shazams pour 1 000 écoutes — {song} se fait le plus chercher"
+                     ).format(song=ranked.iloc[0]["song_name"]))
     charts.plotly_chart(fig, width="stretch")
+    left_out = len(df_all) - len(ranked)
+    if left_out:
+        st.caption(t("apple_music.shazam_rate_left_out",
+                     "{n} titre(s) sous {m} écoutes Apple, non classés.")
+                   .format(n=left_out, m=MIN_PLAYS))
 
 
 def _launches(db, artist_id: int) -> list:

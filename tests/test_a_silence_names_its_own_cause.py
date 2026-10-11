@@ -108,10 +108,12 @@ def _views_claiming_youth() -> list[str]:
 def test_the_population_is_not_empty() -> None:
     """Anti-vacuité : sans vue concernée, tout ce fichier est vert sur rien."""
     views = _views_claiming_youth()
-    assert len(views) >= 2, (
+    # R518 (2026-10-11) : `apple_music.py` left the population on purpose — its one
+    # windowed per-title series was replaced by a lifetime ranking. Floor lowered to 1.
+    assert len(views) >= 1, (
         f"seulement {len(views)} vue(s) réunissent « message d'historique » et "
         "« requête fenêtrée » — il y en avait 2 le 2026-09-17 (`home.py`, "
-        "`apple_music.py`). Soit les clés i18n ont changé de nom, soit le prédicat "
+        "`apple_music.py`), 1 depuis R518 (`instagram.py`). Soit les clés i18n ont changé de nom, soit le prédicat "
         "est cassé ; dans les deux cas le test d'à côté ne garde plus rien.")
 
 

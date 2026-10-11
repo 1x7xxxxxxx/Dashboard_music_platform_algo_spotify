@@ -39,7 +39,7 @@ src/dashboard/views/apple_music.py::show#1:
   - qui: moi
     texte: Chaque fiche à corriger dit quoi corriger
     rid: R286
-src/dashboard/views/apple_music.py::_render_song_series#1:
+src/dashboard/views/apple_music.py::_render_shazam_rate#1:
   valide: true
   actions: []
 src/dashboard/views/soundcloud.py::_render_catalog_series#1:

@@ -1,22 +1,15 @@
 """EN strings for the Apple Music view."""
 
 EN = {
+    "apple_music.shazam_rate_header": "🎯 The track to push",
+    "apple_music.shazam_rate_empty": "No track has {n} Apple plays yet: the rate would be noise.",
+    "apple_music.shazam_rate_hover": "%{y}<br>%{x:,.0f} Shazams / 1,000 plays<br>%{customdata[0]:,.0f} Shazams · %{customdata[1]:,.0f} plays<extra></extra>",
+    "apple_music.shazam_rate_title": "Shazams per 1,000 plays — {song} gets searched the most",
+    "apple_music.shazam_rate_left_out": "{n} track(s) under {m} Apple plays, not ranked.",
     "apple_music.top10_title": "Top 10 — cumulative streams · total {n}",
     "apple_music.top_hover": '%{y}<br>Streams: %{x:,.0f}<br>⚡ Shazams: %{customdata[0]:,.0f}<extra></extra>',
     "apple_music.shazams_title": "⚡ Shazams · total {n}",
     "apple_music.shazams_hover": "%{y}<br>⚡ Shazams: %{x:,.0f}<extra></extra>",
-    "apple_music.pace_up": "↗ speeding up ({p:+.0%})",
-    "apple_music.pace_down": "↘ slowing down ({p:+.0%})",
-    "apple_music.pace_start": "↗ taking off",
-    "apple_music.pace_flat": "→ steady",
-    "apple_music.pace_plays": "Streams / 30 days",
-    "apple_music.pace_shazams": "Shazams / 30 days",
-    "apple_music.pace_hover": "≈ %{y:,.0f} / 30 d<br>+%{customdata[0]:,.0f} over %{customdata[1]} d<extra></extra>",
-    "apple_music.daily_growth": "📈 A title's pace",
-    "apple_music.song_select": "🔍 Track (latest release by default)",
-    "apple_music.nothing_in_window": "No Apple Music reading for **{song}** over this window. The latest one is from **{last}** — widen the window, or drop a more recent export.",
-    "apple_music.not_enough_history": "📉 Only one reading for this track: it takes two export drops to measure a gain.",
-    "apple_music.select_prompt": "👈 Select a song — or import Apple Music CSVs several days in a row.",
     "apple_music.error": "❌ Error: {err}",
     # La série d'un titre — cumul en haut, gain entre relevés en bas (2026-09-21).
     # R351 — deux sorties alignées sur J0 (2026-10-04).
