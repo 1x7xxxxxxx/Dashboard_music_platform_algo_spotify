@@ -115,45 +115,60 @@ def _utc(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=timezone.utc)
 
 
-def premium_end_from_row(row, now: datetime | None = None) -> datetime | None:
-    """The date premium falls back to free, or None when it does not end. Pure (R489).
+def premium_horizon_from_row(row, now: datetime | None = None
+                             ) -> tuple[datetime | None, str | None]:
+    """`(end, why)` — when premium falls back to free, and why. Pure (R489, R514).
 
     Owner W12 (2026-10-09) : « afficher la date à laquelle le plan premium repasse en
     free ». Premium ends only when EVERY source that grants it ends : a promo with an
-    expiry, a Stripe subscription set to cancel at the end of its period. A source
-    without an end — a renewing subscription, a promo without expiry, the legacy
-    `tier` — keeps premium on, and the answer is None. Same precedence as
-    `plan_from_row`, so the date never contradicts the plan shown beside it.
+    expiry, a Stripe subscription set to cancel at the end of its period. Same
+    precedence as `plan_from_row`, so the date never contradicts the plan shown beside it.
+
+    `why` is `'ends'` (a date), or the source that keeps premium on with NO end —
+    `'renews'` (a renewing subscription), `'promo_open'` (a promo without expiry),
+    `'granted'` (the legacy `tier`, set by hand) — or None when premium is not on.
+    R514 (X12, 2026-10-11) : the page states the open case instead of falling silent.
     """
     from src.database.stripe_schema import normalize_plan
     if not row:
-        return None
+        return None, None
     now = now or datetime.now(timezone.utc)
     promo_plan, promo_expires, sub_plan, period_end, cancel_at_end, tier = row
     # `current_period_end` is a naive timestamp (UTC by Stripe's convention),
     # `promo_plan_expires_at` an aware one : compared raw, `max` would raise.
     promo_expires, period_end = _utc(promo_expires), _utc(period_end)
-    ends = []
-    if promo_plan and normalize_plan(promo_plan) == "premium" and (
-            promo_expires is None or promo_expires > now):
-        ends.append(promo_expires)
+    sources: list[tuple[datetime | None, str]] = []
     if sub_plan and normalize_plan(sub_plan) == "premium":
-        ends.append(period_end if cancel_at_end else None)
+        sources.append((period_end, "ends") if cancel_at_end else (None, "renews"))
     elif tier and normalize_plan(tier) == "premium":
         # `plan_from_row` falls back to the legacy tier when no subscription runs :
         # premium from there has no end date.
-        ends.append(None)
-    if not ends:
-        return None
-    if any(e is None for e in ends):
-        return None
-    return max(ends)
+        sources.append((None, "granted"))
+    if promo_plan and normalize_plan(promo_plan) == "premium" and (
+            promo_expires is None or promo_expires > now):
+        sources.append((promo_expires, "ends" if promo_expires else "promo_open"))
+    if not sources:
+        return None, None
+    for end, why in sources:
+        if end is None:
+            return None, why
+    return max(end for end, _ in sources), "ends"
+
+
+def premium_end_from_row(row, now: datetime | None = None) -> datetime | None:
+    """The date premium falls back to free, or None when it does not end (R489)."""
+    return premium_horizon_from_row(row, now)[0]
+
+
+def premium_horizon(db, artist_id: int) -> tuple[datetime | None, str | None]:
+    """`premium_horizon_from_row` for one tenant, from a live DB handle."""
+    rows = db.fetch_query(_PREMIUM_END_SQL, (artist_id,))
+    return premium_horizon_from_row(rows[0] if rows else None)
 
 
 def premium_end(db, artist_id: int) -> datetime | None:
     """`premium_end_from_row` for one tenant, from a live DB handle."""
-    rows = db.fetch_query(_PREMIUM_END_SQL, (artist_id,))
-    return premium_end_from_row(rows[0] if rows else None)
+    return premium_horizon(db, artist_id)[0]
 
 
 def has_capability(db, artist_id: int, capability: str) -> bool:

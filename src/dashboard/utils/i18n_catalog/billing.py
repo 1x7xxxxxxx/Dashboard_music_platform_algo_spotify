@@ -32,8 +32,14 @@ EN = {
     "billing.feat_everything_free": "Everything in Free",
     # Current plan
     "billing.premium_until": "Premium until **{date}**, then Free.",
-    "billing.trial_active": "🎁 **{plan}** access active (welcome trial). "
-                            "See the offers below for what comes next.",
+    "billing.premium_renews": ("Premium **with no end date** — your subscription renews "
+                               "every month until you cancel it."),
+    "billing.premium_promo_open": "Premium **with no end date** — access offered with no expiry.",
+    "billing.premium_granted": ("Premium **with no end date** — access granted by hand by "
+                                "the streaMLytics team, with no expiry."),
+    "billing.offer_active": "🎁 **{plan}** access offered. See the offers below for what comes next.",
+    "billing.granted_active": "🤝 **{plan}** access granted by the streaMLytics team.",
+    "billing.pay_extend": "💳 Pay / extend my subscription",
     "billing.status_active": "Active",
     "billing.status_trialing": "Trial",
     "billing.status_past_due": "Payment overdue",

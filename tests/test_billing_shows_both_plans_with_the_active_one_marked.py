@@ -78,7 +78,14 @@ def test_the_service_button_sits_between_the_plans_and_the_offers() -> None:
     at = _render("free")
     service = next(i for i, b in enumerate(at.button)
                    if "Faire piloter mes campagnes" in b.label)
-    assert service == 0, [b.label for b in at.button]
+    # R514 (X12): the red « 💳 Payer / prolonger » control sits right under the plans —
+    # a button, or a link button when Stripe is configured.
+    pay = [w for w in [*at.button, *at.get("link_button")]
+           if "Payer / prolonger" in w.proto.label]
+    assert len(pay) == 1, [b.label for b in at.button]
+    assert pay[0].proto.type == "primary"
+    walked = list(_walk(at._tree))
+    assert walked.index(pay[0]) < walked.index(at.button[service])
     offers = [s.value for s in at.subheader]
     assert offers and offers[0] == "Nos offres", offers
     first_card = next(m for m in at.markdown if m.value.startswith("### "))

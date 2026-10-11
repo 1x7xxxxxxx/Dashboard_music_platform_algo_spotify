@@ -162,12 +162,34 @@ def _render_plan_status(current_plan: str, status: str | None) -> None:
 
 
 def _show_premium_end(db, artist_id: int) -> None:
-    """The date premium falls back to free — nothing when it does not end (R489, W12)."""
-    from src.utils.plan_resolver import premium_end
-    end = premium_end(db, artist_id)
-    if end is not None:
-        st.info(t("billing.premium_until",
-                  "Premium jusqu'au **{date}**, puis Free.").format(date=format_date(end)))
+    """When premium falls back to free — ALWAYS said while premium is on (R489, R514)."""
+    from src.dashboard.utils.premium_end import premium_end_line
+    line = premium_end_line(db, artist_id)
+    if line is not None:
+        st.info(line)
+
+
+def _render_pay_button(customer_id: str | None) -> None:
+    """« 💳 Payer / prolonger » — the EXISTING payment path, no new Stripe call (R514).
+
+    A Stripe customer extends through the portal; anyone else goes to the checkout link
+    carrying the tenant (R40), or — no Stripe configured — to the service address.
+    """
+    label = t("billing.pay_extend", "💳 Payer / prolonger mon abonnement")
+    portal_url = os.getenv("STRIPE_PORTAL_URL", "")
+    checkout_url = os.getenv("STRIPE_CHECKOUT_URL", "")
+    artist_id = tenant_scope()
+    if customer_id and portal_url:
+        st.link_button(label, portal_url, type="primary")
+    elif checkout_url and artist_id:
+        st.link_button(label, f"{checkout_url}?client_reference_id={artist_id}",
+                       type="primary")
+    elif st.button(label, type="primary", key="billing_pay_extend"):
+        from src.database.stripe_schema import SERVICE_CONTACT_EMAIL
+        st.info(t("billing.payment_soon",
+                  "💳 Le paiement en ligne arrive bientôt. En attendant, écris-nous à "
+                  "[{email}](mailto:{email}) pour activer ce plan dès maintenant.")
+                .format(email=SERVICE_CONTACT_EMAIL))
 
 
 def _show_current_plan(db, artist_id: int, current_plan: str):
@@ -185,17 +207,22 @@ def _show_current_plan(db, artist_id: int, current_plan: str):
     )
 
     if not row:
-        # No subscription row → free plan, or an active promo trial.
-        trial = current_plan != 'free'
-        _render_plan_status(current_plan, 'trialing' if trial else 'active')
-        if trial:
-            st.success(
-                t("billing.trial_active",
-                  "🎁 Accès **{plan}** actif (essai de bienvenue). "
-                  "Voir les offres ci-dessous pour la suite.").format(
-                      plan=current_plan.capitalize())
-            )
+        # No subscription row → free plan, an offered access (welcome trial, promo
+        # code), or one granted by hand — R514: the last is no « essai de bienvenue ».
+        offered = current_plan != 'free'
+        from src.utils.plan_resolver import premium_horizon
+        granted = offered and premium_horizon(db, artist_id)[1] == "granted"
+        _render_plan_status(current_plan, 'trialing' if offered and not granted else 'active')
+        if offered:
+            plan = current_plan.capitalize()
+            st.success(t("billing.granted_active",
+                         "🤝 Accès **{plan}** accordé par l'équipe streaMLytics.").format(plan=plan)
+                       if granted else
+                       t("billing.offer_active",
+                         "🎁 Accès **{plan}** offert. Voir les offres ci-dessous pour la "
+                         "suite.").format(plan=plan))
             _show_premium_end(db, artist_id)
+        _render_pay_button(None)
         return
 
     _, _, status, period_end, cancel_at_end, customer_id, _ = row[0]
@@ -203,6 +230,7 @@ def _show_current_plan(db, artist_id: int, current_plan: str):
     if not cancel_at_end:
         # A cancelling subscription already says its end in `billing.cancel_warning`.
         _show_premium_end(db, artist_id)
+    _render_pay_button(customer_id)
 
     free_months_row = db.fetch_query(
         "SELECT referral_free_months FROM saas_artists WHERE id = %s", (artist_id,)
