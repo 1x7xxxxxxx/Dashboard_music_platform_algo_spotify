@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R519 — Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seu… (livrée 2026-10-11)
+
+- [x] **R519 — Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seule figure du flux d'argent mensuel depuis `v_artist_monthly_cashflow` — revenus distributeurs et SACEM en barres positives, coût Meta Ads en barres négatives, solde cumulé en courbe ; le donut SACEM y entre comme série. Libellé de menu et titre renommés, route inchangée. **Décision prise** : « Trésorerie » (le mot du propriétaire)** (P3) ✅ (2026-10-11, d14cd24c, 9f82bb75, 3ffcc707)
+  Mesuré par : SACEM et Meta visibles sur la même figure que les distributeurs
+  Livré d14cd24c, CI verte (run 38108938721), déployé dc2402d2 ; prod : 68 lignes artiste 1, 5 séries (SACEM, iMusician, Distribution, Publicité Meta, Solde cumulé), « Solde -3 163 € — 269 € entrés, 3 432 € sortis »
+  Commits : d14cd24c R519 : Distributeur → « 💶 Trésorerie (distributeurs, SACEM, Meta Ads)  · 9f82bb75 Roadmap : R519 périmètre élargi à tools/dev/charts_dossier/ (le regist · 3ffcc707 Roadmap : R512-R519 inscrites — retours vocaux X1-X12 du 2026-10-11 (t
+
 ## ✅ R518 — Apple « Le rythme d'un titre » (X7 II) : **décision prise — remplacé**. Deux barres par… (livrée 2026-10-11)
 
 - [x] **R518 — Apple « Le rythme d'un titre » (X7 II) : **décision prise — remplacé**. Deux barres par relevé pour un titre ne mènent à aucune décision ; à la place, un classement « Shazam pour 1 000 écoutes (30 j) » par titre : le titre que les gens CHERCHENT après l'avoir entendu est celui à pousser en pub** (P3) ✅ (2026-10-11, 37540338, d96afe60, 4e541b75)

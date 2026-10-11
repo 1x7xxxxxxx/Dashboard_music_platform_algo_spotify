@@ -4064,9 +4064,9 @@
   resume: 'Distributeur → Trésorerie : un seul flux d''argent avec SACEM et Meta Ads'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R519
+  preuve_statut: R519 (archivée) — d14cd24c
 - ligne: 54
   source: revue/notes-vocales-2026-10-11.md
   note: X12
