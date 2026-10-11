@@ -41,6 +41,8 @@ _ALLOWED_TABLES = frozenset({
     'meta_insights_engagement_adset_age',
     'youtube_channels', 'youtube_channel_history', 'youtube_videos',
     'youtube_video_stats', 'youtube_playlists', 'youtube_comments',
+    'youtube_analytics_video_window', 'youtube_analytics_channel_daily',
+    'youtube_analytics_traffic_daily',
     'apple_songs_performance', 'apple_daily_plays', 'apple_listeners', 'apple_songs_history',
     'hypeddit_campaigns', 'hypeddit_daily_stats',
     'subscription_plans', 'artist_subscriptions',

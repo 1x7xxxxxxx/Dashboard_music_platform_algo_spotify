@@ -114,6 +114,23 @@ _TABLES = [
         "SELECT * FROM youtube_video_stats WHERE artist_id = %s ORDER BY collected_at DESC",
         lambda aid: (aid,),
     ),
+    (
+        "youtube_analytics_video_window",
+        "SELECT * FROM youtube_analytics_video_window WHERE artist_id = %s "
+        "ORDER BY window_end DESC, video_id",
+        lambda aid: (aid,),
+    ),
+    (
+        "youtube_analytics_channel_daily",
+        "SELECT * FROM youtube_analytics_channel_daily WHERE artist_id = %s ORDER BY day DESC",
+        lambda aid: (aid,),
+    ),
+    (
+        "youtube_analytics_traffic_daily",
+        "SELECT * FROM youtube_analytics_traffic_daily WHERE artist_id = %s "
+        "ORDER BY day DESC, source_type",
+        lambda aid: (aid,),
+    ),
     # ── SoundCloud ───────────────────────────────────────────────────────
     (
         "soundcloud_tracks_daily",
@@ -269,7 +286,8 @@ SOURCE_GROUPS: dict[str, list[str]] = {
     "Spotify": ["tracks", "track_popularity_history"],
     "Apple Music": ["apple_songs_performance", "apple_songs_history"],
     "YouTube": ["youtube_channels", "youtube_channel_history", "youtube_videos",
-                "youtube_video_stats"],
+                "youtube_video_stats", "youtube_analytics_video_window",
+                "youtube_analytics_channel_daily", "youtube_analytics_traffic_daily"],
     "SoundCloud": ["soundcloud_tracks_daily"],
     "Instagram": ["instagram_daily_stats", "instagram_media", "instagram_media_insights"],
     "Meta Ads": ["meta_campaigns", "meta_adsets", "meta_ads",

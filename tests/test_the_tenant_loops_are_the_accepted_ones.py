@@ -29,6 +29,9 @@ ACCEPTED = frozenset({
     ("spotify_api_daily.py", "collect_spotify_artists"),
     ("spotify_api_daily.py", "collect_spotify_top_tracks"),
     ("youtube_daily.py", "collect_youtube_data"),
+    # R511: three reports per tenant, one OAuth refresh each — seconds, same shape as
+    # collect_youtube_data above; fan out with it, not alone.
+    ("youtube_daily.py", "collect_youtube_analytics"),
 })
 
 

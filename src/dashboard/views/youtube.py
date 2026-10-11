@@ -51,6 +51,7 @@ from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.labels import unique_short_labels
+from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
@@ -361,12 +362,94 @@ def _videos_section(db, artist_id: int) -> None:
         charts.plotly_chart(pace_figure(paced, top_n), width="stretch", pareto=False)
 
 
+def subscribers_by_video_figure(videos: pd.DataFrame, top: int = 10) -> go.Figure:
+    """R511 — net subscribers each video brought over the Analytics window (exact)."""
+    d = videos.assign(net=videos["subscribers_gained"] - videos["subscribers_lost"])
+    d = d.nlargest(top, "subscribers_gained").iloc[::-1]
+    fig = go.Figure(go.Bar(x=d["subscribers_gained"], y=_labels(d["title"].fillna(d["video_id"])),
+                           orientation="h", marker_color=_YT,
+                           customdata=d[["subscribers_lost", "net"]],
+                           hovertemplate=t("youtube.subs_by_video_hover",
+                                           "+%{x} gagnés · −%{customdata[0]} perdus · net %{customdata[1]}")
+                           + "<extra></extra>"))
+    fig.update_layout(title=t("youtube.subs_by_video_title",
+                              "Abonnés gagnés par vidéo — {days} derniers jours consolidés"
+                              ).format(days=int(videos["window_days"].iloc[0])),
+                      xaxis_title=t("youtube.subs_gained", "Abonnés gagnés"), showlegend=False)
+    return fig
+
+
+def watch_time_figure(daily: pd.DataFrame) -> go.Figure:
+    fig = go.Figure(go.Scatter(x=daily["day"], y=daily["minutes_watched"] / 60, mode="lines",
+                               line_color=_YT, name=t("youtube.hours_watched", "Heures vues")))
+    fig.update_layout(title=t("youtube.watch_time_title", "Durée de visionnage par jour"),
+                      yaxis_title=t("youtube.hours_watched", "Heures vues"), showlegend=False)
+    return fig
+
+
+def traffic_figure(traffic: pd.DataFrame) -> go.Figure:
+    pivot = traffic.pivot_table(index="day", columns="source_type", values="views",
+                                aggfunc="sum", fill_value=0)
+    order = pivot.sum().sort_values(ascending=False).index
+    names = _traffic_labels()
+    fig = go.Figure([go.Bar(x=pivot.index, y=pivot[s], name=names.get(s, s)) for s in order])
+    fig.update_layout(barmode="stack", yaxis_title=t("youtube.views", "Vues"),
+                      title=t("youtube.traffic_title", "D'où viennent les vues, jour par jour"))
+    return fig
+
+
+def _traffic_labels() -> dict:
+    """insightTrafficSourceType values, as an artist reads them (built per call: language)."""
+    return {"YT_SEARCH": t("youtube.src_search", "Recherche YouTube"),
+            "SUBSCRIBER": t("youtube.src_subscriber", "Abonnés"),
+            "RELATED_VIDEO": t("youtube.src_related", "Vidéos suggérées"),
+            "EXT_URL": t("youtube.src_external", "Liens externes"),
+            "PLAYLIST": t("youtube.src_playlist", "Playlists"),
+            "NOTIFICATION": t("youtube.src_notification", "Notifications"),
+            "SHORTS": t("youtube.src_shorts", "Shorts"),
+            "BROWSE": t("youtube.src_browse", "Accueil et navigation"),
+            "YT_CHANNEL": t("youtube.src_channel", "Page de la chaîne"),
+            "NO_LINK_OTHER": t("youtube.src_direct", "Accès direct"),
+            "YT_OTHER_PAGE": t("youtube.src_other_page", "Autres pages YouTube")}
+
+
+def _analytics_section(db, artist_id: int) -> None:
+    st.subheader(t("youtube.analytics_header", "🔑 YouTube Analytics — données exactes"))
+    daily = db.fetch_df("SELECT day, minutes_watched FROM youtube_analytics_channel_daily "
+                        "WHERE artist_id = %s ORDER BY day", (artist_id,))
+    if daily.empty:
+        st.info(t("youtube.analytics_missing",
+                  "Les abonnés gagnés par vidéo, la durée de visionnage et les sources de trafic "
+                  "demandent ton autorisation YouTube : écris-nous et nous t'enverrons le lien, "
+                  "à ouvrir avec le compte Google qui possède ta chaîne."))
+        return
+    videos = db.fetch_df("""
+        SELECT w.video_id, v.title, w.window_days, w.subscribers_gained, w.subscribers_lost
+        FROM youtube_analytics_video_window w
+        LEFT JOIN youtube_videos v ON v.artist_id = w.artist_id AND v.video_id = w.video_id
+        WHERE w.artist_id = %s AND (w.window_end, w.window_days) = (
+            SELECT window_end, window_days FROM youtube_analytics_video_window
+            WHERE artist_id = %s ORDER BY window_end DESC, window_days DESC LIMIT 1)
+    """, (artist_id, artist_id))
+    traffic = db.fetch_df("SELECT day, source_type, views FROM youtube_analytics_traffic_daily "
+                          "WHERE artist_id = %s ORDER BY day", (artist_id,))
+    # Below the channel and video charts: collapsed, so the page still opens on its budget.
+    with secondary_analyses(t("youtube.analytics_expander",
+                              "Abonnés par vidéo, durée de visionnage, sources de trafic")):
+        if not videos.empty:
+            charts.plotly_chart(subscribers_by_video_figure(videos), width="stretch", pareto=False)
+        charts.plotly_chart(watch_time_figure(daily), width="stretch")
+        if not traffic.empty:
+            charts.plotly_chart(traffic_figure(traffic), width="stretch")
+
+
 def show():
     # ⚠️ NI TITRE NI SOUS-TITRE (2026-09-21) : le titre répétait l'entrée de menu.
     with view_session() as (db, artist_id):
         try:
             _channel_section(db, artist_id)
             _videos_section(db, artist_id)
+            _analytics_section(db, artist_id)
         except Exception as e:
             st.error(t("youtube.error", "Erreur : {err}").format(err=e))
 

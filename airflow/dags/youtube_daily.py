@@ -292,6 +292,119 @@ def collect_youtube_data(**context):
         raise
 
 
+_REAUTHORIZE = 'tools/dev/youtube_analytics_authorize.py (runbook « YouTube Analytics »)'
+
+
+def persist_analytics(db, artist_id: int, data: dict) -> int:
+    """Upsert the three Analytics reports for ONE tenant; returns the row count.
+
+    Literal table names on purpose: the export and ON CONFLICT guards read them.
+    artist_id is in every conflict target and in no update list — a row never changes owner.
+    """
+    from datetime import datetime, timezone
+    stamp = {'artist_id': artist_id, 'collected_at': datetime.now(timezone.utc)}
+    window = {'window_end': data['window_end'], 'window_days': data['window_days']}
+    measures = ['views', 'minutes_watched', 'subscribers_gained', 'subscribers_lost',
+                'collected_at']
+    videos = [{**r, **stamp, **window} for r in data['videos']]
+    daily = [{**r, **stamp} for r in data['daily']]
+    traffic = [{**r, **stamp} for r in data['traffic']]
+    if videos:
+        db.upsert_many('youtube_analytics_video_window', videos,
+                       conflict_columns=['artist_id', 'video_id', 'window_end', 'window_days'],
+                       update_columns=measures)
+    if daily:
+        db.upsert_many('youtube_analytics_channel_daily', daily,
+                       conflict_columns=['artist_id', 'day'], update_columns=measures)
+    if traffic:
+        db.upsert_many('youtube_analytics_traffic_daily', traffic,
+                       conflict_columns=['artist_id', 'day', 'source_type'],
+                       update_columns=['views', 'minutes_watched', 'collected_at'])
+    rows = len(videos) + len(daily) + len(traffic)
+    return rows
+
+
+def _forget_expired_token(artist_id: int) -> None:
+    """Drop the refused token so later nights SKIP (naming the gesture), not fail again."""
+    from datetime import datetime, timezone
+    from src.utils.credential_loader import save_platform_credentials, update_platform_secret
+    update_platform_secret(artist_id, 'youtube_analytics', 'refresh_token', '')
+    save_platform_credentials(artist_id, 'youtube_analytics', {
+        'expired_at': datetime.now(timezone.utc).isoformat(timespec='milliseconds')})
+
+
+def _analytics_skip_reason(creds: dict) -> str:
+    if creds.get('expired_at'):
+        return f"YouTube Analytics authorization expired — re-authorize: {_REAUTHORIZE}"
+    return f"YouTube Analytics not authorized — {_REAUTHORIZE}"
+
+
+def _analytics_one(db, aid: int, run_id: str, app: tuple) -> bool:
+    """One tenant: True when collected, False when skipped; raises on failure."""
+    from datetime import date
+    from src.collectors.youtube_analytics_collector import YouTubeAnalyticsCollector
+    from src.utils.credential_loader import load_platform_credentials
+    from src.utils.dag_run_logger import record_tenant_skip, record_tenant_success
+    creds = load_platform_credentials(aid, 'youtube_analytics')
+    token = (creds.get('refresh_token') or '').strip()
+    if not token:
+        record_tenant_skip('youtube_daily', aid, 'youtube_analytics',
+                           _analytics_skip_reason(creds), run_id)
+        return False
+    if not all(app):
+        raise RuntimeError('GOOGLE_OAUTH_CLIENT_ID / _SECRET absent from the Airflow '
+                           'environment — admin action (docker-compose env map)')
+    t0 = _time.monotonic()
+    data = YouTubeAnalyticsCollector(*app, token).collect(date.today())
+    rows = persist_analytics(db, aid, data)
+    record_tenant_success('youtube_daily', aid, 'youtube_analytics', rows, run_id,
+                          duration_ms=int((_time.monotonic() - t0) * 1000))
+    return True
+
+
+def collect_youtube_analytics(**context):
+    """R511 — subscribers per video, watch time, traffic sources, for AUTHORIZED tenants.
+
+    A tenant without a token is skipped with the gesture named. An expired token is ONE
+    failure, then forgotten — so the alert fires once, not every night.
+    """
+    from src.collectors.youtube_analytics_collector import AnalyticsAuthorizationExpired
+    from src.database.postgres_handler import PostgresHandler
+    from src.utils.credential_loader import get_active_artists
+    from src.utils.dag_run_logger import record_tenant_failure
+    from src.utils.safe_error import safe_error
+
+    conf = (context.get('dag_run').conf or {}) if context.get('dag_run') else {}
+    run_id = context.get('run_id', '')
+    app = (os.getenv('GOOGLE_OAUTH_CLIENT_ID', '').strip(),
+           os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '').strip())
+    artists = get_active_artists(include_artist_id=conf.get('artist_id'))
+    if not artists:
+        return
+    db = PostgresHandler.from_env_or_config()
+    attempted, failed, failures = 0, 0, []
+    try:
+        for aid, name in artists:
+            try:
+                attempted += _analytics_one(db, aid, run_id, app)
+            except Exception as e:  # noqa: BLE001 — per-tenant isolation
+                attempted += 1
+                failed += 1
+                failures.append(f'{aid}/{name}: {safe_error(e, limit=200)}')
+                record_tenant_failure('youtube_daily', aid, 'youtube_analytics', e, run_id)
+                if isinstance(e, AnalyticsAuthorizationExpired):
+                    try:
+                        _forget_expired_token(aid)
+                    except Exception as forget:  # noqa: BLE001 — next night fails again, visibly
+                        failures.append(f'{aid}/{name}: token not forgotten — '
+                                        f'{safe_error(forget, limit=200)}')
+    finally:
+        db.close()
+    if failed and failed == attempted:
+        raise RuntimeError('YouTube Analytics failed for every authorized tenant: '
+                           + '; '.join(failures))
+
+
 with DAG(
     'youtube_daily',
     default_args=default_args,
@@ -308,3 +421,12 @@ with DAG(
         task_id='collect_youtube_data',
         python_callable=collect_youtube_data,
     )
+
+    # After the Data API task (one quota at a time), and whatever it did: an Analytics
+    # tenant must not lose its night because another tenant's public read failed.
+    analytics_task = PythonOperator(
+        task_id='collect_youtube_analytics',
+        python_callable=collect_youtube_analytics,
+        trigger_rule='all_done',
+    )
+    collect_task >> analytics_task

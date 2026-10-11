@@ -221,6 +221,8 @@ _RAISING_IO_BOUNDARIES = frozenset({
     "resolve_kwargs",              # pg_connect — configuration de connexion absente
     "update_platform_secret",      # R398 : un secret non stocké lève ; meta_token_refresh
                                    # l'ajoute à `failed` par artiste puis lève en fin de tâche
+    "store_platform_secrets",      # R511 : même contrat ; appelé par le script de mint
+                                   # (un artiste à la fois), jamais dans une boucle de flotte
 })
 
 

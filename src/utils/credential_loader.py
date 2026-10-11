@@ -236,6 +236,39 @@ def update_platform_secret(artist_id: int, platform: str,
     )
 
 
+def store_platform_secrets(artist_id: int, platform: str, secrets: dict,
+                           extra: "dict | None" = None) -> None:
+    """Create or REPLACE (artist_id, platform)'s secrets; merge `extra` into extra_config.
+
+    For a credential minted outside the dashboard form (R511: the YouTube Analytics
+    refresh_token) — `update_platform_secret` needs the row to exist already. Raises
+    SecretNotPersistedError on every refusal: a minted token that is not stored is lost.
+    """
+    where = f"artist={artist_id} platform={platform}"
+    fernet_key = os.getenv('FERNET_KEY', '')
+    if not fernet_key:
+        raise SecretNotPersistedError(f"store_platform_secrets: FERNET_KEY not set ({where})")
+    from cryptography.fernet import Fernet
+    blob = Fernet(fernet_key.encode()).encrypt(json.dumps(secrets).encode()).decode()
+    try:
+        conn = _connect(autocommit=True)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO artist_credentials (artist_id, platform, token_encrypted, "
+                    "extra_config) VALUES (%s, %s, %s, %s::jsonb) "
+                    "ON CONFLICT (artist_id, platform) DO UPDATE SET "
+                    "token_encrypted = EXCLUDED.token_encrypted, "
+                    "extra_config = COALESCE(artist_credentials.extra_config, '{}'::jsonb) "
+                    "|| EXCLUDED.extra_config, updated_at = NOW()",
+                    (artist_id, platform, blob, json.dumps(extra or {})))
+        finally:
+            conn.close()
+    except Exception as e:
+        raise SecretNotPersistedError(
+            f"store_platform_secrets: write failed ({where}) — {type(e).__name__}") from e
+
+
 def save_platform_credentials(artist_id: int, platform: str, extra_updates: dict) -> None:
     """Merge extra_updates into extra_config for (artist_id, platform).
 
