@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R519 | Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seule figure du flux d'argent mensuel depuis `v_artist_monthly_cashflow` — revenus distributeurs et SACEM en barres positives, coût Meta Ads en barres négatives, solde cumulé en courbe ; le donut SACEM y entre comme série. Libellé de menu et titre renommés, route inchangée. **Décision prise** : « Trésorerie » (le mot du propriétaire) <!-- critic: non — une vue, une source déjà existante --> <!-- scope: src/dashboard/, tests/, .test_durations, .claude/dev-docs/, tools/dev/charts_dossier/ --> | P3 | SACEM et Meta visibles sur la même figure que les distributeurs |
+| R519 | Distributeur → **« 💶 Trésorerie (distributeurs, SACEM, Meta Ads) »** (X11 II) : une seule figure du flux d'argent mensuel depuis `v_artist_monthly_cashflow` — revenus distributeurs et SACEM en barres positives, coût Meta Ads en barres négatives, solde cumulé en courbe ; le donut SACEM y entre comme série. Libellé de menu et titre renommés, route inchangée. **Décision prise** : « Trésorerie » (le mot du propriétaire) <!-- critic: non — une vue, une source déjà existante --> <!-- scope: src/dashboard/, tests/, .test_durations, .claude/dev-docs/, tools/dev/charts_dossier/, tools/dev/gold_coverage.py --> | P3 | SACEM et Meta visibles sur la même figure que les distributeurs |
 
 ---
 
