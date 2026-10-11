@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R516 — Aperçu « déclencher les algos » (X10 II) — « ce que tu peux régler » : une liste courte… (livrée 2026-10-11)
+
+- [x] **R516 — Aperçu « déclencher les algos » (X10 II) — « ce que tu peux régler » : une liste courte, en phrases simples, des paramètres d'une campagne Meta (budget, intérêts, pays, âge, placements, créatifs) et, pour chacun, ce que la prédiction change à la décision (accentuer / couper / déplacer), avec le but : baisser le coût par stream** (P3) ✅ (2026-10-11, 43aef871)
+  Mesuré par : 6 paramètres listés, FR + EN
+  Livré 43aef871, CI verte (run 38103722886), déployé et vérifié en prod (6 réglages, 6 clés EN).
+  Commits : 43aef871 R516 : Aperçu « déclencher les algos » — « ce que tu peux régler » : s
+
 ## ✅ R515 — Figures d'exemple (X3 II, reprises par l'Aperçu X10 II) : (1) « toutes tes données » —… (livrée 2026-10-11)
 
 - [x] **R515 — Figures d'exemple (X3 II, reprises par l'Aperçu X10 II) : (1) « toutes tes données » — courbe de CPR (~0,20-0,25 €, oscillante) superposée à la bande Meta € sur son axe ; (2) « tes chances » — bosse Release Radar APRÈS le déclenchement, mesuré en trait plein et prédit en pointillé ; (3) « optimise ton budget » — les barres hachurées rouges « conseillé » retirées, remplacées par deux annotations « couper à l'entrée en Discover Weekly » / « relancer avant la fenêtre Radio ». **Décision prise** : ces annotations suivent les fenêtres du modèle (`_verdict.py` : DW 35-90 j) et l'image reste étiquetée « exemple »** (P3) ✅ (2026-10-11, 6ad3f9a4)

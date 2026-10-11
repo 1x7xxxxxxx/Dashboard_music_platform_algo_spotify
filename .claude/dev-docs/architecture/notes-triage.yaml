@@ -4055,9 +4055,9 @@
   resume: 'Aperçu algos : lister en phrases simples les paramètres Meta qu''on règle grâce aux prédictions'
   type: action-produit
   domaine: algo-preview
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R516
+  preuve_statut: R516 (archivée) — 43aef871
 - ligne: 49
   source: revue/notes-vocales-2026-10-11.md
   note: X11

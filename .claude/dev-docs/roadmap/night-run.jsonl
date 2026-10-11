@@ -816,3 +816,6 @@
 {"at": "2026-10-11T01:35:36+00:00", "head": "b2b34d19", "kind": "done", "task": "R514", "what": ""}
 {"at": "2026-10-11T01:35:40+00:00", "head": "b2b34d19", "kind": "start", "task": "R515", "what": ""}
 {"at": "2026-10-11T01:48:55+00:00", "kind": "done", "task": "R515", "what": "fermée par roadmap-close — Livré 6ad3f9a4, CI verte (run 38102881705), déployé (PNG identique en prod). 3 PNG régénérés et relus : CPR sur la bande Meta, prévision mesurée/prévue avec bosse RR, conseils posés sur _PHASES. 4 mutations vues rouges."}
+{"at": "2026-10-11T01:54:08+00:00", "head": "9b125bcf", "kind": "done", "task": "R515", "what": ""}
+{"at": "2026-10-11T01:54:11+00:00", "head": "9b125bcf", "kind": "start", "task": "R516", "what": ""}
+{"at": "2026-10-11T02:04:49+00:00", "kind": "done", "task": "R516", "what": "fermée par roadmap-close — Livré 43aef871, CI verte (run 38103722886), déployé et vérifié en prod (6 réglages, 6 clés EN)."}
