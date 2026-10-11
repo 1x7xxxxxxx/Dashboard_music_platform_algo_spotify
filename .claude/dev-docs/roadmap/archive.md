@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R517 — SoundCloud « tout le catalogue » (X9 II) : axe « jours depuis la mise en ligne » **inve… (livrée 2026-10-11)
+
+- [x] **R517 — SoundCloud « tout le catalogue » (X9 II) : axe « jours depuis la mise en ligne » **inversé** (le plus ancien à gauche, une ligne de vie) ; filtre simplifié — case « Tout le catalogue » cochée par défaut, et un sélecteur de titres VIDE ; choisir un titre décoche le catalogue. **Décision prise** : case + sélecteur plutôt qu'une liste de 20 titres pré-cochés** (P3) ✅ (2026-10-11, 1a103236)
+  Mesuré par : 0 titre pré-sélectionné ; axe inversé
+  Livré 1a103236, CI verte (run 38104606575), déployé et vérifié en prod.
+  Commits : 1a103236 R517 : SoundCloud « tout le catalogue » — case « Tout le catalogue » c
+
 ## ✅ R516 — Aperçu « déclencher les algos » (X10 II) — « ce que tu peux régler » : une liste courte… (livrée 2026-10-11)
 
 - [x] **R516 — Aperçu « déclencher les algos » (X10 II) — « ce que tu peux régler » : une liste courte, en phrases simples, des paramètres d'une campagne Meta (budget, intérêts, pays, âge, placements, créatifs) et, pour chacun, ce que la prédiction change à la décision (accentuer / couper / déplacer), avec le but : baisser le coût par stream** (P3) ✅ (2026-10-11, 43aef871)

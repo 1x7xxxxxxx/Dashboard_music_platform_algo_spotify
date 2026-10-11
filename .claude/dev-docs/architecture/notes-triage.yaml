@@ -4046,9 +4046,9 @@
   resume: 'SoundCloud : axe inversé (ligne de vie), filtre « tout le catalogue » sans 20 titres pré-cochés'
   type: action-produit
   domaine: soundcloud
-  statut: ouvert
+  statut: livré
   priorite: P3
-  roadmap: R517
+  preuve_statut: R517 (archivée) — 1a103236
 - ligne: 44
   source: revue/notes-vocales-2026-10-11.md
   note: X10

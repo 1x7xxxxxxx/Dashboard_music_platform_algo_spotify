@@ -819,3 +819,6 @@
 {"at": "2026-10-11T01:54:08+00:00", "head": "9b125bcf", "kind": "done", "task": "R515", "what": ""}
 {"at": "2026-10-11T01:54:11+00:00", "head": "9b125bcf", "kind": "start", "task": "R516", "what": ""}
 {"at": "2026-10-11T02:04:49+00:00", "kind": "done", "task": "R516", "what": "fermée par roadmap-close — Livré 43aef871, CI verte (run 38103722886), déployé et vérifié en prod (6 réglages, 6 clés EN)."}
+{"at": "2026-10-11T02:10:05+00:00", "head": "7eefbd6f", "kind": "done", "task": "R516", "what": ""}
+{"at": "2026-10-11T02:10:05+00:00", "head": "7eefbd6f", "kind": "start", "task": "R517", "what": ""}
+{"at": "2026-10-11T02:20:13+00:00", "kind": "done", "task": "R517", "what": "fermée par roadmap-close — Livré 1a103236, CI verte (run 38104606575), déployé et vérifié en prod."}
