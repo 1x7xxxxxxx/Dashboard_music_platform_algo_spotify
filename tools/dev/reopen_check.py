@@ -144,7 +144,10 @@ def _r122() -> tuple[str, str]:
 # n'est pas non plus une condition refusee.
 #
 # R116 est sortie de cette liste le 2026-10-12 : son declencheur a tire (14 jours
-# `complete` en prod) et ADR-027 est ecrit. Seule R131 reste mesuree ici.
+# `complete` en prod) et ADR-027 est ecrit. R131 en est sortie le meme jour : ses
+# trois seuils sont derives par Prometheus lui-meme (groupe `streamlytics-load`), il ne
+# reste rien a attendre. La porte ci-dessous reste celle de la PROCHAINE condition de
+# trafic — `tests/test_a_traffic_condition_is_measured_where_traffic_is.py` la prouve.
 def _ops_metrics_en_prod(sql: str) -> int:
     """Interroge `daily_ops_metrics` DANS la base de production. Leve sans `PROD_SSH`."""
     import os
@@ -165,13 +168,6 @@ def _ops_metrics_en_prod(sql: str) -> int:
     if not valeurs:
         raise RuntimeError(f"réponse illisible : {r.stdout[:80]!r}")
     return int(valeurs[-1])
-
-
-def _r131() -> tuple[str, str]:
-    n = _ops_metrics_en_prod(
-        "SELECT count(*) FROM daily_ops_metrics "
-        "WHERE day > now() - interval '30 days'")
-    return (MET if n >= 30 else NOT_MET), f"{n} jour(s) sur 30 en PROD"
 
 
 def _data_quality_dag() -> tuple[str, str]:
@@ -343,8 +339,6 @@ def _fan_out() -> tuple[str, str]:
 TRIGGERS = [
     Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
             "archive.md — 🩺 R122", _r122),
-    Trigger("R131", "30 jours de `daily_ops_metrics`",
-            "checklist.md — ⏸️ R131", _r131),
     Trigger("R114", "un des deux seuils de `tools/scale_check.sh`",
             "archive.md:6461", _r114),
     Trigger("data_quality", "le jour où `freshness_monitor` cesse de marquer "

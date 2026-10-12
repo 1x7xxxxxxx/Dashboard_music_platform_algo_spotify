@@ -41,12 +41,25 @@ sys.path.insert(0, str(ROOT))
 
 _OUTIL = ROOT / "tools" / "dev" / "reopen_check.py"
 
-#: Les contrôles dont la grandeur est produite par le trafic de PRODUCTION.
-_CONDITIONS_DE_TRAFIC = ("_r131",)  # _r116 retired with ADR-027 (2026-10-12)
-
-
 def _arbre() -> ast.Module:
     return ast.parse(_OUTIL.read_text(encoding="utf-8"))
+
+
+def _conditions_de_trafic() -> tuple[str, ...]:
+    """Les contrôles dont la grandeur est produite par le trafic de PRODUCTION.
+
+    Lue dans le code, plus écrite à la main : `_r116` (ADR-027) puis `_r131` (seuils
+    dérivés par Prometheus) sont sortis le 2026-10-12, et une liste recopiée aurait
+    gardé des noms morts ou manqué le suivant. Vide aujourd'hui — c'est alors
+    `test_the_prod_door_refuses_to_conclude_without_ssh` qui porte la classe.
+    """
+    return tuple(sorted(
+        n.name for n in ast.walk(_arbre())
+        if isinstance(n, ast.FunctionDef) and n.name != "_ops_metrics_en_prod"
+        and "daily_ops_metrics" in ast.unparse(n)))
+
+
+_CONDITIONS_DE_TRAFIC = _conditions_de_trafic()
 
 
 def _appels_de(nom: str, arbre: ast.Module | None = None) -> set[str]:
@@ -193,3 +206,19 @@ def test_the_detector_does_not_report_a_call_made_by_an_unrelated_function() -> 
     assert "from_env_or_config" not in _appels_de("_r116", voisin), (
         "un appel hors du chemin du contrôle est compté — le détecteur suit le fichier, "
         "pas l'appel")
+
+
+def test_the_prod_door_refuses_to_conclude_without_ssh(monkeypatch) -> None:
+    """La porte de la prochaine condition de trafic LÈVE sans `PROD_SSH`.
+
+    Exercée en l'appelant, pas en lisant son texte : depuis le 2026-10-12 aucune
+    condition ne l'emprunte, et un garde paramétré sur une liste vide ne garde rien.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("reopen_check", _OUTIL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.delenv("PROD_SSH", raising=False)
+    with pytest.raises(RuntimeError, match="n'a RIEN vérifié"):
+        mod._ops_metrics_en_prod("SELECT 1")

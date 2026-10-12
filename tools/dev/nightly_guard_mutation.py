@@ -95,6 +95,10 @@ SEEN_RED: dict[str, str] = {
         "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "
         "R530) → 1 rouge ; `traffic_figure` replie au-delà de 7 sources au lieu de 5 (une "
         "couleur partagée par deux sources) → 1 rouge",
+    "tests/test_the_load_thresholds_derive_from_history.py":
+        "2026-10-12 — R131 : `SessionsHigh` sans la porte d'historique (`and on() "
+        "(count_over_time(…[1d] offset 28d) > 0)`) → rouge à 10 j ; `>` changé en `>=` → "
+        "rouge sur la valeur ÉGALE au maximum passé (29j2h)",
     "tests/test_a_gold_invariant_reads_one_snapshot.py":
         "2026-10-12 — R541 : `run()` sans `db.execute_query(ONE_SNAPSHOT)` (les deux "
         "membres lus dans deux instantanés, R540) → 1 rouge",

@@ -141,7 +141,7 @@ groups:
   # ⚠️ Aucune des quatre ne porte de seuil, et c'est délibéré. Le dépôt tient qu'un
   # seuil écrit d'instinct est un défaut, et le trafic actuel ne permet d'en dériver
   # aucun. Les seuils de CHARGE — sessions, taux d'erreur, pointe de journaux — sont
-  # différés avec leur commande de calibration, dans la roadmap. Ici tout est binaire :
+  # dérivés de l'historique par Prometheus lui-même (groupe `streamlytics-load`, R131). Ici tout est binaire :
   # l'instrument parle, ou il ne parle pas.
   #
   # Total après ce groupe : 8 règles. Le déclencheur d'adoption d'Alertmanager écrit
@@ -285,3 +285,86 @@ groups:
             Lire la table dans le label `table`, puis rouvrir la ligne « Retirer les 110
             index jamais scannés » de la roadmap (`make reopen-check`).
           panel: streaMLytics — sante et rendu / Base — taille et lignes par table
+
+  # ── R131 — les trois seuils de CHARGE, dérivés par Prometheus (2026-10-12) ─────
+  #
+  # Différés depuis le 2026-09-17 : « un seuil se dérive d'une distribution, et la
+  # distribution n'existe pas ». Attendre qu'elle existe pour qu'une séance future
+  # écrive trois nombres, c'était laisser une tâche résiduelle sans geste possible. Ici
+  # le seuil EST la distribution : chaque règle compare la valeur courante au MAXIMUM
+  # observé sur les 28 jours précédents (décalés d'une heure, pour que la pointe en
+  # cours ne se compare pas à elle-même). Aucun nombre n'est écrit.
+  #
+  # La porte `and on() (count_over_time(…[1d] offset 28d) > 0)` tient chaque règle
+  # MUETTE tant que l'instrument n'a pas 28 jours d'historique : un « record » sur trois
+  # jours de données ne dit rien. 28 et non 30 parce que la rétention est de 30 j
+  # (`docker-compose.observability.yml`) : une fenêtre de 30 j au bord de la rétention
+  # lirait des blocs à moitié purgés.
+  #
+  # Ce que ces règles ne savent PAS faire : distinguer une croissance saine d'une
+  # anomalie. Un record de sessions est d'abord une bonne nouvelle ; c'est pourquoi son
+  # action renvoie à `make scale-check` (ADR-027), pas à un correctif.
+  # Preuve : `deploy/prometheus/rules/streamlytics.test.yml` (`promtool test rules`).
+  #
+  # Total : 14 règles. Le motif de ne pas adopter Alertmanager reste celui de R281 : pas
+  # d'astreinte — ces trois-là sont lues au mail du soir comme les onze autres.
+  - name: streamlytics-load
+    interval: 30s
+    rules:
+      - alert: SessionsHigh
+        expr: >-
+          streamlytics_sessions_1m
+            > max_over_time(streamlytics_sessions_1m[28d] offset 1h)
+          and on() (count_over_time(streamlytics_sessions_1m[1d] offset 28d) > 0)
+        for: 0m
+        labels:
+          severity: low
+        annotations:
+          symptom: >-
+            Plus de sessions simultanées qu'à aucune minute des 28 derniers jours. Si la
+            charge dépasse ce que l'instance unique tient, les pages ralentissent pour
+            tous les artistes connectés en même temps.
+          action: >-
+            `make scale-check PROD_SSH=root@167.233.92.1` : plus de 20 sessions humaines
+            dans une minute, ou un p50 serveur au-dessus de 200 ms, rouvre ADR-027
+            (démarrer la réplique, deux gestes en tête de `deploy/Caddyfile`). En dessous,
+            le record est une croissance, et il n'y a rien à faire ce soir.
+          panel: streaMLytics — sante et rendu / Utilisateurs — artistes vivants et sessions/minute
+
+      - alert: ErrorRateHigh
+        expr: >-
+          sum(increase(streamlytics_app_errors_total[15m]))
+            > max_over_time((sum(increase(streamlytics_app_errors_total[15m])) or vector(0))[28d:15m] offset 1h)
+          and on() (count_over_time(streamlytics_reruns_in_flight[1d] offset 28d) > 0)
+        for: 0m
+        labels:
+          severity: medium
+        annotations:
+          symptom: >-
+            Plus d'erreurs applicatives en un quart d'heure qu'en aucun quart d'heure des
+            28 derniers jours. Des artistes voient une page en erreur, sur une ou
+            plusieurs pages à la fois.
+          action: >-
+            `make error-inbox` : chaque erreur est une empreinte de `app_error_log`, avec
+            sa page. Une seule page ⇒ un défaut de cette vue ; toutes les pages ⇒ la base
+            ou le pool (panneau « Pool Postgres »).
+          panel: streaMLytics — sante et rendu / Erreurs applicatives par page
+
+      - alert: LogErrorBurst
+        expr: >-
+          sum(increase(streamlytics_log_records_total{level="ERROR"}[15m]))
+            > max_over_time((sum(increase(streamlytics_log_records_total{level="ERROR"}[15m])) or vector(0))[28d:15m] offset 1h)
+          and on() (count_over_time(streamlytics_reruns_in_flight[1d] offset 28d) > 0)
+        for: 0m
+        labels:
+          severity: medium
+        annotations:
+          symptom: >-
+            Plus de journaux ERROR en un quart d'heure qu'en aucun quart d'heure des 28
+            derniers jours. Une dépendance (base, API externe) échoue en boucle ; l'artiste
+            voit des chiffres qui n'avancent pas ou des pages lentes.
+          action: >-
+            Le panneau « Journaux — erreurs par paquet » nomme le `logger` qui a produit
+            la pointe. Puis `docker logs --since 30m streamlytics_dashboard 2>&1 | grep
+            ERROR | sort | uniq -c | sort -rn | head` pour le message dominant.
+          panel: streaMLytics — sante et rendu / Journaux — erreurs par paquet (aveugle sous WARNING)

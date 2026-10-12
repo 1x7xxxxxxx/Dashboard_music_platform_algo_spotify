@@ -72,7 +72,7 @@ render.
 |--------|--------------|
 | Start the replica now | peak 6 humans for a threshold of 20, p50 59 ms for 200 ms. The worst tail happened at 1 – 2 sessions, where a replica changes nothing |
 | Redis for sessions and caches | Caddy's sticky affinity already keeps a session on its process; R113 removed the cache need and R114's step 1 removed the limiter need. No need was ever NAMED, and none of the 14 days shows one |
-| Wait for 30 days before deciding | R131 already waits for 30 days to calibrate the load thresholds themselves. This decision only needs the curves to be past the ambiguity of R114, and 14 days already show it |
+| Wait for 30 days before deciding | The load thresholds of R131 needed a distribution; this decision only needs the curves to be past the ambiguity of R114, and 14 days already show it. (R131 itself was closed the same day: Prometheus derives its thresholds from 28 days of history, group `streamlytics-load`) |
 | Write the ADR on R114's client-side test | that measure saturated the client. This was the reason for deferring in the first place |
 
 ## How to reread this decision

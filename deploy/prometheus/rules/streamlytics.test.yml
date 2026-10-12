@@ -1,0 +1,50 @@
+# R131 — the three load rules, proven on synthetic series (`promtool test rules`).
+# Run by tests/test_the_load_thresholds_derive_from_history.py (prom/prometheus image).
+# The test feeds promtool ONLY the `streamlytics-load` group, its interval set to 1h:
+# evaluating all groups every 30 s over 700 simulated hours does not finish.
+rule_files:
+  - load-only.yml
+evaluation_interval: 1h
+tests:
+  # 1. Under 28 days of history, a value far above everything stays SILENT.
+  - interval: 1h
+    input_series:
+      - series: streamlytics_sessions_1m
+        values: "2x239 50"                 # 10 days at 2, then 50 at 240h
+    alert_rule_test:
+      - eval_time: 240h
+        alertname: SessionsHigh
+        exp_alerts: []
+  # 2. With 28+ days: equal to the past maximum is silent, a new maximum fires.
+  - interval: 1h
+    input_series:
+      - series: streamlytics_sessions_1m
+        values: "2x300 6 2x395 6 2x10 7"   # 6 at 301h, 6 again at 698h, 7 at 710h
+    alert_rule_test:
+      - eval_time: 698h
+        alertname: SessionsHigh
+        exp_alerts: []
+      - eval_time: 710h
+        alertname: SessionsHigh
+        exp_alerts:
+          - exp_labels: {severity: low}
+  # 3. Errors and logs, sampled every 5 min so that increase[15m] has samples.
+  - interval: 5m
+    input_series:
+      - series: streamlytics_reruns_in_flight
+        values: "0x8700"
+      - series: 'streamlytics_app_errors_total{page="home",error_class="X"}'
+        values: "0x2999 3x5495 9x200"      # +3 at 250h, +6 at 708h
+      - series: 'streamlytics_log_records_total{level="ERROR",logger="x"}'
+        values: "0x2999 3x5499 3x200"      # +3 at 250h, then flat
+    alert_rule_test:
+      - eval_time: 250h
+        alertname: ErrorRateHigh
+        exp_alerts: []                     # no 28-day history yet
+      - eval_time: 708h
+        alertname: ErrorRateHigh
+        exp_alerts:
+          - exp_labels: {severity: medium}
+      - eval_time: 708h
+        alertname: LogErrorBurst
+        exp_alerts: []                     # flat: nothing above the past maximum
