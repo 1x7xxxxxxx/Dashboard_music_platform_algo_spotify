@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R528 — Critic a posteriori de R290/R378/R494 (P3) : (a) `tests/test_pdf_coverage.py:50-70` — `… (livrée 2026-10-12)
+
+- [x] **R528 — Critic a posteriori de R290/R378/R494 (P3) : (a) `tests/test_pdf_coverage.py:50-70` — `instagram`, `meta_breakdowns`, `meta_creatives` retirés de `_PDF_MAP` ; rien ne vérifie que leurs sections PDF restent dans `ALL_SECTIONS` ; (b) `check_guards_are_env_independent.suite_did_not_run` lit une ERREUR DE COLLECTE (ImportError sans lien avec `.env`) comme « garde dépendant de l'env » — crash lu comme verdict ; (c) R290 a desserré le cliquet `test_the_visual_rules_only_tighten.py:140-150` (soundcloud/instagram : 3) et `assert "tozeroy" in src` matche un commentaire** (P3) ✅ (2026-10-12, 5c220867)
+  Mesuré par : (a) test : chaque section PDF des vues absorbées présente ; (b) erreur de collecte ⇒ « suite non jouée » ; (c) cliquet re-serré ou motif lu par AST
+  Livré 5c220867 (sections PDF absorbées gardées, crash de collecte ≠ dépendance au .env, fill=tozeroy lu en AST) ; CI verte run 38235438287.
+  Commits : 5c220867 R528 : trois gardes P3 du critic resserrés
+
+## ✅ R527 — Critic a posteriori de R293/R297 (`views/…/_tab_model.py:140-207`) : (a) horizon — une… (livrée 2026-10-12)
+
+- [x] **R527 — Critic a posteriori de R293/R297 (`views/…/_tab_model.py:140-207`) : (a) horizon — une prédiction faite N j avant le relevé est jugée sur une fenêtre 28 j en partie ANTÉRIEURE à elle ⇒ la courbe « le modèle se rapproche » est en partie un artefact ; (b) le test ne joue jamais le SQL (`_FakeDB` rend un cadre figé) — retirer `p.artist_id = o.artist_id` reste vert ; (c) doublons titre×semaine (plusieurs `model_version`/jours) pondèrent la médiane ; (d) légende « un seul relevé » figée et fausse ; texte d'exception brut à l'artiste** (P2) ✅ (2026-10-12, d489c3ec, 78d8ee5e)
+  Mesuré par : test SQL sur base réelle : un autre locataire n'entre pas ; prédiction à < 28 j du relevé exclue ; 1 ligne par titre×semaine
+  Livré d489c3ec (horizon 28 j, une prévision par titre × semaine, type d'erreur affiché, SQL joué sur le schéma vivant) ; CI verte run 38235438287.
+  Commits : d489c3ec R527 : erreur du modèle par semaine — horizon, une prévision par titre · 78d8ee5e R525 : la page Algo répond sans titre, et une lecture en échec se dit
+
+## ✅ R525 — Critic a posteriori de R403/R405 : `views/trigger_algo/router.py:119-121` sort tôt sans… (livrée 2026-10-12)
+
+- [x] **R525 — Critic a posteriori de R403/R405 : `views/trigger_algo/router.py:119-121` sort tôt sans titre S4A ⇒ les sections « budget » et « argent » (et les alias `revenue_forecast`, `meta_campaign_settings`, `meta_cpr_optimizer`) deviennent injoignables ; `:107-108` et `:140-147` déguisent une lecture échouée en « pas de timeline » / date de sortie = J-28 ; `utils/navigation.py:50` `goto()` perd la section de l'alias** (P2) ✅ (2026-10-12, 5a2a0f1a, 78d8ee5e)
+  Mesuré par : AppTest : artiste sans S4A mais avec dépense Meta voit « budget » ; une lecture qui lève s'affiche comme un échec
+  Livré 78d8ee5e + 5a2a0f1a (page Algo sans titre : budget/argent rendus, lecture en échec dite, alias goto conservé un rendu ; garde haut-en-bas resauté sur no_timeline) ; CI verte run 38235438287.
+  Commits : 5a2a0f1a R525 : le garde « page lue de haut en bas » saute sur l'avertissement  · 78d8ee5e R525 : la page Algo répond sans titre, et une lecture en échec se dit
+
+## ✅ R524 — Critic a posteriori de R370/R398 (2026-10-12) : (a) webhook Stripe ni ordonné ni idempo… (livrée 2026-10-12)
+
+- [x] **R524 — Critic a posteriori de R370/R398 (2026-10-12) : (a) webhook Stripe ni ordonné ni idempotent — `_upsert_subscription`/`_mark_status` ignorent `event.created` (un `.updated` tardif après `.deleted` remet `active` : un artiste résilié garde premium) et `checkout.session.completed` sans dédoublonnage d'event-id (un rejeu réactive le plan, double ligne `subscription_plan_history`) — `src/api/routers/stripe_webhook.py:83-120,239-266` ; (b) `instagram_api_collector.py:187` : l'`except Exception` extérieur avale le `SecretNotPersistedError` relevé par R398 et rend `False` (règle 6)** (P2) ✅ (2026-10-12, 875f6f09)
+  Mesuré par : test : un `.updated` antérieur à `.deleted` ne réactive pas ; un checkout rejoué n'ajoute pas d'historique ; un échec de persistance fait échouer la tâche
+  Livré 875f6f09 (migration 150 stripe_last_event_at, webhook ordonné par created, checkout rejoué inerte ; jeton Instagram non persisté = SecretNotPersistedError) ; CI verte run 38235438287. Déploiement prod : make migrate AVANT deploy.sh api.
+  Commits : 875f6f09 R524 : webhook Stripe ordonné par `created` + jeton Instagram non pers
+
 ## ✅ R529 — Nightly `guard-mutation` 🟠 « 6 gardes à relire » (run 38223923551, 2026-10-12) : `test_… (livrée 2026-10-12)
 
 - [x] **R529 — Nightly `guard-mutation` 🟠 « 6 gardes à relire » (run 38223923551, 2026-10-12) : `test_instagram_missing_field_is_null`, `test_unfinished_features_are_finished`, `test_mutation_measures_the_tree_under_test`, `test_unreadable_cells_are_counted_not_zeroed`, `test_a_number_is_read_by_its_files_locale`, `test_aggregations_hold_their_properties` — verts sur des mutations génériques. Muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ le garde est vacant, le réparer** (P3) ✅ (2026-10-12, 61c8abf0)
