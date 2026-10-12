@@ -27,13 +27,14 @@ def test_the_shazams_share_the_rows_of_the_streams() -> None:
     df = pd.DataFrame({"song_name": ["a", "b", "c"], "plays": [30, 10, 20],
                        "shazam_count": [1, 9, 5]})
     fig = _top10_figure(df, "60", "15")
-    streams, shazams = fig.data
+    streams, shazams = (tr for tr in fig.data if tr.type == "bar")
     assert list(streams.y) == list(shazams.y) == ["b", "c", "a"], (
         "the Shazam bars are not on the rows of the streams beside them")
     assert fig.layout.yaxis2.matches == "y", "the two panels do not share the titles"
-    titles = [a.text for a in fig.layout.annotations]
-    assert any("60" in x for x in titles) and any("15" in x for x in titles), (
-        f"the totals are not in the panel titles : {titles}")
+    # R534 : the totals moved from the panel titles to a labelled FIRST row.
+    totals = [tr.text[0] for tr in fig.data if tr.type == "scatter"]
+    assert any("60" in x for x in totals) and any("15" in x for x in totals), (
+        f"the totals are not on the Total row : {totals}")
 
 
 def _has_apple() -> bool:
@@ -59,4 +60,5 @@ def test_the_page_draws_the_top10_with_its_shazams_and_no_expander() -> None:
     assert not at.exception, at.exception
     assert not [e.label for e in at.expander if "Shazams par chanson" in e.label], (
         "the Shazams are folded in an expander again")
-    assert len(at.get("plotly_chart")) == 2, "top 10 + Shazams, then the pace of one title"
+    assert len(at.get("plotly_chart")) == 3, (
+        "top 10 + Shazams, the title to push, then the Shazams gained per day (R534)")

@@ -125,6 +125,7 @@ def show():
             df_all = db.fetch_df(LATEST_QUERY, (artist_id,))
             if not df_all.empty:
                 _render_shazam_rate(df_all)
+                _render_shazam_gains(db.fetch_df(HISTORY_QUERY, (artist_id,)))
             elif df_top.empty:
                 # No Apple reading at all: name the absence and the gesture, never a bare page.
                 st.info(t("apple_music.no_data",
@@ -151,11 +152,12 @@ def _top10_figure(df_top, total_plays: str = "—", total_shazams: str = "—"):
     from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 
     df = df_top.sort_values("plays")
+    total_row = t("apple_music.total_row", "Total")
     fig = make_subplots(
         rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06, column_widths=[0.6, 0.4],
         subplot_titles=(
-            t("apple_music.top10_title", "Top 10 — streams cumulés · total {n}").format(n=total_plays),
-            t("apple_music.shazams_title", "⚡ Shazams · total {n}").format(n=total_shazams)))
+            t("apple_music.top10_title", "Top 10 — streams cumulés"),
+            t("apple_music.shazams_title", "⚡ Shazams")))
     fig.add_trace(go.Bar(
         y=df["song_name"], x=df["plays"], orientation="h", marker_color="#C62828",
         text=[num(v, 0) for v in df["plays"]], textposition="outside", cliponaxis=False,
@@ -170,11 +172,18 @@ def _top10_figure(df_top, total_plays: str = "—", total_shazams: str = "—"):
         cliponaxis=False,
         hovertemplate=t("apple_music.shazams_hover",
                         "%{y}<br>⚡ Shazams : %{x:,.0f}<extra></extra>")), row=1, col=2)
+    # R534 (owner, 2026-10-12) : « Total » on the FIRST row, labelled, then the titles. A
+    # text, not a bar: a bar ten times the longest title would crush the ten below it.
+    for col, total in ((1, total_plays), (2, total_shazams)):
+        fig.add_trace(go.Scatter(
+            y=[total_row], x=[0], mode="text", text=[f"  <b>{total}</b>"],
+            textposition="middle right", hoverinfo="skip"), row=1, col=col)
     for col, field in ((1, "plays"), (2, "shazam_count")):
         top = float(pd.to_numeric(df[field], errors="coerce").max() or 1)
         fig.update_xaxes(range=[0, top * 1.3], nticks=4, row=1, col=col)
-    fig.update_yaxes(automargin=True)   # the titles were cut at the left edge
-    fig.update_layout(height=460, showlegend=False, margin=dict(l=10, r=30, t=60))
+    fig.update_yaxes(automargin=True, categoryorder="array",   # the titles were cut at the
+                     categoryarray=[*df["song_name"], total_row])   # left edge; Total on top
+    fig.update_layout(height=490, showlegend=False, margin=dict(l=10, r=30, t=60))
     return fig
 
 
@@ -207,6 +216,12 @@ def _render_shazam_rate(df_all: pd.DataFrame) -> None:
 
     ranked = shazams_per_thousand(df_all)
     st.subheader(t("apple_music.shazam_rate_header", "🎯 Le titre à pousser"))
+    # R534 (b) — the owner asked what tells the two Shazam figures apart.
+    st.caption(t("apple_music.shazam_rate_explain",
+                 "Le **total** compte toutes les fois où quelqu'un a cherché un titre sur "
+                 "Shazam. **Pour 1 000 écoutes** rapporte ce total aux écoutes Apple Music : "
+                 "un titre peu écouté mais très cherché ressort en tête, c'est celui qui "
+                 "accroche le plus quand on l'entend."))
     if ranked.empty:
         st.info(t("apple_music.shazam_rate_empty",
                   "Aucun titre n'a encore {n} écoutes Apple : le taux serait du bruit."
@@ -235,6 +250,64 @@ def _render_shazam_rate(df_all: pd.DataFrame) -> None:
         st.caption(t("apple_music.shazam_rate_left_out",
                      "{n} titre(s) sous {m} écoutes Apple, non classés.")
                    .format(n=left_out, m=MIN_PLAYS))
+
+
+# R534 (c) — every reading of every title, to turn cumulative Shazams into daily gains.
+HISTORY_QUERY = """
+    SELECT song_name, day, shazam_count
+      FROM v_apple_song_cumulative
+     WHERE artist_id = %s AND shazam_count IS NOT NULL
+     ORDER BY song_name, day
+"""
+
+
+def daily_shazam_gains(history: pd.DataFrame) -> pd.DataFrame:
+    """(day, gain, span) — Shazams gained per day, from cumulative readings. Pure (R534 c).
+
+    Between two readings `span` days apart, the gain is spread EVENLY over those days and
+    `span` says so: three days without an import read as three days at the average, never
+    as one day carrying all three. A cumulative that goes DOWN is another export window,
+    not lost Shazams — that interval is left out rather than drawn negative."""
+    rows = []
+    for _song, g in history.assign(day=pd.to_datetime(history["day"])).groupby("song_name"):
+        g = g.sort_values("day")
+        for (d0, c0), (d1, c1) in zip(g[["day", "shazam_count"]].values[:-1],
+                                      g[["day", "shazam_count"]].values[1:]):
+            span, gain = (d1 - d0).days, float(c1) - float(c0)
+            if span <= 0 or gain < 0:
+                continue
+            rows += [(d0 + pd.Timedelta(days=k + 1), gain / span, span) for k in range(span)]
+    if not rows:
+        return pd.DataFrame(columns=["day", "gain", "span"])
+    out = pd.DataFrame(rows, columns=["day", "gain", "span"])
+    return out.groupby("day").agg(gain=("gain", "sum"), span=("span", "max")).reset_index()
+
+
+def _render_shazam_gains(history: pd.DataFrame) -> None:
+    from src.dashboard.utils.platform_colors import PALETTE_LIGHT
+
+    gains = daily_shazam_gains(history)
+    if gains.empty:
+        st.caption(t("apple_music.gains_need_two",
+                     "Les Shazams gagnés par jour apparaîtront au deuxième import Apple Music."))
+        return
+    exact = gains["span"] == 1
+    fig = go.Figure([
+        go.Bar(x=gains.loc[exact, "day"], y=gains.loc[exact, "gain"],
+               marker_color=PALETTE_LIGHT["apple"],
+               name=t("apple_music.gains_exact", "Jour mesuré")),
+        go.Bar(x=gains.loc[~exact, "day"], y=gains.loc[~exact, "gain"],
+               marker_color=PALETTE_LIGHT["apple"], opacity=0.35,
+               customdata=gains.loc[~exact, ["span"]].values,
+               hovertemplate=t("apple_music.gains_avg_hover",
+                               "%{x|%d/%m}<br>%{y:,.1f} Shazams/jour — moyenne sur "
+                               "%{customdata[0]} jours sans import<extra></extra>"),
+               name=t("apple_music.gains_avg", "Moyenne entre deux imports")),
+    ])
+    fig.update_layout(barmode="overlay", bargap=0,
+                      title=t("apple_music.gains_title", "⚡ Shazams gagnés par jour"),
+                      yaxis_title=t("apple_music.gains_axis", "Shazams / jour"))
+    charts.plotly_chart(fig, width="stretch")
 
 
 def _launches(db, artist_id: int) -> list:
