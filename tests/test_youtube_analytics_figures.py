@@ -76,9 +76,15 @@ def test_the_daily_series_close_the_channel_tab_and_the_label_claims_nothing():
              if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)]
     assert calls[-1] == "_daily_section", (
         f"R547: watch time and traffic per day must END the channel tab, got {calls}")
-    daily = inspect.getsource(youtube._daily_section)
-    assert "watch_time_figure" in daily and "traffic_figure" in daily
-    assert "watch_time_figure" not in inspect.getsource(youtube._analytics_section)
-    src = inspect.getsource(youtube.show)
-    assert "exactes" not in src.split("st.tabs(")[1].split("])")[0], (
-        "R547: « données exactes » implied the channel tab is not exact")
+    def _called(fn) -> set[str]:
+        return {ast.unparse(n.func) for n in ast.walk(ast.parse(inspect.getsource(fn)))
+                if isinstance(n, ast.Call)}
+
+    assert {"watch_time_figure", "traffic_figure"} <= _called(youtube._daily_section)
+    assert "watch_time_figure" not in _called(youtube._analytics_section)
+    tabs = next(n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and ast.unparse(n.func) == "st.tabs")
+    labels = [c.value for c in ast.walk(tabs.args[0])
+              if isinstance(c, ast.Constant) and isinstance(c.value, str)]
+    assert labels and not any("exactes" in lab for lab in labels), (
+        f"R547: « données exactes » implied the channel tab is not exact: {labels}")

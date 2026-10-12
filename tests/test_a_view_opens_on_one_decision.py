@@ -71,7 +71,13 @@ _MAX_FIRST_SCREEN = 5
 #: garde existe pour attraper, et il l'a fait sur l'exemption de son propre auteur, six
 #: heures après sa pose. Une exemption qu'on doit se rappeler de retirer ne se retire
 #: jamais.
-_PLAFOND_PAR_VUE: dict[str, int] = {}
+#:
+#: `youtube` : 7 depuis le 2026-10-12 (R547). La note vocale du propriétaire déplace
+#: « durée de visionnage par jour » et « d'où viennent les vues » à la FIN de l'onglet
+#: Chaîne et vidéos, visibles — les replier aurait contredit la demande. Les figures
+#: sont tracées dans des fonctions appelées depuis `with tab_channel:`, que ce prédicat
+#: ne suit pas ; le compte de 7 est pourtant juste pour cet onglet.
+_PLAFOND_PAR_VUE: dict[str, int] = {"src/dashboard/views/youtube.py": 7}
 
 
 def _view_files() -> list[str]:
