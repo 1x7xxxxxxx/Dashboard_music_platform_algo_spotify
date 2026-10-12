@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R131 | Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre <!-- critic: non — trois règles d'alerte sans seuil écrit, prouvées par `promtool test rules` --> <!-- scope: deploy/prometheus/rules/, tools/dev/reopen_check.py, tools/dev/nightly_guard_mutation.py, docs/adr/ADR-027-one-dashboard-instance-and-no-redis-on-measured-curves.md, tests/ --> | P4 | `promtool test rules` : muette < 30 j, rouge sur un record, verte à égalité |
+| R131 | Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre <!-- critic: non — trois règles d'alerte sans seuil écrit, prouvées par `promtool test rules` --> <!-- scope: deploy/prometheus/, tools/dev/reopen_check.py, tools/dev/nightly_guard_mutation.py, docs/adr/ADR-027-one-dashboard-instance-and-no-redis-on-measured-curves.md, tests/ --> | P4 | `promtool test rules` : muette < 30 j, rouge sur un record, verte à égalité |
 
 ---
 
