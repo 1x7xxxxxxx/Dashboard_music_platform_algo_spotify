@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R131 | Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre <!-- critic: non — trois règles d'alerte sans seuil écrit, prouvées par `promtool test rules` --> <!-- scope: deploy/prometheus/rules/, tools/dev/reopen_check.py, tests/ --> | P4 | `promtool test rules` : muette < 30 j, rouge sur un record, verte à égalité |
+| R131 | Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre <!-- critic: non — trois règles d'alerte sans seuil écrit, prouvées par `promtool test rules` --> <!-- scope: deploy/prometheus/rules/, tools/dev/reopen_check.py, tools/dev/nightly_guard_mutation.py, docs/adr/ADR-027-one-dashboard-instance-and-no-redis-on-measured-curves.md, tests/ --> | P4 | `promtool test rules` : muette < 30 j, rouge sur un record, verte à égalité |
 
 ---
 
@@ -40,8 +40,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 <!-- reprise: open=R131 -->
 
-**État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
-sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
+**État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
+(seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
 
 ### Conditions d'attente — ce qui n'est PAS une tâche
@@ -60,47 +60,6 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.
 <!-- error-inbox: open=0 -->
-
----
-
-## ⏸️ R131 — Calibrer les trois seuils de charge (sortie de l'index 2026-09-17)
-
-**Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
-strictement passif (`tests/test_roadmap_two_files.py::test_the_archive_holds_nothing_actionable`
-refuse tout item non coché qui y atterrit), donc ce bloc reste ici, hors des deux index.
-
-**Pourquoi elle sort de l'index actionnable** : elle demande de dériver trois seuils sur
-une distribution, et la distribution n'existe pas. Mesuré le 2026-09-17 :
-`daily_ops_metrics` porte **1 ligne en production** (2026-09-17) et 2 en local. Il en
-faut 30. Aucun geste ne la débloque — seulement du trafic et du temps —, donc elle ne va
-pas non plus dans « 🙋 En attente de toi ».
-
-Écrire les seuils maintenant serait exactement le défaut que la règle interdit : le dépôt
-porte déjà **cinq** seuils sans dérivation (disque 85 %, RAM 500 Mo, sauvegarde 25 h,
-watchdog 26 h / 48 h), plus le 20 de `scale_check.sh`, posé face à un pic observé de 12
-sans que le facteur 1,7 soit justifié.
-
-**Déclencheur de réouverture, calculable** :
-
-```sql
-SELECT count(*) FROM daily_ops_metrics WHERE day > now() - interval '30 days';
--- doit rendre 30 — **4 en production le 2026-09-20**
--- ⚠️ À mesurer EN PRODUCTION : `make reopen-check-prod PROD_SSH=…`. Le « 1 » écrit ici
--- venait de la base locale, et l'outil de réouverture faisait la même erreur jusqu'au
--- 2026-09-20 (il annonçait 5).
-```
-
-- [ ] **R131 — les trois seuils de charge, dérivés d'une distribution et non d'un instinct.**
-
-| règle différée | ce qu'elle surveillerait | la grandeur qui existe déjà |
-|---|---|---|
-| `SessionsHigh` | la charge utilisateur | `streamlytics_sessions_1m`, `daily_ops_metrics.peak_sessions` |
-| `ErrorRateHigh` | une pointe d'erreurs | `streamlytics_app_errors_total`, `errors_by_page` |
-| `LogErrorBurst` | une pointe de journaux ERROR | `streamlytics_log_records_total{level="ERROR"}` |
-
-⚠️ Les quatre alertes livrées le 2026-09-17 ne portent **aucun** seuil — `absent()`,
-`up == 0`, `read_ok == 0`. Elles couvrent le silence des instruments, pas la charge. Les
-deux questions sont distinctes et la seconde attend ses données.
 
 ---
 

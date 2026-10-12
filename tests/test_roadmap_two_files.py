@@ -203,6 +203,9 @@ def test_the_active_file_does_not_carry_a_section_twice() -> None:
         "premier.")
 
 
+_SYNTHETIC_BRICK = "- [ ] **R9999 — synthetic brick for the non-vacuity checks**"
+
+
 def test_the_duplication_detector_is_not_vacuous() -> None:
     """Non-vacuité : sur un fichier VOLONTAIREMENT doublé, le détecteur doit mordre.
 
@@ -214,9 +217,13 @@ def test_the_duplication_detector_is_not_vacuous() -> None:
     import re
 
     text = code_of(ACTIVE)
+    if not re.search(r"^- \[[ x]\] \*\*R\d+\b", text, re.M):
+        # A roadmap at 0 open task carries no brick line (R131, 2026-10-12) — that is
+        # the goal, not a defect. Prove the detector on a synthetic brick instead.
+        text += "\n" + _SYNTHETIC_BRICK + "\n"
     assert re.search(r"^- \[[ x]\] \*\*R\d+\b", text, re.M), (
-        "l'expression des briques ne matche RIEN dans le fichier actif — le détecteur "
-        "de duplication ne peut plus rien voir")
+        "l'expression des briques ne matche RIEN — le détecteur de duplication ne peut "
+        "plus rien voir")
 
     doubled = text + text
     assert len(re.findall(r"<!--\s*reprise:\s*open=", doubled)) > 1
@@ -232,6 +239,9 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     assert not carries_its_floor(template, template)
     active, archive = ACTIVE.read_text(encoding="utf-8"), ARCHIVE.read_text(encoding="utf-8")
     assert carries_its_floor(active, archive)
-    line = next(m.group(0) for m in re.finditer(r"^\s*- \[ \].*$", active, re.M))
+    line = next((m.group(0) for m in re.finditer(r"^\s*- \[ \].*$", active, re.M)), None)
+    if line is None:                                # 0 open task: rotate a synthetic one
+        line = _SYNTHETIC_BRICK
+        active += "\n" + line + "\n"
     rotated = active.replace(line, "", 1), archive + "\n" + line.replace("[ ]", "[x]", 1)
     assert carries_its_floor(*rotated), "a rotation (move, not delete) must stay green"
