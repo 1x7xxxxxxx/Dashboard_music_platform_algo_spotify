@@ -84,11 +84,19 @@ def _section_profile(db, user: dict) -> None:
 
     st.subheader(t("account.profile_header", "👤 Mon compte"))
 
+    from src.dashboard.auth import get_artist_id
+    from src.dashboard.utils.premium_end import plan_label
+
     plan = get_artist_plan() if user.get("artist_name") else None
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("account.username", "Nom d'utilisateur"), user["username"])
-    c2.metric(t("account.plan", "Mon plan"),
-              (plan or user["role"]).capitalize())
+    # R537 : « Premium (fin le …) » — the end beside the plan, not only in the banner.
+    # A caption under the value: st.metric cuts a long value with an ellipsis, which
+    # would hide exactly the date this line exists to show.
+    c2.metric(t("account.plan", "Mon plan"), (plan or user["role"]).capitalize())
+    label = plan_label(plan, db, get_artist_id()) if plan else ""
+    if "(" in label:
+        c2.caption(label[label.index("("):])
     c3.metric(
         t("account.email_verified", "Email vérifié"),
         t("account.yes", "✅ Oui") if user["email_verified"]
@@ -100,7 +108,6 @@ def _section_profile(db, user: dict) -> None:
     if plan == "premium":
         # R489 (W12) : « afficher la date à laquelle le plan premium repasse en free » —
         # R514 (X12) : TOUJOURS, « sans date de fin » quand rien ne finit.
-        from src.dashboard.auth import get_artist_id
         from src.dashboard.utils.premium_end import premium_end_line
         artist_id = get_artist_id()
         line = premium_end_line(db, artist_id) if artist_id is not None else None

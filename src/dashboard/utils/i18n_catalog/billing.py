@@ -34,6 +34,8 @@ EN = {
     "billing.premium_until": "Premium until **{date}**, then Free.",
     "billing.premium_renews": ("Premium **with no end date** — your subscription renews "
                                "every month until you cancel it."),
+    "billing.premium_tag_until": "ends {date}",
+    "billing.premium_tag_open": "no end date",
     "billing.premium_promo_open": "Premium **with no end date** — access offered with no expiry.",
     "billing.premium_granted": ("Premium **with no end date** — access granted by hand by "
                                 "the streaMLytics team, with no expiry."),

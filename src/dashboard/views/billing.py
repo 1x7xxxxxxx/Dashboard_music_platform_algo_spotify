@@ -149,16 +149,30 @@ def card_header(label: str, active: bool) -> str:
     return f"### :green[➜] {label}" if active else f"### ~~{label}~~"
 
 
-def _render_plan_status(current_plan: str, status: str | None) -> None:
-    """Free and Premium side by side: which one runs, at what price, in what state."""
+def _render_plan_status(current_plan: str, status: str | None,
+                        end_tag: str | None = None) -> None:
+    """Free and Premium side by side: which one runs, at what price, in what state.
+
+    R537 : the running premium card carries its end — « (fin le …) » or « (sans date de
+    fin) » — beside its name, like Mon compte."""
     cards = _plan_cards()
     for col, plan_key in zip(st.columns(len(_PLAN_ORDER)), _PLAN_ORDER):
         active = plan_key == current_plan
+        label = cards[plan_key]['label']
+        if active and plan_key == 'premium' and end_tag:
+            label = f"{label} ({end_tag})"
         with col:
-            st.markdown(card_header(cards[plan_key]['label'], active))
+            st.markdown(card_header(label, active))
             st.markdown(f"**{cards[plan_key]['price']}**")
             st.caption(status_text(status) if active
                        else t("billing.status_inactive", "Non souscrit"))
+
+
+def _end_tag(db, artist_id: int) -> str | None:
+    """« fin le … » / « sans date de fin » for the premium card (R537)."""
+    from src.dashboard.utils.premium_end import premium_end_tag
+    from src.utils.plan_resolver import premium_horizon
+    return premium_end_tag(*premium_horizon(db, artist_id))
 
 
 def _show_premium_end(db, artist_id: int) -> None:
@@ -212,7 +226,8 @@ def _show_current_plan(db, artist_id: int, current_plan: str):
         offered = current_plan != 'free'
         from src.utils.plan_resolver import premium_horizon
         granted = offered and premium_horizon(db, artist_id)[1] == "granted"
-        _render_plan_status(current_plan, 'trialing' if offered and not granted else 'active')
+        _render_plan_status(current_plan, 'trialing' if offered and not granted else 'active',
+                            _end_tag(db, artist_id))
         if offered:
             plan = current_plan.capitalize()
             st.success(t("billing.granted_active",
@@ -226,7 +241,7 @@ def _show_current_plan(db, artist_id: int, current_plan: str):
         return
 
     _, _, status, period_end, cancel_at_end, customer_id, _ = row[0]
-    _render_plan_status(current_plan, status)
+    _render_plan_status(current_plan, status, _end_tag(db, artist_id))
     if not cancel_at_end:
         # A cancelling subscription already says its end in `billing.cancel_warning`.
         _show_premium_end(db, artist_id)
