@@ -52,7 +52,12 @@ def _monitor_or_skip():
         from src.dashboard.utils.airflow_monitor import AirflowMonitor
     except Exception as e:                       # noqa: BLE001
         pytest.skip(f"airflow_monitor not importable here: {type(e).__name__}: {e}")
-    monitor = AirflowMonitor()
+    # R523 — construction raises without Airflow credentials (the nightly
+    # `error-class-audit` job sets none): no credentials, no live API, so skip.
+    try:
+        monitor = AirflowMonitor()
+    except RuntimeError as e:
+        pytest.skip(f"no Airflow credentials here: {e}")
     try:
         resp = monitor.session.get(f"{monitor.base_url}/dags",
                                    params={'limit': 1}, timeout=5)
