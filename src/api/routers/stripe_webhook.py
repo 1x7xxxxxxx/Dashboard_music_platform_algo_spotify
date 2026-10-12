@@ -71,6 +71,19 @@ def _subscription_period(sub: dict) -> tuple:
     return start, end
 
 
+# R524 — a status event OLDER than the last one applied to the row is skipped. Stripe's
+# `created` is in seconds, so ties happen (a `deleted` and a `payment_failed` in the same
+# second): a tie is applied in arrival order — the ambiguity that remains, narrowed — except
+# that `canceled` is terminal and is never undone by an event of the SAME second. An event
+# with no `created` (none reaches here from Stripe; a hand replay might) is applied.
+# Params, in order: created, created, created, new status.
+_NOT_STALE = (
+    "(%s::bigint IS NULL OR stripe_last_event_at IS NULL "
+    " OR stripe_last_event_at < %s::bigint "
+    " OR (stripe_last_event_at = %s::bigint AND (status <> 'canceled' OR %s = 'canceled')))")
+_BUMP = "stripe_last_event_at = GREATEST(stripe_last_event_at, %s::bigint)"
+
+
 def _known_customer(cur, stripe_customer_id) -> bool:
     """Does a subscription row carry this Stripe customer yet? Read under `lock_customer`."""
     if not stripe_customer_id:
@@ -80,7 +93,7 @@ def _known_customer(cur, stripe_customer_id) -> bool:
     return cur.fetchone() is not None
 
 
-def _upsert_subscription(cur, data: dict, fill_only: bool = False) -> None:
+def _upsert_subscription(cur, data: dict, fill_only: bool = False, created=None) -> None:
     """Write a customer.subscription.* event onto the row matched by stripe_customer_id.
 
     Never commits: the endpoint commits once per event. `fill_only` (the `.created` event)
@@ -101,8 +114,9 @@ def _upsert_subscription(cur, data: dict, fill_only: bool = False) -> None:
             (data.get("id"), p_start, p_end, data.get("customer")),
         )
         return
+    status = data.get("status", "active")
     cur.execute(
-        """
+        f"""
         UPDATE artist_subscriptions
         SET
             stripe_subscription_id = %s,
@@ -110,14 +124,23 @@ def _upsert_subscription(cur, data: dict, fill_only: bool = False) -> None:
             current_period_start = to_timestamp(%s),
             current_period_end = to_timestamp(%s),
             cancel_at_period_end = %s,
+            {_BUMP},
             updated_at = NOW()
         WHERE stripe_customer_id = %s
           AND (stripe_subscription_id IS NULL OR stripe_subscription_id = %s)
-        """,
-        (data.get("id"), data.get("status", "active"), p_start, p_end,
-         data.get("cancel_at_period_end", False), data.get("customer"),
-         data.get("id")),
+          AND {_NOT_STALE}
+        """,  # noqa: S608 — two module constants, no input
+        (data.get("id"), status, p_start, p_end,
+         data.get("cancel_at_period_end", False), created, data.get("customer"),
+         data.get("id"), created, created, created, status),
     )
+    if cur.rowcount == 0 and created is not None:
+        # Stale (or another subscription's): its status is not applied, but the period
+        # dates it carries still fill what is EMPTY — the same rule as `.created`.
+        logger.info("Stripe subscription %s: event of %s not applied (older than the "
+                    "row's last, or no matching row) — period dates filled only (R524)",
+                    data.get("id"), created)
+        _upsert_subscription(cur, data, fill_only=True)
 
 
 def _verified_artist_id(conn, claimed, data: dict):
@@ -229,12 +252,13 @@ def _dispatch(conn, event_type: str, data: dict, event_id: str, created) -> None
     cur = conn.cursor()
     try:
         if event_type == "checkout.session.completed":
-            _checkout_completed(conn, cur, data)
+            _checkout_completed(conn, cur, data, created)
         elif event_type in ("invoice.paid", *stripe_unmatched.SUBSCRIPTION_EVENTS):
             stripe_unmatched.lock_customer(cur, data.get("customer"))
             _handle_resolvable(cur, event_type, data, event_id, created)
         elif event_type == "customer.subscription.deleted":
-            _mark_status(cur, data.get("customer"), data.get("id"), "canceled", event_type)
+            _mark_status(cur, data.get("customer"), data.get("id"), "canceled", event_type,
+                         created)
         elif event_type in ("charge.refunded", "charge.dispute.created"):
             # A refund or a chargeback on the referred artist's payment revokes the reward it
             # earned (security-specialist, R272): pending → deleted, applied → KEPT with the
@@ -245,7 +269,7 @@ def _dispatch(conn, event_type: str, data: dict, event_id: str, created) -> None
             revoke(cur, data.get("customer"), stripe_remove)
         elif event_type == "invoice.payment_failed":
             _mark_status(cur, data.get("customer"), _invoice_subscription(data), "past_due",
-                         event_type)
+                         event_type, created)
     finally:
         cur.close()
 
@@ -257,18 +281,21 @@ def _invoice_subscription(invoice: dict):
     return details.get("subscription") or invoice.get("subscription")
 
 
-def _mark_status(cur, customer, subscription, status: str, event_type: str) -> None:
+def _mark_status(cur, customer, subscription, status: str, event_type: str,
+                 created=None) -> None:
     """customer.subscription.deleted / invoice.payment_failed — NOT parked: replaying a
     cancellation or a failure after the checkout would undo the checkout. A 0-row update is
     said, never silent. Keyed by SUBSCRIPTION (R370 d): a late `deleted` for a customer's
     previous subscription must not cancel the one they took since. The customer alone
     matches only a row whose subscription id is not known yet."""
-    cur.execute("UPDATE artist_subscriptions SET status = %s, updated_at = NOW() "
+    cur.execute(f"UPDATE artist_subscriptions SET status = %s, {_BUMP}, updated_at = NOW() "
                 "WHERE stripe_customer_id = %s AND (stripe_subscription_id IS NULL "
-                "OR stripe_subscription_id = %s)", (status, customer, subscription))
+                f"OR stripe_subscription_id = %s) AND {_NOT_STALE}",  # noqa: S608 — constants
+                (status, created, customer, subscription, created, created, created, status))
     if cur.rowcount == 0:
         logger.warning("Stripe %s: customer %s / subscription %s matches no subscription "
-                       "row — ignored", event_type, customer, subscription)
+                       "row, or a newer event already did — ignored", event_type, customer,
+                       subscription)
     else:
         logger.info(f"Stripe {event_type}: customer={customer} sub={subscription} → {status}")
 
@@ -296,10 +323,11 @@ def _handle_resolvable(cur, event_type: str, data: dict, event_id: str, created)
         resolved = {**data, "current_period_start": p_start, "current_period_end": p_end}
         stripe_unmatched.park(cur, event_id, event_type, resolved, created)
         return
-    _upsert_subscription(cur, data, fill_only=(event_type == "customer.subscription.created"))
+    _upsert_subscription(cur, data, fill_only=(event_type == "customer.subscription.created"),
+                         created=created)
 
 
-def _checkout_completed(conn, cur, data: dict) -> None:
+def _checkout_completed(conn, cur, data: dict, created=None) -> None:
     """Provision the subscription, then replay what arrived before it — one transaction."""
     from src.utils import stripe_unmatched
 
@@ -329,31 +357,52 @@ def _checkout_completed(conn, cur, data: dict) -> None:
     # Taken BEFORE the row is written: an invoice.paid for this customer either committed
     # its park before us (replayed below) or waits on the lock and then finds the row.
     stripe_unmatched.lock_customer(cur, customer_id)
-    _provision(cur, int(artist_id), plan_name, customer_id, data.get("subscription"))
-    for parked_id, event_id, event_type, payload in stripe_unmatched.waiting(cur, customer_id):
-        _handle_resolvable(cur, event_type, payload, event_id, None)
+    _provision(cur, int(artist_id), plan_name, customer_id, data.get("subscription"),
+               created)
+    for parked_id, event_id, event_type, payload, created in stripe_unmatched.waiting(
+            cur, customer_id):
+        _handle_resolvable(cur, event_type, payload, event_id, created)
         stripe_unmatched.mark_replayed(cur, parked_id)
         logger.info("Stripe %s %s replayed after checkout", event_type, event_id)
 
 
-def _provision(cur, artist_id: int, plan_name: str, customer_id, subscription_id) -> None:
+def _provision(cur, artist_id: int, plan_name: str, customer_id, subscription_id,
+               created=None) -> None:
     cur.execute("SELECT id FROM subscription_plans WHERE name = %s", (plan_name,))
     plan_row = cur.fetchone()
     plan_id = plan_row[0] if plan_row else 1
     cur.execute(
         """
         INSERT INTO artist_subscriptions
-            (artist_id, plan_id, stripe_customer_id, stripe_subscription_id, status)
-        VALUES (%s, %s, %s, %s, 'active')
+            (artist_id, plan_id, stripe_customer_id, stripe_subscription_id, status,
+             stripe_last_event_at)
+        VALUES (%s, %s, %s, %s, 'active', %s)
         ON CONFLICT (artist_id) DO UPDATE SET
             plan_id = EXCLUDED.plan_id,
             stripe_customer_id = EXCLUDED.stripe_customer_id,
             stripe_subscription_id = EXCLUDED.stripe_subscription_id,
             status = 'active',
+            stripe_last_event_at = EXCLUDED.stripe_last_event_at,
             updated_at = NOW()
+        -- R524: a NEW subscription (or a row with none yet) is provisioned; the SAME one
+        -- again is a Stripe retry of this checkout — re-activating it would undo a
+        -- cancellation received since, and add a second history row. And an OLDER
+        -- checkout retried after a newer one (security-specialist, R524) must not take
+        -- the row back: the clock starts at the checkout's own `created`.
+        WHERE (artist_subscriptions.stripe_subscription_id
+               IS DISTINCT FROM EXCLUDED.stripe_subscription_id
+            OR artist_subscriptions.stripe_customer_id
+               IS DISTINCT FROM EXCLUDED.stripe_customer_id)
+          AND (artist_subscriptions.stripe_last_event_at IS NULL
+            OR EXCLUDED.stripe_last_event_at IS NULL
+            OR artist_subscriptions.stripe_last_event_at < EXCLUDED.stripe_last_event_at)
         """,
-        (artist_id, plan_id, customer_id, subscription_id),
+        (artist_id, plan_id, customer_id, subscription_id, created),
     )
+    if cur.rowcount == 0:
+        logger.info("Stripe checkout for artist_id=%s / %s already provisioned — retry "
+                    "ignored (R524)", artist_id, subscription_id)
+        return
     # Also update saas_artists.tier
     _tier = plan_name if plan_name in ('free', 'premium') else 'premium'
     cur.execute("UPDATE saas_artists SET tier = %s WHERE id = %s", (_tier, artist_id))

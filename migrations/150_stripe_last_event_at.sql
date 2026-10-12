@@ -1,0 +1,11 @@
+-- 150 — artist_subscriptions.stripe_last_event_at (R524).
+--
+-- Stripe does not promise delivery order. A `customer.subscription.updated` (active)
+-- delivered after the `customer.subscription.deleted` that followed it put a cancelled
+-- artist back on `active`: every status write trusted arrival order. This column holds
+-- the `event.created` (unix seconds) of the last status event applied to the row, so an
+-- OLDER one is skipped. It belongs to the row's CURRENT subscription: a checkout that
+-- changes `stripe_subscription_id` resets it to NULL.
+--
+-- Additive only (ADD COLUMN IF NOT EXISTS) — idempotent, safe to replay.
+ALTER TABLE artist_subscriptions ADD COLUMN IF NOT EXISTS stripe_last_event_at BIGINT;

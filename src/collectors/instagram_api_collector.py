@@ -180,11 +180,20 @@ class InstagramCollector:
                 logger.info(f"Meta access_token refreshed and persisted. New expires_at: {new_expires_at.date()}")
             except Exception as e:
                 logger.error(f"Token persist to DB failed: {safe_error(e)}")
-                raise
+                from src.utils.credential_loader import SecretNotPersistedError
+                if isinstance(e, SecretNotPersistedError):
+                    raise
+                raise SecretNotPersistedError(f"meta access_token: {safe_error(e)}") from e
 
             return True
 
         except Exception as e:
+            from src.utils.credential_loader import SecretNotPersistedError
+            # R524 (b) — rule 6: a refreshed token that was NOT stored is lost at the end
+            # of this run. Returning False read as « refresh failed, keep the old one »
+            # and nobody heard of it; the task fails and says it.
+            if isinstance(e, SecretNotPersistedError):
+                raise
             logger.warning(f"Meta token refresh exception: {safe_error(e)}")
             return False
 
@@ -212,6 +221,9 @@ class InstagramCollector:
                 logger.info(f"Meta token expires in {days_left} day(s) — triggering proactive refresh.")
                 self._refresh_access_token()
         except Exception as e:
+            from src.utils.credential_loader import SecretNotPersistedError
+            if isinstance(e, SecretNotPersistedError):     # R524 (b) — never a debug line
+                raise
             logger.debug(f"Proactive refresh check skipped: {safe_error(e)}")
 
 

@@ -79,13 +79,15 @@ def park(cur, event_id: str, event_type: str, data: dict, created) -> None:
 
 
 def waiting(cur, customer_id: str) -> list[tuple]:
-    """(id, event_id, event_type, payload) still parked for this customer, oldest first."""
+    """(id, event_id, event_type, payload, event_created) still parked for this customer,
+    oldest first. `event_created` is replayed with the event: the ordering guard of the
+    webhook (R524) compares it to the row's last applied event."""
     cur.execute(
-        "SELECT id, event_id, event_type, payload FROM stripe_unmatched_events "
+        "SELECT id, event_id, event_type, payload, event_created FROM stripe_unmatched_events "
         "WHERE stripe_customer_id = %s AND replayed_at IS NULL "
         "ORDER BY event_created, id FOR UPDATE",
         (customer_id,))
-    return [(r[0], r[1], r[2], r[3] if isinstance(r[3], dict) else json.loads(r[3]))
+    return [(r[0], r[1], r[2], r[3] if isinstance(r[3], dict) else json.loads(r[3]), r[4])
             for r in cur.fetchall()]
 
 

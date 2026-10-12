@@ -336,8 +336,86 @@ def test_an_event_for_a_previous_subscription_leaves_the_current_one_alone(db, s
     assert cur.fetchone()[0] == "active", (
         f"a {kind} for the customer's PREVIOUS subscription changed the current one")
     evt["id"] = f"evt_{uuid.uuid4().hex}"
+    evt["created"] = 10_000      # after the checkout (103): R524 skips an older event
     evt["data"]["object"] = {**obj, "id": t["sub"]} if kind.startswith("customer.") else {
         "customer": t["cus"], "subscription": t["sub"]}
     assert client.post("/webhooks/stripe", json=evt).status_code == 200
     cur.execute("SELECT status FROM artist_subscriptions WHERE artist_id = %s", (t["id"],))
     assert cur.fetchone()[0] != "active", f"a {kind} for the CURRENT subscription was ignored"
+
+
+# ── R524 — a status event older than the row's last one is skipped ──────────────────
+
+
+def _status_event(t: dict, kind: str, created: int, status: str = "active") -> dict:
+    obj = ({"id": t["sub"], "customer": t["cus"], "status": status,
+            "cancel_at_period_end": False,
+            "items": {"data": [{"current_period_start": T_START,
+                                "current_period_end": T_END}]}}
+           if kind.startswith("customer.")
+           else {"customer": t["cus"], "subscription": t["sub"]})
+    return {"id": f"evt_{uuid.uuid4().hex}", "type": kind, "created": created,
+            "data": {"object": obj}}
+
+
+def _status(cur, t) -> str:
+    cur.execute("SELECT status FROM artist_subscriptions WHERE artist_id = %s", (t["id"],))
+    return cur.fetchone()[0]
+
+
+@pytest.mark.parametrize("late, at", [
+    ("customer.subscription.updated", 300),   # older than the cancellation
+    ("customer.subscription.updated", 400),   # same second: `canceled` is terminal
+], ids=["older", "same-second"])
+def test_a_late_update_does_not_reactivate_a_cancelled_subscription(db, stripe_env, late, at):
+    cur, made = db
+    t, client = _tenant(cur, made, "resilie"), _client()
+    _send(client, "checkout.session.completed", t)
+    r = client.post("/webhooks/stripe",
+                    json=_status_event(t, "customer.subscription.deleted", 400, "canceled"))
+    assert r.status_code == 200
+    assert client.post("/webhooks/stripe", json=_status_event(t, late, at)).status_code == 200
+    assert _status(cur, t) == "canceled", f"a {late} of {at} undid the cancellation of 400"
+
+
+def test_a_late_payment_failure_does_not_override_a_newer_active(db, stripe_env):
+    cur, made = db
+    t, client = _tenant(cur, made, "impaye"), _client()
+    _send(client, "checkout.session.completed", t)
+    client.post("/webhooks/stripe", json=_status_event(t, "customer.subscription.updated", 500))
+    client.post("/webhooks/stripe", json=_status_event(t, "invoice.payment_failed", 450))
+    assert _status(cur, t) == "active"
+    # …and a NEWER failure still lands: the guard is an order, not a mute.
+    client.post("/webhooks/stripe", json=_status_event(t, "invoice.payment_failed", 600))
+    assert _status(cur, t) == "past_due"
+
+
+def test_a_retried_checkout_neither_reactivates_nor_adds_history(db, stripe_env):
+    cur, made = db
+    t, client = _tenant(cur, made, "rejoue"), _client()
+    _send(client, "checkout.session.completed", t)
+    _send(client, "checkout.session.completed", t)
+    cur.execute("SELECT count(*) FROM subscription_plan_history WHERE artist_id = %s",
+                (t["id"],))
+    assert cur.fetchone()[0] == 1, "a retried checkout wrote a second history row"
+    client.post("/webhooks/stripe",
+                json=_status_event(t, "customer.subscription.deleted", 400, "canceled"))
+    _send(client, "checkout.session.completed", t)
+    assert _status(cur, t) == "canceled", "a retried checkout re-activated a cancellation"
+    # A NEW subscription for the same tenant IS provisioned; its clock starts at its own
+    # checkout, so a late event of ITS past is skipped, and a later one lands.
+    t2 = {**t, "sub": f"{t['sub']}_new"}
+    evt = _event("checkout.session.completed", t2)
+    evt["created"] = 1000
+    assert client.post("/webhooks/stripe", json=evt).status_code == 200
+    assert _status(cur, t2) == "active"
+    client.post("/webhooks/stripe",
+                json=_status_event(t2, "customer.subscription.updated", 900, "incomplete"))
+    assert _status(cur, t2) == "active", "an update older than the checkout downgraded it"
+    client.post("/webhooks/stripe", json=_status_event(t2, "invoice.payment_failed", 1100))
+    assert _status(cur, t2) == "past_due"
+    # …and the OLD checkout, retried now, does not take the row back.
+    _send(client, "checkout.session.completed", t)
+    cur.execute("SELECT stripe_subscription_id FROM artist_subscriptions WHERE artist_id = %s",
+                (t["id"],))
+    assert cur.fetchone()[0] == t2["sub"], "a retried OLD checkout overwrote the new one"

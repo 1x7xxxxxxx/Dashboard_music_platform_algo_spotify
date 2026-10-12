@@ -65,6 +65,10 @@ _NOT_A_QUANTITY = {
     # Le jour où une figure voudrait compter les collectes, la source est
     # `etl_run_log`, pas ce compteur.
     "cache_epoch",
+    # Une HORLOGE (migration 150, R524) : le `created` Unix du dernier évènement Stripe
+    # appliqué à la ligne. Sa seule lecture est une COMPARAISON au `created` de
+    # l'évènement suivant ; la sommer n'a aucun sens.
+    "stripe_last_event_at",
 }
 
 
