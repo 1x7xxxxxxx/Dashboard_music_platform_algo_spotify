@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R543 — Les deux dernières conditions de réouverture tranchées « à la main » (R87 : p50 de rend… (livrée 2026-10-12)
+
+- [x] **R543 — Les deux dernières conditions de réouverture tranchées « à la main » (R87 : p50 de rendu > 200 ms ; « DB ping » : un incident Postgres que la latence de rendu ne montre pas) évaluées par `reopen_check.py` sur le Prometheus de PROD via `PROD_SSH` — plus aucune condition sans évaluation** (P3) ✅ (2026-10-12, 596995de)
+  Mesuré par : `PROD_SSH=… reopen_check.py` : 0 indécidable ; garde : aucune `Trigger` sans évaluation
+  Livré 596995de, CI verte (run 38291043516) : R87 (p50 de rendu prod, 38 ms sur 1 415 reruns) et « DB ping » (repli direct du pool hors test de charge, 0 h sur 30 j) évalués par le Prometheus de prod ; 0 condition indécidable. Les 39 replis du 2026-09-17 sont le test de charge R114, exclu nommément.
+  Commits : 596995de R543 : R87 et « DB ping » tranchés par le Prometheus de prod
+
 ## ✅ R542 — La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, o… (livrée 2026-10-12)
 
 - [x] **R542 — La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, où le dashboard n'existe pas : indécidable à vie. La faire passer par `PROD_SSH` comme R114 et le fan-out** (P3) ✅ (2026-10-12, 745a7d5a)
