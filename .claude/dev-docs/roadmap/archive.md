@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R520 — Autoriser YouTube Analytics (R511) : client OAuth Google (URI de redirection `http://12… (livrée 2026-10-12)
+
+- [x] **R520 — Autoriser YouTube Analytics (R511) : client OAuth Google (URI de redirection `http://127.0.0.1:8765/`, portées `yt-analytics.readonly` + `youtube.readonly`, artiste en utilisateur de test), `GOOGLE_OAUTH_*` en prod, puis la commande tubée avec l'artiste** (P3) ✅ (2026-10-12, f31f19d2, 3730accb)
+  Mesuré par : runbook §41 — vérifié par une ligne `youtube_analytics_channel_daily` pour l'artiste
+  Owner gesture done 2026-10-12: Google OAuth client copied server-side from .streamlit/secrets.toml into prod .env (backup .env.bak-r520), scheduler+webserver recreated; channel UCDpjL6K1yoGdCm4M3PEdskg (owned by 127bpmin, not 1x7xxxxxxx@gmail) authorized for artist 1; youtube_daily manual run success; youtube_analytics_channel_daily artist 1 = 22 rows 2026-09-12..2026-10-09.
+  Commits : f31f19d2 R511 : YouTube Analytics — abonnés gagnés par vidéo (fenêtre 28 j cons · 3730accb Roadmap : R511 périmètre élargi (credential_loader, compose d'exemple)
+
 ## ✅ R528 — Critic a posteriori de R290/R378/R494 (P3) : (a) `tests/test_pdf_coverage.py:50-70` — `… (livrée 2026-10-12)
 
 - [x] **R528 — Critic a posteriori de R290/R378/R494 (P3) : (a) `tests/test_pdf_coverage.py:50-70` — `instagram`, `meta_breakdowns`, `meta_creatives` retirés de `_PDF_MAP` ; rien ne vérifie que leurs sections PDF restent dans `ALL_SECTIONS` ; (b) `check_guards_are_env_independent.suite_did_not_run` lit une ERREUR DE COLLECTE (ImportError sans lien avec `.env`) comme « garde dépendant de l'env » — crash lu comme verdict ; (c) R290 a desserré le cliquet `test_the_visual_rules_only_tighten.py:140-150` (soundcloud/instagram : 3) et `assert "tozeroy" in src` matche un commentaire** (P3) ✅ (2026-10-12, 5c220867)

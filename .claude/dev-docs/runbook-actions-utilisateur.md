@@ -2177,7 +2177,7 @@ fonction Premium vers le plan gratuit. Le reste de R399 et de R381 se construit 
 
 **Vérification** : ta réponse dans le fil ; une ligne Rnnn par « oui ».
 
-## 41. R520 — Autoriser YouTube Analytics pour un artiste
+## 41. ~~R520 — Autoriser YouTube Analytics pour un artiste~~ · ✅ FAIT le 2026-10-12, artiste 1 en production (chaîne détenue par un AUTRE compte Google que l’adresse de l’artiste : choisir le compte qui POSSÈDE la chaîne)
 
 **Pourquoi** : R511 collecte les abonnés gagnés par vidéo, la durée de visionnage et les
 sources de trafic, mais seulement avec l'accord du compte Google qui POSSÈDE la chaîne.
