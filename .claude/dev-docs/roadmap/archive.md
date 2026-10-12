@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R523 — Nightly `error-class-audit` rouge (run 38128059381, 2026-10-11) : 3 signatures (`downlo… (livrée 2026-10-12)
+
+- [x] **R523 — Nightly `error-class-audit` rouge (run 38128059381, 2026-10-11) : 3 signatures (`download-payload-rebuilt-per-rerun`, `dag-without-dagrun-timeout`, `an-overload-makes-the-old-call-ambiguous`) appellent `python3` nu ; sur le runner c'est l'interpréteur SYSTÈME (sans pytest/psycopg2) ⇒ ModuleNotFoundError ⇒ pas de verdict ⇒ exit 2 depuis R495 (avant, un plantage comptait HIT). Faire tourner l'audit sous l'interpréteur du venv, balayer les autres jobs qui lancent des signatures** (P3) ✅ (2026-10-12, fdd6da0f, d7609fb7)
+  Mesuré par : job `error-class-audit` vert au prochain nightly ; les 3 signatures rendent 0/1 sous `/usr/bin/python3 -s` après activation du venv
+  Livré d7609fb7 (.venv/bin dans GITHUB_PATH après chaque uv sync + audit_runner._venv_python) et fdd6da0f (signature DAG-monitor saute sans identifiants Airflow). CI verte 38223887920, nightly sécurité entièrement vert 38223923551.
+  Commits : fdd6da0f R523 : la signature page-window-answers-a-per-entity-question saute au · d7609fb7 R523 : chaque job qui fait uv sync met .venv/bin dans le PATH — les si
+
 ## ✅ R522 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 61 > 60 — la récidive du 2026-1… (livrée 2026-10-11)
 
 - [x] **R522 — `reopen-check` rouvre R122 : `ever_recurred_observed` = 61 > 60 — la récidive du 2026-10-10 de `selector-blind-to-the-import-prefix` (R493 : `mutate_guards.sources_read` résolvait un import au paquet entier), corrigée et gardée le jour même. `make error-debt` rend 0 classe à traiter ⇒ acquittement selon R202 : seuil 60 → 61, nommé dans le commentaire** (P2) ✅ (2026-10-11, 5a327c8e)
