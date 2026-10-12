@@ -19,7 +19,7 @@ from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.date_format import format_date
-from src.dashboard.utils.example_figures import META_X_ALGO, OVERVIEW, PROMISES, render_example
+from src.dashboard.utils.example_figures import OVERVIEW, PROMISES, render_zigzag
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -173,21 +173,19 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
     # équidistants » — trois colonnes égales, l'image EN HAUT pour que les trois
     # s'alignent quelle que soit la longueur de leur ligne, la ligne dessous.
     st.markdown("### " + t("onboarding.b1_title", "1. streaMLytics en bref"))
-    for col, name, line in zip(st.columns(3, gap="medium"), (OVERVIEW, *PROMISES), (
-            t("onboarding.brief_1",
-              "**Toutes tes données au même endroit, récupérées chaque jour, "
-              "automatiquement.**"),
-            t("onboarding.promise_algo",
-              "**Tes chances de déclencher les playlists algorithmiques Spotify — Discover Weekly, Release Radar et Radio — prévues jour par jour**"),
-            t("onboarding.promise_campaign",
-              "**Optimiser ton budget Meta Ads pour maximiser tes streams**"))):
-        with col:
-            render_example(name)
-            st.markdown(line)
-    # R533 : la quatrième figure réunit les deux promesses — chances et budget Meta.
-    render_example(META_X_ALGO)
-    st.markdown(t("onboarding.promise_meta_algo",
-                  "**Ton budget Meta, jour par jour, pour déclencher les algorithmes**"))
+    #
+    # R545 (2026-10-12) : la 4ᵉ figure (budget Meta, R533) est retirée — « les trois
+    # répondent bien » — et les trois passent en zigzag, figure et phrase alternées.
+    lines = (
+        t("onboarding.brief_1",
+          "**Toutes tes données au même endroit, récupérées chaque jour, "
+          "automatiquement.**"),
+        t("onboarding.promise_algo",
+          "**Tes chances de déclencher les playlists algorithmiques Spotify — Discover Weekly, Release Radar et Radio — prévues jour par jour**"),
+        t("onboarding.promise_campaign",
+          "**Optimiser ton budget Meta Ads pour maximiser tes streams**"))
+    render_zigzag(tuple((name, lambda line=line: st.markdown(line))
+                        for name, line in zip((OVERVIEW, *PROMISES), lines)))
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",

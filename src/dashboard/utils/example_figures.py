@@ -21,6 +21,7 @@ no chart) instead of a second illustration that would drift from the first.
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -33,9 +34,7 @@ ALGO_PREDICTION = "prediction-discover-weekly.png"
 CAMPAIGN = "meta-x-s4a.png"
 PROMISES = (ALGO_PREDICTION, CAMPAIGN)   # the order the owner asked for (V12)
 SHAP_OVERVIEW = "shap-overview.png"
-# R533 (2026-10-12): the chances and the Meta budget on ONE axis of days — wide, so it
-# sits under the three columns rather than beside them.
-META_X_ALGO = "meta-x-algo.png"
+# R545 (2026-10-12): the Meta-budget figure (R533) is retired — « les trois répondent bien ».
 # R456 (C8, C10): the free Road to Algo preview shows the two promises, then the SHAP
 # overview — every figure an example, never the tenant's data.
 ALGO_PREVIEW = (ALGO_PREDICTION, CAMPAIGN, SHAP_OVERVIEW)
@@ -49,3 +48,19 @@ def render_example(name: str) -> None:
     path = EXAMPLES_DIR / name
     if path.exists():
         st.image(str(path), width="stretch")
+
+
+def render_zigzag(rows: Sequence[tuple[str, Callable[[], None]]]) -> None:
+    """One row per figure, figure and text side by side, sides alternating (R545).
+
+    Owner, 2026-10-12: « un graphique à gauche avec sa description à droite, le deuxième
+    graphique à droite et ce qu'on peut faire à gauche, et le dernier graphique à
+    gauche » — row 0 puts the figure left, row 1 right, row 2 left again.
+    """
+    for i, (name, text) in enumerate(rows):
+        left, right = st.columns(2, gap="large", vertical_alignment="center")
+        figure_col, text_col = (left, right) if i % 2 == 0 else (right, left)
+        with figure_col:
+            render_example(name)
+        with text_col:
+            text()

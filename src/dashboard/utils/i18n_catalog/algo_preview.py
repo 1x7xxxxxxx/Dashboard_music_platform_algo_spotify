@@ -1,4 +1,4 @@
-"""EN strings for the free Road to Algo preview (R193, R456, R487, R516)."""
+"""EN strings for the free Road to Algo preview (R193, R456, R487, R516, R545)."""
 
 EN = {
     "algo_preview.title": "Preview: trigger Spotify's algorithms",
@@ -20,4 +20,8 @@ EN = {
         "budget to those that send listens, not just clicks.",
     "algo_preview.set_creatives": "**Creatives** — you keep the video that makes people "
         "listen the longest; you cut the others.",
+    "algo_preview.desc_prediction": "**Your chances of triggering Discover Weekly, Release "
+        "Radar and Radio**, forecast day by day: you know when the door opens.",
+    "algo_preview.desc_shap": "**What weighs most on each playlist**, and where your track "
+        "stands on each criterion: you know which one to work on first.",
 }

@@ -52,18 +52,36 @@ def test_the_preview_row_is_generated_at_one_height() -> None:
         "regenerate with `make example-charts`")
 
 
-def test_the_three_figures_share_one_row_of_equal_columns() -> None:
-    """R435: « sur chaque colonne, une, deux, trois, équidistant »."""
+def test_the_three_figures_zigzag_figure_and_text() -> None:
+    """R545 (owner, 2026-10-12): figure left + text right, then right + left, then left.
+
+    Mutation record (2026-10-12): parity flipped in `render_zigzag` → red.
+    """
+    from unittest import mock
+
+    from src.dashboard.utils import example_figures as ef
+
+    sides: list[str] = []
+
+    class _Col:
+        def __init__(self, side: str) -> None:
+            self.side = side
+
+        def __enter__(self):
+            sides.append(self.side)
+
+        def __exit__(self, *_a) -> None:
+            return None
+
+    with mock.patch.object(ef.st, "columns", lambda *_a, **_k: (_Col("L"), _Col("R"))), \
+            mock.patch.object(ef, "render_example", lambda _n: None):
+        ef.render_zigzag(tuple((n, lambda: None) for n in ("a", "b", "c")))
+    # Each row enters the figure column first, then the text column.
+    assert sides == ["L", "R", "R", "L", "L", "R"], sides
     fn = next(n for n in ast.walk(ast.parse(_ONB.read_text(encoding="utf-8")))
               if isinstance(n, ast.FunctionDef) and n.name == "_step_welcome")
-    calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
-    cols = [c for c in calls if getattr(c.func, "attr", "") == "columns"
-            and c.args and getattr(c.args[0], "value", None) == 3]
-    assert cols, "the three figures are no longer one row of three equal columns"
-    examples = [c for c in calls if getattr(c.func, "id", "") == "render_example"]
-    assert len(examples) == 2, (
-        f"{len(examples)} render_example calls — one in the loop over the three columns, "
-        "one for the wide fourth figure under them (R533)")
+    called = {getattr(c.func, "id", "") for c in ast.walk(fn) if isinstance(c, ast.Call)}
+    assert "render_zigzag" in called and "render_example" not in called
 
 
 def test_the_welcome_step_reads_no_tenant_series() -> None:
@@ -108,12 +126,12 @@ def _images(view: str, artist_id: int) -> list[tuple[str, str]]:
 @pytest.mark.skipif(not db_ready(), reason="renders the welcome step against the live DB")
 def test_an_empty_tenant_sees_three_example_figures(empty_tenant) -> None:
     images = _images("onboarding", empty_tenant)
-    assert len(images) == 4, (
-        f"expected overview + two promises + Meta × algos (R533), got {len(images)}")
+    assert len(images) == 3, (
+        f"expected overview + two promises (R545 retired the 4th), got {len(images)}")
     # R480 (owner, 2026-10-09, W3) : « retirer "(exemple données fictives…)" ».
     captioned = [caption for caption, _url in images if caption]
     assert not captioned, f"an example figure carries a caption again: {captioned}"
-    assert len({url for _c, url in images}) == 4, "the same figure is shown twice"
+    assert len({url for _c, url in images}) == 3, "the same figure is shown twice"
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo preview against the live DB")
@@ -121,8 +139,7 @@ def test_the_algo_preview_shows_the_welcome_figures_then_shap(empty_tenant) -> N
     """R456 (C8, C10): the two welcome promises, then the SHAP overview — no caption (R480)."""
     welcome = _images("onboarding", empty_tenant)
     preview = _images("algo_preview", empty_tenant)
-    assert len(preview) == 4 and not any(c for c, _u in preview), preview
+    assert len(preview) == 3 and not any(c for c, _u in preview), preview
     assert [u for _c, u in preview[:2]] == [u for _c, u in welcome[1:3]], (
         "the algo preview shows other figures than the welcome step's two promises")
-    assert preview[3][1] == welcome[3][1], "the Meta × algos figure differs between the two"
-    assert len({u for _c, u in preview}) == 4, "the SHAP overview repeats a promise"
+    assert len({u for _c, u in preview}) == 3, "the SHAP overview repeats a promise"

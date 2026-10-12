@@ -1,7 +1,7 @@
 """Aperçu : déclencher les algos — ce que Road to Algo fait, en trois figures d'exemple. GRATUIT.
 
 Type: Feature
-Uses: example_figures (ALGO_PREVIEW, META_X_ALGO), plan_gate.est_verrouille, navigation.goto, i18n
+Uses: example_figures (ALGO_PREVIEW, render_zigzag), plan_gate.est_verrouille, navigation.goto, i18n
 Depends on: src/dashboard/assets/examples/*.png (built by `make example-charts`)
 Persists in: — (lecture seule)
 
@@ -29,12 +29,17 @@ en phrases simples, des six réglages d'une campagne Meta et, pour chacun, ce qu
 prédiction change à la décision (accentuer / couper / déplacer). Le but est dit une fois :
 baisser le coût par stream. Une liste de réglages, pas une aide : elle vit dans
 `_render_settings()`, et `show()` reste sans texte libre.
+
+R545 (2026-10-12, note vocale) : la 4ᵉ figure (budget Meta jour par jour, R533) est
+retirée, et les trois restantes passent en ZIGZAG — prédiction à gauche avec sa phrase à
+droite ; campagne à droite avec « ce que tu peux régler » à gauche ; SHAP à gauche avec
+sa phrase à droite. « Créatifs » devient « Créatives » (les créatives vidéo).
 """
 from __future__ import annotations
 
 import streamlit as st
 
-from src.dashboard.utils.example_figures import ALGO_PREVIEW, META_X_ALGO, render_example
+from src.dashboard.utils.example_figures import ALGO_PREVIEW, render_zigzag
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.plan_gate import est_verrouille
@@ -53,7 +58,7 @@ def _settings() -> tuple[str, ...]:
           "titre ; tu coupes celle qui zappe."),
         t("algo_preview.set_placements", "**Placements** (Reels, Stories, fil) — tu "
           "déplaces le budget vers ceux qui envoient des écoutes, pas seulement des clics."),
-        t("algo_preview.set_creatives", "**Créatifs** — tu gardes la vidéo qui fait "
+        t("algo_preview.set_creatives", "**Créatives** — tu gardes la vidéo qui fait "
           "écouter le plus longtemps ; tu coupes les autres."),
     )
 
@@ -66,15 +71,24 @@ def _render_settings() -> None:
     st.markdown("\n".join(f"- {line}" for line in _settings()))
 
 
+def _render_prediction_text() -> None:
+    st.markdown(t("algo_preview.desc_prediction",
+                  "**Tes chances de déclencher Discover Weekly, Release Radar et Radio**, "
+                  "prévues jour par jour : tu sais quand la porte s'ouvre."))
+
+
+def _render_shap_text() -> None:
+    st.markdown(t("algo_preview.desc_shap",
+                  "**Ce qui pèse le plus sur chaque playlist**, et où en est ta track sur "
+                  "chaque critère : tu sais lequel travailler en premier."))
+
+
 def show() -> None:
     st.subheader(t("algo_preview.title", "Aperçu : déclencher les algos Spotify"))
-    for col, name in zip(st.columns(len(ALGO_PREVIEW), gap="medium"), ALGO_PREVIEW):
-        with col:
-            render_example(name)
-    render_example(META_X_ALGO)   # R533: chances + Meta budget, under the columns
-    _render_settings()
+    render_zigzag(tuple(zip(ALGO_PREVIEW, (
+        _render_prediction_text, _render_settings, _render_shap_text))))
     # R487 (W10) : « Ouvrir Road to Algo » → un bouton vers Facturation pour qui n'est pas
-    # premium. Le texte sous les figures est retiré : la figure SHAP porte ses légendes.
+    # premium.
     # Le libellé suit la cible : jamais un bouton qui promet une page qu'on ne verra pas.
     locked = est_verrouille("trigger_algo")
     label = (t("algo_preview.upgrade", "⭐ Passer Premium") if locked

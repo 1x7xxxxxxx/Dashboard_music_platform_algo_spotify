@@ -102,6 +102,11 @@ SEEN_RED: dict[str, str] = {
         "2026-10-12 — R543 : fenêtres de test de charge ignorées → rouge ; plancher de reruns retiré → rouge ; R87 remis à `None` → rouge",
     "tests/test_apple_music_totals_and_daily_shazams.py":
         "2026-10-12 — R546 : `_render_shazam_rate(df_top)` remis dans `show()` → rouge",
+    "tests/test_the_algo_preview_is_figures_only.py":
+        "2026-10-12 — R545 : `_render_settings` passé au 3ᵉ rang du zigzag → rouge ; "
+        "« Créatifs » remis → rouge",
+    "tests/test_the_welcome_figures_are_examples.py":
+        "2026-10-12 — R545 : parité inversée dans `render_zigzag` → rouge",
     "tests/test_the_load_thresholds_derive_from_history.py":
         "2026-10-12 — R131 : `SessionsHigh` sans la porte d'historique (`and on() "
         "(count_over_time(…[1d] offset 28d) > 0)`) → rouge à 10 j ; `>` changé en `>=` → "

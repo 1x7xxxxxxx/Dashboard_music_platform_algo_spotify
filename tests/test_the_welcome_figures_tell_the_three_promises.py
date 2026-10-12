@@ -1,8 +1,7 @@
 """R455 — the three welcome figures draw what the owner asked for, read off the built figure.
 
 Type: Test
-Uses: tools/dev/make_example_charts (dashboard_global, discover_weekly_prediction, meta_x_s4a,
-      meta_x_algo)
+Uses: tools/dev/make_example_charts (dashboard_global, discover_weekly_prediction, meta_x_s4a)
 Depends on: matplotlib (Agg)
 
 Owner, 2026-10-07 (voice comments C1-C3):
@@ -110,27 +109,6 @@ def test_discover_weekly_and_radio_each_get_a_forecast_date(built):
     dates = [t.get_text() for t in ax.texts if "prévu J+" in t.get_text()]
     assert len(dates) == 2 and any("Discover Weekly" in d for d in dates) and any(
         "Radio" in d for d in dates), dates
-
-
-def test_the_fourth_figure_draws_the_meta_budget_under_the_chances(built):
-    """R533 : « une 4ᵉ figure qui fusionne les chances et le budget Meta » — bars of spend
-    (measured, then advised) under the DW and Radio curves, in a colour YouTube does not
-    already wear."""
-    from matplotlib.colors import to_hex
-
-    charts_mod = importlib.util.module_from_spec(
-        importlib.util.spec_from_file_location("_r533_c", _SCRIPT))
-    charts_mod.__spec__.loader.exec_module(charts_mod)
-    ax, axe = built("meta_x_algo").axes
-    alphas = {round(p.get_alpha() or 1, 2) for p in axe.patches}
-    assert len(alphas) == 2, f"spent and advised bars are not told apart: {alphas}"
-    assert {to_hex(p.get_facecolor()) for p in axe.patches} == {charts_mod.META}
-    assert charts_mod.META.lower() != charts_mod.ORANGE.lower(), "Meta wears YouTube's red"
-    curves = [ln for ln in ax.lines if len(ln.get_xdata()) > 2]
-    assert any(ln.get_linestyle() == "-" for ln in curves) and any(
-        ln.get_linestyle() != "-" for ln in curves), "no measured-then-forecast curve"
-    labels = _texts(ax)
-    assert "Discover Weekly" in labels and "Radio" in labels and "relancer" in labels
 
 
 def test_the_campaign_advice_follows_the_model_windows(built):

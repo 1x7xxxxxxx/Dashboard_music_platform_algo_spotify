@@ -34,6 +34,11 @@ def _calls(tree: ast.AST) -> set[str]:
             for n in ast.walk(tree) if isinstance(n, ast.Call)}
 
 
+def _names(tree: ast.AST) -> set[str]:
+    """Every name `show()` reaches — a helper passed to `render_zigzag` is not called there."""
+    return {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | _calls(tree)
+
+
 def test_the_preview_is_the_welcome_figures_then_shap() -> None:
     assert ALGO_PREVIEW == (*PROMISES, SHAP_OVERVIEW)
 
@@ -42,7 +47,7 @@ def test_the_preview_reads_no_database() -> None:
     tree = ast.parse(VIEW.read_text(encoding="utf-8"))
     show = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "show")
     assert not _calls(show) & DB_CALLS, "the text below the figures is gone, so is its query"
-    assert "render_example" in _calls(show)
+    assert "render_zigzag" in _calls(show)
 
 
 def test_the_detector_sees_a_database_read() -> None:
@@ -152,7 +157,7 @@ def test_the_preview_lists_what_you_can_adjust_in_both_languages() -> None:
     assert "cost per stream" in EN["algo_preview.settings_goal"]
     tree = ast.parse(VIEW.read_text(encoding="utf-8"))
     show = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "show")
-    assert "_render_settings" in _calls(show), "the list is not rendered on the page"
+    assert "_render_settings" in _names(show), "the list is not rendered on the page"
 
 
 def test_the_list_is_rendered_under_the_figures() -> None:
@@ -163,3 +168,25 @@ def test_the_list_is_rendered_under_the_figures() -> None:
     text = " ".join(m.value for m in at.markdown)
     assert "Ce que tu peux régler" in text and "coût par stream" in text
     assert text.count("\n- ") == 5, "six settings, one bullet each"
+
+
+def test_the_preview_zigzags_with_the_settings_beside_the_campaign() -> None:
+    """R545 (owner, 2026-10-12): prediction left + text, campaign right + « ce que tu peux
+    régler » left, SHAP left + text — and « les créatives vidéo », not « Créatifs ».
+
+    Mutation record (2026-10-12): `_render_settings` moved to the third row → red;
+    « Créatifs » put back → red.
+    """
+    from unittest import mock
+
+    from src.dashboard.views import algo_preview as v
+
+    rows: list = []
+    with mock.patch.object(v, "render_zigzag", rows.extend), \
+            mock.patch.object(v, "est_verrouille", lambda _p: True), \
+            mock.patch.object(v.st, "button", lambda *_a, **_k: False), \
+            mock.patch.object(v.st, "subheader", lambda *_a, **_k: None):
+        v.show()
+    assert [name for name, _text in rows] == list(ALGO_PREVIEW)
+    assert rows[1][1] is v._render_settings, "the settings list is not beside the campaign"
+    assert "Créatives" in v._settings()[-1] and "Créatifs" not in v._settings()[-1]
