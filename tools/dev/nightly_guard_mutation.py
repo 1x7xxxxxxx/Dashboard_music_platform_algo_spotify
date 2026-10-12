@@ -64,6 +64,24 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_instagram_missing_field_is_null.py":
+        "2026-10-12 — R529 : lecture directe `data.get('followers_count', 0)` (le 0 inventé "
+        "qui se lit comme une chute d'abonnés, R510) → 1 rouge",
+    "tests/test_unfinished_features_are_finished.py":
+        "2026-10-12 — R529 : `organic_gap_caption` rend « pas encore collectés (Phase 2) » "
+        "quelle que soit la saisie (l'écart non calculé depuis la mig. 052, R510) → 2 rouges",
+    "tests/test_mutation_measures_the_tree_under_test.py":
+        "2026-10-12 — R529 : `_copy_worktree` liste `ls-files -c` (les fichiers suivis "
+        "seulement, un test non commité n'est pas mesuré, R509) → 1 rouge",
+    "tests/test_unreadable_cells_are_counted_not_zeroed.py":
+        "2026-10-12 — R529 : `parse_timeline` part d'un `Rejects()` vide au lieu de "
+        "`Rejects.scan` (« 12x » relu 0 en silence, R502) → 4 rouges",
+    "tests/test_a_number_is_read_by_its_files_locale.py":
+        "2026-10-12 — R529 : `AppleMusicCSVParser.clean_number` lit avec « . » au lieu du "
+        "séparateur du FICHIER (`1.234,5` relu 0, R503) → 1 rouge",
+    "tests/test_aggregations_hold_their_properties.py":
+        "2026-10-12 — R529 : `DistroKidParser._dedup` garde la dernière ligne d'une clé "
+        "en double au lieu de sommer (`if False:`, totaux perdus, R505) → 1 rouge",
     "tests/test_a_push_carries_the_tree_seen_green.py":
         "2026-10-08 — R467 : `verdict` ne compte plus les fichiers changés depuis le run vert "
         "(le push du 2026-10-07, R444) → 2 rouges",
