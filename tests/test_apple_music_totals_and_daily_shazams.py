@@ -1,13 +1,20 @@
-"""Apple Music — Total row, and Shazams gained per day from cumulative readings (R534).
+"""Apple Music — the Total row of the top 10 (R534); the page is that figure only (R546).
 
 Type: Test
-Uses: src.dashboard.views.apple_music (_top10_figure, daily_shazam_gains)
+Uses: src.dashboard.views.apple_music (_top10_figure, show), ast
 
 Owner, 2026-10-12: « Total en première ligne avec un libellé, puis les titres » ; and a
 daily Shazam chart where several days without an import read as an AVERAGE, never as
-one day carrying them all.
+one day carrying them all. That daily chart and « le titre à pousser » were removed
+on 2026-10-12 (R546, owner: « tu me supprimes les deux »).
+
+Mutation record — 2026-10-12: with `_render_shazam_rate(df_all)` put back in `show()`,
+`test_the_page_is_the_top10_and_its_shazams_only` is red naming it.
 """
 from __future__ import annotations
+
+import ast
+import inspect
 
 import pandas as pd
 
@@ -24,23 +31,14 @@ def test_the_total_is_the_first_row_of_both_panels():
     assert [s.strip() for s in texts] == ["<b>400</b>", "<b>14</b>"]
 
 
-def _hist(rows):
-    return pd.DataFrame(rows, columns=["song_name", "day", "shazam_count"])
-
-
-def test_a_gap_is_spread_as_an_average_never_one_day():
-    g = am.daily_shazam_gains(_hist([("A", "2026-10-01", 10), ("A", "2026-10-04", 40),
-                                     ("A", "2026-10-05", 45)]))
-    assert list(g["gain"]) == [10, 10, 10, 5]
-    assert list(g["span"]) == [3, 3, 3, 1]
-    assert g["gain"].sum() == 35, "the spread must keep the total gained"
-
-
-def test_titles_add_up_and_a_drop_is_not_negative():
-    g = am.daily_shazam_gains(_hist([("A", "2026-10-01", 10), ("A", "2026-10-02", 12),
-                                     ("B", "2026-10-01", 50), ("B", "2026-10-02", 20)]))
-    assert list(g["gain"]) == [2], "B went down (other export window): left out, not -30"
-
-
-def test_a_single_reading_has_no_gain():
-    assert am.daily_shazam_gains(_hist([("A", "2026-10-01", 10)])).empty
+def test_the_page_is_the_top10_and_its_shazams_only():
+    """R546 — `show()` draws one figure: the top 10 with its Shazams panel."""
+    tree = ast.parse(inspect.getsource(am.show))
+    called = {getattr(n.func, "id", "") or getattr(n.func, "attr", "")
+              for n in ast.walk(tree) if isinstance(n, ast.Call)}
+    assert "_top10_figure" in called, "the top 10 is gone from the page"
+    removed = {c for c in called if "shazam_rate" in c or "shazam_gains" in c}
+    assert not removed, f"R546: removed by the owner, drawn again: {sorted(removed)}"
+    assert sum(1 for n in ast.walk(tree) if isinstance(n, ast.Call)
+               and getattr(n.func, "attr", "") == "plotly_chart") == 1, (
+        "R546: the Apple page has ONE figure — the top 10 and its Shazams")

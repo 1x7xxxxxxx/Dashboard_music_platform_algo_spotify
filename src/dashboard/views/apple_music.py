@@ -48,6 +48,9 @@ par 30 jours (R484), elle ne menait à aucune décision. À la place, un classem
 « Shazams pour 1 000 écoutes », un titre par barre — le titre que les gens CHERCHENT
 après l'avoir entendu est celui à pousser en pub. Cumul de vie, pas 30 jours : les
 relevés Apple sont espacés de 12 à 179 jours, une fenêtre de 30 jours serait vide.
+
+R546 (2026-10-12, note vocale du propriétaire) : « le titre à pousser » et « Shazam
+gagnés par jour » sont retirés. Restent le top 10 en streams cumulés et ses Shazams.
 """
 import pandas as pd
 import streamlit as st
@@ -115,23 +118,14 @@ def show():
                 charts.plotly_chart(_top10_figure(df_top, _total(total_plays),
                                                   _total(total_shazams)), width="stretch")
 
-            # ============================================================
-            # 3. QUEL TITRE POUSSER (R518, owner X7 II)
-            # ============================================================
-            # « Le rythme d'un titre » (R484) is gone: two bars per reading for ONE
-            # title led to no decision. A Shazam is someone SEARCHING the title after
-            # hearing it — the title with the most Shazams per 1 000 plays is the one
-            # an ad would carry furthest.
-            df_all = db.fetch_df(LATEST_QUERY, (artist_id,))
-            if not df_all.empty:
-                _render_shazam_rate(df_all)
-                _render_shazam_gains(db.fetch_df(HISTORY_QUERY, (artist_id,)))
-            elif df_top.empty:
+            # R546 (owner, 2026-10-12) : « le titre à pousser » and « Shazam gagnés par jour »
+            # are gone — the top 10 and its Shazams panel are the page.
+            if df_top.empty:
                 # No Apple reading at all: name the absence and the gesture, never a bare page.
                 st.info(t("apple_music.no_data",
                           "Aucun relevé Apple Music pour l'instant : importe ton export "
                           "Apple Music for Artists depuis **Import CSV** pour voir tes "
-                          "titres et le titre à pousser."))
+                          "titres."))
 
         except Exception as e:
             st.error(t("apple_music.error", "❌ Erreur : {err}").format(err=e))
@@ -185,129 +179,6 @@ def _top10_figure(df_top, total_plays: str = "—", total_shazams: str = "—"):
                      categoryarray=[*df["song_name"], total_row])   # left edge; Total on top
     fig.update_layout(height=490, showlegend=False, margin=dict(l=10, r=30, t=60))
     return fig
-
-
-# R518 — every title's latest cumulative level, for the Shazam rate ranking.
-LATEST_QUERY = """
-    SELECT DISTINCT ON (song_name) song_name, plays, shazam_count
-      FROM v_apple_song_cumulative
-     WHERE artist_id = %s
-     ORDER BY song_name, day DESC
-"""
-
-# Below this many Apple plays a rate is noise : 53 Shazams on 30 plays reads 1 767 / 1 000
-# (artist 1, 2026-10-11). Those titles are named under the figure, never ranked.
-MIN_PLAYS = 100
-
-
-def shazams_per_thousand(df: pd.DataFrame, min_plays: int = MIN_PLAYS) -> pd.DataFrame:
-    """(song_name, plays, shazam_count, rate) ranked by Shazams per 1 000 Apple plays,
-    highest first ; titles under `min_plays` are left out. Pure (R518)."""
-    out = df.assign(plays=pd.to_numeric(df["plays"], errors="coerce"),
-                    shazam_count=pd.to_numeric(df["shazam_count"], errors="coerce"))
-    out = out[(out["plays"] >= min_plays) & out["shazam_count"].notna()].copy()
-    out["rate"] = (out["shazam_count"] / out["plays"] * 1000).round(0)
-    return out.sort_values("rate", ascending=False).reset_index(drop=True)
-
-
-def _render_shazam_rate(df_all: pd.DataFrame) -> None:
-    """Which title to push : Shazams per 1 000 plays, one bar per title (R518)."""
-    from src.dashboard.utils.platform_colors import PALETTE_LIGHT
-
-    ranked = shazams_per_thousand(df_all)
-    st.subheader(t("apple_music.shazam_rate_header", "🎯 Le titre à pousser"))
-    # R534 (b) — the owner asked what tells the two Shazam figures apart.
-    st.caption(t("apple_music.shazam_rate_explain",
-                 "Le **total** compte toutes les fois où quelqu'un a cherché un titre sur "
-                 "Shazam. **Pour 1 000 écoutes** rapporte ce total aux écoutes Apple Music : "
-                 "un titre peu écouté mais très cherché ressort en tête, c'est celui qui "
-                 "accroche le plus quand on l'entend."))
-    if ranked.empty:
-        st.info(t("apple_music.shazam_rate_empty",
-                  "Aucun titre n'a encore {n} écoutes Apple : le taux serait du bruit."
-                  ).format(n=MIN_PLAYS))
-        return
-    df = ranked.iloc[::-1]            # plotly draws bottom-up : the best on top
-    fig = go.Figure(go.Bar(
-        y=df["song_name"], x=df["rate"], orientation="h",
-        marker_color=PALETTE_LIGHT["apple"],
-        text=[num(v, 0) for v in df["rate"]], textposition="outside", cliponaxis=False,
-        customdata=df[["shazam_count", "plays"]].values,
-        hovertemplate=t("apple_music.shazam_rate_hover",
-                        "%{y}<br>%{x:,.0f} Shazams / 1 000 écoutes<br>"
-                        "%{customdata[0]:,.0f} Shazams · %{customdata[1]:,.0f} écoutes"
-                        "<extra></extra>")))
-    fig.update_xaxes(range=[0, float(df["rate"].max() or 1) * 1.25], nticks=4)
-    fig.update_yaxes(automargin=True)
-    fig.update_layout(
-        height=max(260, 34 * len(df) + 90), showlegend=False, margin=dict(l=10, r=30, t=60),
-        title_text=t("apple_music.shazam_rate_title",
-                     "Shazams pour 1 000 écoutes — {song} se fait le plus chercher"
-                     ).format(song=ranked.iloc[0]["song_name"]))
-    charts.plotly_chart(fig, width="stretch")
-    left_out = len(df_all) - len(ranked)
-    if left_out:
-        st.caption(t("apple_music.shazam_rate_left_out",
-                     "{n} titre(s) sous {m} écoutes Apple, non classés.")
-                   .format(n=left_out, m=MIN_PLAYS))
-
-
-# R534 (c) — every reading of every title, to turn cumulative Shazams into daily gains.
-HISTORY_QUERY = """
-    SELECT song_name, day, shazam_count
-      FROM v_apple_song_cumulative
-     WHERE artist_id = %s AND shazam_count IS NOT NULL
-     ORDER BY song_name, day
-"""
-
-
-def daily_shazam_gains(history: pd.DataFrame) -> pd.DataFrame:
-    """(day, gain, span) — Shazams gained per day, from cumulative readings. Pure (R534 c).
-
-    Between two readings `span` days apart, the gain is spread EVENLY over those days and
-    `span` says so: three days without an import read as three days at the average, never
-    as one day carrying all three. A cumulative that goes DOWN is another export window,
-    not lost Shazams — that interval is left out rather than drawn negative."""
-    rows = []
-    for _song, g in history.assign(day=pd.to_datetime(history["day"])).groupby("song_name"):
-        g = g.sort_values("day")
-        for (d0, c0), (d1, c1) in zip(g[["day", "shazam_count"]].values[:-1],
-                                      g[["day", "shazam_count"]].values[1:]):
-            span, gain = (d1 - d0).days, float(c1) - float(c0)
-            if span <= 0 or gain < 0:
-                continue
-            rows += [(d0 + pd.Timedelta(days=k + 1), gain / span, span) for k in range(span)]
-    if not rows:
-        return pd.DataFrame(columns=["day", "gain", "span"])
-    out = pd.DataFrame(rows, columns=["day", "gain", "span"])
-    return out.groupby("day").agg(gain=("gain", "sum"), span=("span", "max")).reset_index()
-
-
-def _render_shazam_gains(history: pd.DataFrame) -> None:
-    from src.dashboard.utils.platform_colors import PALETTE_LIGHT
-
-    gains = daily_shazam_gains(history)
-    if gains.empty:
-        st.caption(t("apple_music.gains_need_two",
-                     "Les Shazams gagnés par jour apparaîtront au deuxième import Apple Music."))
-        return
-    exact = gains["span"] == 1
-    fig = go.Figure([
-        go.Bar(x=gains.loc[exact, "day"], y=gains.loc[exact, "gain"],
-               marker_color=PALETTE_LIGHT["apple"],
-               name=t("apple_music.gains_exact", "Jour mesuré")),
-        go.Bar(x=gains.loc[~exact, "day"], y=gains.loc[~exact, "gain"],
-               marker_color=PALETTE_LIGHT["apple"], opacity=0.35,
-               customdata=gains.loc[~exact, ["span"]].values,
-               hovertemplate=t("apple_music.gains_avg_hover",
-                               "%{x|%d/%m}<br>%{y:,.1f} Shazams/jour — moyenne sur "
-                               "%{customdata[0]} jours sans import<extra></extra>"),
-               name=t("apple_music.gains_avg", "Moyenne entre deux imports")),
-    ])
-    fig.update_layout(barmode="overlay", bargap=0,
-                      title=t("apple_music.gains_title", "⚡ Shazams gagnés par jour"),
-                      yaxis_title=t("apple_music.gains_axis", "Shazams / jour"))
-    charts.plotly_chart(fig, width="stretch")
 
 
 def _launches(db, artist_id: int) -> list:

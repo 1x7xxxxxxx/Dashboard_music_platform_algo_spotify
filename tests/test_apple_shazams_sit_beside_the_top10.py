@@ -60,5 +60,6 @@ def test_the_page_draws_the_top10_with_its_shazams_and_no_expander() -> None:
     assert not at.exception, at.exception
     assert not [e.label for e in at.expander if "Shazams par chanson" in e.label], (
         "the Shazams are folded in an expander again")
-    assert len(at.get("plotly_chart")) == 3, (
-        "top 10 + Shazams, the title to push, then the Shazams gained per day (R534)")
+    assert len(at.get("plotly_chart")) == 1, (
+        "R546: the top 10 with its Shazams only — the title to push and the Shazams "
+        "gained per day were removed by the owner (2026-10-12)")
