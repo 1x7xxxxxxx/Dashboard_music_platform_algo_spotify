@@ -3,7 +3,7 @@
 Type: Test
 Uses: docker, prom/prometheus:v2.51.0 (promtool)
 Depends on: deploy/prometheus/rules/streamlytics.yml (group `streamlytics-load`),
-            deploy/prometheus/rules/streamlytics.test.yml
+            deploy/prometheus/tests/streamlytics.test.yml
 Persists in: nothing (a temp dir)
 
 R131 waited from 2026-09-17 for 30 days of `daily_ops_metrics` so that a session could
@@ -54,10 +54,22 @@ def test_promtool_proves_silence_equality_and_record(tmp_path: Path) -> None:
     load["rules"] = [{k: v for k, v in r.items() if k != "annotations"} for r in load["rules"]]
     (tmp_path / "load-only.yml").write_text(yaml.safe_dump({"groups": [load]},
                                                            allow_unicode=True))
-    shutil.copy(_RULES / "streamlytics.test.yml", tmp_path / "streamlytics.test.yml")
+    shutil.copy(_RULES.parent / "tests" / "streamlytics.test.yml", tmp_path / "streamlytics.test.yml")
     tmp_path.chmod(0o755)
     r = subprocess.run(
         ["docker", "run", "--rm", "--entrypoint", "promtool", "-v", f"{tmp_path}:/r:ro",
          "-w", "/r", _IMAGE, "test", "rules", "streamlytics.test.yml"],
         capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_every_file_prometheus_loads_is_a_rule_file() -> None:
+    """`rule_files: /etc/prometheus/rules/*.yml` loads EVERY yml of the directory.
+
+    2026-10-12: the promtool test file first lived in `rules/`; in production the
+    reload was refused ("field tests not found in type rulefmt.RuleGroups") and a
+    container restart would not have started. Only `groups:` files belong there.
+    """
+    strays = [f.name for f in sorted(_RULES.glob("*.yml"))
+              if set(yaml.safe_load(f.read_text()) or {}) != {"groups"}]
+    assert not strays, f"non-rule files Prometheus would load: {strays}"

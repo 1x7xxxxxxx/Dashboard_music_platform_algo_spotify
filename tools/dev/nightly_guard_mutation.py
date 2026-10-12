@@ -98,7 +98,7 @@ SEEN_RED: dict[str, str] = {
     "tests/test_the_load_thresholds_derive_from_history.py":
         "2026-10-12 — R131 : `SessionsHigh` sans la porte d'historique (`and on() "
         "(count_over_time(…[1d] offset 28d) > 0)`) → rouge à 10 j ; `>` changé en `>=` → "
-        "rouge sur la valeur ÉGALE au maximum passé (29j2h)",
+        "rouge sur la valeur ÉGALE au maximum passé (29j2h) ; fichier de test promtool recopié dans rules/ → rouge (garde des fichiers que Prometheus charge)",
     "tests/test_a_gold_invariant_reads_one_snapshot.py":
         "2026-10-12 — R541 : `run()` sans `db.execute_query(ONE_SNAPSHOT)` (les deux "
         "membres lus dans deux instantanés, R540) → 1 rouge",

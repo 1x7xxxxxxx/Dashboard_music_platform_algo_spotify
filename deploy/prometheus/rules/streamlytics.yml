@@ -304,7 +304,7 @@ groups:
   # Ce que ces règles ne savent PAS faire : distinguer une croissance saine d'une
   # anomalie. Un record de sessions est d'abord une bonne nouvelle ; c'est pourquoi son
   # action renvoie à `make scale-check` (ADR-027), pas à un correctif.
-  # Preuve : `deploy/prometheus/rules/streamlytics.test.yml` (`promtool test rules`).
+  # Preuve : `deploy/prometheus/tests/streamlytics.test.yml` (`promtool test rules` — hors de `rules/`, que Prometheus charge en entier).
   #
   # Total : 14 règles. Le motif de ne pas adopter Alertmanager reste celui de R281 : pas
   # d'astreinte — ces trois-là sont lues au mail du soir comme les onze autres.
