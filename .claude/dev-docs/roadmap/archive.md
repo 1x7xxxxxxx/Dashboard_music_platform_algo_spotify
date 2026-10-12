@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R529 — Nightly `guard-mutation` 🟠 « 6 gardes à relire » (run 38223923551, 2026-10-12) : `test_… (livrée 2026-10-12)
+
+- [x] **R529 — Nightly `guard-mutation` 🟠 « 6 gardes à relire » (run 38223923551, 2026-10-12) : `test_instagram_missing_field_is_null`, `test_unfinished_features_are_finished`, `test_mutation_measures_the_tree_under_test`, `test_unreadable_cells_are_counted_not_zeroed`, `test_a_number_is_read_by_its_files_locale`, `test_aggregations_hold_their_properties` — verts sur des mutations génériques. Muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ le garde est vacant, le réparer** (P3) ✅ (2026-10-12, 61c8abf0)
+  Mesuré par : les 6 dans `SEEN_RED` avec leur mutation, ou réparés ; le job du lendemain sans « à relire » pour eux
+  Livré 61c8abf0 : six gardes neufs vus rouges à la main sur une mutation qui incarne leur défaut ; CI verte.
+  Commits : 61c8abf0 R529 : six gardes neufs vus rouges à la main sur une mutation qui inca
+
+## ✅ R526 — Critic a posteriori de R404 : `_tab_budget_roi.py` « Restant estimé » = budget à VIE de… (livrée 2026-10-12)
+
+- [x] **R526 — Critic a posteriori de R404 : `_tab_budget_roi.py` « Restant estimé » = budget à VIE des campagnes − dépense de la FENÊTRE choisie ⇒ faux dès que la fenêtre n'est pas la vie entière ; `max(…,0)` masque le dépassement** (P2) ✅ (2026-10-12, bcf9c89d)
+  Mesuré par : test : fenêtre de 7 j sur une campagne de 60 j ⇒ le restant ne dépend pas de la fenêtre ; dépassement affiché
+  Livré bcf9c89d : Restant estimé = budget à vie − dépense à vie des campagnes actives ; CI verte.
+  Commits : bcf9c89d R526 : « Restant estimé » = budget à vie − dépense à VIE des campagnes
+
 ## ✅ R523 — Nightly `error-class-audit` rouge (run 38128059381, 2026-10-11) : 3 signatures (`downlo… (livrée 2026-10-12)
 
 - [x] **R523 — Nightly `error-class-audit` rouge (run 38128059381, 2026-10-11) : 3 signatures (`download-payload-rebuilt-per-rerun`, `dag-without-dagrun-timeout`, `an-overload-makes-the-old-call-ambiguous`) appellent `python3` nu ; sur le runner c'est l'interpréteur SYSTÈME (sans pytest/psycopg2) ⇒ ModuleNotFoundError ⇒ pas de verdict ⇒ exit 2 depuis R495 (avant, un plantage comptait HIT). Faire tourner l'audit sous l'interpréteur du venv, balayer les autres jobs qui lancent des signatures** (P3) ✅ (2026-10-12, fdd6da0f, d7609fb7)

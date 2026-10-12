@@ -825,3 +825,13 @@
 {"at": "2026-10-11T02:25:36+00:00", "head": "5ba2a24a", "kind": "done", "task": "R517", "what": ""}
 {"at": "2026-10-11T02:25:36+00:00", "head": "5ba2a24a", "kind": "start", "task": "R518", "what": ""}
 {"at": "2026-10-11T02:52:57+00:00", "kind": "done", "task": "R518", "what": "fermée par roadmap-close — Livré d96afe60 + 37540338 (état vide nommé, trouvé par la CI), CI verte (run 38106359563), déployé et vérifié en prod (shazams_per_thousand présent, _render_song_series absent)"}
+{"at": "2026-10-11T02:58:10+00:00", "head": "b564f3b9", "kind": "done", "task": "R518", "what": ""}
+{"at": "2026-10-11T02:58:10+00:00", "head": "b564f3b9", "kind": "start", "task": "R519", "what": ""}
+{"at": "2026-10-11T03:40:55+00:00", "kind": "done", "task": "R519", "what": "fermée par roadmap-close — Livré d14cd24c, CI verte (run 38108938721), déployé dc2402d2 ; prod : 68 lignes artiste 1, 5 séries (SACEM, iMusician, Distribution, Publicité Meta, Solde cumulé), « Solde -3 163 € — 269 € entrés, 3 432 € sortis »"}
+{"at": "2026-10-11T03:46:14+00:00", "head": "c8afda1f", "kind": "done", "task": "R519", "what": ""}
+{"at": "2026-10-11T03:46:39+00:00", "head": "c8afda1f", "kind": "park", "task": "R520", "what": "geste propriétaire : créer le client OAuth Google (runbook §41), poser GOOGLE_OAUTH_* en prod, puis lancer la commande tubée avec l'artiste"}
+{"at": "2026-10-11T03:47:05+00:00", "head": "c8afda1f", "kind": "start", "task": "R520", "what": ""}
+{"at": "2026-10-11T03:47:05+00:00", "head": "c8afda1f", "kind": "park", "task": "R520", "what": "geste propriétaire : client OAuth Google (runbook §41), GOOGLE_OAUTH_* en prod, puis la commande tubée avec l'artiste — déjà dans 🙋"}
+{"at": "2026-10-11T03:48:43+00:00", "head": "c8afda1f", "kind": "start", "task": "R522", "what": ""}
+{"at": "2026-10-11T03:59:04+00:00", "kind": "done", "task": "R522", "what": "fermée par roadmap-close — Livré 5a327c8e, CI verte (run 38109946904) ; seuil R122 60→61, reopen-check à 0 ROUVRIR"}
+{"at": "2026-10-11T04:04:30+00:00", "head": "33639ef8", "kind": "done", "task": "R522", "what": ""}
