@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from ._common._budget_roi import ACTIVE_LIFETIME_SPEND_SQL, remaining_lifetime_budget
 from ._common import (
     _show_budget_pacing_calculator,
     _show_pi_breakeven,
@@ -23,6 +24,7 @@ from src.dashboard.utils.algo_preview_data import cout_par_stream as _cout_par_s
 # objectif de streams à atteindre soi-même ») — under a caption naming a SHAP source
 # that does not exist. The euro figures rested on a diverted threshold. The honest
 # cost is the coach's 7-day streams GAP × cost per stream (`algo_preview_data`).
+
 
 
 def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=None):
@@ -66,6 +68,8 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                 "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily WHERE artist_id = %s AND day BETWEEN %s AND %s",
                 (artist_id, date_from, date_to)
             )
+            lifetime_spend_row = db.fetch_query(
+                ACTIVE_LIFETIME_SPEND_SQL + " WHERE d.artist_id = %s", (artist_id,))
             streams_row = db.fetch_query(
                 "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
                 "WHERE artist_id = %s AND day BETWEEN %s AND %s",
@@ -80,6 +84,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                 "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily WHERE day BETWEEN %s AND %s",
                 (date_from, date_to)
             )
+            lifetime_spend_row = db.fetch_query(ACTIVE_LIFETIME_SPEND_SQL)
             streams_row = db.fetch_query(
                 "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
                 "WHERE day BETWEEN %s AND %s",
@@ -89,15 +94,26 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
         lifetime_budget = float(budget_row[0][0] or 0)
         total_spend = float(spend_row[0][0] or 0)
         total_streams = int(streams_row[0][0] or 0)
-        remaining = max(lifetime_budget - total_spend, 0)
+        lifetime_spend = float(lifetime_spend_row[0][0] or 0)
+        # R526 — a lifetime budget minus the spend of the SELECTED window was wrong for
+        # any window shorter than the campaigns' life, and `max(…, 0)` hid overspend.
+        remaining = remaining_lifetime_budget(lifetime_budget, lifetime_spend)
 
         b1, b2, b3, b4 = st.columns(4)
         b1.metric(t("trigger_algo.roi.lifetime_budget_metric", "Budget lifetime alloué"),
                   f"{lifetime_budget:,.2f} €")
         b2.metric(t("trigger_algo.roi.spent_metric", "Dépensé (période)"), f"{total_spend:,.2f} €")
-        pct_remaining = f"{remaining / lifetime_budget * 100:.0f}%" if lifetime_budget > 0 else None
-        b3.metric(t("trigger_algo.roi.remaining_metric", "Restant estimé"),
-                  f"{remaining:,.2f} €", delta=pct_remaining)
+        if remaining < 0:
+            b3_label = t("trigger_algo.roi.overspent_metric", "Budget dépassé de")
+            b3_delta = f"{remaining:,.2f} €"
+        else:
+            b3_label = t("trigger_algo.roi.remaining_metric", "Restant estimé")
+            b3_delta = (f"{remaining / lifetime_budget * 100:.0f}%"
+                        if lifetime_budget > 0 else None)
+        b3.metric(b3_label, f"{abs(remaining):,.2f} €", delta=b3_delta,
+                  help=t("trigger_algo.roi.remaining_help",
+                         "Budget à vie des campagnes actives moins tout ce qu'elles ont "
+                         "déjà dépensé — indépendant de la période choisie."))
 
         if total_streams > 0 and total_spend > 0:
             cost_per_stream = total_spend / total_streams
@@ -113,10 +129,11 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
             # R404 (V68): the allotted budget as ONE bar — spent, then what is left.
             fig_b = go.Figure()
             fig_b.add_trace(go.Bar(
-                x=[min(total_spend, lifetime_budget)], y=[""], orientation="h",
-                marker_color=ATTENTION, name=t("trigger_algo.roi.spent_metric", "Dépensé (période)")))
+                x=[min(lifetime_spend, lifetime_budget)], y=[""], orientation="h",
+                marker_color=ATTENTION,
+                name=t("trigger_algo.roi.lifetime_spent_label", "Dépensé (depuis le lancement)")))
             fig_b.add_trace(go.Bar(
-                x=[remaining], y=[""], orientation="h", marker_color=NEUTRE,
+                x=[max(remaining, 0)], y=[""], orientation="h", marker_color=NEUTRE,
                 name=t("trigger_algo.roi.remaining_metric", "Restant estimé")))
             fig_b.update_layout(barmode="stack", height=140, margin=dict(l=0, r=0, t=10, b=0),
                                 xaxis_title="€", legend=dict(orientation="h", y=-0.6))

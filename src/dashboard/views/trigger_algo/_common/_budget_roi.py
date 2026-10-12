@@ -34,6 +34,23 @@ _CANON = canonical_song_sql('ctm.track_name')
 
 
 
+
+# R526 — what the ACTIVE campaigns have spent since launch. `v_meta_daily` carries no
+# campaign id (Meta insights are keyed by name), so the join is on the same
+# (tenant, ad account, campaign name) triple the insights table is grouped by.
+ACTIVE_LIFETIME_SPEND_SQL = (
+    "SELECT COALESCE(SUM(d.spend), 0) FROM v_meta_daily d "
+    "JOIN v_meta_active_budget b ON b.artist_id = d.artist_id "
+    "AND b.ad_account_id IS NOT DISTINCT FROM d.ad_account_id "
+    "AND b.campaign_name = d.campaign_name"
+)
+
+
+def remaining_lifetime_budget(lifetime_budget: float, lifetime_spend: float) -> float:
+    """Signed: negative means overspent. Never clamped — a clamp hides the overspend."""
+    return lifetime_budget - lifetime_spend
+
+
 def _show_velocity_budget_advice(db, track, artist_id, spent):
     """Concrete spend-smoothing advice when the track's velocity is too high.
 
@@ -91,10 +108,17 @@ def _show_budget_pacing_calculator(db, artist_id) -> None:
             row = db.fetch_query(
                 "SELECT COALESCE(SUM(lifetime_budget),0), COALESCE(SUM(daily_budget),0) "
                 "FROM v_meta_active_budget")
-        default_budget = float(row[0][0] or 0) or 200.0
+        # R526 — the budget left to spread is lifetime minus what the active campaigns
+        # already spent, not the whole lifetime budget.
+        spent = db.fetch_query(ACTIVE_LIFETIME_SPEND_SQL + (" WHERE d.artist_id = %s" if artist_id else ""),
+                               (artist_id,) if artist_id else None)
+        left = float(row[0][0] or 0) - float(spent[0][0] or 0)
+        default_budget = left if left > 0 else 200.0
         current_daily = float(row[0][1] or 0)
-    except Exception:
-        pass
+    except Exception as e:                           # noqa: BLE001 — optional default
+        st.caption(t("trigger_algo.common.pacing_default_unavailable",
+                     "Budget Meta illisible — valeur par défaut de 200 € proposée ({err}).")
+                   .format(err=type(e).__name__))
 
     c1, c2 = st.columns(2)
     budget = c1.number_input(t("trigger_algo.common.pacing_budget_input", "Budget à étaler (€)"),

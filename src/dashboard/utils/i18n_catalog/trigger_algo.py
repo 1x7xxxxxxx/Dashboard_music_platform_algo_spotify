@@ -164,6 +164,12 @@ EN = {
     "trigger_algo.roi.lifetime_budget_metric": "Lifetime budget allocated",
     "trigger_algo.roi.spent_metric": "Spent (period)",
     "trigger_algo.roi.remaining_metric": "Estimated remaining",
+    "trigger_algo.roi.overspent_metric": "Budget overspent by",
+    "trigger_algo.roi.remaining_help": (
+        "Lifetime budget of the active campaigns minus everything they have "
+        "already spent — independent of the selected period."
+    ),
+    "trigger_algo.roi.lifetime_spent_label": "Spent (since launch)",
     "trigger_algo.roi.cost_per_stream_metric": "Cost / stream",
     "trigger_algo.roi.no_active_campaign": "No active Meta campaign found for this artist.",
     "trigger_algo.roi.meta_budget_unavailable": "Meta budget unavailable: {err}",
@@ -379,6 +385,9 @@ EN = {
     ),
     "trigger_algo.common.pacing_header": "📅 Budget smoother (Pacing)",
     "trigger_algo.common.pacing_budget_input": "Budget to spread (€)",
+    "trigger_algo.common.pacing_default_unavailable": (
+        "Meta budget unreadable — default of €200 proposed ({err})."
+    ),
     "trigger_algo.common.pacing_window_input": "Smoothing window (days)",
     "trigger_algo.common.pacing_window_help": "28 d = algo evaluation window.",
     "trigger_algo.common.pacing_daily_metric": "Recommended daily spend",
