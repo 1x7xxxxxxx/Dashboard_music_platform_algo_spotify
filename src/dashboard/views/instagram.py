@@ -270,8 +270,7 @@ def render(db, artist_id) -> None:
                 title=t("instagram.engagement_by_cohort",
                         "Likes et commentaires ACQUIS À CE JOUR, par mois de "
                         "publication ({label})").format(label=win_m.label),
-                hovermode="x unified",
-                legend=dict(orientation="h", y=-0.2, x=0))
+                hovermode="x unified")
             fig_e.update_yaxes(title_text=t("instagram.posts_axis", "Publications"),
                                title_font_color=_IG, secondary_y=False,
                                dtick=1, tickformat="d")
@@ -408,7 +407,6 @@ def _render_community(df_hist, window, last_date: str) -> None:
     fig.add_hline(y=0, line=dict(color="#888", width=1, dash="dot"))
     fig.update_layout(
         height=460, hovermode="x unified", margin=dict(t=70, b=80),
-        legend=dict(orientation="h", yanchor="top", y=-0.15, x=0),
         yaxis_title=t("instagram.community_axis", "Gagnés depuis le premier relevé"),
         title_text=t("instagram.community_title",
                      "Ma communauté dans le temps ({label})").format(label=window.label))

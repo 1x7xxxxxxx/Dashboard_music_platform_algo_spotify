@@ -500,9 +500,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
             annotation_position="top")
     fig.update_xaxes(showticklabels=False)
     fig.update_layout(height=360, margin={'l': 10, 'r': 70, 't': 70, 'b': 20},
-                      bargap=0.3, barmode='group',
-                      legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.04,
-                              'xanchor': 'right', 'x': 1})
+                      bargap=0.3, barmode='group')
     fig.update_yaxes(automargin=True)
     charts.plotly_chart(fig, width='stretch')
 

@@ -104,6 +104,6 @@ def usage_figure(df):
                                  legendgrouptitle_text=title if i == 0 else None))
     fig.update_layout(barmode="stack", hovermode="x unified", height=460,
                       yaxis_title=t("usage_analytics.axis_events", "événements"),
-                      legend=dict(orientation="v", x=1.02, y=1, groupclick="toggleitem"),
+                      legend=dict(groupclick="toggleitem"),
                       margin=dict(t=20))
     return fig

@@ -125,7 +125,6 @@ def channel_figure(df_hist: pd.DataFrame, views_series: list) -> go.Figure:
                      tickfont=dict(color=_SECOND), showgrid=False, secondary_y=True)
     fig.update_layout(title=t("youtube.channel_chart_title", "Abonnés et vues cumulées"),
                       hovermode="x unified", height=420,
-                      legend=dict(orientation="h", y=-0.15),
                       margin=dict(t=60, b=40))
     return fig
 

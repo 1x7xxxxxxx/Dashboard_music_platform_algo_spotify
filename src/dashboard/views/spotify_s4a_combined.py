@@ -466,8 +466,7 @@ def render_release_cohort(db, frag: str, params: tuple, *, overlays: bool,
         # campagnes ») ; `_ROW_HEIGHT` reste sa hauteur.
         height=_ROW_HEIGHT + 160 * (rows - 1), hovermode="x unified",
         # Le dernier point porte son nombre : sans marge à droite, il sort du cadre.
-        margin=dict(r=90),
-        legend=dict(orientation="h", y=1.12))
+        margin=dict(r=90))
     charts.plotly_chart(fig, width="stretch")
     if not shazam.empty:
         st.caption(t("spotify_s4a_combined.shazam_caption",
@@ -714,8 +713,7 @@ def _render_secondary(db, spans: pd.DataFrame, frag: str, params: tuple) -> None
             # R290 (owner, fiche 5, 2026-09-28) — each panel in its REAL units, no base
             # 100: indexed on a first-month spike, saves and playlist adds read as ~0 for
             # two years. The two panels stay ONE figure (R244, « fusionner les deux »).
-            fig.update_layout(height=_PAIR_HEIGHT, margin=dict(t=30, b=40),
-                              legend=dict(orientation="h", yanchor="top", y=-0.08, x=0))
+            fig.update_layout(height=_PAIR_HEIGHT, margin=dict(t=30, b=40))
             charts.plotly_chart(fig, width="stretch")
             if note:
                 st.caption(note)

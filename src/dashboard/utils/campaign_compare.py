@@ -400,7 +400,7 @@ def track_funnel_figure(rows: pd.DataFrame, kept_by_chain: dict[str, list[str]])
                       xaxis=dict(type="log", title=t("campaign_compare.log_axis",
                                                      "Volume (échelle log : chaque trait ×10)")),
                       yaxis=dict(autorange="reversed", automargin=True),
-                      legend=dict(orientation="h", y=-0.2), margin=dict(r=90))
+                      margin=dict(r=90))
     return fig
 
 

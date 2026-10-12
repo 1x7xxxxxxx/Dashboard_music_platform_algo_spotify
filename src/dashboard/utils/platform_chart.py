@@ -1057,19 +1057,17 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
         # `t=12` : les 58 px réservés au titre sur deux lignes sont rendus à la figure.
         margin=dict(l=56, r=24, t=12,
                     b=62 if mode != "share" else 32),
-        # EN BAS, jamais en haut. La version de 2026-09-08 l'ancrait à `y=1.0`,
-        # c'est-à-dire dans la marge où vit le titre sur deux lignes : les deux se
-        # recouvraient — « la légende est masquée, c'est assez moche ». Sous la figure,
-        # elle n'a rien à recouvrir. Les étiquettes de marge restent : elles nomment la
-        # bande à hauteur d'œil, la légende sert à la faire disparaître.
+        # R536 : the legend's PLACE is the door's (`charts.apply_defaults`) — inside the
+        # plot, top right. The 2026-09-08 version sat in the MARGIN at `y=1.0`, over the
+        # two-line title (« la légende est masquée ») ; inside the plot it is not there.
+        # Les étiquettes de marge restent : elles nomment la bande à hauteur d'œil, la
+        # légende sert à la faire disparaître.
         #
         # PAS EN MODE « PART ». Les pourcentages y sont calculés sur l'ensemble
         # affiché ; un clic de légende masque une trace SANS recalculer les autres, et
         # la pile ne ferait plus 100 %. C'est le seul mode où le `multiselect` reste.
         showlegend=mode != "share",
-        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="left", x=0,
-                    groupclick="togglegroup", bgcolor="rgba(0,0,0,0)",
-                    font=dict(size=11, color=muted)),
+        legend=dict(groupclick="togglegroup", bgcolor="rgba(0,0,0,0)", font=dict(size=11, color=muted)),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=ink),
         xaxis=dict(showgrid=False, linecolor=grid, title=None),

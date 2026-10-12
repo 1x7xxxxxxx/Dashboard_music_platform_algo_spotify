@@ -154,8 +154,6 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                 ).format(r=f"{r:,.0f} €".replace(",", " "),
                          s=f"{s_:,.0f} €".replace(",", " "), roi=roi),
         hovermode='x unified', height=460, yaxis={'type': 'log', 'title': "€"},
-        legend={'orientation': 'h', 'yanchor': 'top', 'y': -0.12,
-                'xanchor': 'left', 'x': 0},
         margin={'t': 50, 'b': 90})
     return fig
 
@@ -194,7 +192,6 @@ def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
             b=eur(float(balance.iloc[-1]), "+"), i=eur(money_in), o=eur(money_out)),
         barmode='relative', hovermode='x unified', height=460,
         yaxis={'title': "€", 'zeroline': True, 'zerolinewidth': 2},
-        legend={'orientation': 'h', 'yanchor': 'top', 'y': -0.12, 'xanchor': 'left', 'x': 0},
         margin={'t': 50, 'b': 90})
     return fig
 

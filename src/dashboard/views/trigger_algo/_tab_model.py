@@ -115,8 +115,7 @@ def _show_volume_vs_recorded(df: pd.DataFrame, algo: str) -> None:
                textposition="outside", cliponaxis=False)])
     fig.update_layout(barmode="group", height=340,
                       yaxis_title=t("trigger_algo.model.y_algo_streams",
-                                    "Streams venus de {label}, 28 j").format(label=label),
-                      legend=dict(orientation="h", y=-0.35))
+                                    "Streams venus de {label}, 28 j").format(label=label))
     charts.plotly_chart(fig, width='stretch')
     st.caption({
         "over": t("trigger_algo.model.verdict_over",
@@ -203,8 +202,7 @@ def _show_error_by_prediction_week(db, artist_id) -> None:
                       "<extra></extra>") for a, s in series.items()])
     fig.update_layout(height=340, showlegend=True, yaxis_title=t(
         "trigger_algo.model.weekly_y", "Écart prévu / constaté (streams)"),
-        xaxis_title=t("trigger_algo.model.weekly_x", "Semaine où la prédiction a été faite"),
-        legend=dict(orientation="h", y=-0.35))
+        xaxis_title=t("trigger_algo.model.weekly_x", "Semaine où la prédiction a été faite"))
     fig.update_yaxes(rangemode="tozero")
     charts.plotly_chart(fig, width='stretch')
     readings = pd.to_datetime(rows["recorded_at"]).dt.date.nunique()

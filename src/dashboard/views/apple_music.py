@@ -414,5 +414,5 @@ def _launches_figure(aligned, chosen: list, meta: pd.DataFrame | None = None):
     fig.update_layout(
         height=420, hovermode="closest",
         xaxis_title=t("apple_music.launch_x", "Jours depuis la sortie (J0)"),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=60))
+        margin=dict(t=60))
     return fig

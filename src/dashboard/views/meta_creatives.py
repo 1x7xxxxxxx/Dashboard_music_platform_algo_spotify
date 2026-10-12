@@ -780,8 +780,6 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         fig.update_yaxes(rangemode="tozero", row=row, col=1)
     fig.update_layout(
         hovermode="x unified", height=190 * len(_UNIT_ROWS) + 60,
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.04,
-                "xanchor": "right", "x": 1},
         margin={"t": 70})
     charts.plotly_chart(charts.to_base100(fig)[0], width="stretch")   # R244 fiche 31 : UN repère
     if partial_weeks:

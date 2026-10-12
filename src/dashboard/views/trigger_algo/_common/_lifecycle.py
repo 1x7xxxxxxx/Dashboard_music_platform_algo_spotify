@@ -61,8 +61,7 @@ def _lifecycle_band_fig(curve_df, algo_label, live_order, color):
                       xaxis_title=t("trigger_algo.common.band_axis_age", "Âge du titre (semaines)"),
                       yaxis_title=t("trigger_algo.common.band_axis_ratio",
                                     "Ratio (titre / moyenne catégorie)"),
-                      hovermode="x unified", legend=dict(orientation="h", y=1.18),
-                      margin=dict(t=70))
+                      hovermode="x unified", margin=dict(t=70))
     fig.update_xaxes(tickmode="array", tickvals=x, ticktext=list(curve_df["age_week_bin"]))
     return fig
 

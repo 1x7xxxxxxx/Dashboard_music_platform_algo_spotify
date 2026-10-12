@@ -157,8 +157,7 @@ def render_day0(curves: pd.DataFrame, first: str, second: str) -> None:
         fig.update_xaxes(title_text=t("campaign_pair.day0_axis", "Jours depuis J0"),
                          rangemode="tozero", row=1, col=i)
     # automargin alone left the first frame's tick labels clipped at l=10 (seen on the PNG).
-    fig.update_layout(height=360, margin={"l": 50, "r": 10, "t": 60, "b": 20},
-                      legend={"orientation": "h", "y": -0.25})
+    fig.update_layout(height=360, margin={"l": 50, "r": 10, "t": 60, "b": 20})
     fig.update_yaxes(automargin=True)
     charts.plotly_chart(fig, width="stretch")
 
@@ -183,7 +182,6 @@ def render_share_pair(panels: dict, first: str, second: str) -> None:
                 row=1, col=i)
         fig.update_xaxes(ticksuffix=" %", rangemode="tozero", row=1, col=i)
     fig.update_layout(barmode="group", height=380, bargap=0.25,
-                      margin={"l": 10, "r": 10, "t": 60, "b": 20},
-                      legend={"orientation": "h", "y": -0.2})
+                      margin={"l": 10, "r": 10, "t": 60, "b": 20})
     fig.update_yaxes(automargin=True)
     charts.plotly_chart(fig, width="stretch")

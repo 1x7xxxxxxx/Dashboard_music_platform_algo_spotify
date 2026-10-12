@@ -372,8 +372,7 @@ def _wave_curves_figure(rows: list, series: pd.Series | None):
     fig.add_hline(y=100, line_dash="dot", line_color="#999")
     fig.add_vline(x=0, line_dash="dash", line_color="#999")
     fig.update_layout(
-        height=380, legend=dict(orientation="h", y=-0.3, x=0),
-        title=t("meta_ads_overview.curve_title",
+        height=380, title=t("meta_ads_overview.curve_title",
                 "Les écoutes autour de chaque vague — combien de temps l'effet dure"),
         xaxis_title=t("meta_ads_overview.curve_x",
                       "jours depuis le début de la vague (0 = premier euro)"),
@@ -757,7 +756,6 @@ def _show_meta_ads(db, artist_id, bar: MetaFilters):
         _add_streams_row(fig_time, db, artist_id, df_day['day_date'])
         fig_time.update_layout(
             height=560, hovermode="x unified", barmode='overlay',
-            legend=dict(orientation="h", y=1.12),
             title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"))
         charts.plotly_chart(fig_time, width="stretch")
     else:

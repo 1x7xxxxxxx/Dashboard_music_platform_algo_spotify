@@ -190,7 +190,6 @@ def _render_engagement(df):
                              labels={'dim_label': ''})
                 # `automargin`: the long placement labels were cut at a 10 px margin.
                 fig.update_layout(barmode='stack', height=340,
-                                  legend={'orientation': 'h', 'y': -0.25},
                                   margin={'t': 40, 'r': 10})
                 fig.update_yaxes(automargin=True, categoryorder='total ascending')  # largest on top
                 charts.plotly_chart(fig, width="stretch")

@@ -439,7 +439,6 @@ def _render_chart(master: pd.DataFrame, campaign: str) -> None:
 
     fig.update_layout(
         height=560, hovermode="x unified", showlegend=True, separators=", ",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
         title_text=t("meta_x_spotify.chart_title",
                      "Analyse détaillée : {campaign}").format(campaign=campaign),
         xaxis=dict(title=t("common.date", "Date"), type="date"),
@@ -723,10 +722,9 @@ def _render_listener_verdict(db, artist_id) -> None:
         height=380,
         hovermode="x unified", xaxis_range=[x0, full.index.max()],
         yaxis_title=t("meta_x_spotify.listeners_axis", "Auditeurs / jour"),
-        # Légende posée JUSTE au-dessus du tracé, sous la barre d'outils : à y=1.12 avec
-        # t=40 elle montait à ~9 px du bord, et « Meta » passait sous l'icône appareil
-        # photo (vu à 1366 px le 2026-09-26, R189).
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0), margin=dict(t=70))
+        # R536 : the legend's place is the door's (`charts.apply_defaults`) — inside the
+        # plot, top right, clear of the toolbar that R189 found it under at y=1.12.
+        margin=dict(t=70))
     charts.plotly_chart(fig, width="stretch")
     st.caption(t("meta_x_spotify.meta_impact_rule",
                  "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "
@@ -1062,7 +1060,7 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
                      showgrid=False, title_font=dict(color=_CROSS_INK),
                      tickfont=dict(color=_CROSS_INK), secondary_y=True)
     fig.update_layout(height=500, barmode="group", hovermode="x unified",
-                      legend=dict(orientation="h", y=1.12), margin=dict(b=110))
+                      margin=dict(b=110))
     fig.update_xaxes(tickangle=-35)
     charts.plotly_chart(fig, width="stretch")
 

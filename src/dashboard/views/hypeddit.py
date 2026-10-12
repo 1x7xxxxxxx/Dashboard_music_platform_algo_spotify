@@ -542,10 +542,8 @@ def rings_figure(ringed, taux, label: str):
                                                            row.get('meta')),
                            font=dict(size=11))
     fig.update_layout(
-        # Legend above the rings, under the title: below them it sat on the first ring's
-        # label (seen on the rendered PNG at 1100 px, R476).
+        # R536 : legend placed by the door (`charts.apply_defaults`), top right on the plot.
         height=300 * rows + 100, margin=dict(t=100, b=90),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0.5, xanchor="center"),
         title_text=t("hypeddit.chart_title", "Mes campagnes Hypeddit ({label})")
         .format(label=label))
     return fig

@@ -138,13 +138,24 @@ def _legend_would_show(fig) -> int:
     return sum(1 for tr in fig.data if tr.name and tr.showlegend is not False)
 
 
+# R536 (owner, 2026-10-12) : « les légendes en haut à droite, SUR le graphique, partout
+# pareil ». ONE place, set here and nowhere else: a view that writes `orientation`, `x`,
+# `y`, `xanchor` or `yanchor` into its legend is overridden by the door, and
+# `tests/test_one_legend_position.py` refuses it in the source. Inside the plot (y=1 is the
+# plot's top edge), so it never climbs into the margin where the title and the toolbar
+# live (R189, R476) ; a faint background keeps it readable over a line in both themes.
+LEGEND_POSITION = dict(orientation="v", yanchor="top", y=1, xanchor="right", x=1,
+                       bgcolor="rgba(127,127,127,0.12)")
+
+
 def apply_defaults(fig, *, pareto: bool | None = None):
     """The door's changes to the figure itself — legend, palette, Pareto. Pure on `fig`."""
     from src.dashboard.utils.platform_colors import DISTINCT
     lay = fig.layout
-    if lay.showlegend is None and lay.legend.orientation is None and _legend_would_show(fig) >= 2:
-        fig.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="top",
-                                                       y=-0.18, xanchor="left", x=0))
+    if lay.showlegend is None and _legend_would_show(fig) >= 2:
+        fig.update_layout(showlegend=True)
+    if lay.showlegend:
+        fig.update_layout(legend=LEGEND_POSITION)
     if not lay.colorway and not any(_has_colour(tr) for tr in fig.data):
         fig.update_layout(colorway=list(DISTINCT))
     if pareto is None:

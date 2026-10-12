@@ -136,7 +136,7 @@ def _show_tab_budget_roi(db, track: str, artist_id, date_from, date_to, ml_pred=
                 x=[max(remaining, 0)], y=[""], orientation="h", marker_color=NEUTRE,
                 name=t("trigger_algo.roi.remaining_metric", "Restant estimé")))
             fig_b.update_layout(barmode="stack", height=140, margin=dict(l=0, r=0, t=10, b=0),
-                                xaxis_title="€", legend=dict(orientation="h", y=-0.6))
+                                xaxis_title="€")
             charts.plotly_chart(fig_b, width="stretch")
 
         if total_spend > 0:
@@ -472,7 +472,7 @@ def _render_breakeven(be: dict, df_spend_d, df_rev) -> None:
     fig_be.update_layout(
         title=t("trigger_algo.roi.breakeven_chart_title_all",
                 "Tout ce qui rentre contre tout ce qui sort, cumulé"),
-        hovermode="x unified", height=460, legend=dict(orientation="h", y=1.12))
+        hovermode="x unified", height=460)
     fig_be.update_yaxes(title_text=t("trigger_algo.roi.axis_cumul_amount", "Montant cumulé (€)"),
                         row=1, col=1)
     charts.plotly_chart(fig_be, width='stretch')

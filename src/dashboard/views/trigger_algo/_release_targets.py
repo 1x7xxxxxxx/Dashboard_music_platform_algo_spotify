@@ -187,5 +187,5 @@ def values_figure(tracks: list[str], levers_by_track: dict):
     # offset inside the track's slot instead of hiding the others. A numeric axis, because
     # Plotly's `scattermode="group"` made the bars disappear (render, 2026-09-27).
     fig.update_xaxes(tickvals=pos, ticktext=xs, range=[-0.6, len(tracks) - 0.4])
-    fig.update_layout(height=400, legend=dict(orientation="h", y=-0.3), margin=dict(t=50))
+    fig.update_layout(height=400, margin=dict(t=50))
     return fig

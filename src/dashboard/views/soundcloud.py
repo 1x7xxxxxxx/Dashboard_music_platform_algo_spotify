@@ -319,7 +319,6 @@ def _render_age_comparison(db, artist_id, df_top: pd.DataFrame) -> None:
                       hovertemplate=f"{tr.name}<br>%{{x}} j · %{{y:,.0f}}<extra></extra>")
     fig = go.Figure(traces)
     fig.update_layout(height=420, margin=dict(r=90, t=30),
-                      legend=dict(orientation="h", y=-0.2, x=0),
                       xaxis_title=t("soundcloud.age_axis", "Jours depuis la mise en ligne"),
                       yaxis_title=t("soundcloud.age_value_axis", "{m} cumulés")
                       .format(m=metric_lbl))
@@ -405,7 +404,6 @@ def _render_catalog_series(db, artist_id, totals: dict | None = None) -> None:
 
     fig.update_layout(height=460, hovermode="x unified",
                       title=totals_line(totals) if totals else None,
-                      legend=dict(orientation="h", y=-0.15, x=0),
                       margin=dict(t=60 if totals else 30))
     fig.update_yaxes(tickformat="~s", secondary_y=False,
                      title_text=t("soundcloud.plays_axis", "Écoutes cumulées"),
