@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R541 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38274473555) : 3 gardes neufs jam… (livrée 2026-10-12)
+
+- [x] **R541 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38274473555) : 3 gardes neufs jamais vus rouges — `test_a_gold_invariant_reads_one_snapshot` (R540, vu rouge à la main, non daté), `test_the_weekly_model_error_sql_on_the_live_schema`, `test_the_algo_page_answers_without_a_title`. Muter chacun à la main sur SON défaut, dater `SEEN_RED`** (P3) ✅ (2026-10-12, 001cb4e1)
+  Mesuré par : nightly suivant sans 🟠
+  Livré 001cb4e1, CI verte (run 38277230135) : 3 gardes mutés à la main sur leur défaut, 6 rouges sur leur propre assertion, SEEN_RED daté
+  Commits : 001cb4e1 R541 : trois gardes 🟠 du nightly relancé vus rouges à la main — SEEN_R
+
 ## ✅ R539 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38267973972) : `test_one_legend_p… (livrée 2026-10-12)
 
 - [x] **R539 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38267973972) : `test_one_legend_position` et `test_youtube_analytics_figures` verts sur les mutations génériques — muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ garde vacant, le réparer** (P3) ✅ (2026-10-12, fbf888e1)
