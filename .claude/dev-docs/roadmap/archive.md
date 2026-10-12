@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R539 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38267973972) : `test_one_legend_p… (livrée 2026-10-12)
+
+- [x] **R539 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38267973972) : `test_one_legend_position` et `test_youtube_analytics_figures` verts sur les mutations génériques — muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ garde vacant, le réparer** (P3) ✅ (2026-10-12, fbf888e1)
+  Mesuré par : `SEEN_RED` porte les deux gardes avec leur mutation et le nombre de rouges
+  Livré fbf888e1 (poussé avec 9d698639, CI verte run 38273649111) : test_one_legend_position et test_youtube_analytics_figures vus rouges à la main, SEEN_RED daté
+  Commits : fbf888e1 R539 : deux gardes 🟠 du nightly relancé vus rouges à la main — SEEN_RE
+
+## ✅ R540 — Un invariant or lit ses deux membres dans DEUX instantanés (READ COMMITTED) : une écrit… (livrée 2026-10-12)
+
+- [x] **R540 — Un invariant or lit ses deux membres dans DEUX instantanés (READ COMMITTED) : une écriture entre la requête gauche et la droite les fait diverger. Vu rouge dans `make test-changed` le 2026-10-12 (artiste de fixture 1114125, 303 contre 406), vert seul. Deux sites : `gold_invariants.run()` (DAG `alert_monitor`, prod, faux désaccord possible pendant une collecte) et `test_the_gold_layer_agrees_with_itself`. Lire tous les membres dans UN instantané `REPEATABLE READ READ ONLY`** (P3) ✅ (2026-10-12, 9d698639)
+  Mesuré par : un test insère des lignes ENTRE les deux membres et `run()` ne rend aucun désaccord
+  Livré 9d698639, CI verte (run 38273649111) : run() et le test réel lisent chaque paire sous REPEATABLE READ ; garde test_a_gold_invariant_reads_one_snapshot vu rouge sans l'instantané
+  Commits : 9d698639 R540 : un invariant or lit ses deux membres dans un seul instantané
+
 ## ✅ R116 — ADR-027 (répliques et Redis) — déclencheur ATTEINT le 2026-10-12 : 14 jours `complete`… (livrée 2026-10-12)
 
 - [x] **R116 — ADR-027 (répliques et Redis) — déclencheur ATTEINT le 2026-10-12 : 14 jours `complete` dans `daily_ops_metrics` en prod. Écrire l'ADR à partir des courbes mesurées, retirer le bloc ⏸️ et sa condition d'attente, et sortir R116 de `reopen_check.py`** (P4) ✅ (2026-10-12, 0700018e, 093aa3cf, f2af9a0e, 9294c602, 838a9f4f, f0aa6978, 1ca39bbf, 946077f2, e0107fd4, 65ae5250, 3d7baaee, 8303dcea, c6a0c6e6, 021338c4, 573a2fee, 439ecf06)
