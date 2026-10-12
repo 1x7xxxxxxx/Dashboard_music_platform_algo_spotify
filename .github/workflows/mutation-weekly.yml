@@ -30,7 +30,7 @@ jobs:
           cache-dependency-glob: "**/uv.lock"
 
       - name: Install dependencies from lockfile
-        run: uv python install 3.11 && uv sync --frozen --extra dev
+        run: uv python install 3.11 && uv sync --frozen --extra dev && echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Mutate the parsers
         run: .venv/bin/python tools/dev/mutate_parsers.py

@@ -144,7 +144,7 @@ jobs:
 
       - name: Install dependencies from lockfile
         # --frozen: refuse to update uv.lock; CI must match what devs have locally.
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --extra dev && echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Manifest consistency (blocking)
         # Deterministic, sub-second, zero-network. Catches pin drift across
@@ -352,7 +352,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies from lockfile
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --extra dev && echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Provision Postgres (schema + migrations)
         if: ${{ !cancelled() }}

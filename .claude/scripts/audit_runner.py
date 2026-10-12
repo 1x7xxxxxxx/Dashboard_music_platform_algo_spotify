@@ -329,17 +329,19 @@ def _venv_python() -> str:
     `--git-common-dir` points at the shared .git of the main worktree, whose
     parent is the main checkout, which is where the venv actually lives.
     """
-    local = _REPO / "python" / ".venv" / "bin" / "python"
-    if local.exists():
-        return str(local)
+    # `.venv` is this repo's venv; `python/.venv` is the layout the runner was copied from.
+    for local in (_REPO / ".venv" / "bin" / "python", _REPO / "python" / ".venv" / "bin" / "python"):
+        if local.exists():
+            return str(local)
     try:
         common = subprocess.run(["git", "rev-parse", "--git-common-dir"],
                                 cwd=_REPO, capture_output=True, text=True,
                                 timeout=30, check=True).stdout.strip()
         main_root = (_REPO / common).resolve().parent
-        candidate = main_root / "python" / ".venv" / "bin" / "python"
-        if candidate.exists():
-            return str(candidate)
+        for candidate in (main_root / ".venv" / "bin" / "python",
+                          main_root / "python" / ".venv" / "bin" / "python"):
+            if candidate.exists():
+                return str(candidate)
     except (subprocess.SubprocessError, OSError):
         pass
     return sys.executable          # last resort; loud because the run will fail visibly
