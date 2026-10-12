@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R531 | `tests/test_the_monitor_itself_still_runs.py` rend la CI de main ROUGE sur un 502 passager de l'API GitHub (run 38249682465, 2026-10-12, commit de roadmap pur) : les deux tests font UN appel et `assert status == 200` — une panne de GitHub se lit comme « la sonde de prod est morte ». Réessayer les 5xx (3 essais, attente croissante), puis échouer en nommant GitHub ; un 4xx reste rouge tout de suite <!-- critic: non — réessai borné dans un test, le défaut est mesuré --> <!-- scope: tests/test_the_monitor_itself_still_runs.py --> | P3 | test : 502, 502, 200 ⇒ vert ; 502 ×3 ⇒ rouge qui nomme GitHub ; 401 ⇒ rouge au 1er essai |
+| R532 | Du travail connu vit HORS roadmap (question du propriétaire, 2026-10-12) : `make defect-log` porte des défauts `open` et des billets `recurrence:` sans réponse, `night-status` les AFFICHE en une ligne d'info, et rien n'exige une ligne d'index — R196 ne garde que l'édition de code, pas l'existence d'une tâche. `night-check` (≠ 0) refuse désormais un défaut ouvert ou un billet en attente qu'aucune ligne ouverte ne nomme (par son fichier de test), et dit la commande qui l'inscrit <!-- critic: non — un invariant de plus dans night_run check, même forme que les autres --> <!-- scope: tools/dev/night_run.py, tests/ --> | P3 | test : défaut ouvert non cité ⇒ check ≠ 0 ; cité par une ligne ouverte ⇒ 0 ; billet répondu ⇒ 0 ; rejoué sur le journal réel |
 
 ---
 
@@ -85,7 +87,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R531, R532 -->
 
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
