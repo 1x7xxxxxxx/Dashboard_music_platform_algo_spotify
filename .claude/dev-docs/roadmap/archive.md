@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R542 — La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, o… (livrée 2026-10-12)
+
+- [x] **R542 — La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, où le dashboard n'existe pas : indécidable à vie. La faire passer par `PROD_SSH` comme R114 et le fan-out** (P3) ✅ (2026-10-12, 745a7d5a)
+  Mesuré par : `PROD_SSH=… reopen_check.py` rend « en attente » avec la RAM réelle du dashboard de prod ; sans `PROD_SSH`, lève
+  Livré 745a7d5a, CI verte (run 38288464463) : « Airflow hors boîte » lit la RAM du dashboard de prod par PROD_SSH — 67 Mio sur 2 048, en attente ; sans PROD_SSH elle lève. Garde vu rouge (retour à docker stats local).
+  Commits : 745a7d5a R542 : la RAM du dashboard se lit en prod, par PROD_SSH
+
 ## ✅ R131 — Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés d… (livrée 2026-10-12)
 
 - [x] **R131 — Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre** (P4) ✅ (2026-10-12, 4b75a90d, df4f6f2f, 6949b11a, 093aa3cf, f2af9a0e, 9294c602, 838a9f4f, f0aa6978, 1ca39bbf, e0107fd4, 6ab7daae, 293aff8e)
