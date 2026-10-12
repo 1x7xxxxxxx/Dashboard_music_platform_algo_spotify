@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R530 — Graphiques YouTube Analytics (R511) rendus sur les VRAIES données de l'artiste 1 (2026-… (livrée 2026-10-12)
+
+- [x] **R530 — Graphiques YouTube Analytics (R511) rendus sur les VRAIES données de l'artiste 1 (2026-10-12) : (a) `subscribers_by_video_figure` dessine un graphique vide quand les 17 vidéos ont 0 abonné gagné sur 28 j — une phrase au lieu de barres nulles ; (b) `watch_time_figure` en HEURES (max 0,1 h = 6 min) et relie les jours ABSENTS par un segment — minutes sous 2 h, trous non comblés ; (c) `traffic_figure` empile 7 sources sur la palette `DISTINCT` de 5 couleurs ⇒ deux paires de même couleur — 4 sources + « Autres »** (P3) ✅ (2026-10-12, f38533de)
+  Mesuré par : test : zéros ⇒ aucun graphique ; jour absent ⇒ pas de segment ; ≤ 5 traces de trafic ; PNG relu
+  Livré f38533de, CI verte (run 38248944788), dashboard déployé en prod. Rendu PNG relu sur les données de prod de l'artiste 1 : trous aux 6 jours absents, axe en minutes (max 6), 5 traces de trafic au lieu de 7.
+  Commits : f38533de R530 : graphiques YouTube Analytics fidèles aux vraies données
+
 ## ✅ R520 — Autoriser YouTube Analytics (R511) : client OAuth Google (URI de redirection `http://12… (livrée 2026-10-12)
 
 - [x] **R520 — Autoriser YouTube Analytics (R511) : client OAuth Google (URI de redirection `http://127.0.0.1:8765/`, portées `yt-analytics.readonly` + `youtube.readonly`, artiste en utilisateur de test), `GOOGLE_OAUTH_*` en prod, puis la commande tubée avec l'artiste** (P3) ✅ (2026-10-12, f31f19d2, 3730accb)
