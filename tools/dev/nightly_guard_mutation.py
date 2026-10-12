@@ -107,6 +107,9 @@ SEEN_RED: dict[str, str] = {
         "« Créatifs » remis → rouge",
     "tests/test_the_welcome_figures_are_examples.py":
         "2026-10-12 — R545 : parité inversée dans `render_zigzag` → rouge",
+    "tests/test_the_home_gates_are_gauges.py":
+        "2026-10-12 — R544 : curseur figé à 50 → rouge ; bandes inversées → rouge ; "
+        "montant retiré de la jauge → rouge ; `_render_gate` non appelé → rouge",
     "tests/test_the_load_thresholds_derive_from_history.py":
         "2026-10-12 — R131 : `SessionsHigh` sans la porte d'historique (`and on() "
         "(count_over_time(…[1d] offset 28d) > 0)`) → rouge à 10 j ; `>` changé en `>=` → "

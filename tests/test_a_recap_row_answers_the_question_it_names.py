@@ -53,7 +53,7 @@ from src.dashboard.utils import platform_chart as pc
 # La colonne de KPI a quitté `home.py` le 2026-09-13 (cliquet des 1 200 lignes) :
 # elle ne prend que des dictionnaires déjà calculés, donc elle se teste seule.
 from src.dashboard.views.home import _recap_metrics
-from src.dashboard.views.home_tiles import render_tiles
+from src.dashboard.views.home_tiles import _format_gate, render_tiles
 
 _DAYS = [_d.date(2025, 1, 1) + _d.timedelta(days=i) for i in range(200)]
 
@@ -133,10 +133,11 @@ def _tiles(totals: dict, prev=None, side=None, last=None) -> list[tuple]:
          patch("streamlit.columns", lambda n, **k: [_Col() for _ in range(
              n if isinstance(n, int) else len(n))]), \
          patch("streamlit.metric", _rec), \
-         patch("src.dashboard.views.home_tiles.stat_box",
-               # R346: the gates are HTML boxes now — recorded like a metric.
-               lambda label, value, help_text="", sub="", **_k: _rec(label, value, help=help_text)
-               or ""):
+         patch("src.dashboard.views.home_tiles._render_gate",
+               # R544: the gates are gauges now — recorded like a metric, with the
+               # number the gauge's cursor sits on.
+               lambda _col, label, val, help_text, _sub, _key: _rec(
+                   label, _format_gate(val), help=help_text)):
         render_tiles(totals, sum(v for v in totals.values() if v), 1_525,
                       side=side, prev_grand=None)
     return seen

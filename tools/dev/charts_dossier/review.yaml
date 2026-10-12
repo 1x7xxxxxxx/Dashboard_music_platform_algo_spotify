@@ -244,6 +244,16 @@ src/dashboard/views/home_tiles.py::_render_total_and_share#1:
   p: 4
   v: garder
   note: "R371 (ta note V2 du 2026-10-05). Rendu regardé le 2026-10-05 : premier jet avec texte tourné et une part de 4,6 % illisible → étiquettes horizontales, à l'extérieur quand la part est fine. Lu sur le même dict que le total affiché au-dessus : la somme des parts EST ce total."
+src/dashboard/views/home_tiles.py::_render_gate#1:
+  q: "Où en est ma dernière sortie pour chaque playlist algorithmique, et combien investir pour y arriver ?"
+  decision: "Voir à quelle distance du seuil est chaque playlist, et combien il reste à investir au meilleur CPR."
+  decision_en: "See how far each playlist is from its threshold, and how much is left to invest at the best CPR."
+  role: prediction
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R544 (ta note vocale du 2026-10-12). Rendu regardé le 2026-10-12 (PNG, 7 / 11 / 6 %) : premier jet avec les graduations 0 et 100 coupées → marges élargies. Bandes rouge → vert égales, curseur sombre sur la prédiction, montant au meilleur CPR dans la jauge."
 src/dashboard/views/hypeddit.py::_render_campaign_series#1:
   mq: M5
   q: "Mes smart links Hypeddit convertissent-ils ?"

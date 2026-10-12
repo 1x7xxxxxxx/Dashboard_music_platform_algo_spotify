@@ -38,7 +38,6 @@ import streamlit as st
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import cpr_help
-from src.dashboard.utils.stat_boxes import stat_box
 
 
 def _format_gate(val) -> str:
@@ -120,6 +119,59 @@ def _gate_sub(gap, cpr, days_left: int | None = None) -> str:
     if cpr:
         line += " · 💶 " + f"{gap * cpr:,.0f}".replace(",", "\u202f") + "\u00a0€"
     return line
+
+
+#: R544 — the gauge runs red → green over 0-100 %: five equal bands, no threshold implied.
+GATE_BANDS = ("#d64545", "#e8833a", "#f2c94c", "#9ccc65", "#43a047")
+
+
+def gate_gauge(val, sub: str = ""):
+    """A 0-100 gauge for one gate: red → green bands, the cursor at the prediction. Pure.
+
+    R544 (owner, 2026-10-12): « une jauge entre 0 à 100, rouge, vert, et où en est le
+    curseur … le montant qui resterait à investir au meilleur CPR ». The amount is the
+    `_gate_sub` line, written INSIDE the figure under the number. None when there is no
+    number to place — a cursor at 0 would read as « no chance ».
+    """
+    import plotly.graph_objects as go
+
+    try:
+        p = float(val) * 100
+    except (TypeError, ValueError):
+        return None
+    if p != p:                                            # NaN
+        return None
+    step = 100 / len(GATE_BANDS)
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number", value=p,
+        number={"suffix": " %", "valueformat": ".1f", "font": {"size": 26}},
+        domain={"x": [0, 1], "y": [0.22, 1]},
+        gauge={"axis": {"range": [0, 100], "tickvals": [0, 50, 100],
+                        "ticktext": ["0", "50", "100 %"]},
+               "bar": {"color": "rgba(0,0,0,0)"},
+               "steps": [{"range": [i * step, (i + 1) * step], "color": c}
+                         for i, c in enumerate(GATE_BANDS)],
+               "threshold": {"line": {"color": "#1f2937", "width": 5},
+                             "thickness": 1, "value": p}}))
+    if sub:
+        fig.add_annotation(text=sub, x=0.5, y=0.02, xref="paper", yref="paper",
+                           showarrow=False, font={"size": 12})
+    fig.update_layout(height=200, margin={"l": 34, "r": 34, "t": 26, "b": 4},
+                      separators=", ")
+    return fig
+
+
+def _render_gate(col, label: str, val, help_text: str, sub: str, key: str) -> None:
+    """One gate: its label (tooltip = what the number is), then its gauge (R544)."""
+    from src.dashboard.utils import charts
+
+    col.markdown(f"**{label}**", help=help_text)
+    fig = gate_gauge(val, sub)
+    if fig is None:
+        col.markdown(_format_gate(val))
+        return
+    charts.plotly_chart(fig, container=col, glossary=False, key=f"home_gauge_{key}",
+                        config={"displayModeBar": False})
 
 
 def agencer(unites: list, par_rangee: int = 2) -> list[list]:
@@ -538,27 +590,21 @@ def render_tiles(totals: dict, grand_total: int, ig_count: int,
         _rr_left = rr_days_left(_s.get("release_age"))
         for col, (key, label) in zip((g1, g2, g3), _gates):
             val = _s.get(key)
-            # R346 — compact HTML, not `st.metric`: its label/value fonts are fixed and
-            # « 🆕 Release Radar » was cut to « 🆕 Release Ra… » in a third of the column.
-            # The help survives as the tooltip; the HTML is ONE line (see
-            # tests/test_an_html_placeholder_never_stands_alone_on_its_line.py).
-            col.markdown(stat_box(label, _format_gate(val),
-                                   t("home.gate_help_max",
-                                     "Probabilité PRÉDITE maximale que « {song} », ta "
-                                     "dernière sortie, entre dans cette playlist "
-                                     "algorithmique. Ce n'est pas un taux observé. Au "
-                                     "plancher du modèle, ce chiffre est le même pour "
-                                     "tous les titres.").format(
-                                         song=_s.get("release_song") or "—")
-                                   + " " + t("home.gate_28d_help",
-                                             "En dessous : les streams qui manquent sur "
-                                             "28 jours pour atteindre le seuil du modèle, "
-                                             "et leur coût au meilleur CPR, en comptant "
-                                             "un clic pour une écoute. Release Radar ne "
-                                             "compte que les 28 premiers jours de la "
-                                             "sortie."),
-                                   sub=_gate_sub(_gaps.get(key), _cpr,
-                                                 _rr_left if key == "release_rr"
-                                                 else None),
-                                   emphasis=True),
-                         unsafe_allow_html=True)
+            # R544 — a gauge, not a box: the help survives as the label's tooltip.
+            _render_gate(col, label, val,
+                         t("home.gate_help_max",
+                           "Probabilité PRÉDITE maximale que « {song} », ta "
+                           "dernière sortie, entre dans cette playlist "
+                           "algorithmique. Ce n'est pas un taux observé. Au "
+                           "plancher du modèle, ce chiffre est le même pour "
+                           "tous les titres.").format(song=_s.get("release_song") or "—")
+                         + " " + t("home.gate_28d_help",
+                                   "En dessous : les streams qui manquent sur "
+                                   "28 jours pour atteindre le seuil du modèle, "
+                                   "et leur coût au meilleur CPR, en comptant "
+                                   "un clic pour une écoute. Release Radar ne "
+                                   "compte que les 28 premiers jours de la "
+                                   "sortie."),
+                         _gate_sub(_gaps.get(key), _cpr,
+                                   _rr_left if key == "release_rr" else None),
+                         key)
