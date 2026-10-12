@@ -97,6 +97,8 @@ SEEN_RED: dict[str, str] = {
         "couleur partagée par deux sources) → 1 rouge",
     "tests/test_a_traffic_condition_is_measured_where_traffic_is.py":
         "2026-10-12 — R542 : `_dashboard_ram` remis sur `docker stats` local → rouge ; `_ops_metrics_en_prod` sans le refus PROD_SSH (`if False:`) → rouge",
+    "tests/test_a_reopening_condition_is_evaluated_not_only_written.py":
+        "2026-10-12 — R543 : fenêtres de test de charge ignorées → rouge ; plancher de reruns retiré → rouge ; R87 remis à `None` → rouge",
     "tests/test_the_load_thresholds_derive_from_history.py":
         "2026-10-12 — R131 : `SessionsHigh` sans la porte d'historique (`and on() "
         "(count_over_time(…[1d] offset 28d) > 0)`) → rouge à 10 j ; `>` changé en `>=` → "

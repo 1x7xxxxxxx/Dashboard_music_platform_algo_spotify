@@ -305,6 +305,71 @@ def _dashboard_ram() -> tuple[str, str]:
     return (MET if worst > 2048 else NOT_MET), f"{worst:.0f} Mio (seuil : 2 048)"
 
 
+def _prom_prod(path: str, params: dict[str, str]) -> list:
+    """Query the PRODUCTION Prometheus through `PROD_SSH` (R543). Raises without it."""
+    import json
+    import shlex
+    import urllib.parse
+
+    ssh = os.environ.get("PROD_SSH", "").strip()
+    if not ssh:
+        raise RuntimeError("PROD_SSH non défini — ce contrôle n'a RIEN vérifié")
+    url = f"localhost:9090/api/v1/{path}?{urllib.parse.urlencode(params)}"
+    r = subprocess.run(["ssh", "-o", "ConnectTimeout=10", ssh, f"curl -fsS {shlex.quote(url)}"],
+                       capture_output=True, text=True, check=False, timeout=60)
+    if r.returncode != 0:
+        raise RuntimeError(f"ssh/Prometheus en échec : {(r.stderr or '').strip()[:120]}")
+    return json.loads(r.stdout)["data"]["result"]
+
+
+def _r87() -> tuple[str, str]:
+    """R87 — reopens when the render p50 passes 200 ms.
+
+    Measured on 30 days of REAL reruns in production, not by `loadtest_dashboard.py`
+    from this workstation: WSL inflates latency 5x to 160x, and a synthetic load is not
+    the population the condition is about.
+    """
+    q = "sum by (le) (increase(streamlytics_rerun_duration_seconds_bucket[30d]))"
+    count = _prom_prod("query", {"query": "sum(increase(streamlytics_rerun_duration_seconds_count[30d]))"})
+    n = float(count[0]["value"][1]) if count else 0.0
+    if n < 1:
+        raise RuntimeError("aucun rerun en 30 jours — ce contrôle n'a RIEN vérifié")
+    res = _prom_prod("query", {"query": f"histogram_quantile(0.5, {q})"})
+    p50 = float(res[0]["value"][1]) * 1000
+    return (MET if p50 > 200 else NOT_MET), f"p50 = {p50:.0f} ms sur {n:.0f} reruns (seuil : 200)"
+
+
+# Deliberate saturations of the PRODUCTION pool, which are not incidents. Each one names
+# the task that ran it; a window without a task is not an exemption.
+_LOAD_TEST_WINDOWS = (
+    ("2026-09-17T09:00:00Z", "2026-09-17T15:00:00Z", "R114 — test de charge, réplique"),
+)
+
+
+def _db_ping() -> tuple[str, str]:
+    """« DB ping » — reopens on an hour where Postgres failed the dashboard (pool empty,
+    direct fallback) while the render p95 stayed under its 3 s alert: an incident the
+    render-latency panel would not show. Load-test windows are excluded.
+    """
+    import datetime as dt
+
+    expr = ('(sum(delta(streamlytics_postgres_pool_connections{state="direct_fallback",'
+            'job="dashboard"}[1h])) > 0) and on() histogram_quantile(0.95, sum by (le) '
+            '(rate(streamlytics_rerun_duration_seconds_bucket[1h]))) < 3')
+    end = dt.datetime.now(dt.timezone.utc)
+    res = _prom_prod("query_range", {
+        "query": expr, "start": f"{(end - dt.timedelta(days=30)).timestamp():.0f}",
+        "end": f"{end.timestamp():.0f}", "step": "3600"})
+    windows = [(dt.datetime.fromisoformat(a.replace("Z", "+00:00")),
+                dt.datetime.fromisoformat(b.replace("Z", "+00:00"))) for a, b, _ in _LOAD_TEST_WINDOWS]
+    hours = [dt.datetime.fromtimestamp(float(t), dt.timezone.utc)
+             for series in res for t, _v in series["values"]]
+    incidents = [h for h in hours if not any(a <= h <= b for a, b in windows)]
+    if incidents:
+        return MET, f"{len(incidents)} heure(s) de repli direct, rendu normal — 1re : {min(incidents):%Y-%m-%d %H:%M}"
+    return NOT_MET, f"0 heure de repli hors test de charge sur 30 j ({len(hours)} exclue(s))"
+
+
 def _fan_out() -> tuple[str, str]:
     """« Fan-out par locataire » (R266 a+b, ADR-030) — rouvre quand un DAG de PRODUCTION
     passe, au p95 sur 30 jours, la MOITIÉ de son `dagrun_timeout`.
@@ -366,11 +431,11 @@ TRIGGERS = [
             "moitié de son `dagrun_timeout`", "ADR-030 — product-backlog.md", _fan_out),
     Trigger("R309 contamination groupée", "100 locataires dans saas_artists",
             "product-backlog.md — R309", _tenant_fleet),
-    Trigger("R87", "`loadtest_dashboard.py -n 12` rend un p50 > 200 ms",
-            "archive.md:5146", None),
+    Trigger("R87", "le p50 de rendu dépasse 200 ms (30 j de reruns réels en prod)",
+            "archive.md:5146", _r87),
     Trigger("« DB ping »",
             "un incident où la latence de rendu est normale et Postgres en cause",
-            "grafana-correspondence.md", None),
+            "grafana-correspondence.md", _db_ping),
 ]
 
 

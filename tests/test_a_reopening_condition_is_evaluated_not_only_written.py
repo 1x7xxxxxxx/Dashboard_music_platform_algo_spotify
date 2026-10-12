@@ -161,3 +161,38 @@ def test_a_workstation_condition_is_undecidable_on_a_runner(monkeypatch) -> None
     monkeypatch.delenv("CI")
     state, _ = rc._pytest_third_worker()
     assert state in (rc.MET, rc.NOT_MET), "on a workstation it measures"
+
+
+def test_every_registered_condition_has_an_evaluator():
+    """R543 — no condition is left « à trancher à la main ».
+
+    Until 2026-10-12, R87 and « DB ping » carried `None`: undecidable on every run, so
+    the registry reported them and nothing ever decided them.
+    """
+    manual = [t.task for t in _module().TRIGGERS if t.evaluate is None]
+    assert not manual, f"conditions sans évaluation : {manual}"
+
+
+def test_the_db_ping_condition_skips_load_tests_and_sees_an_incident(monkeypatch):
+    """A fallback hour inside a declared load test is not an incident; one outside is."""
+    mod = _module()
+    inside, outside = 1789642800, 1790467200          # 2026-09-17 11:00Z ; 2026-09-27
+    monkeypatch.setattr(mod, "_prom_prod", lambda *_a: [{"values": [[inside, "1"]]}])
+    assert mod._db_ping()[0] == mod.NOT_MET
+    monkeypatch.setattr(mod, "_prom_prod",
+                        lambda *_a: [{"values": [[inside, "1"], [outside, "1"]]}])
+    assert mod._db_ping()[0] == mod.MET
+
+
+def test_the_render_condition_refuses_an_empty_month(monkeypatch):
+    """Zero reruns is not « p50 under 200 ms »: it is nothing measured."""
+    import pytest
+
+    mod = _module()
+    monkeypatch.setattr(mod, "_prom_prod", lambda *_a: [])
+    with pytest.raises(RuntimeError, match="RIEN vérifié"):
+        mod._r87()
+    monkeypatch.undo()
+    monkeypatch.delenv("PROD_SSH", raising=False)
+    with pytest.raises(RuntimeError, match="PROD_SSH"):
+        mod._prom_prod("query", {"query": "1"})
