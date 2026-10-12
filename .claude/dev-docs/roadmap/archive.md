@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R538 — Nightly `guard-mutation` 🟠 du 2026-10-12 (run 38232516894, mail 10:04Z) : `test_bounds_… (livrée 2026-10-12)
+
+- [x] **R538 — Nightly `guard-mutation` 🟠 du 2026-10-12 (run 38232516894, mail 10:04Z) : `test_bounds_and_validators_hold_their_properties` et `test_a_crash_is_never_credited_as_a_judgement` verts sur les mutations génériques — muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ garde vacant, le réparer. Reste trouvé hors roadmap en triant les mails du jour** (P3) ✅ (2026-10-12, f0c2a222)
+  Mesuré par : `SEEN_RED` porte les deux gardes avec leur mutation et le nombre de rouges
+  Livré f0c2a222, CI verte run 38266715463 ; les deux gardes vus rouges à la main (1 et 2 rouges), SEEN_RED daté — le prochain nightly les crédite
+  Commits : f0c2a222 R538 : deux gardes 🟠 du nightly vus rouges à la main — SEEN_RED daté, 
+
 ## ✅ R537 — Plan : la date de fin À CÔTÉ du plan — « Premium (fin le …) » dans Mon compte et dans l… (livrée 2026-10-12)
 
 - [x] **R537 — Plan : la date de fin À CÔTÉ du plan — « Premium (fin le …) » dans Mon compte et dans la carte de Facturation (retour du 2026-10-12) ; quand rien ne finit (accès accordé à la main, abonnement qui se renouvelle) la carte dit « sans date de fin » au lieu d'une date inventée** (P3) ✅ (2026-10-12, 55c7a273)
