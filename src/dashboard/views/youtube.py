@@ -380,18 +380,36 @@ def subscribers_by_video_figure(videos: pd.DataFrame, top: int = 10) -> go.Figur
 
 
 def watch_time_figure(daily: pd.DataFrame) -> go.Figure:
-    fig = go.Figure(go.Scatter(x=daily["day"], y=daily["minutes_watched"] / 60, mode="lines",
-                               line_color=_YT, name=t("youtube.hours_watched", "Heures vues")))
+    """R530 — a day the API did not deliver stays a GAP (never a segment across it), and a
+    channel under 2 h a day reads in minutes: 6 minutes drawn as « 0.1 h » says nothing."""
+    d = daily.assign(day=pd.to_datetime(daily["day"])).set_index("day")["minutes_watched"]
+    d = d.reindex(pd.date_range(d.index.min(), d.index.max(), freq="D"))
+    in_hours = d.max() >= 120
+    label = (t("youtube.hours_watched", "Heures vues") if in_hours
+             else t("youtube.minutes_watched", "Minutes vues"))
+    fig = go.Figure(go.Scatter(x=d.index, y=d / 60 if in_hours else d, mode="lines+markers",
+                               connectgaps=False, line_color=_YT, name=label))
     fig.update_layout(title=t("youtube.watch_time_title", "Durée de visionnage par jour"),
-                      yaxis_title=t("youtube.hours_watched", "Heures vues"), showlegend=False)
+                      yaxis_title=label, showlegend=False)
     return fig
+
+
+_TRAFFIC_MAX = 5          # len(platform_colors.DISTINCT)
+_OTHER = "_OTHER"
 
 
 def traffic_figure(traffic: pd.DataFrame) -> go.Figure:
     pivot = traffic.pivot_table(index="day", columns="source_type", values="views",
                                 aggfunc="sum", fill_value=0)
-    order = pivot.sum().sort_values(ascending=False).index
+    order = list(pivot.sum().sort_values(ascending=False).index)
     names = _traffic_labels()
+    # R530 — the default colorway (`DISTINCT`) has FIVE measured colours: a sixth source
+    # cycles back and two sources share a colour. The four largest, then the rest summed.
+    if len(order) > _TRAFFIC_MAX:
+        rest = order[_TRAFFIC_MAX - 1:]
+        pivot = pivot[order[:_TRAFFIC_MAX - 1]].assign(**{_OTHER: pivot[rest].sum(axis=1)})
+        order = order[:_TRAFFIC_MAX - 1] + [_OTHER]
+        names[_OTHER] = t("youtube.src_others", "Autres sources")
     fig = go.Figure([go.Bar(x=pivot.index, y=pivot[s], name=names.get(s, s)) for s in order])
     fig.update_layout(barmode="stack", yaxis_title=t("youtube.views", "Vues"),
                       title=t("youtube.traffic_title", "D'où viennent les vues, jour par jour"))
@@ -436,8 +454,13 @@ def _analytics_section(db, artist_id: int) -> None:
     # Below the channel and video charts: collapsed, so the page still opens on its budget.
     with secondary_analyses(t("youtube.analytics_expander",
                               "Abonnés par vidéo, durée de visionnage, sources de trafic")):
-        if not videos.empty:
+        # R530 — 17 videos at 0 drew an empty frame: say it instead.
+        if not videos.empty and videos["subscribers_gained"].sum() > 0:
             charts.plotly_chart(subscribers_by_video_figure(videos), width="stretch", pareto=False)
+        elif not videos.empty:
+            st.caption(t("youtube.subs_none",
+                         "Aucune vidéo n'a fait gagner d'abonné sur les {days} derniers jours "
+                         "consolidés.").format(days=int(videos["window_days"].iloc[0])))
         charts.plotly_chart(watch_time_figure(daily), width="stretch")
         if not traffic.empty:
             charts.plotly_chart(traffic_figure(traffic), width="stretch")
