@@ -545,6 +545,9 @@ et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un table
 - **Stop** → `require_verdict_after_edit.py` (R549) — du code modifié APRÈS le départ de la dernière
   suite (`.pytest-last.started`) bloque la fin de tour UNE fois : lancer `make test-changed`,
   ou dire pourquoi pas. Un `.md`/`.yml` seul ne bloque jamais.
+- **statusLine** → `.claude/scripts/statusline.py` (R550) — le HUD de séance : modèle · contexte ·
+  coût · durée · lignes, puis tests (même état que le garde Stop) · CI du HEAD (cache, « ? »
+  tant qu'elle n'est pas lue, jamais ✅) · non commités · non poussés · unité de nuit.
 → Full specification: `.claude/hooks/hook.md`
 
 > **Pourquoi des hooks et pas des règles ici.** Ces trois comportements sont des gestes
