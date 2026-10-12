@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the three example charts shown before an artist has any data of their own.
+"""Build the example charts shown before an artist has any data of their own.
 
 Type: Utility
 Uses: matplotlib (kaleido is absent everywhere — Plotly cannot export a PNG here)
@@ -67,9 +67,10 @@ BLUE, ORANGE, AQUA, YELLOW = "#3acf84", "#bd354b", "#e0631b", "#bd00a4"
 # Shazam et Hypeddit : hors de la pile des quatre plateformes, donc hors de ses
 # quatre teintes — un bleu et un violet que rien d'autre ne porte sur ces figures.
 SHAZAM, HYPEDDIT = "#0a84ff", "#6b4fd8"
-# Meta Ads : la DÉPENSE, en rouge (R480, W3 « Meta € en rouge »). Jamais empilée
-# avec des écoutes — des euros n'ont pas la même unité.
-META = "#d93025"
+# Meta Ads : la DÉPENSE. Rouge depuis R480 (W3), bleu marine depuis R533 (2026-10-12 :
+# le rouge est déjà celui de YouTube, deux séries d'une même figure ne partagent pas une
+# teinte). Jamais empilée avec des écoutes — des euros n'ont pas la même unité.
+META = "#1e3a8a"
 _LISTEN_SOURCES = ("Spotify", "YouTube", "SoundCloud", "Instagram")
 
 plt.rcParams.update({
@@ -217,18 +218,22 @@ def dashboard_global() -> Path:
     axm.yaxis.set_major_locator(plt.MaxNLocator(2))
     _series_tag(axm, 1.02, 0.72, "Meta Ads (€)", META)
     # R515 (X3 II) : le CPR, sur SON axe à droite de la bande Meta — un ratio en €
-    # par clic qui oscille autour de 0,20-0,25 €, jamais sur l'axe des dépenses.
-    cpr = 0.225 + 0.025 * np.sin(days / 6) + rng.normal(0, 0.004, 90)
+    # par clic, jamais sur l'axe des dépenses. R533 (2026-10-12) : il DESCEND, « nos
+    # performances de CPR s'optimisent de jour en jour » — 0,32 → ~0,16 € sur 90 jours.
+    cpr = (0.32 - 0.16 * (days / days[-1]) ** 0.7 + 0.006 * np.sin(days / 5)
+           + rng.normal(0, 0.003, 90))
     axc = axm.twinx()
     axc.plot(days, cpr, color=INK, linewidth=1.3)
-    axc.set_ylim(0, 0.30)   # from zero, like every dual axis here
+    axc.set_ylim(0, 0.36)   # from zero, like every dual axis here
     # No tick labels: they would sit on the series tags. The scale is in the tag.
     axc.set_yticks([])
     for side in ("top", "left", "bottom", "right"):
         axc.spines[side].set_visible(False)
     axc.tick_params(length=0, labelsize=8, colors=INK_MUTED)
     axc.grid(False)
-    _series_tag(axm, 1.02, 0.22, "CPR 0,20-0,25 €/clic", INK)
+    # The numbers live in the subtitle: a long tag here widens the PNG and breaks the
+    # equal heights of the three welcome columns.
+    _series_tag(axm, 1.02, 0.22, "CPR (€ par clic) ↘", INK)
 
     listens = int(sum(s.sum() for k, s in series.items() if k in _LISTEN_SOURCES))
     n_shazam = int(series["Shazam"].sum())
@@ -237,7 +242,7 @@ def dashboard_global() -> Path:
                  fontweight="700", color=INK, loc="left", pad=18)
     ax.text(0, 1.035, f"{_n(listens)} écoutes · {_n(n_shazam)} Shazams · "
             f"{_n(n_clicks)} clics Hypeddit · {_n(int(spend.sum()))} € Meta · "
-            f"CPR {cpr.mean():.2f} € sur 90 jours".replace(".", ","),
+            f"CPR {cpr[:7].mean():.2f} → {cpr[-7:].mean():.2f} € en 90 jours".replace(".", ","),
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
     ax.set_xlim(0, days[-1])
     ax.set_ylim(0, ymax * 1.04)
@@ -250,55 +255,69 @@ def discover_weekly_prediction() -> Path:
 
     R455 (2026-10-07, C2) : trois courbes de probabilité. R480 (2026-10-09, W3) : le
     palier 100 % par playlist, une ligne — la marque d'un NIVEAU, pas d'une série.
-    R515 (2026-10-11, X3 II) : « la bosse Release Radar APRÈS le déclenchement, mesuré
-    en trait plein et prédit en pointillé ». À gauche du trait « aujourd'hui », ce qui
-    a été MESURÉ (plein) ; à droite, la prévision (pointillé, avec sa zone
-    d'incertitude). Release Radar a touché le palier — un point plein — puis la
-    prévision le fait redescendre à la sortie de sa fenêtre (0-35 j) : c'est la bosse.
-    Discover Weekly et Radio montent encore, sous le palier.
+    R515 (2026-10-11, X3 II) : à gauche du trait « aujourd'hui », ce qui a été MESURÉ
+    (plein) ; à droite, la prévision (pointillé, avec sa zone d'incertitude). Release
+    Radar a touché le palier — un point plein — puis redescend à la sortie de sa fenêtre.
+    R533 (2026-10-12) : Discover Weekly et Radio ont chacune une DATE prévue — la courbe
+    s'arrête au palier, un point creux le marque, « prévu J+n » le nomme.
     """
     past = np.linspace(-21, 0, 85)
-    ahead = np.linspace(0, 28, 113)   # fine grid: a steep start must stay a curve
+    ahead = np.linspace(0, 56, 225)   # fine grid: a steep start must stay a curve
     span = np.concatenate([past, ahead[1:]])
-    t = (span + 21) / 49               # 0 → 1 over the whole picture
 
     def _rr(x: np.ndarray) -> np.ndarray:
         rise = 100 * (0.10 + 0.95 * np.clip((x + 21) / 15, 0, 1) ** 0.8)
         fall = np.where(x > 9, 100 * np.exp(-((x - 9) / 11) ** 2), 100)
         return np.minimum(np.minimum(rise, 100), fall)
 
+    def _climb(x: np.ndarray, start: float, hit_day: float, power: float) -> np.ndarray:
+        """From `start` % at J-21 to the 100 % floor exactly at `hit_day`."""
+        u = np.clip((x + 21) / (hit_day + 21), 0, 1)
+        return 100 * (start + (1 - start) * u ** power)
+
     curves = {   # nom: (courbe sur toute la période, couleur)
         "Release Radar":   (_rr(span), BLUE),
-        "Discover Weekly": (100 * (0.06 + 0.58 * t ** 1.3), AQUA),
-        "Radio":           (100 * (0.04 + 0.37 * t ** 1.8), YELLOW),
+        "Discover Weekly": (_climb(span, 0.06, 20, 1.6), AQUA),
+        "Radio":           (_climb(span, 0.04, 44, 2.2), YELLOW),
     }
     cut = len(past)
     fig, ax = plt.subplots(figsize=(9, 5.38))
     ax.axhline(100, color=INK_MUTED, linewidth=1, linestyle=(0, (5, 4)))
-    # Under the flat stretch where Release Radar holds the floor: nothing crosses it.
-    ax.text(-5.5, 97, "palier 100 % = déclenchée", fontsize=9,
+    ax.text(-20, 97, "palier 100 % = déclenchée", fontsize=9,
             color=INK_MUTED, va="top", ha="left")
     ax.axvline(0, color=GRID, linewidth=1.2)
-    ax.text(0.3, 4, "aujourd'hui", fontsize=9, color=INK_MUTED, ha="left")
-    ax.text(-0.3, 4, "mesuré", fontsize=9, color=INK_MUTED, ha="right")
+    ax.text(0.5, 4, "aujourd'hui", fontsize=9, color=INK_MUTED, ha="left")
+    ax.text(-0.5, 4, "mesuré", fontsize=9, color=INK_MUTED, ha="right")
     for name, (p, colour) in curves.items():
         ax.plot(span[:cut], p[:cut], color=colour, linewidth=2.2)
         fut = p[cut - 1:]
-        ax.plot(ahead, fut, color=colour, linewidth=2.2, linestyle=(0, (4, 2.5)))
-        spread = np.where(fut >= 100, 0, 9 * ahead / ahead[-1])
-        ax.fill_between(ahead, np.clip(fut - spread, 0, 100), np.clip(fut + spread, 0, 100),
+        triggered = bool((p[:cut] >= 100).any())
+        reached = fut >= 100 - 1e-9
+        # A forecast that reaches the floor stops there: past it, it would only draw
+        # a flat line over the floor and hide it. A playlist already triggered keeps
+        # its whole forecast — that is where it leaves its window.
+        end = len(ahead) if triggered or not reached.any() else int(np.argmax(reached)) + 1
+        x, y = ahead[:end], fut[:end]
+        ax.plot(x, y, color=colour, linewidth=2.2, linestyle=(0, (4, 2.5)))
+        spread = 9 * x / ahead[-1]
+        ax.fill_between(x, np.clip(y - spread, 0, 100), np.clip(y + spread, 0, 100),
                         color=colour, alpha=0.10, linewidth=0)
-        if (p >= 100).any():
+        if triggered:                       # triggered in the measured part
             hit = int(np.argmax(p >= 100))
             ax.plot([span[hit]], [100], marker="o", markersize=9, color=colour, clip_on=False)
             tag = f"{name}  déclenché ✓ → {fut[-1]:.0f} %"
-        else:
-            tag = f"{name}  {fut[-1]:.0f} %"
-        ax.annotate(tag, xy=(ahead[-1], fut[-1]), xytext=(ahead[-1] + 0.8, fut[-1]),
-                    va="center", fontsize=10, color=INK, fontweight="600",
-                    annotation_clip=False)
-        ax.plot([ahead[-1] + 0.35], [fut[-1]], marker="s", markersize=7, color=colour,
-                clip_on=False)
+            ax.annotate(tag, xy=(ahead[-1], fut[-1]), xytext=(ahead[-1] + 0.8, fut[-1]),
+                        va="center", fontsize=10, color=INK, fontweight="600",
+                        annotation_clip=False)
+            ax.plot([ahead[-1] + 0.35], [fut[-1]], marker="s", markersize=7, color=colour,
+                    clip_on=False)
+        elif end < len(ahead):              # the forecast reaches the floor: a date
+            day = x[-1]
+            ax.plot([day], [100], marker="o", markersize=10, markerfacecolor=SURFACE,
+                    markeredgecolor=colour, markeredgewidth=2.4, clip_on=False)
+            ax.annotate(f"{name}\nprévu J+{day:.0f}", xy=(day, 100),
+                        xytext=(day + 1.6, 92), va="top", ha="left", fontsize=10,
+                        color=INK, fontweight="600")
     _frame(ax)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f} %"))
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"J{v:+.0f}".replace("J+0", "J0")))
@@ -307,7 +326,8 @@ def discover_weekly_prediction() -> Path:
     ax.set_xlabel("jours (avant et après aujourd'hui)", fontsize=9)
     ax.set_title("Tes chances d'entrer dans les playlists algorithmiques",
                  fontsize=14, fontweight="700", color=INK, loc="left", pad=26)
-    ax.text(0, 1.035, "Trait plein : mesuré · pointillé : prévu, la zone claire est l'incertitude",
+    ax.text(0, 1.035, "Trait plein : mesuré · pointillé : prévu, la zone claire est "
+            "l'incertitude · ○ date prévue",
             transform=ax.transAxes, fontsize=10, color=INK_MUTED)
     return _save(fig, "prediction-discover-weekly.png")
 
@@ -405,6 +425,97 @@ def meta_x_s4a() -> Path:
     return _save(fig, "meta-x-s4a.png")
 
 
+def meta_x_algo() -> Path:
+    """Le budget Meta ET les chances de déclencher DW et Radio — une proposition, jour par jour.
+
+    R533 (2026-10-12, retour vocal) : « une 4ᵉ figure qui fusionne les chances de
+    déclenchement et le budget Meta … j'ai besoin d'une proposition ». Les barres sont
+    le budget : plein = dépensé, clair = conseillé. Les courbes sont les chances, sur
+    l'axe de gauche, avec en fin trait la même courbe SANS pub — l'écart est ce que le
+    budget achète. Les dates prévues suivent `discover_weekly_prediction` : un point
+    plein quand c'est mesuré, un point creux quand c'est prévu.
+    """
+    rng = np.random.default_rng(533)
+    today, end = 62, 120
+    days = np.arange(end + 1)
+    dw_day, radio_day = 42, 96
+    relaunch = (radio_day - 18, radio_day - 2)          # avant la fenêtre Radio
+    assert DW_WINDOW[0] <= dw_day < DW_WINDOW[1] <= radio_day
+    spend = np.zeros(len(days))
+    spend[:dw_day] = np.clip(np.linspace(36, 22, dw_day) + rng.normal(0, 3, dw_day), 0, None)
+    planned = np.zeros(len(days))
+    planned[relaunch[0]:relaunch[1] + 1] = 18
+    past, fut = days <= today, days >= today
+
+    def _climb(start: float, hit: int, power: float, cap: float = 100) -> np.ndarray:
+        u = np.clip(days / hit, 0, 1)
+        return np.minimum(100 * (start + (1 - start) * u ** power), cap)
+
+    fig, ax = plt.subplots(figsize=(12, 3.8))
+    axe = ax.twinx()
+    ax.set_zorder(axe.get_zorder() + 1)
+    ax.patch.set_visible(False)
+    axe.bar(days[past], spend[past], color=META, width=0.75, alpha=0.8, linewidth=0)
+    axe.bar(days, planned, color=META, width=0.75, alpha=0.25, linewidth=0)
+    axe.set_ylim(0, max(spend.max(), planned.max()) * 2.2)
+    axe.set_ylabel("€ Meta / jour", fontsize=9, color=INK_MUTED)
+    axe.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f} €"))
+    for side in ("top", "left", "bottom", "right"):
+        axe.spines[side].set_visible(False)
+    axe.tick_params(length=0, labelsize=8.5, colors=INK_MUTED)
+    axe.grid(False)
+
+    ax.axhline(100, color=INK_MUTED, linewidth=1, linestyle=(0, (5, 4)))
+    ax.axvline(today, color=GRID, linewidth=1.2)
+    ax.text(today + 1, 4, "aujourd'hui", fontsize=9, color=INK_MUTED, ha="left")
+    series = (("Discover Weekly", _climb(0.05, dw_day, 1.5), _climb(0.05, 150, 1.5, 70), AQUA),
+              ("Radio", _climb(0.03, radio_day, 2.0), _climb(0.03, 190, 2.0, 70), YELLOW))
+    for name, with_ads, without, colour in series:
+        hit = int(np.argmax(with_ads >= 100))
+        ax.plot(days[past & (days <= hit)], with_ads[past & (days <= hit)],
+                color=colour, linewidth=2.2)
+        ahead = fut & (days <= hit)
+        if ahead.sum() > 1:
+            ax.plot(days[ahead], with_ads[ahead], color=colour, linewidth=2.2,
+                    linestyle=(0, (4, 2.5)))
+        ax.plot(days, without, color=colour, linewidth=1.2, alpha=0.6, linestyle=(0, (1, 2)))
+        measured = hit <= today
+        ax.plot([hit], [100], marker="o", markersize=9, clip_on=False,
+                markerfacecolor=colour if measured else SURFACE, markeredgecolor=colour,
+                markeredgewidth=2.2)
+        label = f"{name}\n{'déclenché' if measured else 'prévu'} jour {hit}"
+        ax.annotate(label, xy=(hit, 100), xytext=(hit + 1.5, 92), va="top", ha="left",
+                    fontsize=9.5, color=INK, fontweight="600")
+    ax.annotate("relancer ici", xy=(relaunch[0] + 1, 4), xytext=(relaunch[0] - 9, 22),
+                fontsize=9.5, color=INK, fontweight="600", ha="center",
+                arrowprops=dict(arrowstyle="->", color=INK_MUTED, linewidth=1))
+    _frame(ax)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{v:.0f} %"))
+    ax.set_ylim(0, 100)
+    ax.set_xlim(0, end)
+    axe.set_xlim(0, end)
+    ax.set_xlabel("jours depuis la sortie", fontsize=9)
+
+    _series_tag(ax, 1.075, 0.86, "Meta dépensé (€, à droite)", META)
+    ax.plot([1.075], [0.72], marker="s", markersize=8, color=META, alpha=0.25,
+            transform=ax.transAxes, clip_on=False)
+    ax.text(1.089, 0.72, "Meta conseillé", transform=ax.transAxes, fontsize=10.5,
+            fontweight="700", color=INK, ha="left", va="center")
+    _series_tag(ax, 1.075, 0.52, "Discover Weekly (%)", AQUA)
+    _series_tag(ax, 1.075, 0.38, "Radio (%)", YELLOW)
+    ax.plot([1.068, 1.082], [0.20, 0.20], color=INK_MUTED, linewidth=1.2,
+            linestyle=(0, (1, 2)), transform=ax.transAxes, clip_on=False)
+    ax.text(1.089, 0.20, "même courbe sans pub", transform=ax.transAxes, fontsize=10,
+            color=INK_MUTED, ha="left", va="center")
+
+    ax.set_title("Ton budget Meta, jour par jour, pour déclencher Discover Weekly puis Radio",
+                 fontsize=14, fontweight="700", color=INK, loc="left", pad=26)
+    ax.text(0, 1.035, "Barres : budget Meta (plein = dépensé, clair = conseillé) · courbes : "
+            "tes chances de déclenchement, à gauche · ○ date prévue",
+            transform=ax.transAxes, fontsize=10, color=INK_MUTED)
+    return _save(fig, "meta-x-algo.png")
+
+
 def shap_overview() -> Path:
     """Ce qui pèse le plus sur chaque playlist, et où en est TA track — un aperçu SHAP, factice.
 
@@ -474,6 +585,7 @@ def main() -> int:
     dashboard_global()
     discover_weekly_prediction()
     meta_x_s4a()
+    meta_x_algo()
     shap_overview()
     return 0
 

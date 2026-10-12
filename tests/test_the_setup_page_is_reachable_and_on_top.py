@@ -1120,8 +1120,12 @@ def test_the_charts_never_use_a_second_y_axis():
 
     R515 (2026-10-11, X3 II): the owner asked for the CPR « superposée à la bande Meta €
     sur son axe » in `dashboard_global` — a second exception, under the same rule.
+
+    R533 (2026-10-12): « une 4ᵉ figure qui fusionne les chances et le budget Meta » —
+    `meta_x_algo`, a third exception: chances in %, spend in €, both from zero.
     """
-    exceptions = {"meta_x_s4a": {"ax", "axe"}, "dashboard_global": {"axm", "axc"}}
+    exceptions = {"meta_x_s4a": {"ax", "axe"}, "dashboard_global": {"axm", "axc"},
+                  "meta_x_algo": {"ax", "axe"}}
     body = CHARTS.read_text(encoding="utf-8")
     tree = ast.parse(body)
     for fn in (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)):

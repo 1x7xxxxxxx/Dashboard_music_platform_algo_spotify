@@ -19,7 +19,7 @@ from src.database.stripe_schema import PLAN_FEATURES
 from src.dashboard.utils.status_matrix import render_status_matrix
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.date_format import format_date
-from src.dashboard.utils.example_figures import OVERVIEW, PROMISES, render_example
+from src.dashboard.utils.example_figures import META_X_ALGO, OVERVIEW, PROMISES, render_example
 
 
 # Platforms and which plan they require — all platform connectors are Free-tier.
@@ -184,6 +184,10 @@ def _step_welcome(plan: str, artist_id: int, db) -> None:
         with col:
             render_example(name)
             st.markdown(line)
+    # R533 : la quatrième figure réunit les deux promesses — chances et budget Meta.
+    render_example(META_X_ALGO)
+    st.markdown(t("onboarding.promise_meta_algo",
+                  "**Ton budget Meta, jour par jour, pour déclencher les algorithmes**"))
     st.markdown("---")
 
     st.markdown("### " + t("onboarding.b2_title",

@@ -33,6 +33,9 @@ ALGO_PREDICTION = "prediction-discover-weekly.png"
 CAMPAIGN = "meta-x-s4a.png"
 PROMISES = (ALGO_PREDICTION, CAMPAIGN)   # the order the owner asked for (V12)
 SHAP_OVERVIEW = "shap-overview.png"
+# R533 (2026-10-12): the chances and the Meta budget on ONE axis of days — wide, so it
+# sits under the three columns rather than beside them.
+META_X_ALGO = "meta-x-algo.png"
 # R456 (C8, C10): the free Road to Algo preview shows the two promises, then the SHAP
 # overview — every figure an example, never the tenant's data.
 ALGO_PREVIEW = (ALGO_PREDICTION, CAMPAIGN, SHAP_OVERVIEW)

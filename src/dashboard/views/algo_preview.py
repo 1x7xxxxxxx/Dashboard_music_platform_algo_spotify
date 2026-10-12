@@ -1,7 +1,7 @@
 """Aperçu : déclencher les algos — ce que Road to Algo fait, en trois figures d'exemple. GRATUIT.
 
 Type: Feature
-Uses: example_figures (ALGO_PREVIEW), plan_gate.est_verrouille, navigation.goto, i18n
+Uses: example_figures (ALGO_PREVIEW, META_X_ALGO), plan_gate.est_verrouille, navigation.goto, i18n
 Depends on: src/dashboard/assets/examples/*.png (built by `make example-charts`)
 Persists in: — (lecture seule)
 
@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.dashboard.utils.example_figures import ALGO_PREVIEW, render_example
+from src.dashboard.utils.example_figures import ALGO_PREVIEW, META_X_ALGO, render_example
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.navigation import goto
 from src.dashboard.utils.plan_gate import est_verrouille
@@ -71,6 +71,7 @@ def show() -> None:
     for col, name in zip(st.columns(len(ALGO_PREVIEW), gap="medium"), ALGO_PREVIEW):
         with col:
             render_example(name)
+    render_example(META_X_ALGO)   # R533: chances + Meta budget, under the columns
     _render_settings()
     # R487 (W10) : « Ouvrir Road to Algo » → un bouton vers Facturation pour qui n'est pas
     # premium. Le texte sous les figures est retiré : la figure SHAP porte ses légendes.

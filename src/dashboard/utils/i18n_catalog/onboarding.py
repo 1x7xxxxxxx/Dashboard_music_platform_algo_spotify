@@ -34,6 +34,7 @@ EN = {
                           "automatically.**",
     "onboarding.promise_algo": "**Your odds of triggering Spotify's algorithmic playlists — Discover Weekly, Release Radar and Radio — forecast day by day**",
     "onboarding.promise_campaign": "**Optimise your Meta Ads budget to maximise your streams**",
+    "onboarding.promise_meta_algo": "**Your Meta budget, day by day, to trigger the algorithms**",
     "onboarding.step1": "1. Welcome & pick",
     "onboarding.step2": "2. Where you stand",
     "onboarding.b0_title": "0. Your language",

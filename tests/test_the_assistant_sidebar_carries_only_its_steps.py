@@ -190,6 +190,6 @@ def test_the_welcome_step_draws_only_example_figures() -> None:
     drawn = {kind: len(at.main.get(kind)) for kind in _FIGURES if kind != "image"}
     assert not any(drawn.values()), f"the welcome step draws charts: {drawn}"
     captions = [img.caption for el in at.main.get("image") for img in el.proto.imgs]
-    # R480 (W3) : three images, none captioned « Exemple » any more.
-    assert len(captions) == 3 and not any(captions), (
+    # R480 (W3) : no image captioned « Exemple » any more. R533 : a fourth, Meta × algos.
+    assert len(captions) == 4 and not any(captions), (
         f"an image on the welcome step carries a caption: {captions}")

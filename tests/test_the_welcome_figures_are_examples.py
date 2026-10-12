@@ -61,8 +61,9 @@ def test_the_three_figures_share_one_row_of_equal_columns() -> None:
             and c.args and getattr(c.args[0], "value", None) == 3]
     assert cols, "the three figures are no longer one row of three equal columns"
     examples = [c for c in calls if getattr(c.func, "id", "") == "render_example"]
-    assert len(examples) == 1, (
-        f"{len(examples)} render_example calls — one, in the loop over the three columns")
+    assert len(examples) == 2, (
+        f"{len(examples)} render_example calls — one in the loop over the three columns, "
+        "one for the wide fourth figure under them (R533)")
 
 
 def test_the_welcome_step_reads_no_tenant_series() -> None:
@@ -107,11 +108,12 @@ def _images(view: str, artist_id: int) -> list[tuple[str, str]]:
 @pytest.mark.skipif(not db_ready(), reason="renders the welcome step against the live DB")
 def test_an_empty_tenant_sees_three_example_figures(empty_tenant) -> None:
     images = _images("onboarding", empty_tenant)
-    assert len(images) == 3, f"expected overview + two promises, got {len(images)}"
+    assert len(images) == 4, (
+        f"expected overview + two promises + Meta × algos (R533), got {len(images)}")
     # R480 (owner, 2026-10-09, W3) : « retirer "(exemple données fictives…)" ».
     captioned = [caption for caption, _url in images if caption]
     assert not captioned, f"an example figure carries a caption again: {captioned}"
-    assert len({url for _c, url in images}) == 3, "the same figure is shown twice"
+    assert len({url for _c, url in images}) == 4, "the same figure is shown twice"
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo preview against the live DB")
@@ -119,7 +121,8 @@ def test_the_algo_preview_shows_the_welcome_figures_then_shap(empty_tenant) -> N
     """R456 (C8, C10): the two welcome promises, then the SHAP overview — no caption (R480)."""
     welcome = _images("onboarding", empty_tenant)
     preview = _images("algo_preview", empty_tenant)
-    assert len(preview) == 3 and not any(c for c, _u in preview), preview
-    assert [u for _c, u in preview[:2]] == [u for _c, u in welcome[1:]], (
+    assert len(preview) == 4 and not any(c for c, _u in preview), preview
+    assert [u for _c, u in preview[:2]] == [u for _c, u in welcome[1:3]], (
         "the algo preview shows other figures than the welcome step's two promises")
-    assert len({u for _c, u in preview}) == 3, "the SHAP overview repeats a promise"
+    assert preview[3][1] == welcome[3][1], "the Meta × algos figure differs between the two"
+    assert len({u for _c, u in preview}) == 4, "the SHAP overview repeats a promise"
