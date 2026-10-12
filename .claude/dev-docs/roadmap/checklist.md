@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R523 | Nightly `error-class-audit` rouge (run 38128059381, 2026-10-11) : 3 signatures (`download-payload-rebuilt-per-rerun`, `dag-without-dagrun-timeout`, `an-overload-makes-the-old-call-ambiguous`) appellent `python3` nu ; sur le runner c'est l'interpréteur SYSTÈME (sans pytest/psycopg2) ⇒ ModuleNotFoundError ⇒ pas de verdict ⇒ exit 2 depuis R495 (avant, un plantage comptait HIT). Faire tourner l'audit sous l'interpréteur du venv, balayer les autres jobs qui lancent des signatures <!-- critic: non — changement d'environnement d'exécution d'un job CI, aucun code produit --> <!-- scope: .github/workflows/, .claude/dev-docs/, tests/ --> | P3 | job `error-class-audit` vert au prochain nightly ; les 3 signatures rendent 0/1 sous `/usr/bin/python3 -s` après activation du venv |
 
 ---
 
@@ -85,7 +86,7 @@ ADR-023, relus le 2026-09-11, aucun tiré).
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R520 -->
+<!-- reprise: open=R520,R523 -->
 
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 et R131
 sont parquées (sections ⏸️), leurs déclencheurs évalués par `make reopen-check` chaque nuit.
