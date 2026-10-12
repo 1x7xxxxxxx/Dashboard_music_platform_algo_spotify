@@ -11,6 +11,34 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R547 — YouTube : « — données exactes » retiré du titre d'onglet ; « durée de visionnage par jo… (livrée 2026-10-12)
+
+- [x] **R547 — YouTube : « — données exactes » retiré du titre d'onglet ; « durée de visionnage par jour » et « d'où viennent les vues » passent À LA FIN de l'onglet Chaîne et vidéos (note vocale 2026-10-12)** (P3) ✅ (2026-10-12, a6f4347a, ae505db1)
+  Mesuré par : rendu AppTest ; garde : ordre des figures dans l'onglet
+  Livré, CI verte (run 38306896114), déployé en prod e968219c et vérifié dans le conteneur
+  Commits : a6f4347a R547 : YouTube — garde d'ordre en AST seul ; plafonds du premier écran · ae505db1 R547 : YouTube — « données exactes » retiré, durée de visionnage et so
+
+## ✅ R546 — Apple Music : « 🎯 Le titre à pousser » et « Shazam gagnés par jour » retirés ; restent… (livrée 2026-10-12)
+
+- [x] **R546 — Apple Music : « 🎯 Le titre à pousser » et « Shazam gagnés par jour » retirés ; restent le Top 10 streams cumulés et les Shazams (note vocale 2026-10-12)** (P3) ✅ (2026-10-12, 0d77bd64)
+  Mesuré par : rendu AppTest ; garde : les deux figures absentes
+  Livré, CI verte (run 38306896114), déployé en prod e968219c et vérifié dans le conteneur
+  Commits : 0d77bd64 R546 : Apple Music — « le titre à pousser » et « Shazam gagnés par jou
+
+## ✅ R545 — Mise en route + « Aperçu : déclencher les algos » : la 4ᵉ figure (« Ton budget Meta, jo… (livrée 2026-10-12)
+
+- [x] **R545 — Mise en route + « Aperçu : déclencher les algos » : la 4ᵉ figure (« Ton budget Meta, jour par jour… ») retirée, trois figures en zigzag (figure ↔ texte, alternés gauche/droite), « Créatifs » → « Créatives » (note vocale 2026-10-12)** (P3) ✅ (2026-10-12, 2a236cab, 85746129)
+  Mesuré par : rendu AppTest ; garde : 3 figures, alternance, pas de META_X_ALGO
+  Livré, CI verte (run 38306896114), déployé en prod e968219c et vérifié dans le conteneur
+  Commits : 2a236cab R545 : barre de l'assistant — « en bref » dessine par render_zigzag, t · 85746129 R545 : Mise en route + Aperçu — 4ᵉ figure (budget Meta) retirée, trois
+
+## ✅ R544 — Accueil : les trois portes (DW 7 %, Radio 11 %, RR 6 %) deviennent des JAUGES 0-100 rou… (livrée 2026-10-12)
+
+- [x] **R544 — Accueil : les trois portes (DW 7 %, Radio 11 %, RR 6 %) deviennent des JAUGES 0-100 rouge→vert avec leur curseur, et la jauge porte le montant qui reste à investir au meilleur CPR pour l'atteindre (note vocale 2026-10-12)** (P3) ✅ (2026-10-12, 61c92c43, 5e925337)
+  Mesuré par : rendu AppTest + PNG regardé ; garde : trois jauges, montant au CPR
+  Livré, CI verte (run 38306896114), déployé en prod e968219c et vérifié dans le conteneur
+  Commits : 61c92c43 R544 : Accueil — nouvelle photo figée (jauges) et verdicts du dossier  · 5e925337 R544 : Accueil — les trois portes deviennent des jauges 0-100 rouge→ve
+
 ## ✅ R543 — Les deux dernières conditions de réouverture tranchées « à la main » (R87 : p50 de rend… (livrée 2026-10-12)
 
 - [x] **R543 — Les deux dernières conditions de réouverture tranchées « à la main » (R87 : p50 de rendu > 200 ms ; « DB ping » : un incident Postgres que la latence de rendu ne montre pas) évaluées par `reopen_check.py` sur le Prometheus de PROD via `PROD_SSH` — plus aucune condition sans évaluation** (P3) ✅ (2026-10-12, 596995de)
