@@ -40,7 +40,11 @@ ask, and inventing an answer would be worse than none.
 from __future__ import annotations
 
 import os
+import time
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -120,6 +124,32 @@ def test_the_watcher_detector_sees_the_defect_it_is_written_for():
     assert failure_streak(once) == 1
 
 
+def _get_with_retry(get: Callable[[], Any], tries: int = 3, wait_s: float = 2.0) -> Any:
+    """R530/R531 — a 5xx is GitHub being down, not the probe: retry it, then say so.
+
+    Measured 2026-10-12: one 502 from api.github.com turned main's CI red on a pure
+    roadmap commit. A 4xx (bad token, rate limit) is ours, and stays red at once."""
+    for attempt in range(tries):
+        r = get()
+        if r.status_code < 500:
+            return r
+        if attempt < tries - 1:
+            time.sleep(wait_s * (attempt + 1))
+    raise AssertionError(f"GitHub API answered {r.status_code} {tries} times in a row — "
+                         f"GitHub is failing, not the probe: {r.text[:200]}")
+
+
+def _workflow_runs() -> Any:
+    import requests
+
+    return _get_with_retry(lambda: requests.get(
+        f"https://api.github.com/repos/{_REPO}/actions/workflows/{_WORKFLOW}/runs",
+        headers={"Authorization": f"Bearer {_TOKEN}",
+                 "Accept": "application/vnd.github+json"},
+        params={"per_page": 10}, timeout=20,
+    ))
+
+
 # The measured reality, pinned so the calibration above can be re-checked rather than
 # believed. Deliberately the DATA and not the constant: a test that asserts
 # `_MAX_AGE_H == 30` restates the code, and would have been just as green at 36.
@@ -128,14 +158,7 @@ _MEASURED_GAPS_H = {"median": 24.0, "second_largest": 25.4, "max": 34.6, "sample
 
 @pytest.mark.skipif(not _TOKEN, reason="no GITHUB_TOKEN — this question only exists in CI")
 def test_the_daily_production_probe_ran_recently():
-    import requests
-
-    r = requests.get(
-        f"https://api.github.com/repos/{_REPO}/actions/workflows/{_WORKFLOW}/runs",
-        headers={"Authorization": f"Bearer {_TOKEN}",
-                 "Accept": "application/vnd.github+json"},
-        params={"per_page": 10}, timeout=20,
-    )
+    r = _workflow_runs()
     if r.status_code == 404:
         pytest.skip(f"{_WORKFLOW} not found in {_REPO} (fork, or the file was renamed)")
     assert r.status_code == 200, f"GitHub API returned {r.status_code}: {r.text[:200]}"
@@ -179,14 +202,7 @@ def test_the_daily_probe_is_not_failing_night_after_night():
     plus du bruit : c'est une panne installée, et c'est le seuil à partir duquel on
     veut qu'un humain regarde.
     """
-    import requests
-
-    r = requests.get(
-        f"https://api.github.com/repos/{_REPO}/actions/workflows/{_WORKFLOW}/runs",
-        headers={"Authorization": f"Bearer {_TOKEN}",
-                 "Accept": "application/vnd.github+json"},
-        params={"per_page": 10}, timeout=20,
-    )
+    r = _workflow_runs()
     if r.status_code == 404:
         pytest.skip(f"{_WORKFLOW} not found in {_REPO} (fork, or the file was renamed)")
     assert r.status_code == 200, f"GitHub API returned {r.status_code}: {r.text[:200]}"
@@ -246,3 +262,35 @@ def test_an_unparseable_ceiling_falls_back_instead_of_disabling_the_guard():
     # …and a sane explicit value is still honoured, or the fallback would swallow
     # every override and the variable would be decoration.
     assert resolve_ceiling("28") == 28
+
+
+# ── R531 — a GitHub 5xx is retried; a 4xx is not ─────────────────────────────────
+
+
+def _seq(*codes: int) -> tuple[Callable[[], Any], list[int]]:
+    calls: list[int] = []
+    it = iter(codes)
+
+    def get() -> Any:
+        code = next(it)
+        calls.append(code)
+        return SimpleNamespace(status_code=code, text="Server Error")
+    return get, calls
+
+
+def test_a_passing_github_outage_is_retried():
+    get, calls = _seq(502, 502, 200)
+    assert _get_with_retry(get, wait_s=0).status_code == 200
+    assert calls == [502, 502, 200]
+
+
+def test_a_lasting_outage_names_github_not_the_probe():
+    get, _ = _seq(502, 503, 502)
+    with pytest.raises(AssertionError, match="GitHub is failing"):
+        _get_with_retry(get, wait_s=0)
+
+
+def test_a_client_error_is_not_retried():
+    get, calls = _seq(401, 200)
+    assert _get_with_retry(get, wait_s=0).status_code == 401
+    assert calls == [401]
