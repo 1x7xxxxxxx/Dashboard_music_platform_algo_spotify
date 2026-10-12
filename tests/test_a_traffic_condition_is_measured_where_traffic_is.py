@@ -222,3 +222,32 @@ def test_the_prod_door_refuses_to_conclude_without_ssh(monkeypatch) -> None:
     monkeypatch.delenv("PROD_SSH", raising=False)
     with pytest.raises(RuntimeError, match="n'a RIEN vérifié"):
         mod._ops_metrics_en_prod("SELECT 1")
+
+
+def test_the_dashboard_ram_is_read_on_the_production_host(monkeypatch) -> None:
+    """R542 — « Airflow hors boîte » measures the PRODUCTION dashboard, through ssh.
+
+    Until 2026-10-12 it ran `docker stats` on the workstation, where no dashboard
+    container exists: the condition was undecidable on every run, forever.
+    """
+    import importlib.util
+    import subprocess
+
+    spec = importlib.util.spec_from_file_location("reopen_check", _OUTIL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.delenv("PROD_SSH", raising=False)
+    with pytest.raises(RuntimeError, match="PROD_SSH"):
+        mod._dashboard_ram()
+
+    calls: list[list[str]] = []
+
+    def fake_run(argv, **_kw):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "streamlytics_dashboard 67.1MiB / 900MiB\n", "")
+
+    monkeypatch.setenv("PROD_SSH", "user@prod")
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    verdict, detail = mod._dashboard_ram()
+    assert calls and calls[0][0] == "ssh" and "user@prod" in calls[0], calls
+    assert verdict == mod.NOT_MET and "67 Mio" in detail

@@ -266,10 +266,20 @@ def _pytest_third_worker() -> tuple[str, str]:
 
 
 def _dashboard_ram() -> tuple[str, str]:
-    """« Sortir Airflow de la boite » — rouvre si la RAM du dashboard depasse 2 Go."""
+    """« Sortir Airflow de la boite » — rouvre si la RAM du dashboard depasse 2 Go.
+
+    R542 — the dashboard that matters runs in PRODUCTION. Until 2026-10-12 this read the
+    workstation's `docker stats`, where no dashboard container exists: undecidable forever.
+    """
+    import os
+
+    ssh = os.environ.get("PROD_SSH", "").strip()
+    if not ssh:
+        raise RuntimeError("PROD_SSH non défini — ce contrôle n'a RIEN vérifié")
     out = subprocess.run(
-        ["docker", "stats", "--no-stream", "--format", "{{.Name}} {{.MemUsage}}"],
-        capture_output=True, text=True, check=False)
+        ["ssh", "-o", "ConnectTimeout=10", ssh,
+         "docker stats --no-stream --format '{{.Name}} {{.MemUsage}}'"],
+        capture_output=True, text=True, check=False, timeout=60)
     if out.returncode != 0:
         raise RuntimeError("`docker stats` indisponible — ce contrôle n'a RIEN vérifié")
     seen: list[float] = []
