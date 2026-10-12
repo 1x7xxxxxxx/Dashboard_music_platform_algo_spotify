@@ -20,9 +20,9 @@ Trois choses peuvent casser ça sans qu'aucune erreur n'apparaisse, et chacune e
   traces. Si chacune porte son entrée de légende, YouTube apparaît deux fois ; si le
   clic ne bascule pas le groupe, il n'en masque qu'un morceau. Une bande à moitié
   masquée se lit comme une donnée manquante.
-* **La légende en haut recouvre le titre.** C'est le défaut de 2026-09-08 — « la
-  légende est masquée, c'est assez moche » — et il revient au premier réglage par
-  défaut, parce que le défaut de Plotly est précisément en haut à droite.
+* **La légende AU-DESSUS du cadre recouvre le titre.** C'est le défaut de 2026-09-08 —
+  « la légende est masquée, c'est assez moche ». Depuis R536 (2026-10-12) elle est en
+  haut à droite DANS la zone de tracé, jamais dans la marge du titre.
 * **Le mode « part » doit garder son `multiselect`.** Ses pourcentages sont établis
   sur l'ensemble affiché, et un clic de légende masque une trace SANS recalculer les
   autres : la pile ne ferait plus 100 %. C'est un chiffre faux, pas une figure
@@ -111,15 +111,19 @@ def test_one_click_hides_the_whole_platform(figure, mode) -> None:
 
 @pytest.mark.parametrize("mode", ["cumulative", "absolute"])
 def test_the_legend_never_returns_to_the_title_margin(figure, mode) -> None:
-    """Le défaut du 2026-09-08, et le défaut de Plotly : en haut, sur le titre."""
+    """Le défaut du 2026-09-08 : une légende AU-DESSUS du cadre recouvre le titre.
+
+    R536 (2026-10-12) : le propriétaire la veut en haut à droite, SUR le graphique —
+    donc dans la zone de tracé (y ≤ 1, ancrée par le haut), jamais dans la marge du titre.
+    """
     fig = figure(mode)
+    lg = fig.layout.legend
     assert fig.layout.showlegend is True
-    assert fig.layout.legend.y is not None and fig.layout.legend.y < 0, (
-        f"legend.y={fig.layout.legend.y} — la légende est dans la zone du titre, "
-        "qu'elle recouvre. Elle va SOUS la figure.")
-    assert fig.layout.margin.b >= 56, (
-        f"margin.b={fig.layout.margin.b} — la légende est sous la figure mais la "
-        "marge basse ne lui laisse pas de place : elle sortira du cadre")
+    assert lg.y is not None and lg.y <= 1 and lg.yanchor == "top", (
+        f"legend.y={lg.y}, yanchor={lg.yanchor} — la légende déborde dans la zone du "
+        "titre, qu'elle recouvre. Elle reste DANS le cadre, en haut à droite.")
+    assert lg.x is not None and lg.x <= 1 and lg.xanchor == "right", (
+        f"legend.x={lg.x}, xanchor={lg.xanchor} — la légende sort du cadre à droite")
 
 
 def test_the_share_mode_keeps_its_widget_because_clicking_would_lie(figure) -> None:

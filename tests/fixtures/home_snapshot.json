@@ -159,16 +159,16 @@
             "height": 340,
             "hovermode": "x unified",
             "legend": {
-             "bgcolor": "rgba(0,0,0,0)",
+             "bgcolor": "rgba(127,127,127,0.12)",
              "font": {
               "color": "#6b6b68",
               "size": 11
              },
              "groupclick": "togglegroup",
-             "orientation": "h",
-             "x": 0,
-             "xanchor": "left",
-             "y": -0.18,
+             "orientation": "v",
+             "x": 1,
+             "xanchor": "right",
+             "y": 1,
              "yanchor": "top"
             },
             "margin": {
@@ -548,16 +548,16 @@
             "height": 340,
             "hovermode": "x unified",
             "legend": {
-             "bgcolor": "rgba(0,0,0,0)",
+             "bgcolor": "rgba(127,127,127,0.12)",
              "font": {
               "color": "#6b6b68",
               "size": 11
              },
              "groupclick": "togglegroup",
-             "orientation": "h",
-             "x": 0,
-             "xanchor": "left",
-             "y": -0.18,
+             "orientation": "v",
+             "x": 1,
+             "xanchor": "right",
+             "y": 1,
              "yanchor": "top"
             },
             "margin": {
@@ -1079,16 +1079,16 @@
             "height": 340,
             "hovermode": "x unified",
             "legend": {
-             "bgcolor": "rgba(0,0,0,0)",
+             "bgcolor": "rgba(127,127,127,0.12)",
              "font": {
               "color": "#6b6b68",
               "size": 11
              },
              "groupclick": "togglegroup",
-             "orientation": "h",
-             "x": 0,
-             "xanchor": "left",
-             "y": -0.18,
+             "orientation": "v",
+             "x": 1,
+             "xanchor": "right",
+             "y": 1,
              "yanchor": "top"
             },
             "margin": {
