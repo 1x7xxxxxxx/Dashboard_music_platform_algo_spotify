@@ -411,6 +411,37 @@ def _fan_out() -> tuple[str, str]:
 
 
 
+_MODS_REVIEW = "2026-10-26"
+_SESSIONS = ROOT / ".claude" / "sessions"
+
+
+def _mods_review(today: Optional[str] = None,
+                 sessions: pathlib.Path = _SESSIONS) -> tuple[str, str]:
+    """R548 — the 14-day review of the Stop gate (R549) and the statusline (R550).
+
+    Counts the gate's blocks over 14 days from `stop-gate.jsonl`, and its RUNS from the
+    hook-run journal (R365): without the runs, « 0 blocage » would not say whether the
+    gate never had to block or never ran. Study: studies/2026-10-12-mods-claude-code.md.
+    """
+    import json
+    from datetime import date, timedelta
+
+    if os.environ.get("CI"):
+        raise RuntimeError("les journaux de hooks sont locaux au poste — "
+                           "ce contrôle n'a RIEN vérifié en CI")
+    day = date.fromisoformat(today) if today else date.today()
+    since = (day - timedelta(days=14)).isoformat()
+    log = sessions / "stop-gate.jsonl"
+    blocks = [json.loads(ln) for ln in log.read_text().splitlines()] if log.exists() else []
+    blocks = [b for b in blocks if b.get("ts", "")[:10] >= since]
+    runs = sum(ln.count("require_verdict_after_edit.py")
+               for f in sessions.glob("hook-runs-*.jsonl") if f.stem[-8:] >= since.replace("-", "")
+               for ln in [f.read_text(errors="replace")])
+    detail = (f"{len(blocks)} blocage(s) du garde Stop sur {runs} passage(s) en 14 j — "
+              f"revue le {_MODS_REVIEW} : garder/retirer R549 (bruit ≤ ⅓) et R550")
+    return (MET if day.isoformat() >= _MODS_REVIEW else NOT_MET), detail
+
+
 TRIGGERS = [
     Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
             "archive.md — 🩺 R122", _r122),
@@ -436,6 +467,9 @@ TRIGGERS = [
     Trigger("« DB ping »",
             "un incident où la latence de rendu est normale et Postgres en cause",
             "grafana-correspondence.md", _db_ping),
+    Trigger("revue des mods", "le 2026-10-26 : le garde Stop (R549) et la statusline (R550) "
+            "ont-ils servi ? bruit du garde ≤ ⅓", "studies/2026-10-12-mods-claude-code.md",
+            _mods_review),
 ]
 
 
