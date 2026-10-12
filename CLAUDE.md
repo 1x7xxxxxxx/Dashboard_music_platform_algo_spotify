@@ -254,7 +254,7 @@ When you need depth beyond `CLAUDE.md`, load these on demand :
 | `.claude/dev-docs/roadmap/night-run.md` | **Le protocole d'une séance longue** — à lire EN PREMIER à chaque réveil, AVANT la roadmap. Une séance de plusieurs heures est compactée plusieurs fois : la roadmap dit *quoi*, elle ne dit pas *où j'en étais*. `make night-status` répond à ça en un écran. Porte la règle qui compte — **bloqué ⇒ on PARQUE et on passe**, jamais on ne s'arrête — et la liste de ce qu'on ne fait pas sans un humain |
 | `error-class-health.md` (dev-docs/) | **Généré** par `make error-health`. La santé du catalogue : combien de classes ont une connaissance VÉRIFIABLE, et combien récidivent — mesuré depuis git, pas depuis un champ. Il porte une section « Ce que ce document corrige » qui liste les chiffres avancés avant vérification. Le JSON à côté est la donnée. **Non versionnés depuis R345** (ADR-031) : générés à la demande ; `make error-health-check` (CI) ne juge plus que le rangement |
 | `.claude/dev-docs/error-family-rules.md` | **Les 18 règles** — une par famille d'erreurs, chacune avec sa question et l'endroit où elle est attrapée : au **commit** (pytest qui lit le CODE) ou la **nuit** (sonde qui lit le MONDE : prod, CI, secrets). À lire AVANT d'écrire une classe : une classe neuve entre comme instance d'une famille |
-| `.claude/dev-docs/studies/2026-10-12-mods-claude-code.md` | Étude M1–M6 : les mods de Claude Code contre notre configuration — garde « résolu sans tests » en hook Stop (R549), HUD en statusline (R550), le reste plus tard ou rien ; revue datée du 2026-10-26 dans `make reopen-check` |
+| `.claude/dev-docs/studies/2026-10-12-mods-claude-code.md` | Les mods de Claude Code (M1–M6) : garde Stop R549, statusline R550 ; revue le 2026-10-26 (`make reopen-check`) |
 | `.claude/dev-docs/studies/2026-10-10-outillage-et-lecteurs.md` | Études E1–E6 (mutmut, Pandera, babel, quarantaine, Dependabot `uv`, agents autonomes) : verdict intégrer / plus tard / rien, avec le déclencheur de réouverture |
 | `.claude/dev-docs/product-backlog.md` | Ce qui attend un **déclencheur produit** (des artistes à interroger, un lancement) — sorti de la roadmap le 2026-09-26 : R148, R163. Quand le déclencheur arrive, la tâche repart dans la roadmap |
 | `.claude/dev-docs/ops-mail-journal.md` | Les mails automatiques de streaMLytics (seuls ceux de `noreply@streamlytics.fr`), triés à chaque début de séance : réel / attendu / fausse alerte / test. `make night-status` dit quand il est périmé |
@@ -542,12 +542,9 @@ et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un table
   sur E9. Avertit aussi quand une **suite complète tourne** : le fichier qu'on vient
   d'écrire n'y sera pas, donc son verdict décrira un arbre qui n'existe plus.
 - **Stop** → `session_summary.py` — git diff, Docker health, turn count, symptômes de défaut → `make defect-log`
-- **Stop** → `require_verdict_after_edit.py` (R549) — du code modifié APRÈS le départ de la dernière
-  suite (`.pytest-last.started`) bloque la fin de tour UNE fois : lancer `make test-changed`,
-  ou dire pourquoi pas. Un `.md`/`.yml` seul ne bloque jamais.
-- **statusLine** → `.claude/scripts/statusline.py` (R550) — le HUD de séance : modèle · contexte ·
-  coût · durée · lignes, puis tests (même état que le garde Stop) · CI du HEAD (cache, « ? »
-  tant qu'elle n'est pas lue, jamais ✅) · non commités · non poussés · unité de nuit.
+- **Stop** → `require_verdict_after_edit.py` (R549) — code modifié après le départ de la dernière
+  suite ⇒ fin de tour bloquée UNE fois. Un `.md` seul ne bloque pas.
+- **statusLine** → `.claude/scripts/statusline.py` (R550) — HUD : tests, CI du HEAD (« ? » si non lue).
 → Full specification: `.claude/hooks/hook.md`
 
 > **Pourquoi des hooks et pas des règles ici.** Ces trois comportements sont des gestes

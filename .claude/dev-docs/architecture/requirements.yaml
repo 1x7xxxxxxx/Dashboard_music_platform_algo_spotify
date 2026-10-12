@@ -991,3 +991,14 @@
   composants: []
   preuve: {pytest: tests/test_the_night_protocol_is_runnable.py::test_every_make_target_the_protocol_names_exists}
   mutation: "renommer une cible night-* du Makefile"
+- id: REQ-HARN-28
+  domaine: claude-wsl
+  enonce: Une fin de tour après du code modifié depuis le départ de la dernière suite est bloquée une fois — pas de « résolu » sans verdict postérieur
+  sources: [{doc: .claude/dev-docs/studies/2026-10-12-mods-claude-code.md}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/require_verdict_after_edit.py]
+  preuve: {pytest: tests/test_the_stop_gate_wants_a_verdict_after_the_last_edit.py::test_a_suite_started_before_the_edit_is_stale_even_with_a_fresh_log}
+  mutation: "prendre le départ de la suite dans le mtime du journal au lieu de .pytest-last.started"

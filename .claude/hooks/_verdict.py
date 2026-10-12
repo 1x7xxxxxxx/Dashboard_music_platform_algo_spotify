@@ -3,7 +3,7 @@
 Type: Utility
 Uses: subprocess (git), pathlib, re
 Triggers: imported by .claude/hooks/require_verdict_after_edit.py (Stop gate) and
-          .claude/hooks/statusline.py (the HUD, R550)
+          .claude/scripts/statusline.py (the HUD, R550)
 Persists in: nothing — reads `.pytest-last.started` (touched by `make test` /
              `make test-changed` at START) and `.pytest-last.log` (their `tee`)
 
