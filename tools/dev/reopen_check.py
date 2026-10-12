@@ -142,6 +142,9 @@ def _r122() -> tuple[str, str]:
 # desormais — un controle qui ne peut pas mesurer rend INDECIDABLE, jamais « en
 # attente ». Une condition indecidable n'est pas une condition satisfaite, et elle
 # n'est pas non plus une condition refusee.
+#
+# R116 est sortie de cette liste le 2026-10-12 : son declencheur a tire (14 jours
+# `complete` en prod) et ADR-027 est ecrit. Seule R131 reste mesuree ici.
 def _ops_metrics_en_prod(sql: str) -> int:
     """Interroge `daily_ops_metrics` DANS la base de production. Leve sans `PROD_SSH`."""
     import os
@@ -162,12 +165,6 @@ def _ops_metrics_en_prod(sql: str) -> int:
     if not valeurs:
         raise RuntimeError(f"réponse illisible : {r.stdout[:80]!r}")
     return int(valeurs[-1])
-
-
-def _r116() -> tuple[str, str]:
-    n = _ops_metrics_en_prod(
-        "SELECT count(*) FROM daily_ops_metrics WHERE complete")
-    return (MET if n >= 14 else NOT_MET), f"{n} jour(s) complet(s) en PROD (seuil : 14)"
 
 
 def _r131() -> tuple[str, str]:
@@ -346,8 +343,6 @@ def _fan_out() -> tuple[str, str]:
 TRIGGERS = [
     Trigger("R122", f"rouvrir si `ever_recurred_observed` repasse au-dessus de {_R122_SEUIL}",
             "archive.md — 🩺 R122", _r122),
-    Trigger("R116", "14 jours `complete` dans `daily_ops_metrics`",
-            "checklist.md — ⏸️ R116", _r116),
     Trigger("R131", "30 jours de `daily_ops_metrics`",
             "checklist.md — ⏸️ R131", _r131),
     Trigger("R114", "un des deux seuils de `tools/scale_check.sh`",

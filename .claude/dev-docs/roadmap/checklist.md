@@ -34,54 +34,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ---
 
-## ⏸️ R116 — ADR-027, en attente de ses courbes (sortie de l'index 2026-09-17)
-
-**Ni livrée ni abandonnée — parquée sur une mesure, pas archivée.** `archive.md` est
-strictement passif (`tests/test_roadmap_two_files.py::test_the_archive_holds_nothing_actionable`
-refuse tout item non coché qui y atterrit), donc ce bloc reste ici, hors des deux
-index. Sortie de l'index actionnable le 2026-09-17 parce que `daily_ops_metrics` ne
-porte qu'**une seule ligne** (2026-09-16), `complete = FALSE`, et **tous ses
-percentiles de rendu sont `NULL`** — seul `peak_sessions = 8` est renseigné. La
-courbe que R116 exige, `streamlytics_rerun_duration_seconds` côté serveur, n'existe
-donc pas encore ; le bloc le disait déjà lui-même : « un ADR écrit avant la mesure
-serait une rationalisation ». Déclencheur de réouverture, calculable, dans
-`### Conditions d'attente` ci-dessous, ligne « Écrire **ADR-027** (répliques et
-Redis) » : `SELECT count(*) FROM daily_ops_metrics WHERE complete` doit rendre
-**14 jours** à `TRUE` — **2 en production le 2026-09-20**, et le chiffre écrit ici
-disait « 0 » parce qu'il avait été relevé sur la base LOCALE. `make reopen-check-prod`
-le remesure ; sans `PROD_SSH` le contrôle rend désormais INDÉCIDABLE plutôt qu'un chiffre
-qui ne décrit rien. Elle n'attend aucun geste humain, seulement
-du trafic — elle ne va donc pas dans « 🙋 En attente de toi » — et pour la même
-raison elle sort de l'ancre de reprise en tête de fichier, qui ne porte que ce que
-les deux tables d'index de ce fichier listent encore.
-
-- [ ] **R116 — ADR-027, écrit APRÈS les courbes.**
-
-  ⚠️ **Le numéro a changé** : ce bloc annonçait ADR-026, qui est pris depuis le
-  2026-09-16 par la décision d'observabilité. Cette décision-ci est **ADR-027**.
-
-  La décision sur les répliques et sur Redis, avec les DEUX courbes mesurées, les
-  alternatives refusées et le déclencheur de relecture. Un ADR écrit avant la mesure
-  serait une rationalisation — c'est pourquoi il est une tâche à part et qu'il vient en
-  dernier.
-
-  **Il a maintenant de quoi être écrit honnêtement, ce qui n'était pas le cas avant :**
-  la réplique est arrêtée côté Caddy ET côté scrutation Prometheus, et les trois gestes
-  de remise en service sont écrits en UN seul endroit (le bloc au-dessus de
-  `reverse_proxy` dans `deploy/Caddyfile`). La courbe qui tranchera est
-  `streamlytics_rerun_duration_seconds`, mesurée côté SERVEUR — insensible à la
-  saturation du client, qui est ce qui rendait la mesure de R114 ambiguë.
-
-**Ce qui reste écarté, avec sa raison** : Redis (R113 supprime son besoin pour les
-caches, l'étape 1 l'a fait pour les limiteurs — s'il reste un besoin après R114, il sera
-NOMMÉ, pas supposé) ; Celery/RQ (Airflow tient l'asynchrone, 13 DAGs) ; Loki et les
-traces (après Prometheus, et seulement si un incident les réclame) ; Terraform (0 fichier
-IaC, vrai manque — déclencheur : une SECONDE machine, ou une reconstruction subie) ;
-S3/MinIO (les deux répliques partagent le même bind-mount sur le même hôte — déclencheur :
-une seconde MACHINE) ; MLflow (déclencheur : la première décision de réentraîner) ;
-dbt, Kafka, OpenSearch, pgvector, K8s, sharding (déclencheurs calculables d'ADR-014 et
-ADR-023, relus le 2026-09-11, aucun tiré).
-
 ---
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
@@ -104,7 +56,6 @@ Motif d'ADR-007 : un travail dont le bénéfice mesuré est nul n'entre pas dans
 | Sortir **Airflow** de la boîte (il prend 2,3 Go des 7,7) | la RAM des conteneurs dashboard dépasse **2 Go** — ce que R87 rapproche. `docker stats --no-stream` |
 | Construire la **couche or** (table de faits agrégée) | un locataire dépasse **100 000 lignes** sur une table de faits, ou un agrégat d'accueil dépasse **200 ms**. Aujourd'hui : 14 694 lignes, 46 ms |
 | ClickHouse / Parquet / dbt / Dagster | déclencheurs d'**ADR-014**, relus le 2026-09-11 : aucun n'est tiré (62 Mo contre 50 Go, 34 k lignes contre 10 M) |
-| Écrire **ADR-027** (répliques et Redis) | `daily_ops_metrics` porte **14 jours `complete = TRUE`** : `SELECT count(*) FROM daily_ops_metrics WHERE complete` — **aujourd'hui 0**. La table a UNE ligne (2026-09-16), `complete = FALSE`, et **tous ses percentiles de rendu sont `NULL`** ; seul `peak_sessions = 8` est renseigné. La courbe qui doit trancher — `streamlytics_rerun_duration_seconds` côté serveur, et `streamlytics_reruns_in_flight` pour la saturation — n'existe donc pas encore. Le bloc de R116 le disait lui-même : *« un ADR écrit avant la mesure serait une rationalisation »*. Ce n'est pas du travail en retard, c'est du temps et du trafic |
 | Fragmenter les **5 vues restantes** de R118 — `imusician`, `meta_ads_overview`, `hypeddit`, `youtube`, `admin` | l'une d'elles dépasse **300 ms de vue** dans l'histogramme SERVEUR : `histogram_quantile(0.5, sum by (page,le) (rate(streamlytics_rerun_duration_seconds_bucket{phase="view"}[1h])))`. Mesuré localement le 2026-09-17 : 20 à 130 ms de rerun à chaud, **dans la même bande que les six déjà fragmentées** (78 à 172 ms) — donc rien ne les distingue, et le bruit local (±60 à 100 %) est plus large que les écarts. Seul le serveur peut trancher, et il lui faut du trafic sur ces pages |
 
 📥 **Erreurs applicatives non triées : 0** — `.claude/dev-docs/error-inbox.md`, régénéré par `make error-inbox`. Ce fichier est écrit par une machine ; aucune tâche n'en sort toute seule.

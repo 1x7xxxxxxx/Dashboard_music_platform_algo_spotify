@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT))
 _OUTIL = ROOT / "tools" / "dev" / "reopen_check.py"
 
 #: Les contrôles dont la grandeur est produite par le trafic de PRODUCTION.
-_CONDITIONS_DE_TRAFIC = ("_r116", "_r131")
+_CONDITIONS_DE_TRAFIC = ("_r131",)  # _r116 retired with ADR-027 (2026-10-12)
 
 
 def _arbre() -> ast.Module:
