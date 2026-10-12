@@ -146,6 +146,38 @@ src/dashboard/views/youtube.py::_channel_section#2:
   p: 4
   v: garder
   note: "R384 (V39) : écart dernier − premier relevé par vidéo. R485 (W8) : dégradé de rouge qui fonce avec le gain."
+src/dashboard/views/youtube.py::_daily_section#1:
+  q: "Combien de minutes ma chaîne est-elle regardée chaque jour ?"
+  decision: "Voir si une sortie ou une pub fait monter le temps de visionnage, et s'il retombe."
+  decision_en: "See whether a release or an ad lifts watch time, and whether it falls back."
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  owner: "R547 (note vocale, 2026-10-12) : à la fin de l'onglet Chaîne et vidéos."
+  note: "Barres par jour sous une moyenne 7 j continue (R535) ; un jour non livré reste un trou. Regardé le 2026-10-12 sur les 22 jours de prod de l'artiste 1."
+src/dashboard/views/youtube.py::_daily_section#2:
+  q: "D'où viennent les vues de ma chaîne, jour par jour ?"
+  decision: "Savoir si les vues viennent de la recherche, des abonnés ou des playlists, pour savoir quoi soigner."
+  decision_en: "Tell whether views come from search, subscribers or playlists, to know what to work on."
+  role: plateforme
+  d: 3
+  c: 4
+  p: 3
+  v: garder
+  owner: "R547 (note vocale, 2026-10-12) : à la fin de l'onglet Chaîne et vidéos."
+  note: "Barres empilées, quatre sources au plus + « Autres sources » (palette de cinq couleurs, R530). Regardé le 2026-10-12 sur les données de prod de l'artiste 1 : cinq couleurs distinctes."
+src/dashboard/views/youtube.py::_analytics_section#1:
+  q: "Quelles vidéos m'ont fait gagner des abonnés ?"
+  decision: "Promouvoir la vidéo qui convertit les spectateurs en abonnés."
+  decision_en: "Promote the video that turns viewers into subscribers."
+  role: plateforme
+  d: 3
+  c: 3
+  p: 3
+  v: garder
+  note: "Seule figure de l'onglet YouTube Analytics depuis R547 ; si aucune vidéo n'a fait gagner d'abonné, une phrase le dit au lieu d'un cadre vide (R530)."
 src/dashboard/views/youtube.py::_videos_section#1:
   q: "Quelles vidéos marchent, en vues et en likes ?"
   decision: "Voir d'un coup d'œil quelles vidéos font le plus de vues et lesquelles plaisent, pour choisir celle à promouvoir."

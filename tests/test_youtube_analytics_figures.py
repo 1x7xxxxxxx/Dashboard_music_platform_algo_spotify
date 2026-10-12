@@ -7,10 +7,17 @@ Persists in: nothing
 
 1. a day the API did not deliver stays a gap — no bar; the 7-day mean (R535) is continuous;
 2. a channel under 2 h a day is drawn in minutes, a bigger one in hours;
-3. the traffic chart never has more traces than the colorway has colours.
+3. the traffic chart never has more traces than the colorway has colours;
+4. R547 (owner, 2026-10-12): watch time and traffic per day close the channel tab, and
+   the Analytics tab label no longer says « données exactes ».
+
+Mutation record — 2026-10-12: `_daily_section(...)` moved above `_videos_section(...)`
+→ test 4 red; « — données exactes » put back in the label → test 4 red.
 """
 from __future__ import annotations
 
+import ast
+import inspect
 import math
 
 import pandas as pd
@@ -59,3 +66,19 @@ def test_traffic_never_outruns_the_colorway():
     assert len(fig.data) == len(DISTINCT) == 5
     assert sum(sum(t.y) for t in fig.data) == sum(10 + i for i in range(7)), "views lost"
     assert len(youtube.traffic_figure(_traffic(5)).data) == 5, "five sources were folded"
+
+
+def test_the_daily_series_close_the_channel_tab_and_the_label_claims_nothing():
+    tree = ast.parse(inspect.getsource(youtube.show))
+    channel = next(w for w in ast.walk(tree) if isinstance(w, ast.With)
+                   and ast.unparse(w.items[0].context_expr) == "tab_channel")
+    calls = [ast.unparse(n.value.func) for n in channel.body
+             if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)]
+    assert calls[-1] == "_daily_section", (
+        f"R547: watch time and traffic per day must END the channel tab, got {calls}")
+    daily = inspect.getsource(youtube._daily_section)
+    assert "watch_time_figure" in daily and "traffic_figure" in daily
+    assert "watch_time_figure" not in inspect.getsource(youtube._analytics_section)
+    src = inspect.getsource(youtube.show)
+    assert "exactes" not in src.split("st.tabs(")[1].split("])")[0], (
+        "R547: « données exactes » implied the channel tab is not exact")

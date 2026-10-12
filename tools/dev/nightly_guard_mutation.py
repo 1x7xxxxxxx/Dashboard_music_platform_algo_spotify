@@ -94,7 +94,8 @@ SEEN_RED: dict[str, str] = {
     "tests/test_youtube_analytics_figures.py":
         "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "
         "R530) → 1 rouge ; `traffic_figure` replie au-delà de 7 sources au lieu de 5 (une "
-        "couleur partagée par deux sources) → 1 rouge",
+        "couleur partagée par deux sources) → 1 rouge ; R547 : `_daily_section` remonté avant "
+        "`_videos_section` → rouge ; « — données exactes » remis dans le libellé → rouge",
     "tests/test_a_traffic_condition_is_measured_where_traffic_is.py":
         "2026-10-12 — R542 : `_dashboard_ram` remis sur `docker stats` local → rouge ; `_ops_metrics_en_prod` sans le refus PROD_SSH (`if False:`) → rouge",
     "tests/test_a_reopening_condition_is_evaluated_not_only_written.py":

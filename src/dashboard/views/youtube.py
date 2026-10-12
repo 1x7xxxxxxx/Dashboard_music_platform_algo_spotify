@@ -440,15 +440,35 @@ def _traffic_labels() -> dict:
             "YT_OTHER_PAGE": t("youtube.src_other_page", "Autres pages YouTube")}
 
 
-def _analytics_section(db, artist_id: int, tab_analytics) -> None:
-    """R535 — its own tab: always one click from the top, never a collapsed band.
+def _analytics_daily(db, artist_id: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(watch time per day, views per source per day) — the two daily Analytics series."""
+    daily = db.fetch_df("SELECT day, minutes_watched FROM youtube_analytics_channel_daily "
+                        "WHERE artist_id = %s ORDER BY day", (artist_id,))
+    traffic = db.fetch_df("SELECT day, source_type, views FROM youtube_analytics_traffic_daily "
+                          "WHERE artist_id = %s ORDER BY day", (artist_id,))
+    return daily, traffic
+
+
+def _daily_section(daily: pd.DataFrame, traffic: pd.DataFrame) -> None:
+    """R547 — watch time and traffic per day, at the END of the channel tab.
+
+    Owner, 2026-10-12: « dans la même view que chaîne et vidéo, à la fin ». Without the
+    YouTube authorisation there is nothing to draw here; the Analytics tab says why.
+    """
+    if daily.empty:
+        return
+    charts.plotly_chart(watch_time_figure(daily), width="stretch")
+    if not traffic.empty:
+        charts.plotly_chart(traffic_figure(traffic), width="stretch")
+
+
+def _analytics_section(db, artist_id: int, tab_analytics, daily: pd.DataFrame) -> None:
+    """R535 — its own tab: subscribers gained per video (R547: the daily series moved).
 
     The tab is passed in, not created here, so `with tab_analytics:` sits around the
     charts themselves — the first-screen guards read that structure.
     """
     with tab_analytics:
-        daily = db.fetch_df("SELECT day, minutes_watched FROM youtube_analytics_channel_daily "
-                            "WHERE artist_id = %s ORDER BY day", (artist_id,))
         if daily.empty:
             st.info(t("youtube.analytics_missing",
                       "Les abonnés gagnés par vidéo, la durée de visionnage et les sources de trafic "
@@ -463,10 +483,6 @@ def _analytics_section(db, artist_id: int, tab_analytics) -> None:
                 SELECT window_end, window_days FROM youtube_analytics_video_window
                 WHERE artist_id = %s ORDER BY window_end DESC, window_days DESC LIMIT 1)
         """, (artist_id, artist_id))
-        traffic = db.fetch_df("SELECT day, source_type, views FROM youtube_analytics_traffic_daily "
-                              "WHERE artist_id = %s ORDER BY day", (artist_id,))
-        # R535 — always visible (owner, 2026-10-12): the exact data is the point of the page,
-        # a collapsed section hid it.
         # R530 — 17 videos at 0 drew an empty frame: say it instead.
         if not videos.empty and videos["subscribers_gained"].sum() > 0:
             charts.plotly_chart(subscribers_by_video_figure(videos), width="stretch", pareto=False)
@@ -474,25 +490,25 @@ def _analytics_section(db, artist_id: int, tab_analytics) -> None:
             st.caption(t("youtube.subs_none",
                          "Aucune vidéo n'a fait gagner d'abonné sur les {days} derniers jours "
                          "consolidés.").format(days=int(videos["window_days"].iloc[0])))
-        charts.plotly_chart(watch_time_figure(daily), width="stretch")
-        if not traffic.empty:
-            charts.plotly_chart(traffic_figure(traffic), width="stretch")
 
 
 def show():
     # ⚠️ NI TITRE NI SOUS-TITRE (2026-09-21) : le titre répétait l'entrée de menu.
     with view_session() as (db, artist_id):
         try:
-            # R535 (owner, 2026-10-12): Analytics out of the expander. Its three charts
-            # on top of the channel's five would make eight on one screen; a tab bounds
-            # a screen and both labels stay in sight.
+            # R535 (owner, 2026-10-12): Analytics out of the expander, in its own tab.
+            # R547 (owner, 2026-10-12): « données exactes » dropped from its label — it
+            # implied the other tab is not exact — and the watch time and traffic per day
+            # close the channel tab.
             tab_channel, tab_analytics = st.tabs([
                 t("youtube.tab_channel", "📺 Chaîne et vidéos"),
-                t("youtube.analytics_header", "🔑 YouTube Analytics — données exactes")])
+                t("youtube.analytics_header", "🔑 YouTube Analytics")])
+            daily, traffic = _analytics_daily(db, artist_id)
             with tab_channel:
                 _channel_section(db, artist_id)
                 _videos_section(db, artist_id)
-            _analytics_section(db, artist_id, tab_analytics)
+                _daily_section(daily, traffic)
+            _analytics_section(db, artist_id, tab_analytics, daily)
         except Exception as e:
             st.error(t("youtube.error", "Erreur : {err}").format(err=e))
 

@@ -19,7 +19,7 @@ EN = {
     "youtube.no_video_db": "No video found in the database.",
     "youtube.error": "Error: {err}",
     "youtube.gained_title": "Views gained over the period, per video",
-    "youtube.analytics_header": "🔑 YouTube Analytics — exact figures",
+    "youtube.analytics_header": "🔑 YouTube Analytics",
     "youtube.tab_channel": "📺 Channel and videos",
     "youtube.analytics_missing": "Subscribers gained per video, watch time and traffic sources need your YouTube authorization: write to us and we will send you the link, to open with the Google account that owns your channel.",
     "youtube.subs_by_video_title": "Subscribers gained per video — last {days} consolidated days",
