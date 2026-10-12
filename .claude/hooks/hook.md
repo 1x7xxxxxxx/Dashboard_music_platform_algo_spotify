@@ -130,3 +130,20 @@ All hooks configured in `.claude/settings.json`. Scripts in `.claude/hooks/`.
 Its commit half is the git `commit-msg` hook `roadmap-before-code` (`.pre-commit-config.yaml`)
 and the CI job `roadmap`: a product-code commit must cite an Rnnn that is an OPEN row in its
 parent commit. Guard: `tests/test_an_action_is_on_the_roadmap_before_it_runs.py`.
+
+## Stop — `require_verdict_after_edit.py` (R549, 2026-10-12)
+
+| Property | Value |
+|---|---|
+| Event | `Stop` |
+| Script | `.claude/hooks/require_verdict_after_edit.py` (state in `.claude/hooks/_verdict.py`, shared with the statusline) |
+| Acts on | a CODE file (`.py`, `.sql`, `.sh`, `.js`, `.ts`, `Makefile`) uncommitted or unpushed, written after `.pytest-last.started` — or with no verdict at all |
+| Output | JSON `{"decision":"block","reason":…}` on stdout, exit `0` — the turn continues once |
+| Loop guard | `stop_hook_active` lets the continued turn stop; an edit already blocked on is not blocked again (last line of `<trace dir>/stop-gate.jsonl`) |
+
+Why a Stop hook and not a mod: a mod's `turn.complete` only observes, it cannot refuse the
+end of a turn (study `.claude/dev-docs/studies/2026-10-12-mods-claude-code.md`, M2). The
+start stamp exists because `tee` truncates `.pytest-last.log` at start and keeps writing:
+a suite begun BEFORE the last edit has a fresh log. Each block is a line of
+`stop-gate.jsonl`; `make reopen-check` counts them for the 2026-10-26 review (kept if the
+noise stays ≤ ⅓). Guard: `tests/test_the_stop_gate_wants_a_verdict_after_the_last_edit.py`.

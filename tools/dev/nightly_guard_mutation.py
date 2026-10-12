@@ -64,6 +64,10 @@ def changed_guards(days: int = 2) -> list[str]:
 #    something about the class (a generic rename breaks a guard for a trivial reason).
 #    Written with the mutation, never a bare « ok »: a human decided it embodies the class.
 SEEN_RED: dict[str, str] = {
+    "tests/test_the_stop_gate_wants_a_verdict_after_the_last_edit.py":
+        "2026-10-12 — R549 : `_verdict.verdict` date la suite par le mtime du JOURNAL au lieu "
+        "de `.pytest-last.started` (le piège de `tee`) → 1 rouge ; commits non poussés "
+        "ignorés → 1 rouge ; garde sans dédoublonnage → 1 rouge",
     "tests/test_instagram_missing_field_is_null.py":
         "2026-10-12 — R529 : lecture directe `data.get('followers_count', 0)` (le 0 inventé "
         "qui se lit comme une chute d'abonnés, R510) → 1 rouge",

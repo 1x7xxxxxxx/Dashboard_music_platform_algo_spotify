@@ -542,6 +542,9 @@ et par la règle de la boucle d'ingénierie (`code-critic`) — pas par un table
   sur E9. Avertit aussi quand une **suite complète tourne** : le fichier qu'on vient
   d'écrire n'y sera pas, donc son verdict décrira un arbre qui n'existe plus.
 - **Stop** → `session_summary.py` — git diff, Docker health, turn count, symptômes de défaut → `make defect-log`
+- **Stop** → `require_verdict_after_edit.py` (R549) — du code modifié APRÈS le départ de la dernière
+  suite (`.pytest-last.started`) bloque la fin de tour UNE fois : lancer `make test-changed`,
+  ou dire pourquoi pas. Un `.md`/`.yml` seul ne bloque jamais.
 → Full specification: `.claude/hooks/hook.md`
 
 > **Pourquoi des hooks et pas des règles ici.** Ces trois comportements sont des gestes

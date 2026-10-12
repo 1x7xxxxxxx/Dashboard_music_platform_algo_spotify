@@ -205,6 +205,9 @@ test:        ## Suite COMPLÈTE, drapeaux de la CI — la barrière avant de liv
 	@# ⚠️ `$${PIPESTATUS[0]}` et bash EXPLICITE : `cmd | tee f` rend le code de `tee`,
 	@# c'est-a-dire 0 quoi qu'il arrive. Une barriere avant de livrer qui rend toujours
 	@# vert serait infiniment pire que lente.
+	@# R549 — the START of the run: `tee` truncates the log at start, so its mtime moves
+	@# DURING the run and cannot say whether the suite began after the last edit.
+	@touch .pytest-last.started
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(SUITE_SCOPE) $(PYTHON) -m pytest $(or $(ARGS),tests/) -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; \
 	  [ -n "$(ARGS)" ] && exit $$rc; \
@@ -359,6 +362,9 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx '$(LOCAL_PG)'; then \
 	    $(MAKE) --no-print-directory schema-check-shared || exit 1; \
 	  else echo "⚠ R228: local Postgres down — schema check skipped. Run: make up"; fi; fi
+	@# R549 — the START of the run: `tee` truncates the log at start, so its mtime moves
+	@# DURING the run and cannot say whether the suite began after the last edit.
+	@touch .pytest-last.started
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } | tee .pytest-selected \
 	  | xargs -r $(SUITE_SCOPE) $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
