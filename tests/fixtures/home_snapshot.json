@@ -853,11 +853,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🎯 Discover Weekly</div><div style=\"font-size:1.05em; font-weight:600;\">7,0 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 3 792 streams / 28 j · 💶 413 €</div></div>",
+          "body": "**🎯 Discover Weekly**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "📈 3 792 streams / 28 j · 💶 413 €",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",
@@ -866,11 +908,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">📻 Radio</div><div style=\"font-size:1.05em; font-weight:600;\">11,1 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 1 892 streams / 28 j · 💶 206 €</div></div>",
+          "body": "**📻 Radio**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "📈 1 892 streams / 28 j · 💶 206 €",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",
@@ -879,11 +963,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🆕 Release Radar</div><div style=\"font-size:1.05em; font-weight:600;\">6,6 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">⛔ fenêtre des 28 premiers jours passée</div></div>",
+          "body": "**🆕 Release Radar**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "⛔ fenêtre des 28 premiers jours passée",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",
@@ -1354,11 +1480,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🎯 Discover Weekly</div><div style=\"font-size:1.05em; font-weight:600;\">7,0 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 3 792 streams / 28 j · 💶 413 €</div></div>",
+          "body": "**🎯 Discover Weekly**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "📈 3 792 streams / 28 j · 💶 413 €",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",
@@ -1367,11 +1535,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">📻 Radio</div><div style=\"font-size:1.05em; font-weight:600;\">11,1 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">📈 1 892 streams / 28 j · 💶 206 €</div></div>",
+          "body": "**📻 Radio**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "📈 1 892 streams / 28 j · 💶 206 €",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",
@@ -1380,11 +1590,53 @@
        {
         "children": [
          {
-          "allowHtml": true,
-          "body": "<div title=\"Probabilité PRÉDITE maximale que « Ô Chiotte l&#x27;arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n&#x27;est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.\" style=\"flex:1 1 140px; min-width:0; border:1px solid rgba(128,128,128,.35); border-radius:8px; padding:6px 8px; text-align:center;\"><div style=\"font-size:0.92em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">🆕 Release Radar</div><div style=\"font-size:1.05em; font-weight:600;\">6,6 %</div><div style=\"font-size:0.72em; opacity:.7; margin-top:2px;\">⛔ fenêtre des 28 premiers jours passée</div></div>",
+          "body": "**🆕 Release Radar**",
           "elementType": "NATIVE",
+          "help": "Probabilité PRÉDITE maximale que « Ô Chiotte l'arbitre Tucome Back - Original », ta dernière sortie, entre dans cette playlist algorithmique. Ce n'est pas un taux observé. Au plancher du modèle, ce chiffre est le même pour tous les titres. En dessous : les streams qui manquent sur 28 jours pour atteindre le seuil du modèle, et leur coût au meilleur CPR, en comptant un clic pour une écoute. Release Radar ne compte que les 28 premiers jours de la sortie.",
           "type": "markdown",
           "wrap": true
+         },
+         {
+          "figure": {
+           "layout": {
+            "annotations": [
+             {
+              "font": {
+               "size": 12
+              },
+              "showarrow": false,
+              "text": "⛔ fenêtre des 28 premiers jours passée",
+              "x": 0.5,
+              "xref": "paper",
+              "y": 0.02,
+              "yref": "paper"
+             }
+            ],
+            "colorway": [
+             "#065fd8",
+             "#fead22",
+             "#1e8b7a",
+             "#ce0700",
+             "#aebde9"
+            ],
+            "height": 200,
+            "margin": {
+             "b": 4,
+             "l": 34,
+             "r": 34,
+             "t": 26
+            },
+            "separators": ", "
+           },
+           "traces": [
+            {
+             "mode": "gauge+number",
+             "points": 0,
+             "type": "indicator"
+            }
+           ]
+          },
+          "type": "plotly_chart"
          }
         ],
         "type": "column",

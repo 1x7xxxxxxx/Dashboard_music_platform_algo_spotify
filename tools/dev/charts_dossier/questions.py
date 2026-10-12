@@ -46,6 +46,17 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/home_tiles.py::_render_gate#1",
+               "src/dashboard/views/home_tiles.py::_render_total_and_share#1"}):
+        ("faux doublon — les jauges disent la chance PRÉDITE de la dernière sortie par "
+         "playlist et l'argent pour l'atteindre ; le camembert, la part MESURÉE de chaque "
+         "plateforme dans les écoutes. Même page, deux questions (R544, 2026-10-12).",
+         frozenset()),
+    frozenset({"src/dashboard/views/youtube.py::_daily_section#1",
+               "src/dashboard/views/youtube.py::_daily_section#2"}):
+        ("faux doublon — durée de visionnage par jour contre vues par source et par jour : "
+         "même rapport Analytics, deux mesures de deux unités ; ensemble à la fin de "
+         "Chaîne et vidéos sur demande (R547, 2026-10-12).", frozenset()),
     frozenset({"src/dashboard/views/youtube.py::_videos_section#1",
                "src/dashboard/views/youtube.py::_videos_section#2"}):
         ("faux doublon — le top 10 en vues et likes côte à côte vs la concentration des vues "
