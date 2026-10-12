@@ -262,6 +262,10 @@ def widget_key_writes(fn: ast.AST) -> list[str]:
                 continue
             if isinstance(key, ast.Name) and key.id == "_PAGE_KEY":
                 continue
+            # `_goto_alias` (R525) is plain state too — no widget carries that key; it is
+            # read once, by `pop_goto_alias`, on the run after.
+            if isinstance(key, ast.Name) and key.id == "_GOTO_ALIAS_KEY":
+                continue
             writes.append(ast.dump(key)[:60])
     return writes
 

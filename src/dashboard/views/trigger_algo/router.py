@@ -112,11 +112,18 @@ def show():
                        ORDER BY tk.release_date DESC NULLS LAST, t.song""",
                     ("%1x7xxxxxxx%",)
                 )["song"].tolist()
-        except Exception:
-            tracks = []
+        except Exception as e:                       # noqa: BLE001 — said, not hidden (R525)
+            st.error(t("trigger_algo.tracks_unreadable",
+                       "Lecture de vos titres impossible ({err}) — les sections par "
+                       "titre ne s'affichent pas.").format(err=type(e).__name__))
+            _show_track_free_sections(db, artist_id)
+            return
 
         if not tracks:
             st.warning(t("trigger_algo.no_timeline", "Aucune donnée de timeline disponible."))
+            # R525 — the budget and money sections need no S4A title: an artist with
+            # Meta spend and no S4A import, or an old `meta_cpr_optimizer` link, reaches them.
+            _show_track_free_sections(db, artist_id)
             return
 
         # Global selectors
@@ -135,8 +142,11 @@ def show():
                 (selected_track, *_track_params)
             )
             track_release_date = rd_rows[0][0] if rd_rows and rd_rows[0][0] else (today - timedelta(days=28))
-        except Exception:
+        except Exception as e:                       # noqa: BLE001 — said, not hidden (R525)
             track_release_date = today - timedelta(days=28)
+            st.caption(t("trigger_algo.release_date_unreadable",
+                         "Date de sortie illisible ({err}) — la période part de J-28.")
+                       .format(err=type(e).__name__))
 
         with sel2:
             # LE FILTRE PARTAGÉ — 2026-09-21. Ce bloc portait SIX préréglages
@@ -210,16 +220,28 @@ def show():
         _section("budget")
         _show_tab_budget_roi(db, selected_track, artist_id, date_from, date_to,
                              ml_pred=ml_pred)
+        _show_cpr_and_money(db, artist_id)
+
+
+def _show_cpr_and_money(db, artist_id, *, budget_header: bool = False) -> None:
+    """The per-campaign CPR cards, then the money section — neither needs a title."""
+    if budget_header:
+        _section("budget")
         # R477 (W14 « Budget et ROI : graphiques, pas de tableaux ») : la liste des
         # réglages par campagne (R405) est retirée — le graphique des réglages
         # (`_tab_reglages`) répond à la même question ; l'ancienne route reste un alias.
         # R477 (W14) : « 📊 CPR Optimizer » n'est plus une page — ses cartes par
         # campagne sont rendues ici, sous le budget ; l'ancienne route est un alias.
-        from src.dashboard.views.meta_cpr_optimizer import render as render_cpr
-        render_cpr(db, artist_id)
-        _section("argent")
-        from src.dashboard.views.revenue_forecast import render_money
-        render_money(artist_id)
+    from src.dashboard.views.meta_cpr_optimizer import render as render_cpr
+    render_cpr(db, artist_id)
+    _section("argent")
+    from src.dashboard.views.revenue_forecast import render_money
+    render_money(artist_id)
+
+
+def _show_track_free_sections(db, artist_id) -> None:
+    """R525 — what the page still answers without a single S4A title."""
+    _show_cpr_and_money(db, artist_id, budget_header=True)
 
 
 def _section(key: str, *, first: bool = False) -> None:
@@ -232,8 +254,11 @@ def _section(key: str, *, first: bool = False) -> None:
 def _say_where_the_alias_lands() -> None:
     """A former page's link (mail, PDF) lands here: say where its content now is."""
     from src.dashboard.routes import ALIAS_ARRIVAL_KEY
+    from src.dashboard.utils.navigation import pop_goto_alias
 
-    key = arrival_section(st.session_state.get(ALIAS_ARRIVAL_KEY))
+    # R525 — an in-app `goto(alias)` drops `?page=`, so the URL arrival is empty: the
+    # alias it was called with is kept for this one run instead.
+    key = arrival_section(st.session_state.get(ALIAS_ARRIVAL_KEY) or pop_goto_alias())
     if key:
         st.info(t("trigger_algo.alias_landing",
                   "Cette page fait désormais partie de « Prédiction déclenchement » : "

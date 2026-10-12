@@ -33,6 +33,7 @@ from __future__ import annotations
 import streamlit as st
 
 _PAGE_KEY = "_nav_page"
+_GOTO_ALIAS_KEY = "_goto_alias"
 
 
 def url_key(page: str, nav_page: str | None) -> str:
@@ -47,7 +48,12 @@ def goto(page_key: str) -> None:
     # `resolve_nav_page` sends any key outside the menu home (R405).
     from src.dashboard.routes import resolve_alias
 
-    st.session_state[_PAGE_KEY] = resolve_alias(page_key)[0]
+    page, alias = resolve_alias(page_key)
+    st.session_state[_PAGE_KEY] = page
+    # R525 — the alias names a SECTION of its new page; dropping it landed the click on
+    # the top of the page. Kept for the next run only (see `pop_goto_alias`).
+    if alias:
+        st.session_state[_GOTO_ALIAS_KEY] = alias
 
     # Aucune écriture sur les radios de section ici — voir la docstring. Elles sont déjà
     # instanciées quand une vue appelle `goto`, et `app.resolve_nav_page` les accorde à
@@ -61,3 +67,8 @@ def goto(page_key: str) -> None:
         pass
 
     st.rerun()
+
+
+def pop_goto_alias() -> str | None:
+    """The alias the last `goto` was called with — once: the run after, it is gone."""
+    return st.session_state.pop(_GOTO_ALIAS_KEY, None)

@@ -61,6 +61,12 @@ EN = {
         "what each playlist actually brought you."),
     "trigger_algo.guide_section_budget": "your campaign settings, remaining Meta budget and spend pace.",
     "trigger_algo.no_timeline": "No timeline data available.",
+    "trigger_algo.tracks_unreadable": (
+        "Your tracks could not be read ({err}) — the per-track sections are not shown."
+    ),
+    "trigger_algo.release_date_unreadable": (
+        "Release date unreadable ({err}) — the period starts at D-28."
+    ),
     "trigger_algo.sel_track": "🎵 Track",
     "trigger_algo.tab_budget": "💰 Budget & ROI",
     "trigger_algo.tab_argent": "💶 My money: where I stand",
@@ -234,7 +240,9 @@ EN = {
     "trigger_algo.model.weekly_caption": (
         "{weeks} week(s) of predictions judged against {readings} S4A reading(s). A flat line: "
         "the model did not change its mind from week to week; a falling line: it gets closer "
-        "to the reading. With a single reading, every week is judged against the same truth — "
+        "to the reading."),
+    "trigger_algo.model.weekly_one_reading": (
+        "With a single reading, every week is judged against the same truth — "
         "the series will grow with each S4A entry."),
     "trigger_algo.model.verdict_over": (
         "**The model overestimates**: it forecasts {p:.0f} streams (median), S4A recorded "
