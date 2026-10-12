@@ -40,13 +40,16 @@ def _rows() -> pd.DataFrame:
 
 def test_each_week_is_the_median_gap_of_the_forecasts_made_that_week() -> None:
     got = error_by_prediction_week(_rows(), "RADIO")
-    assert list(got["error"]) == [10.0, 2.0], got      # week 1: |20|,|10|,|4| → 10
+    # R527 — one forecast per title × week, the latest: "a" keeps 09-02 (|20−10| = 10),
+    # "b" |14−10| = 4 → median 7. Counting "a" twice, the median read 10.
+    assert list(got["error"]) == [7.0, 2.0], got
     assert list(got["titles"]) == [2, 1], got
     assert got["week"].is_monotonic_increasing
 
 
 def test_a_signed_gap_would_cancel_out_and_is_not_what_is_drawn() -> None:
-    rows = _rows().assign(predicted_radio=[0.0, 20.0, 10.0, 10.0])   # −10, +10, 0
+    # week 1 after the per-title dedup: "a" +10 (09-02), "b" −10 → signed 0, absolute 10
+    rows = _rows().assign(predicted_radio=[50.0, 20.0, 0.0, 10.0])
     assert error_by_prediction_week(rows, "RADIO")["error"].iloc[0] == 10.0
 
 

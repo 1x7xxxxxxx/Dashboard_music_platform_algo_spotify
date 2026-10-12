@@ -141,14 +141,17 @@ _WEEKLY_SQL = """
     SELECT p.prediction_date, o.song, o.recorded_at,
            o.dw_streams, o.rr_streams, o.radio_streams,
            p.dw_streams_forecast_7d AS predicted_dw, p.rr_streams_forecast_7d AS predicted_rr,
-           p.radio_streams_forecast_7d AS predicted_radio
+           p.radio_streams_forecast_7d AS predicted_radio, p.model_version
     FROM (SELECT DISTINCT ON (song) song, artist_id, recorded_at,
                  dw_streams, rr_streams, radio_streams
           FROM s4a_song_algo_outcomes
           WHERE artist_id = %s AND time_window = '28d' AND song NOT ILIKE '%%1x7xxxxxxx%%'
           ORDER BY song, recorded_at DESC) o
     JOIN ml_song_predictions p ON p.song = o.song AND p.artist_id = o.artist_id
-     AND p.prediction_date <= o.recorded_at"""
+     AND p.prediction_date <= o.recorded_at - 28"""
+# R527 — `<= recorded_at - 28`: the reading counts the 28 days BEFORE `recorded_at`; a
+# prediction made inside that window was judged on streams partly earlier than itself,
+# and its smaller gap read as « the model learns ».
 
 
 def error_by_prediction_week(rows: pd.DataFrame, algo: str) -> pd.DataFrame:
@@ -160,6 +163,10 @@ def error_by_prediction_week(rows: pd.DataFrame, algo: str) -> pd.DataFrame:
         return pd.DataFrame(columns=["week", "error", "titles"])
     d = d.assign(week=pd.to_datetime(d["prediction_date"]).dt.to_period("W").dt.start_time,
                  gap=(d[pred].astype(float) - d[act].astype(float)).abs())
+    # R527 — one forecast per title × week (the latest): a title predicted daily, or by
+    # two model versions, weighed seven times another title's single forecast.
+    order = [c for c in ("prediction_date", "model_version") if c in d.columns]
+    d = d.sort_values(order).drop_duplicates(["song", "week"], keep="last")
     return (d.groupby("week").agg(error=("gap", "median"), titles=("song", "nunique"))
             .reset_index().sort_values("week"))
 
@@ -175,7 +182,7 @@ def _show_error_by_prediction_week(db, artist_id) -> None:
         rows = db.fetch_df(_WEEKLY_SQL, (artist_id,))
     except Exception as e:                                           # noqa: BLE001
         st.warning(t("trigger_algo.model.chart_unavailable",
-                     "Graphique indisponible : {err}").format(err=e))
+                     "Graphique indisponible : {err}").format(err=type(e).__name__))
         return
     series = {a: error_by_prediction_week(rows, a) for a in shown} if rows is not None else {}
     series = {a: s for a, s in series.items() if not s.empty}
@@ -206,6 +213,8 @@ def _show_error_by_prediction_week(db, artist_id) -> None:
         "trigger_algo.model.weekly_caption",
         "{weeks} semaine(s) de prédictions jugées contre {readings} relevé(s) S4A. Une ligne "
         "plate : le modèle n'a pas changé d'avis d'une semaine à l'autre ; une ligne qui "
-        "descend : il se rapproche du constat. Avec un seul relevé, chaque semaine est "
-        "jugée contre la même vérité — la série s'étoffera à chaque saisie S4A."
-    ).format(weeks=weeks, readings=readings))
+        "descend : il se rapproche du constat."
+    ).format(weeks=weeks, readings=readings) + (" " + t(
+        "trigger_algo.model.weekly_one_reading",
+        "Avec un seul relevé, chaque semaine est jugée contre la même vérité — la série "
+        "s'étoffera à chaque saisie S4A.") if readings == 1 else ""))
