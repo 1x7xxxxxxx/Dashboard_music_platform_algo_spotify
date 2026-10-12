@@ -11,6 +11,41 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R537 — Plan : la date de fin À CÔTÉ du plan — « Premium (fin le …) » dans Mon compte et dans l… (livrée 2026-10-12)
+
+- [x] **R537 — Plan : la date de fin À CÔTÉ du plan — « Premium (fin le …) » dans Mon compte et dans la carte de Facturation (retour du 2026-10-12) ; quand rien ne finit (accès accordé à la main, abonnement qui se renouvelle) la carte dit « sans date de fin » au lieu d'une date inventée** (P3) ✅ (2026-10-12, 55c7a273)
+  Mesuré par : test : promo au 17/10 ⇒ « Premium (fin le 17/10/2026) » ; accordé ⇒ « Premium (sans date de fin) »
+  Livré 55c7a273, CI verte run 38263552436 (f2c350f4), dashboard déployé ; l'artiste 1 lit « sans date de fin » (premium accordé à la main)
+  Commits : 55c7a273 R537 : la date de fin à côté du plan — Mon compte et carte Facturation
+
+## ✅ R536 — Légendes : une seule position dans toute l'app — en haut à droite, sur le graphique (re… (livrée 2026-10-12)
+
+- [x] **R536 — Légendes : une seule position dans toute l'app — en haut à droite, sur le graphique (retour du 2026-10-12, « une cohérence entre la position de toutes les légendes »). Livrable : la convention posée UNE fois dans `charts.plotly_chart`, les positions locales retirées, un garde qui refuse une légende placée ailleurs** (P3) ✅ (2026-10-12, 0b6fc973, cf0b0127)
+  Mesuré par : test : toute figure rendue par `charts.plotly_chart` porte la légende en haut à droite ; balayage des `legend=dict(` locaux
+  Livré 0b6fc973, CI verte run 38263552436 (f2c350f4), dashboard déployé
+  Commits : 0b6fc973 R536 : la légende de l'Accueil suit la position unique — photo reprise · cf0b0127 R536 : une seule position de légende — en haut à droite, sur le graphi
+
+## ✅ R535 — YouTube Analytics — retours du 2026-10-12 : la section sort du bandeau déroulable (touj… (livrée 2026-10-12)
+
+- [x] **R535 — YouTube Analytics — retours du 2026-10-12 : la section sort du bandeau déroulable (toujours visible) ; la durée de visionnage se lit jour par jour sans trous — barres quotidiennes + moyenne glissante 7 j continue** (P3) ✅ (2026-10-12, f9621b38, 2336a126)
+  Mesuré par : test : un jour manquant ne coupe pas la moyenne 7 j ; la section n'est plus dans `secondary_analyses`
+  Livré f9621b38, CI verte run 38263552436 (f2c350f4), dashboard déployé
+  Commits : f9621b38 R535 : YouTube Analytics dans son propre onglet — 8 graphiques sur un  · 2336a126 R535 : YouTube Analytics toujours visible ; durée de visionnage en bar
+
+## ✅ R534 — Apple Music — retours du 2026-10-12 : (a) une barre « Total » en tête de chaque panneau… (livrée 2026-10-12)
+
+- [x] **R534 — Apple Music — retours du 2026-10-12 : (a) une barre « Total » en tête de chaque panneau (streams, Shazams), étiquetée, puis les titres ; (b) une phrase dit la différence entre le total de Shazams et les Shazams pour 1 000 écoutes ; (c) une figure des Shazams gagnés PAR JOUR (écart entre deux relevés ; un écart de plusieurs jours est dit comme une moyenne, jamais comme un jour)** (P3) ✅ (2026-10-12, 4b605437, f6bd5e50)
+  Mesuré par : test : la barre Total vaut la somme du total de vie ; relevés J, J+1, J+4 ⇒ un gain quotidien et une moyenne sur 3 j
+  Livré 4b605437, CI verte run 38263552436 (f2c350f4), dashboard déployé
+  Commits : 4b605437 R534 : Shazams gagnés par jour vs Shazams pour 1 000 écoutes — faux do · f6bd5e50 R534 : Apple Music — ligne Total en tête, Shazam total vs /1 000 expli
+
+## ✅ R533 — Mise en route + Aperçu algos — retours vocaux du 2026-10-12 : (a) le CPR de la figure d… (livrée 2026-10-12)
+
+- [x] **R533 — Mise en route + Aperçu algos — retours vocaux du 2026-10-12 : (a) le CPR de la figure d'ensemble DESCEND (« nos performances de CPR s'optimisent de jour en jour ») ; (b) Meta Ads quitte le rouge, déjà porté par YouTube ; (c) la figure de prédiction donne une date PRÉVUE de déclenchement à Discover Weekly et à Radio, pas seulement Release Radar ; (d) une 4ᵉ figure, sous les trois, fusionne chances de déclenchement et budget Meta ; (e) l'aperçu « déclencher les algos » montre les mêmes figures** (P3) ✅ (2026-10-12, f2c350f4)
+  Mesuré par : PNG relus à l'œil ; test : la 4ᵉ figure est rendue par la mise en route ET l'aperçu ; la couleur Meta ≠ celle de YouTube
+  Livré f2c350f4, CI verte run 38263552436, dashboard déployé (meta-x-algo.png vérifié dans le conteneur)
+  Commits : f2c350f4 R533 : Mise en route + Aperçu algos — CPR qui baisse, Meta en bleu mar
+
 ## ✅ R532 — Du travail connu vit HORS roadmap (question du propriétaire, 2026-10-12) : `make defect… (livrée 2026-10-12)
 
 - [x] **R532 — Du travail connu vit HORS roadmap (question du propriétaire, 2026-10-12) : `make defect-log` porte des défauts `open` et des billets `recurrence:` sans réponse, `night-status` les AFFICHE en une ligne d'info, et rien n'exige une ligne d'index — R196 ne garde que l'édition de code, pas l'existence d'une tâche. `night-check` (≠ 0) refuse désormais un défaut ouvert ou un billet en attente qu'aucune ligne ouverte ne nomme (par son fichier de test), et dit la commande qui l'inscrit** (P3) ✅ (2026-10-12, 2853109c)
