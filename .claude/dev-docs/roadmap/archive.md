@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R116 — ADR-027 (répliques et Redis) — déclencheur ATTEINT le 2026-10-12 : 14 jours `complete`… (livrée 2026-10-12)
+
+- [x] **R116 — ADR-027 (répliques et Redis) — déclencheur ATTEINT le 2026-10-12 : 14 jours `complete` dans `daily_ops_metrics` en prod. Écrire l'ADR à partir des courbes mesurées, retirer le bloc ⏸️ et sa condition d'attente, et sortir R116 de `reopen_check.py`** (P4) ✅ (2026-10-12, 0700018e, 093aa3cf, f2af9a0e, 9294c602, 838a9f4f, f0aa6978, 1ca39bbf, 946077f2, e0107fd4, 65ae5250, 3d7baaee, 8303dcea, c6a0c6e6, 021338c4, 573a2fee, 439ecf06)
+  Mesuré par : `docs/adr/ADR-027-*.md` cite les 14 jours ; `make reopen-check` ne liste plus R116
+  ADR-027 écrit sur 14 jours complete en prod (pic humain 6/20, p50 59/200 ms) ; bloc ⏸️ et déclencheur retirés — CI verte 38269256120
+  Commits : 0700018e R116 : ADR-027 — une instance de dashboard, pas de Redis, décidé sur 1 · 093aa3cf Roadmap : R275 retirée (suivie hors dépôt) ; l'actif ne porte plus que · f2af9a0e R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique  · 9294c602 Un verdict de fraicheur porte sur la date que la DONNEE porte · 838a9f4f Dev-docs de fin de seance, et R145 forcee par un cliquet · f0aa6978 L'outil qui surveille la roadmap mesurait la mauvaise base · 1ca39bbf Roadmap : R125 et R134 closes — « En attente de toi » est VIDE, une pr · 946077f2 R137 — `un-cumul-pris-pour-un-quotidien` finie : 5 classes, 10 sites,  · e0107fd4 Onze conditions de reouverture etaient ecrites, aucune n'etait evaluee · 65ae5250 Le journal de seance et la roadmap racontaient deux histoires — le cro · 3d7baaee R124 : l'instrument serveur n'a AUCUNE donnee en prod, et le resume qu · 8303dcea `night-status` posait encore une question parquee que sa propre tache  · c6a0c6e6 R116 sort de l'index : la courbe qu'elle exige n'existe pas · 021338c4 R117 parquee : la seule tache dont l'executant est aussi la victime · 573a2fee Le vrai message de de1d4ad, et la classe que sa perte a produite · 439ecf06 Les seaux d'authentification quittent la memoire du processus, et deux
+
 ## ✅ R538 — Nightly `guard-mutation` 🟠 du 2026-10-12 (run 38232516894, mail 10:04Z) : `test_bounds_… (livrée 2026-10-12)
 
 - [x] **R538 — Nightly `guard-mutation` 🟠 du 2026-10-12 (run 38232516894, mail 10:04Z) : `test_bounds_and_validators_hold_their_properties` et `test_a_crash_is_never_credited_as_a_judgement` verts sur les mutations génériques — muter chacun À LA MAIN sur le défaut qu'il garde (règle 15ter) : rouge ⇒ `SEEN_RED` daté ; vert ⇒ garde vacant, le réparer. Reste trouvé hors roadmap en triant les mails du jour** (P3) ✅ (2026-10-12, f0c2a222)
