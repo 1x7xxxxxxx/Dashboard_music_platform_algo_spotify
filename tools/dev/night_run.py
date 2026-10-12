@@ -767,6 +767,38 @@ def _worktrees() -> "list[tuple[str, float]]":
     return out
 
 
+def defect_needle(fingerprint: str) -> str:
+    """What an index row must name to carry a defect: its test FILE, else its step."""
+    kind, _, rest = fingerprint.partition(":")
+    if kind == "test":
+        return rest.split("::", 1)[0].rsplit("/", 1)[-1]
+    return rest.rsplit("/", 1)[-1] or fingerprint
+
+
+def unrouted_work(rows: list[dict], open_rows: list[tuple[str, str, str]]) -> list[str]:
+    """R532 — known work no open roadmap row names. Pure.
+
+    Measured 2026-10-12: `night-status` printed « 2 défaut(s) ouvert(s), 1 billet(s)
+    recurrence: à confirmer » as an info line, and the roadmap was announced EMPTY to
+    the owner. R196 guards a code edit without a row; nothing guarded known work
+    without one. An open defect or an unanswered `recurrence:` billet is work."""
+    text = "\n".join(task for _, task, _ in open_rows)
+    out = []
+    for r in rows:
+        if r.get("status") == "open":
+            what = "défaut ouvert"
+        elif r.get("recurrence_proposal") and not r.get("ticket"):
+            what = "billet recurrence: sans réponse"
+        else:
+            continue
+        needle = defect_needle(r["fingerprint"])
+        if needle not in text:
+            out.append(f"{what} `{r['fingerprint']}` : aucune ligne ouverte de la roadmap "
+                       f"ne nomme `{needle}` — l'inscrire (ligne d'index), ou "
+                       "`make defect-ticket`/`make defect-close` avec sa raison")
+    return out
+
+
 def cmd_check(_args) -> int:
     """Les invariants d'une séance longue. Sort ≠ 0 quand il y a à redire."""
     problems = _reopening_conditions_met()
@@ -900,6 +932,16 @@ def cmd_check(_args) -> int:
                     "cet identifiant. Soit la tâche n'y a jamais été écrite, soit "
                     "c'est une faute de frappe — dans les deux cas le journal et la "
                     "roadmap racontent deux histoires différentes")
+    # ── R532 : le travail que le journal des défauts connaît, la roadmap aussi ──
+    try:
+        sys.path.insert(0, str(REPO / "tools" / "dev"))
+        import defect_log
+        events = defect_log.load()
+        problems += unrouted_work(
+            defect_log.classify(events, defect_log.touched_files(events)), _open_tasks())
+    except (OSError, ValueError, KeyError) as exc:
+        problems.append(f"journal des défauts illisible ({type(exc).__name__}) — le "
+                        "travail qu'il connaît n'a RIEN pu être comparé à la roadmap")
     for problem in problems:
         print(f"⚠️  {problem}")
     return 1 if problems else 0
