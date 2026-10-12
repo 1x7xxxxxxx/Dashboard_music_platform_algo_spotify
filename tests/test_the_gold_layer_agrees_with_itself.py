@@ -98,13 +98,26 @@ def _side(cur, sql: str) -> dict[int, float]:
     return {int(t): float(v or 0) for t, v in cur.fetchall() if t is not None}
 
 
+def _fetch(cur):
+    def fetch(sql: str):
+        cur.execute(sql)
+        return cur.fetchall()
+    return fetch
+
+
 def test_every_gold_invariant_holds_on_the_real_data(gi, cursor) -> None:
-    offenders, compared = [], 0
-    for inv in gi.INVARIANTS:
-        left = _side(cursor, inv.left_sql)
-        right = _side(cursor, inv.right_sql)
-        compared += len(set(left) | set(right))
-        offenders += [gi.finding(inv, t, a, b) for t, a, b in gi.compare(left, right)]
+    # R540 — one snapshot for every member: other workers write tenants during the suite.
+    # Autocommit first: under psycopg2's implicit BEGIN, a second BEGIN is ignored with a
+    # warning and the isolation level silently stays READ COMMITTED.
+    conn = cursor.connection
+    conn.rollback()
+    conn.autocommit = True
+    cursor.execute(gi.ONE_SNAPSHOT)
+    try:
+        offenders, compared = gi.pair_findings(_fetch(cursor))
+    finally:
+        cursor.execute("ROLLBACK")
+        conn.autocommit = False
 
     if compared == 0:
         pytest.skip("aucun locataire ne porte de données or — rien à réconcilier")

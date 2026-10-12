@@ -707,6 +707,29 @@ def registry_module():
     return metric_registry
 
 
+#: R540 — the two members of a pair must see the SAME rows. Under READ COMMITTED each
+#: statement takes its own snapshot, so a write landing between the left and the right
+#: query (a collection DAG at 23 h, another test worker) reads as a disagreement the
+#: data does not have. Seen on 2026-10-12: 303 against 406 for a fixture tenant whose
+#: rows arrived between the two reads, green when the test ran alone.
+ONE_SNAPSHOT = "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"
+
+
+def pair_findings(fetch) -> tuple[list[str], int]:
+    """Every pair, each member read by `fetch(sql)`. The CALLER holds one snapshot."""
+    findings: list[str] = []
+    compared = 0
+
+    def side(sql: str) -> dict[int, float]:
+        return {int(t): float(v or 0) for t, v in (fetch(sql) or []) if t is not None}
+
+    for inv in INVARIANTS:
+        left, right = side(inv.left_sql), side(inv.right_sql)
+        compared += len(set(left) | set(right))
+        findings += [finding(inv, t, a, b) for t, a, b in compare(left, right)]
+    return findings, compared
+
+
 def run(db) -> tuple[list[str], int]:
     """`(constats, couples comparés)` — le contrôle entier, hors d'Airflow.
 
@@ -720,17 +743,11 @@ def run(db) -> tuple[list[str], int]:
     Le second membre du tuple n'est pas décoratif : « zéro désaccord » sur zéro
     couple comparé est vrai et ne dit rien. L'appelant doit pouvoir le journaliser.
     """
-    findings: list[str] = []
-    compared = 0
-
-    def side(sql: str) -> dict[int, float]:
-        rows = db.fetch_query(sql) or []
-        return {int(t): float(v or 0) for t, v in rows if t is not None}
-
-    for inv in INVARIANTS:
-        left, right = side(inv.left_sql), side(inv.right_sql)
-        compared += len(set(left) | set(right))
-        findings += [finding(inv, t, a, b) for t, a, b in compare(left, right)]
+    db.execute_query(ONE_SNAPSHOT)
+    try:
+        findings, compared = pair_findings(db.fetch_query)
+    finally:
+        db.execute_query("COMMIT")
     bounded, n_bounds = bounds_findings(db, _registry())
     extra = duplicate_findings(db) + unmapped_findings(db)
     return findings + bounded + extra, compared + n_bounds + 2
