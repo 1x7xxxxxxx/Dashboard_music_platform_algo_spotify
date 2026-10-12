@@ -25,6 +25,8 @@ EN = {
     "youtube.subs_by_video_title": "Subscribers gained per video — last {days} consolidated days",
     "youtube.subs_by_video_hover": "+%{x} gained · −%{customdata[0]} lost · net %{customdata[1]}",
     "youtube.subs_gained": "Subscribers gained",
+    "youtube.watch_time_daily": "Per day",
+    "youtube.watch_time_mean7": "7-day average",
     "youtube.watch_time_title": "Watch time per day",
     "youtube.hours_watched": "Hours watched",
     "youtube.minutes_watched": "Minutes watched",

@@ -5,7 +5,7 @@ Uses: src.dashboard.views.youtube (figure builders)
 Depends on: src/dashboard/utils/platform_colors.py (DISTINCT: five colours)
 Persists in: nothing
 
-1. a day the API did not deliver stays a gap — no segment drawn across it;
+1. a day the API did not deliver stays a gap — no bar; the 7-day mean (R535) is continuous;
 2. a channel under 2 h a day is drawn in minutes, a bigger one in hours;
 3. the traffic chart never has more traces than the colorway has colours.
 """
@@ -28,8 +28,17 @@ def test_a_missing_day_stays_a_gap():
                                            [3, 6, 2]))
     tr = fig.data[0]
     assert len(tr.x) == 5, "the absent days were not put back on the axis"
-    assert math.isnan(tr.y[2]) and math.isnan(tr.y[3])
-    assert tr.connectgaps is False
+    assert math.isnan(tr.y[2]) and math.isnan(tr.y[3]), "an absent day was drawn as a bar"
+
+
+def test_watch_time_is_daily_bars_under_a_continuous_7_day_mean():
+    """R535 — the bars carry the day, the mean carries the trend across a gap."""
+    fig = youtube.watch_time_figure(_daily(["2026-09-12", "2026-09-13", "2026-09-16"],
+                                           [3, 6, 2]))
+    bars, mean = fig.data
+    assert bars.type == "bar" and mean.type == "scatter"
+    assert not any(math.isnan(v) for v in mean.y), "the 7-day mean broke on a missing day"
+    assert list(mean.y)[-1] == (3 + 6 + 2) / 3, "the mean averaged invented zeros"
 
 
 def test_a_small_channel_reads_in_minutes_a_big_one_in_hours():

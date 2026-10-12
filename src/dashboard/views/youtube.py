@@ -51,7 +51,6 @@ from src.dashboard.utils import view_session, charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.labels import unique_short_labels
-from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
@@ -380,17 +379,28 @@ def subscribers_by_video_figure(videos: pd.DataFrame, top: int = 10) -> go.Figur
 
 
 def watch_time_figure(daily: pd.DataFrame) -> go.Figure:
-    """R530 — a day the API did not deliver stays a GAP (never a segment across it), and a
-    channel under 2 h a day reads in minutes: 6 minutes drawn as « 0.1 h » says nothing."""
+    """Daily bars + a continuous 7-day mean (R535).
+
+    R530 — a day the API did not deliver stays EMPTY (no bar, never a zero), and a
+    channel under 2 h a day reads in minutes: 6 minutes drawn as « 0.1 h » says nothing.
+    R535 — the owner, 2026-10-12: the gapped line « ne se lit pas ». The bars carry the
+    day; the mean, over the days that WERE delivered in each 7-day window, carries the
+    trend and does not break on a missing day."""
     d = daily.assign(day=pd.to_datetime(daily["day"])).set_index("day")["minutes_watched"]
     d = d.reindex(pd.date_range(d.index.min(), d.index.max(), freq="D"))
     in_hours = d.max() >= 120
+    y = d / 60 if in_hours else d
     label = (t("youtube.hours_watched", "Heures vues") if in_hours
              else t("youtube.minutes_watched", "Minutes vues"))
-    fig = go.Figure(go.Scatter(x=d.index, y=d / 60 if in_hours else d, mode="lines+markers",
-                               connectgaps=False, line_color=_YT, name=label))
+    fig = go.Figure([
+        go.Bar(x=d.index, y=y, marker_color=_YT, opacity=0.45,
+               name=t("youtube.watch_time_daily", "Par jour")),
+        go.Scatter(x=d.index, y=y.rolling(7, min_periods=1).mean(), mode="lines",
+                   line=dict(color=_YT, width=3),
+                   name=t("youtube.watch_time_mean7", "Moyenne sur 7 jours")),
+    ])
     fig.update_layout(title=t("youtube.watch_time_title", "Durée de visionnage par jour"),
-                      yaxis_title=label, showlegend=False)
+                      yaxis_title=label)
     return fig
 
 
@@ -451,19 +461,18 @@ def _analytics_section(db, artist_id: int) -> None:
     """, (artist_id, artist_id))
     traffic = db.fetch_df("SELECT day, source_type, views FROM youtube_analytics_traffic_daily "
                           "WHERE artist_id = %s ORDER BY day", (artist_id,))
-    # Below the channel and video charts: collapsed, so the page still opens on its budget.
-    with secondary_analyses(t("youtube.analytics_expander",
-                              "Abonnés par vidéo, durée de visionnage, sources de trafic")):
-        # R530 — 17 videos at 0 drew an empty frame: say it instead.
-        if not videos.empty and videos["subscribers_gained"].sum() > 0:
-            charts.plotly_chart(subscribers_by_video_figure(videos), width="stretch", pareto=False)
-        elif not videos.empty:
-            st.caption(t("youtube.subs_none",
-                         "Aucune vidéo n'a fait gagner d'abonné sur les {days} derniers jours "
-                         "consolidés.").format(days=int(videos["window_days"].iloc[0])))
-        charts.plotly_chart(watch_time_figure(daily), width="stretch")
-        if not traffic.empty:
-            charts.plotly_chart(traffic_figure(traffic), width="stretch")
+    # R535 — always visible (owner, 2026-10-12): the exact data is the point of the page,
+    # a collapsed section hid it.
+    # R530 — 17 videos at 0 drew an empty frame: say it instead.
+    if not videos.empty and videos["subscribers_gained"].sum() > 0:
+        charts.plotly_chart(subscribers_by_video_figure(videos), width="stretch", pareto=False)
+    elif not videos.empty:
+        st.caption(t("youtube.subs_none",
+                     "Aucune vidéo n'a fait gagner d'abonné sur les {days} derniers jours "
+                     "consolidés.").format(days=int(videos["window_days"].iloc[0])))
+    charts.plotly_chart(watch_time_figure(daily), width="stretch")
+    if not traffic.empty:
+        charts.plotly_chart(traffic_figure(traffic), width="stretch")
 
 
 def show():
