@@ -41,8 +41,10 @@ def page():
                                                   artist_id=1))
     at.run(timeout=300)
     assert not at.exception, at.exception
-    if not at.header:
-        pytest.skip("no track to follow in this base — the page stops before its sections")
+    # R525: without a title the page still draws its budget and money sections, so
+    # « no header » no longer says « no track » — the no-timeline warning does.
+    if not at.header or any("Aucune donnée de timeline" in w.value for w in at.warning):
+        pytest.skip("no track to follow in this base — the per-track sections are not drawn")
     return at
 
 
