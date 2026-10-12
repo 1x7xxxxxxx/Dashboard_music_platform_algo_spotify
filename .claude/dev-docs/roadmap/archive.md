@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R532 — Du travail connu vit HORS roadmap (question du propriétaire, 2026-10-12) : `make defect… (livrée 2026-10-12)
+
+- [x] **R532 — Du travail connu vit HORS roadmap (question du propriétaire, 2026-10-12) : `make defect-log` porte des défauts `open` et des billets `recurrence:` sans réponse, `night-status` les AFFICHE en une ligne d'info, et rien n'exige une ligne d'index — R196 ne garde que l'édition de code, pas l'existence d'une tâche. `night-check` (≠ 0) refuse désormais un défaut ouvert ou un billet en attente qu'aucune ligne ouverte ne nomme (par son fichier de test), et dit la commande qui l'inscrit** (P3) ✅ (2026-10-12, 2853109c)
+  Mesuré par : test : défaut ouvert non cité ⇒ check ≠ 0 ; cité par une ligne ouverte ⇒ 0 ; billet répondu ⇒ 0 ; rejoué sur le journal réel
+  Livré 2853109c : night-check refuse le travail connu hors roadmap ; reste inscrit en R533-R537 ; CI verte run 38255484438
+  Commits : 2853109c R532 : night-check refuse le travail connu qu'aucune ligne de roadmap 
+
+## ✅ R531 — `tests/test_the_monitor_itself_still_runs.py` rend la CI de main ROUGE sur un 502 passa… (livrée 2026-10-12)
+
+- [x] **R531 — `tests/test_the_monitor_itself_still_runs.py` rend la CI de main ROUGE sur un 502 passager de l'API GitHub (run 38249682465, 2026-10-12, commit de roadmap pur) : les deux tests font UN appel et `assert status == 200` — une panne de GitHub se lit comme « la sonde de prod est morte ». Réessayer les 5xx (3 essais, attente croissante), puis échouer en nommant GitHub ; un 4xx reste rouge tout de suite** (P3) ✅ (2026-10-12, 143ca6dc)
+  Mesuré par : test : 502, 502, 200 ⇒ vert ; 502 ×3 ⇒ rouge qui nomme GitHub ; 401 ⇒ rouge au 1er essai
+  Livré 143ca6dc : un 5xx GitHub est réessayé ; CI verte run 38255484438
+  Commits : 143ca6dc R531 : un 5xx de l'API GitHub est réessayé, il ne rougit plus la CI de
+
 ## ✅ R530 — Graphiques YouTube Analytics (R511) rendus sur les VRAIES données de l'artiste 1 (2026-… (livrée 2026-10-12)
 
 - [x] **R530 — Graphiques YouTube Analytics (R511) rendus sur les VRAIES données de l'artiste 1 (2026-10-12) : (a) `subscribers_by_video_figure` dessine un graphique vide quand les 17 vidéos ont 0 abonné gagné sur 28 j — une phrase au lieu de barres nulles ; (b) `watch_time_figure` en HEURES (max 0,1 h = 6 min) et relie les jours ABSENTS par un segment — minutes sous 2 h, trous non comblés ; (c) `traffic_figure` empile 7 sources sur la palette `DISTINCT` de 5 couleurs ⇒ deux paires de même couleur — 4 sources + « Autres »** (P3) ✅ (2026-10-12, f38533de)
