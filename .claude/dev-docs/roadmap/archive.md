@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R550 — Statusline projet (le HUD) : modèle · contexte · coût · durée · lignes ; tests · CI du… (livrée 2026-10-12)
+
+- [x] **R550 — Statusline projet (le HUD) : modèle · contexte · coût · durée · lignes ; tests · CI du HEAD (cache, jamais d'appel réseau synchrone) · non commités · non poussés · unité de nuit** (P4) ✅ (2026-10-12, 6670c82c, 152fcea9)
+  Mesuré par : test de `render()` (CI inconnue = « ? », périmé = ⚠️) ; < 300 ms
+  Mods Claude Code : étude M1-M6, garde Stop (REQ-HARN-28), statusline. Suite 12735 verts, CI verte run 38312240327.
+  Commits : 6670c82c R550 : statusline projet — le HUD de séance (session, tests, CI du HEA · 152fcea9 R549 : garde Stop — du code modifié après le départ de la dernière sui
+
+## ✅ R549 — Garde Stop : du code modifié après le dernier verdict de tests bloque UNE fois la fin d… (livrée 2026-10-12)
+
+- [x] **R549 — Garde Stop : du code modifié après le dernier verdict de tests bloque UNE fois la fin de tour (`_verdict.py` partagé, `.pytest-last.started` posé par le Makefile)** (P4) ✅ (2026-10-12, c5f52d36, 152fcea9)
+  Mesuré par : test sur dépôt fabriqué (6 cas), muté rouge
+  Mods Claude Code : étude M1-M6, garde Stop (REQ-HARN-28), statusline. Suite 12735 verts, CI verte run 38312240327.
+  Commits : c5f52d36 R549 : exigence REQ-HARN-28 pour le garde Stop, CLAUDE.md sous son bud · 152fcea9 R549 : garde Stop — du code modifié après le départ de la dernière sui
+
+## ✅ R548 — Mods Claude Code — étude de pertinence M1–M6 contre notre configuration, et son suivi :… (livrée 2026-10-12)
+
+- [x] **R548 — Mods Claude Code — étude de pertinence M1–M6 contre notre configuration, et son suivi : `_mods_review` dans `reopen_check.py` (blocages du garde Stop sur 14 j, ROUVRIR le 2026-10-26)** (P4) ✅ (2026-10-12, 989267c0)
+  Mesuré par : `make reopen-check` affiche `_mods_review` ; test de la condition
+  Mods Claude Code : étude M1-M6, garde Stop (REQ-HARN-28), statusline. Suite 12735 verts, CI verte run 38312240327.
+  Commits : 989267c0 R548 : mods Claude Code — étude M1–M6 contre notre configuration, et r
+
 ## ✅ R547 — YouTube : « — données exactes » retiré du titre d'onglet ; « durée de visionnage par jo… (livrée 2026-10-12)
 
 - [x] **R547 — YouTube : « — données exactes » retiré du titre d'onglet ; « durée de visionnage par jour » et « d'où viennent les vues » passent À LA FIN de l'onglet Chaîne et vidéos (note vocale 2026-10-12)** (P3) ✅ (2026-10-12, a6f4347a, ae505db1)
