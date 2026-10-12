@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R542 | La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, où le dashboard n'existe pas : indécidable à vie. La faire passer par `PROD_SSH` comme R114 et le fan-out <!-- critic: non — une sonde qui change d'hôte, motif existant dans le fichier --> <!-- scope: tools/dev/reopen_check.py, tests/ --> | P3 | `PROD_SSH=… reopen_check.py` rend « en attente » avec la RAM réelle du dashboard de prod ; sans `PROD_SSH`, lève |
+| R542 | La condition « Airflow hors boîte » de `reopen_check.py` lit `docker stats` du POSTE, où le dashboard n'existe pas : indécidable à vie. La faire passer par `PROD_SSH` comme R114 et le fan-out <!-- critic: non — une sonde qui change d'hôte, motif existant dans le fichier --> <!-- scope: tools/dev/reopen_check.py, tools/dev/nightly_guard_mutation.py, tests/ --> | P3 | `PROD_SSH=… reopen_check.py` rend « en attente » avec la RAM réelle du dashboard de prod ; sans `PROD_SSH`, lève |
 
 ---
 
