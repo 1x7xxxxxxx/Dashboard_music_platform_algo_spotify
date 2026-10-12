@@ -82,6 +82,12 @@ SEEN_RED: dict[str, str] = {
     "tests/test_aggregations_hold_their_properties.py":
         "2026-10-12 — R529 : `DistroKidParser._dedup` garde la dernière ligne d'une clé "
         "en double au lieu de sommer (`if False:`, totaux perdus, R505) → 1 rouge",
+    "tests/test_bounds_and_validators_hold_their_properties.py":
+        "2026-10-12 — R538 : `validate_columns` relit avec `re.match(r'…$')` au lieu de "
+        "`fullmatch` (le `$` qui laisse passer « abc\\n », R504) → 1 rouge",
+    "tests/test_a_crash_is_never_credited_as_a_judgement.py":
+        "2026-10-12 — R538 : `judgement.classify_command` rend RED sur un traceback au lieu "
+        "de CRASH (un plantage crédité comme un verdict, R495) → 2 rouges",
     "tests/test_a_push_carries_the_tree_seen_green.py":
         "2026-10-08 — R467 : `verdict` ne compte plus les fichiers changés depuis le run vert "
         "(le push du 2026-10-07, R444) → 2 rouges",
