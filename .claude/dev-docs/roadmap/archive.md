@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R131 — Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés d… (livrée 2026-10-12)
+
+- [x] **R131 — Les trois seuils de charge (`SessionsHigh`, `ErrorRateHigh`, `LogErrorBurst`) dérivés de la distribution PAR Prometheus : seuil = maximum observé sur les 30 jours précédents, règle muette tant que 30 jours d'historique n'existent pas. Aucun nombre d'instinct, aucune séance future à attendre** (P4) ✅ (2026-10-12, 4b75a90d, df4f6f2f, 6949b11a, 093aa3cf, f2af9a0e, 9294c602, 838a9f4f, f0aa6978, 1ca39bbf, e0107fd4, 6ab7daae, 293aff8e)
+  Mesuré par : `promtool test rules` : muette < 30 j, rouge sur un record, verte à égalité
+  Livré df4f6f2f + 4b75a90d, CI verte (runs 38283669877, 38285115726) : SessionsHigh/ErrorRateHigh/LogErrorBurst dérivés par Prometheus du max des 28 j précédents, muets sans historique ; promtool prouve silence/égalité/record ; déployé en prod, 14 règles chargées, les 3 neuves health=ok. Défaut trouvé au déploiement : le test promtool dans rules/ faisait refuser le rechargement — sorti vers deploy/prometheus/tests/, gardé.
+  Commits : 4b75a90d R131 : le test promtool sort de rules/ — Prometheus y charge tout *.ym · df4f6f2f R131 : les trois seuils de charge dérivés par Prometheus de 28 jours d · 6949b11a Roadmap : R131 — périmètre élargi (ADR-027, SEEN_RED du nightly), bloc · 093aa3cf Roadmap : R275 retirée (suivie hors dépôt) ; l'actif ne porte plus que · f2af9a0e R200 : checklist.md allege - 503 -> 244 lignes, la prose d'historique  · 9294c602 Un verdict de fraicheur porte sur la date que la DONNEE porte · 838a9f4f Dev-docs de fin de seance, et R145 forcee par un cliquet · f0aa6978 L'outil qui surveille la roadmap mesurait la mauvaise base · 1ca39bbf Roadmap : R125 et R134 closes — « En attente de toi » est VIDE, une pr · e0107fd4 Onze conditions de reouverture etaient ecrites, aucune n'etait evaluee · 6ab7daae R130 livree, R131 parquee, et la rotation de roadmap est outillee · 293aff8e Observabilite : rendre l'ignorance visible, pas seulement ajouter des 
+
 ## ✅ R541 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38274473555) : 3 gardes neufs jam… (livrée 2026-10-12)
 
 - [x] **R541 — Nightly `guard-mutation` 🟠 relancé le 2026-10-12 (run 38274473555) : 3 gardes neufs jamais vus rouges — `test_a_gold_invariant_reads_one_snapshot` (R540, vu rouge à la main, non daté), `test_the_weekly_model_error_sql_on_the_live_schema`, `test_the_algo_page_answers_without_a_title`. Muter chacun à la main sur SON défaut, dater `SEEN_RED`** (P3) ✅ (2026-10-12, 001cb4e1)
