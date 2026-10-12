@@ -88,6 +88,13 @@ SEEN_RED: dict[str, str] = {
     "tests/test_a_crash_is_never_credited_as_a_judgement.py":
         "2026-10-12 — R538 : `judgement.classify_command` rend RED sur un traceback au lieu "
         "de CRASH (un plantage crédité comme un verdict, R495) → 2 rouges",
+    "tests/test_one_legend_position.py":
+        "2026-10-12 — R539 : `charts.apply_defaults` n'impose plus `LEGEND_POSITION` (la "
+        "légende locale, en bas ou centrée, survit à la porte, R536) → 1 rouge",
+    "tests/test_youtube_analytics_figures.py":
+        "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "
+        "R530) → 1 rouge ; `traffic_figure` replie au-delà de 7 sources au lieu de 5 (une "
+        "couleur partagée par deux sources) → 1 rouge",
     "tests/test_a_push_carries_the_tree_seen_green.py":
         "2026-10-08 — R467 : `verdict` ne compte plus les fichiers changés depuis le run vert "
         "(le push du 2026-10-07, R444) → 2 rouges",
