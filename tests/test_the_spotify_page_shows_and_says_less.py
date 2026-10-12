@@ -417,7 +417,11 @@ def test_the_followers_are_identifiable_without_colour() -> None:
     assert "title_font" in src and "_FOLLOWER_INK" in src, (
         "le titre de l'axe des abonnés n'est plus teinté de l'encre de sa série : deux "
         "échelles se lisent alors comme une, et c'est là que naît le faux croisement.")
-    assert "tozeroy" in src and "go.Scatter" in src, (
+    # R528 (c) — read as a `fill="tozeroy"` KEYWORD of a call: the bare substring was
+    # satisfied by any string or docstring naming it.
+    fills = {kw.value.value for n in ast.walk(fn) if isinstance(n, ast.Call)
+             for kw in n.keywords if kw.arg == "fill" and isinstance(kw.value, ast.Constant)}
+    assert "tozeroy" in fills and "go.Scatter" in src, (
         "les flux et le niveau n'ont plus deux FORMES : la distinction repose alors sur "
         "la seule couleur.")
 

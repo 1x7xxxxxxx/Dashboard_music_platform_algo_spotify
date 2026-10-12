@@ -53,6 +53,7 @@ _DERIVABLE = {
     "_VIEWS": "tests/test_a_view_says_something_or_says_why.py",
     "_NON_ANALYTICS": "tests/test_pdf_coverage.py",
     "TENANT_VIEWS": "tests/test_stray_session_reads_nothing.py",
+    "_ABSORBED_SECTIONS": "tests/test_pdf_coverage.py",
 }
 
 # La marque qu'une liste doit porter : un chiffre, ou le mot qui dit qu'elle est

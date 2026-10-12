@@ -247,6 +247,18 @@ def test_a_suite_that_did_not_run_is_a_crash_not_an_env_dependent_guard() -> Non
     assert not env_ind.suite_did_not_run(2, "ERROR tests/test_x.py - ImportError\n")
 
 
+def test_a_collection_crash_that_also_happens_with_env_is_not_env_dependence() -> None:
+    """R528 (b) — the module fails to import with `.env` too: a crash, not a verdict."""
+    crash = "ERROR tests/test_x.py - ImportError: no module named foo\n"
+    assert env_ind.collection_errors(crash) == [crash.strip()]
+    assert env_ind.crash_not_env(crash, collects_with_env=False)
+    # Imports with `.env`, fails without: THAT is the env-dependence hunted here.
+    assert not env_ind.crash_not_env(crash, collects_with_env=True)
+    # A failing test beside the crash is a verdict on its own.
+    assert not env_ind.crash_not_env(crash + "FAILED tests/test_y.py::t - KeyError\n", False)
+    assert env_ind.collection_errors("ERROR tests/test_x.py::t - KeyError\n") == []
+
+
 def test_a_failed_artifact_download_is_a_crash_not_a_quiet_night(tmp_path, monkeypatch) -> None:
     assert ngm.download_outcome(1, "no valid artifacts found to download", False) == "none"
     assert ngm.download_outcome(

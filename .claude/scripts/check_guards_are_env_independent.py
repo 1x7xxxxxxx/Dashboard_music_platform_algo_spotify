@@ -83,6 +83,27 @@ def suite_did_not_run(rc: int, output: str) -> bool:
     return not any(ln.startswith(("FAILED", "ERROR")) for ln in output.splitlines())
 
 
+def collection_errors(output: str) -> list[str]:
+    """`ERROR <file> - …` lines with no `::` test id: a module that did not import. Pure."""
+    return [ln for ln in output.splitlines()
+            if ln.startswith("ERROR ") and "::" not in ln.split(" - ", 1)[0]]
+
+
+def crash_not_env(output: str, collects_with_env: bool) -> bool:
+    """R528 — the replay's only failures are collection errors that ALSO happen with
+    `.env` present: an ImportError of the job, not a guard reading the machine. Pure."""
+    judged = [ln for ln in output.splitlines() if ln.startswith("FAILED")
+              or (ln.startswith("ERROR ") and ln not in collection_errors(output))]
+    return bool(collection_errors(output)) and not judged and not collects_with_env
+
+
+def _collects_with_env(files: list[str]) -> bool:
+    """The same files, collected WITHOUT the no-`.env` plugin."""
+    proc = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", *files],
+                          cwd=_REPO, capture_output=True, text=True, timeout=600)
+    return proc.returncode == 0
+
+
 def main() -> int:
     files = _files_loading_a_tool()
     # `--changed` : only the test files this working tree touches — the replay the CI
@@ -115,6 +136,12 @@ def main() -> int:
         last = [ln for ln in (proc.stdout + proc.stderr).splitlines() if ln.strip()][-1:]
         print(f"⊘ la suite ne s'est pas exécutée (pytest exit {proc.returncode}) — aucun "
               f"verdict sur les gardes : {last[0] if last else '(muet)'}")
+        return 2
+
+    out = proc.stdout + proc.stderr
+    if collection_errors(out) and crash_not_env(out, _collects_with_env(files)):
+        print(f"⊘ erreur de collecte AVEC comme sans `.env` — un crash, pas un garde "
+              f"dépendant du poste : {collection_errors(out)[0]}")
         return 2
 
     print(f"❌ un garde change de verdict quand le `.env` du poste disparaît "

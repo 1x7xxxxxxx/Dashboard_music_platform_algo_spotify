@@ -110,3 +110,20 @@ def test_no_stale_mapping():
     keys = {key for _id, _hdr, items in nav for _label, key in items}
     stale = sorted(set(_PDF_MAP) - keys)
     assert not stale, f"Mappings PDF pointant des vues disparues : {stale}"
+
+
+# R528 (a) — views absorbed into another page left `_PDF_MAP`; their report sections did
+# not. Nothing else checks it: a section dropped from ALL_SECTIONS would leave the PDF
+# silently poorer while every mapping above stays valid.
+# Sous-ensemble assumé : les 4 vues ABSORBÉES seulement, pas exhaustive des sections.
+_ABSORBED_SECTIONS = {
+    "meta_x_spotify",     # R348 — tab of meta_ads_overview
+    "instagram",          # R378 — section of meta_ads_overview
+    "meta_breakdowns",    # R378
+    "revenue_forecast",   # R405 — section of trigger_algo
+}
+
+
+def test_absorbed_views_keep_their_pdf_section():
+    missing = sorted(_ABSORBED_SECTIONS - set(ALL_SECTIONS))
+    assert not missing, f"Sections PDF des vues absorbées disparues : {missing}"
