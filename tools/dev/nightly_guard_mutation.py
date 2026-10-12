@@ -95,6 +95,16 @@ SEEN_RED: dict[str, str] = {
         "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "
         "R530) → 1 rouge ; `traffic_figure` replie au-delà de 7 sources au lieu de 5 (une "
         "couleur partagée par deux sources) → 1 rouge",
+    "tests/test_a_gold_invariant_reads_one_snapshot.py":
+        "2026-10-12 — R541 : `run()` sans `db.execute_query(ONE_SNAPSHOT)` (les deux "
+        "membres lus dans deux instantanés, R540) → 1 rouge",
+    "tests/test_the_weekly_model_error_sql_on_the_live_schema.py":
+        "2026-10-12 — R541 : `_WEEKLY_SQL` sans `p.artist_id = o.artist_id` → rouge « another "
+        "tenant's forecast joined » ; sans `- 28` → rouge « a forecast inside the window »",
+    "tests/test_the_algo_page_answers_without_a_title.py":
+        "2026-10-12 — R541 : `router.show()` sans `_show_track_free_sections` après « Aucune "
+        "donnée de timeline » → 1 rouge, et après la lecture de titres qui lève → 1 rouge ; "
+        "`goto()` qui perd l'alias → 1 rouge",
     "tests/test_a_push_carries_the_tree_seen_green.py":
         "2026-10-08 — R467 : `verdict` ne compte plus les fichiers changés depuis le run vert "
         "(le push du 2026-10-07, R444) → 2 rouges",
