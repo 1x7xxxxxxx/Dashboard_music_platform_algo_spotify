@@ -17,8 +17,8 @@ from src.dashboard.utils.nav_sections import NAV_SECTIONS
 from src.dashboard.views.meta_ads_overview import ALIAS_SECTION, SECTIONS, arrival_section
 
 # Written out, not read from ALIAS_SECTION: a map checked against itself proves nothing.
-_EXPECTED = {"meta_x_spotify": "funnel", "meta_creatives": "creatives",
-             "meta_breakdowns": "breakdowns", "instagram": "instagram"}
+_EXPECTED = {"meta_x_spotify": "entonnoir", "meta_creatives": "creas",
+             "meta_breakdowns": "audiences", "instagram": "instagram"}
 _ABSORBED = tuple(_EXPECTED)
 
 
@@ -68,8 +68,9 @@ def test_every_section_of_the_registry_resolves() -> None:
 
     allowed = {bar.BAR_FULL, bar.BAR_JOURNEY, bar.BAR_UNDATED, bar.BAR_ACCOUNT, bar.BAR_NONE,
                None}
-    assert list(SECTIONS) == ["funnel", "perf", "releases", "creatives", "breakdowns",
-                              "instagram"], list(SECTIONS)
+    # R554 (ADR-033 decision 2) — five sections, read top to bottom.
+    assert list(SECTIONS) == ["chrono", "entonnoir", "creas", "audiences", "instagram"], (
+        list(SECTIONS))
     for key, entry in SECTIONS.items():
         assert isinstance(entry.label(), str) and entry.label(), key
         assert entry.bar in allowed, key

@@ -96,24 +96,12 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   - qui: moi
     texte: Ajouter les streams, renommer en « clics Hypeddit »
     rid: R246
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Anneau par objectif, totaux étiquetés
-    rid: R245
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   valide: false
   actions:
   - qui: moi
     texte: Légende + glossaire (CPR, CTR…) sur tous les graphes via une porte de dessin unique
     rid: R243
-src/dashboard/views/meta_breakdowns.py::_render_performance#2:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Pays sur la même vue que placement, âge et plateforme
-    rid: R246
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   valide: false
   actions:
@@ -123,12 +111,6 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   - qui: moi
     texte: Même vue que placement, âge, plateforme
     rid: R246
-src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Rendre chaque branche des sélecteurs dans le dossier
-    rid: R242
 src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
   valide: false
   actions:

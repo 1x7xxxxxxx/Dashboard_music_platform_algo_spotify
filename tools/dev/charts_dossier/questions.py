@@ -62,10 +62,6 @@ SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
         ("faux doublon — le top 10 en vues et likes côte à côte vs la concentration des vues "
          "(part cumulée), par format vidéo / short : quelle vidéo marche, et à combien de "
          "vidéos tiennent les vues (R485)", frozenset()),
-    frozenset({"src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1",
-               "src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2"}):
-        ("faux doublon — un total par vague (budget, écoutes gagnées, € par écoute) vs la "
-         "courbe jour par jour autour de chaque vague (R301)", frozenset()),
     frozenset({"src/dashboard/views/trigger_algo/_tab_model.py::_show_volume_vs_recorded#1",
                "src/dashboard/views/trigger_algo/_tab_model.py::_show_error_by_prediction_week#1"}):
         ("faux doublon — par titre (dernière prédiction) vs par semaine de prédiction",

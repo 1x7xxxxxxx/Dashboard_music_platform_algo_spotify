@@ -28,11 +28,11 @@ def test_the_menu_no_longer_lists_the_funnel() -> None:
 
 
 def test_the_meta_ads_page_renders_the_funnel() -> None:
-    # R476 — the sections are a registry; the « funnel » entry's renderer must reach
+    # R476 — the sections are a registry; the « entonnoir » entry's renderer must reach
     # `render_funnel` (the journey of one campaign, ADR-032).
     from src.dashboard.views.meta_ads_overview import SECTIONS
 
-    name = SECTIONS["funnel"].render.__name__
+    name = SECTIONS["entonnoir"].render.__name__
     tree = ast.parse(OVERVIEW.read_text(encoding="utf-8"))
     route = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     calls = {getattr(c.func, "id", "") for c in ast.walk(route) if isinstance(c, ast.Call)}

@@ -22,7 +22,7 @@ from src.dashboard.utils import charts
 from src.dashboard.utils.filters import (
     table_carries_account,
 )
-from src.dashboard.utils.geo import iso2_to_iso3, iso2_to_name
+from src.dashboard.utils.geo import iso2_to_name
 from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_pair import render_share_pair, share_pair
@@ -132,21 +132,8 @@ def _render_performance(df):
                     fig.update_layout(height=360, margin={'t': 40, 'l': 60, 'r': 60, 'b': 90})
                     charts.plotly_chart(fig, width="stretch")
 
-    geo = _panel(df, "country")
-    geo['iso3'] = geo['k'].map(iso2_to_iso3)
-    geo = geo.dropna(subset=['iso3'])
-    if not geo.empty:
-        # R246 (fiches 25-27) : sur la même vue que placement, âge, plateforme — dépliée.
-        st.markdown("**" + t("meta_breakdowns.map", "🗺️ Carte de la dépense par pays") + "**")
-        with st.container():
-            fig = px.choropleth(
-                geo, locations='iso3', color='spend', hover_name='dim_label',
-                color_continuous_scale='YlOrRd',
-                labels={'spend': t("meta_breakdowns.spend_eur", "Dépense (€)")},
-            )
-            fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0},
-                              geo={'showframe': False})
-            charts.plotly_chart(fig, width="stretch")
+    # R554 (fiche 32, 2026-10-13) : la carte de la dépense est partie — le Pareto pays
+    # ci-dessus dit les mêmes pays AVEC le CPR, que la carte ne portait pas.
 
 
 def _one_dimension(df):
@@ -200,18 +187,8 @@ def _render_engagement(df):
                  "il les compterait deux fois.").format(
                      n=num(int(_one_dimension(df)['page_interactions'].sum()), 0)))
 
-    geo = _panel(df, "country")
-    geo['iso3'] = geo['k'].map(iso2_to_iso3)
-    geo = geo.dropna(subset=['iso3'])
-    if not geo.empty:
-        # R246 (fiches 25-27) : sur la même vue que placement, âge, plateforme — dépliée.
-        st.markdown("**" + t("meta_breakdowns.map_engagement", "🗺️ Carte des interactions par pays") + "**")
-        with st.container():
-            fig = px.choropleth(geo, locations='iso3', color='total', hover_name='dim_label',
-                                color_continuous_scale='Blues',
-                                labels={'total': t("meta_breakdowns.interactions", "Interactions")})
-            fig.update_layout(margin={'l': 0, 'r': 0, 't': 10, 'b': 0}, geo={'showframe': False})
-            charts.plotly_chart(fig, width="stretch")
+    # R554 (fiche 34, 2026-10-13) : la carte des interactions est partie, même raison
+    # que celle de la dépense — le panneau pays ci-dessus les classe déjà.
 
 
 def _breakdown_frame(db, artist_id: int, family: str, grain_key: str, entity_col,
@@ -272,7 +249,7 @@ def _breakdown_frame(db, artist_id: int, family: str, grain_key: str, entity_col
 def show() -> None:
     # R399 — the breakdowns are a section of the cross view, under its one filter bar.
     from src.dashboard.views.meta_ads_overview import show as show_cross_view
-    show_cross_view("breakdowns")
+    show_cross_view("audiences")
 
 
 def render(db, artist_id, bar) -> None:

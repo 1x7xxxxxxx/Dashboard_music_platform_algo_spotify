@@ -316,17 +316,6 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   owner: "On garde."
   note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
 src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
-  mq: M1
-  q: "Ce que chaque vague de campagnes a rapporté en écoutes, et le prix d'une écoute gagnée (P2) ?"
-  decision: "Savoir ce que chaque vague de pub a rapporté en écoutes et le prix d'une écoute, pour décider de relancer."
-  decision_en: "Know what each ad wave brought in streams and the price per stream, to decide whether to relaunch."
-  role: meta
-  d: 4
-  c: 3
-  p: 4
-  v: garder
-  note: "R291 — ta P2, jugée par VAGUE : une à une, les 21 campagnes étaient non concluantes (une autre dépensait en même temps). 3 vagues : +191 écoutes/jour à 0,029 €, +185 à 0,101 €, une dans le bruit. Association, pas causalité : la légende le dit."
-src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#2:
   q: "Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?"
   decision: "Voir combien de temps l'effet d'une vague dure, pour savoir quand juger une campagne et quand relancer."
   decision_en: "See how long a wave's effect lasts, to know when to judge a campaign and when to relaunch."
@@ -350,19 +339,6 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   owner_v: corriger
   owner: "Ajouter les streams Spotify obtenus ; « clic Spotify » → « clic Hypeddit » ; le CPR c'est très bien."
   note: "Dépense, clics et CPR sur la campagne : on voit les clics s'effondrer avec le budget le 20/09."
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#2:
-  mq: M3
-  q: "Quel objectif d'optimisation coûte le moins cher par résultat ?"
-  decision: "Choisir l'objectif d'optimisation Meta qui coûte le moins cher par résultat."
-  decision_en: "Choose the Meta optimisation goal with the lowest cost per result."
-  role: meta
-  d: 3
-  c: 3
-  p: 3
-  v: garder
-  owner_v: corriger
-  owner: "Changer le graphe en rond pour la lisibilité."
-  note: "Deux objectifs dont un quasi nul en dépense — la comparaison de CPR est fragile, à marquer."
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
@@ -377,19 +353,6 @@ src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   owner: "Fusion ; ajouter des légendes (le CPR n'est pas évident) ; des légendes sur tous les graphes, avec un refactor."
   cause: doublon
   note: "La carte dit « Mexique » ; le graphique pays voisin dit la même chose avec le CPR en plus. Garder l'un des deux."
-src/dashboard/views/meta_breakdowns.py::_render_performance#2:
-  mq: M7
-  q: "Où ma pub a-t-elle dépensé, dans le monde ? (carte, repliée)"
-  decision: "Voir où ta pub a dépensé dans le monde, pour couper les pays qui coûtent sans rendre."
-  decision_en: "See where your ads spent worldwide, to cut countries that cost without returning."
-  role: meta
-  d: 4
-  c: 4
-  p: 4
-  v: garder
-  owner_v: corriger
-  owner: "On garde ; la géographie sur la même vue que placement, âge, plateforme."
-  note: "Mexique ≈ 850 € à CPR 0,11 € ; les pays chers se repèrent. Plus utile que la carte."
 src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où ma pub fait-elle réagir ? (R208)"
@@ -403,19 +366,6 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   owner_v: corriger
   owner: "Non rendu : trouver pourquoi et comment voir toutes les vues ; refactor si pertinent."
   note: "Non rendu : n'apparaît qu'avec un autre choix du sélecteur de dimension."
-src/dashboard/views/meta_breakdowns.py::_render_engagement#2:
-  mq: M7
-  q: "Où ma pub fait-elle réagir, dans le monde ? (carte, repliée)"
-  decision: "Repérer sur la carte les pays qui réagissent, pour y concentrer le budget."
-  decision_en: "Spot on the map the countries that react, to concentrate budget there."
-  role: meta
-  d: 3
-  c: 4
-  p: 3
-  v: a-trancher
-  owner_v: corriger
-  owner: "Pareil, pas de rendu."
-  note: "Non rendu : autre choix du sélecteur."
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   mq: M2
   q: "Quelle créa coûte le moins cher, et engage le plus ?"

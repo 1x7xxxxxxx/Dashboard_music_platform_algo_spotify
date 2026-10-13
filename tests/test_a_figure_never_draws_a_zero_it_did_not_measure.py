@@ -398,9 +398,9 @@ def test_the_share_mode_does_not_inflate_the_platforms_that_are_present(monkeypa
 #
 # Les trois sites, MESURÉS le 2026-09-12 et lus un par un :
 #
-#   meta_ads_overview._show_meta_ads (6) — la frise quotidienne est corrigée
-#       (réindexée, `NaN`, `connectgaps=False`). Les six restants sont les Paretos
-#       pays / placement / âge : des catégories, pas des jours.
+#   meta_ads_overview._show_meta_ads — SORTI le 2026-10-13 (R554) : la fonction ne
+#       porte plus que la frise quotidienne (réindexée, `NaN`, `connectgaps=False`) ;
+#       ses `fillna(0)` de catégories sont partis avec les totaux et l'anneau.
 #   meta_creatives._prepare_timeline (1, extrait de _render_creative_timeline le
 #       2026-09-26, R205) — c'est le PLANCHER DE SEAU, le
 #       modèle que les autres copient : `_measured.reindex(...).fillna(0) >= 3.5`
@@ -418,7 +418,6 @@ _WIDEN_AND_FILL: dict[str, int] = {
     # reindexed WITHOUT a fill (an empty month draws no bar); only the balance's
     # `cumsum` reads the zero.
     "src/dashboard/utils/treasury_chart.py:cashflow_figure": 1,
-    "src/dashboard/views/meta_ads_overview.py:_show_meta_ads": 6,
     "src/dashboard/views/meta_creatives.py:_prepare_timeline": 1,
     # R350 — two campaigns on their own day-0 clock: a day without a row inside a
     # campaign's life adds 0 € and 0 click, and the zero only feeds the two `cumsum`s

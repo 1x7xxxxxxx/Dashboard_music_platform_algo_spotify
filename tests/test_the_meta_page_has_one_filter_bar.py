@@ -45,7 +45,6 @@ _SELECTORS = {"selectbox", "multiselect", "segmented_control", "radio", "pills",
 # key → why it is not a filter of the page.
 _ALLOWED = {
     "meta_overview_section": "navigation between the sections",
-    "tgt_dim": "the dimension a chart is split by, not a filter",
     "bd_family": "which metric family the breakdowns show",
     "bd_adset": "drill-down INSIDE the bar's campaign",
     "bd_ad": "drill-down INSIDE the bar's campaign",
@@ -112,7 +111,7 @@ def test_each_section_renders_the_one_bar() -> None:
     at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
                                                   artist_id=1))
     at.run(timeout=180)
-    for section in ("funnel", "perf", "creatives", "breakdowns", "instagram"):
+    for section in ("chrono", "entonnoir", "creas", "audiences", "instagram"):
         at.segmented_control(key="meta_overview_section").set_value(section).run(timeout=180)
         assert not at.exception, (section, at.exception)
         keys = [getattr(w, "key", None) for w in _walk(at._tree)]
@@ -138,7 +137,7 @@ def test_the_bars_free_period_is_not_a_stray() -> None:
     at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
                                                   artist_id=1))
     at.run(timeout=180)
-    at.segmented_control(key="meta_overview_section").set_value("perf").run(timeout=180)
+    at.segmented_control(key="meta_overview_section").set_value("chrono").run(timeout=180)
     at.selectbox(key="meta_campaign").set_value("Toutes").run(timeout=180)
     assert not at.exception, at.exception
     keys = [getattr(w, "key", None) for w in _walk(at._tree)]

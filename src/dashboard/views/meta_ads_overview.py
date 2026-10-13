@@ -14,25 +14,8 @@ from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0
 from src.dashboard.utils.meta_filter_bar import (
-    BAR_FULL, BAR_JOURNEY, BAR_NONE, BAR_UNDATED, MetaFilters, filter_bar,
+    BAR_FULL, BAR_UNDATED, MetaFilters, filter_bar,
     say_instagram_is_outside)
-
-# Meta gender targeting codes → labels (empty = no restriction = everyone).
-_GENDER_LABELS = {'1': 'Hommes', '2': 'Femmes', '': 'Tous', '1,2': 'Tous', '2,1': 'Tous'}
-_GENDER_SLUGS = {'Hommes': 'men', 'Femmes': 'women', 'Tous': 'all'}
-
-
-def _gender_label(code: str) -> str:
-    fr = _GENDER_LABELS.get(code, code or 'Tous')
-    slug = _GENDER_SLUGS.get(fr)
-    return t(f"meta_ads_overview.gender.{slug}", fr) if slug else fr
-# Adset targeting attribute the user can slice performance by (#9 Ciblage vs perf).
-_TARGETING_DIMS = {
-    "Objectif d'optimisation": "optimization_goal",
-    "Genre ciblé": "gender",
-    "Plateformes": "publisher_platforms",
-    "Tranche d'âge": "age_band",
-}
 
 def _render_scope_notice(db, artist_id) -> None:
     """Ce que CE compte permet de répondre, et ce qu'il ne permet pas. Mesuré.
@@ -118,32 +101,20 @@ class Section:
     bar: frozenset[str] | None           # None = no bar at all (Instagram, organic)
 
 
-def _render_journey(db, artist_id, bar: MetaFilters) -> None:
-    from src.dashboard.views.meta_x_spotify import render_funnel
-    render_funnel(db, artist_id, bar)
+# R554 (ADR-033 decision 2, owner's Y2 of 2026-10-13) — seven sections became five, read
+# top to bottom: WHEN (chronology), HOW MUCH at each step (funnel), WHICH creative and
+# setting, WHO (audiences), and the organic side. A section answers one question; the
+# figures that answered none left with the commit (fiches 27, 30, 32, 34).
 
 
-def _render_perf(db, artist_id, bar: MetaFilters) -> None:
-    _render_scope_notice(db, artist_id)
-    _show_meta_ads(db, artist_id, bar)
-    # « Comparer mes campagnes » — the funnel's fourth tab until R476 (W2).
-    from src.dashboard.utils.campaign_compare import render as render_compare
-    render_compare(db, artist_id, *bar.acct())
-    # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
-    # Credentials : cette page répond à « que veux-tu suivre », l'autre à
-    # « comment te connecter ».
-    from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
-    render_extra_ad_accounts(db, artist_id)
-
-
-def _render_releases(db, artist_id, bar: MetaFilters) -> None:
-    """Hypeddit campaigns compared (W5), releases at equal age with Meta € (W6), Shazam
-    since release with Meta € (W7) — each left its platform page in the R476 commit."""
+def _render_chrono(db, artist_id, bar: MetaFilters) -> None:
+    """📈 Chronologie — every reading that has a calendar: spend and clicks per day, the
+    streams around each wave, the releases at equal age, Shazam since release."""
     from src.dashboard.views.apple_music import render_shazam_launches
-    from src.dashboard.views.hypeddit import render_campaign_stats
     from src.dashboard.views.spotify_s4a_combined import render_release_cohort
 
-    render_campaign_stats(db, artist_id)
+    _show_meta_ads(db, artist_id, bar)
+    _render_campaign_waves(db, artist_id)
     st.markdown("---")
     render_release_cohort(db, " AND artist_id = %s", (artist_id,), overlays=True,
                           key="cross_release_pick")
@@ -151,16 +122,58 @@ def _render_releases(db, artist_id, bar: MetaFilters) -> None:
     render_shazam_launches(db, artist_id)
 
 
+def _render_funnel_section(db, artist_id, bar: MetaFilters) -> None:
+    """🛤️ Entonnoir — budget → impressions → clicks → smart link → platforms, then the
+    totals per campaign, the comparison, the Hypeddit campaigns and the agency accounts."""
+    from src.dashboard.utils.campaign_compare import render as render_compare
+    from src.dashboard.views.hypeddit import render_campaign_stats
+    from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
+    from src.dashboard.views.meta_x_spotify import render_funnel
+
+    render_funnel(db, artist_id, bar)
+    st.markdown("---")
+    _render_campaign_totals(db, artist_id, bar)
+    render_compare(db, artist_id, *bar.acct())
+    st.markdown("---")
+    render_campaign_stats(db, artist_id)
+    # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
+    # Credentials : cette page répond à « que veux-tu suivre », l'autre à
+    # « comment te connecter ».
+    render_extra_ad_accounts(db, artist_id)
+
+
 def _render_creatives(db, artist_id, bar: MetaFilters) -> None:
     from src.dashboard.views.meta_creatives import render as render_creatives
     render_creatives(db, artist_id, bar)
+    _render_goal_pareto(db, artist_id, bar)
 
 
-def _render_breakdowns(db, artist_id, bar: MetaFilters) -> None:
+def _render_goal_pareto(db, artist_id, bar: MetaFilters) -> None:
+    """The optimisation goal — the first « best setting » criterion (fiche 30 → R557).
+
+    `v_meta_adset_daily` (migration 108) names the tenant on the whole adsets → ads →
+    insights chain; the ring that read it left with fiche 30.
+    """
+    acct_sql, acct_params = bar.acct()
+    win_sql, win_params = bar.window.sql_between("day") if bar.window else ("", ())
+    df = db.fetch_df(
+        "SELECT COALESCE(optimization_goal, %s) AS goal, SUM(spend) AS spend, "
+        "SUM(conversions) AS results FROM v_meta_adset_daily WHERE artist_id = %s"
+        f"{acct_sql}{win_sql} GROUP BY 1",
+        (t("meta_ads_overview.unknown", "Inconnu"), artist_id, *acct_params, *win_params))
+    fig = charts.pareto_spend_cpr(
+        df, "goal", t("meta_ads_overview.goal_pareto",
+                      "🎯 Objectif d'optimisation — dépense et coût par clic sortant"))
+    if fig is not None:
+        st.markdown("---")
+        charts.plotly_chart(fig)
+
+
+def _render_audiences(db, artist_id, bar: MetaFilters) -> None:
     from src.dashboard.views.meta_breakdowns import render as render_breakdowns
     from src.dashboard.views.meta_x_spotify import render_countries
     render_breakdowns(db, artist_id, bar)
-    # « Par pays » — the funnel's third tab until R476 (W2): who saw the ads, where.
+    # « Par pays » — who saw the ads, where, against the streams of that country.
     st.markdown("---")
     render_countries(db, artist_id, *bar.acct())
 
@@ -172,24 +185,23 @@ def _render_instagram(db, artist_id, bar: None) -> None:
 
 
 SECTIONS: dict[str, Section] = {
-    "funnel": Section(lambda: t("meta_ads_overview.section_journey",
-                                "🛤️ Le parcours d'une campagne"), _render_journey, BAR_JOURNEY),
-    "perf": Section(lambda: t("meta_ads_overview.section_perf", "📣 Performance des campagnes"),
-                    _render_perf, BAR_FULL),
-    "releases": Section(lambda: t("meta_ads_overview.section_releases", "🚀 Mes sorties"),
-                        _render_releases, BAR_NONE),
-    "creatives": Section(lambda: t("meta_ads_overview.section_creatives",
-                                   "🎨 Visuels de campagne"), _render_creatives, BAR_FULL),
-    "breakdowns": Section(lambda: t("meta_ads_overview.section_breakdowns",
-                                    "🌍 Qui a vu tes pubs"), _render_breakdowns, BAR_UNDATED),
+    "chrono": Section(lambda: t("meta_ads_overview.section_chrono", "📈 Chronologie"),
+                      _render_chrono, BAR_FULL),
+    "entonnoir": Section(lambda: t("meta_ads_overview.section_funnel", "🛤️ Entonnoir"),
+                         _render_funnel_section, BAR_FULL),
+    "creas": Section(lambda: t("meta_ads_overview.section_creas", "🎨 Créas & réglages"),
+                     _render_creatives, BAR_FULL),
+    "audiences": Section(lambda: t("meta_ads_overview.section_audiences", "🌍 Audiences"),
+                         _render_audiences, BAR_UNDATED),
     "instagram": Section(lambda: t("meta_ads_overview.section_instagram", "📸 Instagram"),
                          _render_instagram, None),
     # R553 (ADR-033 decision 1) : « 💶 Revenus » left for the Trésorerie page (`imusician`).
 }
+DEFAULT_SECTION = "entonnoir"
 # The old page key → the section it used to be. Read on arrival only, so a click on the
 # control afterwards is never overridden.
-ALIAS_SECTION = {"meta_x_spotify": "funnel", "meta_creatives": "creatives",
-                 "meta_breakdowns": "breakdowns", "instagram": "instagram"}
+ALIAS_SECTION = {"meta_x_spotify": "entonnoir", "meta_creatives": "creas",
+                 "meta_breakdowns": "audiences", "instagram": "instagram"}
 SECTION_KEY = "meta_overview_section"
 
 
@@ -215,10 +227,10 @@ def show(section: str | None = None):
     if landing:
         st.session_state[SECTION_KEY] = landing
     if st.session_state.get(SECTION_KEY) not in SECTIONS:
-        st.session_state[SECTION_KEY] = section if section in SECTIONS else "funnel"
+        st.session_state[SECTION_KEY] = section if section in SECTIONS else DEFAULT_SECTION
     section = st.segmented_control(
         t("meta_ads_overview.section", "Vue"), list(SECTIONS),
-        format_func=_section_label, key=SECTION_KEY) or "funnel"
+        format_func=_section_label, key=SECTION_KEY) or DEFAULT_SECTION
 
     # R399 — ONE connection, opened here and handed to the section (rule 9); declared for
     # the creatives' fragments (`fragment_db`). ONE filter bar, read by every section.
@@ -229,8 +241,34 @@ def show(section: str | None = None):
         bar = None
         if entry.bar is not None:
             bar = filter_bar(db, artist_id, entry.bar)
+            _render_glossary()
             st.markdown("---")
         entry.render(db, artist_id, bar)
+
+
+# R554 — the owner asked what five words of this page mean (2026-10-13). Each is written
+# ONCE here, folded under the filter bar of every Meta section, never on a chart.
+_GLOSSARY = (
+    ("clic_sortant", "**Clic sortant** — le clic qui quitte ton smart link Hypeddit vers une "
+     "plateforme (Spotify, Apple…). Hypeddit le renvoie à Meta par sa CAPI : c'est le "
+     "« résultat » du CPR."),
+    ("frequence", "**Fréquence** — impressions ÷ personnes touchées : combien de fois, en "
+     "moyenne, une même personne a vu la pub."),
+    ("engagement", "**Engagement** — réactions + commentaires + partages + enregistrements "
+     "sur la pub."),
+    ("etape", "**% de l'étape d'avant** — la part des gens de l'étape précédente qui ont "
+     "atteint celle-ci (1,1 % = 11 sur 1 000)."),
+    ("cout_unitaire", "**Coût à l'unité** — la dépense divisée par le nombre à cette étape "
+     "(0,127 € l'unité = 1 € pour ~8 clics)."),
+    ("cpr", "**CPR** — coût par résultat : dépense ÷ clics sortants."),
+)
+
+
+def _render_glossary() -> None:
+    with st.expander(t("meta_ads_overview.glossary", "📖 Les mots de cette page"),
+                     expanded=False):
+        st.markdown("\n".join(f"- {t(f'meta_ads_overview.gloss.{k}', fr)}"
+                               for k, fr in _GLOSSARY))
 
 
 def _nan(v):
@@ -278,66 +316,27 @@ def _waves_and_verdicts(db, artist_id) -> tuple[list, pd.Series | None]:
 
 
 def _render_campaign_waves(db, artist_id) -> None:
-    """R291 — the owner's P2, kept (2026-09-28) : « ce que chaque campagne a rapporté en
-    écoutes, et le prix d'une écoute gagnée », merged with its budget.
+    """R301 — the streams around each WAVE of campaigns: how long an effect lasts, hence
+    when to judge a campaign and when to relaunch.
 
-    Judged per WAVE, not per campaign: campaigns that overlap cannot be told apart, and one
-    by one all 21 of artist 1 were « non concluant ». A wave groups them (meta_impact.waves)
-    and gets the SAME refusals as the listener verdict of the Meta × Spotify page — running,
-    too few measured days, a lift inside the day-to-day noise (code-critic, 2026-09-28)."""
-    from plotly.subplots import make_subplots
+    R554 (fiche 27, 2026-10-13): the bars per wave (budget, streams gained, € per stream)
+    left — the owner read them as a second chronology of the same waves. The curve keeps
+    the waves and the baseline of the listener verdict (`meta_impact`), one definition."""
     rows, series = _waves_and_verdicts(db, artist_id)
-    if not rows:
+    curve = _wave_curves_figure(rows, series) if rows else None
+    if curve is None:
         return
-    # Folded (the page's first-screen ceiling, Few): it refines the decision the per-campaign
-    # figure above makes, it does not make one.
+    # Folded (the page's first-screen ceiling, Few): it refines the daily figure above.
     with secondary_analyses(t("meta_ads_overview.waves_header",
-                              "🌊 Ce que chaque vague de campagnes a rapporté en écoutes"),
+                              "🌊 Combien de temps l'effet d'une vague de pub dure"),
                             expanded=False):
-        labels = [f"{format_date(w.start)} → {format_date(w.end)} · {len(n)} camp." for w, n, _ in rows]
-        # A lift is written ONLY above the day-to-day noise (the verdict's own rule): below it,
-        # « +455 » next to « dans le bruit » would say two things about one wave.
-        real = [v.conclusive and v.eur_per_listener_day is not None for _, _, v in rows]
-        lift = [v.lift_per_day if ok else None for (_, _, v), ok in zip(rows, real)]
-        eur = [v.eur_per_listener_day if ok else None for (_, _, v), ok in zip(rows, real)]
-        blank = [t("meta_ads_overview.within_noise", "dans le bruit") if v.conclusive
-                 else t("meta_ads_overview.inconclusive", "non concluant") for _, _, v in rows]
-        frames = ((t("meta_ads_overview.wave_spend", "Budget (€)"), [w.spend for w, _, _ in rows],
-                   "{:,.0f}", platform_color("meta")),
-                  (t("meta_ads_overview.wave_lift", "Écoutes gagnées / jour"), lift, "{:+,.0f}",
-                   platform_color("spotify")),
-                  (t("meta_ads_overview.wave_eur", "€ par écoute gagnée"), eur, "{:,.3f}",
-                   "#7f7f7f"))
-        fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.06,
-                            subplot_titles=[f[0] for f in frames])
-        for i, (lab, vals, fmt, ink) in enumerate(frames):
-            fig.add_trace(go.Bar(
-                x=[v if v is not None else 0 for v in vals], y=labels, orientation="h",
-                showlegend=False, marker_color=ink,
-                text=[fmt.format(v).replace(",", " ") if v is not None else b
-                      for v, b in zip(vals, blank)], textposition="outside", cliponaxis=False,
-                customdata=[[" · ".join(n), v.text] for _, n, v in rows],
-                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<extra></extra>"),
-                row=1, col=i + 1)
-            fig.update_xaxes(showticklabels=False, row=1, col=i + 1)
-        fig.update_layout(height=max(260, 60 * len(rows) + 120),
-                          margin={"l": 10, "r": 60, "t": 50, "b": 20})
-        fig.update_yaxes(automargin=True)
-        charts.plotly_chart(fig, width="stretch")
-        curve = _wave_curves_figure(rows, series)
-        if curve is not None:
-            charts.plotly_chart(curve[0], width="stretch")
-            _curve_caption(curve[1])
-        judged = sum(1 for _, _, v in rows if v.conclusive)
+        charts.plotly_chart(curve[0], width="stretch")
+        _curve_caption(curve[1])
         st.caption(t("meta_ads_overview.waves_caption",
                      "Une VAGUE regroupe les campagnes qui se chevauchent ou se suivent à moins "
-                     "de 28 jours : séparément, elles ne se distinguent pas. Écoutes gagnées = "
-                     "écoutes Spotify par jour PENDANT la vague moins les 28 jours avant. "
-                     "« Non concluant » : trop peu de jours mesurés, vague en cours, ou hausse "
-                     "dans la variation normale — la raison est au survol. Une vague coïncide "
+                     "de 28 jours : séparément, elles ne se distinguent pas. Une vague coïncide "
                      "souvent avec une sortie : c'est une association, pas la preuve que la pub "
-                     "a causé ces écoutes. {j} vague(s) sur {n} jugée(s).").format(
-                         j=judged, n=len(rows)))
+                     "a causé ces écoutes."))
 
 
 def _wave_curves_figure(rows: list, series: pd.Series | None):
@@ -345,7 +344,7 @@ def _wave_curves_figure(rows: list, series: pd.Series | None):
     streams AROUND each wave, as an index (100 = the 28 days before it). The only figure
     saying how long an effect lasts — hence when to judge a campaign and when to relaunch.
 
-    Same waves and same baseline floor as the verdict above (`meta_impact.event_study`),
+    Same waves and same baseline floor as the listener verdict (`meta_impact.event_study`),
     never a second definition. A curve that rises BEFORE day 0 is a release, not the ads.
     Returns (figure, waves left out) or None; DRAWN by `_render_campaign_waves`, whose own
     gold reads the layer scan can then follow (a figure fed an argument read as « — »)."""
@@ -554,33 +553,34 @@ def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> N
     render_day0(day0_cumulative(daily, first, second), first, second)
 
 
-def _show_meta_ads(db, artist_id, bar: MetaFilters):
-    # R399 — account, campaigns and period come from the page's one filter bar. The
-    # campaign values were offered from the database and are re-checked against that
-    # list (CRITICAL-04: they reach SQL only as `%s` parameters, never interpolated).
-    _account = bar.account
-    _acct, _acct_params = bar.acct()
-    _acct_s, _ = bar.acct("s.")
-    selected_campaigns = [c for c in bar.scope if c in set(bar.campaigns)]
-    window = bar.window
-    _win_sql, _win_params = window.sql_between("day")
-    _campaign_in = _acct + (
-        " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected_campaigns)))
-        if selected_campaigns else ""
-    ) + _win_sql
-    params = (artist_id, *_acct_params, *selected_campaigns, *_win_params)
+def _campaign_scope(bar: MetaFilters) -> tuple[str, tuple, list[str]]:
+    """(SQL suffix, parameters, selected campaigns) of the page's one filter bar (R399).
 
-    # R373 (2026-10-05, V6) — « ce que ta publicité a appris » a quitté l'accueil et
-    # vit ici en attendant la vue croisée (R378). Même fenêtre que la page, et toute la
-    # publicité de l'artiste : le conseil parle de ses campagnes, pas de la sélection.
+    The campaign values were offered from the database and are re-checked against that
+    list (CRITICAL-04: they reach SQL only as `%s` parameters, never interpolated)."""
+    acct, acct_params = bar.acct()
+    selected = [c for c in bar.scope if c in set(bar.campaigns)]
+    win_sql, win_params = bar.window.sql_between("day")
+    campaign_in = acct + (
+        " AND campaign_name IN ({})".format(','.join(['%s'] * len(selected)))
+        if selected else "") + win_sql
+    return campaign_in, (*acct_params, *selected, *win_params), selected
+
+
+def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
+    """R554 — the totals per campaign, under the funnel: they answer « how much at each
+    step », the funnel's question, not « when » (they left `_show_meta_ads`)."""
+    _render_scope_notice(db, artist_id)
+    _campaign_in, scope_params, selected_campaigns = _campaign_scope(bar)
+    params = (artist_id, *scope_params)
+    window = bar.window
+
+    # R373 (2026-10-05, V6) — « ce que ta publicité a appris » : même fenêtre que la
+    # page, et toute la publicité de l'artiste — le conseil parle de ses campagnes.
     from src.dashboard.utils.period_side_metrics import period_side_metrics
     from src.dashboard.views.home_meta_advice import render_meta_advice
     _bornes = (None, None) if window.is_all_history else (window.start, window.end)
     render_meta_advice(period_side_metrics(db, artist_id, *_bornes))
-
-    # ==============================================================================
-    # 🟢 SECTION 1 : VUE MACRO (KPIS)
-    # ==============================================================================
 
     # ⚠️ Les totaux de cette page se calculent EN PANDAS (`df_perf['spend'].sum()`).
     # Aucun garde SQL ne peut les voir : il n'y a pas de `SUM(` dans la requête. La
@@ -608,8 +608,7 @@ def _show_meta_ads(db, artist_id, bar: MetaFilters):
                       "période pour comparer tes campagnes entre elles."))
         _render_global_perf(df_perf)
         if len(selected_campaigns) == 2:
-            _render_pair_day0(db, artist_id, _account, *selected_campaigns)
-        _render_campaign_waves(db, artist_id)
+            _render_pair_day0(db, artist_id, bar.account, *selected_campaigns)
 
         # Engagement
         if not df_eng.empty:
@@ -620,44 +619,29 @@ def _show_meta_ads(db, artist_id, bar: MetaFilters):
             e2.metric("🔄 Shares", f"{df_eng['shares'].sum():,.0f}")
             e3.metric(t("meta_ads_overview.total_interactions", "⚡ Interactions Totales"), f"{df_eng['page_interactions'].sum():,.0f}")
 
+    with secondary_analyses(t("meta_ads_overview.summary_table",
+                              "🗃️ Tableau récapitulatif — le détail chiffré")):
+
+        df_full = db.fetch_df(_summary_query(_campaign_in), params + params)
+
+        if not df_full.empty:
+            st.dataframe(
+                df_full.style.format({
+                    "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
+                    "CTR (%)": "{:,.2f}",
+                    "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
+                    "Clics Hypeddit": "{:,.0f}", "Clics pub": "{:,.0f}",
+                }, na_rep="—"),
+                width="stretch",
+            )
     st.markdown("---")
 
-    # ═══════════════════════════════════════════════════════════════════════
-    # LE FUNNEL A DÉMÉNAGÉ le 2026-09-21 — et il était FAUX.
-    # ═══════════════════════════════════════════════════════════════════════
-    #
-    # Il vit désormais dans « 🔀 Impact de mes campagnes », sous le nom
-    # **Meta × Spotify × Hypeddit**, parce qu'il traverse trois sources et qu'il
-    # appartient à la page qui les croise déjà.
-    #
-    # ⚠️ IL N'A PAS ÉTÉ DÉPLACÉ TEL QUEL. L'artiste avait signalé l'incohérence :
-    # « 643 vues de LP pour 5972 clics Spotify, on devrait avoir une valeur
-    # inférieure ». Mesuré sur tout l'historique du locataire 1 :
-    #
-    #     les deux métriques mesurées le même jour : **91 jours**
-    #     `lp_views < custom_conversions` : **91 jours sur 91**
-    #
-    # Zéro jour cohérent. Le défaut n'était pas dans les chiffres mais dans le
-    # MODÈLE : `lp_views` (le `landing_page_view` de Meta, qui exige que le pixel
-    # se déclenche au chargement) et `custom_conversions` (l'évènement SERVEUR de
-    # la CAPI Hypeddit) ne sont pas deux étapes successives — ce sont **deux
-    # mesures de la même étape**, dont l'une sous-compte par construction.
-    #
-    # Les empiler affirmait un emboîtement que la donnée contredit tous les jours.
-    # Dans sa nouvelle forme, `lp_views` est une note de QUALITÉ sur l'étape, et
-    # les quatre étapes sont : impressions → clics pub → arrivées sur le smart
-    # link → clics vers les plateformes.
 
-
-    # R299 — « 📊 Performance par Campagne » is gone: its three columns (budget, link
-    # clicks, CPR) were already three of the six frames of « Performance Globale »
-    # above, for every campaign — and its CPR divided by `results` where the rest of
-    # the page divides by the outbound click (`custom_conversions`): one label, two
-    # definitions on one page. Merged into the six frames, which keep the page's CPR.
-
-    # ==============================================================================
-    # ⏳ SECTION 3 : ÉVOLUTION TEMPORELLE
-    # ==============================================================================
+def _show_meta_ads(db, artist_id, bar: MetaFilters):
+    """⏳ Spend, clicks and cost on one clock, with the streams under them (R246) — the
+    Chronologie's first figure since R554; the totals moved to `_render_campaign_totals`."""
+    _campaign_in, scope_params, _ = _campaign_scope(bar)
+    params = (artist_id, *scope_params)
     st.subheader(t("meta_ads_overview.time_evolution",
                    "⏳ Dépense, clics et coût — sur une seule horloge"))
 
@@ -754,117 +738,3 @@ def _show_meta_ads(db, artist_id, bar: MetaFilters):
         st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
 
     st.markdown("---")
-
-    # ==============================================================================
-    # 🌍 SECTION 4 — VIDE depuis le 2026-09-21, et son titre part avec elle.
-    # ==============================================================================
-    # Un en-tête sans contenu est pire qu'une section supprimée : il promet
-    # quelque chose puis ne le livre pas. Le raisonnement du retrait est juste
-    # en dessous ; il reste parce qu'il explique où la chose est ALLÉE.
-    # ═══════════════════════════════════════════════════════════════════════
-    # LES TROIS PARETO « pays / placement / âge » SONT PARTIS le 2026-09-21.
-    # ═══════════════════════════════════════════════════════════════════════
-    #
-    # Question posée : « pour la view qui a vu tes pubs, ce n'est pas redondant
-    # avec une autre view où on trace des placement pays âge ? » — oui, et c'est
-    # vérifiable : les deux lisaient les MÊMES tables,
-    # `meta_insights_performance_{country,placement,age}`.
-    #
-    # La différence n'était pas dans le sujet mais dans la portée, et celle d'ici
-    # était strictement plus PETITE :
-    #
-    #     ici                 3 dimensions · grain CAMPAGNE · performance seule
-    #     🌍 Qui a vu tes pubs 3 dimensions · 3 grains (campagne/adset/créative)
-    #                          · 2 familles (performance ET engagement) · + carte
-    #
-    # Un sous-ensemble qui vit ailleurs n'est pas un raccourci, c'est une seconde
-    # définition en attente de diverger. Elle part d'ici, où elle était repliée
-    # dans un tiroir, et pas de la page qui la porte entièrement.
-    #
-    # ⚠️ Le croisement PAYS, lui, n'a pas disparu : il a été REFAIT ailleurs, avec
-    # ce qui lui manquait. « 🔀 Impact de mes campagnes » croise désormais la
-    # dépense Meta par pays avec les ÉCOUTES par pays du distributeur — mesuré le
-    # 2026-09-21 : la Colombie rend 0,002 € par écoute contre 0,181 € au Brésil,
-    # **93 fois** moins cher, et aucune des deux pages ne pouvait le dire.
-
-    st.markdown("---")
-
-    # ==============================================================================
-    # 📋 SECTION 5 : DONNÉES BRUTES (TABLEAU COMPLET)
-    # ==============================================================================
-    # LE TABLEAU DESCEND DANS UN TIROIR — 2026-09-21.
-    #
-    # `test_the_dense_views_use_the_pattern_written_for_them` a rougi quand les
-    # trois Pareto sont partis : ils étaient le SEUL `secondary_analyses` de cette
-    # vue, et elle en porte huit figures. Le garde a raison, et son remède est le
-    # bon : un tableau de 21 lignes et 9 colonnes RAFFINE une décision, il n'en
-    # prend aucune — c'est la définition même du tiroir. La figure de comparaison
-    # juste au-dessus répond à la question ; le tableau sert à retrouver une
-    # valeur précise, et c'est un second geste.
-    with secondary_analyses(t("meta_ads_overview.summary_table",
-                              "🗃️ Tableau récapitulatif — le détail chiffré")):
-
-        df_full = db.fetch_df(_summary_query(_campaign_in), params + params)
-
-        if not df_full.empty:
-            st.dataframe(
-                df_full.style.format({
-                    "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
-                    "CTR (%)": "{:,.2f}",
-                    "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
-                    "Clics Hypeddit": "{:,.0f}", "Clics pub": "{:,.0f}",
-                }, na_rep="—"),
-                width="stretch",
-            )
-
-    # ==============================================================================
-    # 🎯 SECTION 6 : CIBLAGE vs PERFORMANCE (#9) — quel ciblage adset performe
-    # ==============================================================================
-    st.markdown("---")
-    st.subheader(t("meta_ads_overview.targeting_perf", "🎯 Ciblage vs Performance"))
-    st.caption(t("meta_ads_overview.targeting_caption",
-                 "Dépense & CPR agrégés par attribut de ciblage des ad sets (résultats ad-level)."))
-
-    # `v_meta_adset_daily` (migration 108) porte la chaîne adsets → ads → insights.
-    # Celle qui vivait ici ne nommait le locataire que sur `meta_adsets` : deux
-    # locataires partageant un `adset_id` ou un `ad_id` mélangeaient leurs dépenses.
-    # C'est la classe que la migration 106 décrit, recopiée une quatrième fois.
-    df_tgt = db.fetch_df(
-        """
-        SELECT optimization_goal, gender, publisher_platforms, age_min, age_max,
-               SUM(spend) AS spend, SUM(conversions) AS results
-        FROM v_meta_adset_daily
-        WHERE artist_id = %s"""
-        f"{_acct}{_win_sql}"
-        """
-        GROUP BY optimization_goal, gender, publisher_platforms, age_min, age_max
-        """,
-        (artist_id, *_acct_params, *_win_params),
-    )
-    if df_tgt.empty:
-        st.info(t("meta_ads_overview.no_targeting_data", "Aucune donnée de ciblage ad set disponible."))
-    else:
-        df_tgt['gender'] = df_tgt['gender'].fillna('').astype(str).map(_gender_label)
-        df_tgt['publisher_platforms'] = df_tgt['publisher_platforms'].fillna('').replace(
-            '', t("meta_ads_overview.all_platforms", 'Toutes'))
-        df_tgt['optimization_goal'] = df_tgt['optimization_goal'].fillna(
-            t("meta_ads_overview.unknown", 'Inconnu'))
-        df_tgt['age_band'] = (
-            df_tgt['age_min'].fillna('').astype(str) + '–' + df_tgt['age_max'].fillna('').astype(str)
-        ).str.strip('–').replace('', t("meta_ads_overview.age_unspecified", 'Non spécifié'))
-
-        dim_label = st.selectbox(
-            t("meta_ads_overview.slice_by", "Découper par"), list(_TARGETING_DIMS.keys()),
-            key="tgt_dim",
-            format_func=lambda lbl: t(f"meta_ads_overview.dim.{_TARGETING_DIMS[lbl]}", lbl))
-        dim_col = _TARGETING_DIMS[dim_label]
-        dim_disp = t(f"meta_ads_overview.dim.{dim_col}", dim_label)
-        agg = df_tgt.groupby(dim_col, as_index=False).agg(spend=('spend', 'sum'),
-                                                          results=('results', 'sum'))
-        # R245 (fiche 23 « en rond pour la lisibilité ») : la part de la dépense, € et CPR
-        # écrits sur chaque part.
-        fig_tgt = charts.spend_ring(
-            agg, dim_col,
-            t("meta_ads_overview.pareto_by_dim", "Dépense & CPR par {dim}").format(dim=dim_disp.lower()))
-        if fig_tgt is not None:
-            charts.plotly_chart(fig_tgt, width="stretch")

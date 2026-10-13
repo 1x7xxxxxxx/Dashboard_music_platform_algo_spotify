@@ -74,7 +74,7 @@ _DYNAMIC_PREFIXES = (
     # (test_the_live_chart_matches_the_illustration) vérifie qu'aucun n'est sans
     # libellé : le prefix n'ouvre donc pas une porte sans contrôle.
     "home.mode_",
-    "home.dag.", "meta_ads_overview.dim.", "meta_ads_overview.gender.", "meta_breakdowns.dim.",
+    "home.dag.", "meta_ads_overview.gloss.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
     # `t("meta_x_spotify.eng_" + col)` — one key per engagement measure, enumerated by

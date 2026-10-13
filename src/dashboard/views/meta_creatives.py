@@ -997,7 +997,7 @@ def _render_activity(ts_all: pd.DataFrame) -> None:
 def show() -> None:
     # R399 — the creatives are a section of the cross view, under its one filter bar.
     from src.dashboard.views.meta_ads_overview import show as show_cross_view
-    show_cross_view("creatives")
+    show_cross_view("creas")
 
 
 def render(db, artist_id, bar) -> None:

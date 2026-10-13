@@ -104,7 +104,7 @@ _CEILING: dict[str, int] = {
     # aussi trompeur qu'un livrable qui invente.
     # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
     # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
-    "figures.unknown": 2,  # 4 → 2 le 2026-09-27 (R247) : deux d'entre elles étaient dans le code mort retiré ; 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
+    "figures.unknown": 3,  # 2 → 3 le 2026-10-13 (R554), correction de MESURE comme R208 : la carte de meta_breakdowns partie, le pareto voisin (`_render_performance`) n est plus mal tracé « hors base » via le `_panel` qu elle partageait — il reçoit le verdict juste, « indéterminée · clé-à-l-exécution » ; 4 → 2 le 2026-09-27 (R247) : deux d'entre elles étaient dans le code mort retiré ; 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la

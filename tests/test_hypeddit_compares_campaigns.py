@@ -96,14 +96,14 @@ def test_without_meta_spend_the_comparison_has_two_panels() -> None:
 
 @pytest.mark.skipif(not db_ready(), reason="renders the cross view against the live DB")
 def test_the_cross_view_compares_the_two_latest_campaigns() -> None:
-    """R476 (W5): the comparison lives in « Mes sorties », opened on the two latest."""
+    """R476 (W5): the comparison lives in the funnel section (R554), opened on the two latest."""
     if not _has_readings():
         pytest.skip("artist 1 has no Hypeddit reading — the section renders its empty state")
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
                                                   artist_id=1))
-    at.session_state["meta_overview_section"] = "releases"
+    at.session_state["meta_overview_section"] = "entonnoir"
     at.run(timeout=180)
     assert not at.exception, at.exception
     pickers = [m for m in at.multiselect if "Campagnes" in m.label]

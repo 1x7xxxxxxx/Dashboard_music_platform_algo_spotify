@@ -75,10 +75,9 @@ def cut_egress() -> None:
 VARIANTS: dict[str, list[tuple]] = {
     "meta_breakdowns": [("selectbox", "Métrique", "Engagement")],
     # R551 — the Vue croisée renders ONE section at a time (segmented control); the default
-    # run saw « funnel » only, and the aliases four more. Each section is opened in turn.
+    # run saw « entonnoir » only (R554 : five sections). Each section is opened in turn.
     "meta_ads_overview": [("state", "meta_overview_section", s) for s in
-                          ("perf", "releases", "creatives", "breakdowns", "instagram",
-                           "revenue")],
+                          ("chrono", "creas", "audiences", "instagram")],
 }
 
 
