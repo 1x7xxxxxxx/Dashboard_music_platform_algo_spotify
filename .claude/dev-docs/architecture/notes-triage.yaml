@@ -4083,10 +4083,9 @@
     la vue Revenus, sans doublon'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R553
+  preuve_statut: R553 (archivée) — 14697ed1
 - ligne: 11
   source: revue/notes-vocales-2026-10-13.md
   note: Y2
@@ -4349,10 +4348,9 @@
     de « 270 ans »'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R553
+  preuve_statut: R553 (archivée) — 14697ed1
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f33
@@ -4475,20 +4473,18 @@
   resume: 'Fiche 50 (revenus suivent la dépense Meta) : vers la vue Revenus'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R553
+  preuve_statut: R553 (archivée) — 14697ed1
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f51
   resume: 'Fiche 51 (quand la pub sera remboursée) : vers la vue Revenus, sans doublon'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R553
+  preuve_statut: R553 (archivée) — 14697ed1
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f68
@@ -4506,7 +4502,6 @@
   resume: 'Fiche 67 (valeur d''un abonné) : admin uniquement'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R553
+  preuve_statut: R553 (archivée) — 14697ed1

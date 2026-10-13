@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R553 — Revenus rassemblés (Y1, fiches 25, 50, 51, 67 du 2026-10-13) : la vue « 💶 Trésorerie »… (livrée 2026-10-13)
+
+- [x] **R553 — Revenus rassemblés (Y1, fiches 25, 50, 51, 67 du 2026-10-13) : la vue « 💶 Trésorerie » reçoit TOUT ce qui parle d'argent — la section « 💶 Revenus » de la vue croisée, la section « 💶 Mon argent » et `_render_fit`/`_render_breakeven` de la page algo — sans doublon (un graphique, un appelant) ; fiche 25 dépenses en rouge, revenus en vert, projection DESSINÉE (pointillé) sur une échelle bornée au lieu de « 270 ans » en texte ; fiche 67 (valeur d'un abonné) visible admin seulement ; les anciennes ancres restent des alias** (P3) ✅ (2026-10-13, 14697ed1, 90b7f506, dcd75ee9)
+  Mesuré par : 0 graphique d'argent hors de `imusician` ; 67 absente pour un non-admin (AppTest)
+  Livré 14697ed1, CI verte (run 38393347153). Chaque euro est sur Trésorerie ; cumulative_breakeven retiré ; revenue_forecast alias d'imusician ; garde tests/test_every_euro_is_on_the_treasury_page.py.
+  Commits : 14697ed1 R553 : argent rassemblé sur Trésorerie (ADR-033 décision 1) · 90b7f506 Roadmap : ADR-033 (argent sur une page, vue croisée en cinq décisions, · dcd75ee9 Roadmap : R553-R560 inscrites — notes vocales Y1-Y3 du 2026-10-13 (rev
+
 ## ✅ R552 — Tests `/health` sans porte de base : `test_api.py::test_health`, 2 tests de `test_api_s… (livrée 2026-10-13)
 
 - [x] **R552 — Tests `/health` sans porte de base : `test_api.py::test_health`, 2 tests de `test_api_security.py` et 1 de `test_api_survives_hostile_input.py` (balayage) rougissent quand le Postgres local est éteint (récidive 2026-09-25, 2026-10-13) au lieu de skipper** (P3) ✅ (2026-10-13, d2d3a897)
