@@ -4222,10 +4222,9 @@
   resume: 'Fiche 35 (créa la moins chère) : très bien'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f36
@@ -4233,30 +4232,27 @@
     âge…)'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f40
   resume: 'Fiche 40 (fatigue) : définir la fréquence'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f37
   resume: 'Fiche 37 : comparer deux créas côte à côte dans le temps, avec totaux dépense, CPR moyen, streams Spotify'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f39
@@ -4272,20 +4268,18 @@
   resume: 'Fiche 38 (dépense × coût) : intégrer à l''outil des meilleurs paramètres et créas'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f41
   resume: 'Fiche 41 (quelle créa a tourné quand) : remplacer par un Pareto dépense par créa + ligne de CPR'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f32
@@ -4446,10 +4440,9 @@
   resume: 'Fiche 53 (réglage le moins cher par clic) : reformuler, graphique ou supprimer'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R557
+  preuve_statut: R557 (archivée) — 2a9a4308
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f50

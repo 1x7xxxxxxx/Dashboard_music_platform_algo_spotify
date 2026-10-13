@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R557 — Créas & réglages (fiches 35, 36, 38, 37, 40, 41, 53) : outil « meilleurs réglages » — p… (livrée 2026-10-13)
+
+- [x] **R557 — Créas & réglages (fiches 35, 36, 38, 37, 40, 41, 53) : outil « meilleurs réglages » — pour chaque critère modifiable (créa, hook, objectif, placement, âge, pays, plateforme) la meilleure valeur par CPR, en barres, sans tableau ; fiche 37 deux créas côte à côte avec totaux (dépense, CPR moyen, streams) ; fiche 40 fréquence définie ; fiche 41 → Pareto dépense par créa + ligne de CPR ; fiche 53 absorbée par l'outil** (P3) ✅ (2026-10-13, 2a9a4308, 05e9103a)
+  Mesuré par : 1 outil, 0 `st.dataframe` hors repli ; Pareto trié par dépense
+  Livré 2a9a4308, CI verte (run 38423366919) : outil meilleurs réglages, 8 critères classés par CPR, nuage/heatmap/réglages retirés
+  Commits : 2a9a4308 R557 : outil « meilleurs réglages » — créative, accroche, pays, placem · 05e9103a R554 : vue croisée en cinq sections (ADR-033 décision 2)
+
 ## ✅ R556 — Entonnoir complet (fiches 44, 43, 128, 22, 23, 39, 26) : budget → impressions → clics l… (livrée 2026-10-13)
 
 - [x] **R556 — Entonnoir complet (fiches 44, 43, 128, 22, 23, 39, 26) : budget → impressions → clics lien → visites smart link → clics plateformes → streams → revenus, chaque étape avec « X % de l'étape d'avant » expliqué et son coût par unité ; par titre et par sortie via le filtre ; mode « comparer deux campagnes » = deux entonnoirs côte à côte avec dépense, impressions, clics, CPM, CPC, CPR** (P3) ✅ (2026-10-13, 39fed46c)

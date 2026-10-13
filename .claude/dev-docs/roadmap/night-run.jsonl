@@ -848,3 +848,5 @@
 {"at": "2026-10-13T13:57:10+00:00", "head": "9be50209", "kind": "start", "task": "R556", "what": "entonnoir complet"}
 {"at": "2026-10-13T14:46:53+00:00", "head": "39fed46c", "kind": "start", "task": "R557", "what": "créas et réglages"}
 {"at": "2026-10-13T14:50:41+00:00", "kind": "done", "task": "R556", "what": "fermée par roadmap-close — Livré 39fed46c, CI verte (run 38416254225)"}
+{"at": "2026-10-13T15:35:35+00:00", "head": "2a9a4308", "kind": "start", "task": "R558", "what": "audiences et Instagram"}
+{"at": "2026-10-13T15:39:13+00:00", "kind": "done", "task": "R557", "what": "fermée par roadmap-close — Livré 2a9a4308, CI verte (run 38423366919) : outil meilleurs réglages, 8 critères classés par CPR, nuage/heatmap/réglages retirés"}
