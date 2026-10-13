@@ -4474,37 +4474,34 @@
   resume: 'Trésorerie : dégradé vert pour les entrées, rouge pour les sorties, solde cumulé en ligne'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R561
+  preuve_statut: R561 (archivée) — 5a1eb4a1
 - ligne: 3
   source: revue/notes-vocales-2026-10-13-tresorerie.md
   note: T2
   resume: 'Trésorerie : un cercle aligné avec « l''argent mois par mois », part de chaque source sur 100 %'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R561
+  preuve_statut: R561 (archivée) — 5a1eb4a1
 - ligne: 3
   source: revue/notes-vocales-2026-10-13-tresorerie.md
   note: T3
-  resume: 'Point mort et ROI régression linéaire fusionnés en une figure, avec la somme des dépenses et la tendance prévue des revenus'
+  resume: Point mort et ROI régression linéaire fusionnés en une figure, avec la somme des dépenses et la tendance
+    prévue des revenus
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R561
+  preuve_statut: R561 (archivée) — 5a1eb4a1
 - ligne: 3
   source: revue/notes-vocales-2026-10-13-tresorerie.md
   note: T4
   resume: '« Et si un titre déclenchait les algorithmes ? » incompris (23,78 € / 17,99 €) : refait ou fusionné'
   type: action-produit
   domaine: revenue
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R561
+  preuve_statut: R561 (archivée) — 5a1eb4a1
