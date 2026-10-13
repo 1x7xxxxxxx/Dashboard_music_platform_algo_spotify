@@ -4,6 +4,7 @@
 Type: Utility
 Uses: git history of .claude/dev-docs/error-classes.md + error_class_health.holes_of (R345:
       the series is recomputed from the catalogue, the JSON is no longer versioned)
+      + error_debt.actionable (R562: the JUDGED counter is the debt `make error-debt` lists)
 Triggers: .github/workflows/security-nightly.yml, job `debt-trend`
 Persists in: nothing
 
@@ -12,6 +13,15 @@ not move on six consecutive commits. The ratchets forbid a RISE; nothing noticed
 stopped FALLING — it was found by reading a report by hand. This mails it instead: when none
 of the tracked counters fell over the window, the debt is frozen, and a frozen debt is the
 state R169 was opened to end.
+
+R562 (2026-10-13): the check could no longer pass. It judged `guard_does_not_prove_itself`
+(every open class without a self-proving guard: 18) while `make error-debt` — the list it
+sends the reader to — printed « 0 classe à traiter »: the two tools counted two
+populations. `error_debt` deliberately lists only what came back without a self-proving
+guard (or whose cause is unknown); the other 16 never recurred and are no work item. The
+judged counter is now `actionable_debt` = `len(error_debt.actionable(...))`, computed on
+each revision of the catalogue; the hole counters are still printed, as information.
+A debt at ZERO is paid, not frozen.
 
     python3 tools/dev/error_debt_trend.py [days]     (default 14)
     python3 tools/dev/error_debt_trend.py --series [N]   the holes at the last N catalogue
@@ -25,7 +35,17 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 _FILE = ".claude/dev-docs/error-classes.md"
-TRACKED = ("guard_does_not_prove_itself", "cause_unknown", "seen_red_unknown")
+JUDGED = ("actionable_debt",)
+INFO = ("guard_does_not_prove_itself", "cause_unknown", "seen_red_unknown")
+TRACKED = JUDGED + INFO  # printed; only JUDGED decides
+
+
+def actionable_debt(text: str) -> int:
+    """`make error-debt`'s population on a catalogue TEXT — the same function, not a copy."""
+    sys.path.insert(0, str(_ROOT / "tools" / "dev"))
+    import error_class_health as h
+    import error_debt
+    return len(error_debt.actionable(h._declared(text), error_debt.recurrences(text)))
 
 
 def _holes_at(rev: str) -> dict | None:
@@ -37,7 +57,9 @@ def _holes_at(rev: str) -> dict | None:
         return None
     sys.path.insert(0, str(_ROOT / "tools" / "dev"))
     import error_class_health as h
-    return h.holes_of(h._declared(r.stdout.replace("\r\n", "\n"))) or None
+    text = r.stdout.replace("\r\n", "\n")
+    holes = h.holes_of(h._declared(text))
+    return {"actionable_debt": actionable_debt(text), **holes} if holes else None
 
 
 def _rev_before(days: int) -> str | None:
@@ -55,12 +77,14 @@ def _rev_before(days: int) -> str | None:
 
 
 def frozen(then: dict, now: dict) -> bool:
-    """No tracked counter fell. Pure: tested on fabricated snapshots.
+    """Debt remains and no judged counter fell. Pure: tested on fabricated snapshots.
 
     Only counters present in BOTH snapshots are compared: an older schema without a key
-    must not read as « it was 0, so it did not fall »."""
-    common = [k for k in TRACKED if k in then and k in now]
-    return bool(common) and all(now[k] >= then[k] for k in common)
+    must not read as « it was 0, so it did not fall ». A judged debt at 0 is PAID: asking
+    it to fall further is the check that could never pass (R562)."""
+    common = [k for k in JUDGED if k in then and k in now]
+    return (bool(common) and any(now[k] > 0 for k in common)
+            and all(now[k] >= then[k] for k in common))
 
 
 def series(n: int) -> int:
@@ -85,11 +109,15 @@ def main() -> int:
               "n'est PAS une dette qui bouge)")
         return 0
     for k in TRACKED:
-        print(f"   {k}: {then.get(k)} → {now.get(k)}")
+        tag = "" if k in JUDGED else "   (information — non jugé)"
+        print(f"   {k}: {then.get(k)} → {now.get(k)}{tag}")
     if frozen(then, now):
         print(f"❌ aucun compteur de dette n'a baissé en {days} jours — la dette est figée "
               "(R169 : `make error-debt` donne les classes à traiter en premier)")
         return 1
+    if not any(now.get(k) for k in JUDGED):
+        print("✅ aucune dette actionnable — `make error-debt` ne liste rien à traiter")
+        return 0
     print(f"✅ la dette a baissé en {days} jours")
     return 0
 

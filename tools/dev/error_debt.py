@@ -3,6 +3,7 @@
 
 Type: Utility
 Uses: .claude/dev-docs/error-classes.md, tools/dev/generated_cache.py (health, in memory — R345),
+      read by tools/dev/error_debt_trend.py through `actionable` (one population — R562),
       tests/test_the_error_class_health_only_improves.py (its `_CEILINGS`, read by AST)
 Triggers: `make error-debt`
 Persists in: nothing — prints a work list
@@ -60,6 +61,15 @@ def manual_by_design(c: dict) -> bool:
     """
     return (c.get("kind") == "manual" and c.get("seen_red") == "n-a"
             and bool(c.get("siblings_swept")) and bool(c.get("guard_scope_has_not_covered")))
+
+
+def actionable(classes: dict, recur: dict[str, int]) -> list[tuple[str, str]]:
+    """THE actionable debt, ranked — the one population `make error-debt` lists and
+    `error_debt_trend.py` judges (R562). Two readers of one counter must share one
+    definition: the trend used to judge `guard_does_not_prove_itself` (every open class
+    without a self-proving guard), a population this list deliberately does NOT carry
+    (« paying 306 guards is not a plan »), so it froze at 18 while this printed « 0 »."""
+    return work_list(classes, recur, len(classes))
 
 
 def work_list(classes: dict, recur: dict[str, int], n: int) -> list[tuple[str, str]]:
