@@ -1,10 +1,8 @@
-"""🔬 Par playlist : ce qui pèse, où j'en suis, ce que coûterait l'écart (R381).
+"""🔬 Par playlist : ce qui pèse (R381 ; le seuil et son coût sont partis avec R559).
 
 Type: Sub
-Uses: streamlit, plotly, src.utils.shap_explain, src.utils.ml_outcome_labeling,
-  src.dashboard.utils.algo_preview_data, views.meta_cpr_optimizer
-Depends on: s4a_song_algo_outcomes, v_meta_campaign_daily, campaign_track_mapping,
-  ml_song_predictions (reçue du routeur)
+Uses: streamlit, plotly, src.utils.shap_explain, src.dashboard.utils.algo_preview_data
+Depends on: ml_song_predictions (reçue du routeur)
 Triggers: views/trigger_algo/_tab_titre.py, views/trigger_algo/router.py
 Persists in: nothing
 
@@ -15,10 +13,8 @@ Notes vocales V56, V64, V66, V71 (2026-10-05). Quatre réponses, chacune lue à 
     au plancher (`proba_affichable` → None) est EXCLUE : expliquer un intercept de
     calibration, c'est expliquer du bruit. Un critère absent de `features_json` est
     marqué « manquant » — le modèle l'a lu comme 0 (`ml_inference`, même remplissage) ;
-  - où j'en suis : les streams algo réalisés sur 28 jours contre le seuil d'ENTRÉE,
-    `TARGET_THRESHOLDS` et lui seul — le seuil qui étiquette l'entraînement ;
-  - ce que coûterait l'écart : une FOURCHETTE meilleur CPR ↔ CPR moyen
-    (`budget_fourchette`), dite « ordre de grandeur », jamais un devis ;
+  - où j'en suis et ce que coûterait l'écart : RETIRÉS le 2026-10-13 (R559, fiche 56,
+    « redondant avec la 46 ») — les jauges du catalogue les portent ;
   - les recommandations détaillées de la dernière sortie : celles du CPR Optimizer,
     RÉUTILISÉES (`meta_cpr_optimizer.recommendations`), pas recalculées.
 """
@@ -28,29 +24,16 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils import charts
-from src.dashboard.utils.algo_preview_data import (
-    budget_fourchette, budget_par_porte, lire_cpr_bornes, proba_affichable)
-from src.dashboard.utils.formats import eur
+from src.dashboard.utils.algo_preview_data import proba_affichable
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.proxy_disclosure import disclosure_caption
-from src.dashboard.utils.semantic_colors import ATTENTION, BON, MAUVAIS, NEUTRE
+from src.dashboard.utils.semantic_colors import BON, MAUVAIS
 from src.utils.algo_order import named_algos
-from src.utils.artist_name_filter import ARTIST_NAME_LIKE
-from src.utils.ml_outcome_labeling import TARGET_THRESHOLDS
 
 from ._common._explain import _FEATURE_LABELS
 from ._common._loaders import _load_xgb_model
 
 #: Criteria shown per playlist — the rest of the 13 weigh less than the eighth.
 TOP = 8
-
-_Q_OUTCOME = """
-SELECT dw_streams, rr_streams, radio_streams, recorded_at
-  FROM s4a_song_algo_outcomes
- WHERE artist_id = %s AND song = %s AND time_window = '28d' AND song NOT ILIKE %s
- ORDER BY recorded_at DESC LIMIT 1
-"""
-
 
 def _label(feature: str) -> str:
     """The criterion's name as the rest of the page says it — never the column name."""
@@ -88,31 +71,6 @@ def shap_par_playlist(feats: dict, ml_pred: dict, loader=_load_xgb_model,
     return shown, floored
 
 
-def seuils_atteints(outcome: dict | None) -> list[dict]:
-    """Per playlist, DW → Radio → RR: realized 28-day streams vs the ENTRY threshold. Pure.
-
-    `reached` is None when nothing was entered — absent is not 0. The comparison is
-    STRICT (`>`), as `ml_outcome_labeling.bin_label` labels the training set.
-    """
-    out = []
-    for algo, name in named_algos():
-        seuil = TARGET_THRESHOLDS[algo.lower()]
-        val = (outcome or {}).get(f"{algo.lower()}_streams")
-        val = None if val is None or pd.isna(val) else float(val)
-        out.append({"algo": algo, "name": name, "threshold": seuil, "reached": val,
-                    "entered": val is not None and val > seuil})
-    return out
-
-
-def cout_commun(fourchettes: list) -> tuple[float, float] | None:
-    """The range all playlists share, or None. Pure.
-
-    The gap is the coach's 7-day streams lever, so the three ranges are usually the
-    same one: printed on three lines, it reads as three budgets to add up.
-    """
-    return fourchettes[0] if fourchettes and fourchettes[0] and len(set(fourchettes)) == 1 else None
-
-
 def _figure(shown: list[dict]):
     from plotly.subplots import make_subplots
     import plotly.graph_objects as go
@@ -135,46 +93,12 @@ def _figure(shown: list[dict]):
     return fig
 
 
-def seuils_figure(seuils: list[dict], fourchettes: list, commune) :
-    """Reached vs entry threshold, one bar per playlist, in % of its threshold. Pure.
+def render_ce_qui_pese(ml_pred: dict, feats: dict) -> None:
+    """V56/V64 — what weighs, playlist by playlist, for the selected title.
 
-    The thresholds differ per playlist (DW, RR, Radio), so raw streams on one axis
-    would flatten the smallest; the 100 % line is the entry for all three.
-    """
-    import plotly.graph_objects as go
-
-    names, pct, colors, texts = [], [], [], []
-    for s, f in zip(seuils, fourchettes):
-        name = s["name"]
-        if f is not None and commune is None and not s["entered"]:
-            name += f" · {eur(f[0], 0)} à {eur(f[1], 0)}"   # the price of THIS gap
-        if s["reached"] is None:
-            name += " — " + t("trigger_algo.detail.not_entered_short", "pas encore saisi")
-        names.append(name)
-        if s["reached"] is None:
-            pct.append(0)
-            colors.append(NEUTRE)
-            texts.append("")
-            continue
-        pct.append(100 * s["reached"] / s["threshold"])
-        colors.append(BON if s["entered"] else ATTENTION)
-        texts.append(f"{s['reached']:,.0f} / {s['threshold']:,.0f}".replace(",", " "))
-    fig = go.Figure(go.Bar(
-        x=pct, y=names, orientation="h", marker_color=colors, text=texts,
-        textposition="outside", cliponaxis=False, showlegend=False,
-        hovertemplate="%{y}<br>%{x:.0f} %% du seuil<extra></extra>"))
-    fig.add_vline(x=100, line_dash="dash", line_color=NEUTRE, layer="below",
-                  annotation_text=t("trigger_algo.detail.threshold", "seuil d'entrée"),
-                  annotation_position="top")
-    fig.update_xaxes(title=t("trigger_algo.detail.pct_axis", "streams algo 28 j, en % du seuil"),
-                     range=[0, max([130] + [p * 1.35 for p in pct])], ticksuffix=" %")
-    fig.update_yaxes(autorange="reversed", automargin=True)
-    fig.update_layout(height=80 + 50 * len(names), margin=dict(t=40, l=10, r=10, b=40))
-    return fig
-
-
-def render_ce_qui_pese(db, track: str, artist_id, ml_pred: dict, feats: dict) -> None:
-    """V56/V64/V66 — the three answers for the selected title, without a table."""
+    R559 (fiche 56, owner 2026-10-13 : « je ne comprends pas le graphique, redondant avec
+    la 46 ») — the threshold bars and their shared cost left: the catalogue's gauges now
+    carry the 28-day figures and the price of the gap."""
     st.subheader(t("trigger_algo.detail.header", "🔬 Playlist par playlist"))
     shown, floored = shap_par_playlist(feats, ml_pred)
     if shown:
@@ -188,20 +112,3 @@ def render_ce_qui_pese(db, track: str, artist_id, ml_pred: dict, feats: dict) ->
         st.warning(t("trigger_algo.detail.missing",
                      "⚠ **Critère manquant** : la donnée n'a pas été reçue, le modèle l'a "
                      "lue comme 0. Dépose tes CSV Spotify for Artists pour la remplir."))
-
-    rows = db.fetch_query(_Q_OUTCOME, (artist_id, track, ARTIST_NAME_LIKE)) if artist_id else []
-    outcome = (dict(zip(("dw_streams", "rr_streams", "radio_streams"), rows[0][:3]))
-               if rows else None)
-    bornes = lire_cpr_bornes(db, artist_id)
-    gaps = {g["algo"]: g["gap"] for g in budget_par_porte(feats, None)}
-    seuils = seuils_atteints(outcome)
-    fourchettes = [budget_fourchette(gaps.get(s["algo"]), bornes) for s in seuils]
-    commune = cout_commun(fourchettes)
-    charts.plotly_chart(seuils_figure(seuils, fourchettes, commune), width="stretch")
-    if commune:
-        # One shared lever (the 7-day streams): one budget, never three to add up.
-        st.markdown(t("trigger_algo.detail.cost_shared",
-                      "Les {n} playlists demandent **la même chose** : combler l'écart "
-                      "coûte **{lo} à {hi}** — un seul budget, pas trois.").format(
-                          n=len(seuils), lo=eur(commune[0], 0), hi=eur(commune[1], 0)))
-    st.caption(disclosure_caption())

@@ -27,7 +27,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES, decode_feature_value
-from src.dashboard.utils.formats import num
+from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.labels import unique_short_labels as short_labels  # R209
@@ -107,85 +107,181 @@ def last_releases(df: pd.DataFrame, n: int = MAX_TRACKS) -> list[str]:
     return d.sort_values("_age", na_position="last")["song"].head(n).tolist()
 
 
-def indicators_figure(tracks: list[str], levers_by_track: dict):
+def lever_weights(feats_by_track: dict, loader=None) -> dict:
+    """{algo: {feature: mean |SHAP|}} over the chosen tracks — R559 (fiches 46, 47, 57).
+
+    The owner asked for « les trois paramètres les plus importants » per playlist, and for
+    the levers of fiche 47 in decreasing weight. The weight is the classifier's own SHAP
+    contribution on THESE tracks, averaged in absolute value; an algorithm whose model is
+    missing is left out, and the figures fall back to the fixed `LEVERS` order. Pure but
+    for the loader."""
+    from src.utils.ml_inference import FEATURE_COLUMNS
+    from src.utils.shap_explain import explain
+    if loader is None:
+        from ._common._loaders import _load_xgb_model as loader
+    if not feats_by_track:
+        return {}
+    X = pd.DataFrame([[float((f or {}).get(c, 0.0) or 0.0) for c in FEATURE_COLUMNS]
+                      for f in feats_by_track.values()], columns=FEATURE_COLUMNS)
+    out = {}
+    for algo in ALGOS:
+        model = loader(f"{algo.lower()}_classifier")
+        if model is None:
+            continue
+        vals = abs(pd.DataFrame(explain(model, X).values)).mean(axis=0)
+        out[algo] = {c: float(v) for c, v in zip(FEATURE_COLUMNS, vals)}
+    return out
+
+
+def top_features(weights: dict, algo: str, n: int = 3) -> list[str]:
+    """The `n` heaviest features of one playlist, heaviest first. Pure."""
+    w = weights.get(algo, {})
+    return sorted((f for f in w if w[f] > 0), key=lambda f: -w[f])[:n]
+
+
+def _lever_weight(weights: dict, algo: str, fid: str) -> float:
+    key = ALGO_FEATURE_ZONES.get(algo, {}).get(fid, {}).get("json_key", fid)
+    return weights.get(algo, {}).get(key, 0.0)
+
+
+def streams_gap(levers: dict, algo: str) -> float | None:
+    """The 7-day streams still missing to the model's target for `algo` — a GAP. Pure."""
+    v = levers.get((algo, "StreamsLast7Days"))
+    if not v:
+        return None
+    return max(float(v["target"]) - float(v["current"] or 0.0), 0.0)
+
+
+def _budget_line(gap: float | None, cost, bornes) -> str:
+    if gap is None:
+        return ""
+    if gap <= 0:
+        return t("trigger_algo.rel.gap_met", "écoutes 7 j : seuil atteint")
+    line = t("trigger_algo.rel.gap", "il manque {n} écoutes en 7 j").format(n=num(gap, 0))
+    if cost and bornes:
+        line += "<br>" + t("trigger_algo.rel.budget",
+                           "≈ {lo} (CPR {c_lo}) → {hi} (CPR {c_hi})").format(
+            lo=eur(cost[0], 0), hi=eur(cost[1], 0),
+            c_lo=f"{bornes[0]:.3f} €".replace(".", ","),
+            c_hi=f"{bornes[1]:.3f} €".replace(".", ","))
+    return line
+
+
+def _track_title(name: str, stats: dict | None) -> str:
+    if not stats:
+        return f"<b>{name}</b>"
+    return (f"<b>{name}</b><br><span style='font-size:11px'>"
+            + t("trigger_algo.rel.stats28", "28 j : {s} écoutes · {v} saves · {a} ajouts").format(
+                s=num(stats.get("streams"), 0), v=num(stats.get("saves"), 0),
+                a=num(stats.get("adds"), 0)) + "</span>")
+
+
+def _playlist_box(algo: str, weights: dict) -> str:
+    from ._playlist_detail import _label
+    tops = top_features(weights, algo)
+    if not tops:
+        return f"<b>{ALGO_NAMES[algo]}</b>"
+    lines = "<br>".join(f"{i}. {_label(f)}" for i, f in enumerate(tops, start=1))
+    return f"<b>{ALGO_NAMES[algo]}</b><br><span style='font-size:10px'>{lines}</span>"
+
+
+def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None,
+                      stats: dict | None = None, bornes=None):
     """One gauge per (algorithm, track): the shortest route, 0-100 %. Pure.
 
-    R477 (W14 « nom des playlists dans une petite case ») — each row opens on its
-    playlist's name in a small box drawn in the playlist's colour, in a narrow first
-    column; the gauges keep the track names as their titles.
+    R477 (W14) — each row opens on its playlist's name in a small box drawn in the
+    playlist's colour. R559 (fiches 46, 56, 57, owner 2026-10-13) — the box also names the
+    playlist's three heaviest criteria (`lever_weights`); each track's title carries its
+    28-day streams, saves and playlist adds; under the DW and Radio gauges, the 7-day
+    streams still missing and what buying them costs at the best → mean CPR. Release
+    Radar gets no budget: it plays in the first days, the owner said, not on a budget.
     """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
+    from src.dashboard.utils.algo_preview_data import budget_fourchette
+    weights, stats = weights or {}, stats or {}
     cols = max(len(tracks), 1)
     names = dict(zip(tracks, short_labels(tracks, 24)))
     fig = make_subplots(rows=len(ALGOS), cols=cols + 1,
-                        column_widths=[0.2] + [0.8 / cols] * cols,
+                        column_widths=[0.24] + [0.76 / cols] * cols,
                         specs=[[None] + [{"type": "indicator"}] * cols] * len(ALGOS),
-                        vertical_spacing=0.12, horizontal_spacing=0.04)
+                        vertical_spacing=0.16, horizontal_spacing=0.04)
     for r, algo in enumerate(ALGOS, start=1):
         for c, song in enumerate(tracks, start=2):
-            route = shortest_route(levers_by_track.get(song, {}), algo)
+            levers = levers_by_track.get(song, {})
+            route = shortest_route(levers, algo)
             value = None if route is None else round(100 * route["progress"])
             fig.add_trace(go.Indicator(
                 mode="gauge+number", value=value, number={"suffix": " %", "font": {"size": 18}},
-                title={"text": (f"<b>{names[song]}</b>"
-                                if r == 1 else ""), "font": {"size": 14}},
+                title={"text": _track_title(names[song], stats.get(song)) if r == 1 else "",
+                       "font": {"size": 14}},
                 gauge={"axis": {"range": [0, 100], "visible": False},
                        "bar": {"color": ALGO_COLORS[algo]},
                        "threshold": {"line": {"color": "#333", "width": 2}, "value": 100}}),
                 row=r, col=c)
+            if algo != "RR":
+                gap = streams_gap(levers, algo)
+                text = _budget_line(gap, budget_fourchette(gap, bornes), bornes)
+                x0, x1 = fig.data[-1].domain.x
+                y0 = fig.data[-1].domain.y[0]
+                if text:
+                    # xanchor explicit: plotly's « auto » right-aligns past x = 2/3.
+                    fig.add_annotation(x=(x0 + x1) / 2, y=y0, xref="paper", yref="paper",
+                                       xanchor="center", yanchor="top", showarrow=False, text=text,
+                                       font={"size": 10})
         y0, y1 = fig.data[-1].domain.y
         fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
-                           xanchor="left", showarrow=False, text=f"<b>{ALGO_NAMES[algo]}</b>",
+                           xanchor="left", align="left", showarrow=False,
+                           text=_playlist_box(algo, weights),
                            font={"size": 12}, bordercolor=ALGO_COLORS[algo], borderwidth=2,
                            borderpad=5, bgcolor="rgba(0,0,0,0)")
-    fig.update_layout(height=150 * len(ALGOS) + 40, margin=dict(t=40, b=10, l=10, r=10))
+    fig.update_layout(height=190 * len(ALGOS) + 70, margin=dict(t=70, b=40, l=10, r=10))
     return fig
 
 
-def values_figure(tracks: list[str], levers_by_track: dict):
-    """One small panel per lever: each track's current value (bar) and, per algorithm, the
-    value that would trigger it (marker) — full « modèle », faded « repère ». Pure."""
+def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None):
+    """One panel per playlist, DW → Radio → RR: each lever's progress toward the value that
+    would trigger it, one bar per track, levers in decreasing SHAP weight. Pure.
+
+    R559 (fiche 47, owner 2026-10-13 : « pas mal comme info, par contre très moche ») —
+    the four panels of raw values put a few dozen saves beside a target in thousands, and
+    three markers per slot. Each bar is now a share of ITS target (100 % = triggers), the
+    two numbers are written on it, and a target the model never reached says « repère ».
+    """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
+    weights = weights or {}
     labels = {fid: next((z[fid]["label"] for z in ALGO_FEATURE_ZONES.values() if fid in z), fid)
               for fid in LEVERS}
-    fig = make_subplots(rows=1, cols=len(LEVERS), subplot_titles=[labels[f] for f in LEVERS],
-                        horizontal_spacing=0.06)
-    shown, xs = set(), short_labels(tracks, 18)
-    pos = list(range(len(tracks)))
-    for c, fid in enumerate(LEVERS, start=1):
-        cur = [next((v["current"] for (a, f), v in levers_by_track.get(s, {}).items() if f == fid),
-                    None) for s in tracks]
-        # The current value is often a few dozen against a target in thousands: the bar
-        # alone is a sliver (render, 2026-09-27), so its number is WRITTEN on it.
-        fig.add_trace(go.Bar(x=pos, y=cur, width=0.85, hovertext=xs, marker_color="#c8ced6", cliponaxis=False,
-                             text=[None if v is None else num(v, 0)
-                                   for v in cur], textposition="outside",
-                             name=t("trigger_algo.rel.current", "Ta valeur"),
-                             showlegend=c == 1, legendgroup="cur"), row=1, col=c)
-        for k, algo in enumerate(ALGOS):
-            pts = [levers_by_track.get(s, {}).get((algo, fid)) for s in tracks]
-            if not any(pts):
-                continue
-            fig.add_trace(go.Scatter(
-                x=[i + _OFFSET[k] for i in pos], y=[p["target"] if p else None for p in pts],
-                customdata=[[x, p["source"] if p else ""] for x, p in zip(xs, pts)],
-                mode="markers", name=ALGO_NAMES[algo], legendgroup=algo,
-                showlegend=algo not in shown,
-                # One symbol, drawn by its LINE colour; a « repère » is the same stroke,
-                # faded — the first render used « line-ew-open », which Plotly strokes with
-                # `marker.color` (unset → black), and read identical to the model's target.
-                marker=dict(symbol="line-ew", size=11, color=ALGO_COLORS[algo],
-                            opacity=[0.35 if p and p["source"] == "repère" else 1.0 for p in pts],
-                            line=dict(width=4, color=ALGO_COLORS[algo])),
-                hovertemplate="%{customdata[0]} — " + ALGO_NAMES[algo]
-                              + " : %{y:,.0f} (%{customdata[1]})<extra></extra>"),
-                row=1, col=c)
-            shown.add(algo)
-    # Three algorithms often aim at the SAME value (2 000 streams): each sits at its own
-    # offset inside the track's slot instead of hiding the others. A numeric axis, because
-    # Plotly's `scattermode="group"` made the bars disappear (render, 2026-09-27).
-    fig.update_xaxes(tickvals=pos, ticktext=xs, range=[-0.6, len(tracks) - 0.4])
-    fig.update_layout(height=400, margin=dict(t=50))
+    algos = [a for a in ALGOS if any((a, f) in levers_by_track.get(s, {})
+                                     for s in tracks for f in LEVERS)]
+    if not algos:
+        return None
+    fids = {a: sorted((f for f in LEVERS
+                       if any((a, f) in levers_by_track.get(s, {}) for s in tracks)),
+                      key=lambda f: (-_lever_weight(weights, a, f), LEVERS.index(f)))
+            for a in algos}
+    fig = make_subplots(rows=len(algos), cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=[ALGO_NAMES[a] for a in algos],
+                        row_heights=[len(fids[a]) for a in algos])
+    xs = short_labels(tracks, 18)
+    for r, algo in enumerate(algos, start=1):
+        for k, (song, name) in enumerate(zip(tracks, xs)):
+            pts = [levers_by_track.get(song, {}).get((algo, f)) for f in fids[algo]]
+            fig.add_trace(go.Bar(
+                y=[labels[f] for f in fids[algo]], orientation="h", name=name,
+                x=[None if p is None or p["progress"] is None else 100 * p["progress"]
+                   for p in pts],
+                text=[None if p is None else f"{num(p['current'], 0)} / {num(p['target'], 0)}"
+                      + (" (repère)" if p["source"] == "repère" else "") for p in pts],
+                textposition="outside", cliponaxis=False, legendgroup=name,
+                showlegend=r == 1, marker_color=ALGO_COLORS[algo],
+                marker_pattern_shape="" if k == 0 else "/",
+                hovertemplate=name + " · %{y}<br>%{text}<extra></extra>"),
+                row=r, col=1)
+        fig.add_vline(x=100, line_dash="dash", line_color="#666", row=r, col=1)
+    fig.update_yaxes(autorange="reversed", automargin=True)
+    fig.update_xaxes(range=[0, 135], ticksuffix=" %", showticklabels=False)
+    fig.update_layout(barmode="group", height=90 + 60 * sum(len(v) for v in fids.values()),
+                      margin=dict(t=50, l=10, r=10, b=20))
     return fig

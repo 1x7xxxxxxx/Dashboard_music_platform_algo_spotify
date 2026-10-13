@@ -460,7 +460,7 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#1:
   v: garder
   owner_v: corriger
   owner: "Le plus simple et visuel : filtre auto sur les 5 dernières sorties, 5 indicateurs de % de trigger par algo, puis les valeurs de chaque paramètre et la cible pour 100 %."
-  note: "R247 : jauges par algorithme × dernière sortie — le chemin le plus court vers la valeur où le modèle passe à 80 %, pas la probabilité (plancher de Platt)."
+  note: "R247 : jauges par algorithme × dernière sortie — le chemin le plus court vers la valeur où le modèle passe à 80 %, pas la probabilité (plancher de Platt). R559 (fiches 46, 56, 57) : l'encadré de chaque playlist nomme ses 3 critères les plus lourds (SHAP), le titre porte écoutes/saves/ajouts 28 j, et sous DW et Radio l'écart d'écoutes 7 j et son prix au CPR meilleur → moyen — les barres de seuils du détail par playlist sont fondues ici."
 src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
   q: "Quelle valeur de chaque levier déclencherait l'algorithme ?"
   decision: "Savoir quelle valeur de chaque levier viser, pour fixer l'objectif de ta campagne."
@@ -470,7 +470,7 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
   c: 3
   p: 5
   v: garder
-  note: "R247 (suite de la fiche 42) : ta valeur écrite sur sa barre, et par algorithme la cible — trait vif calculé par le modèle pour ce titre, trait pâle quand ce n'est qu'un repère."
+  note: "R247 (suite de la fiche 42) : ta valeur écrite sur sa barre, et par algorithme la cible — trait vif calculé par le modèle pour ce titre, trait pâle quand ce n'est qu'un repère. R559 (fiche 47 « très moche ») : un panneau par playlist DW → Radio → RR, une barre par titre en % de SA cible (100 % = déclenche), « valeur / cible (repère) » écrit dessus, leviers triés par poids SHAP."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   q: "Combien de streams chaque algorithme m'apporte-t-il ?"
   decision: "Voir combien d'écoutes chaque algorithme t'apporte, pour savoir lequel viser en campagne."
@@ -541,16 +541,6 @@ src/dashboard/views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#1:
   p: 3
   v: garder
   note: "R381 (V56, V64) : un panneau par playlist, empilés DW → Radio → RR (côte à côte, les noms d'un panneau recouvraient le suivant — vu sur le PNG), critères triés du plus lourd au plus léger, vert pousse / rouge retient, « ⚠ manquant » sur une donnée non reçue ; une playlist au plancher n'est pas expliquée."
-src/dashboard/views/trigger_algo/_playlist_detail.py::render_ce_qui_pese#2:
-  q: "Où en est ce titre de chaque seuil qu'une playlist algorithmique demande ?"
-  decision: "Voir quel seuil est le plus loin d'être atteint, pour savoir où mettre l'effort en premier."
-  decision_en: "See which threshold is furthest from being met, to know where to put the effort first."
-  role: prediction
-  d: 4
-  c: 4
-  p: 3
-  v: garder
-  note: "R477 (W14 « des graphiques, pas de tableaux ») : remplace le tableau des seuils ; une barre par critère en % du seuil, ligne à 100 %, « non saisi » quand la donnée manque."
 src/dashboard/views/trigger_algo/_tab_titre.py::_render_pareto#1:
   q: "Quels leviers manquent à ce titre, et combien de streams chacun représente-t-il ?"
   decision: "Voir le levier qui comble le plus de l'écart, pour décider où mettre le budget Meta en premier."

@@ -42,9 +42,10 @@ def test_both_surfaces_call_the_shared_budget() -> None:
     # R421 (2026-10-06): the home's « 💰 Budget Meta pour déclencher » line is gone at the
     # owner's request; the two algo-view surfaces that still price a trigger remain.
     for path in (_VIEWS / "trigger_algo" / "_tab_reglages.py",
-                 _VIEWS / "trigger_algo" / "_playlist_detail.py"):
-        # R477 (2026-10-09): `_playlist_detail` now prices through `budget_fourchette`
-        # — both names go through `budget_pour_streams`, the one formula.
+                 _VIEWS / "trigger_algo" / "_release_targets.py"):
+        # R477 (2026-10-09): the algo page prices through `budget_fourchette` — both names
+        # go through `budget_pour_streams`, the one formula. R559 (fiche 56): the priced
+        # gap moved from `_playlist_detail` to the gauges of `_release_targets`.
         assert {"budget_declenchement", "budget_fourchette"} & _calls(path), (
             f"{path.name} no longer prices the trigger with budget_declenchement — a "
             "second formula will drift from the first")

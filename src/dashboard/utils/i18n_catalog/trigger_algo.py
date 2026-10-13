@@ -743,7 +743,15 @@ EN = {
         "**Your catalogue has not been scored yet.** The computation runs every night "
         "as soon as a track has at least one stream over the last 35 days. It needs "
         "your Spotify for Artists data: upload it on the **📝 Saisie S4A** page."),
-    "trigger_algo.rel.current": "Your value",
+    "trigger_algo.rel.gap_met": "7-day streams: threshold met",
+    "trigger_algo.rel.gap": "{n} streams missing over 7 days",
+    "trigger_algo.rel.budget": "≈ {lo} (CPR {c_lo}) → {hi} (CPR {c_hi})",
+    "trigger_algo.rel.stats28": "28 d: {s} streams · {v} saves · {a} adds",
+    "trigger_algo.rel.gauge_note": (
+        "Under each gauge: the 7-day streams the model still needs to trigger, and their "
+        "price in Meta ads — at your account's best CPR, then at the mean CPR. An order of "
+        "magnitude: a click is not a stream. Release Radar has no budget: it plays out in "
+        "the first days."),
     "trigger_algo.detail": "📋 The figures in detail",
     # ── 🎧 Ce titre : ce qu'il reste à faire (2026-09-22) ────────────────────
     "trigger_algo.tab_titre": "🎧 This track: what's left to do",
@@ -816,12 +824,6 @@ EN = {
     "trigger_algo.detail.missing": (
         "⚠ **Missing criterion**: the data was not received, the model read it as 0. "
         "Upload your Spotify for Artists CSVs to fill it."),
-    "trigger_algo.detail.cost_shared": (
-        "The {n} playlists ask for **the same thing**: closing the gap costs "
-        "**{lo} to {hi}** — one budget, not three."),
-    "trigger_algo.detail.not_entered_short": 'not entered yet',
-    "trigger_algo.detail.threshold": 'entry threshold',
-    "trigger_algo.detail.pct_axis": 'algo streams 28 d, as % of threshold',
     "trigger_algo.titre.bar_done": '✓ target reached',
     "trigger_algo.titre.bar_gap": '{gap} {unit} to go',
     "trigger_algo.titre.bar_axis": 'Progress toward the target',

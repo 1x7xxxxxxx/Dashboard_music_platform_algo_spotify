@@ -82,11 +82,71 @@ def test_two_versions_of_a_title_never_share_a_label():
     assert rt.short_labels is unique_short_labels
 
 
-def test_the_values_figure_draws_one_slot_per_track():
-    levers = {s: {("DW", "SavesLast28Days"): {"current": 4.0, "target": 165.0,
-                                               "source": "repère", "progress": 0.02}}
+def _lever(cur, target, source="repère"):
+    return {"current": cur, "target": target, "source": source, "progress": min(cur / target, 1)}
+
+
+def test_the_values_figure_is_one_panel_per_playlist_one_bar_per_track():
+    # R559 (fiche 47): DW → Radio → RR, a bar per track, the two numbers written on it.
+    levers = {s: {("DW", "SavesLast28Days"): _lever(4.0, 165.0),
+                  ("DW", "StreamsLast7Days"): _lever(300.0, 1000.0, "modèle"),
+                  ("RR", "SavesLast28Days"): _lever(4.0, 50.0),
+                  ("RADIO", "StreamsLast7Days"): _lever(300.0, 900.0, "modèle")}
               for s in ("A - Original", "A - Remix")}
     fig = rt.values_figure(["A - Original", "A - Remix"], levers)
-    assert len(set(fig.layout.xaxis3.ticktext)) == 2
-    marker = next(tr for tr in fig.data if tr.type == "scatter").marker
-    assert marker.color == rt.ALGO_COLORS["DW"], "an unset marker colour draws black"
+    titles = [a.text for a in fig.layout.annotations]
+    assert titles == [rt.ALGO_NAMES[a] for a in ("DW", "RADIO", "RR")], titles
+    dw = [tr for tr in fig.data if tr.xaxis == "x"]
+    assert len(dw) == 2 and len({tr.name for tr in dw}) == 2, "one bar per track"
+    assert all(tr.marker.color == rt.ALGO_COLORS["DW"] for tr in dw)
+    assert any("4 / 165 (repère)" in (txt or "") for txt in dw[0].text)
+    assert rt.values_figure(["A"], {}) is None
+
+
+def test_the_values_figure_sorts_levers_by_weight():
+    levers = {"A": {("DW", "SavesLast28Days"): _lever(4.0, 165.0),
+                    ("DW", "StreamsLast7Days"): _lever(300.0, 1000.0)}}
+    key = rt.ALGO_FEATURE_ZONES["DW"]["SavesLast28Days"].get("json_key", "SavesLast28Days")
+    label = rt.ALGO_FEATURE_ZONES["DW"]["SavesLast28Days"]["label"]
+    # Saves come AFTER streams in the fixed order; a heavy weight puts them first.
+    assert rt.values_figure(["A"], levers).data[0].y[0] != label, "fixed order without weights"
+    assert rt.values_figure(["A"], levers, {"DW": {key: 5.0}}).data[0].y[0] == label
+
+
+def test_the_heaviest_three_features_come_first():
+    w = {"DW": {"a": 0.1, "b": 0.9, "c": 0.5, "d": 0.0, "e": 0.3}}
+    assert rt.top_features(w, "DW") == ["b", "c", "e"]
+    assert rt.top_features(w, "RR") == []
+
+
+def test_the_streams_gap_is_a_gap_never_negative():
+    assert rt.streams_gap({("DW", "StreamsLast7Days"): _lever(300.0, 1000.0)}, "DW") == 700.0
+    assert rt.streams_gap({("DW", "StreamsLast7Days"): _lever(1200.0, 1000.0)}, "DW") == 0.0
+    assert rt.streams_gap({}, "DW") is None
+
+
+def test_lever_weights_average_the_absolute_shap(monkeypatch):
+    import numpy as np
+
+    from src.utils import shap_explain
+    from src.utils.ml_inference import FEATURE_COLUMNS
+
+    class _Exp:
+        def __init__(self, n):
+            self.values = np.tile([[-2.0] + [0.0] * (len(FEATURE_COLUMNS) - 1)], (n, 1))
+            self.values[0, 0] = 4.0
+    monkeypatch.setattr(shap_explain, "explain", lambda model, X: _Exp(len(X)))
+    w = rt.lever_weights({"a": {}, "b": {}},
+                         loader=lambda name: None if name == "rr_classifier" else object())
+    assert set(w) == {"DW", "RADIO"}, "a missing model is left out"
+    assert w["DW"][FEATURE_COLUMNS[0]] == 3.0, "mean of |4| and |-2|"
+    assert rt.lever_weights({}, loader=lambda n: object()) == {}
+
+
+def test_the_dw_and_radio_gauges_say_the_gap_and_its_price_rr_does_not():
+    levers = {"A": {(a, "StreamsLast7Days"): _lever(300.0, 1000.0, "modèle")
+                    for a in ("DW", "RADIO", "RR")}}
+    fig = rt.indicators_figure(["A"], levers, bornes=(0.07, 0.12))
+    gaps = [a.text for a in fig.layout.annotations if "700" in (a.text or "")]
+    assert len(gaps) == 2, gaps
+    assert all("CPR" in g for g in gaps)

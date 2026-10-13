@@ -76,8 +76,10 @@ def _show_tab_catalogue(db, artist_id) -> None:
     # note — « le vrai pour tout ton catalogue ») are gone: the two figures ARE the answer.
     # The selector is the app's shared one (`release_picker`, R478), newest release first.
     from src.dashboard.utils.release_picker import release_picker
+    from src.dashboard.utils.algo_preview_data import lire_cpr_bornes
     from ._release_targets import (MAX_TRACKS, by_proximity, indicators_figure,
-                                   last_releases, track_levers, values_figure)
+                                   last_releases, lever_weights, track_levers,
+                                   values_figure)
     newest_first = last_releases(df, n=len(df))
     choix = release_picker(t("trigger_algo.cat.releases", "🎵 Tes deux dernières sorties"),
                            newest_first, key=f"cat_compare_{artist_id}")
@@ -92,6 +94,21 @@ def _show_tab_catalogue(db, artist_id) -> None:
         return
     feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
     levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}
-    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers),
+    # R559 (fiches 46, 56, 57) — the 28-day figures, the SHAP weights and the CPR range
+    # ride on the gauges: fiche 56's threshold bars said the same thing a second time.
+    weights = lever_weights({s_: feats_of.get(s_, {}) for s_ in choix})
+    stats = {r["song"]: {"streams": r["streams_28d"], "saves": r["saves_28d"],
+                         "adds": r["adds_28d"]}
+             for r in df.to_dict("records") if r["song"] in choix}
+    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights,
+                                          stats, lire_cpr_bornes(db, artist_id)),
                         width="stretch")
-    charts.plotly_chart(values_figure(choix, levers), width="stretch")
+    st.caption(t("trigger_algo.rel.gauge_note",
+                 "Sous chaque jauge : les écoutes sur 7 jours qui manquent au modèle pour "
+                 "déclencher, et leur prix en pub Meta — au meilleur CPR de ton compte, "
+                 "puis au CPR moyen. Un ordre de grandeur : un clic n'est pas une écoute. "
+                 "Release Radar n'a pas de budget : il se joue dans les premiers jours."))
+    st.divider()
+    fig = values_figure(choix, levers, weights)
+    if fig is not None:
+        charts.plotly_chart(fig, width="stretch")

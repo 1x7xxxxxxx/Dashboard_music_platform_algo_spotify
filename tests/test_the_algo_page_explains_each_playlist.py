@@ -6,18 +6,16 @@ Uses: src.dashboard.views.trigger_algo._playlist_detail, src.dashboard.utils.alg
 Depends on: nothing (pure functions, fixtures)
 Persists in: nothing
 
-Owner's notes V56, V64, V66, V71 (2026-10-05). Four answers, four single sources:
-the entry threshold is `TARGET_THRESHOLDS`; the cost is a RANGE from one shared
-function; the SHAP list skips a floor probability and keeps the one playlist order;
+Owner's notes V56, V64, V66, V71 (2026-10-05). Three answers, three single sources
+(the threshold bars and their shared cost left with R559, fiche 56): the cost is a RANGE
+from one shared function; the SHAP list skips a floor probability and keeps the one playlist order;
 the recommendations are the CPR Optimizer's own, filtered to one title.
 
 Mutations, 2026-10-05:
-  - `seuils_atteints` reading a literal {"dw": 137, …} copy → RED (constant patched);
   - `budget_fourchette` returning (best, best) → RED;
   - the median-spend floor dropped from `cpr_bornes` → RED (best = the 18 € boost);
   - the floor exclusion removed from `shap_par_playlist` → RED;
-  - `for_track` matching the raw name instead of the canonical one → RED;
-  - `cout_commun` returning None (one range printed three times) → RED.
+  - `for_track` matching the raw name instead of the canonical one → RED.
 """
 from __future__ import annotations
 
@@ -35,19 +33,6 @@ _CAMPAIGNS = [
 ]
 
 
-def test_the_entry_threshold_is_read_from_the_one_constant(monkeypatch) -> None:
-    from src.dashboard.views.trigger_algo._playlist_detail import seuils_atteints
-    from src.utils import ml_outcome_labeling
-
-    monkeypatch.setitem(ml_outcome_labeling.TARGET_THRESHOLDS, "dw", 999)
-    rows = seuils_atteints({"dw_streams": 500, "rr_streams": 131, "radio_streams": None})
-    assert [r["algo"] for r in rows] == ["DW", "RADIO", "RR"]
-    dw, radio, rr = rows
-    assert dw["threshold"] == 999 and not dw["entered"], "a copy of the thresholds is read"
-    assert rr["entered"] and rr["threshold"] == ml_outcome_labeling.TARGET_THRESHOLDS["rr"]
-    assert radio["reached"] is None and not radio["entered"], "absent read as a measure"
-
-
 def test_the_cost_is_a_range_from_the_shared_function() -> None:
     from src.dashboard.utils.algo_preview_data import budget_fourchette, budget_pour_streams
 
@@ -55,9 +40,7 @@ def test_the_cost_is_a_range_from_the_shared_function() -> None:
         budget_pour_streams(1000, 0.07), budget_pour_streams(1000, 0.12))
     assert budget_fourchette(None, (0.07, 0.12)) is None
     assert budget_fourchette(1000, None) is None
-    from src.dashboard.views.trigger_algo import _playlist_detail as d
-    assert d.budget_fourchette is budget_fourchette and not hasattr(d, "budget_pour_streams"), (
-        "the algo page prices the gap itself instead of through `budget_fourchette`")
+
 
 
 def test_the_cpr_bounds_on_a_frozen_account() -> None:
@@ -112,12 +95,3 @@ def test_the_recommendations_are_the_optimizers_filtered_to_one_title() -> None:
     assert list(mine["campaign_name"]) == ["A", "C"], list(mine["campaign_name"])
     assert list(mine["budget_delta"]) == ["+30%", "-30%"]
     assert for_track(scored, None).empty
-
-
-def test_a_shared_range_is_one_budget_not_three() -> None:
-    from src.dashboard.views.trigger_algo._playlist_detail import cout_commun
-
-    assert cout_commun([(137.0, 243.0)] * 3) == (137.0, 243.0), (
-        "the same range is printed per playlist — it reads as three budgets")
-    assert cout_commun([(137.0, 243.0), (50.0, 90.0), (137.0, 243.0)]) is None
-    assert cout_commun([None, None, None]) is None and cout_commun([]) is None
