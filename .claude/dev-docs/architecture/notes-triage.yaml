@@ -4400,20 +4400,18 @@
   resume: 'Fiche 129 : ordre RR, DW, Radio ; autre format ; prédiction en pointillé ; dernière sortie auto'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R560
+  preuve_statut: R560 (archivée) — 56c72e50
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f48
   resume: 'Fiche 48 : fusionner avec 129'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R560
+  preuve_statut: R560 (archivée) — 56c72e50
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f49
@@ -4421,10 +4419,9 @@
     RR/Radio/DW'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R560
+  preuve_statut: R560 (archivée) — 56c72e50
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f53
@@ -4459,10 +4456,9 @@
     des graphiques'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R560
+  preuve_statut: R560 (archivée) — 56c72e50
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f67

@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R560 — Page algos, la suite (fiches 129, 48, 49, 68, « ce qui s'est vraiment passé ») : 129+48… (livrée 2026-10-13)
+
+- [x] **R560 — Page algos, la suite (fiches 129, 48, 49, 68, « ce qui s'est vraiment passé ») : 129+48 fusionnées, ordre RR → DW → Radio, prédiction en pointillé, dernière sortie ; 49 (cohorte) reproposée en « quand couper la promo » ou retirée ; 68 reformulée sans « espérance » ni « titre médian » ; la section « réalisé » réagencée** (P3) ✅ (2026-10-13, 56c72e50, 90b7f506, dcd75ee9)
+  Mesuré par : 1 figure 129 ; 0 occurrence d'« espérance » à l'écran
+  Livré 56c72e50, CI verte (run 38435605206) : 1 figure 129 (prévision pointillée + relevés du titre, RR→DW→Radio), onglet cycle de vie retiré (fiche 49), 0 « espérance » à l'écran
+  Commits : 56c72e50 R560 : page algos, la suite — prévision et réalité dans UNE figure (fi · 90b7f506 Roadmap : ADR-033 (argent sur une page, vue croisée en cinq décisions, · dcd75ee9 Roadmap : R553-R560 inscrites — notes vocales Y1-Y3 du 2026-10-13 (rev
+
 ## ✅ R559 — Page algos d'un seul tenant (Y3, fiches 46, 47, 56, 57) : dernière sortie choisie d'off… (livrée 2026-10-13)
 
 - [x] **R559 — Page algos d'un seul tenant (Y3, fiches 46, 47, 56, 57) : dernière sortie choisie d'office, sections séparées par des traits, playlists en pastilles ; retirés : « prochain geste titre par titre », « le vrai pour tout ton catalogue », fiche 56 ; fiche 46 enrichie de 57 (28 j : streams, saves, ajouts playlist, top 3 leviers par playlist) et du budget restant pour 100 % DW et Radio aux CPR meilleur et moyen ; fiche 47 redessinée pour 2 titres, leviers SHAP décroissants dans l'ordre DW → Radio → RR avec seuils ; plus de tableau hors repli** (P3) ✅ (2026-10-13, 9d9f9da4)
