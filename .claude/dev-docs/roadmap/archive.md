@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R554 — Vue croisée réorganisée (Y2, ADR-033) : 7 sections → 5 lisibles de haut en bas — 📈 Chro… (livrée 2026-10-13)
+
+- [x] **R554 — Vue croisée réorganisée (Y2, ADR-033) : 7 sections → 5 lisibles de haut en bas — 📈 Chronologie, 🛤️ Entonnoir, 🎨 Créas & réglages, 🌍 Audiences, 📸 Instagram — même barre de filtres ; la section Revenus part (R553), « Mes sorties » se fond dans Chronologie/Entonnoir ; fiches 27, 30, 32, 34 retirées ; un glossaire repliable définit clic sortant, fréquence, engagement, « % de l'étape d'avant », coût unitaire** (P3) ✅ (2026-10-13, 05e9103a)
+  Mesuré par : 5 sections au registre ; 4 fiches absentes du dossier régénéré
+  Livré 05e9103a, CI verte (run 38398749110) : 7 sections → 5 (chrono, entonnoir, créas, audiences, instagram) ; fiches 27, 30, 32, 34 retirées ; v_meta_adset_daily relu par le Pareto d'objectif
+  Commits : 05e9103a R554 : vue croisée en cinq sections (ADR-033 décision 2)
+
 ## ✅ R553 — Revenus rassemblés (Y1, fiches 25, 50, 51, 67 du 2026-10-13) : la vue « 💶 Trésorerie »… (livrée 2026-10-13)
 
 - [x] **R553 — Revenus rassemblés (Y1, fiches 25, 50, 51, 67 du 2026-10-13) : la vue « 💶 Trésorerie » reçoit TOUT ce qui parle d'argent — la section « 💶 Revenus » de la vue croisée, la section « 💶 Mon argent » et `_render_fit`/`_render_breakeven` de la page algo — sans doublon (un graphique, un appelant) ; fiche 25 dépenses en rouge, revenus en vert, projection DESSINÉE (pointillé) sur une échelle bornée au lieu de « 270 ans » en texte ; fiche 67 (valeur d'un abonné) visible admin seulement ; les anciennes ancres restent des alias** (P3) ✅ (2026-10-13, 14697ed1, 90b7f506, dcd75ee9)

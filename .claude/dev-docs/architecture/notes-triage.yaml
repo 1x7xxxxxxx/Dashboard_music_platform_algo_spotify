@@ -4093,10 +4093,9 @@
     a vu tes pubs, Instagram) — architecture cohérente, mêmes filtres dynamiques, proposition de refactor'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R554
+  preuve_statut: R554 (archivée) — 05e9103a
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f42
@@ -4146,10 +4145,9 @@
   resume: 'Fiche 27 (écoutes par vague) : supprimer'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R554
+  preuve_statut: R554 (archivée) — 05e9103a
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f28
@@ -4176,10 +4174,9 @@
   resume: 'Fiche 30 (objectif d''optimisation) : retirer ou proposer autre chose'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R554
+  preuve_statut: R554 (archivée) — 05e9103a
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f128
@@ -4307,10 +4304,9 @@
   resume: 'Fiche 32 (carte des dépenses) : supprimer'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R554
+  preuve_statut: R554 (archivée) — 05e9103a
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f45
@@ -4368,10 +4364,9 @@
   resume: 'Fiche 34 (carte des réactions) : supprimer'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R554
+  preuve_statut: R554 (archivée) — 05e9103a
 - ligne: 19
   source: revue/notes-vocales-2026-10-13.md
   note: Y3

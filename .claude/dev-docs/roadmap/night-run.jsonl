@@ -838,3 +838,4 @@
 {"at": "2026-10-13T11:08:24+00:00", "head": "90b7f506", "kind": "start", "task": "R553", "what": "argent rassemblé sur Trésorerie"}
 {"at": "2026-10-13T11:53:35+00:00", "head": "14697ed1", "kind": "done", "task": "R553", "what": "poussée 14697ed1, CI en cours"}
 {"at": "2026-10-13T11:53:35+00:00", "head": "14697ed1", "kind": "start", "task": "R554", "what": "vue croisée en 5 sections"}
+{"at": "2026-10-13T12:41:54+00:00", "kind": "done", "task": "R554", "what": "fermée par roadmap-close — Livré 05e9103a, CI verte (run 38398749110) : 7 sections → 5 (chrono, entonnoir, créas, audiences, instagram) ; fiches 27, 30, 32, 34 retirées ; v_meta_adset_daily relu par le Pareto d'objectif"}
