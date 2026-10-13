@@ -354,6 +354,21 @@ SEEN_RED: dict[str, str] = {
     "tests/test_the_momentum_chart_shows_only_what_moves.py":
         "2026-10-10 — moving_songs rend `spans` sans filtre (spotify_s4a_combined.py:354) "
         "→ 2 rouges (le titre immobile montré ; plus de barres PI propres)",
+    # R561 — nightly 2026-10-13 : sa seule mutation générique renommait `tools` (ligne 81),
+    # qui n'atteint pas `_mods_review`. Muté à la main sur ce que le garde protège.
+    "tests/test_the_mods_review_is_dated_and_counted.py":
+        "2026-10-13 — R561 : filtre des 14 jours retiré de `_mods_review` (3 blocages au "
+        "lieu de 2) → 1 rouge ; passages du garde Stop non comptés (`runs = 0`) → 1 rouge ; "
+        "`>=` changé en `>` sur la date de revue (rien le jour J) → 1 rouge",
+    # R561 — tiré du reliquat auto-prouvant la nuit du 2026-10-13 (run 38378791826) : les
+    # 5 mutations génériques renommaient l'AFFECTATION de last_7d/prev_7d/meta_* dans le
+    # DAG, ce qui ne remet aucun zéro inventé. Muté à la main sur le défaut lui-même.
+    "tests/test_the_digest_never_mails_a_fabricated_zero.py":
+        "2026-10-13 — R561 : `COALESCE(SUM(…), 0) AS last_7d` remis dans "
+        "SPOTIFY_WEEKLY_STREAMS_SQL → 1 rouge (« la colonne 0 rend 0 ») ; `ELSE 0` remis sur "
+        "le CTR de META_WEEKLY_SPEND_SQL → 1 rouge (« la colonne 1 rend Decimal('0') ») ; "
+        "`{last_7d:,}` remis à nu dans le gabarit de weekly_digest.py → 1 rouge (« interpolés "
+        "à nu : last_7d (ligne 204) »)",
 }
 
 
@@ -398,6 +413,16 @@ def reds_seen(log: Path = RED_LOG) -> dict[str, dict]:
         if ok and rec["date"] >= out.get(rec["guard"], {}).get("date", ""):
             out[rec["guard"]] = rec
     return out
+
+
+def known_reds(log: Path = RED_LOG) -> dict[str, dict]:
+    """Every guard already seen red: by the job (the log) OR by hand (SEEN_RED).
+
+    R561 — a red seen BY HAND is the stronger evidence: a human checked the mutation
+    embodies the defect. The backlog read the log alone, which is empty on the CI runner
+    every night, so such a guard stayed in the rotation and was printed « aucun rouge
+    daté » on generic mutations that never reached its subject."""
+    return {**{rel: {"source": "SEEN_RED"} for rel in SEEN_RED}, **reds_seen(log)}
 
 
 def self_proving_backlog(catalogue: str, seen: dict[str, dict], root: Path = _ROOT) -> list[str]:
@@ -498,7 +523,7 @@ def attempts(result: dict) -> list[str]:
 def mutate_self_proving(today: str, limit: int = _SELF_PROVING_PER_NIGHT) -> int:
     """Mutate a few catalogue self-proving guards with no dated red; record each red.
     Green here is not a suspect (the fabrication may live in the test): it is only shown."""
-    backlog = self_proving_backlog(_CATALOGUE.read_text(encoding="utf-8"), reds_seen())
+    backlog = self_proving_backlog(_CATALOGUE.read_text(encoding="utf-8"), known_reds())
     batch = tonight(backlog, date.fromisoformat(today), limit)
     print(f"▶ {len(batch)} garde(s) auto-prouvant(s) sans rouge daté mutés "
           f"({len(backlog)} dans le reliquat)")

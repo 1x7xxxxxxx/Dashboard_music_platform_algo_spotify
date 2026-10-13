@@ -86,6 +86,17 @@ def test_the_self_proving_backlog_rotates_and_drops_what_was_seen_red(tmp_path) 
     assert len(nights) == 2, "an empty CI log must not mutate the same guard every night"
 
 
+def test_a_guard_seen_red_by_hand_leaves_the_self_proving_backlog(tmp_path) -> None:
+    """R561: the CI log is empty every night, so SEEN_RED must count, not the log alone."""
+    rel = "tests/test_the_digest_never_mails_a_fabricated_zero.py"
+    assert rel in ngm.SEEN_RED
+    known = ngm.known_reds(tmp_path / "absent.jsonl")
+    assert rel in known, "a red seen by hand must keep the guard out of the backlog"
+    cat = f"- seen_red: self-proving ({rel}::t) — x\n"
+    assert ngm.self_proving_backlog(cat, known) == []
+    assert ngm.self_proving_backlog(cat, ngm.reds_seen(tmp_path / "absent.jsonl")) == [rel]
+
+
 def test_a_self_proving_class_counts_as_dated_only_once_seen_red() -> None:
     spec = importlib.util.spec_from_file_location("ech", _ROOT / "tools/dev/error_class_health.py")
     ech = importlib.util.module_from_spec(spec)
