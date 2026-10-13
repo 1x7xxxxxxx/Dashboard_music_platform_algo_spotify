@@ -71,11 +71,7 @@ EN = {
     "meta_x_spotify.funnel_lp_note": '⚠️ The Meta pixel counts only **{lp}** page views for **{capi}** events returned by the CAPI: the pixel UNDERCOUNTS, it does not measure a later step.',
     "meta_x_spotify.countries_header": "🌍 Where the euro buys the most listens",
     "meta_x_spotify.countries_none": "No country breakdown on this ad account.",
-    "meta_x_spotify.c_spend": "Spend (€)",
-    "meta_x_spotify.c_streams": "Listens",
     "meta_x_spotify.c_cost": "€ per listen",
-    "meta_x_spotify.c_axis_left": "Spend (€) · listens",
-    "meta_x_spotify.c_axis_right": "€ per listen",
     "meta_x_spotify.best_country": "🏆 **{pays}** is your best ratio: **{c:.3f} € per "
                                    "listen** ({s:,.0f} € spent, {e:,.0f} listens). The "
                                    "worst is **{pp}** at **{cc:.3f} €** — **{ratio:.0f}×** "
@@ -88,8 +84,9 @@ EN = {
                                         "**distributor's** (iMusician), which aggregates "
                                         "every platform and arrives with an accounting "
                                         "statement's delay. The spend comes from Meta. "
-                                        "The left scale is **logarithmic** — without it, "
-                                        "a country at 56,000 listens crushes every other.",
+                                        "Bars: the cost of one listen, cheapest on the "
+                                        "left; line: the CPR. ⚠️ in grey: under 50 € "
+                                        "spent, too little to conclude.",
     # R195 — the listener verdict, moved from the Spotify page
     "meta_x_spotify.funnel_gain_note": '🎧 The **streams gained** are compared with the average of the {n} days before ({b} streams/day): a rise that would have happened without the ad is counted too, and one visitor streams many times — hence « streams per click », not a %.',
     "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",
@@ -111,4 +108,6 @@ EN = {
     "meta_x_spotify.pair_header": "⚖️ Two campaigns, two funnels",
     "meta_x_spotify.pair_none": "No spend recorded.",
     "meta_x_spotify.pair_caption": "Each campaign over its own dates, from the first to the last euro spent. CPM = cost of 1,000 impressions, CPC = cost of one click on the ad, CPR = cost of one outbound click to the platforms.",
+    "meta_x_spotify.c_cpr": "CPR (€/outbound click)",
+    "meta_x_spotify.c_hover": "%{x}<br>%{y:.4f} € per listen<br>%{customdata[0]:,.0f} € spent · %{customdata[1]:,.0f} listens<extra></extra>",
 }

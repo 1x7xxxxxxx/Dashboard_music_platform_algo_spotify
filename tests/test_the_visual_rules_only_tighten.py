@@ -156,8 +156,13 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
                          "le propriétaire le 2026-09-28"),
     # R290 (owner, fiche 15) — posts per month (a VOLUME, left) vs engagement per post
     # (a RATIO, right): the « volume vs price » pair already admitted three times.
-    "instagram.py": (3, "posts du mois (volume) vs likes + commentaires par publication "
-                        "(ratio) — deux natures, « publier plus ou mieux »"),
+    "instagram.py": (5, "posts du mois (volume) vs likes + commentaires par publication "
+                        "(ratio) — deux natures, « publier plus ou mieux » ; (3 → 5 le "
+                        "2026-10-13, R558 : la dépense Meta (€) en AIRE à droite des "
+                        "abonnés et de l'engagement mensuel — un VOLUME contre une "
+                        "DÉPENSE, la paire déjà admise pour meta_x_spotify ; demandé par "
+                        "le propriétaire, fiches 18-19 : « intégrer les dépenses Meta Ads, "
+                        "sur une aire »)"),
     # apple_music.py — its Shazam/spend axis left with fiche 6 (R555, 2026-10-13).
     "spotify_s4a_combined.py": (
         9, "(6 → 9 le 2026-10-07, R436 : la dépense Meta CUMULÉE (€) devient une aire à "

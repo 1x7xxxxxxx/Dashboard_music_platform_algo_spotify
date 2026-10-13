@@ -16,7 +16,7 @@ de la table placement (Meta rend la plateforme avec chaque placement).
 """
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
 from src.dashboard.utils import charts
 from src.dashboard.utils.filters import (
@@ -27,7 +27,6 @@ from src.dashboard.utils.charts import pareto_spend_cpr
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_pair import render_share_pair, share_pair
 from src.dashboard.utils.formats import eur, num, pct
-from src.dashboard.utils.platform_colors import DISTINCT
 from src.dashboard.utils.proxy_disclosure import cpr_help, outbound_help
 
 
@@ -152,8 +151,8 @@ def _render_engagement(df):
     if df['total'].sum() == 0:
         st.info(t("meta_breakdowns.no_engagement", "Aucune interaction d'engagement sur cette sélection."))
         return
-    var_col = t("meta_breakdowns.type", "Type")
-    val_col = t("meta_breakdowns.volume", "Volume")
+    from src.dashboard.utils import engagement_grid
+    labels = {k: t(f"meta_breakdowns.eng.{k}", v) for k, v in _ENG_STACK.items()}
     for row in (_PANELS[:2], _PANELS[2:]):
         cols = st.columns(2)
         for col, (panel, label) in zip(cols, row):
@@ -166,21 +165,22 @@ def _render_engagement(df):
                                  "{dim} — aucune donnée sur cette sélection.").format(
                                      dim=t(f"meta_breakdowns.dim.{panel}", label)))
                     continue
-                melted = part.rename(columns={
-                    k: t(f"meta_breakdowns.eng.{k}", v) for k, v in _ENG_STACK.items()}
-                ).melt(id_vars='dim_label',
-                       value_vars=[t(f"meta_breakdowns.eng.{k}", v) for k, v in _ENG_STACK.items()],
-                       var_name=var_col, value_name=val_col)
-                fig = px.bar(melted, y='dim_label', x=val_col, color=var_col,
-                             orientation='h', color_discrete_sequence=list(DISTINCT),
-                             title=t(f"meta_breakdowns.dim.{panel}", label),
-                             labels={'dim_label': ''})
-                # `automargin`: the long placement labels were cut at a 10 px margin.
-                fig.update_layout(barmode='stack', height=340,
-                                  margin={'t': 40, 'r': 10})
-                fig.update_yaxes(automargin=True, categoryorder='total ascending')  # largest on top
+                # `.pipe`, not a call on `z`: the gold-coverage map stops descending
+                # after three hops and would call this figure « indéterminée ».
+                z = part[list(labels)].astype(float)
+                fig = go.Figure(go.Heatmap(
+                    z=z.pipe(engagement_grid.column_shade).values, x=list(labels.values()),
+                    y=part['dim_label'], text=engagement_grid.cell_text(z),
+                    customdata=z.values, **engagement_grid.HEATMAP_STYLE))
+                engagement_grid.dress(fig, t(f"meta_breakdowns.dim.{panel}", label), len(part))
                 charts.plotly_chart(fig, width="stretch")
-
+    # R558 (fiche 33) — the totals said in words: the small actions were never missing.
+    st.caption(t("meta_breakdowns.eng_grid_caption",
+                 "Sur la sélection : {totals}. Chaque colonne a sa propre échelle — la case "
+                 "la plus foncée est le maximum DE CETTE ACTION, pas de toutes : sinon les "
+                 "réactions écraseraient les commentaires et les partages, qui sont bien "
+                 "mesurés.").format(totals=engagement_grid.totals_line(_one_dimension(df),
+                                                                       labels)))
     st.caption(t("meta_breakdowns.page_interactions_note",
                  "Meta compte aussi {n} « interactions avec la page », un total qui CONTIENT "
                  "ces actions (et d'autres, comme les lectures vidéo) : il n'est pas empilé, "

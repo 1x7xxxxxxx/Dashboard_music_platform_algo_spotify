@@ -9,7 +9,9 @@ EN = {
         "have accumulated **up to today** — not the ones received during that month. "
         "Instagram only gives us a current counter per post: there is no history to "
         "derive a monthly engagement from, and inventing it would be worse than not "
-        "showing it. The period filter therefore applies to the **publication** date."),
+        "showing it. The period filter therefore applies to the **publication** date. "
+        "**Engagement** = likes + comments. The area: the month's Meta Ads spend, all "
+        "accounts."),
     "instagram.account": "Account: @{username}",
     "instagram.kpi_followers": "👥 Followers",
     "instagram.kpi_follows": "➡️ Following",
@@ -41,11 +43,11 @@ EN = {
     # La communauté en petits multiples, en VRAIES valeurs (2026-09-21).
     "instagram.community_title": "My community over time ({label})",
     "instagram.community_caption": "**{n} reading(s)**, latest on **{d}**. Over the "
-                                   "period: **{g:+d} follower(s)**. Each panel has its "
-                                   "own scale, tightened on its values — an axis anchored "
-                                   "at zero would hide a gain of three followers out of "
-                                   "fifteen hundred. All three curves carry their REAL "
-                                   "values: nothing is rebased.",
+                                   "period: **{g:+d} follower(s)**. The curves show what "
+                                   "was gained since the first reading; the hover gives "
+                                   "the real value. The area, on the right axis: the "
+                                   "day's Meta Ads spend, all accounts — to see whether "
+                                   "the community moves when the ads run.",
     "instagram.no_posts_in_window": "No publication in this window. The account has **{n}** "
                                     "in total, the latest from **{d}** — **{j} days** ago. "
                                     "Widen the period to see the history again.",
@@ -59,4 +61,5 @@ EN = {
                                   "are not collected yet. They arrive with the next "
                                   "Instagram collection; if Meta refuses them, the "
                                   "collection fails and the administrator is told.",
+    "instagram.spend_axis": "Meta spend (€)",
 }

@@ -85,6 +85,7 @@ from src.dashboard.utils.campaign_funnel import (
     shazam_stream_lag, streams_gained,
 )
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
+from src.dashboard.utils.ratios import per_series
 from src.dashboard.utils.date_format import format_date
 
 # L'encre du TROISIÈME axe — le coût par écoute, qui n'appartient à aucune
@@ -735,6 +736,15 @@ def _render_pair(db, artist_id, bar) -> None:
 
 
 # ── Le croisement PAYS — où l'euro rapporte le plus d'écoutes ──────────────────
+_PLANCHER = 50.0
+
+
+def countries_order(meta: pd.DataFrame, top: int = 15) -> pd.DataFrame:
+    """R558 — the `top` most spent countries, cheapest listen first, unpriced last. Pure."""
+    return (meta.sort_values("spend", ascending=False).head(top)
+                .sort_values("cout_par_ecoute", na_position="last"))
+
+
 def render_countries(db, artist_id, acct, acct_p) -> None:
     """Dépense Meta par pays × écoutes du distributeur par pays.
 
@@ -800,34 +810,40 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
     else:
         meta["streams"] = pd.NA
 
-    meta["cout_par_ecoute"] = meta["spend"] / pd.to_numeric(
-        meta["streams"], errors="coerce").where(lambda s: s > 0)
-    meta = meta.sort_values("spend", ascending=False).head(15)
-
+    meta["cout_par_ecoute"] = per_series(
+        meta["spend"], pd.to_numeric(meta["streams"], errors="coerce"))
+    meta["cpr"] = per_series(meta["spend"], meta["results"])
+    # R558 (fiche 45, owner 2026-10-13 : « me placer par Pareto en fonction de l'euro par
+    # écoute, comme ça ce serait le premier facteur à focus ») — the 15 most spent
+    # countries, CHEAPEST STREAM FIRST; the CPR rides along as a line. A country under the
+    # spend floor keeps its place in the order but is drawn grey: its ratio proves nothing.
+    meta = countries_order(meta)
+    sur = meta["spend"] >= _PLANCHER
     pal = _palette()
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Bar(
-        x=meta["pays"], y=meta["spend"], name=t("meta_x_spotify.c_spend", "Dépense (€)"),
-        marker_color=pal["meta"], opacity=0.85), secondary_y=False)
-    fig.add_trace(go.Bar(
-        x=meta["pays"], y=meta["streams"], name=t("meta_x_spotify.c_streams", "Écoutes"),
-        marker_color=pal["spotify"], opacity=0.85), secondary_y=False)
+        x=[p if ok else f"{p} ⚠️" for p, ok in zip(meta["pays"], sur)],
+        y=meta["cout_par_ecoute"], name=t("meta_x_spotify.c_cost", "€ par écoute"),
+        marker_color=[pal["meta"] if ok else "#bdbdbd" for ok in sur],
+        customdata=meta[["spend", "streams"]].values,
+        hovertemplate=t("meta_x_spotify.c_hover",
+                        "%{x}<br>%{y:.4f} € par écoute<br>%{customdata[0]:,.0f} € dépensés"
+                        " · %{customdata[1]:,.0f} écoutes<extra></extra>")),
+        secondary_y=False)
     fig.add_trace(go.Scatter(
-        x=meta["pays"], y=meta["cout_par_ecoute"], mode="markers",
-        name=t("meta_x_spotify.c_cost", "€ par écoute"),
-        marker=dict(color=_CROSS_INK, size=11, symbol="diamond")), secondary_y=True)
-    fig.update_yaxes(title_text=t("meta_x_spotify.c_axis_left", "Dépense (€) · écoutes"),
-                     type="log", secondary_y=False)
-    fig.update_yaxes(title_text=t("meta_x_spotify.c_axis_right", "€ par écoute"),
-                     showgrid=False, title_font=dict(color=_CROSS_INK),
+        x=[p if ok else f"{p} ⚠️" for p, ok in zip(meta["pays"], sur)], y=meta["cpr"],
+        mode="lines+markers", name=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
+        line=dict(color=_CROSS_INK, width=2), connectgaps=False), secondary_y=True)
+    fig.update_yaxes(title_text=t("meta_x_spotify.c_cost", "€ par écoute"),
+                     rangemode="tozero", secondary_y=False)
+    fig.update_yaxes(title_text=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
+                     showgrid=False, rangemode="tozero", title_font=dict(color=_CROSS_INK),
                      tickfont=dict(color=_CROSS_INK), secondary_y=True)
-    fig.update_layout(height=500, barmode="group", hovermode="x unified",
-                      margin=dict(b=110))
+    fig.update_layout(height=480, hovermode="x unified", margin=dict(b=110))
     fig.update_xaxes(tickangle=-35)
     charts.plotly_chart(fig, width="stretch")
 
     # LE MEILLEUR PAYS, avec son plancher de dépense écrit.
-    _PLANCHER = 50.0
     eligibles = meta[(meta["spend"] >= _PLANCHER) & meta["cout_par_ecoute"].notna()]
     if not eligibles.empty:
         best = eligibles.loc[eligibles["cout_par_ecoute"].idxmin()]
@@ -851,5 +867,5 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
         "Artists ne donne aucune ventilation par pays : le seul compte du produit "
         "est celui du **distributeur** (iMusician), qui agrège toutes les "
         "plateformes et arrive avec le décalage d'un relevé comptable. La dépense, "
-        "elle, vient de Meta. L'échelle de gauche est **logarithmique** — sans "
-        "elle, un pays à 56 000 écoutes écrase tous les autres."))
+        "elle, vient de Meta. Barres : le coût d'une écoute, le moins cher à gauche ; "
+        "ligne : le CPR. ⚠️ en gris : moins de 50 € dépensés, trop peu pour conclure."))

@@ -159,7 +159,9 @@ def render(db, artist_id) -> None:
         else:
             # timestamptz across a DST change → mixed offsets (utils/tz.py).
             df_hist['collected_at'] = to_local_naive(df_hist['collected_at'])
-            _render_community(df_hist, window, last_date)
+            from src.dashboard.utils import meta_spend_overlay
+            _render_community(df_hist, window, last_date,
+                              meta_spend_overlay.spend_by(db, artist_id, window))
 
     except Exception as e:
         st.error(t("instagram.history_error", "Erreur historique : {err}").format(err=e))
@@ -278,6 +280,17 @@ def render(db, artist_id) -> None:
                                             "Likes + commentaires par publication"),
                                title_font_color=_IG_DEEP, rangemode="tozero",
                                secondary_y=True)
+            # R558 (fiche 19) — the month's Meta spend as an area, on a third (€) axis.
+            from src.dashboard.utils import meta_spend_overlay
+            area = meta_spend_overlay.area_trace(
+                meta_spend_overlay.spend_by(db, artist_id, win_m, "month"), yaxis="y3")
+            if area is not None:
+                fig_e.add_trace(area)
+                fig_e.update_layout(
+                    xaxis=dict(domain=[0, 0.88]),
+                    yaxis3=dict(title=t("instagram.spend_axis", "Dépense Meta (€)"),
+                                overlaying="y", side="right", anchor="free", position=1.0,
+                                showgrid=False, rangemode="tozero"))
             charts.plotly_chart(fig_e, width="stretch")
             # R299 — the « taux d'engagement » chart that followed was the per-post line
             # divided by ONE constant (the latest follower count): same shape, same
@@ -290,7 +303,8 @@ def render(db, artist_id) -> None:
                 "courant par post : il n'y a pas d'historique d'où tirer un "
                 "engagement mensuel, et l'inventer serait pire que de ne pas le "
                 "montrer. Le filtre de période porte donc sur la date de "
-                "**publication**."))
+                "**publication**. **Engagement** = likes + commentaires. L'aire : la "
+                "dépense Meta Ads du mois, tous comptes."))
 
         # Publications récentes — insights indispo ⇒ note + colonnes masquées
         st.markdown(t("instagram.recent_posts", "#### Publications récentes"))
@@ -374,7 +388,8 @@ if __name__ == "__main__":
     show()
 
 
-def _render_community(df_hist, window, last_date: str) -> None:
+def _render_community(df_hist, window, last_date: str,
+                      spend: pd.DataFrame | None = None) -> None:
     """Abonnés, abonnements et publications — UN cadre, une horloge (R210, 2026-09-27).
 
     Le propriétaire, devant le dossier : « abonnés, abonnements et publications sur un
@@ -386,7 +401,8 @@ def _render_community(df_hist, window, last_date: str) -> None:
     LA VARIATION DEPUIS LE PREMIER RELEVÉ résout les deux. Les trois séries partagent
     alors une unité — un compte gagné ou perdu — et des ordres de grandeur voisins
     (+12 abonnés, +3 abonnements, +2 publications). Chaque point garde sa VALEUR au
-    survol. Aucun double axe : la règle du dépôt est constante là-dessus.
+    survol. R558 (fiche 18) : la dépense Meta s'y ajoute en AIRE sur un axe € à droite —
+    une autre nature (des euros, pas des comptes), donc aucun croisement à sur-lire.
     """
     series = (
         ("followers_count", t("instagram.followers", "Abonnés"), "solid"),
@@ -405,6 +421,15 @@ def _render_community(df_hist, window, last_date: str) -> None:
             line=dict(color=_IG, width=2, dash=dash), marker=dict(size=6),
             hovertemplate=f"{lbl} : %{{customdata:,.0f}} (%{{y:+,.0f}})<extra></extra>"))
     fig.add_hline(y=0, line=dict(color="#888", width=1, dash="dot"))
+    # R558 (fiche 18) — the Meta spend as an AREA behind the community, on its own € axis:
+    # euros and followers have no common scale, so nothing here reads as a crossing.
+    from src.dashboard.utils.meta_spend_overlay import area_trace
+    area = area_trace(spend, yaxis="y2")
+    if area is not None:
+        fig.add_trace(area)
+        fig.update_layout(yaxis2=dict(title=t("instagram.spend_axis", "Dépense Meta (€)"),
+                                      overlaying="y", side="right", showgrid=False,
+                                      rangemode="tozero"))
     fig.update_layout(
         height=460, hovermode="x unified", margin=dict(t=70, b=80),
         yaxis_title=t("instagram.community_axis", "Gagnés depuis le premier relevé"),
@@ -418,7 +443,7 @@ def _render_community(df_hist, window, last_date: str) -> None:
     st.caption(t(
         "instagram.community_caption",
         "**{n} relevé(s)**, dernier le **{d}**. Sur la période : **{g:+d} abonné(s)**. "
-        "Chaque cadre a sa propre échelle, resserrée sur ses valeurs — un axe ancré à "
-        "zéro rendrait invisible un gain de trois abonnés sur mille cinq cents. Les "
-        "trois courbes portent leurs VRAIES valeurs : rien n'est ramené à une base."
+        "Les courbes montrent ce qui a été gagné depuis le premier relevé ; le survol "
+        "donne la vraie valeur. L'aire, sur l'axe de droite : la dépense Meta Ads du "
+        "jour, tous comptes — pour voir si la communauté bouge quand la pub tourne."
     ).format(n=len(df_hist), d=last_date, g=gagnes))

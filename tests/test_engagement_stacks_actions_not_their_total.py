@@ -24,9 +24,11 @@ def test_the_aggregate_is_not_stacked_with_what_it_contains():
     assert len(mb._ENG_STACK) <= len(DISTINCT), "one palette colour per stacked series"
 
 
-def test_the_stacked_bar_uses_the_palette_and_keeps_its_labels():
+def test_the_engagement_is_a_grid_not_a_stacked_bar():
+    # R558 (fiche 33): the stacked bar hid 39 comments beside 12 248 reactions.
     src = Path(mb.__file__).read_text(encoding="utf-8")
     fn = next(n for n in ast.walk(ast.parse(src))
               if isinstance(n, ast.FunctionDef) and n.name == "_render_engagement")
-    kws = {k.arg for n in ast.walk(fn) if isinstance(n, ast.Call) for k in n.keywords}
-    assert {"color_discrete_sequence", "automargin"} <= kws
+    calls = {ast.unparse(n.func) for n in ast.walk(fn) if isinstance(n, ast.Call)}
+    assert "go.Heatmap" in calls and "engagement_grid.column_shade" in ast.unparse(fn), calls
+    assert not {"px.bar", "go.Bar"} & calls, calls

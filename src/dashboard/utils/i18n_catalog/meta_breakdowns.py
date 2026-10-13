@@ -41,8 +41,6 @@ EN = {
     "meta_breakdowns.results": "Outbound clicks",
     "meta_breakdowns.avg_cpr": "Average CPR",
     "meta_breakdowns.no_engagement": "No engagement interaction for this selection.",
-    "meta_breakdowns.type": "Type",
-    "meta_breakdowns.volume": "Volume",
     "meta_breakdowns.eng.post_reactions": "Reactions",
     "meta_breakdowns.eng.comments": "Comments",
     "meta_breakdowns.eng.saves": "Saves",
@@ -67,4 +65,5 @@ EN = {
                                    "goes to bands dearer than the median.\n\n⚠️ Measured on this "
                                    "account, not assumed: the intuition « young people click "
                                    "more » is not necessarily what it says.",
+    "meta_breakdowns.eng_grid_caption": "On the selection: {totals}. Each column has its own scale — the darkest cell is the maximum OF THAT ACTION, not of all: otherwise reactions would crush comments and shares, which are measured.",
 }
