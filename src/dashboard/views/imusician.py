@@ -314,7 +314,7 @@ def render_break_even(db, artist_id: int) -> None:
     R553 (ADR-033) : rendered on this page only — it absorbed fiche 51 and the
     « Mon argent » tiles; the projection is drawn dotted on a bounded horizon.
     """
-    st.subheader(t("imusician.roi_header", "💹 Point mort"))
+    st.subheader(t("imusician.roi_header", "💹 Point mort — ta pub est-elle remboursée ?"))
     span_min, span_max = _roi_data_span(db, artist_id)
     if span_min is None or span_max is None:
         st.info(t(
@@ -340,6 +340,15 @@ def render_break_even(db, artist_id: int) -> None:
         st.info(t("imusician.roi_empty_period",
                   "Aucune donnée de revenus ou dépenses sur cette période."))
         return
+    # R561 (owner, 2026-10-13 evening) — the point mort and the ROI regression are ONE
+    # figure now; the caption says how to read it before the reader has to guess.
+    st.caption(t("imusician.roi_read",
+                 "Chaque point est un mois : **à droite**, tout ce que tu as dépensé depuis "
+                 "le début (pub + coûts) ; **en haut**, tout ce qui t'est rentré (ventes + "
+                 "SACEM). La **diagonale** est le point mort : au-dessus, tu es rentré dans "
+                 "tes frais. En pointillé, la tendance prévue au rythme des 12 derniers mois "
+                 "— là où elle croise la diagonale, c'est la date du point mort. L'étoile : "
+                 "ce qu'ajouterait un titre qui entre dans Discover Weekly."))
     charts.plotly_chart(_break_even_chart(db, artist_id, cashflow, mensuel), width="stretch")
 
 
@@ -375,5 +384,5 @@ def _trigger_point(db, artist_id: int):
     dw = valeurs[valeurs['algo'] == 'DW']
     if dw.empty or not float(dw['valeur_eur'].iloc[0] or 0):
         return None
-    return (t("imusician.trigger_point", "Un déclenchement Discover Weekly vaut"),
+    return (t("imusician.trigger_point", "Si un titre entrait dans Discover Weekly"),
             float(dw['valeur_eur'].iloc[0]))

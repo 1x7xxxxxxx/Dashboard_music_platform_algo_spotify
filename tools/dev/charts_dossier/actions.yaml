@@ -174,12 +174,6 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   - qui: moi
     texte: 'Fusion 129 + 48 : prévision en pointillé, relevés du titre en points, RR → DW → Radio'
     rid: R560
-src/dashboard/views/revenue_forecast.py::_render_fit#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Retirer l'équation, écrire la décision
-    rid: R247
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
   valide: false
   actions:
@@ -289,12 +283,6 @@ src/dashboard/views/revenue_forecast.py::_render_money_chart#1:
   - qui: moi
     texte: Fusion dans la trésorerie cumulée unique (fiche 18)
     rid: R244
-src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Refaire
-    rid: R247
 src/dashboard/views/alerts.py::_section_plan_evolution#1:
   valide: true
   actions: []

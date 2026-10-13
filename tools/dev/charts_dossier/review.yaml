@@ -483,20 +483,6 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   owner_v: corriger
   owner: "Fiche 129 : Release Radar en premier, ensuite Discover Weekly, ensuite Radio ; en pointillé les prédictions ; dernière release automatiquement. Fiche 48 : fusionne-la avec la 129."
   note: "R560 (fiches 129 + 48, ADR-033 §3) : UNE figure, un panneau par playlist dans l'ordre où elles agissent après une sortie (RR → DW → Radio, dérivé d'ALGO_ORDER). Médiane des titres déclenchés à 1 mois / 6 mois / 1 an en POINTILLÉ avec sa bande P25–P75 ; les saisies « 28 jours » du titre sélectionné (la dernière sortie par défaut) en POINTS PLEINS à l'âge du relevé. Fenêtre, quatre tuiles et barre empilée de la fiche 48 retirées. Fiche 49 (cycle de vie de cohorte) retirée : une cohorte d'entraînement statique ne dit pas quand couper la promo."
-src/dashboard/views/revenue_forecast.py::_render_fit#1:
-  mq: M6
-  q: "Mes revenus suivent-ils ma dépense Meta ?"
-  decision: "Savoir si tes revenus suivent ta dépense Meta, pour décider d'augmenter ou de baisser le budget."
-  decision_en: "Know whether your revenue follows your Meta spend, to decide whether to raise or cut the budget."
-  role: meta
-  d: 1
-  c: 1
-  p: 4
-  v: corriger
-  owner_v: corriger
-  owner: "Cool ; sans équation ni R² ; quelle décision ?"
-  cause: ajustement-trompeur
-  note: "R247 : équation, R² et p retirés de l'écran ; ils décident la phrase dessous — « tes revenus ne suivent pas ta pub » (p ≥ 0,05, le cas de l'artiste 1 sur 12 mois), « chaque euro revient à k € » sinon."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
   mq: M4
   q: "Combien de mon budget Meta reste-t-il ?"
@@ -658,19 +644,6 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   owner_v: garder
   owner: "Intègre-le et on garde en admin, pas pour l'artiste, c'est pour les plans premium. Non garanti couche : règle-moi ce problème."
   note: "R553 (Y1, ADR-033) : rendue par la page admin seulement, sous « Business » — elle a quitté « 💶 Mon argent ». R405 : admin seulement, REPLIÉ sous « 💶 Mon argent » de la page algo (Prévisions revenus en est devenue une section) ; le MRR se lit dans « 💳 Facturation », sa seule définition. Le coût de distribution par titre se saisit dans Mes revenus (R248)."
-src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
-  q: "Combien vaut un déclenchement d'algorithme pour moi ?"
-  decision: "Chiffrer ce que vaut un déclenchement d'algorithme, pour savoir combien dépenser pour l'obtenir."
-  decision_en: "Put a value on an algorithm trigger, to know how much to spend to get it."
-  role: prediction
-  d: 4
-  c: 3
-  p: 4
-  v: garder
-  owner_v: a-trancher
-  owner: "Je ne comprends pas la valeur d'un déclenchement ni la décision : refais."
-  note: "R247 : « déclenchement » et ses deux barres expliqués avant la figure ; la décision après — combien de déclenchements combleraient le manque (≈ 121 sur l'artiste 1) : les algorithmes apportent des auditeurs, pas de quoi rembourser la pub."
-
 # ── Administration et santé de l'app ─────────────────────────────────────────
 src/dashboard/views/alerts.py::_section_plan_evolution#1:
   q: "Combien d'artistes, et combien paient ?"

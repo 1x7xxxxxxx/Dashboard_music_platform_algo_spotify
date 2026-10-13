@@ -15,11 +15,9 @@ from pathlib import Path
 from datetime import date as _date
 from datetime import date
 
-import numpy as np
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
@@ -27,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
-from src.dashboard.utils.semantic_colors import BON
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
@@ -341,157 +338,68 @@ def cost_lines(deja: pd.DataFrame) -> list[str]:
     return out
 
 
-def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
-    """Ce que vaut un titre qui déclenche un algorithme, en euros mesurés.
+def _render_trigger_sentence(db, artist_id: int, mensuel: pd.DataFrame) -> None:
+    """What a Discover Weekly trigger would bring, in words, under the point mort figure.
 
-    ⚠️ CE N'EST PAS LE GAIN DU DÉCLENCHEMENT, et la vue le dit à l'endroit où elle
-    l'affiche. La cohorte de référence ne contient QUE des titres qui ont
-    déclenché : il n'y a pas de témoin, donc pas d'effet causal à en tirer. Ce
-    qu'elle donne est un ordre de grandeur — voilà où arrivent les titres qui y
-    arrivent — et le contraste que la donnée supporte est la comparaison avec les
-    propres titres de l'artiste.
+    R561 (owner, 2026-10-13 evening : « je ne comprends pas la valeur d'un déclenchement
+    de 23,78 € ni le gain probable de 17,99 € […] remodifie-le, fusionne avec d'autres
+    graphiques »). The two-bar chart is gone: its value is the STAR of the point mort
+    figure (`imusician._trigger_point`), and the two numbers are said here in one
+    paragraph, each with what it is made of.
+
+    ⚠️ It is NOT the causal gain of a trigger. The reference cohort holds only tracks
+    that DID trigger — no control — so the value is an order of magnitude: where the
+    tracks that get there arrive. The caption says it where the number is read.
     """
     from src.dashboard.utils.artist_cashflow import (
         stream_rate, trigger_expectation, trigger_value)
-
-    st.markdown("---")
-    st.subheader(t("revenue_forecast.trigger_header",
-                   "🚀 Et si un titre déclenchait les algorithmes ?"))
-
     taux = stream_rate(db, artist_id)
     if taux is None:
-        st.info(t("revenue_forecast.no_rate",
-                  "Il faut au moins un rapport de ventes du distributeur pour "
-                  "connaître ce qu'une écoute te rapporte. Importe un CSV depuis "
-                  "**Import CSV**."))
+        st.caption(t("revenue_forecast.no_rate",
+                     "Il faut au moins un rapport de ventes du distributeur pour "
+                     "connaître ce qu'une écoute te rapporte. Importe un CSV depuis "
+                     "**Import CSV**."))
         return
-
     valeurs = trigger_value(db, taux['eur_par_stream'])
-    if valeurs.empty:
-        st.info(t("revenue_forecast.no_benchmark",
-                  "La cohorte de référence n'est pas chargée sur cette base."))
+    dw = valeurs[valeurs['algo'] == 'DW'] if not valeurs.empty else valeurs
+    if dw.empty:
+        st.caption(t("revenue_forecast.no_benchmark",
+                     "La cohorte de référence n'est pas chargée sur cette base."))
         return
-
-    # ⚠️ `v_s4a_song_daily`, PAS `s4a_song_timeline`. Agréger la table de fait
-    # ici créerait une deuxième définition du total par titre — la plateforme
-    # dont le total a divergé TROIS fois avant la migration 097. La vue porte
-    # déjà le filtre de la ligne « Total » des exports S4A ; vérifié le
-    # 2026-09-21, les deux rendent 11 titres et une médiane de 9 049 écoutes.
-    # Garde : `tests/test_the_metrics_layer_only_grows.py`.
-    propre = db.fetch_df(
-        """SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tot) AS mediane
-           FROM (SELECT song, SUM(streams) AS tot FROM v_s4a_song_daily
-                 WHERE artist_id = %s
-                 GROUP BY song) p""",
-        (artist_id,))
-    med_propre = (float(pd.to_numeric(propre['mediane'].iloc[0], errors='coerce'))
-                  if propre is not None and not propre.empty
-                  and pd.notna(propre['mediane'].iloc[0]) else None)
-
-    # DEUX BARRES PAR ALGORITHME, et la seconde est celle qui décide.
-    #
-    # La première dit ce qu'un déclenchement VAUT — 23 € pour Discover Weekly.
-    # La seconde dit ce que TON CATALOGUE peut en espérer : la même valeur
-    # multipliée par la probabilité calibrée de chacun de tes titres. Sur
-    # l'artiste 1 le 2026-09-21 : 23,38 € de valeur, **18,27 € d'espérance** sur
-    # onze titres — parce qu'aucun n'est au-dessus de 7,4 % de chance.
-    #
-    # Montrer la première sans la seconde laisserait lire « 23 € par titre ».
+    row = dw.iloc[0]
     espoir = trigger_expectation(db, artist_id, valeurs)
-    esp = ({r['algo']: r for _, r in espoir['par_algo'].iterrows()}
-           if espoir else {})
+    st.markdown(trigger_paragraph(row, taux['eur_par_stream'], espoir))
+    st.caption(t("revenue_forecast.trigger_caveat",
+                 "Ordre de grandeur, pas une promesse : la valeur vient des {n} titres de "
+                 "la cohorte qui sont entrés dans Discover Weekly (la moitié a fait plus, "
+                 "la moitié moins) — sans titre témoin, on ne peut pas dire ce que "
+                 "l'algorithme a ajouté à lui seul{d}.").format(
+        n=int(row['n']),
+        d=(t("revenue_forecast.pred_dated", " (prédictions du {d})").format(
+            d=format_date(espoir["date"])) if espoir and espoir.get('date') else "")))
+    st.markdown(_trigger_decision_text(float(row['valeur_eur']), _breakeven_gap(mensuel)))
 
-    # R247 (fiche 64) — what « a trigger » and its value are, before the bars.
-    st.caption(t("revenue_forecast.trigger_plain",
-                 "Un **déclenchement**, c'est un algorithme (Discover Weekly, Release Radar, "
-                 "Radio) qui se met à pousser ton titre. Barre pâle : ce que rapporte "
-                 "d'habitude un titre qui déclenche (les écoutes d'un titre déclenché typique — "
-                 "la moitié font plus, la moitié moins — × ce qu'une écoute te paie). Barre "
-                 "verte : le **gain probable** sur ton catalogue = cette valeur × la chance "
-                 "réelle de chacun de tes titres de déclencher."))
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=valeurs['valeur_eur'], y=valeurs['nom'], orientation='h',
-        marker={'color': "#9FD8B4"},
-        name=t("revenue_forecast.bar_value", "Valeur d'un déclenchement"),
-        text=[eur(v, 2) for v in valeurs['valeur_eur']],
-        textposition='outside', cliponaxis=False,
-        customdata=valeurs[['streams_med', 'n']].values,
-        hovertemplate=("%{y}<br>%{customdata[0]:,.0f} écoutes (titre déclenché typique)"
-                       "<br>cohorte de %{customdata[1]} titres<extra></extra>")))
-    if esp:
-        ordre = [esp.get(a, {}).get('esperance_eur', 0.0) for a in valeurs['algo']]
-        probas = [esp.get(a, {}).get('proba_moyenne', 0.0) for a in valeurs['algo']]
-        fig.add_trace(go.Bar(
-            x=ordre, y=valeurs['nom'], orientation='h',
-            marker={'color': DISTINCT[0]},
-            name=t("revenue_forecast.bar_expect", "Gain probable sur ton catalogue"),
-            text=[eur(v, 2) for v in ordre],
-            textposition='outside', cliponaxis=False,
-            customdata=[[p * 100] for p in probas],
-            hovertemplate=("%{y}<br>gain probable : %{x:.2f} €"
-                           "<br>chance moyenne : %{customdata[0]:.1f} %"
-                           "<extra></extra>")))
-    if med_propre:
-        fig.add_vline(
-            x=med_propre * taux['eur_par_stream'], line={'color': "#FF6B35",
-                                                         'width': 2, 'dash': 'dash'},
-            annotation_text=t("revenue_forecast.own_median",
-                              "la moitié de tes titres rapporte plus de {e:,.2f} €"
-                              ).format(e=med_propre * taux['eur_par_stream']
-                                       ).replace(",", " "),
-            annotation_position="top")
-    fig.update_xaxes(showticklabels=False)
-    fig.update_layout(height=360, margin={'l': 10, 'r': 70, 't': 70, 'b': 20},
-                      bargap=0.3, barmode='group')
-    fig.update_yaxes(automargin=True)
-    charts.plotly_chart(fig, width='stretch')
 
-    # ⚠️ LE MANQUE SE COMPARE À L'ESPÉRANCE, pas à la valeur.
-    #
-    # Le premier jet divisait l'écart au point mort par la VALEUR du meilleur
-    # déclenchement (23 €) et concluait « il faudrait 123 titres ». C'était faux
-    # d'un facteur quatorze : ces titres n'auraient pas tous déclenché. Rapporté à
-    # l'espérance du catalogue — 42,75 € pour onze titres, soit 3,89 € par titre —
-    # il en faudrait **730**. Le second nombre est brutal ; c'est le juste, et
-    # c'est lui qui dit que la réponse n'est pas « sortir plus de titres ».
-    pm = _breakeven_gap(mensuel)
-    manque = ""
-    if pm is not None and pm > 0 and espoir and espoir['titres'] > 0:
-        par_titre = espoir['total'] / espoir['titres']
-        if par_titre > 0:
-            manque = t(
-                "revenue_forecast.trigger_gap",
-                "\n\nTon catalogue de **{k} titres** a un gain probable de **{e} €** au total, "
-                "soit **{u} € par titre**. Pour combler les **{c} €** qui te "
-                "séparent du point mort, il en faudrait environ **{n}** de plus, "
-                "au même niveau."
-            ).format(k=espoir['titres'],
-                     e=num(espoir['total'], 2),
-                     u=num(par_titre, 2),
-                     c=num(pm, 0),
-                     n=num(pm / par_titre, 0))
-
-    # ⚠️ `.replace(",", " ")` s'applique au NOMBRE FORMATÉ, jamais à la phrase.
-    # Appliqué à la phrase entière, il mangeait la virgule de « ton taux réel,
-    # mesuré sur… » — vu au rendu le 2026-09-21. Un séparateur de milliers et une
-    # ponctuation sont le même caractère ; seul le premier doit être remplacé.
-    _fr = lambda v, f="{:,.0f}": f.format(v).replace(",", " ")   # noqa: E731
-    st.caption(t(
-        "revenue_forecast.trigger_caption",
-        "À **{tx} € l'écoute** — ton taux réel, mesuré sur {s} écoutes "
-        "payées {r} € par ton distributeur.\n\n"
-        "⚠️ **Ce n'est pas le gain du déclenchement.** La cohorte de référence ne "
-        "contient que des titres qui ONT déclenché : sans titre témoin, on ne peut "
-        "pas dire ce que l'algorithme a ajouté. C'est un ordre de grandeur — voilà "
-        "où arrivent les titres qui y arrivent. Le gain probable, lui, multiplie "
-        "cette valeur par la chance CALIBRÉE de chacun de tes titres{d}."
-    ).format(tx=f"{taux['eur_par_stream']:.6f}", s=_fr(taux['streams']),
-             r=_fr(taux['revenus'], "{:,.2f}"),
-             d=(t("revenue_forecast.pred_dated", " (prédictions du {d})").format(
-                 d=format_date(espoir["date"]))
-                if espoir and espoir.get('date') else "")) + manque)
-    st.markdown(_trigger_decision_text(float(valeurs['valeur_eur'].max()), pm))
+def trigger_paragraph(row, eur_par_stream: float, espoir: dict | None) -> str:
+    """The value of one DW trigger, then what the whole catalogue can expect. Pure."""
+    text = t("revenue_forecast.trigger_value_text",
+             "🚀 **Et si un titre entrait dans Discover Weekly ?** Un titre qui y entre fait "
+             "d'habitude **{s} écoutes** ; à **{tx} € l'écoute** (ce que ton distributeur te "
+             "paie vraiment), ça te rapporterait **≈ {v}** — l'étoile sur la figure."
+             ).format(s=num(row['streams_med'], 0), tx=f"{eur_par_stream:.4f}".replace(".", ","),
+                      v=eur(float(row['valeur_eur']), 2))
+    par_algo = espoir['par_algo'] if espoir else pd.DataFrame()
+    mine = par_algo[par_algo['algo'] == 'DW'] if not par_algo.empty else par_algo
+    if mine.empty:
+        return text
+    m = mine.iloc[0]
+    return text + " " + t(
+        "revenue_forecast.trigger_expect_text",
+        "Mais chacun de tes **{k} titres** n'a qu'environ **{p} %** de chance d'y entrer : "
+        "sur tout ton catalogue, il faut donc t'attendre à **≈ {e}** au total, pas {v} "
+        "par titre.").format(k=int(m['titres']), p=num(100 * float(m['proba_moyenne']), 1),
+                             e=eur(float(m['esperance_eur']), 2),
+                             v=eur(float(row['valeur_eur']), 2))
 
 
 def _trigger_decision_text(best: float, gap: float | None) -> str:
@@ -519,70 +427,37 @@ def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
 
 
 def render_spend_revenue_fit(db, artist_id: int) -> None:
-    """Monthly spend→revenue fit — refused below `MIN_FIT_POINTS` months (2026-09-26).
+    """Month by month, does the ad spend sell? — the regression's VERDICT in one sentence.
 
-    It used to fit from 2 points: a line through two points is exact, so the page printed
-    R² = 1.000 and p = 0.000 as an artefact of n. `n` is now shown next to R² and p.
+    R561: its chart is merged into the point mort figure (`breakeven_figure`); what is
+    left here is the decision the fit supports, refused below `MIN_FIT_POINTS` months
+    (a line through two points is exact and its R² measures nothing — 2026-09-26).
     """
     from src.dashboard.utils.roi_verdicts import MIN_FIT_POINTS, fit_spend_revenue
-
-    st.subheader(t("trigger_algo.roi.regression_header", "📉 ROI — Régression linéaire (mensuel)"))
-    st.caption(t(
-        "trigger_algo.roi.regression_caption",
-        "Sur **tout l'historique mensuel** disponible (revenue iMusician × spend Meta Ads), "
-        "indépendamment de la période choisie en haut : une régression mensuelle a besoin de "
-        "plusieurs mois, qu'une fenêtre J+28 ne peut pas fournir."
-    ))
     try:
         from src.dashboard.utils.kpi_helpers import get_monthly_roi_series
-
-        # All-time window on purpose — monthly ROI is a long-horizon analysis, decoupled
-        # from the J+28 period selector (date_from/date_to) which captures ≤ 1 month.
+        # All-time on purpose — a monthly fit needs months, whatever period is shown.
         df_roi = get_monthly_roi_series(db, artist_id, date(2000, 1, 1), date.today())
-        if df_roi is None or df_roi.empty:
-            st.info(t("trigger_algo.roi.no_revenue_spend",
-                      "Pas de données revenue/spend pour calculer la régression ROI "
-                      "(aucun mois avec spend Meta Ads + revenue iMusician dans l'historique)."))
-            return
-        fit = fit_spend_revenue(df_roi)
-        if fit is None:
-            st.info(t("trigger_algo.roi.insufficient_data",
-                      "Données insuffisantes : il faut au moins {n} mois où coexistent un "
-                      "spend Meta Ads ET un revenu distributeur. En dessous, une droite "
-                      "passe presque exactement par les points et le R² ne mesure rien."
-                      ).format(n=MIN_FIT_POINTS))
-            return
-        _render_fit(fit)
+        fit = fit_spend_revenue(df_roi) if df_roi is not None and not df_roi.empty else None
     except ImportError:
-        st.warning(t("trigger_algo.roi.scipy_unavailable", "scipy non disponible — régression désactivée."))
+        st.caption(t("trigger_algo.roi.scipy_unavailable", "scipy non disponible — régression désactivée."))
+        return
     except Exception as e:
         st.warning(t("trigger_algo.roi.regression_unavailable",
                      "Graphique ROI indisponible : {err}").format(err=e))
+        return
+    if fit is None:
+        st.caption(t("trigger_algo.roi.insufficient_data",
+                     "Pour dire si la pub fait vendre mois par mois, il faut au moins {n} mois "
+                     "où coexistent une dépense Meta Ads ET un revenu distributeur."
+                     ).format(n=MIN_FIT_POINTS))
+        return
+    st.markdown(fit_sentence(fit))
 
 
-def _render_fit(fit: dict) -> None:
-    """R247 (fiche 45) — the months and the trend, then the DECISION in words. The
-    equation, R² and p-value are gone from the page (owner : « sans équation ni R² ») :
-    they decide the verdict below, they are not what the artist acts on."""
+def fit_sentence(fit: dict) -> str:
+    """R247 (fiche 45) — the decision in words; equation, R² and p decide it, unshown."""
     from src.dashboard.utils.roi_verdicts import fit_decision
-    x, y = fit["x"], fit["y"]
-    x_line = np.linspace(x.min(), x.max(), 100)
-    fig_roi = go.Figure()
-    fig_roi.add_trace(go.Scatter(
-        x=x, y=y, mode="markers+text", text=fit["labels"], textposition="top center",
-        name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
-        marker=dict(color=BON, size=10)))
-    fig_roi.add_trace(go.Scatter(
-        x=x_line, y=fit["slope"] * x_line + fit["intercept"], mode="lines",
-        name=t("trigger_algo.roi.trace_trend", "Tendance"),
-        line=dict(color="#FF6B6B", width=2, dash="dash")))
-    fig_roi.update_layout(
-        title=t("trigger_algo.roi.regression_chart_title",
-                "Revenue iMusician (€) vs Spend Meta Ads (€)"),
-        xaxis_title=t("trigger_algo.roi.axis_meta_spend", "Dépenses Meta Ads (€)"),
-        yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
-        height=420, hovermode="closest")
-    charts.plotly_chart(fig_roi, width='stretch')
     kind, slope = fit_decision(fit)
     text = {
         "none": t("trigger_algo.roi.decision_none",
@@ -597,31 +472,30 @@ def _render_fit(fit: dict) -> None:
                    "revenus** — elle ne se rembourse pas en ventes : garde-la pour ce "
                    "qu'elle apporte en écoutes, ou baisse-la."),
     }[kind]
-    st.markdown(text.format(n=fit["n"], k=f"{slope:.2f}".replace(".", ",") if slope else ""))
+    return "📉 " + text.format(n=fit["n"], k=f"{slope:.2f}".replace(".", ",") if slope else "")
 
 
 def render_artist_money(db, artist_id: int) -> None:
-    """The money pieces under the Trésorerie break-even (R553, ADR-033 decision 1): the
-    whole-history ledger line, the cost entry, revenue against Meta spend (fiche 50), and
-    what an algo trigger is worth (fiche 68 — a prediction, so Premium, ADR-029)."""
+    """The words under the point mort figure, then the ledger and the cost entry (R553,
+    ADR-033 decision 1; R561): the regression's verdict (fiche 50), what a DW trigger
+    would bring (fiche 68 — a prediction, so Premium, ADR-029), then the money pieces."""
     from src.dashboard.utils.artist_cashflow import monthly_net
     from src.dashboard.utils.plan_gate import est_verrouille, note_de_plan
     from src.dashboard.utils.treasury_chart import load_cashflow
     cashflow = load_cashflow(db, artist_id)
     mensuel = monthly_net(cashflow)
-    if not mensuel.empty:
-        _render_ledger(db, artist_id, cashflow, mensuel)
-    _render_cost_entry(db, artist_id)
-    st.markdown("---")
     render_spend_revenue_fit(db, artist_id)
     if est_verrouille("revenue_forecast"):
-        st.markdown("---")
         note_de_plan("revenue_forecast", ferme=t(
             "revenue_forecast.trigger_locked",
             "Ce qu'un déclenchement des algorithmes te rapporterait, et la projection "
             "de ton point mort : compris dans Premium"))
-        return
-    _render_trigger_value(db, artist_id, mensuel)
+    else:
+        _render_trigger_sentence(db, artist_id, mensuel)
+    st.markdown("---")
+    if not mensuel.empty:
+        _render_ledger(db, artist_id, cashflow, mensuel)
+    _render_cost_entry(db, artist_id)
 
 
 def render_ltv() -> None:

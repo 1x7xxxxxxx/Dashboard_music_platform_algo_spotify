@@ -59,8 +59,14 @@ def test_a_trigger_is_a_single_point_above_the_revenue_line():
     star = _star(fig)
     assert len(star) == 1 and len(star[0].x) == 1, "a point, never a line"
     assert float(star[0].y[0]) == 8 * 2.0 + 23.4
+    assert float(star[0].x[0]) == 8 * 50.0, "the star sits at today's spend, above the path"
     assert not _star(breakeven_figure(cf, _months(8, 1.0), trigger=("x", 0))), (
         "no value → no point, never a 0 € star")
+
+
+def _path(fig):
+    (path,) = [tr for tr in fig.data if tr.mode == "lines+markers+text"]
+    return path
 
 
 def test_the_break_even_reads_on_a_log_axis_without_inventing_a_zero():
@@ -68,7 +74,7 @@ def test_the_break_even_reads_on_a_log_axis_without_inventing_a_zero():
     cf.loc[(cf["month"] == 1) & (cf["flux"] == "revenu"), "amount_eur"] = 0.0
     fig = breakeven_figure(cf, _months(4, 1.0), verdict="v")
     assert fig.layout.yaxis.type == "log", "the spend crushes the revenue on a linear axis"
-    assert fig.data[0].y[0] is None, "a 0 € month drawn on a log axis"
+    assert _path(fig).y[0] is None, "a 0 € month drawn on a log axis"
     assert any(a.text == "v" for a in fig.layout.annotations), "the verdict is not drawn"
 
 

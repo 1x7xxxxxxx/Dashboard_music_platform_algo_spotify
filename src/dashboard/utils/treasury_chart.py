@@ -20,14 +20,17 @@ a spend view on its own.
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.semantic_colors import BON, MAUVAIS
 
-# Revenue pulls green, spend pulls warm: the reader who cannot tell hues apart still
-# reads the sign from the side of the zero line the bar sits on.
+# The reader who cannot tell hues apart still reads the sign from the side of the zero
+# line a bar sits on; the shades (`INFLOW_RAMP`, `OUTFLOW_RAMP`) differ by LIGHTNESS.
 REVENUE_CUMUL = "#1F4E79"   # the same navy as the distributors' cumul (imusician)
 # R553 (owner Y1, fiche 25 : « les dépenses en rouge et les revenus en vert ») — the
 # semantic pair, separated by LIGHTNESS (ΔE 20,1 in deuteranopia), not by hue alone.
@@ -35,24 +38,18 @@ BREAKEVEN_REVENUE, BREAKEVEN_SPEND = BON, MAUVAIS
 # The projection is DRAWN on a bounded horizon, never written as « 270 ans » (fiche 25).
 PROJECTION_CAP_MONTHS = 24
 
-FLUX_COLOURS = {
-    "imusician":    BON,          # R260 — the semantic « good » green, not Spotify's
-    "distrokid":    "#57C785",
-    "sacem":        "#8E44AD",
-    "meta_ads":     "#FF6B35",
-    "distribution": "#B07C4F",
-    "mastering":    "#C9A227",
-    "visuel":       "#C96A9B",
-    "promo":        "#E0723C",
-    "materiel":     "#9C6B4F",
-    "autre":        "#8A8A8A",
-}
 FLUX_NAMES = {
     "imusician": "iMusician", "distrokid": "DistroKid", "sacem": "SACEM",
     "meta_ads": "Publicité Meta", "distribution": "Distribution",
     "mastering": "Mastering", "visuel": "Visuel", "promo": "Promo",
     "materiel": "Matériel", "autre": "Autre",
 }
+
+# R561 (owner, Trésorerie 2026-10-13 evening : « un dégradé de couleur verte pour les
+# entrées et un dégradé de couleur rouge pour les sorties ») — the SIDE of the money is
+# the hue, the source is the shade: darkest = the biggest source of its side.
+INFLOW_RAMP = ("#1B5E20", "#A5D6A7")
+OUTFLOW_RAMP = ("#8E1B1B", "#F2A7A7")
 
 _COLUMNS = ['year', 'month', 'flux', 'source', 'amount_eur', 'direction']
 
@@ -118,29 +115,37 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                      verdict: str | None = None,
                      trigger: tuple[str, float] | None = None,
                      projection_months: int = 0) -> go.Figure:
-    """Revenue cumulated against spend cumulated, on a LOG axis — the break-even is
-    where the two lines cross (R488, owner W11 « redesign (échelle) »).
+    """Revenue cumulated AGAINST spend cumulated — the point mort and the ROI regression
+    in ONE figure (R561, owner Trésorerie 2026-10-13 evening : « fusionner le graphique
+    point mort et le graphique ROI régression linéaire en un seul »).
 
-    The net-balance figure drew 200 € of sales as a flat line under 3 000 € of ads:
-    on a linear axis two magnitudes fifteen times apart cannot both be read. On a log
-    axis the gap between the lines IS the ratio, and a crossing stays a crossing —
-    the transform is monotone. `trigger` is (label, €): what one Discover Weekly
-    trigger would add to the revenue total, as a point, never a line.
-    `projection_months` (R553, fiche 25) prolongs both cumuls, dotted, at the pace of
-    the last `FENETRE_RYTHME` months — the pace `break_even` dates the crossing with."""
+    The owner read the regression (one point per month, spend on x, revenue on y) and not
+    the two lines over time. So the months stay points on a spend × revenue plane, but
+    each carries the running TOTALS: the diagonal revenue = spend IS the break-even, the
+    side of it the path sits on is the answer, and the dotted continuation is the revenue
+    and spend trend at the pace `break_even` dates the crossing with. Both axes are LOG
+    (R488): 200 € of sales stay readable beside 3 000 € of ads, and y = x stays straight.
+    `trigger` is (label, €): what one Discover Weekly trigger would add, as a star."""
     rev, spend = flow_cumuls(cashflow, mensuel['date'])
+    p_rev, p_spend = projected_cumuls(rev, spend, projection_months)
     fig = go.Figure()
-    for serie, name, colour in (
-            (rev, t("revenue_forecast.rev_cumul", "Revenus cumulés (ventes + SACEM)"),
-             BREAKEVEN_REVENUE),
-            (spend, t("revenue_forecast.spend_cumul", "Dépenses cumulées (Meta + coûts)"),
-             BREAKEVEN_SPEND)):
-        fig.add_trace(go.Scatter(
-            x=serie.index, y=_positive(serie), mode='lines', name=name, legendgroup=colour,
-            line={'color': colour, 'width': 3}, connectgaps=False,
-            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:,.2f} €<extra></extra>"))
-    _add_projection(fig, rev, spend, projection_months)
-    _add_trigger(fig, rev, trigger)
+    values = [*rev, *spend, *p_rev, *p_spend,
+              float(rev.iloc[-1]) + float((trigger or (0, 0))[1] or 0)]
+    _add_breakeven_zones(fig, values)
+    fig.add_trace(go.Scatter(
+        x=_positive(spend), y=_positive(rev), mode='lines+markers+text',
+        name=t("revenue_forecast.path", "Toi, mois après mois"),
+        line={'color': REVENUE_CUMUL, 'width': 3},
+        marker={'size': 8, 'color': [BREAKEVEN_REVENUE if r >= s_ else BREAKEVEN_SPEND
+                                      for r, s_ in zip(rev, spend)],
+                'line': {'color': "#FFFFFF", 'width': 1}},
+        text=_ends(rev.index), textposition='top center', cliponaxis=False,
+        customdata=[f"{d:%m/%Y}" for d in rev.index],
+        hovertemplate=t("revenue_forecast.path_hover",
+                        "%{customdata}<br>dépensé depuis le début : %{x:,.0f} €"
+                        "<br>rentré depuis le début : %{y:,.0f} €<extra></extra>")))
+    _add_projection(fig, p_rev, p_spend)
+    _add_trigger(fig, rev, spend, trigger)
     if verdict:
         fig.add_annotation(
             xref="paper", yref="paper", x=0.99, y=0.04, xanchor="right", yanchor="bottom",
@@ -149,14 +154,57 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
             borderpad=7, font={'size': 13, 'color': "#FFFFFF"})
     r, s_ = float(rev.iloc[-1]), float(spend.iloc[-1])
     roi = f"{100 * (r - s_) / s_:+.0f} %" if s_ else "—"
+    bounds = _plane_bounds(values)
+    if bounds:
+        rng = [math.log10(bounds[0]), math.log10(bounds[1])]
+        fig.update_xaxes(range=rng, dtick=1, tickformat=",.0f")
+        fig.update_yaxes(range=rng, dtick=1, tickformat=",.0f")
     fig.update_layout(
         title=t("revenue_forecast.breakeven_title",
-                "Revenus {r} contre dépenses {s} · ROI {roi} — point mort au croisement"
+                "Revenus {r} contre dépenses {s} · ROI {roi}"
                 ).format(r=f"{r:,.0f} €".replace(",", " "),
                          s=f"{s_:,.0f} €".replace(",", " "), roi=roi),
-        hovermode='x unified', height=460, yaxis={'type': 'log', 'title': "€"},
-        margin={'t': 50, 'b': 90})
+        hovermode='closest', height=500, margin={'t': 50, 'b': 60}, separators=", ",
+        xaxis={'type': 'log', 'title': t("revenue_forecast.axis_spend",
+                                         "Dépensé depuis le début (pub + coûts), €")},
+        yaxis={'type': 'log', 'title': t("revenue_forecast.axis_revenue",
+                                         "Rentré depuis le début (ventes + SACEM), €")})
     return fig
+
+
+def _ends(index) -> list[str]:
+    """The first month written on the path (where it starts), the others on hover only —
+    the last point carries the star and the projection's start, a label would collide."""
+    return [f"{d:%m/%Y}" if i == 0 else "" for i, d in enumerate(index)]
+
+
+def _plane_bounds(values) -> tuple[float, float] | None:
+    """(lo, hi) of the log plane: three decades at most under the biggest total, so a
+    first month of 0,04 € does not stretch the axis over six decades. Pure."""
+    pos = [float(v) for v in values if pd.notna(v) and float(v) > 0]
+    if not pos:
+        return None
+    hi = max(pos) * 1.4
+    return max(min(pos) * 0.7, hi / 1000), hi
+
+
+def _add_breakeven_zones(fig: go.Figure, values) -> None:
+    """The diagonal revenue = spend, the half-plane above it green, below it red."""
+    bounds = _plane_bounds(values)
+    if bounds is None:
+        return
+    lo, hi = bounds
+    for xs, ys, colour, name in (
+            ([lo, hi, lo], [lo, hi, hi], "rgba(39,117,26,0.08)",
+             t("revenue_forecast.zone_paid", "au-dessus : ta pub est remboursée")),
+            ([lo, hi, hi], [lo, hi, lo], "rgba(236,121,121,0.10)",
+             t("revenue_forecast.zone_short", "en dessous : il te manque de l'argent"))):
+        fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines', fill='toself', fillcolor=colour,
+                                 line={'width': 0}, name=name, hoverinfo='skip'))
+    fig.add_trace(go.Scatter(
+        x=[lo, hi], y=[lo, hi], mode='lines', hoverinfo='skip',
+        name=t("revenue_forecast.diagonal", "Point mort : rentré = dépensé"),
+        line={'color': "#555555", 'width': 2, 'dash': 'dash'}))
 
 
 def projection_horizon(pm: dict) -> int:
@@ -187,59 +235,94 @@ def projected_cumuls(rev: pd.Series, spend: pd.Series, months: int
     return out[0], out[1]
 
 
-def _add_projection(fig: go.Figure, rev: pd.Series, spend: pd.Series, months: int) -> None:
-    p_rev, p_spend = projected_cumuls(rev, spend, months)
-    for serie, colour in ((p_rev, BREAKEVEN_REVENUE), (p_spend, BREAKEVEN_SPEND)):
-        if serie.empty:
-            continue
-        fig.add_trace(go.Scatter(
-            x=serie.index, y=_positive(serie), mode='lines', legendgroup=colour,
-            name=t("revenue_forecast.projection", "Projection au rythme des 12 derniers mois"),
-            showlegend=colour == BREAKEVEN_REVENUE,
-            line={'color': colour, 'width': 2, 'dash': 'dot'},
-            hovertemplate="%{x|%m/%Y}<br>projection : %{y:,.2f} €<extra></extra>"))
+def _add_projection(fig: go.Figure, p_rev: pd.Series, p_spend: pd.Series) -> None:
+    """The path continued, dotted, at the pace of the last `FENETRE_RYTHME` months."""
+    if p_rev.empty:
+        return
+    fig.add_trace(go.Scatter(
+        x=_positive(p_spend), y=_positive(p_rev), mode='lines+text',
+        name=t("revenue_forecast.projection", "Tendance prévue au rythme des 12 derniers mois"),
+        line={'color': REVENUE_CUMUL, 'width': 2, 'dash': 'dot'},
+        text=[""] * (len(p_rev) - 1) + [f"{p_rev.index[-1]:%m/%Y}"],
+        textposition='bottom right', cliponaxis=False,
+        customdata=[f"{d:%m/%Y}" for d in p_rev.index],
+        hovertemplate=t("revenue_forecast.projection_hover",
+                        "%{customdata} (prévu)<br>dépensé : %{x:,.0f} €"
+                        "<br>rentré : %{y:,.0f} €<extra></extra>")))
 
 
-def _add_trigger(fig: go.Figure, rev: pd.Series, trigger) -> None:
+def _add_trigger(fig: go.Figure, rev: pd.Series, spend: pd.Series, trigger) -> None:
     if not (trigger and trigger[1]):
         return
     label, value = trigger
     y = float(rev.iloc[-1]) + float(value)
     fig.add_trace(go.Scatter(
-        x=[rev.index[-1]], y=[y], mode='markers+text', name=label,
-        marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
+        x=[float(spend.iloc[-1])], y=[y], mode='markers+text', name=label,
+        marker={'color': "#FF6B35", 'size': 13, 'symbol': 'star'},
         text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
-        hovertemplate=f"{label}<br>revenus atteints : %{{y:,.2f}} €<extra></extra>"))
+        cliponaxis=False,
+        hovertemplate=f"{label}<br>rentré : %{{y:,.2f}} €<extra></extra>"))
+
+
+def _ramp(ends: tuple[str, str], n: int) -> list[str]:
+    """`n` hex colours from the dark end to the light end, evenly spaced. Pure."""
+    a, b = ([int(h.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)] for h in ends)
+    steps = [i / (n - 1) if n > 1 else 0.0 for i in range(n)]
+    return ["#" + "".join(f"{round(x + (y - x) * k):02X}" for x, y in zip(a, b))
+            for k in steps]
+
+
+def flux_shades(cashflow: pd.DataFrame) -> dict[tuple[str, str], str]:
+    """{(flux, source): colour} — revenue on the green ramp, spending on the red one,
+    each side ranked by its total (biggest = darkest). Pure (R561)."""
+    d = _dated(cashflow)
+    out = {}
+    for flux, ends in (("revenu", INFLOW_RAMP), ("depense", OUTFLOW_RAMP)):
+        totals = (d[d['flux'] == flux].groupby('source')['amount_eur'].sum()
+                  .abs().sort_values(ascending=False))
+        out.update({(flux, src): c for src, c in zip(totals.index, _ramp(ends, len(totals)))})
+    return out
+
+
+def _flux_order(d: pd.DataFrame) -> list[tuple[str, str]]:
+    """Revenue first, then spending; inside each side, biggest total first."""
+    totals = d.groupby(['flux', 'source'])['amount_eur'].sum().abs()
+    return sorted(totals.index, key=lambda k: (k[0] != 'revenu', -totals[k]))
 
 
 def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
-    """Every euro, month by month, on ONE frame (R519, owner X11 II « Trésorerie »).
+    """Every euro, month by month, on ONE frame (R519, owner X11 II « Trésorerie »), and
+    beside it ONE circle of where the euros came from and went (R561).
 
-    Revenue (distributors, SACEM) stacks ABOVE zero, spending (Meta Ads, entered costs)
-    BELOW it, one colour per source; the running balance is the line. One euro axis:
-    the bars and the balance are both sums of the same signed amounts, so a second
-    scale has nothing to separate. The balance and both totals ride in the title."""
+    Revenue (distributors, SACEM) stacks ABOVE zero in shades of green, spending (Meta
+    Ads, entered costs) BELOW it in shades of red; the running balance is the line. The
+    circle splits everything that moved — in AND out — so the full turn is 100 % and the
+    green arc reads as the share of the money that came in."""
     d = _dated(cashflow)
     d['signed'] = d['amount_eur'] * pd.to_numeric(d['direction'], errors='coerce')
     months = pd.date_range(d['date'].min(), d['date'].max(), freq='MS')
-    fig = go.Figure()
-    order = sorted(d.groupby(['flux', 'source']).groups,
-                   key=lambda k: (k[0] != 'revenu', FLUX_NAMES.get(k[1], k[1])))
+    shades = flux_shades(cashflow)
+    fig = make_subplots(rows=1, cols=2, column_widths=[0.72, 0.28], horizontal_spacing=0.05,
+                        specs=[[{"type": "xy"}, {"type": "domain"}]])
+    order = _flux_order(d)
     for flux, source in order:
         part = d[(d['flux'] == flux) & (d['source'] == source)]
         serie = part.groupby('date')['signed'].sum(min_count=1).reindex(months)
         fig.add_trace(go.Bar(
             x=months, y=serie.values, name=FLUX_NAMES.get(source, source),
-            marker_color=FLUX_COLOURS.get(source, "#8A8A8A"),
-            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"))
+            legendgroup=source, marker_color=shades[(flux, source)],
+            hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"),
+            row=1, col=1)
     balance = d.groupby('date')['signed'].sum().reindex(months).fillna(0).cumsum()
     fig.add_trace(go.Scatter(
         x=months, y=balance.values, mode='lines+markers',
         name=t("imusician.balance", "Solde cumulé"),
         line={'color': REVENUE_CUMUL, 'width': 3}, marker={'size': 5},
-        hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"))
+        hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:+,.2f} €<extra></extra>"),
+        row=1, col=1)
     money_in = float(d.loc[d['signed'] > 0, 'signed'].sum())
     money_out = float(-d.loc[d['signed'] < 0, 'signed'].sum())
+    _add_share_circle(fig, d, order, shades, money_in, money_out)
     eur = lambda v, sign="": f"{v:{sign},.0f} €".replace(",", " ")   # noqa: E731
     fig.update_layout(
         title=t("imusician.cashflow_title", "Solde {b} — {i} entrés, {o} sortis").format(
@@ -248,6 +331,29 @@ def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
         yaxis={'title': "€", 'zeroline': True, 'zerolinewidth': 2},
         margin={'t': 50, 'b': 90})
     return fig
+
+
+def share_of_total(d: pd.DataFrame, order) -> list[float]:
+    """Each (flux, source)'s share of everything that moved, in %, summing to 100. Pure."""
+    totals = [float(d[(d['flux'] == f) & (d['source'] == s)]['amount_eur'].abs().sum())
+              for f, s in order]
+    whole = sum(totals)
+    return [100.0 * v / whole if whole else 0.0 for v in totals]
+
+
+def _add_share_circle(fig: go.Figure, d: pd.DataFrame, order, shades,
+                      money_in: float, money_out: float) -> None:
+    shares = share_of_total(d, order)
+    whole = money_in + money_out
+    fig.add_trace(go.Pie(
+        labels=[FLUX_NAMES.get(s, s) for _, s in order], values=shares, hole=0.55,
+        sort=False, direction='clockwise', showlegend=False,
+        marker={'colors': [shades[k] for k in order], 'line': {'color': "#FFFFFF", 'width': 1}},
+        textinfo='percent', textposition='inside', insidetextorientation='horizontal',
+        title={'text': t("imusician.circle_centre", "{p} %<br>entrés").format(
+            p=f"{100 * money_in / whole:.0f}" if whole else "—"), 'font': {'size': 14}},
+        hovertemplate="%{label} : %{percent} du total<extra></extra>"),
+        row=1, col=2)
 
 
 def source_cumuls(d: pd.DataFrame, months) -> dict[str, pd.Series]:

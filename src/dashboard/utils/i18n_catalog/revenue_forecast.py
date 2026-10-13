@@ -14,7 +14,30 @@ EN = {
         "{c:,.0f} € short at a pace of {r:+.2f} €/month"),
     "revenue_forecast.be_months": "{n} months",
     "revenue_forecast.be_beyond": "more than {n} years",
-    "revenue_forecast.projection": "Projection at the pace of the last 12 months",
+    "revenue_forecast.projection": "Trend forecast at the pace of the last 12 months",
+    # R561
+    "revenue_forecast.path": "You, month after month",
+    "revenue_forecast.path_hover": (
+        "%{customdata}<br>spent since the start: %{x:,.0f} €"
+        "<br>earned since the start: %{y:,.0f} €<extra></extra>"),
+    "revenue_forecast.projection_hover": (
+        "%{customdata} (forecast)<br>spent: %{x:,.0f} €<br>earned: %{y:,.0f} €<extra></extra>"),
+    "revenue_forecast.zone_paid": "above: your ads are paid back",
+    "revenue_forecast.zone_short": "below: money is missing",
+    "revenue_forecast.diagonal": "Break-even: earned = spent",
+    "revenue_forecast.axis_spend": "Spent since the start (ads + costs), €",
+    "revenue_forecast.axis_revenue": "Earned since the start (sales + SACEM), €",
+    "revenue_forecast.trigger_value_text": (
+        "🚀 **What if a track entered Discover Weekly?** A track that gets in usually makes "
+        "**{s} streams**; at **{tx} € per stream** (what your distributor really pays you), "
+        "that would earn you **≈ {v}** — the star on the figure."),
+    "revenue_forecast.trigger_expect_text": (
+        "But each of your **{k} tracks** has only about a **{p} %** chance to get in: over "
+        "your whole catalogue, expect **≈ {e}** in total, not {v} per track."),
+    "revenue_forecast.trigger_caveat": (
+        "An order of magnitude, not a promise: the value comes from the {n} cohort tracks "
+        "that entered Discover Weekly (half did more, half less) — with no control track, "
+        "we cannot say what the algorithm added on its own{d}."),
     "revenue_forecast.be_short_done": "reached",
     "revenue_forecast.be_short_never": "never at this pace",
     "revenue_forecast.be_short_months": "{n} months",
@@ -70,26 +93,12 @@ EN = {
     "revenue_forecast.source.materiel": "Gear",
     "revenue_forecast.source.autre": "Other",
     # ── Ce que vaut un déclenchement d'algorithme ────────────────────────────
-    "revenue_forecast.trigger_header": "🚀 What if a track triggered the algorithms?",
     "revenue_forecast.no_rate": (
         "At least one distributor sales report is needed to know what a stream "
         "earns you. Import a CSV from **CSV import**."),
     "revenue_forecast.no_benchmark":
         "The reference cohort is not loaded on this database.",
-    "revenue_forecast.own_median": "half of your tracks earn more than {e:,.2f} €",
-    "revenue_forecast.bar_value": "What one trigger is worth",
-    "revenue_forecast.bar_expect": "Probable gain on your catalogue",
     "revenue_forecast.pred_dated": " (predictions from {d})",
-    "revenue_forecast.trigger_gap": (
-        "\n\nYour catalogue of **{k} tracks** has a probable gain of **{e} €** in total, that "
-        "is **{u} € per track**. To close the **{c} €** between you and "
-        "break-even, it would take about **{n}** more, at the same level."),
-    "revenue_forecast.trigger_plain": (
-        "A **trigger** is an algorithm (Discover Weekly, Release Radar, Radio) starting to "
-        "push your track. Pale bar: what a track that triggers usually earns (the streams "
-        "of a typical triggered track — half do more, half less — × what one stream pays "
-        "you). Green bar: the **probable gain** on your catalogue = that value × each "
-        "track's real chance to trigger."),
     "revenue_forecast.trigger_small": (
         "**The decision**: it would take about **{n}** triggers at {v} € to cover your costs. "
         "The algorithms bring you listeners, not enough to pay back your ads — judge your "
@@ -97,14 +106,6 @@ EN = {
     "revenue_forecast.trigger_worth": (
         "**The decision**: a trigger brings up to {v} €, on the scale of what you are "
         "missing — push the track closest to a gate (Road to Algo)."),
-    "revenue_forecast.trigger_caption": (
-        "At **{tx} € per stream** — your real rate, measured over {s} streams "
-        "paid {r} € by your distributor.\n\n"
-        "⚠️ **This is not the gain from triggering.** The reference cohort "
-        "contains only tracks that DID trigger: with no control track, we cannot "
-        "say what the algorithm added. It is an order of magnitude — this is "
-        "where the tracks that get there end up. The probable gain multiplies "
-        "it by the CALIBRATED chance of each of your tracks{d}."),
     # ── Les tiroirs ──────────────────────────────────────────────────────────
     # Entry point
     # Tab 1 — Current MRR
@@ -135,9 +136,7 @@ EN = {
                                       "too early to date the break-even point"),
     # R405 (V73)
     # R488
-    "revenue_forecast.rev_cumul": "Cumulative revenue (sales + SACEM)",
-    "revenue_forecast.spend_cumul": "Cumulative spend (Meta + costs)",
-    "revenue_forecast.breakeven_title": "Revenue {r} against spend {s} · ROI {roi} — break-even where they cross",
+    "revenue_forecast.breakeven_title": "Revenue {r} against spend {s} · ROI {roi}",
     # R553
     "revenue_forecast.trigger_locked": "What an algorithm trigger would bring you, and the projection of your break-even: included in Premium",
 }

@@ -22,7 +22,15 @@ EN = {
     # Mesuré le 2026-09-18 : le gabarit FR rend « … = 1 234,56 € », l'anglais LÈVE.
     # Un artiste anglophone ouvrant la tuile ROI obtenait donc une exception.
     "imusician.roi_empty_period": "No revenue or spend data over this period.",
-    "imusician.trigger_point": "One Discover Weekly trigger is worth",
+    "imusician.trigger_point": "If a track entered Discover Weekly",
+    # R561
+    "imusician.circle_centre": "{p} %<br>in",
+    "imusician.roi_read": (
+        "Each point is a month: **to the right**, everything you have spent since the "
+        "start (ads + costs); **upwards**, everything that came in (sales + SACEM). The "
+        "**diagonal** is break-even: above it, you have paid back your costs. Dotted, the "
+        "trend forecast at the pace of the last 12 months — where it crosses the diagonal "
+        "is the break-even date. The star: what a track entering Discover Weekly would add."),
     # R388 — one page: entry, evolution, break-even
     "imusician.no_revenue": (
         "No revenue recorded for this selection. Import an iMusician or DistroKid "

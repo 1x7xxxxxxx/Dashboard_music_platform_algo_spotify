@@ -180,13 +180,6 @@ EN = {
     "trigger_algo.roi.possible_submissions_metric": "Possible submissions",
     "trigger_algo.roi.budget_insufficient": "Insufficient budget for one more submission.",
     "trigger_algo.roi.can_submit": "You can still submit to **{n}** curators on {platform}.",
-    "trigger_algo.roi.regression_header": "📉 ROI — Linear regression (monthly)",
-    "trigger_algo.roi.regression_caption": (
-        "Over **all available monthly history** (iMusician revenue × Meta Ads spend), "
-        "independently of the period chosen at the top: a monthly regression needs "
-        "several months, which a J+28 window cannot provide."
-    ),
-    "trigger_algo.roi.trace_trend": "Trend",
     "trigger_algo.roi.decision_none": (
         "**Over {n} months, your revenue does not follow your ads** — the months you spent "
         "more did not bring more. Judge your ads on the streams they bring (Meta tabs), "
@@ -226,18 +219,9 @@ EN = {
     "trigger_algo.model.verdict_close": (
         "**Same order of magnitude**: {p:.0f} forecast (median), {r:.0f} recorded across "
         "{n} tracks — the volume can be shown."),
-    "trigger_algo.roi.trace_monthly": "Monthly",
-    "trigger_algo.roi.regression_chart_title": "iMusician Revenue (€) vs Meta Ads Spend (€)",
-    "trigger_algo.roi.axis_meta_spend": "Meta Ads spend (€)",
-    "trigger_algo.roi.axis_imusician_revenue": "iMusician revenue (€)",
     "trigger_algo.roi.insufficient_data": (
-        "Insufficient data: at least {n} months are needed where Meta Ads spend "
-        "AND distributor revenue coexist. Below that, a line passes almost exactly "
-        "through the points and R² measures nothing."
-    ),
-    "trigger_algo.roi.no_revenue_spend": (
-        "No revenue/spend data to compute the ROI regression "
-        "(no month with Meta Ads spend + iMusician revenue in the history)."
+        "To tell whether ads sell month by month, at least {n} months are needed where "
+        "Meta Ads spend AND distributor revenue coexist."
     ),
     "trigger_algo.roi.scipy_unavailable": "scipy unavailable — regression disabled.",
     "trigger_algo.roi.regression_unavailable": "ROI chart unavailable: {err}",

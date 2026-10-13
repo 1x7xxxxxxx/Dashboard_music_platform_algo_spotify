@@ -965,7 +965,7 @@ def treasury(cashflow) -> str | None:
     read gross revenue beside net figures and wrote an unread side as 0 € (`or 0`)."""
     import pandas as pd
     from src.dashboard.utils.artist_cashflow import monthly_net
-    from src.dashboard.utils.treasury_chart import FLUX_COLOURS, FLUX_NAMES
+    from src.dashboard.utils.treasury_chart import FLUX_NAMES, flux_shades
 
     mensuel = monthly_net(cashflow)
     if mensuel.empty:
@@ -974,6 +974,7 @@ def treasury(cashflow) -> str | None:
     d['date'] = pd.to_datetime(d['year'].astype(int).astype(str) + "-"
                                + d['month'].astype(int).astype(str).str.zfill(2) + "-01")
     d['amount_eur'] = pd.to_numeric(d['amount_eur'], errors='coerce')
+    shades = flux_shades(cashflow)   # R561 — the app's green/red ramps, one per side
     fig, (top, low) = plt.subplots(2, 1, figsize=(7.2, 5.0), sharex=True,
                                    gridspec_kw={'height_ratios': [1, 1]})
     for flux, sign in (("revenu", 1), ("depense", -1)):
@@ -986,7 +987,7 @@ def treasury(cashflow) -> str | None:
                      .sum(min_count=1).dropna() * sign)
             bottoms = [stacked.get(day, 0.0) for day in serie.index]
             top.bar(serie.index, serie.values, bottom=bottoms, width=20,
-                    color=FLUX_COLOURS.get(source, "#8A8A8A"),
+                    color=shades.get((flux, source), "#8A8A8A"),
                     label=_t(f"revenue_forecast.source.{source}", FLUX_NAMES.get(source, source)))
             for day, low_, v in zip(serie.index, bottoms, serie.values):
                 stacked[day] = low_ + v
