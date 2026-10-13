@@ -1,6 +1,6 @@
 # ADR-032 — The cross view is the whole funnel: one page, a section registry, one filter bar
 
-- **Status:** Accepted
+- **Status:** Accepted — §2 and §3 superseded by ADR-033 (2026-10-13)
 - **Date:** 2026-10-09
 - **Deciders:** the owner (voice notes W2, W5, W6, W7, W11, W13 — `revue/notes-vocales-2026-10-09.md`), R476, code-critic BUILD-MODIFIED
 
