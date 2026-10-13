@@ -4103,10 +4103,9 @@
     (moy. 7 j) ; garder abonnés et streams/j'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R555
+  preuve_statut: R555 (archivée) — 845f5677
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f43
@@ -4154,20 +4153,18 @@
   resume: 'Fiche 28 (durée d''effet d''une vague) : redéfinir le système « 2 campagnes, 3 campagnes »'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R555
+  preuve_statut: R555 (archivée) — 845f5677
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f29
   resume: 'Fiche 29 : fusionner avec 42/43 en une chronologie unique (lignes, nuages, aires, légende activable)'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R555
+  preuve_statut: R555 (archivée) — 845f5677
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f30
@@ -4213,20 +4210,18 @@
   resume: 'Fiche 2 (sortie au même âge) : top, fusionner avec 42 et 43 dans la chronologie'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R555
+  preuve_statut: R555 (archivée) — 845f5677
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f6
   resume: 'Shazam au même âge : garder, fusionner dans la chronologie (base 43), affichable par la légende'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R555
+  preuve_statut: R555 (archivée) — 845f5677
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f35

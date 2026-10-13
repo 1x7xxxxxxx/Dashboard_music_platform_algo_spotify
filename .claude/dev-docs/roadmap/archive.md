@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R555 — Chronologie unique (fiches 42, 43, 29, 2, 6, 28) : UNE figure temporelle — streams/j, a… (livrée 2026-10-13)
+
+- [x] **R555 — Chronologie unique (fiches 42, 43, 29, 2, 6, 28) : UNE figure temporelle — streams/j, abonnés, sauvegardes/j et ajouts playlist/j (moy. 7 j), budget/j en aire, clics sortants, CPR, Shazam — chaque série activable par la légende, jours de pub expliqués ; comparaison de deux sorties au même âge en superposition ; fiche 28 redéfinie (durée d'effet par campagne, plus de « vagues »)** (P3) ✅ (2026-10-13, 845f5677)
+  Mesuré par : 1 figure, ≥8 séries à `legendgroup` ; fiches 29/43/2/6 absentes en tant que figures séparées
+  Livré 845f5677, CI verte (run 38407965848) : une chronologie unique remplace les fiches 42, 43, 29 et 6
+  Commits : 845f5677 R555 : chronologie unique — fiches 42, 43, 29 et 6 fusionnées en une f
+
 ## ✅ R562 — Le contrôle `debt-trend` ne peut plus passer (nightly 2026-10-13) : `make error-debt` r… (livrée 2026-10-13)
 
 - [x] **R562 — Le contrôle `debt-trend` ne peut plus passer (nightly 2026-10-13) : `make error-debt` rend « 0 classe à traiter » pendant que `error_debt_trend.py` exige qu'un compteur baisse, et `guard_does_not_prove_itself` est figé à 18 — soit traiter ces 18, soit que le contrôle ne compte que la dette ACTIONNABLE (celle qu'`error-debt` liste)** (P3) ✅ (2026-10-13, 84ec4637, e67077f0)
