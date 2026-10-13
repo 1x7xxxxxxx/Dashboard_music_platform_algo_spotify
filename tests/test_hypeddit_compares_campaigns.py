@@ -21,15 +21,6 @@ from tests.db_gate import db_ready
 from tests.render_harness import TENANT_SCRIPT
 
 
-def test_the_default_is_the_two_campaigns_read_most_recently() -> None:
-    from src.dashboard.views.hypeddit import default_campaigns
-
-    last = pd.Series({"old": pd.Timestamp("2026-01-01"), "newest": pd.Timestamp("2026-09-01"),
-                      "middle": pd.Timestamp("2026-05-01")})
-    assert default_campaigns(last) == ["newest", "middle"]
-    assert default_campaigns(last.iloc[:1]) == ["old"]
-
-
 def _has_readings() -> bool:
     from src.dashboard.utils import get_db_connection
 
@@ -61,54 +52,3 @@ def test_the_page_folds_its_history_and_left_the_comparison() -> None:
     assert history and not folded[history[0]], f"the history is not folded: {folded}"
     assert any("Récupérer tes chiffres" in label for label in folded), (
         f"the fetch steps are gone: {list(folded)}")
-
-
-def _frame(**extra) -> pd.DataFrame:
-    return pd.DataFrame({"campaign_name": ["Single A", "Single B"],
-                         "visits": [420.0, float("nan")], "clicks": [37.0, 12.0], **extra})
-
-
-def test_the_comparison_draws_visits_clicks_and_meta_one_bar_per_campaign() -> None:
-    """R443 — the owner asked for visits, clicks and Meta spend in the comparison."""
-    from src.dashboard.views.hypeddit import comparison_figure
-
-    fig = comparison_figure(_frame(meta=[150.0, 0.0]))
-    bars = [tr for tr in fig.data if tr.type == "bar"]
-    assert len(bars) == 3, "visits, clicks and Meta spend are not three panels"
-    assert all(len(b.x) == 2 for b in bars), "a panel does not carry one bar per campaign"
-    assert len({b.xaxis for b in bars}) == 3, "the three volumes share an axis"
-    assert list(bars[2].y) == [150.0, 0.0]
-
-
-def test_a_campaign_without_measured_visits_has_no_visit_bar() -> None:
-    from src.dashboard.views.hypeddit import comparison_figure
-
-    visits = comparison_figure(_frame()).data[0]
-    assert pd.isna(visits.y[1]), "an unmeasured campaign was drawn as a zero"
-    assert visits.text[1] == ""
-
-
-def test_without_meta_spend_the_comparison_has_two_panels() -> None:
-    from src.dashboard.views.hypeddit import comparison_figure
-
-    assert len(comparison_figure(_frame()).data) == 2
-
-
-@pytest.mark.skipif(not db_ready(), reason="renders the cross view against the live DB")
-def test_the_cross_view_compares_the_two_latest_campaigns() -> None:
-    """R476 (W5): the comparison lives in the funnel section (R554), opened on the two latest."""
-    if not _has_readings():
-        pytest.skip("artist 1 has no Hypeddit reading — the section renders its empty state")
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="meta_ads_overview",
-                                                  artist_id=1))
-    at.session_state["meta_overview_section"] = "entonnoir"
-    at.run(timeout=180)
-    assert not at.exception, at.exception
-    pickers = [m for m in at.multiselect if "Campagnes" in m.label]
-    assert len(pickers) == 1, "the cross view has no campaign comparison"
-    assert len(pickers[0].value) == min(2, len(pickers[0].options)), (
-        f"the default is not the two latest campaigns: {pickers[0].value}")
-    assert pickers[0].value == list(pickers[0].options[:len(pickers[0].value)]), (
-        "the default campaigns are not the most recent ones")

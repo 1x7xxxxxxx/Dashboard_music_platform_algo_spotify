@@ -244,30 +244,6 @@ src/dashboard/views/home_tiles.py::_render_gate#1:
   p: 4
   v: garder
   note: "R544 (ta note vocale du 2026-10-12). Rendu regardé le 2026-10-12 (PNG, 7 / 11 / 6 %) : premier jet avec les graduations 0 et 100 coupées → marges élargies. Bandes rouge → vert égales, curseur sombre sur la prédiction, montant au meilleur CPR dans la jauge."
-src/dashboard/views/hypeddit.py::_render_campaign_series#1:
-  mq: M5
-  q: "Mes smart links Hypeddit convertissent-ils ?"
-  decision: "Juger si ton smart link convertit les visites en clics vers les plateformes, et combien de pub l'a nourri."
-  decision_en: "Judge whether your smart link turns visits into platform clicks, and how much ad spend fed it."
-  role: meta
-  d: 3
-  c: 4
-  p: 3
-  v: garder
-  owner_v: corriger
-  owner: "OK. Sur la fiche 17, le logo en carré dans le titre du rond n'a pas pris. Trouve pourquoi et fais l'analyse de tous les logos qui sont des carrés."
-  note: "Une seule campagne sur la période par défaut ; le taux de conversion (46 %) est la bonne donnée. R301 (ta R282, proposition D) : sous chaque anneau, la pub Meta dépensée à ±14 jours de la sortie — regardée le 2026-09-28 (« pub Meta ±14 j : 817 € » sous Ô Chiotte)."
-src/dashboard/views/hypeddit.py::_render_campaign_series#2:
-  mq: M5
-  q: "Ma dernière sortie a-t-elle eu plus de visites, de clics et de pub que la précédente ?"
-  decision: "Comparer tes dernières sorties en volumes — visites, clics, pub Meta autour de la sortie — pour savoir laquelle a vraiment porté."
-  decision_en: "Compare your latest releases by volume — visits, clicks, Meta ads around the release — to see which one really carried."
-  role: meta
-  d: 3
-  c: 4
-  p: 3
-  v: garder
-  note: "R443 (ta demande du 2026-10-07). Regardée le 2026-10-07 sur l'artiste 1 : Ô Chiotte 7 828 visites / 3 581 clics / 817 € contre Kimono 3 651 / 596 / 0 €. Premier rendu : l'étiquette « 817 » touchait le titre du panneau → marge de 25 % au-dessus de la plus haute barre."
 src/dashboard/views/imusician.py::_render_treasury#1:
   q: "Combien d'argent rentre et sort chaque mois — distributeurs, SACEM, pub Meta — et où en est mon solde ?"
   decision: "Voir si ce que rapportent tes ventes et la SACEM couvre ta pub Meta, mois par mois, pour fixer le budget de ta prochaine campagne."
@@ -454,18 +430,29 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
-  q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"
-  decision: "Voir où les gens se perdent de la pub à l'écoute, pour corriger le maillon faible."
-  decision_en: "See where people get lost from ad to stream, to fix the weak link."
+  q: "Où se perdent les gens entre le budget et les revenus (budget → impressions → clics → smart link → plateformes → écoutes → revenus) ?"
+  decision: "Voir où les gens se perdent du budget aux revenus, et ce que coûte une unité de chaque étape, pour corriger le maillon faible."
+  decision_en: "See where people get lost from budget to revenue, and what one unit of each step costs, to fix the weak link."
   role: meta
-  d: 1
-  c: 3
+  d: 4
+  c: 4
   p: 5
-  v: corriger
+  v: garder
   owner_v: corriger
   owner: "Un graphe avec tout le funnel pour chaque titre, filtrable, comparable entre titres (jusqu'à 5)."
   cause: entonnoir-illisible
-  note: "Libellés d'étapes tronqués (« s », « b », « k ») ; les étapes sous les impressions sont invisibles à l'échelle. Échelle log ou pourcentages d'étape à étape."
+  note: "R556 (Y2, 2026-10-13) : sept étapes en barres sur échelle log, la vraie valeur écrite sur chacune avec « X % de l'étape d'avant » (expliqué sous la figure) et le coût par unité. Les écoutes sont dites « par clic plateforme », jamais en % (non emboîtées) ; les revenus = écoutes gagnées × €/écoute mesuré chez le distributeur. Par titre et par sortie : via le filtre campagne. Remplace les fiches 128 (funnel par titre) et 22/23 (campagnes Hypeddit comparées)."
+src/dashboard/views/meta_x_spotify.py::_render_pair#1:
+  mq: M5
+  q: "Laquelle de mes deux campagnes a le mieux transformé, étape par étape, et à quel coût (dépense, impressions, clics, CPM, CPC, CPR) ?"
+  decision: "Comparer deux campagnes ou deux sorties côte à côte, chacune sur ses propres dates, pour refaire celle qui a acheté le parcours le moins cher."
+  decision_en: "Compare two campaigns or two releases side by side, each over its own dates, to repeat the one that bought the journey cheapest."
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R556 (Y2, fiches 23 et 26) : mode « comparer deux campagnes » de la barre de filtres — deux entonnoirs sur une ligne, les six indicateurs de la fiche 26 sous chacun."
 src/dashboard/views/meta_x_spotify.py::render_countries#1:
   mq: M7
   q: "Dans quel pays l'euro de pub rapporte-t-il le plus d'écoutes ?"
@@ -1296,17 +1283,6 @@ grafana:15:
   cause: doublon
   note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."
 
-src/dashboard/utils/campaign_compare.py::_render_track_funnel#1:
-  mq: M5
-  q: "Quel titre transforme le mieux, de la pub au clic vers les plateformes ?"
-  decision: "Choisir le titre qui transforme le mieux de la pub au clic, pour y mettre le budget."
-  decision_en: "Choose the track that converts best from ad to click, to put the budget there."
-  role: meta
-  d: 4
-  c: 4
-  p: 5
-  v: garder
-  note: "Nouveau (R246, fiche 40) : jusqu'à 5 titres comparés, deux chaînes côte à côte — côté pub (impressions → clics) et côté smart link (visites → clics plateformes) —, échelle log. Une étape qui s'élargit ou n'est pas mesurée est retirée et nommée ; les écoutes gagnées sont écrites à part."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_render_estimates#1:
   q: "Si un algorithme se déclenche, combien de streams rapporte-t-il d'habitude, au 1er mois, vers 6 mois, vers 1 an ?"
   decision: "Estimer ce qu'un déclenchement d'algorithme rapporte, pour chiffrer le budget qui vaut la peine."

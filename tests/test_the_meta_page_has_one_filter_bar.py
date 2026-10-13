@@ -52,7 +52,6 @@ _ALLOWED = {
     "tl_creative": "which creative's timeline, inside the bar's scope",
     "funnel_creative": "which creative's funnel, inside the bar's scope",
     "fatigue_creative": "which creative's fatigue curve",
-    "cmp_funnel": "which songs are compared, not a Meta filter",
     "ig_community": "Instagram is organic: outside the bar, its charts keep their period",
     "ig_media": "Instagram is organic: outside the bar, its charts keep their period",
 }

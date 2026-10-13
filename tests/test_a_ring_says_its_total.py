@@ -3,12 +3,6 @@ valeur totale de chaque en étiquette »)."""
 import pandas as pd
 
 from src.dashboard.utils.charts import spend_ring
-from src.dashboard.views.hypeddit import ring_label
-
-
-def test_a_campaign_ring_names_its_visits_and_clicks():
-    label = ring_label("Qui a bu le crachoir du saloon ?", 5892, 2743)
-    assert "5 892" in label and "2 743" in label
 
 
 def test_a_spend_ring_writes_euros_and_cpr_and_never_a_fake_zero():

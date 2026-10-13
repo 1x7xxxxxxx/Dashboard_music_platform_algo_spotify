@@ -69,12 +69,6 @@ src/dashboard/views/instagram.py::render#1:
   - qui: moi
     texte: Autre forme pour l'engagement Instagram par mois
     rid: R290
-src/dashboard/views/hypeddit.py::_render_campaign_series#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Logo du titre rendu (police emoji), puis revalidation
-    rid: R287
 src/dashboard/views/imusician.py::show#1:
   valide: false
   actions:

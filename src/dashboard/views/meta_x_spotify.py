@@ -82,7 +82,7 @@ from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
     BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury, engagement_lift,
-    shazam_stream_lag, step_texts, streams_gained,
+    shazam_stream_lag, streams_gained,
 )
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
 from src.dashboard.utils.date_format import format_date
@@ -522,7 +522,7 @@ def _merge(frames: list) -> pd.DataFrame:
     return master
 
 
-def _show_body(db, artist_id, bar) -> None:
+def _show_body(db, artist_id, bar, funnel: bool = True) -> None:
     """Le corps — la connexion est tenue par la page, les filtres par sa barre (R399)."""
     # Le compte et la campagne viennent de la barre : le même nom de campagne peut
     # exister dans deux comptes, et cette page raconte l'histoire d'UNE campagne.
@@ -577,7 +577,8 @@ def _show_body(db, artist_id, bar) -> None:
     _render_shazam_lag(master)
     _render_engagement(db, artist_id, d0, d1)
     _render_absences(absences, d0, d1)
-    _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
+    if funnel:
+        _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
 
 
 def show():
@@ -592,45 +593,22 @@ def show():
 def render_funnel(db, artist_id, bar) -> None:
     """The funnel section of the cross view (R348), read through its filter bar (R399)."""
     # R555 — the listener verdict (fiche 42) moved to the Chronologie, above its one figure.
-    _show_body(db, artist_id, bar)
+    # R556 — a second campaign in the bar: two funnels on one row (fiches 23, 26).
+    if bar.campaign and bar.second:
+        _render_pair(db, artist_id, bar)
+    _show_body(db, artist_id, bar, funnel=not bar.second)
 
 
 # ── Le funnel, rapatrié de « Publicité Meta Ads » et CORRIGÉ ───────────────────
-def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
-                   s4a_song=None) -> None:
-    """Meta × Spotify × Hypeddit — et l'incohérence que l'artiste a vue.
+def funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song=None) -> dict:
+    """Each step's volume over [d0, d1] — the database half of `full_funnel.steps`.
 
-    Rapportée le 2026-09-21 : « 643 vues de LP pour 5972 clics Spotify, on devrait
-    avoir une valeur inférieure ». C'est exact, et ce n'est pas une erreur de
-    fenêtre — mesuré sur tout l'historique du locataire 1 :
-
-        les deux métriques sont mesurées ensemble sur **91 jours**
-        `lp_views < custom_conversions` sur **91 jours sur 91**
-
-    Zéro jour cohérent. Le défaut n'est donc pas dans les chiffres, il est dans le
-    MODÈLE : `lp_views` et `custom_conversions` ne sont pas deux étapes
-    successives, ce sont **deux mesures de la même étape**, prises par deux
-    instruments différents.
-
-      · `lp_views` — le `landing_page_view` de Meta, qui exige que le pixel se
-        déclenche au CHARGEMENT de la page. Un visiteur qui clique plus vite que
-        le pixel, ou qui le bloque, n'y est jamais compté.
-      · `custom_conversions` — l'évènement que Hypeddit renvoie par sa CAPI,
-        côté SERVEUR. Il ne dépend d'aucun pixel.
-
-    Le second voit donc ce que le premier rate, et l'empiler SOUS lui affirmait un
-    emboîtement que la donnée contredit tous les jours. `lp_views` descend au rang
-    de note de qualité sur l'étape, à sa place.
-
-    LE FUNNEL RÉEL TRAVERSE TROIS SOURCES, d'où le nom :
-
-        Meta      impressions → clics sur la pub
-        Hypeddit  visites du smart link → clics vers les plateformes
-        Spotify   les écoutes qui suivent (mesurées ailleurs sur cette page)
+    Rapportée le 2026-09-21 : « 643 vues de LP pour 5972 clics Spotify, on devrait avoir
+    une valeur inférieure ». `lp_views < custom_conversions` sur **91 jours sur 91** :
+    ce ne sont pas deux étapes successives, ce sont **deux mesures de la même étape** —
+    le pixel Meta (au chargement, bloquable) et l'évènement serveur de Hypeddit (CAPI).
+    L'arrivée prend la plus complète des trois sources et dit laquelle.
     """
-    st.subheader(t("meta_x_spotify.funnel_header",
-                   "🔽 Meta × Spotify × Hypeddit — le parcours complet"))
-
     meta = _df(db, f"""
         SELECT COALESCE(SUM(impressions), 0) AS impressions,
                COALESCE(SUM(link_clicks), 0) AS link_clicks,
@@ -645,118 +623,115 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
           FROM v_hypeddit_daily
          WHERE artist_id = %s AND campaign_name = %s AND day BETWEEN %s AND %s
     """, (artist_id, campaign, d0, d1))
-
-    if meta.empty:
-        st.info(t("meta_x_spotify.funnel_none", "Aucune donnée Meta sur cette fenêtre."))
-        return
-    m = meta.iloc[0]
-    impressions, clics = int(m["impressions"]), int(m["link_clicks"])
-    lp, capi = int(m["lp_views"]), int(m["capi"])
-    visites = int(hyp.iloc[0]["visits"]) if not hyp.empty else 0
-    clics_store = int(hyp.iloc[0]["clicks"]) if not hyp.empty else 0
-
-    # L'ARRIVÉE SUR LE SMART LINK : deux instruments, on prend le PLUS COMPLET et
-    # on dit lequel. `max` n'est pas un arrangement — un évènement serveur ne peut
-    # pas être moins fiable qu'un pixel qu'un navigateur peut bloquer.
-    arrivees = max(capi, visites, lp)
-    source_arrivee = (t("meta_x_spotify.src_capi", "CAPI Hypeddit") if arrivees == capi
-                      else t("meta_x_spotify.src_hyp", "saisie Hypeddit") if arrivees == visites
-                      else t("meta_x_spotify.src_pixel", "pixel Meta"))
-
-    etapes, valeurs = [], []
-    for lbl, v in (
-        (t("meta_x_spotify.f_impressions", "Impressions"), impressions),
-        (t("meta_x_spotify.f_clicks", "Clics sur la pub"), clics),
-        (t("meta_x_spotify.f_landing", "Arrivées sur le smart link"), arrivees),
-        (t("meta_x_spotify.f_store", "Clics vers les plateformes"), clics_store),
-    ):
-        # ⚠️ UNE ÉTAPE À ZÉRO N'EST PAS UNE ÉTAPE PERDUE, c'est une étape NON
-        # MESURÉE. La tracer à 0 dessinerait un effondrement qui n'a pas eu lieu.
-        if v > 0:
-            etapes.append(lbl)
-            valeurs.append(v)
-
-    # THE LAST STEP, WHEN IT IS MEASURED (R213 lot b): streams of the linked track above
-    # their pre-campaign level. Absent — and said — without a confirmed link or a
-    # baseline of `BASELINE_MIN_DAYS` days; never a 0 step.
-    gain = None
+    m = meta.iloc[0] if not meta.empty else {}
+    h = hyp.iloc[0] if not hyp.empty else {}
+    out = {k: int(m.get(k, 0) or 0) for k in ("impressions", "link_clicks", "lp_views", "capi")}
+    out["spend"] = float(m["spend"]) if len(m) and pd.notna(m["spend"]) else None
+    out["visits"], out["store_clicks"] = int(h.get("visits", 0) or 0), int(h.get("clicks", 0) or 0)
+    out["arrivals"] = max(out["capi"], out["visits"], out["lp_views"])
+    out["source"] = (t("meta_x_spotify.src_capi", "CAPI Hypeddit") if out["arrivals"] == out["capi"]
+                     else t("meta_x_spotify.src_hyp", "saisie Hypeddit")
+                     if out["arrivals"] == out["visits"]
+                     else t("meta_x_spotify.src_pixel", "pixel Meta"))
+    # THE STREAMS STEP (R213 lot b): the linked track above its pre-campaign level. Absent
+    # without a confirmed link or `BASELINE_MIN_DAYS` days of baseline — never a 0 step.
+    out["gain"] = None
     if s4a_song:
         daily = _df(db, """
             SELECT day AS date, streams FROM v_s4a_song_daily
              WHERE artist_id = %s AND song = %s AND day BETWEEN %s AND %s
         """, (artist_id, s4a_song, d0 - _dt.timedelta(days=BASELINE_DAYS), d1))
-        gain = streams_gained(daily, d0, d1)
-    # ⚠️ NOT a funnel step, and the render proved it: 6 556 streams gained after 3 432
-    # arrivals read « 191 % of the previous step ». One visitor streams many times and the
-    # organic rise is in it too — the streams are not nested in the arrivals. They are said
-    # beside the funnel, with their own cost, never stacked under it.
+        out["gain"] = streams_gained(daily, d0, d1)
+    out["streams"] = out["gain"]["gained"] if out["gain"] else None
+    return out
 
-    if len(etapes) < 2:
+
+def _funnel_figure(db, artist_id, m: dict, height: int = 460):
+    """The seven steps of `m`, revenue priced at the artist's measured €/stream."""
+    from src.dashboard.utils import full_funnel
+    from src.dashboard.utils.artist_cashflow import stream_rate
+    rate = (stream_rate(db, artist_id) or {}).get("eur_par_stream")
+    return full_funnel.figure(full_funnel.steps(m, rate), height=height), rate
+
+
+def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
+                   s4a_song=None) -> None:
+    """Budget → impressions → clics → smart link → plateformes → écoutes → revenus (R556).
+
+    LE FUNNEL RÉEL TRAVERSE QUATRE SOURCES : Meta (budget, impressions, clics),
+    Hypeddit (visites, clics vers les plateformes), Spotify (écoutes gagnées), le
+    distributeur (le €/écoute qui chiffre les revenus).
+    """
+    st.subheader(t("meta_x_spotify.funnel_header",
+                   "🔽 Du budget aux revenus — le parcours complet"))
+    m = funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
+    fig, rate = _funnel_figure(db, artist_id, m)
+    if fig is None:
         st.info(t("meta_x_spotify.funnel_thin",
                   "Pas assez d'étapes mesurées pour dessiner un parcours."))
         return
-
-    spend = float(m["spend"]) if pd.notna(m["spend"]) else None
-    pal = _palette()
-    couleurs = [pal["meta"], pal["meta"], pal["hypeddit"], pal["hypeddit"]]
-    texts = step_texts(valeurs, spend)
-    # R209 (2026-09-27) — impressions are ~100× the clicks: beside them every later step
-    # was a sliver, its label cut to « s », « b » (dossier fiche 49). They leave the bars
-    # for a sentence ABOVE, with their cost per thousand; the funnel starts at the click.
-    if len(etapes) > 2 and etapes[0] == t("meta_x_spotify.f_impressions", "Impressions"):
-        st.caption(t("meta_x_spotify.funnel_impressions",
-                     "📣 **{txt}** impressions — le point de départ, hors de l'entonnoir : "
-                     "à cette échelle les étapes suivantes seraient invisibles.").format(
-                         txt=texts[0]))
-        etapes, valeurs, texts, couleurs = etapes[1:], valeurs[1:], texts[1:], couleurs[1:]
-    fig = go.Figure(go.Funnel(
-        y=etapes, x=valeurs, textposition="inside",
-        text=texts, textinfo="text",
-        marker=dict(color=couleurs[:len(etapes)]),
-    ))
-    fig.update_layout(height=380, margin=dict(r=10, t=30))
-    fig.update_yaxes(automargin=True)
     charts.plotly_chart(fig, width="stretch")
+    st.caption(_funnel_note(db, artist_id, m, rate, d0, d1, s4a_song))
 
+
+def _funnel_note(db, artist_id, m: dict, rate, d0, d1, s4a_song) -> str:
     note = t("meta_x_spotify.funnel_caption",
-             "Les deux premières étapes viennent de **Meta**, les deux suivantes de "
-             "**Hypeddit**. L'arrivée sur le smart link est mesurée par « {src} » : "
-             "c'est la source la plus complète des trois disponibles.").format(
-                 src=source_arrivee)
-    if lp and capi and lp < capi:
-        # LE FAIT QUE L'ARTISTE A VU, expliqué là où il le verra.
+             "**% de l'étape d'avant** : sur 100 personnes à l'étape du dessus, combien "
+             "passent à celle-ci. **€ l'unité** : le budget divisé par le volume de l'étape — "
+             "ce qu'a coûté UN clic, UNE visite. L'arrivée sur le smart link est mesurée par "
+             "« {src} », la plus complète des sources disponibles.").format(src=m["source"])
+    if m["lp_views"] and m["capi"] and m["lp_views"] < m["capi"]:
         note += " " + t(
             "meta_x_spotify.funnel_lp_note",
             "⚠️ Le pixel Meta ne compte que **{lp}** vues de page pour **{capi}** "
-            "évènements renvoyés par la CAPI. Ce n'est pas une contradiction : le "
-            "pixel doit se déclencher au chargement, l'évènement serveur non. Le "
-            "pixel SOUS-COMPTE, il ne mesure pas une étape suivante — les empiler "
-            "l'un sous l'autre affirmait un emboîtement faux **91 jours sur 91**."
-        ).format(lp=num(lp, 0), capi=num(capi, 0))
-    if spend:
-        note += " " + t("meta_x_spotify.funnel_cost_note",
-                        "Chaque étape porte son coût : les **{s} €** dépensés sur la "
-                        "fenêtre, divisés par le volume de l'étape.").format(
-            s=num(spend, 2))
-    if gain and gain['gained'] >= 1:
-        cost = (t("meta_x_spotify.funnel_gain_cost", ", soit **{c} €** l'écoute gagnée").format(
-                    c=num(spend / gain['gained'], 3))
-                if spend else "")
+            "évènements renvoyés par la CAPI : le pixel SOUS-COMPTE, il ne mesure pas une "
+            "étape suivante.").format(lp=num(m["lp_views"], 0), capi=num(m["capi"], 0))
+    if m["gain"] and m["gain"]["gained"] >= 1:
         note += " " + t("meta_x_spotify.funnel_gain_note",
-                        "🎧 **{g} écoutes gagnées** sur Spotify pendant la fenêtre{cost} — "
-                        "comparées à la moyenne des {n} jours d'avant ({b} écoutes/jour). "
-                        "Une hausse qui aurait eu lieu sans la pub y est comptée aussi, et "
-                        "une écoute n'est pas une étape du parcours : un même visiteur "
-                        "écoute plusieurs fois.").format(
-            g=num(gain['gained'], 0), cost=cost,
-            n=gain['baseline_days'], b=f"{gain['baseline_per_day']:.1f}".replace(".", ","))
+                        "🎧 Les **écoutes gagnées** sont comparées à la moyenne des {n} jours "
+                        "d'avant ({b} écoutes/jour) : une hausse qui aurait eu lieu sans la pub "
+                        "y est comptée aussi, et un même visiteur écoute plusieurs fois — d'où "
+                        "« écoutes par clic » et pas un %.").format(
+            n=m["gain"]["baseline_days"],
+            b=f"{m['gain']['baseline_per_day']:.1f}".replace(".", ","))
+        if rate:
+            note += " " + t("meta_x_spotify.funnel_rate_note",
+                            "💶 Revenus = écoutes gagnées × **{r} €**, ton revenu par écoute "
+                            "mesuré sur les ventes du distributeur.").format(r=num(rate, 5))
     elif s4a_song:
         note += " " + t("meta_x_spotify.funnel_no_gain",
                         "Pas d'étape « écoutes gagnées » : il faut au moins {n} jours "
                         "d'écoutes relevés avant la campagne, et une hausse mesurable.").format(
             n=BASELINE_MIN_DAYS)
-    note += campaign_treasury(db, artist_id, d0, d1, spend)
-    st.caption(note)
+    return note + campaign_treasury(db, artist_id, d0, d1, m["spend"])
+
+
+def _render_pair(db, artist_id, bar) -> None:
+    """Two campaigns, two funnels on one row, each on its own dates (fiches 23, 26)."""
+    from src.dashboard.utils.full_funnel import indicators
+    acct, acct_p = bar.acct()
+    st.subheader(t("meta_x_spotify.pair_header", "⚖️ Deux campagnes, deux entonnoirs"))
+    for i, (col, campaign) in enumerate(zip(st.columns(2), (bar.campaign, bar.second))):
+        with col:
+            st.markdown(f"**{campaign}**")
+            span = _df(db, "SELECT MIN(day) AS d0, MAX(day) AS d1 FROM v_meta_campaign_daily "
+                           f"WHERE artist_id = %s{acct} AND campaign_name = %s AND spend > 0",
+                       (artist_id, *acct_p, campaign))
+            if span.empty or pd.isna(span.iloc[0]["d0"]):
+                st.info(t("meta_x_spotify.pair_none", "Aucune dépense relevée."))
+                continue
+            d0, d1 = span.iloc[0]["d0"], span.iloc[0]["d1"]
+            m = funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1,
+                                _resolve_track(db, artist_id, campaign)[1])
+            fig, _ = _funnel_figure(db, artist_id, m, height=400)
+            if fig is not None:
+                charts.plotly_chart(fig, width="stretch", key=f"pair_funnel_{i}")
+            st.caption(f"{format_date(d0)} → {format_date(d1)} · " + " · ".join(
+                f"**{k}** {v}" for k, v in indicators(m)))
+    st.caption(t("meta_x_spotify.pair_caption",
+                 "Chaque campagne sur ses propres dates, du premier au dernier euro dépensé. "
+                 "CPM = coût des 1 000 impressions, CPC = coût d'un clic sur la pub, CPR = "
+                 "coût d'un clic sortant vers les plateformes."))
 
 
 # ── Le croisement PAYS — où l'euro rapporte le plus d'écoutes ──────────────────

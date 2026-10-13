@@ -89,26 +89,6 @@ def engagement_lift(df: pd.DataFrame, d0, d1) -> list[dict]:
     return out
 
 
-def step_texts(values: list[float], spend: float | None) -> list[str]:
-    """« 1 234 · 12 % de l'étape d'avant · 0,05 €/unité » for each funnel step. Pure.
-
-    The cost is spend ÷ the step's volume, i.e. what one unit of THAT step cost; the
-    first step (impressions) is priced per thousand, as Meta prices it."""
-    out = []
-    for i, v in enumerate(values):
-        parts = [f"{v:,.0f}".replace(",", " ")]
-        if i > 0 and values[i - 1]:
-            parts.append(t("meta_x_spotify.f_kept", "{p} % de l'étape d'avant").format(
-                p=f"{100 * v / values[i - 1]:.1f}".replace(".", ",")))
-        if spend and v > 0:
-            unit = spend / v * (1000 if i == 0 else 1)
-            label = (t("meta_x_spotify.f_cpm", "{c} € les 1 000") if i == 0
-                     else t("meta_x_spotify.f_cost", "{c} € l'unité"))
-            parts.append(label.format(c=f"{unit:,.3f}".replace(",", " ").replace(".", ",")))
-        out.append(" · ".join(parts))
-    return out
-
-
 # ── One creative's funnel (moved from views/meta_creatives.py, R209 2026-09-27) ──
 
 def _measured_sum(rows: pd.DataFrame, col: str) -> int | None:

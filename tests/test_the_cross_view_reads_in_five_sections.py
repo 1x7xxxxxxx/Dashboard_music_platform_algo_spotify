@@ -59,8 +59,7 @@ def test_the_chronology_holds_every_reading_with_a_calendar() -> None:
 def test_the_funnel_section_holds_the_totals_and_the_comparison() -> None:
     calls = _called(_function(VIEWS / "meta_ads_overview.py",
                               SECTIONS["entonnoir"].render.__name__))
-    for name in ("render_funnel", "_render_campaign_totals", "render_compare",
-                 "render_campaign_stats"):
+    for name in ("render_funnel", "_render_campaign_totals", "render_compare"):
         assert name in calls, f"« {name} » is not in the funnel section"
 
 

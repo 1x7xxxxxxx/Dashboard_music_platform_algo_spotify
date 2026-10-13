@@ -28,7 +28,6 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils.campaign_funnel import BASELINE_DAYS, best_lag, streams_gained
-from src.dashboard.utils import charts
 from src.dashboard.utils.i18n import t
 
 _FAMILY = {
@@ -259,7 +258,6 @@ def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
                  "écoutes ont varié sur au moins 14 jours : une campagne à budget constant "
                  "n'en a pas, et c'est normal.").format(n=BASELINE_DAYS))
     _render_tracks(df, data["store"])
-    _render_track_funnel(df, data)
     _render_creatives(df, data.get("creatives"))
     st.caption(t("campaign_compare.countries",
                  "Le pays qui transforme le mieux : onglet **🌍 Par pays**, campagne par "
@@ -322,119 +320,3 @@ def creative_gains(db, artist_id: int, acct: str, acct_p: tuple) -> dict[str, di
     return {r["creative_name"]: {"gained": r["gained"], "spend": r["spend"],
                                  "campaign": r["campaign_name"]}
             for r in alone.to_dict("records")}
-
-
-
-# ── R246 (fiche 40) — the whole funnel per TRACK, comparable across up to five ────────
-# Two CHAINS, not one funnel: a smart-link visit does not always come from an ad click
-# (bio link, shares, organic) — measured 2026-09-27, visits exceed ad clicks on every track
-# that has both. Chained, « ad click → platform click » would claim a conversion that the
-# data does not hold. Each chain is nested inside itself; they sit side by side.
-CHAINS = (
-    ("meta", "Côté pub (Meta)", (("impressions", "Impressions de la pub"), ("link_clicks", "Clics sur la pub"))),
-    ("hypeddit", "Côté smart link (Hypeddit)", (("visits", "Visites du smart link"), ("store_clicks", "Clics vers les plateformes"))),
-)
-FUNNEL_STAGES = tuple(st_ for _, _, chain in CHAINS for st_ in chain)
-MAX_COMPARED = 5
-from src.dashboard.utils.platform_colors import DISTINCT as _PALETTE   # noqa: E402
-
-
-def track_funnel(data: dict, df: pd.DataFrame) -> pd.DataFrame:
-    """One row per linked track: each funnel stage summed over its campaigns, and the
-    streams gained. Impressions and clicks are additive across campaigns; reach is not
-    (and is not here). Pure."""
-    daily, tracks = data["daily"], data["tracks"]
-    if daily is None or daily.empty or tracks is None or tracks.empty:
-        return pd.DataFrame()
-    d = daily.merge(tracks, on="campaign_name", validate="many_to_one").dropna(subset=["song"])
-    for c in ("impressions", "link_clicks"):
-        d[c] = pd.to_numeric(d[c], errors="coerce")
-    meta = d.groupby("song")[["impressions", "link_clicks"]].sum(min_count=1)
-    store = data["store"].set_index("song") if not data["store"].empty else pd.DataFrame()
-    out = meta.join(store[["visits", "store_clicks"]] if not store.empty else None, how="left")
-    gained = df.dropna(subset=["song"]).groupby("song")["gained"].sum(min_count=1) \
-        if not df.empty else pd.Series(dtype=float)
-    out["gained"] = gained
-    return out.apply(pd.to_numeric, errors="coerce").reset_index()
-
-
-def nested_stages(rows: pd.DataFrame, stages=FUNNEL_STAGES) -> tuple[list[str], list[str]]:
-    """(stages kept, stages dropped) of ONE chain: a stage enters only if it is measured for
-    every compared track and never exceeds the stage before it — a funnel does not widen
-    (`test_a_creative_funnel_never_widens`). Pure."""
-    kept, dropped = [], []
-    for col, _ in stages:
-        vals = pd.to_numeric(rows[col], errors="coerce") if col in rows else None
-        if vals is None or vals.isna().any():
-            dropped.append(col)
-            continue
-        if kept and (vals > pd.to_numeric(rows[kept[-1]], errors="coerce")).any():
-            dropped.append(col)
-            continue
-        kept.append(col)
-    return kept, dropped
-
-
-def track_funnel_figure(rows: pd.DataFrame, kept_by_chain: dict[str, list[str]]):
-    """Stages top to bottom, one bar per track, on a LOG axis — a 1 % click rate is
-    invisible on a linear funnel (render, 2026-09-27). The « % » links a stage only to the
-    one before it IN ITS CHAIN: nothing claims that an ad click became a platform click."""
-    import plotly.graph_objects as go
-    names = dict(FUNNEL_STAGES)
-    order = [c for key, _, _ in CHAINS for c in kept_by_chain.get(key, [])]
-    prev = {c: (chain_kept[i - 1] if i else None)
-            for chain_kept in kept_by_chain.values() for i, c in enumerate(chain_kept)}
-    labels = {c: t(f"campaign_compare.stage_{c}", names[c]) for c in order}
-    fig = go.Figure()
-    for j, r in enumerate(rows.to_dict("records")):
-        text = []
-        for c in order:
-            share = (f" · {100 * r[c] / r[prev[c]]:.1f} %".replace(".", ",")
-                     if prev[c] and r[prev[c]] else "")
-            text.append(f"{r[c]:,.0f}".replace(",", " ") + share)
-        fig.add_trace(go.Bar(y=[labels[c] for c in order], x=[r[c] for c in order],
-                             orientation="h", name=str(r["song"])[:40], text=text,
-                             textposition="outside", cliponaxis=False,
-                             marker_color=_PALETTE[j % len(_PALETTE)]))
-    fig.update_layout(barmode="group", height=110 * len(order) + 140,
-                      xaxis=dict(type="log", title=t("campaign_compare.log_axis",
-                                                     "Volume (échelle log : chaque trait ×10)")),
-                      yaxis=dict(autorange="reversed", automargin=True),
-                      margin=dict(r=90))
-    return fig
-
-
-def _render_track_funnel(df: pd.DataFrame, data: dict) -> None:
-    tf = track_funnel(data, df)
-    if tf.empty:
-        return
-    st.markdown(t("campaign_compare.funnel_head",
-                  "**Tout le parcours, titre par titre** — de l'impression de la pub au clic "
-                  "vers les plateformes, pour comparer jusqu'à {n} titres.").format(n=MAX_COMPARED))
-    songs = tf.sort_values("impressions", ascending=False, na_position="last")["song"].tolist()
-    pick = st.multiselect(t("campaign_compare.funnel_pick", "Titres à comparer"), songs,
-                          default=songs[:3], max_selections=MAX_COMPARED, key="cmp_funnel")
-    rows = tf[tf["song"].isin(pick)]
-    if rows.empty:
-        return
-    kept_by_chain, dropped = {}, []
-    for key, _, chain in CHAINS:
-        kept, drop = nested_stages(rows, chain)
-        kept_by_chain[key] = kept
-        dropped += drop
-    if any(len(k) >= 2 for k in kept_by_chain.values()):
-        charts.plotly_chart(track_funnel_figure(rows, kept_by_chain), width="stretch")
-    names = dict(FUNNEL_STAGES)
-    st.caption(t("campaign_compare.funnel_chains",
-                 "Deux outils, deux chaînes : une visite du smart link ne vient pas toujours "
-                 "d'un clic sur la pub (lien en bio, partages), donc les deux côtés ne se "
-                 "suivent pas — chacun se lit de haut en bas."))
-    if dropped:
-        st.caption(t("campaign_compare.funnel_dropped",
-                     "Étape(s) retirée(s) : {s} — non mesurée pour un des titres, ou plus grande "
-                     "que l'étape d'avant.").format(
-            s=", ".join(t(f"campaign_compare.stage_{c}", names[c]) for c in dropped)))
-    gains = " · ".join(f"{r['song'][:30]} : {_fmt(r['gained'])}" for r in rows.to_dict("records"))
-    st.caption(t("campaign_compare.funnel_gained",
-                 "Écoutes gagnées pendant les campagnes du titre (au-dessus des 28 jours d'avant, "
-                 "hors parcours car une écoute ne vient pas toujours d'un clic) : {g}").format(g=gains))

@@ -587,7 +587,8 @@ def test_the_fixed_sites_did_not_come_back() -> None:
         #
         # Changer le marqueur sans changer le nombre : la propriété gardée est la
         # même, son porteur non.
-        "src/dashboard/views/hypeddit.py": ("min_count", 1),
+        # R556 (2026-10-13) : that figure (campaigns compared) left with its `min_count`;
+        # the cross view's funnel skips an unmeasured step instead of drawing it.
         # les 3 séries du PDF : audience S4A (×2) et YouTube (×2)
         "src/dashboard/utils/pdf_charts.py": ("_measured", 4),
     }

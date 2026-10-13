@@ -52,11 +52,3 @@ def test_the_ads_around_a_release_are_the_14_days_on_each_side():
                           "spend": [10.0, 20.0, 40.0, 80.0]})
     assert meta_impact.spend_around(spend, dt.date(2024, 3, 15)) == 70.0   # 01 → 29 inclusive
     assert meta_impact.spend_around(spend.iloc[0:0], dt.date(2024, 3, 15)) == 0.0
-
-
-def test_the_ring_names_the_ads_only_when_they_are_known():
-    from src.dashboard.views.hypeddit import ring_label
-    with_ads = ring_label("Kimono", 3600, 580, 294.0)
-    assert "294" in with_ads and "±14" in with_ads
-    assert "±14" not in ring_label("Kimono", 3600, 580)
-    assert "±14" not in ring_label("Kimono", 3600, 580, float("nan"))

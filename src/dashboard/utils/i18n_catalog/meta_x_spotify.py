@@ -62,27 +62,13 @@ EN = {
     "meta_x_spotify.no_data": "No data over this window.",
 
     # Les onglets, le funnel corrigé et le croisement pays (2026-09-21).
-    "meta_x_spotify.funnel_header": "🔽 Meta × Spotify × Hypeddit — the whole journey",
-    "meta_x_spotify.funnel_none": "No Meta data over this window.",
+    "meta_x_spotify.funnel_header": '🔽 From budget to revenue — the whole journey',
     "meta_x_spotify.funnel_thin": "Not enough measured steps to draw a journey.",
-    "meta_x_spotify.f_impressions": "Impressions",
-    "meta_x_spotify.f_clicks": "Clicks on the ad",
-    "meta_x_spotify.f_landing": "Arrivals on the smart link",
-    "meta_x_spotify.f_store": "Clicks through to platforms",
     "meta_x_spotify.src_capi": "Hypeddit CAPI",
     "meta_x_spotify.src_hyp": "Hypeddit entry",
     "meta_x_spotify.src_pixel": "Meta pixel",
-    "meta_x_spotify.funnel_caption": "The first two steps come from **Meta**, the next "
-                                     "two from **Hypeddit**. The arrival on the smart "
-                                     "link is measured by « {src} »: the most complete of "
-                                     "the three sources available.",
-    "meta_x_spotify.funnel_lp_note": "⚠️ The Meta pixel counts only **{lp}** page views "
-                                     "for **{capi}** events returned by the CAPI. This is "
-                                     "not a contradiction: the pixel must fire on load, "
-                                     "the server event need not. The pixel UNDERCOUNTS, "
-                                     "it does not measure a later step — stacking one "
-                                     "under the other asserted a nesting that is false "
-                                     "91 days out of 91.",
+    "meta_x_spotify.funnel_caption": "**% of the step before**: out of 100 people at the step above, how many reach this one. **€ each**: the budget divided by the step's volume — what ONE click, ONE visit cost. The arrival on the smart link is measured by « {src} », the most complete source available.",
+    "meta_x_spotify.funnel_lp_note": '⚠️ The Meta pixel counts only **{lp}** page views for **{capi}** events returned by the CAPI: the pixel UNDERCOUNTS, it does not measure a later step.',
     "meta_x_spotify.countries_header": "🌍 Where the euro buys the most listens",
     "meta_x_spotify.countries_none": "No country breakdown on this ad account.",
     "meta_x_spotify.c_spend": "Spend (€)",
@@ -105,12 +91,7 @@ EN = {
                                         "The left scale is **logarithmic** — without it, "
                                         "a country at 56,000 listens crushes every other.",
     # R195 — the listener verdict, moved from the Spotify page
-    "meta_x_spotify.f_kept": "{p} % of the previous step",
-    "meta_x_spotify.f_cpm": "{c} € per 1,000",
-    "meta_x_spotify.f_cost": "{c} € each",
-    "meta_x_spotify.funnel_cost_note": "Each step carries its cost: the **{s} €** spent over the window, divided by the step's volume.",
-    "meta_x_spotify.funnel_gain_note": "🎧 **{g} streams gained** on Spotify over the window{cost} — compared with the average of the {n} days before ({b} streams/day). A rise that would have happened without the ad is counted too, and a stream is not a funnel step: one visitor streams many times.",
-    "meta_x_spotify.funnel_gain_cost": ", i.e. **{c} €** per stream gained",
+    "meta_x_spotify.funnel_gain_note": '🎧 The **streams gained** are compared with the average of the {n} days before ({b} streams/day): a rise that would have happened without the ad is counted too, and one visitor streams many times — hence « streams per click », not a %.',
     "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",
     "meta_x_spotify.abs_apple_none": "🎎 **Apple Music / Shazam** — no Apple reading for this track (or no confirmed Apple link in **🔗 Cross-platform mapping**).",
     "meta_x_spotify.abs_apple_late": "🎎 **Apple Music / Shazam** — this track's Apple readings start on **{d}**, after this window.",
@@ -124,7 +105,10 @@ EN = {
     "meta_x_spotify.eng_followers_level": "Spotify followers gained / day",
     "meta_x_spotify.eng_ig_followers": "Instagram followers gained / day",
     "meta_x_spotify.funnel_treasury": "💶 Over this campaign's months ({a} → {b}): **{rev}** of net revenue (all tracks, paid with a delay), **{tot}** of spend in total, of which **{sp}** for this campaign over the window.",
-    "meta_x_spotify.funnel_impressions": "📣 **{txt}** impressions — the starting point, outside the funnel: at that scale the next steps would be invisible.",
     "meta_x_spotify.shazam_lag_thin": "🎎 Shazam → streams: not enough days measured together ({n} needed). Export « yesterday » from Apple Music for Artists every day of the campaign.",
     "meta_x_spotify.shazam_lag": "🎎 Shazam → streams: a day's Shazams best match the streams **{lag} day(s) later** (correlation {c}, over {n} days). A correlation is not a cause: a release or a playlist lifts both.",
+    "meta_x_spotify.funnel_rate_note": "💶 Revenue = streams gained × **{r} €**, your revenue per stream measured on the distributor's sales.",
+    "meta_x_spotify.pair_header": "⚖️ Two campaigns, two funnels",
+    "meta_x_spotify.pair_none": "No spend recorded.",
+    "meta_x_spotify.pair_caption": "Each campaign over its own dates, from the first to the last euro spent. CPM = cost of 1,000 impressions, CPC = cost of one click on the ad, CPR = cost of one outbound click to the platforms.",
 }

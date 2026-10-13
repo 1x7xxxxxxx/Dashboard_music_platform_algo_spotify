@@ -46,6 +46,11 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/meta_x_spotify.py::_render_funnel#1",
+               "src/dashboard/views/meta_x_spotify.py::_render_pair#1"}):
+        ("faux doublon — jamais affichés ensemble : une campagne dans la barre dessine "
+         "l'entonnoir seul, deux campagnes le remplacent par deux entonnoirs côte à côte, "
+         "chacun sur ses propres dates (R556, 2026-10-13).", frozenset()),
     frozenset({"src/dashboard/views/home_tiles.py::_render_gate#1",
                "src/dashboard/views/home_tiles.py::_render_total_and_share#1"}):
         ("faux doublon — les jauges disent la chance PRÉDITE de la dernière sortie par "

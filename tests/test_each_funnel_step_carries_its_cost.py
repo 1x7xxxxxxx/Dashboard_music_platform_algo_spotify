@@ -18,19 +18,25 @@ import pandas as pd
 
 from src.dashboard.utils.campaign_funnel import (
     BASELINE_MIN_DAYS as _BASELINE_MIN_DAYS, engagement_lift as _engagement_lift_fn,
-    step_texts as _step_texts, streams_gained as _streams_gained,
+    streams_gained as _streams_gained,
 )
+from src.dashboard.utils.full_funnel import steps as _steps
+
+
+def _texts(spend, imp, clicks, arrivals):
+    m = {"spend": spend, "impressions": imp, "link_clicks": clicks, "arrivals": arrivals}
+    return {s["key"]: s["text"] for s in _steps(m, None)}
 
 
 def test_each_step_is_priced_as_spend_over_its_volume() -> None:
-    texts = _step_texts([10_000, 200, 100], spend=50.0)
-    assert "5,000 € les 1 000" in texts[0], texts[0]           # 50 / 10 000 × 1000
-    assert "0,250 € l'unité" in texts[1] and "2,0 %" in texts[1], texts[1]
-    assert "0,500 € l'unité" in texts[2] and "50,0 %" in texts[2], texts[2]
+    texts = _texts(50.0, 10_000, 200, 100)       # R556: the step texts live in full_funnel
+    assert "5,00 € les 1 000" in texts["impressions"], texts           # 50 / 10 000 × 1000
+    assert "0,250 € l'unité" in texts["link_clicks"] and "2,0 %" in texts["link_clicks"]
+    assert "0,500 € l'unité" in texts["arrivals"] and "50,0 %" in texts["arrivals"]
 
 
 def test_no_spend_means_no_cost_rather_than_a_zero_cost() -> None:
-    assert not any("€" in x for x in _step_texts([1000, 10], spend=None))
+    assert not any("€" in x for x in _texts(None, 1000, 10, 5).values())
 
 
 def _daily(before_days: int, before: float, during_days: int, during: float, d0):

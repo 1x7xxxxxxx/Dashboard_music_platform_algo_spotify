@@ -214,10 +214,11 @@ def _effect_figure(db, artist_id) -> tuple[go.Figure | None, int]:
 
 
 def _render_funnel_section(db, artist_id, bar: MetaFilters) -> None:
-    """🛤️ Entonnoir — budget → impressions → clicks → smart link → platforms, then the
-    totals per campaign, the comparison, the Hypeddit campaigns and the agency accounts."""
+    """🛤️ Entonnoir — budget → impressions → clicks → smart link → platforms → streams →
+    revenue (R556), then the totals per campaign, the comparison and the agency accounts.
+    The Hypeddit campaigns compared (fiches 22, 23) left: two campaigns in the bar draw
+    two funnels side by side."""
     from src.dashboard.utils.campaign_compare import render as render_compare
-    from src.dashboard.views.hypeddit import render_campaign_stats
     from src.dashboard.views.meta_extra_accounts import render_extra_ad_accounts
     from src.dashboard.views.meta_x_spotify import render_funnel
 
@@ -226,7 +227,6 @@ def _render_funnel_section(db, artist_id, bar: MetaFilters) -> None:
     _render_campaign_totals(db, artist_id, bar)
     render_compare(db, artist_id, *bar.acct())
     st.markdown("---")
-    render_campaign_stats(db, artist_id)
     # Les comptes d'agence se déclarent ICI depuis le 2026-09-05, plus dans
     # Credentials : cette page répond à « que veux-tu suivre », l'autre à
     # « comment te connecter ».
