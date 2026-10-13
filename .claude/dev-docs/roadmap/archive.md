@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R559 — Page algos d'un seul tenant (Y3, fiches 46, 47, 56, 57) : dernière sortie choisie d'off… (livrée 2026-10-13)
+
+- [x] **R559 — Page algos d'un seul tenant (Y3, fiches 46, 47, 56, 57) : dernière sortie choisie d'office, sections séparées par des traits, playlists en pastilles ; retirés : « prochain geste titre par titre », « le vrai pour tout ton catalogue », fiche 56 ; fiche 46 enrichie de 57 (28 j : streams, saves, ajouts playlist, top 3 leviers par playlist) et du budget restant pour 100 % DW et Radio aux CPR meilleur et moyen ; fiche 47 redessinée pour 2 titres, leviers SHAP décroissants dans l'ordre DW → Radio → RR avec seuils ; plus de tableau hors repli** (P3) ✅ (2026-10-13, 9d9f9da4)
+  Mesuré par : 1 figure 46 ; 0 tableau hors repli ; ordre DW/Radio/RR
+  Livré 9d9f9da4, CI verte (run 38432774495) : jauges de la dernière sortie avec écoutes/saves/ajouts 28 j, top-3 SHAP par playlist, écart d'écoutes 7 j et budget CPR meilleur→moyen sous DW et Radio (fiches 46, 56, 57) ; leviers en un panneau par playlist, % de la cible, triés par SHAP (fiche 47)
+  Commits : 9d9f9da4 R559 : page algos d'un seul tenant — jauges de la dernière sortie avec
+
 ## ✅ R558 — Audiences & Instagram (fiches 45, 33, 18, 19) : 45 en Pareto par €/écoute avec CPR ; 33… (livrée 2026-10-13)
 
 - [x] **R558 — Audiences & Instagram (fiches 45, 33, 18, 19) : 45 en Pareto par €/écoute avec CPR ; 33 commentaires/partages LISIBLES (mesuré : 39 et 8 contre 12 248 réactions — pas un défaut de collecte) ; 18 et 19 avec la dépense Meta en aire, l'engagement défini** (P3) ✅ (2026-10-13, 0d691888)

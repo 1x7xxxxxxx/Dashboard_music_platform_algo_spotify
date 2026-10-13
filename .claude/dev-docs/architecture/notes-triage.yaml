@@ -4354,10 +4354,9 @@
     CPR, CPR moyen)'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R559
+  preuve_statut: R559 (archivée) — 9d9f9da4
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f46
@@ -4365,40 +4364,36 @@
     : streams, saves, ajouts playlist, top 3 leviers par playlist) et 56'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R559
+  preuve_statut: R559 (archivée) — 9d9f9da4
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f47
   resume: 'Fiche 47 (valeur de levier qui déclencherait) : autre présentation'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R559
+  preuve_statut: R559 (archivée) — 9d9f9da4
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f56
   resume: 'Fiche 56 : supprimer (redondant avec 46) sauf fusion dans 46'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R559
+  preuve_statut: R559 (archivée) — 9d9f9da4
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f57
   resume: 'Fiche 57 : fusionner dans 46'
   type: action-produit
   domaine: trigger-algo
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R559
+  preuve_statut: R559 (archivée) — 9d9f9da4
 - ligne: 22
   source: revue/notes-vocales-2026-10-13.md
   note: Y3 II f129
