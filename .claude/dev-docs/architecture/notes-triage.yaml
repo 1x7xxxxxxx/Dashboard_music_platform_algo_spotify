@@ -4076,3 +4076,437 @@
   statut: livré
   priorite: P3
   preuve_statut: R514 (archivée) — 79efc397
+- ligne: 8
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y1
+  resume: 'Revenus : tous les graphiques d''argent (vue croisée, page algo, dépense Meta comprise) rassemblés dans
+    la vue Revenus, sans doublon'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R553
+- ligne: 11
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2
+  resume: 'Vue croisée : une seule vue Meta × Hypeddit × Spotify × Insta × Shazam (Publicité Meta, Visuels, Qui
+    a vu tes pubs, Instagram) — architecture cohérente, mêmes filtres dynamiques, proposition de refactor'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R554
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f42
+  resume: 'Fiche 42 : expliquer les traits « jours de pub » ; ajouter budget/jour, sauvegardes/j et ajouts playlist/j
+    (moy. 7 j) ; garder abonnés et streams/j'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R555
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f43
+  resume: 'Fiche 43 : définir « clics sortants » et ajouter le coût par clic sortant'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f44
+  resume: 'Fiche 44 : expliquer « % de l''étape d''avant » et « € l''unité » ; entonnoir complet budget → impressions
+    → … → streams → revenu par stream'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f26
+  resume: 'Fiche 26 : comparer deux campagnes en deux entonnoirs côte à côte (format 44) avec dépense, impressions,
+    clics, CPM, CPC, CPR'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f27
+  resume: 'Fiche 27 (écoutes par vague) : supprimer'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R554
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f28
+  resume: 'Fiche 28 (durée d''effet d''une vague) : redéfinir le système « 2 campagnes, 3 campagnes »'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R555
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f29
+  resume: 'Fiche 29 : fusionner avec 42/43 en une chronologie unique (lignes, nuages, aires, légende activable)'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R555
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f30
+  resume: 'Fiche 30 (objectif d''optimisation) : retirer ou proposer autre chose'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R554
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f128
+  resume: 'Fiche 128 (titre qui transforme le mieux) : fusionner dans l''entonnoir 44'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f22
+  resume: 'Fiche 22 (smart links Hypeddit) : fusionner dans l''entonnoir 44'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f23
+  resume: 'Fiche 23 (dernière sortie vs précédente) : fusionner dans l''entonnoir 44'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f2
+  resume: 'Fiche 2 (sortie au même âge) : top, fusionner avec 42 et 43 dans la chronologie'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R555
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f6
+  resume: 'Shazam au même âge : garder, fusionner dans la chronologie (base 43), affichable par la légende'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R555
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f35
+  resume: 'Fiche 35 (créa la moins chère) : très bien'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f36
+  resume: 'Fiche 36 (hook) : très bien + outil récap des paramètres de campagne optimaux (hook, intérêt, placement,
+    âge…)'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 14
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f40
+  resume: 'Fiche 40 (fatigue) : définir la fréquence'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f37
+  resume: 'Fiche 37 : comparer deux créas côte à côte dans le temps, avec totaux dépense, CPR moyen, streams Spotify'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f39
+  resume: 'Fiche 39 (entonnoir créa) : fusionner dans l''entonnoir 44'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R556
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f38
+  resume: 'Fiche 38 (dépense × coût) : intégrer à l''outil des meilleurs paramètres et créas'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f41
+  resume: 'Fiche 41 (quelle créa a tourné quand) : remplacer par un Pareto dépense par créa + ligne de CPR'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f32
+  resume: 'Fiche 32 (carte des dépenses) : supprimer'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R554
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f45
+  resume: 'Fiche 45 (€/écoute par pays) : ajouter le CPR, trier en Pareto sur €/écoute'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R558
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f18
+  resume: 'Fiche 18 (communauté Instagram) : ajouter la dépense Meta en aire'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R558
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f19
+  resume: 'Fiche 19 (mois les plus engageants) : définir l''engagement, ajouter la dépense Meta en aire'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R558
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f25
+  resume: 'Fiche 25 (cumuls) : dépenses rouge, revenus vert, prédiction dessinée sur une échelle lisible au lieu
+    de « 270 ans »'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R553
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f33
+  resume: 'Fiche 33 : commentaires/partages invisibles — mesuré, pas un défaut de collecte (39 commentaires, 8 partages
+    contre 12 248 réactions) ; les rendre lisibles'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R558
+- ligne: 16
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y2 II f34
+  resume: 'Fiche 34 (carte des réactions) : supprimer'
+  type: action-produit
+  domaine: cross-view
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R554
+- ligne: 19
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3
+  resume: 'Algos : une seule page sans 4 sous-vues, dernière sortie auto, traits de séparation, noms de playlist
+    en pastilles, retirer « prochain geste » et « le vrai pour tout ton catalogue », 2 titres au lieu de 5, pas
+    de tableaux, leviers SHAP décroissants DW→Radio→RR avec seuils, reste à faire chiffré en budget Meta (meilleur
+    CPR, CPR moyen)'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R559
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f46
+  resume: 'Fiche 46 : budget restant pour 100 % DW et Radio + streams nécessaires au CPR ; y fusionner 57 (28 j
+    : streams, saves, ajouts playlist, top 3 leviers par playlist) et 56'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R559
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f47
+  resume: 'Fiche 47 (valeur de levier qui déclencherait) : autre présentation'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R559
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f56
+  resume: 'Fiche 56 : supprimer (redondant avec 46) sauf fusion dans 46'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R559
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f57
+  resume: 'Fiche 57 : fusionner dans 46'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R559
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f129
+  resume: 'Fiche 129 : ordre RR, DW, Radio ; autre format ; prédiction en pointillé ; dernière sortie auto'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R560
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f48
+  resume: 'Fiche 48 : fusionner avec 129'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R560
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f49
+  resume: 'Fiche 49 (cohorte) : définir, reproposer (quand couper la promo) ou supprimer, et ses trois versions
+    RR/Radio/DW'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R560
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f53
+  resume: 'Fiche 53 (réglage le moins cher par clic) : reformuler, graphique ou supprimer'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R557
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f50
+  resume: 'Fiche 50 (revenus suivent la dépense Meta) : vers la vue Revenus'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R553
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f51
+  resume: 'Fiche 51 (quand la pub sera remboursée) : vers la vue Revenus, sans doublon'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R553
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f68
+  resume: 'Fiche 68 (valeur d''un déclenchement) : définir l''espérance, reformuler « titre médian 12 € », reproposer
+    des graphiques'
+  type: action-produit
+  domaine: trigger-algo
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R560
+- ligne: 22
+  source: revue/notes-vocales-2026-10-13.md
+  note: Y3 II f67
+  resume: 'Fiche 67 (valeur d''un abonné) : admin uniquement'
+  type: action-produit
+  domaine: revenue
+  statut: ouvert
+  priorite: P3
+  preuve_statut: —
+  roadmap: R553
