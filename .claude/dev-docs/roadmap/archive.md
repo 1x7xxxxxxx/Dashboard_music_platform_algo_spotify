@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R562 — Le contrôle `debt-trend` ne peut plus passer (nightly 2026-10-13) : `make error-debt` r… (livrée 2026-10-13)
+
+- [x] **R562 — Le contrôle `debt-trend` ne peut plus passer (nightly 2026-10-13) : `make error-debt` rend « 0 classe à traiter » pendant que `error_debt_trend.py` exige qu'un compteur baisse, et `guard_does_not_prove_itself` est figé à 18 — soit traiter ces 18, soit que le contrôle ne compte que la dette ACTIONNABLE (celle qu'`error-debt` liste)** (P3) ✅ (2026-10-13, 84ec4637, e67077f0)
+  Mesuré par : les deux outils lisent la même population ; nightly `debt-trend` vert
+  Livré 84ec4637, CI verte (run 38402734221) : debt-trend juge actionable_debt, la population de make error-debt ; une dette à 0 est payée
+  Commits : 84ec4637 R562 : debt-trend juge la dette que make error-debt liste · e67077f0 Roadmap : R561-R562 inscrites (nightly 2026-10-13 : garde du digest ja
+
 ## ✅ R561 — Garde jamais vu mordre (nightly 2026-10-13, run 38378791826) : `tests/test_the_digest_n… (livrée 2026-10-13)
 
 - [x] **R561 — Garde jamais vu mordre (nightly 2026-10-13, run 38378791826) : `tests/test_the_digest_never_mails_a_fabricated_zero.py` reste vert sur les 5 mutations du job `guard-mutation` — trouver la mutation qui incarne le défaut (un `COALESCE(…, 0)` remis dans `digest_queries`, un `f"{last_7d:,}"` remis dans le DAG) et la dater, ou corriger le garde s'il est aveugle** (P3) ✅ (2026-10-13, 8ab98c9c, e67077f0)

@@ -842,3 +842,5 @@
 {"at": "2026-10-13T12:44:34+00:00", "head": "885f478c", "kind": "start", "task": "R561", "what": "garde digest + garde revue des mods datés"}
 {"at": "2026-10-13T12:53:23+00:00", "head": "8ab98c9c", "kind": "start", "task": "R562", "what": "debt-trend juge la dette actionnable"}
 {"at": "2026-10-13T12:59:20+00:00", "kind": "done", "task": "R561", "what": "fermée par roadmap-close — Livré 8ab98c9c, CI verte (run 38400587969) : garde digest muté à la main (COALESCE 0, ELSE 0, {last_7d:,} → 3 rouges) et garde revue des mods (filtre 14 j, runs, >= → 3 rouges) ; known_reds() sort du reliquat un garde vu rouge à la main"}
+{"at": "2026-10-13T13:12:02+00:00", "head": "84ec4637", "kind": "start", "task": "R555", "what": "chronologie unique"}
+{"at": "2026-10-13T13:13:37+00:00", "kind": "done", "task": "R562", "what": "fermée par roadmap-close — Livré 84ec4637, CI verte (run 38402734221) : debt-trend juge actionable_debt, la population de make error-debt ; une dette à 0 est payée"}
