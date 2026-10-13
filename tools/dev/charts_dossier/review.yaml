@@ -472,30 +472,17 @@ src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#2:
   v: garder
   note: "R247 (suite de la fiche 42) : ta valeur écrite sur sa barre, et par algorithme la cible — trait vif calculé par le modèle pour ce titre, trait pâle quand ce n'est qu'un repère. R559 (fiche 47 « très moche ») : un panneau par playlist DW → Radio → RR, une barre par titre en % de SA cible (100 % = déclenche), « valeur / cible (repère) » écrit dessus, leviers triés par poids SHAP."
 src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
-  q: "Combien de streams chaque algorithme m'apporte-t-il ?"
-  decision: "Voir combien d'écoutes chaque algorithme t'apporte, pour savoir lequel viser en campagne."
-  decision_en: "See how many streams each algorithm brings you, to know which one to aim for."
+  q: "Si un algorithme se déclenche, combien de streams rapporte-t-il — prévu et mesuré sur mon titre ?"
+  decision: "Comparer ce qu'un déclenchement rapporte d'habitude à ce que ton titre a vraiment fait, pour chiffrer le budget qui vaut la peine."
+  decision_en: "Compare what a trigger usually brings with what your track really did, to size the budget worth spending."
   role: prediction
-  d: 1
-  c: 1
-  p: 4
-  v: corriger
-  owner_v: corriger
-  owner: "Estimer les streams si trigger à 100 % : J+28, 6 mois, 1 an ; retirer les notes /5."
-  cause: graphique-vide-ou-axe-casse
-  note: "Graphique VIDE, axe du temps réduit à une seconde (23:59:59,9996 → 00:00:00,0004) — la série est vide et l'axe se replie. Afficher « aucune donnée » au lieu d'un axe cassé."
-src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
-  q: "Mon titre suit-il la courbe de vie de la cohorte ?"
-  decision: "Voir si ton titre suit la courbe de vie habituelle, pour choisir le bon moment de promo."
-  decision_en: "See whether your track follows the usual life curve, to pick the right time to promote."
-  role: prediction
-  d: 3
-  c: 3
-  p: 4
+  d: 4
+  c: 4
+  p: 5
   v: garder
-  owner_v: a-trancher
-  owner: "Je ne comprends pas la cohorte ni la décision."
-  note: "R247 : la cohorte expliquée en une ligne au-dessus des courbes, le trait « Ce titre » visible (il était blanc), et un verdict écrit sous la position : relancer sous la moitié d'un titre typique de son âge, surveiller sous la médiane, laisser tourner au-dessus."
+  owner_v: corriger
+  owner: "Fiche 129 : Release Radar en premier, ensuite Discover Weekly, ensuite Radio ; en pointillé les prédictions ; dernière release automatiquement. Fiche 48 : fusionne-la avec la 129."
+  note: "R560 (fiches 129 + 48, ADR-033 §3) : UNE figure, un panneau par playlist dans l'ordre où elles agissent après une sortie (RR → DW → Radio, dérivé d'ALGO_ORDER). Médiane des titres déclenchés à 1 mois / 6 mois / 1 an en POINTILLÉ avec sa bande P25–P75 ; les saisies « 28 jours » du titre sélectionné (la dernière sortie par défaut) en POINTS PLEINS à l'âge du relevé. Fenêtre, quatre tuiles et barre empilée de la fiche 48 retirées. Fiche 49 (cycle de vie de cohorte) retirée : une cohorte d'entraînement statique ne dit pas quand couper la promo."
 src/dashboard/views/revenue_forecast.py::_render_fit#1:
   mq: M6
   q: "Mes revenus suivent-ils ma dépense Meta ?"
@@ -1243,16 +1230,6 @@ grafana:15:
   cause: doublon
   note: "WARNING ≈ 0 et un « plancher » constant tracé deux fois — rien à décider ; fusionner dans le panneau des erreurs."
 
-src/dashboard/views/trigger_algo/_tab_algo_streams.py::_render_estimates#1:
-  q: "Si un algorithme se déclenche, combien de streams rapporte-t-il d'habitude, au 1er mois, vers 6 mois, vers 1 an ?"
-  decision: "Estimer ce qu'un déclenchement d'algorithme rapporte, pour chiffrer le budget qui vaut la peine."
-  decision_en: "Estimate what an algorithm trigger brings, to size the budget worth spending."
-  role: prediction
-  d: 4
-  c: 3
-  p: 5
-  v: garder
-  note: "Nouveau (R247, fiche 43) : médiane et P25–P75 des streams algorithmiques sur 28 jours, chez les titres DÉCLENCHÉS du jeu d'entraînement (seuils du modèle : DW>137, RR>130, Radio>639), à trois âges ; un panneau par algorithme, chacun à son échelle ; une case de moins de 10 titres est écrite « pas assez de titres » (1 an : refusé partout). Une estimation, pas une prévision pour le titre."
 src/dashboard/utils/campaign_pair.py::render_day0#1:
   mq: M4
   q: "Deux campagnes, au même âge, laquelle dépense, clique et coûte le mieux ?"

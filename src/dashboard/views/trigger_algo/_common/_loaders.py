@@ -109,29 +109,3 @@ def _load_scored_tracks(_db, artist_id):
     if df is None or df.empty:
         return None
     return df
-
-
-def _load_lifecycle_benchmark(_db, dataset_version="v2"):
-    """Load the GLOBAL cohort lifecycle curves. `_db` underscored → not hashed.
-
-    Prefers v2 (conditioned-on-trigger seed, migration 041 — meaningful medians +
-    populated total_stream_median). Falls back to v1 when v2 is absent (migration not yet
-    applied) so the tab never regresses to "benchmark indisponible".
-    """
-    def _fetch(version):
-        return _db.fetch_df(
-            """SELECT algorithm, age_week_bin, age_week_bin_order,
-                      ratio_q1, ratio_median, ratio_q3,
-                      total_stream_median, sample_count
-               FROM algo_lifecycle_benchmark
-               WHERE dataset_version = %s
-               ORDER BY age_week_bin_order""",
-            (version,),
-        )
-    try:
-        df = _fetch(dataset_version)
-        if (df is None or df.empty) and dataset_version != "v1":
-            return _fetch("v1")
-        return df
-    except Exception:
-        return None

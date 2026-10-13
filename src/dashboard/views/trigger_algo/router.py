@@ -4,18 +4,15 @@ from datetime import timedelta
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.filters import smart_period_filter
-from src.dashboard.utils.ui import secondary_analyses
 from src.utils.track_matching import canonical_song_sql
 import streamlit as st
 from ._common import (
-    _load_lifecycle_benchmark,
     _load_ml_pred,
 )
 from ._tab_algo_streams import _show_tab_algo_streams
 from ._tab_titre import _show_tab_titre
 from ._tab_budget_roi import _show_tab_budget_roi
 from ._tab_catalogue import _show_tab_catalogue
-from ._tab_lifecycle import _show_tab_lifecycle
 from ._outcome_entry import render_outcomes
 from ._custom_window_entry import render_custom_grid
 from ._sections import arrival_section, guide_sections_md, section_label
@@ -176,9 +173,7 @@ def show():
             )
         date_from, date_to = window.start, window.end
 
-        # Load ML prediction + global benchmark once — shared across tabs
         ml_pred = _load_ml_pred(db, selected_track, artist_id)
-        benchmark_df = _load_lifecycle_benchmark(db)
 
         # ⚠️ L'ONGLET 1 S'OUVRE SUR LE CATALOGUE, PLUS SUR UN TITRE — 2026-09-22.
         # « Où en sont mes titres » répond à la question qu'on se pose en arrivant :
@@ -200,16 +195,12 @@ def show():
         _section("titre")
         _show_tab_titre(db, selected_track, artist_id, ml_pred)
         _section("realise")
-        # « Ce qui s'est vraiment passé » : les streams réellement produits par
-        # chaque playlist, puis le cycle de vie replié. La seule section qui parle
-        # d'un fait CONSTATÉ — et la seule qui puisse un jour fermer la boucle
-        # d'apprentissage, aujourd'hui vide (`s4a_song_algo_outcomes` : 0 ligne).
-        _show_tab_algo_streams(db, selected_track, artist_id)
-        with secondary_analyses(t("trigger_algo.lifecycle_folded",
-                                  "📉 Cycle de vie & benchmark de cohorte")):
-            _show_tab_lifecycle(db, selected_track, artist_id,
-                                release_date=track_release_date,
-                                benchmark_df=benchmark_df)
+        # « Ce qui s'est vraiment passé » (R560, fiches 129 + 48) : UNE figure — la
+        # prévision de la cohorte en pointillé, les relevés du titre en points pleins.
+        # Fiche 49 (cycle de vie de la cohorte) retirée : une cohorte d'entraînement
+        # statique ne dit pas QUAND couper la promo, la seule question posée (ADR-033 §3).
+        _show_tab_algo_streams(db, selected_track, artist_id,
+                               release_date=track_release_date)
         # R376 : le pari du modèle et la saisie des résultats réalisés, venus de
         # « 📝 Saisie S4A » — un label se saisit à côté de la prédiction qu'il juge.
         # R405 : le MÊME module est rendu par « 📝 Saisie S4A » (Free) — la saisie

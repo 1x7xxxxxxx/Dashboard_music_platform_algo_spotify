@@ -171,12 +171,9 @@ src/dashboard/views/trigger_algo/_tab_algo_streams.py::_show_tab_algo_streams#1:
   - qui: moi
     texte: Estimation sur le jeu d'entraînement (P25–P75, marquée estimation)
     rid: R247
-src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
-  valide: false
-  actions:
   - qui: moi
-    texte: Expliquer la cohorte et la décision, ou refaire
-    rid: R247
+    texte: 'Fusion 129 + 48 : prévision en pointillé, relevés du titre en points, RR → DW → Radio'
+    rid: R560
 src/dashboard/views/revenue_forecast.py::_render_fit#1:
   valide: false
   actions:

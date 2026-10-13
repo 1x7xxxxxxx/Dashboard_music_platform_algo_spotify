@@ -3,22 +3,14 @@ now ends on a written decision, computed by a pure function. These tests pin the
 thresholds that choose the sentence, on both sides of each.
 
 Type: Test
-Uses: the verdict helpers of _common/_lifecycle.py, roi_verdicts.py, _tab_model.py,
+Uses: the verdict helpers of roi_verdicts.py, _tab_model.py,
       ml_widgets.py, s4a_entry_insight.py, artist_cashflow.py
 """
 from src.dashboard.utils.artist_cashflow import trigger_decision
 from src.dashboard.utils.ml_widgets import sensitivity_verdict
 from src.dashboard.utils.roi_verdicts import fit_decision
 from src.dashboard.utils.s4a_entry_insight import bet_decision
-from src.dashboard.views.trigger_algo._common._lifecycle import cohort_verdict
 from src.dashboard.views.trigger_algo._tab_model import volume_verdict
-
-
-def test_fiche_44_the_cohort_verdict_turns_on_half_and_on_the_median():
-    assert "relancer" in cohort_verdict(0.49)
-    assert "surveiller" in cohort_verdict(0.5)
-    assert "surveiller" in cohort_verdict(0.99)
-    assert "laisse-le tourner" in cohort_verdict(1.0)
 
 
 def test_fiche_45_an_unsignificant_fit_decides_nothing_about_money():

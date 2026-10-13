@@ -99,7 +99,7 @@ def _show_tab_titre(db, track: str, artist_id, ml_pred: dict | None) -> None:
                   eur(valeur_algo, 0))
         # REFUSE, not mark (2026-09-26): an expected value computed from a floor
         # probability is the calibration intercept times a price — not a forecast.
-        c3.metric(t("trigger_algo.titre.tile_expect", "Espérance aujourd'hui"),
+        c3.metric(t("trigger_algo.titre.tile_expect", "Gain probable aujourd'hui"),
                   (eur(proba * valeur_algo, 2)
                    if proba is not None else texte_plancher()))
 
@@ -163,7 +163,8 @@ def _render_trois_portes(valeurs, ml_pred: dict, feats: dict) -> None:
         meilleur, valeur_max = max(esperances, key=lambda x: x[1])
         st.success(t(
             "trigger_algo.titre.best_bet",
-            "🎯 **Meilleure espérance : {algo}** — {val:.2f} €. Ce n'est pas "
+            "🎯 **Meilleur gain probable : {algo}** — {val:.2f} € (ce que ça vaut × la chance "
+            "que ça arrive). Ce n'est pas "
             "forcément la porte la plus proche ni la mieux payée : c'est le produit "
             "des deux. À chance égale, vise la plus riche ; à valeur égale, la plus "
             "probable."
@@ -278,7 +279,7 @@ def _render_money_note(valeurs, source_taux: str, eur_stream: float | None) -> N
             "⚠️ **Ce n'est pas le gain d'un déclenchement.** La cohorte de référence "
             "ne contient QUE des titres qui ont déclenché — aucun témoin comparable "
             "qui n'aurait pas déclenché. On en tire un ordre de grandeur, pas un "
-            "effet causal. Et une espérance n'est pas une promesse : la moitié des "
+            "effet causal. Et un gain probable n'est pas une promesse : la moitié des "
             "tirages tombe en dessous."))
         st.caption(t(
             "trigger_algo.titre.no_cost",

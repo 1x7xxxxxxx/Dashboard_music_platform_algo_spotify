@@ -332,7 +332,9 @@ _FLOOR: dict[str, int] = {
     # (W11 : the totals and the ROI are in the figure's title).
     # 2026-10-13 (R553) : 133 → 127 — « 💶 Mon argent »'s tiles are gone (ADR-033 : the
     # break-even figure absorbed them; owner Y1 « tout l'argent sur la vue revenue »).
-    "tiles.total": 127,
+    # 2026-10-13 (R560) : 127 → 121 — the lifecycle tab and the four estimate tiles are
+    # gone (fiches 129, 48, 49 : one figure, forecast dotted beside the title's readings).
+    "tiles.total": 121,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

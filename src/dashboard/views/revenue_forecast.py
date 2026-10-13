@@ -405,9 +405,10 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
     st.caption(t("revenue_forecast.trigger_plain",
                  "Un **déclenchement**, c'est un algorithme (Discover Weekly, Release Radar, "
                  "Radio) qui se met à pousser ton titre. Barre pâle : ce que rapporte "
-                 "d'habitude un titre qui déclenche (ses écoutes médianes × ce qu'une écoute "
-                 "te paie). Barre verte : ce que tes titres peuvent en espérer, vu leur "
-                 "chance réelle."))
+                 "d'habitude un titre qui déclenche (les écoutes d'un titre déclenché typique — "
+                 "la moitié font plus, la moitié moins — × ce qu'une écoute te paie). Barre "
+                 "verte : le **gain probable** sur ton catalogue = cette valeur × la chance "
+                 "réelle de chacun de tes titres de déclencher."))
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=valeurs['valeur_eur'], y=valeurs['nom'], orientation='h',
@@ -416,7 +417,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         text=[eur(v, 2) for v in valeurs['valeur_eur']],
         textposition='outside', cliponaxis=False,
         customdata=valeurs[['streams_med', 'n']].values,
-        hovertemplate=("%{y}<br>%{customdata[0]:,.0f} écoutes médianes"
+        hovertemplate=("%{y}<br>%{customdata[0]:,.0f} écoutes (titre déclenché typique)"
                        "<br>cohorte de %{customdata[1]} titres<extra></extra>")))
     if esp:
         ordre = [esp.get(a, {}).get('esperance_eur', 0.0) for a in valeurs['algo']]
@@ -424,11 +425,11 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         fig.add_trace(go.Bar(
             x=ordre, y=valeurs['nom'], orientation='h',
             marker={'color': DISTINCT[0]},
-            name=t("revenue_forecast.bar_expect", "Espérance sur ton catalogue"),
+            name=t("revenue_forecast.bar_expect", "Gain probable sur ton catalogue"),
             text=[eur(v, 2) for v in ordre],
             textposition='outside', cliponaxis=False,
             customdata=[[p * 100] for p in probas],
-            hovertemplate=("%{y}<br>%{x:.2f} € espérés"
+            hovertemplate=("%{y}<br>gain probable : %{x:.2f} €"
                            "<br>chance moyenne : %{customdata[0]:.1f} %"
                            "<extra></extra>")))
     if med_propre:
@@ -436,7 +437,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
             x=med_propre * taux['eur_par_stream'], line={'color': "#FF6B35",
                                                          'width': 2, 'dash': 'dash'},
             annotation_text=t("revenue_forecast.own_median",
-                              "ton titre médian : {e:,.2f} €"
+                              "la moitié de tes titres rapporte plus de {e:,.2f} €"
                               ).format(e=med_propre * taux['eur_par_stream']
                                        ).replace(",", " "),
             annotation_position="top")
@@ -461,7 +462,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         if par_titre > 0:
             manque = t(
                 "revenue_forecast.trigger_gap",
-                "\n\nTon catalogue de **{k} titres** espère **{e} €** au total, "
+                "\n\nTon catalogue de **{k} titres** a un gain probable de **{e} €** au total, "
                 "soit **{u} € par titre**. Pour combler les **{c} €** qui te "
                 "séparent du point mort, il en faudrait environ **{n}** de plus, "
                 "au même niveau."
@@ -483,7 +484,7 @@ def _render_trigger_value(db, artist_id: int, mensuel: pd.DataFrame) -> None:
         "⚠️ **Ce n'est pas le gain du déclenchement.** La cohorte de référence ne "
         "contient que des titres qui ONT déclenché : sans titre témoin, on ne peut "
         "pas dire ce que l'algorithme a ajouté. C'est un ordre de grandeur — voilà "
-        "où arrivent les titres qui y arrivent. L'espérance, elle, multiplie "
+        "où arrivent les titres qui y arrivent. Le gain probable, lui, multiplie "
         "cette valeur par la chance CALIBRÉE de chacun de tes titres{d}."
     ).format(tx=f"{taux['eur_par_stream']:.6f}", s=_fr(taux['streams']),
              r=_fr(taux['revenus'], "{:,.2f}"),

@@ -60,8 +60,6 @@ REVIEWED: dict[tuple[str, str], str] = {
         "the closest track of the WHOLE catalogue; the gauges show the 5 selected",
     ("src/dashboard/views/trigger_algo/_tab_catalogue.py", "trigger_algo.cat.tile_progress"):
         "the progress of that catalogue-wide track, on its one lever",
-    ("src/dashboard/views/trigger_algo/_tab_lifecycle.py", "trigger_algo.lifecycle.age_metric"):
-        "the track's age; the curves are the cohort, the age is only a dashed mark",
 }
 
 

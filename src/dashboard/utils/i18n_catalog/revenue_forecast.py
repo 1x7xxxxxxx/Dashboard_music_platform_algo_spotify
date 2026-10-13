@@ -76,19 +76,20 @@ EN = {
         "earns you. Import a CSV from **CSV import**."),
     "revenue_forecast.no_benchmark":
         "The reference cohort is not loaded on this database.",
-    "revenue_forecast.own_median": "your median track: {e:,.2f} €",
+    "revenue_forecast.own_median": "half of your tracks earn more than {e:,.2f} €",
     "revenue_forecast.bar_value": "What one trigger is worth",
-    "revenue_forecast.bar_expect": "Expected value on your catalogue",
+    "revenue_forecast.bar_expect": "Probable gain on your catalogue",
     "revenue_forecast.pred_dated": " (predictions from {d})",
     "revenue_forecast.trigger_gap": (
-        "\n\nYour catalogue of **{k} tracks** expects **{e} €** in total, that "
+        "\n\nYour catalogue of **{k} tracks** has a probable gain of **{e} €** in total, that "
         "is **{u} € per track**. To close the **{c} €** between you and "
         "break-even, it would take about **{n}** more, at the same level."),
     "revenue_forecast.trigger_plain": (
         "A **trigger** is an algorithm (Discover Weekly, Release Radar, Radio) starting to "
-        "push your track. Pale bar: what a track that triggers usually earns (its median "
-        "streams × what one stream pays you). Green bar: what your tracks can expect from "
-        "it, given their real chance."),
+        "push your track. Pale bar: what a track that triggers usually earns (the streams "
+        "of a typical triggered track — half do more, half less — × what one stream pays "
+        "you). Green bar: the **probable gain** on your catalogue = that value × each "
+        "track's real chance to trigger."),
     "revenue_forecast.trigger_small": (
         "**The decision**: it would take about **{n}** triggers at {v} € to cover your costs. "
         "The algorithms bring you listeners, not enough to pay back your ads — judge your "
@@ -102,7 +103,7 @@ EN = {
         "⚠️ **This is not the gain from triggering.** The reference cohort "
         "contains only tracks that DID trigger: with no control track, we cannot "
         "say what the algorithm added. It is an order of magnitude — this is "
-        "where the tracks that get there end up. The expected value multiplies "
+        "where the tracks that get there end up. The probable gain multiplies "
         "it by the CALIBRATED chance of each of your tracks{d}."),
     # ── Les tiroirs ──────────────────────────────────────────────────────────
     # Entry point
