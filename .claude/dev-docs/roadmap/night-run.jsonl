@@ -839,3 +839,6 @@
 {"at": "2026-10-13T11:53:35+00:00", "head": "14697ed1", "kind": "done", "task": "R553", "what": "poussée 14697ed1, CI en cours"}
 {"at": "2026-10-13T11:53:35+00:00", "head": "14697ed1", "kind": "start", "task": "R554", "what": "vue croisée en 5 sections"}
 {"at": "2026-10-13T12:41:54+00:00", "kind": "done", "task": "R554", "what": "fermée par roadmap-close — Livré 05e9103a, CI verte (run 38398749110) : 7 sections → 5 (chrono, entonnoir, créas, audiences, instagram) ; fiches 27, 30, 32, 34 retirées ; v_meta_adset_daily relu par le Pareto d'objectif"}
+{"at": "2026-10-13T12:44:34+00:00", "head": "885f478c", "kind": "start", "task": "R561", "what": "garde digest + garde revue des mods datés"}
+{"at": "2026-10-13T12:53:23+00:00", "head": "8ab98c9c", "kind": "start", "task": "R562", "what": "debt-trend juge la dette actionnable"}
+{"at": "2026-10-13T12:59:20+00:00", "kind": "done", "task": "R561", "what": "fermée par roadmap-close — Livré 8ab98c9c, CI verte (run 38400587969) : garde digest muté à la main (COALESCE 0, ELSE 0, {last_7d:,} → 3 rouges) et garde revue des mods (filtre 14 j, runs, >= → 3 rouges) ; known_reds() sort du reliquat un garde vu rouge à la main"}

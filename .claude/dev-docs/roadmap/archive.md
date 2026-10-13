@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R561 — Garde jamais vu mordre (nightly 2026-10-13, run 38378791826) : `tests/test_the_digest_n… (livrée 2026-10-13)
+
+- [x] **R561 — Garde jamais vu mordre (nightly 2026-10-13, run 38378791826) : `tests/test_the_digest_never_mails_a_fabricated_zero.py` reste vert sur les 5 mutations du job `guard-mutation` — trouver la mutation qui incarne le défaut (un `COALESCE(…, 0)` remis dans `digest_queries`, un `f"{last_7d:,}"` remis dans le DAG) et la dater, ou corriger le garde s'il est aveugle** (P3) ✅ (2026-10-13, 8ab98c9c, e67077f0)
+  Mesuré par : garde rouge daté sur une mutation qui incarne le défaut ; nightly `guard-mutation` vert
+  Livré 8ab98c9c, CI verte (run 38400587969) : garde digest muté à la main (COALESCE 0, ELSE 0, {last_7d:,} → 3 rouges) et garde revue des mods (filtre 14 j, runs, >= → 3 rouges) ; known_reds() sort du reliquat un garde vu rouge à la main
+  Commits : 8ab98c9c R561 : deux gardes vus mordre à la main, sortis de la rotation · e67077f0 Roadmap : R561-R562 inscrites (nightly 2026-10-13 : garde du digest ja
+
 ## ✅ R554 — Vue croisée réorganisée (Y2, ADR-033) : 7 sections → 5 lisibles de haut en bas — 📈 Chro… (livrée 2026-10-13)
 
 - [x] **R554 — Vue croisée réorganisée (Y2, ADR-033) : 7 sections → 5 lisibles de haut en bas — 📈 Chronologie, 🛤️ Entonnoir, 🎨 Créas & réglages, 🌍 Audiences, 📸 Instagram — même barre de filtres ; la section Revenus part (R553), « Mes sorties » se fond dans Chronologie/Entonnoir ; fiches 27, 30, 32, 34 retirées ; un glossaire repliable définit clic sortant, fréquence, engagement, « % de l'étape d'avant », coût unitaire** (P3) ✅ (2026-10-13, 05e9103a)
