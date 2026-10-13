@@ -39,6 +39,47 @@ SHAP_OVERVIEW = "shap-overview.png"
 # overview — every figure an example, never the tenant's data.
 ALGO_PREVIEW = (ALGO_PREDICTION, CAMPAIGN, SHAP_OVERVIEW)
 
+# R551 (2026-10-13) — where each illustration is drawn for REAL, and what the Vue croisée
+# (`meta_ads_overview`) holds of it. Owner's question: « les schémas de l'assistant et de
+# l'aperçu sont-ils bien dans la vue croisée ? » Measured answer: none is whole there. The
+# owner chose to record the gap, not to add charts. Each counterpart is
+# (page route, file, function); `cross_view` is "partial" or "absent", `gap` says what the
+# illustration promises that no live chart of the Vue croisée draws.
+# Guard: tests/test_every_illustration_names_its_live_chart.py
+ILLUSTRATION_COUNTERPART: dict[str, dict] = {
+    CAMPAIGN: {
+        "cross_view": "partial",
+        "counterparts": (
+            ("meta_ads_overview", "src/dashboard/views/meta_ads_overview.py", "_show_meta_ads"),
+            ("meta_ads_overview", "src/dashboard/views/meta_x_spotify.py", "_render_chart"),
+        ),
+        "gap": "streams, Meta €/jour, clics Hypeddit et CPR y sont ; la prévision des "
+               "streams, la fenêtre Discover Weekly et le conseil « couper / relancer » non",
+    },
+    OVERVIEW: {
+        "cross_view": "absent",
+        "counterparts": (
+            ("home", "src/dashboard/utils/platform_chart.py", "render_platform_chart"),
+        ),
+        "gap": "les aires empilées multi-plateformes vivent sur l'accueil, pas dans la "
+               "vue croisée",
+    },
+    ALGO_PREDICTION: {
+        "cross_view": "absent",
+        "counterparts": (),
+        "gap": "aucune figure réelle ne trace la probabilité DW / RR / Radio dans le "
+               "temps (mesurée puis prévue) — ni dans la vue croisée, ni dans Prédiction",
+    },
+    SHAP_OVERVIEW: {
+        "cross_view": "absent",
+        "counterparts": (
+            ("trigger_algo", "src/dashboard/views/trigger_algo/_playlist_detail.py", "_figure"),
+        ),
+        "gap": "le poids des critères par playlist vit dans Prédiction, sans le panneau "
+               "« Ta track » ni le Meta € derrière",
+    },
+}
+
 
 def render_example(name: str) -> None:
     """Show one prebuilt example figure at the width of its container.

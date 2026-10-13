@@ -74,11 +74,22 @@ def cut_egress() -> None:
 # must carry its reason in review.yaml (`absent:`), never stay silent.
 VARIANTS: dict[str, list[tuple]] = {
     "meta_breakdowns": [("selectbox", "Métrique", "Engagement")],
+    # R551 — the Vue croisée renders ONE section at a time (segmented control); the default
+    # run saw « funnel » only, and the aliases four more. Each section is opened in turn.
+    "meta_ads_overview": [("state", "meta_overview_section", s) for s in
+                          ("perf", "releases", "creatives", "breakdowns", "instagram",
+                           "revenue")],
 }
 
 
 def apply_variant(at, kind: str, ident: str, value) -> bool:
-    """Set one widget, found by key or else by label; False when it is not on the page."""
+    """Set one widget, found by key or else by label; False when it is not on the page.
+
+    kind "state" writes the session key directly — for a control AppTest does not expose
+    (`st.segmented_control`)."""
+    if kind == "state":
+        at.session_state[ident] = value
+        return True
     for w in getattr(at, kind, []):
         if getattr(w, "key", None) == ident or getattr(w, "label", None) == ident:
             w.set_value(value)
