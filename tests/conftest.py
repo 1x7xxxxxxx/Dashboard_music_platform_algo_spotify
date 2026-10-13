@@ -49,6 +49,34 @@ def tmp_csv(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# A test about what sits IN FRONT of `/health` does not depend on the database
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def healthy_db_probe(monkeypatch):
+    """`/health` behind a probe that answers "database ok" — for tests of the layers
+    UPSTREAM of it (security headers, rate-limit exemption, edge checks).
+
+    R552: `_sonder_la_base()` opens its OWN psycopg2 connection, so overriding `get_db`
+    never reached it. Four such tests went red whenever the local Postgres was stopped
+    (2026-09-25, 2026-10-13) — a 503 that said nothing about headers or limits. The
+    probe's real behaviour is judged in `test_health_answers_for_its_database.py`.
+    The verdict cache is a PROCESS state: emptied before AND after, or a forced
+    verdict outlives its test.
+    """
+    from src.api import main
+
+    def _empty_cache() -> None:
+        main._sante_etat["verdict"] = None
+        main._sante_etat["quand"] = 0.0
+
+    _empty_cache()
+    monkeypatch.setattr(main, "_sonder_la_base", lambda: (True, "ok"))
+    yield
+    _empty_cache()
+
+
+# ---------------------------------------------------------------------------
 # A walk never judges the repo copies Claude Code keeps under `.claude/worktrees/`
 # ---------------------------------------------------------------------------
 

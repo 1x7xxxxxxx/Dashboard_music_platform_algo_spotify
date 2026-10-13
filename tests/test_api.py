@@ -29,6 +29,7 @@ if _root not in sys.path:
 from src.api.main import app  # noqa: E402
 from src.api.auth import create_access_token, verify_password  # noqa: E402
 from src.api.deps import get_db  # noqa: E402
+from tests.db_gate import requires_live_db  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +97,9 @@ def mock_db():
 # /health
 # ---------------------------------------------------------------------------
 
+@requires_live_db()
 def test_health(client_no_auth):
+    """End to end against the REAL probe — so it needs the live database (R552)."""
     r = client_no_auth.get("/health")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}

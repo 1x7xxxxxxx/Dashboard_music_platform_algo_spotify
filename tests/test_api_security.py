@@ -89,7 +89,7 @@ class TestSlidingWindowLimiter:
 # ---------------------------------------------------------------------------
 
 class TestSecurityHeaders:
-    def test_headers_present_on_health(self, client):
+    def test_headers_present_on_health(self, client, healthy_db_probe):
         r = client.get("/health")
         assert r.status_code == 200
         assert r.headers["X-Content-Type-Options"] == "nosniff"
@@ -138,7 +138,7 @@ class TestRateLimit:
         assert int(r.headers["Retry-After"]) >= 1
         assert r.headers["X-Content-Type-Options"] == "nosniff"
 
-    def test_health_exempt(self, client, monkeypatch):
+    def test_health_exempt(self, client, monkeypatch, healthy_db_probe):
         monkeypatch.setattr(security, "_GLOBAL_LIMITER", security.SlidingWindowLimiter(1, 60))
         assert all(client.get("/health").status_code == 200 for _ in range(5))
 

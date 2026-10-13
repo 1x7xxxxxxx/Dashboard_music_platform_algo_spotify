@@ -100,7 +100,7 @@ def test_a_clean_request_still_works(client):
     assert r.status_code == 200, r.text
 
 
-def test_the_health_probe_is_never_blocked_by_the_edge_check():
+def test_the_health_probe_is_never_blocked_by_the_edge_check(healthy_db_probe):
     """Infra probes must survive every guard added in front of the app."""
     assert TestClient(app).get("/health").status_code == 200
 
