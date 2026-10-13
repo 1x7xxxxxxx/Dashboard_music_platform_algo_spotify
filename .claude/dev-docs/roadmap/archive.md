@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R551 — Illustrations de l'assistant et de l'aperçu ↔ graphiques réels (constat : aucune n'est… (livrée 2026-10-13)
+
+- [x] **R551 — Illustrations de l'assistant et de l'aperçu ↔ graphiques réels (constat : aucune n'est dans la vue croisée) gardé par un test ; PDF « graphiques seuls » vue croisée + prédiction sur le Bureau (mode `--views --charts-only` du dossier)** (P3) ✅ (2026-10-13, 14fd620a)
+  Mesuré par : `tests/test_every_illustration_names_its_live_chart.py` vert et muté ; PDF lu page à page
+  Livré 14fd620a, CI verte (run 38376960189). Constat : aucune illustration de l'assistant/aperçu n'est entière dans la vue croisée (meta-x-s4a partielle, 3 absentes), gardé par tests/test_every_illustration_names_its_live_chart.py. PDF charts_only.py : 50 graphiques (34 vue croisée + 16 Prédiction), 25 pages, livré sur le Bureau ; fiche 48 vide sur l'instantané.
+  Commits : 14fd620a R551 : illustrations ↔ graphiques réels (constat gardé) ; PDF graphiqu
+
 ## ✅ R550 — Statusline projet (le HUD) : modèle · contexte · coût · durée · lignes ; tests · CI du… (livrée 2026-10-12)
 
 - [x] **R550 — Statusline projet (le HUD) : modèle · contexte · coût · durée · lignes ; tests · CI du HEAD (cache, jamais d'appel réseau synchrone) · non commités · non poussés · unité de nuit** (P4) ✅ (2026-10-12, 6670c82c, 152fcea9)
