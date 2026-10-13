@@ -1,17 +1,21 @@
-"""Revenue Forecast — « 💶 Mon argent », a section of the algo page (R405).
+"""Money pieces of « 💶 Trésorerie » — ledger, cost entry, spend→revenue fit, trigger value.
 
 Type: Sub
 Depends on: v_artist_monthly_cashflow, artist_subscriptions, ml_song_predictions
-Triggers: views/trigger_algo/router.py (`render_money`); the route key `revenue_forecast`
-          is an ALIAS of the algo page that opens this section (mail/PDF links)
+Triggers: views/imusician.py (the Trésorerie page, R553); views/admin.py (`render_ltv`).
+          The route key `revenue_forecast` is an ALIAS of `imusician` (mail/PDF links).
 Persists in: artist_costs (the cost entry)
 
-Artist: where the money stands, what it cost, and when it breaks even.
-Admin : the same, any artist, plus the subscriber LTV — folded.
+R553 (owner Y1, 2026-10-13 : « consolider tous les graphiques de revenue … dans la vue
+revenue »): this module used to be « 💶 Mon argent », a section of the algo page. Every
+euro is now on ONE page; each piece here has exactly one caller.
 """
 import sys
 from pathlib import Path
 from datetime import date as _date
+from datetime import date
+
+import numpy as np
 
 import pandas as pd
 import plotly.express as px
@@ -23,13 +27,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.platform_colors import DISTINCT
+from src.dashboard.utils.semantic_colors import BON
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
 from src.dashboard.utils.revenue_forecast import (
     load_subscriptions as _load_subscriptions,
-    load_artist_revenues as _load_artist_revenues,
-    load_artists as _load_artists,
     ltv_global,
     ltv_scenarios,
 )
@@ -40,7 +43,6 @@ from src.database.stripe_schema import PLAN_CATALOG as _CAT
 # le même mot dès qu'un abonnement passait en `trialing`.
 from src.utils.mrr import MRR_STATUSES
 from src.dashboard.utils.date_format import format_date
-from src.utils.algo_order import ALGO_ORDER
 
 
 # DB loaders + forecast math now live in src/dashboard/utils/revenue_forecast.py
@@ -149,49 +151,6 @@ def _tab_ltv(db) -> None:
                    f"{ltv_music:,.2f} €")
 
 
-# ─────────────────────────────────────────────
-# Tab 4 — Projection Artistique
-# ─────────────────────────────────────────────
-
-@st.fragment
-def _frag_artist_forecast(artist_id: int | None) -> None:
-    """La prévision par artiste — rejoué SEUL quand ses curseurs bougent.
-
-    @st.fragment (R118, 2026-09-16). Ses widgets sont des CURSEURS : on les traîne, donc
-    ils déclenchent une rafale de reruns. Avant, chacun rejouait tout le script — les
-    quatre onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale. C'est
-    le pire profil d'usage pour un rerun complet, et le meilleur cas pour un fragment.
-
-    ⚠️ Il ouvre sa PROPRE connexion : ses curseurs pilotent des requêtes, et celle de
-    `show()` est refermée dès la fin du rendu complet. Un fragment qui la capturerait la
-    ré-emprunterait au pool sans jamais la rendre. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-    """
-    from src.dashboard.utils.fragment_db import fragment_db
-
-    with fragment_db() as (db, _artist_id):
-        _tab_artist_forecast(db, artist_id)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# TOUT L'ARGENT SUR UNE FIGURE — et la date du point mort
-# ═══════════════════════════════════════════════════════════════════════════
-#
-# Demandé le 2026-09-21 : « fusionner toutes les dépenses et tous les couts […]
-# sur 1 seul et faire les prédictions dessus, indiquer clairement sur le
-# graphique la durée à ce stade pour être breakheaven ».
-#
-# ⚠️ « Une seule figure » se rend en DEUX CADRES qui partagent leur axe du temps,
-# et ce n'est pas une entorse à la demande — c'est la seule façon de la tenir.
-# Mesuré sur l'artiste 1 : les flux mensuels vont de −700 € à +13 €, le cumul
-# vaut −2 839 €. Sur un repère commun, les barres mensuelles récentes font MOINS
-# D'UN PIXEL. Un second axe y est interdit dans ce dépôt (`_MAX_SECONDARY_AXES =
-# 0`) et le serait ici de toute façon : deux échelles décalées feraient croiser
-# deux courbes en un point qui ne veut rien dire.
-#
-# Deux cadres, un objet, un axe du temps, une légende : ce que la demande veut
-# dire — ne plus avoir à rapprocher trois figures pour savoir où on en est.
-
 # The colours and names live with the treasury figure (R212) — one definition for
 # every page that draws money. The names are re-exported: the cost-entry labels read them.
 from src.dashboard.utils.treasury_chart import FLUX_NAMES as _FLUX_NOMS  # noqa: E402
@@ -219,23 +178,6 @@ def _render_ledger(db, artist_id, cashflow: pd.DataFrame, mensuel: pd.DataFrame)
                  "Depuis le début. « Pub par écoute » divise la dépense publicitaire par TOUTES "
                  "les écoutes, organiques comprises : c'est un plafond, pas ce qu'une écoute "
                  "gagnée a coûté — celui-là est dans « 📣 Publicité Meta Ads › Tout mon funnel », campagne par campagne."))
-
-
-def _render_money_chart(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
-                        pm: dict, horizon: int) -> None:
-    """The break-even answer — the treasury itself is drawn ONCE, on the distributors page.
-
-    R244 (owner, 2026-09-27, fiche 63 : « redondant, je l'ai déjà vu passer »). The same
-    treasury figure was drawn on three pages; it now lives on « Distributeurs », free, and
-    this premium page keeps what it adds: the break-even verdict at this pace."""
-    st.info(_breakeven_text(pm).replace("<br>", " — "))
-    st.caption(t("revenue_forecast.treasury_moved",
-                 "Le graphique de trésorerie (ventes, SACEM, dépenses, cumulés) est sur la "
-                 "page 💶 Trésorerie."))
-
-
-from src.dashboard.utils.treasury_chart import (  # noqa: E402 — R262, one definition
-    breakeven_short as _breakeven_short, breakeven_text as _breakeven_text)
 
 
 _CAT_COUTS = ["distribution", "mastering", "visuel", "promo", "materiel", "autre"]
@@ -575,188 +517,114 @@ def _breakeven_gap(mensuel: pd.DataFrame) -> float | None:
     return -cumul if cumul < 0 else None
 
 
-_FLOOR_COLUMNS = tuple((a, f"{a.lower()}_streams_forecast_7d") for a in ALGO_ORDER)
+def render_spend_revenue_fit(db, artist_id: int) -> None:
+    """Monthly spend→revenue fit — refused below `MIN_FIT_POINTS` months (2026-09-26).
 
-
-def _tab_artist_forecast(db, artist_id: int | None) -> None:
-    # ⚠️ `show_infra` a été RETIRÉ le 2026-09-21, pas mis en commentaire. Il ne
-    # servait qu'au champ « Coût infra VPS (€/mois) » du waterfall de marge, que
-    # cette page n'a plus : ce coût est celui de l'EXPLOITANT, il vit dans
-    # `app_operating_costs` et se lit dans les onglets MRR. Un drapeau que plus
-    # rien ne lit est une couche débranchée, et ce dépôt a mesuré ce qu'elles
-    # coûtent quand on les rebranche des mois plus tard.
-    st.subheader(t("revenue_forecast.artist_forecast_header",
-                   "Mon argent : ce qui rentre, ce qui sort, et quand j'y suis"))
-    st.caption(t("revenue_forecast.artist_forecast_caption",
-                 "Tout ton argent sur une figure : distributeurs (iMusician, "
-                 "DistroKid), royalties SACEM, publicité Meta et tes coûts de "
-                 "sortie. La courbe du bas croise zéro le jour où tu rentres "
-                 "dans tes frais."))
-
-    if is_admin():
-        artists_df = _load_artists(db)
-        if artists_df.empty:
-            st.warning(t("revenue_forecast.no_active_artist", "Aucun artiste actif."))
-            return
-        opts = {row['name']: row['id'] for _, row in artists_df.iterrows()}
-        sel  = st.selectbox(t("common.artist", "Artiste"), list(opts.keys()), key='forecast_artist')
-        target_id = opts[sel]
-    else:
-        target_id = artist_id
-        if target_id is None:
-            st.error(t("revenue_forecast.no_artist_id", "Impossible de déterminer votre identifiant artiste."))
-            return
-
-    # ═══════════════════════════════════════════════════════════════════════
-    # TOUT L'ARGENT, PUIS LE POINT MORT — 2026-09-21
-    # ═══════════════════════════════════════════════════════════════════════
-    #
-    # La page ouvrait sur trois tuiles de revenus cumulés, puis une courbe de
-    # revenus, puis — plus bas, sous un séparateur — une figure de dépense Meta,
-    # puis un « waterfall » de marge nourri par un champ à remplir à la main.
-    # Quatre surfaces pour une seule question, et aucune n'y répondait :
-    # **est-ce que je suis rentré dans mes frais, et quand ?**
-    #
-    # Mesuré sur l'artiste 1 le 2026-09-21 : 248,39 € de revenus nets contre
-    # 3 087,82 € de publicité. Le chiffre existait dans la base depuis des mois ;
-    # aucune page ne le posait côte à côte.
-    from src.dashboard.utils.artist_cashflow import (
-        FENETRE_RYTHME, break_even, forward_rate, monthly_net)
-
-    cashflow = db.fetch_df(
-        """SELECT year, month, flux, source, amount_eur, direction
-           FROM v_artist_monthly_cashflow WHERE artist_id = %s""",
-        (target_id,))
-    mensuel = monthly_net(cashflow)
-
-    if mensuel.empty:
-        st.info(t(
-            "revenue_forecast.no_money_yet",
-            "Aucun mouvement d'argent connu. Importe un rapport de ventes depuis "
-            "**Import CSV**, ou connecte Meta dans **🔑 Credentials API**."))
-        return
-
-    pm = break_even(mensuel)
-    horizon = st.select_slider(
-        t("revenue_forecast.horizon", "Horizon de projection (mois)"),
-        options=[3, 6, 12], value=6)
-
-    b1, b2, b3 = st.columns(3)
-    # ⚠️ Les valeurs sont lues sur `mensuel`, PAS sur le dictionnaire du point
-    # mort, alors que `pm['cumul']` vaut exactement la même chose. La carte de la
-    # couche or remonte la provenance de proche en proche : passée par
-    # `break_even(monthly_net(cashflow))`, la tuile sortait « indéterminée ·
-    # profondeur » — un chiffre d'argent dont la carte ne sait plus dire d'où il
-    # vient. Un saut de moins, et elle nomme `v_artist_monthly_cashflow`.
-    b1.metric(
-        t("revenue_forecast.kpi_cumul", "💰 Où j'en suis au total"),
-        f"{float(mensuel['cumul'].iloc[-1]):+,.2f} €".replace(",", " "),
-        delta=t("revenue_forecast.kpi_cumul_delta",
-                "{r:+,.0f} € encaissés · {d:,.0f} € dépensés").format(
-            r=mensuel['revenus'].sum(), d=mensuel['depenses'].sum()).replace(",", " "),
-        delta_color="off")
-    b2.metric(
-        t("revenue_forecast.kpi_rythme", "📆 Mon rythme actuel"),
-        f"{forward_rate(mensuel):+,.2f} €/mois".replace(",", " "),
-        delta=t("revenue_forecast.kpi_rythme_delta",
-                "moyenne des {n} derniers mois").format(n=FENETRE_RYTHME),
-        delta_color="off")
-    b3.metric(
-        t("revenue_forecast.kpi_breakeven", "⏳ Point mort"),
-        _breakeven_short(pm),
-        delta=(f"{pm['date']:%m/%Y}" if pm.get('date') else
-               t("revenue_forecast.be_no_date", "hors d'atteinte")),
-        delta_color="off")
-
-    # R405 (V73) : « où j'en suis vs somme des dépenses ». The two cumuls are ALREADY
-    # drawn by « Budget & ROI », one section up on the same page
-    # (`_tab_budget_roi`, breakeven chart): a second figure of them was drawn here and
-    # removed after reading its PNG — same curves, and its fill coloured the deficit
-    # green. The tiles above give the gap, the pace and the date; this line points up.
-    st.caption(t("revenue_forecast.position_caption",
-                 "La courbe « tout ce qui rentre contre tout ce qui sort » est dans "
-                 "[↑ Budget & ROI](#budget) : l'écart entre les deux cumuls est ce qu'il "
-                 "reste à rembourser, et ils se croisent au point mort."))
-    _render_ledger(db, target_id, cashflow, mensuel)
-    _render_money_chart(cashflow, mensuel, pm, horizon)
-    _render_cost_entry(db, target_id)
-    _render_trigger_value(db, target_id, mensuel)
-
-    # ── Ce qui RAFFINE la réponse, et ne la prend pas ────────────────────────
-    df = _load_artist_revenues(db, target_id)
-    if not df.empty:
-        df['date'] = pd.to_datetime(
-            df.apply(lambda r: f"{int(r['year'])}-{int(r['month']):02d}-01", axis=1))
-        df = df.sort_values('date').reset_index(drop=True)
-        df['revenue_eur'] = df['revenue_eur'].astype(float)
-        with secondary_analyses(t("revenue_forecast.detail_expander",
-                                  "🔎 Le détail par source et mois — chiffres exacts")):
-            # ⚠️ LES TUILES LISENT LA MÊME VUE QUE LA FIGURE, et c'est une
-            # correction vue au rendu le 2026-09-21 : elles affichaient
-            # **43,06 €** de SACEM sous une figure qui en dessinait **36,49 €**.
-            #
-            # Les deux nombres étaient justes et ne disaient pas la même chose :
-            # `_load_artist_revenue_by_source` rend le BRUT, la vue de trésorerie
-            # rend le NET, charges et TVA déduites (6,57 € ici). Deux définitions
-            # du même mot dans le même écran, à un clic l'une de l'autre — la
-            # forme exacte que ce dépôt a déjà payée sur un total Apple.
-            #
-            # C'est le net qui compte pour un point mort : c'est ce qui arrive
-            # réellement sur le compte.
-            par_source = (cashflow[cashflow['flux'] == 'revenu']
-                          .groupby('source')['amount_eur'].sum())
-            if float(par_source.sum()) > 0:
-                bs1, bs2, bs3 = st.columns(3)
-                bs1.metric("💿 iMusician", f"{float(par_source.get('imusician', 0)):,.2f} €")
-                bs2.metric("🟢 DistroKid", f"{float(par_source.get('distrokid', 0)):,.2f} €")
-                bs3.metric("🎼 SACEM", f"{float(par_source.get('sacem', 0)):,.2f} €")
-                st.caption(t("revenue_forecast.by_source_net",
-                             "Montants NETS — charges et TVA déduites, comme dans "
-                             "la figure et dans le point mort."))
-
-    # ── LE « ROI Meta » A DISPARU, ABSORBÉ — 2026-09-21 ──────────────────────
-    #
-    # Il portait deux barres (revenus, dépense Meta) et une courbe de ROI %, sur
-    # la même fenêtre et la même maille que la figure d'ouverture. C'était la
-    # MÊME question posée une seconde fois, avec une réponse en pourcentage là où
-    # l'artiste demande une date.
-    #
-    # Et la seconde réponse était plus FAIBLE : son dénominateur ne connaissait
-    # que la publicité. Un ROI qui ignore le coût de distribution surestime la
-    # rentabilité de tout ce qui est sorti — et c'est justement le coût que la
-    # migration 133 fait entrer.
-    #
-    # La dépense Meta n'est pas perdue : elle est une série de la figure
-    # d'ouverture, dans `v_artist_monthly_cashflow`, à côté des autres dépenses.
-
-    # R477 (W14 « pas de tableaux », « sans redondances ») — the ML scores table that
-    # stood here (« lequel de mes titres est le plus près ») is gone: the algo page
-    # answers that question above, in its gauges, for the two latest releases.
-
-    # ── LE « WATERFALL DE MARGE » A DISPARU, ET C'ÉTAIT LE PLUS TROMPEUR ─────
-    #
-    # Il projetait une marge sur l'horizon choisi à partir d'un champ à remplir à
-    # la main (« Dépense Meta estimée (€/mois) », pré-rempli avec la moyenne
-    # historique). Trois défauts, et le troisième est le grave :
-    #
-    #   · il demandait à l'artiste de SAISIR une dépense que la base connaît ;
-    #   · il pré-remplissait avec une moyenne prise sur des mois où les campagnes
-    #     tournaient, donc reconduisait une dépense ARRÊTÉE depuis septembre 2024 ;
-    #   · sa projection venait d'une régression sur tout l'historique, tandis que
-    #     le reste de la page lit le rythme des douze derniers mois. Deux pentes
-    #     incompatibles dans le même écran, chacune affirmant l'autre fausse.
-    #
-    # La marge projetée est désormais la courbe de projection du cumul net, qui
-    # sort du MÊME calcul que le point mort (`artist_cashflow.project`).
-
-
-def render_money(artist_id: int | None) -> None:
-    """« 💶 Mon argent » — a section of the algo page since R405 (V73, V74).
-
-    The page « 📈 Prévisions revenus » is gone; its key is an alias that opens this
-    section. The admin keeps the subscriber LTV, folded under the artist's answer.
-    Both are fragments: the caller declares its connection (`page_db_scope`).
+    It used to fit from 2 points: a line through two points is exact, so the page printed
+    R² = 1.000 and p = 0.000 as an artefact of n. `n` is now shown next to R² and p.
     """
-    _frag_artist_forecast(artist_id)
+    from src.dashboard.utils.roi_verdicts import MIN_FIT_POINTS, fit_spend_revenue
+
+    st.subheader(t("trigger_algo.roi.regression_header", "📉 ROI — Régression linéaire (mensuel)"))
+    st.caption(t(
+        "trigger_algo.roi.regression_caption",
+        "Sur **tout l'historique mensuel** disponible (revenue iMusician × spend Meta Ads), "
+        "indépendamment de la période choisie en haut : une régression mensuelle a besoin de "
+        "plusieurs mois, qu'une fenêtre J+28 ne peut pas fournir."
+    ))
+    try:
+        from src.dashboard.utils.kpi_helpers import get_monthly_roi_series
+
+        # All-time window on purpose — monthly ROI is a long-horizon analysis, decoupled
+        # from the J+28 period selector (date_from/date_to) which captures ≤ 1 month.
+        df_roi = get_monthly_roi_series(db, artist_id, date(2000, 1, 1), date.today())
+        if df_roi is None or df_roi.empty:
+            st.info(t("trigger_algo.roi.no_revenue_spend",
+                      "Pas de données revenue/spend pour calculer la régression ROI "
+                      "(aucun mois avec spend Meta Ads + revenue iMusician dans l'historique)."))
+            return
+        fit = fit_spend_revenue(df_roi)
+        if fit is None:
+            st.info(t("trigger_algo.roi.insufficient_data",
+                      "Données insuffisantes : il faut au moins {n} mois où coexistent un "
+                      "spend Meta Ads ET un revenu distributeur. En dessous, une droite "
+                      "passe presque exactement par les points et le R² ne mesure rien."
+                      ).format(n=MIN_FIT_POINTS))
+            return
+        _render_fit(fit)
+    except ImportError:
+        st.warning(t("trigger_algo.roi.scipy_unavailable", "scipy non disponible — régression désactivée."))
+    except Exception as e:
+        st.warning(t("trigger_algo.roi.regression_unavailable",
+                     "Graphique ROI indisponible : {err}").format(err=e))
+
+
+def _render_fit(fit: dict) -> None:
+    """R247 (fiche 45) — the months and the trend, then the DECISION in words. The
+    equation, R² and p-value are gone from the page (owner : « sans équation ni R² ») :
+    they decide the verdict below, they are not what the artist acts on."""
+    from src.dashboard.utils.roi_verdicts import fit_decision
+    x, y = fit["x"], fit["y"]
+    x_line = np.linspace(x.min(), x.max(), 100)
+    fig_roi = go.Figure()
+    fig_roi.add_trace(go.Scatter(
+        x=x, y=y, mode="markers+text", text=fit["labels"], textposition="top center",
+        name=t("trigger_algo.roi.trace_monthly", "Mensuel"),
+        marker=dict(color=BON, size=10)))
+    fig_roi.add_trace(go.Scatter(
+        x=x_line, y=fit["slope"] * x_line + fit["intercept"], mode="lines",
+        name=t("trigger_algo.roi.trace_trend", "Tendance"),
+        line=dict(color="#FF6B6B", width=2, dash="dash")))
+    fig_roi.update_layout(
+        title=t("trigger_algo.roi.regression_chart_title",
+                "Revenue iMusician (€) vs Spend Meta Ads (€)"),
+        xaxis_title=t("trigger_algo.roi.axis_meta_spend", "Dépenses Meta Ads (€)"),
+        yaxis_title=t("trigger_algo.roi.axis_imusician_revenue", "Revenus iMusician (€)"),
+        height=420, hovermode="closest")
+    charts.plotly_chart(fig_roi, width='stretch')
+    kind, slope = fit_decision(fit)
+    text = {
+        "none": t("trigger_algo.roi.decision_none",
+                  "**Sur {n} mois, tes revenus ne suivent pas ta pub** — les mois où tu as "
+                  "plus dépensé n'ont pas rapporté plus. Juge ta pub sur les écoutes qu'elle "
+                  "apporte (onglets Meta), pas sur tes ventes."),
+        "pays": t("trigger_algo.roi.decision_pays",
+                  "**Sur {n} mois, chaque euro de pub a ramené environ {k} € de revenus** — "
+                  "la pub se rembourse en ventes : tu peux l'augmenter prudemment."),
+        "short": t("trigger_algo.roi.decision_short",
+                   "**Sur {n} mois, chaque euro de pub n'a ramené qu'environ {k} € de "
+                   "revenus** — elle ne se rembourse pas en ventes : garde-la pour ce "
+                   "qu'elle apporte en écoutes, ou baisse-la."),
+    }[kind]
+    st.markdown(text.format(n=fit["n"], k=f"{slope:.2f}".replace(".", ",") if slope else ""))
+
+
+def render_artist_money(db, artist_id: int) -> None:
+    """The money pieces under the Trésorerie break-even (R553, ADR-033 decision 1): the
+    whole-history ledger line, the cost entry, revenue against Meta spend (fiche 50), and
+    what an algo trigger is worth (fiche 68 — a prediction, so Premium, ADR-029)."""
+    from src.dashboard.utils.artist_cashflow import monthly_net
+    from src.dashboard.utils.plan_gate import est_verrouille, note_de_plan
+    from src.dashboard.utils.treasury_chart import load_cashflow
+    cashflow = load_cashflow(db, artist_id)
+    mensuel = monthly_net(cashflow)
+    if not mensuel.empty:
+        _render_ledger(db, artist_id, cashflow, mensuel)
+    _render_cost_entry(db, artist_id)
+    st.markdown("---")
+    render_spend_revenue_fit(db, artist_id)
+    if est_verrouille("revenue_forecast"):
+        st.markdown("---")
+        note_de_plan("revenue_forecast", ferme=t(
+            "revenue_forecast.trigger_locked",
+            "Ce qu'un déclenchement des algorithmes te rapporterait, et la projection "
+            "de ton point mort : compris dans Premium"))
+        return
+    _render_trigger_value(db, artist_id, mensuel)
+
+
+def render_ltv() -> None:
+    """Fiche 67 — the subscriber LTV, the OPERATOR's number (R553, owner Y1 : « l'artiste ne
+    doit pas voir ça »). Rendered by the admin page only, folded."""
     if is_admin():
         _frag_ltv()

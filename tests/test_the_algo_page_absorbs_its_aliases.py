@@ -12,7 +12,8 @@ the realised outcomes and the model's bet are ONE module drawn on the Free S4A e
 page as well, so the paywall never hides the outcome entry.
 
 Mutations, 2026-10-05:
-  - `revenue_forecast` routed back to `views.revenue_forecast` → RED (alias);
+  - `meta_cpr_optimizer` routed back to `views.meta_cpr_optimizer` → RED (alias);
+R553 (ADR-033, 2026-10-13): `revenue_forecast` left — it is an alias of the Trésorerie.
   - `arrival_section` answering a non-alias key with a section → RED;
   - `meta_campaign_settings` put back in the Premium nav → RED;
   - the `render_outcomes(db, artist_id)` call dropped from saisie_s4a → RED (until R481,

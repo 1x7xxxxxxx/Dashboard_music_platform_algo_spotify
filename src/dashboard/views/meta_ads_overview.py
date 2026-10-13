@@ -171,13 +171,6 @@ def _render_instagram(db, artist_id, bar: None) -> None:
     render_instagram(db, artist_id)
 
 
-def _render_revenue(db, artist_id, bar: MetaFilters) -> None:
-    """The break-even treasury — left the distributors page in R476 (W11); its redesign
-    is R488."""
-    from src.dashboard.views.imusician import render_break_even
-    render_break_even(db, artist_id)
-
-
 SECTIONS: dict[str, Section] = {
     "funnel": Section(lambda: t("meta_ads_overview.section_journey",
                                 "🛤️ Le parcours d'une campagne"), _render_journey, BAR_JOURNEY),
@@ -191,8 +184,7 @@ SECTIONS: dict[str, Section] = {
                                     "🌍 Qui a vu tes pubs"), _render_breakdowns, BAR_UNDATED),
     "instagram": Section(lambda: t("meta_ads_overview.section_instagram", "📸 Instagram"),
                          _render_instagram, None),
-    "revenue": Section(lambda: t("meta_ads_overview.section_revenue", "💶 Revenus"),
-                       _render_revenue, BAR_NONE),
+    # R553 (ADR-033 decision 1) : « 💶 Revenus » left for the Trésorerie page (`imusician`).
 }
 # The old page key → the section it used to be. Read on arrival only, so a click on the
 # control afterwards is never overridden.

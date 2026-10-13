@@ -36,7 +36,6 @@ EN = {
     "meta_ads_overview.title_cross": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam × Revenue",
     "meta_ads_overview.section_journey": "🛤️ A campaign's journey",
     "meta_ads_overview.section_releases": "🚀 My releases",
-    "meta_ads_overview.section_revenue": "💶 Revenue",
     "meta_ads_overview.global_perf": "### 🚀 Overall Performance",
     "meta_ads_overview.capi_required": (
         "CPR empty: it requires CAPI (server-side events) — no custom "

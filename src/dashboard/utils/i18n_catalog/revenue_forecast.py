@@ -3,22 +3,6 @@
 EN = {
     # ── Mon argent : flux, cumul, point mort (2026-09-21) ────────────────────
     "revenue_forecast.cost_track": "Track concerned (optional)",
-    "revenue_forecast.treasury_moved": "The treasury chart (sales, SACEM, spend, cumulated) is on the 💶 Treasury page.",
-    "revenue_forecast.artist_forecast_header":
-        "My money: what comes in, what goes out, and when I break even",
-    "revenue_forecast.artist_forecast_caption": (
-        "All your money on one chart: distributors (iMusician, DistroKid), SACEM "
-        "royalties, Meta advertising and your release costs. The lower curve "
-        "crosses zero the day you break even."),
-    "revenue_forecast.no_money_yet": (
-        "No money movement on record. Import a sales report from **CSV import**, "
-        "or connect Meta in **🔑 API Credentials**."),
-    "revenue_forecast.kpi_cumul": "💰 Where I stand overall",
-    "revenue_forecast.kpi_cumul_delta": "{r:+,.0f} € in · {d:,.0f} € out",
-    "revenue_forecast.kpi_rythme": "📆 My current pace",
-    "revenue_forecast.kpi_rythme_delta": "average of the last {n} months",
-    "revenue_forecast.kpi_breakeven": "⏳ Break-even",
-    "revenue_forecast.be_no_date": "out of reach",
     "revenue_forecast.be_done": (
         "✅ You have broken even<br>cumulative: {c:+,.0f} €"),
     "revenue_forecast.be_unknown": "No history yet",
@@ -29,7 +13,8 @@ EN = {
         "⏳ Break-even in <b>{d}</b>{q}<br>"
         "{c:,.0f} € short at a pace of {r:+.2f} €/month"),
     "revenue_forecast.be_months": "{n} months",
-    "revenue_forecast.be_years": "{n:,.0f} months — {a:,.0f} years",
+    "revenue_forecast.be_beyond": "more than {n} years",
+    "revenue_forecast.projection": "Projection at the pace of the last 12 months",
     "revenue_forecast.be_short_done": "reached",
     "revenue_forecast.be_short_never": "never at this pace",
     "revenue_forecast.be_short_months": "{n} months",
@@ -120,11 +105,6 @@ EN = {
         "where the tracks that get there end up. The expected value multiplies "
         "it by the CALIBRATED chance of each of your tracks{d}."),
     # ── Les tiroirs ──────────────────────────────────────────────────────────
-    "revenue_forecast.detail_expander":
-        "🔎 Per-source and per-month detail — exact figures",
-    "revenue_forecast.by_source_net": (
-        "NET amounts — charges and VAT deducted, same as the chart and the "
-        "break-even date."),
     # Entry point
     # Tab 1 — Current MRR
     # Tab 2 — MRR projection
@@ -144,8 +124,6 @@ EN = {
     "revenue_forecast.ltv_artistic_metric": "Artistic LTV over {months} months",
     # Tab 4 — Artist projection
     "revenue_forecast.no_active_artist": "No active artist.",
-    "revenue_forecast.no_artist_id": "Unable to determine your artist identifier.",
-    "revenue_forecast.horizon": "Projection horizon (months)",
     # Meta Ads ROI
     # ML predictions
     # Net margin
@@ -155,12 +133,10 @@ EN = {
     "revenue_forecast.be_too_short": ("⏳ {c:,.0f} € to go — only {n} month(s) known:<br>"
                                       "too early to date the break-even point"),
     # R405 (V73)
-    "revenue_forecast.position_caption": ("The « everything in against everything out » curve "
-                                          "is in [↑ Budget & ROI](#budget): the gap between the "
-                                          "two cumuls is what is left to recover, and they "
-                                          "cross at break-even."),
     # R488
     "revenue_forecast.rev_cumul": "Cumulative revenue (sales + SACEM)",
     "revenue_forecast.spend_cumul": "Cumulative spend (Meta + costs)",
     "revenue_forecast.breakeven_title": "Revenue {r} against spend {s} · ROI {roi} — break-even where they cross",
+    # R553
+    "revenue_forecast.trigger_locked": "What an algorithm trigger would bring you, and the projection of your break-even: included in Premium",
 }

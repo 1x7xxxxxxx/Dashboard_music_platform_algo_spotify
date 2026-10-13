@@ -37,4 +37,6 @@ EN = {
     ),
     # R488
     "imusician.import_btn": "📂 Import an iMusician / DistroKid export",
+    # R553
+    "imusician.money_artist": "Break-even of the artist",
 }

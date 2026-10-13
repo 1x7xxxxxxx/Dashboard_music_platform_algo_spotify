@@ -237,18 +237,12 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   - qui: moi
     texte: Expliquer la cohorte et la décision, ou refaire
     rid: R247
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
+src/dashboard/views/revenue_forecast.py::_render_fit#1:
   valide: false
   actions:
   - qui: moi
     texte: Retirer l'équation, écrire la décision
     rid: R247
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Retirer le panneau popularité, cumul avec SACEM et coût de distribution
-    rid: R248
 src/dashboard/views/trigger_algo/_tab_algos.py::_show_tab_algos#1:
   valide: false
   actions:

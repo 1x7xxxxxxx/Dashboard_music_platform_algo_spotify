@@ -49,7 +49,7 @@ ROUTES: dict[str, str] = {
     "useful_links": "views.useful_links",
     "service": "views.service",
     "billing": "views.billing",
-    "revenue_forecast": "views.trigger_algo",  # alias — R405 made it a section of the algo page, which points to it
+    "revenue_forecast": "views.imusician",  # alias — R553 (ADR-033) : every euro is on the Trésorerie page
     "sacem": "views.imusician",  # alias — R461 merged the SACEM page into the distributors page
     "meta_mapping": "views.meta_mapping",
     "admin": "views.admin",
@@ -76,7 +76,7 @@ PAGE_ALIASES: dict[str, str] = {
     "instagram": "meta_ads_overview",
     "meta_creatives": "meta_ads_overview",
     "meta_breakdowns": "meta_ads_overview",
-    "revenue_forecast": "trigger_algo",
+    "revenue_forecast": "imusician",
     "meta_campaign_settings": "trigger_algo",
     "meta_cpr_optimizer": "trigger_algo",
     "recap": "home",

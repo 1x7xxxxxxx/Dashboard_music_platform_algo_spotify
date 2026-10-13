@@ -65,9 +65,11 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     heads = [s.value for s in at.subheader]
     assert heads and "Saisie" in heads[0], f"the entry form is not on top: {heads}"
     assert any("mois par mois" in h for h in heads), f"the treasury figure is gone: {heads}"
-    # R476 (W11): the break-even left for the cross view's « Revenus » section.
-    assert not any("Point mort" in h for h in heads), (
-        f"the break-even is back on the distributor page: {heads}")
+    # R553 (ADR-033, owner Y1) reverses R476: every euro is on this page, the break-even
+    # under the treasury, SACEM last.
+    point_mort = next((i for i, h in enumerate(heads) if "Point mort" in h), None)
+    assert point_mort is not None, f"the break-even is not on the Trésorerie: {heads}"
+    assert "SACEM" in heads[-1], f"SACEM is no longer last: {heads}"
     # R488 (W11): « pas de tableaux là où un graphique suffit » — the folded SACEM ledger
     # left too; and the import is a button at the top, not a sentence.
     assert len(at.dataframe) == 0, "a table is back on the distributor page"

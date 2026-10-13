@@ -14,7 +14,7 @@ revenus » and « Paramètres de mes campagnes » — opened the home page. `tes
 _resolves` was green: it checks a key reaches a module, not that a URL reaches the key.
 
 Mutations, 2026-10-05:
-  - `revenue_forecast` dropped from PAGE_ALIASES → RED (unlisted alias);
+  - `meta_cpr_optimizer` dropped from PAGE_ALIASES → RED (unlisted alias);
   - the `resolve_alias` line moved below the menu filter in app.py → RED (order);
   - the banner's `ALIAS_ARRIVAL_KEY` read replaced by the old `_page_rendered_last` → RED (render).
   - `resolve_alias` dropped from `navigation.goto` → RED.
@@ -65,7 +65,7 @@ def test_app_translates_the_alias_before_its_menu_filter() -> None:
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo page against the live DB")
-@pytest.mark.parametrize("alias", ["revenue_forecast", "meta_campaign_settings"])
+@pytest.mark.parametrize("alias", ["meta_cpr_optimizer", "meta_campaign_settings"])
 def test_the_arriving_run_says_where_the_old_page_went(alias: str) -> None:
     from streamlit.testing.v1 import AppTest
 

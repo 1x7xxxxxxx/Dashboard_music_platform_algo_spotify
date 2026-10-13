@@ -24,11 +24,16 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.semantic_colors import BON
+from src.dashboard.utils.semantic_colors import BON, MAUVAIS
 
 # Revenue pulls green, spend pulls warm: the reader who cannot tell hues apart still
 # reads the sign from the side of the zero line the bar sits on.
 REVENUE_CUMUL = "#1F4E79"   # the same navy as the distributors' cumul (imusician)
+# R553 (owner Y1, fiche 25 : « les dépenses en rouge et les revenus en vert ») — the
+# semantic pair, separated by LIGHTNESS (ΔE 20,1 in deuteranopia), not by hue alone.
+BREAKEVEN_REVENUE, BREAKEVEN_SPEND = BON, MAUVAIS
+# The projection is DRAWN on a bounded horizon, never written as « 270 ans » (fiche 25).
+PROJECTION_CAP_MONTHS = 24
 
 FLUX_COLOURS = {
     "imusician":    BON,          # R260 — the semantic « good » green, not Spotify's
@@ -111,7 +116,8 @@ def _positive(s: pd.Series) -> list:
 
 def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
                      verdict: str | None = None,
-                     trigger: tuple[str, float] | None = None) -> go.Figure:
+                     trigger: tuple[str, float] | None = None,
+                     projection_months: int = 0) -> go.Figure:
     """Revenue cumulated against spend cumulated, on a LOG axis — the break-even is
     where the two lines cross (R488, owner W11 « redesign (échelle) »).
 
@@ -119,27 +125,22 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
     on a linear axis two magnitudes fifteen times apart cannot both be read. On a log
     axis the gap between the lines IS the ratio, and a crossing stays a crossing —
     the transform is monotone. `trigger` is (label, €): what one Discover Weekly
-    trigger would add to the revenue total, as a point, never a line."""
+    trigger would add to the revenue total, as a point, never a line.
+    `projection_months` (R553, fiche 25) prolongs both cumuls, dotted, at the pace of
+    the last `FENETRE_RYTHME` months — the pace `break_even` dates the crossing with."""
     rev, spend = flow_cumuls(cashflow, mensuel['date'])
     fig = go.Figure()
     for serie, name, colour in (
-            # Navy, not the « good » green: against Meta's orange it is ΔE 9.5 in protan.
             (rev, t("revenue_forecast.rev_cumul", "Revenus cumulés (ventes + SACEM)"),
-             REVENUE_CUMUL),
+             BREAKEVEN_REVENUE),
             (spend, t("revenue_forecast.spend_cumul", "Dépenses cumulées (Meta + coûts)"),
-             FLUX_COLOURS["meta_ads"])):
+             BREAKEVEN_SPEND)):
         fig.add_trace(go.Scatter(
-            x=serie.index, y=_positive(serie), mode='lines', name=name,
+            x=serie.index, y=_positive(serie), mode='lines', name=name, legendgroup=colour,
             line={'color': colour, 'width': 3}, connectgaps=False,
             hovertemplate="%{x|%m/%Y}<br>%{fullData.name} : %{y:,.2f} €<extra></extra>"))
-    if trigger and trigger[1]:
-        label, value = trigger
-        y = float(rev.iloc[-1]) + float(value)
-        fig.add_trace(go.Scatter(
-            x=[rev.index[-1]], y=[y], mode='markers+text', name=label,
-            marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
-            text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
-            hovertemplate=f"{label}<br>revenus atteints : %{{y:,.2f}} €<extra></extra>"))
+    _add_projection(fig, rev, spend, projection_months)
+    _add_trigger(fig, rev, trigger)
     if verdict:
         fig.add_annotation(
             xref="paper", yref="paper", x=0.99, y=0.04, xanchor="right", yanchor="bottom",
@@ -156,6 +157,59 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
         hovermode='x unified', height=460, yaxis={'type': 'log', 'title': "€"},
         margin={'t': 50, 'b': 90})
     return fig
+
+
+def projection_horizon(pm: dict) -> int:
+    """How many months to draw ahead: up to the crossing (+3) when it falls inside the
+    cap, the cap otherwise — the scale stays readable whatever the date (fiche 25)."""
+    if pm.get('etat') == 'atteint' and pm.get('mois') is not None \
+            and pm['mois'] + 3 <= PROJECTION_CAP_MONTHS:
+        return max(6, int(pm['mois']) + 3)
+    return PROJECTION_CAP_MONTHS if pm.get('etat') in ('atteint', 'jamais', 'deja') else 0
+
+
+def projected_cumuls(rev: pd.Series, spend: pd.Series, months: int
+                     ) -> tuple[pd.Series, pd.Series]:
+    """Both cumuls prolonged `months` ahead at their mean monthly step over the last
+    `FENETRE_RYTHME` months. Pure; each projection starts ON the last measured point."""
+    from dateutil.relativedelta import relativedelta
+    from src.dashboard.utils.artist_cashflow import FENETRE_RYTHME
+    if months <= 0 or rev.empty:
+        empty = pd.Series(dtype=float)
+        return empty, empty
+    last = pd.Timestamp(rev.index[-1])
+    idx = pd.DatetimeIndex([last + relativedelta(months=i) for i in range(months + 1)])
+    out = []
+    for serie in (rev, spend):
+        step = float(serie.diff().fillna(serie.iloc[0]).tail(FENETRE_RYTHME).mean())
+        out.append(pd.Series([float(serie.iloc[-1]) + step * i for i in range(months + 1)],
+                             index=idx))
+    return out[0], out[1]
+
+
+def _add_projection(fig: go.Figure, rev: pd.Series, spend: pd.Series, months: int) -> None:
+    p_rev, p_spend = projected_cumuls(rev, spend, months)
+    for serie, colour in ((p_rev, BREAKEVEN_REVENUE), (p_spend, BREAKEVEN_SPEND)):
+        if serie.empty:
+            continue
+        fig.add_trace(go.Scatter(
+            x=serie.index, y=_positive(serie), mode='lines', legendgroup=colour,
+            name=t("revenue_forecast.projection", "Projection au rythme des 12 derniers mois"),
+            showlegend=colour == BREAKEVEN_REVENUE,
+            line={'color': colour, 'width': 2, 'dash': 'dot'},
+            hovertemplate="%{x|%m/%Y}<br>projection : %{y:,.2f} €<extra></extra>"))
+
+
+def _add_trigger(fig: go.Figure, rev: pd.Series, trigger) -> None:
+    if not (trigger and trigger[1]):
+        return
+    label, value = trigger
+    y = float(rev.iloc[-1]) + float(value)
+    fig.add_trace(go.Scatter(
+        x=[rev.index[-1]], y=[y], mode='markers+text', name=label,
+        marker={'color': "#FF6B35", 'size': 11, 'symbol': 'star'},
+        text=[f"+{value:,.0f} €".replace(",", " ")], textposition='top center',
+        hovertemplate=f"{label}<br>revenus atteints : %{{y:,.2f}} €<extra></extra>"))
 
 
 def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
@@ -271,12 +325,15 @@ def breakeven_text(pm: dict) -> str:
                  "⚠️ Point mort JAMAIS atteint à ce rythme<br>"
                  "il manque {c:,.0f} € et le rythme est de {r:+.2f} €/mois"
                  ).format(c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
-    ans = pm['mois'] / 12.0
-    duree = (t("revenue_forecast.be_months", "{n} mois").format(n=pm['mois'])
-             if pm['mois'] < 24
-             else t("revenue_forecast.be_years", "{n:,.0f} mois — {a:,.0f} ans"
-                    ).format(n=pm['mois'], a=ans).replace(",", " "))
-    date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
+    # R553 (fiche 25 : « pas avec 270 ans en toutes lettres ») — beyond the drawn
+    # horizon the sentence says « beyond », the dotted lines say how far apart.
+    if pm['mois'] > PROJECTION_CAP_MONTHS:
+        duree = t("revenue_forecast.be_beyond", "plus de {n} ans").format(
+            n=PROJECTION_CAP_MONTHS // 12)
+        date = ""
+    else:
+        duree = t("revenue_forecast.be_months", "{n} mois").format(n=pm['mois'])
+        date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
     return t("revenue_forecast.be_reached",
              "⏳ Point mort dans <b>{d}</b>{q}<br>"
              "il manque {c:,.0f} € au rythme de {r:+.2f} €/mois"

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+from pathlib import Path
 
 import pytest
 
@@ -48,7 +49,9 @@ _NETTE = "v_artist_monthly_cashflow"
 
 # Le point d'entrée de la page de l'argent, et tout ce qu'elle appelle DANS ce
 # module. `_tab_ltv` n'en fait pas partie : c'est l'onglet SaaS de l'exploitant.
-_RACINE = "_tab_artist_forecast"
+# R553 (ADR-033) : `_tab_artist_forecast` is gone — the money pieces under the Trésorerie
+# break-even enter by `render_artist_money`.
+_RACINE = "render_artist_money"
 
 
 def _module() -> ast.Module:
@@ -58,6 +61,10 @@ def _module() -> ast.Module:
 def _fonctions(tree: ast.Module) -> dict[str, ast.FunctionDef]:
     return {n.name: n for n in ast.walk(tree)
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+def fns_de(path: Path) -> dict[str, ast.FunctionDef]:
+    return _fonctions(ast.parse(path.read_text(encoding="utf-8")))
 
 
 def _joignables(tree: ast.Module) -> set[str]:
@@ -138,8 +145,15 @@ def test_the_artist_money_page_does_read_the_cashflow_view() -> None:
     lit rien : c'est ainsi qu'un garde cesse de garder sans jamais rougir."""
     tree = _module()
     fns = _fonctions(tree)
-    trouve = any(_lit(s, _NETTE)
-                 for nom in _joignables(tree) for s in _sql(fns[nom]))
+    joignables = _joignables(tree)
+    trouve = any(_lit(s, _NETTE) for nom in joignables for s in _sql(fns[nom]))
+    # R553 : the page reads the ledger through the ONE money door, `load_cashflow`.
+    porte = fns_de(Path("src/dashboard/utils/treasury_chart.py")).get("load_cashflow")
+    appelle = any(isinstance(n, ast.Call)
+                  and getattr(n.func, "id", getattr(n.func, "attr", "")) == "load_cashflow"
+                  for nom in joignables for n in ast.walk(fns[nom]))
+    trouve = trouve or (appelle and porte is not None
+                        and any(_lit(s, _NETTE) for s in _sql(porte)))
     assert trouve, (
         f"aucune fonction atteignable depuis `{_RACINE}` ne lit « {_NETTE} ». "
         "Soit la page a changé de source, soit la fermeture transitive ne "

@@ -4,6 +4,11 @@ R519 (owner X11 II, 2026-10-11): the « Distributeur » page became « 💶 Tré
 (distributeurs, SACEM, Meta Ads) ». The sales chart per distributor and the SACEM donut
 are ONE figure of the monthly money flow (`treasury_chart.cashflow_figure`, read from
 `v_artist_monthly_cashflow`); the route `imusician` is unchanged.
+
+R553 (ADR-033 decision 1, owner Y1 « tous les graphiques de revenue dans la vue revenue »):
+every euro is here — import, entries, treasury, break-even (fiche 25), revenue against
+Meta spend (fiche 50), what a trigger is worth (fiche 68, Premium), SACEM. The keys
+`revenue_forecast` and the cross view's `revenue` section are aliases of this page.
 """
 import streamlit as st
 import pandas as pd
@@ -201,7 +206,9 @@ def show():
         _render_entry_form(db, artist_id)
         st.markdown("---")
         _render_treasury(db, artist_id)
-        # R476 (W11) : the break-even moved to the cross view, section « Revenus ».
+        # R553 (ADR-033, owner Y1) : every euro is on this page — the break-even came back
+        # from the cross view, the algo page's « Budget & ROI » and « Mon argent » with it.
+        _render_money(db, artist_id)
         # R461 (owner, 2026-10-07): the SACEM page merged here, on the SAME connection.
         st.markdown("---")
         from src.dashboard.views.sacem import render_section
@@ -275,11 +282,37 @@ def _render_delete(db, artist_id):
                 st.error(t("common.error", "Erreur : {err}").format(err=e))
 
 
-def render_break_even(db, artist_id: int) -> None:
-    """The break-even: revenue against every spend, on one treasury.
+def _render_money(db, artist_id) -> None:
+    """ADR-033 decision 1 (R553): the break-even, then the money pieces under it."""
+    target = _money_target(db, artist_id)
+    if target is None:
+        return
+    st.markdown("---")
+    render_break_even(db, target)
+    from src.dashboard.views.revenue_forecast import render_artist_money
+    render_artist_money(db, target)
 
-    R476 (owner W11 : « point mort / revenu net → vue croisée, renommée … × Revenus ») —
-    rendered by the cross view's « Revenus » section only. Its redesign is R488.
+
+def _money_target(db, artist_id):
+    """The ONE artist the break-even reads — an admin picks one (an every-artist
+    aggregate has no break-even), an artist is their own."""
+    if artist_id is not None:
+        return artist_id
+    from src.dashboard.utils.revenue_forecast import load_artists
+    artists = load_artists(db)
+    if artists.empty:
+        st.warning(t("revenue_forecast.no_active_artist", "Aucun artiste actif."))
+        return None
+    opts = {row['name']: int(row['id']) for _, row in artists.iterrows()}
+    return opts[st.selectbox(t("imusician.money_artist", "Point mort de l'artiste"),
+                             list(opts), key="money_artist")]
+
+
+def render_break_even(db, artist_id: int) -> None:
+    """The break-even: revenue against every spend, on one treasury (fiche 25).
+
+    R553 (ADR-033) : rendered on this page only — it absorbed fiche 51 and the
+    « Mon argent » tiles; the projection is drawn dotted on a bounded horizon.
     """
     st.subheader(t("imusician.roi_header", "💹 Point mort"))
     span_min, span_max = _roi_data_span(db, artist_id)
@@ -299,18 +332,28 @@ def render_break_even(db, artist_id: int) -> None:
     # R488 (W11 « redesign (échelle) ») : the three tiles and the captions are gone —
     # revenue, spend and ROI ride in the title — and the figure reads revenue against
     # spend on a log axis, where 200 € of sales no longer flatten under 3 000 € of ads.
-    from src.dashboard.utils.artist_cashflow import break_even, monthly_net
-    from src.dashboard.utils.treasury_chart import (
-        breakeven_figure, breakeven_text, load_cashflow, within)
+    from src.dashboard.utils.artist_cashflow import monthly_net
+    from src.dashboard.utils.treasury_chart import load_cashflow, within
     cashflow = within(load_cashflow(db, artist_id), window.start, window.end)
     mensuel = monthly_net(cashflow)
     if mensuel.empty:
         st.info(t("imusician.roi_empty_period",
                   "Aucune donnée de revenus ou dépenses sur cette période."))
         return
-    fig = breakeven_figure(cashflow, mensuel, verdict=breakeven_text(break_even(mensuel)),
-                           trigger=_trigger_point(db, artist_id))
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(_break_even_chart(db, artist_id, cashflow, mensuel), width="stretch")
+
+
+def _break_even_chart(db, artist_id: int, cashflow, mensuel):
+    """Fiche 25. The dotted projection is a prediction: Premium, like fiche 68 (ADR-029)."""
+    from src.dashboard.utils.artist_cashflow import break_even
+    from src.dashboard.utils.plan_gate import est_verrouille
+    from src.dashboard.utils.treasury_chart import (
+        breakeven_figure, breakeven_text, projection_horizon)
+    pm = break_even(mensuel)
+    horizon = 0 if est_verrouille("revenue_forecast") else projection_horizon(pm)
+    return breakeven_figure(cashflow, mensuel, verdict=breakeven_text(pm),
+                            trigger=_trigger_point(db, artist_id),
+                            projection_months=horizon)
 
 
 def _trigger_point(db, artist_id: int):

@@ -406,9 +406,6 @@ def test_the_share_mode_does_not_inflate_the_platforms_that_are_present(monkeypa
 #       modèle que les autres copient : `_measured.reindex(...).fillna(0) >= 3.5`
 #       marque les seaux trop peu mesurés pour être tracés. Le zéro y signifie
 #       « zéro jour mesuré », ce qui est exactement vrai.
-#   roi_verdicts.cumulative_breakeven (2) — la valeur alimente un `cumsum`, pas
-#       un axe : un jour sans dépense n'ajoute rien, et `NaN` effacerait toute la
-#       suite de la courbe.
 _WIDEN_AND_FILL: dict[str, int] = {
     # R244 — the treasury's running total per source: a month with no movement in the
     # LEDGER moved 0 €, and the zero only feeds a `cumsum` that carries the total forward
@@ -423,9 +420,6 @@ _WIDEN_AND_FILL: dict[str, int] = {
     "src/dashboard/utils/treasury_chart.py:cashflow_figure": 1,
     "src/dashboard/views/meta_ads_overview.py:_show_meta_ads": 6,
     "src/dashboard/views/meta_creatives.py:_prepare_timeline": 1,
-    # Moved out of the view on 2026-09-26 with the breakeven itself (the two zeros
-    # feed the two cumsums, same reason as before).
-    "src/dashboard/utils/roi_verdicts.py:cumulative_breakeven": 2,
     # R350 — two campaigns on their own day-0 clock: a day without a row inside a
     # campaign's life adds 0 € and 0 click, and the zero only feeds the two `cumsum`s
     # (the running totals stay flat). The per-day value is never drawn.

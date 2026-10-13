@@ -69,7 +69,7 @@ def test_every_section_of_the_registry_resolves() -> None:
     allowed = {bar.BAR_FULL, bar.BAR_JOURNEY, bar.BAR_UNDATED, bar.BAR_ACCOUNT, bar.BAR_NONE,
                None}
     assert list(SECTIONS) == ["funnel", "perf", "releases", "creatives", "breakdowns",
-                              "instagram", "revenue"], list(SECTIONS)
+                              "instagram"], list(SECTIONS)
     for key, entry in SECTIONS.items():
         assert isinstance(entry.label(), str) and entry.label(), key
         assert entry.bar in allowed, key
@@ -85,8 +85,9 @@ def test_the_moved_charts_left_their_origin() -> None:
     """R476 — « un graphique déplacé disparaît de sa vue d'origine dans le même commit »."""
     import inspect
 
-    from src.dashboard.views import apple_music, hypeddit, imusician
+    from src.dashboard.views import apple_music, hypeddit, meta_ads_overview
 
     assert "render_shazam_launches" not in inspect.getsource(apple_music.show)
     assert "render_campaign_stats" not in inspect.getsource(hypeddit.show)
-    assert "render_break_even" not in inspect.getsource(imusician.show)
+    # R553 (ADR-033) reverses R476's third move: the break-even went back to the Trésorerie.
+    assert "render_break_even" not in inspect.getsource(meta_ads_overview)

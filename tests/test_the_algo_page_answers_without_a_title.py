@@ -70,7 +70,6 @@ def test_an_artist_without_s4a_still_sees_the_budget_section() -> None:
     at = _render(_NO_TITLE)        # a premium tenant whose title read comes back empty
     headers = [h.value for h in at.header]
     assert section_label("budget") in headers, f"no budget section without a title: {headers}"
-    assert section_label("argent") in headers, f"no money section without a title: {headers}"
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo page against the live DB")

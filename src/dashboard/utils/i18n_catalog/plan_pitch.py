@@ -35,9 +35,9 @@ EN = {
                       "to take and the budget to trigger the algorithms"),
     "pitch.trigger": ("🚀 **Know whether a track will trigger Discover Weekly** "
                       "— before spending on promo"),
-    "pitch.money": ("💰 **Where your money goes, and when you break even** — "
-                    "revenue, advertising and release costs on a single chart, "
-                    "with the break-even date"),
+    "pitch.money": ("💰 **When you will break even, and what a trigger would bring you** — "
+                    "the projection of your break-even and the value of an algorithm, "
+                    "in measured euros"),
     "pitch.meta_x": ("🔀 **Which ad euro produced which streams** — Meta × "
                      "Spotify × Hypeddit, and the cost of a stream country by "
                      "country"),

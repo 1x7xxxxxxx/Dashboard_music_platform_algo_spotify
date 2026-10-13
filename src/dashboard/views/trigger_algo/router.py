@@ -88,7 +88,7 @@ def show():
     _say_where_the_alias_lands()
     from src.dashboard.utils.fragment_db import page_db_scope
 
-    # `page_db_scope` : the money section's fragments borrow this connection (rule 9).
+    # `page_db_scope` : any fragment the page renders borrows this connection (rule 9).
     with view_session() as (db, artist_id), page_db_scope(db, artist_id):
         # Track list — ordered by release_date DESC from tracks table.
         # S4A CSVs replace '?' with '_' in song names, so the JOIN uses REPLACE().
@@ -224,7 +224,7 @@ def show():
 
 
 def _show_cpr_and_money(db, artist_id, *, budget_header: bool = False) -> None:
-    """The per-campaign CPR cards, then the money section — neither needs a title."""
+    """The per-campaign CPR cards — they need no title."""
     if budget_header:
         _section("budget")
         # R477 (W14 « Budget et ROI : graphiques, pas de tableaux ») : la liste des
@@ -234,9 +234,7 @@ def _show_cpr_and_money(db, artist_id, *, budget_header: bool = False) -> None:
         # campagne sont rendues ici, sous le budget ; l'ancienne route est un alias.
     from src.dashboard.views.meta_cpr_optimizer import render as render_cpr
     render_cpr(db, artist_id)
-    _section("argent")
-    from src.dashboard.views.revenue_forecast import render_money
-    render_money(artist_id)
+    # R553 (ADR-033 decision 1) : « 💶 Mon argent » left for the Trésorerie page.
 
 
 def _show_track_free_sections(db, artist_id) -> None:

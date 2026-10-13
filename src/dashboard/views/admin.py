@@ -433,6 +433,12 @@ def _render_supervision(db):
 
         # ── Coûts & marge ─────────────────────────────────────────────────────
         _render_costs(db, mrr)
+    # R553 (ADR-033, owner Y1) : the subscriber LTV (fiche 67) is the operator's number —
+    # it left the artist's money page. Its own fragment, OUTSIDE the expander above.
+    from src.dashboard.utils.fragment_db import page_db_scope
+    from src.dashboard.views.revenue_forecast import render_ltv
+    with page_db_scope(db):
+        render_ltv()
 
 
 

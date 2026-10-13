@@ -86,8 +86,8 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
      "🚀 **Savoir si un titre va déclencher Discover Weekly** — avant de dépenser "
      "en promo"),
     ("revenue_forecast", "pitch.money",
-     "💰 **Où va ton argent, et quand tu rentres dans tes frais** — revenus, "
-     "publicité et coûts de sortie sur une seule figure, avec la date du point mort"),
+     "💰 **Quand tu rentreras dans tes frais, et ce qu'un déclenchement te rapporterait** — "
+     "la projection de ton point mort et la valeur d'un algo, en euros mesurés"),
     ("meta_x_spotify", "pitch.meta_x",
      "🔀 **Quel euro de pub a produit quelles écoutes** — Meta × Spotify × "
      "Hypeddit, et le coût d'une écoute pays par pays"),

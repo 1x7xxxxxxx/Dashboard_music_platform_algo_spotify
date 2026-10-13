@@ -27,16 +27,13 @@ PAGE_SECTIONS = (
     ("budget", "trigger_algo.tab_budget", "💰 Budget & ROI",
      "trigger_algo.guide_section_budget",
      "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),
-    ("argent", "trigger_algo.tab_argent", "💶 Mon argent : où j'en suis",
-     "trigger_algo.guide_section_argent",
-     "ce qui est rentré face à la somme de tes dépenses, et la date du point mort."),
 )
 
+# R553 (ADR-033) : `revenue_forecast` is no longer one — it is an alias of the Trésorerie.
 # R405 (V73, V74) : two former pages are sections of this one. Their keys stay routed —
 # mails and PDFs link to them — and open the page on THEIR section.
 ALIAS_SECTION = {
     "meta_campaign_settings": "budget",
-    "revenue_forecast": "argent",
     "meta_cpr_optimizer": "budget",  # R477 (W14)
 }
 

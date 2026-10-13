@@ -289,7 +289,7 @@ src/dashboard/views/imusician.py::_render_treasury#1:
   v: garder
   owner_v: fusionner
   owner: "X11 II (2026-10-11) : « Trésorerie (distributeurs, SACEM, Meta Ads) » — une seule figure du flux d'argent."
-  note: "R519 : remplace « Évolution des ventes » (R488) et l'anneau SACEM. Barres relatives sur un seul axe en euros : revenus par source au-dessus de zéro (iMusician, DistroKid, SACEM), dépenses en dessous (Meta Ads, coûts saisis), solde cumulé en courbe ; solde, entrées et sorties dans le titre. Lit `v_artist_monthly_cashflow` par `load_cashflow`, filtré par la période commune. La prévision 6 mois de R488 est retirée : le point mort daté vit dans la vue croisée."
+  note: "R519 : remplace « Évolution des ventes » (R488) et l'anneau SACEM. Barres relatives sur un seul axe en euros : revenus par source au-dessus de zéro (iMusician, DistroKid, SACEM), dépenses en dessous (Meta Ads, coûts saisis), solde cumulé en courbe ; solde, entrées et sorties dans le titre. Lit `v_artist_monthly_cashflow` par `load_cashflow`, filtré par la période commune. La prévision 6 mois de R488 est retirée ; R553 (ADR-033) ramène le point mort daté sur cette page, juste dessous."
 src/dashboard/views/imusician.py::render_break_even#1:
   q: "Mes revenus cumulés rattrapent-ils mes dépenses cumulées — et quand ?"
   decision: "Voir où en est ta trésorerie, ventes contre dépenses, pour fixer le budget de ta prochaine campagne."
@@ -614,7 +614,7 @@ src/dashboard/views/trigger_algo/_tab_lifecycle.py::_show_tab_lifecycle#1:
   owner_v: a-trancher
   owner: "Je ne comprends pas la cohorte ni la décision."
   note: "R247 : la cohorte expliquée en une ligne au-dessus des courbes, le trait « Ce titre » visible (il était blanc), et un verdict écrit sous la position : relancer sous la moitié d'un titre typique de son âge, surveiller sous la médiane, laisser tourner au-dessus."
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
+src/dashboard/views/revenue_forecast.py::_render_fit#1:
   mq: M6
   q: "Mes revenus suivent-ils ma dépense Meta ?"
   decision: "Savoir si tes revenus suivent ta dépense Meta, pour décider d'augmenter ou de baisser le budget."
@@ -628,20 +628,6 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_fit#1:
   owner: "Cool ; sans équation ni R² ; quelle décision ?"
   cause: ajustement-trompeur
   note: "R247 : équation, R² et p retirés de l'écran ; ils décident la phrase dessous — « tes revenus ne suivent pas ta pub » (p ≥ 0,05, le cas de l'artiste 1 sur 12 mois), « chaque euro revient à k € » sinon."
-src/dashboard/views/trigger_algo/_tab_budget_roi.py::_render_breakeven#1:
-  mq: M6
-  q: "Quand la pub aura-t-elle été remboursée ?"
-  decision: "Savoir quand la pub sera remboursée, pour décider combien investir sur un titre."
-  decision_en: "Know when the ads will have paid back, to decide how much to invest in a track."
-  role: meta
-  d: 2
-  c: 2
-  p: 5
-  v: corriger
-  owner_v: corriger
-  owner: "Pas mal ; retirer la popularité 0 ; ajouter SACEM, tous les revenus, et le coût de distribution (10–30 €) en charge."
-  cause: ajustement-trompeur
-  note: "« Breakeven 25/08/2023 » affiché alors que la dépense cumulée (3 000 €) écrase le revenu (~200 €) — le point mort est au DÉBUT (0 = 0), pas atteint. Doublon de revenue_forecast:478 qui, lui, dit « 242 ans »."
 src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
   mq: M4
   q: "Combien de mon budget Meta reste-t-il ?"
@@ -823,7 +809,7 @@ src/dashboard/views/revenue_forecast.py::_tab_ltv#1:
   v: a-trancher
   owner_v: garder
   owner: "Intègre-le et on garde en admin, pas pour l'artiste, c'est pour les plans premium. Non garanti couche : règle-moi ce problème."
-  note: "R405 : admin seulement, REPLIÉ sous « 💶 Mon argent » de la page algo (Prévisions revenus en est devenue une section) ; le MRR se lit dans « 💳 Facturation », sa seule définition. Le coût de distribution par titre se saisit dans Mes revenus (R248)."
+  note: "R553 (Y1, ADR-033) : rendue par la page admin seulement, sous « Business » — elle a quitté « 💶 Mon argent ». R405 : admin seulement, REPLIÉ sous « 💶 Mon argent » de la page algo (Prévisions revenus en est devenue une section) ; le MRR se lit dans « 💳 Facturation », sa seule définition. Le coût de distribution par titre se saisit dans Mes revenus (R248)."
 src/dashboard/views/revenue_forecast.py::_render_trigger_value#1:
   q: "Combien vaut un déclenchement d'algorithme pour moi ?"
   decision: "Chiffrer ce que vaut un déclenchement d'algorithme, pour savoir combien dépenser pour l'obtenir."
