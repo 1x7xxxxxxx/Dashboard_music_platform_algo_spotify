@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R552 — Tests `/health` sans porte de base : `test_api.py::test_health`, 2 tests de `test_api_s… (livrée 2026-10-13)
+
+- [x] **R552 — Tests `/health` sans porte de base : `test_api.py::test_health`, 2 tests de `test_api_security.py` et 1 de `test_api_survives_hostile_input.py` (balayage) rougissent quand le Postgres local est éteint (récidive 2026-09-25, 2026-10-13) au lieu de skipper** (P3) ✅ (2026-10-13, d2d3a897)
+  Mesuré par : les 4 tests SKIP (ou passent) Postgres éteint, verts Postgres allumé
+  4 tests /health ne dépendent plus d'un Postgres local : fixture healthy_db_probe (3 tests amont) + requires_live_db (test_health bout-en-bout). Rouge avant (4 failed base injoignable), vert après (3 passed 1 skipped ; 4 passed base allumée). Suite 12752 verts. CI verte run 38385595222.
+  Commits : d2d3a897 R552 : les tests /health ne dépendent plus d'un Postgres local allumé
+
 ## ✅ R551 — Illustrations de l'assistant et de l'aperçu ↔ graphiques réels (constat : aucune n'est… (livrée 2026-10-13)
 
 - [x] **R551 — Illustrations de l'assistant et de l'aperçu ↔ graphiques réels (constat : aucune n'est dans la vue croisée) gardé par un test ; PDF « graphiques seuls » vue croisée + prédiction sur le Bureau (mode `--views --charts-only` du dossier)** (P3) ✅ (2026-10-13, 14fd620a)
