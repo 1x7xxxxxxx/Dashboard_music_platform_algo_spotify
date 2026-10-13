@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R556 — Entonnoir complet (fiches 44, 43, 128, 22, 23, 39, 26) : budget → impressions → clics l… (livrée 2026-10-13)
+
+- [x] **R556 — Entonnoir complet (fiches 44, 43, 128, 22, 23, 39, 26) : budget → impressions → clics lien → visites smart link → clics plateformes → streams → revenus, chaque étape avec « X % de l'étape d'avant » expliqué et son coût par unité ; par titre et par sortie via le filtre ; mode « comparer deux campagnes » = deux entonnoirs côte à côte avec dépense, impressions, clics, CPM, CPC, CPR** (P3) ✅ (2026-10-13, 39fed46c)
+  Mesuré par : 7 étapes dessinées ; mode comparaison = 2 figures sur une ligne
+  Livré 39fed46c, CI verte (run 38416254225)
+  Commits : 39fed46c R556 : entonnoir complet — budget → impressions → clics → smart link →
+
 ## ✅ R555 — Chronologie unique (fiches 42, 43, 29, 2, 6, 28) : UNE figure temporelle — streams/j, a… (livrée 2026-10-13)
 
 - [x] **R555 — Chronologie unique (fiches 42, 43, 29, 2, 6, 28) : UNE figure temporelle — streams/j, abonnés, sauvegardes/j et ajouts playlist/j (moy. 7 j), budget/j en aire, clics sortants, CPR, Shazam — chaque série activable par la légende, jours de pub expliqués ; comparaison de deux sorties au même âge en superposition ; fiche 28 redéfinie (durée d'effet par campagne, plus de « vagues »)** (P3) ✅ (2026-10-13, 845f5677)

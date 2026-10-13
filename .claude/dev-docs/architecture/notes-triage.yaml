@@ -4112,10 +4112,9 @@
   resume: 'Fiche 43 : définir « clics sortants » et ajouter le coût par clic sortant'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f44
@@ -4123,10 +4122,9 @@
     → … → streams → revenu par stream'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f26
@@ -4134,10 +4132,9 @@
     clics, CPM, CPC, CPR'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f27
@@ -4180,30 +4177,27 @@
   resume: 'Fiche 128 (titre qui transforme le mieux) : fusionner dans l''entonnoir 44'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f22
   resume: 'Fiche 22 (smart links Hypeddit) : fusionner dans l''entonnoir 44'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f23
   resume: 'Fiche 23 (dernière sortie vs précédente) : fusionner dans l''entonnoir 44'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 14
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f2
@@ -4269,10 +4263,9 @@
   resume: 'Fiche 39 (entonnoir créa) : fusionner dans l''entonnoir 44'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R556
+  preuve_statut: R556 (archivée) — 39fed46c
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f38

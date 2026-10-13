@@ -846,3 +846,5 @@
 {"at": "2026-10-13T13:13:37+00:00", "kind": "done", "task": "R562", "what": "fermée par roadmap-close — Livré 84ec4637, CI verte (run 38402734221) : debt-trend juge actionable_debt, la population de make error-debt ; une dette à 0 est payée"}
 {"at": "2026-10-13T13:53:03+00:00", "kind": "done", "task": "R555", "what": "fermée par roadmap-close — Livré 845f5677, CI verte (run 38407965848) : une chronologie unique remplace les fiches 42, 43, 29 et 6"}
 {"at": "2026-10-13T13:57:10+00:00", "head": "9be50209", "kind": "start", "task": "R556", "what": "entonnoir complet"}
+{"at": "2026-10-13T14:46:53+00:00", "head": "39fed46c", "kind": "start", "task": "R557", "what": "créas et réglages"}
+{"at": "2026-10-13T14:50:41+00:00", "kind": "done", "task": "R556", "what": "fermée par roadmap-close — Livré 39fed46c, CI verte (run 38416254225)"}
