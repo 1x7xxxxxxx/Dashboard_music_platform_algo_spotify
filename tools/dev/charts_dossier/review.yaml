@@ -359,7 +359,7 @@ src/dashboard/views/meta_creatives.py::_render_hooks#1:
   owner_v: a-trancher
   owner: "Pas mal ; notes /5 incomprises ; redondant avec 29 ?"
   note: "Sans hook 0,104 € < Hook 1 0,113 € < Hook 2 0,127 € — mais sur 69 € de dépense « sans hook » : à marquer comme fragile."
-src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
+src/dashboard/views/meta_creatives.py::_render_one_creative#1:
   mq: M2
   q: "Une créa donne-t-elle des revenus dans le temps ?"
   decision: "Voir combien de temps une créa reste rentable, pour savoir quand la remplacer."
@@ -373,33 +373,28 @@ src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
   owner: "Tout regrouper sur un même graphique au lieu de quatre ; vérifier les chiffres."
   cause: graphique-vide-ou-axe-casse
   note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
-src/dashboard/views/meta_creatives.py::_render_scatter#1:
-  mq: M2
-  q: "Où sont mes créas en dépense × coût ?"
-  decision: "Repérer d'un coup d'œil les créas qui dépensent beaucoup pour un coût élevé, à couper."
-  decision_en: "Spot at a glance the creatives spending a lot at a high cost, to cut."
+src/dashboard/views/meta_creatives.py::_render_best_settings#1:
+  mq: M3
+  q: "Quel réglage garder sur ma prochaine campagne ?"
+  decision: "Savoir quelle créa, accroche, pays, placement, âge, bouton et objectif garder : le vert est le moins cher par clic sortant."
+  decision_en: "Know which creative, hook, country, placement, age, button and objective to keep: green is the cheapest per outbound click."
   role: meta
-  d: 3
-  c: 3
-  p: 3
-  v: garder
-  owner_v: a-trancher
-  owner: "Je ne comprends pas quelle décision prendre : refais ton cheminement."
-  note: "Nuage lisible : les grosses dépenses ont les CPR les plus bas. La couleur CTR hérite du même défaut d'échelle."
-src/dashboard/views/meta_creatives.py::_render_funnel#1:
-  mq: M5
-  q: "Où se perdent les gens entre l'impression et le clic sortant ?"
-  decision: "Voir à quelle étape les gens décrochent, pour corriger la créa ou la page d'arrivée."
-  decision_en: "See at which step people drop off, to fix the creative or the landing page."
-  role: meta
-  d: 3
-  c: 2
+  d: 5
+  c: 4
   p: 4
-  v: corriger
-  owner_v: corriger
-  owner: "Quelle décision ? Toutes les étapes du funnel, streams compris, si non redondant."
-  cause: entonnoir-incoherent
-  note: "60 clics SORTANTS pour 48 clics — un entonnoir qui s'élargit. Définitions Meta à vérifier (clic lien vs clic)."
+  v: garder
+  note: "R557 (Y2, fiches 36, 38, 53) : un panneau par réglage, CPR en barres, le réglage à garder en vert, les valeurs trop minces (⚠️) en gris ; remplace le nuage dépense × CPR et les barres de la page algos."
+src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
+  mq: M3
+  q: "Où est passé l'argent, et à quel coût ?"
+  decision: "Voir les créas qui ont pris le plus de budget et leur CPR, pour couper celle qui coûte cher en prenant beaucoup."
+  decision_en: "See the creatives that took most of the budget and their CPR, to cut the one that is expensive while taking a lot."
+  role: meta
+  d: 4
+  c: 4
+  p: 4
+  v: garder
+  note: "R557 (fiche 41) : Pareto dépense par créa (barres) et CPR (ligne) ; remplace la carte de chaleur créa × semaine."
 src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   mq: M4
   q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
@@ -414,20 +409,6 @@ src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   owner: "Regrouper sur un même graphique, deux axes, légendes."
   cause: ctr-echelle
   note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
-src/dashboard/views/meta_creatives.py::_render_activity#1:
-  mq: M4
-  q: "Quelle créa a tourné quand ?"
-  decision: "Voir quelle créa a tourné quand, pour relier tes résultats à la bonne créa."
-  decision_en: "See which creative ran when, to tie your results to the right creative."
-  role: meta
-  d: 3
-  c: 4
-  p: 3
-  v: garder
-  owner_v: a-trancher
-  owner: "Je ne vois pas la plus-value ; garder seulement si unique."
-  cause: libelles-tronques
-  note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre le budget et les revenus (budget → impressions → clics → smart link → plateformes → écoutes → revenus) ?"
@@ -540,17 +521,6 @@ src/dashboard/views/trigger_algo/_tab_budget_roi.py::_show_tab_budget_roi#1:
   p: 4
   v: garder
   note: "R404 (V68) : une barre empilée dépensé / restant remplace quatre tuiles lues l'une après l'autre ; dessinée seulement si un budget à vie est alloué."
-src/dashboard/views/trigger_algo/_tab_reglages.py::_rendre_axe#1:
-  mq: M3
-  q: "Quel réglage de campagne coûte le moins cher par clic sur MON compte ?"
-  decision: "Savoir quel réglage garder sur ta prochaine campagne : le vert est celui qui coûte le moins par clic."
-  decision_en: "Know which setting to keep on your next campaign: green is the one with the lowest cost per click."
-  role: meta
-  d: 5
-  c: 4
-  p: 4
-  v: garder
-  note: "R404 (V68) : coût par clic par réglage, le réglage retenu en vert, les réglages fiables en orange, ceux à trop peu d'annonces (⚠️) en gris ; le tableau est replié dessous."
 src/dashboard/views/trigger_algo/_tab_reglages.py::_budget_declenchement#1:
   q: "Combien coûterait de déclencher chaque playlist ?"
   decision: "Voir l'ordre de grandeur du budget par playlist, pour choisir laquelle viser avec ta campagne."

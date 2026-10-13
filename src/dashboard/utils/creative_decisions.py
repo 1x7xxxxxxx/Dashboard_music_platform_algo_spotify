@@ -105,23 +105,6 @@ def by_creative(df: pd.DataFrame) -> pd.DataFrame:
     return out.drop(columns=["_ps", "_pr"])
 
 
-def add_quadrants(fig, d: pd.DataFrame) -> None:
-    """Median lines and the two quadrants that call for a decision (R246, fiche 32).
-
-    Owner, 2026-09-27: « je ne comprends pas quelle décision on peut prendre ». Above the
-    median spend, a creative is either CHEAP per result (push it) or EXPENSIVE (cut it);
-    below the median spend there is too little money behind it to judge either way."""
-    from src.dashboard.utils.i18n import t
-    ms, mc = float(d['total_spend'].median()), float(d['cpr'].median())
-    fig.add_vline(x=ms, line_dash="dot", line_color="rgba(120,120,120,0.6)")
-    fig.add_hline(y=mc, line_dash="dot", line_color="rgba(120,120,120,0.6)")
-    for text, y, colour in ((t("meta_creatives.q_push", "▶ À pousser : beaucoup dépensé, résultat pas cher"), 0.02, "#1e8b7a"),
-                            (t("meta_creatives.q_cut", "✂ À couper : beaucoup dépensé, résultat cher"), 0.98, "#ce0700")):
-        fig.add_annotation(xref="paper", yref="paper", x=0.99, y=y, xanchor="right",
-                           yanchor="bottom" if y < 0.5 else "top", showarrow=False,
-                           text=text, font=dict(size=11, color=colour))
-
-
 def render_creative_gain(creative: str, gains: dict) -> None:
     """Streams gained by ONE creative, beside its funnel — or why it cannot be said (R246)."""
     import streamlit as st

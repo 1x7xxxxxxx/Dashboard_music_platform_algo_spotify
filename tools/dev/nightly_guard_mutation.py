@@ -171,9 +171,6 @@ SEEN_RED: dict[str, str] = {
     "make schema-check-local":
         "2026-10-05 — R412 : trg_revision_s4a_song_timeline commenté dans la migration 096 "
         "→ exit 2, « a trigger present on one side only » (REQ-BRONZE-02)",
-    "tests/test_a_creative_funnel_never_widens.py":
-        "2026-09-27 — funnel_stages lit `total_results` (le résultat de l'objectif) comme "
-        "clics sortants → 3 rouges",
     "tests/test_a_roi_verdict_needs_a_crossing_and_enough_points.py":
         "2026-09-27 — MIN_FIT_POINTS 5 → 2 (un ajustement sur deux points) → 2 rouges ; "
         "2026-10-05 — R412 : MIN_FIT_POINTS 5 → 2 rejoué → 2 rouges",

@@ -34,116 +34,14 @@ n'est pas un enseignement, c'est la seule chose qu'on ait essayée.
 """
 from __future__ import annotations
 
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils import charts
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.semantic_colors import ATTENTION, BON, NEUTRE
+from src.dashboard.utils.semantic_colors import ATTENTION
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.ui import secondary_analyses
-
-from ._reglages import classer, recommandation
-
-# ⚠️ LES TROIS AXES LISENT `v_meta_ad_daily` (migration 138), plus la jointure
-# `meta_ads × meta_insights` sur `ad_id` SEUL. Celle-ci ne nommait le locataire que
-# sur la première table : le bac à sable (locataire 18) porte des copies des `ad_id`
-# du locataire 1, et leurs dépenses s'additionnaient — 6 168,70 € affichés pour
-# 3 087,82 € dépensés, mesuré le 2026-09-26. Les chiffres de production du docstring
-# ci-dessus ont été relevés AVANT ce correctif : les dépenses y sont gonflées par le
-# locataire copié ; les coûts par clic, dont dépense et clics gonflaient ensemble, à
-# peine (LISTEN_NOW : 0,1177 → 0,1177 €/clic sur cette base).
-# Classe : `a-join-that-multiplies-the-grain`.
-# Three literals, not one template: `tools/dev/gold_coverage.py` reads the view name
-# from each query's text, and a `.format()` hides it.
-_Q_AXE = {
-    "cta": """
-        SELECT call_to_action AS valeur, COUNT(DISTINCT ad_id) AS ads,
-               SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions
-          FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1
-    """,
-    "objectif": """
-        SELECT objective AS valeur, COUNT(DISTINCT ad_id) AS ads,
-               SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions
-          FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1
-    """,
-    "creative": """
-        SELECT title AS valeur, COUNT(DISTINCT ad_id) AS ads,
-               SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions
-          FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1
-    """,
-}
-
-_LIBELLES = {
-    "cta": ("👆 Le bouton d'appel à l'action", "Appel à l'action"),
-    "objectif": ("🎯 L'objectif de la campagne", "Objectif"),
-    "creative": ("🎨 Le titre de la créative", "Créative"),
-}
-
-
-def _lire_axe(db, artist_id: int, axe: str) -> pd.DataFrame:
-    try:
-        rows = db.fetch_query(_Q_AXE[axe], (artist_id,))
-    except Exception:                                    # noqa: BLE001
-        return pd.DataFrame()
-    colonnes = ["valeur", "ads", "depense", "clics", "impressions"]
-    return classer([dict(zip(colonnes, r)) for r in (rows or [])],
-                   _LIBELLES[axe][1])
-
-
-def _rendre_axe(titre: str, df: pd.DataFrame) -> dict | None:
-    st.markdown(f"**{titre}**")
-    if df.empty:
-        st.caption(t("trigger_algo.reg.axis_empty", "Pas encore de données sur cet axe."))
-        return None
-    reco = recommandation(df)
-    charts.plotly_chart(_figure_axe(df, reco), width="stretch")
-    if reco:
-        # ⚠️ L'espacement des milliers s'applique au NOMBRE, pas à la phrase.
-        # Le premier jet faisait `.format(...).replace(",", " ")` sur la chaîne
-        # entière : il remplaçait aussi la virgule de « …€ », soit… » et rendait
-        # « 0.2117 € pour « X »  soit 1.8 fois ».
-        st.success(t(
-            "trigger_algo.reg.reco",
-            "✅ **Garde « {retenir} »** — {cpc_min:.4f} € le clic contre "
-            "{cpc_max:.4f} € pour « {eviter} », soit **{facteur:.1f} fois moins cher**. "
-            "Mesuré sur {ads} annonces et {dep} €."
-        ).format(retenir=reco["retenir"], cpc_min=reco["cpc_min"],
-                 cpc_max=reco["cpc_max"], eviter=reco["eviter"],
-                 facteur=reco["facteur"], ads=reco["sur_ads"],
-                 dep=num(reco['sur_depense'], 0)))
-    else:
-        st.caption(t(
-            "trigger_algo.reg.no_reco",
-            "Pas de recommandation sur cet axe : il faut **deux** réglages comparés "
-            "sur assez d'annonces. Un seul essai n'est pas un enseignement."))
-    return reco
-
-
-def _figure_axe(df: pd.DataFrame, reco: dict | None):
-    """R404 (V68): the cost per click of each setting, the one to keep in green.
-
-    A thin setting (⚠️) is drawn grey: it is on the chart, never the lesson.
-    """
-    vu = df[df["cpc"].notna()]
-    retenir = reco["retenir"] if reco else None
-    couleurs = [BON if v == retenir else (ATTENTION if f else NEUTRE)
-                for v, f in zip(vu["valeur"], vu["fiable"])]
-    fig = go.Figure(go.Bar(
-        x=vu["cpc"], y=[v if f else f"{v} ⚠️" for v, f in zip(vu["valeur"], vu["fiable"])],
-        orientation="h", marker_color=couleurs,
-        text=[eur(v, 3) for v in vu["cpc"]], textposition="auto"))
-    fig.update_layout(height=max(160, 46 * len(vu) + 60), margin=dict(l=0, r=0, t=10, b=0),
-                      xaxis_title=t("trigger_algo.reg.col_cpc", "Coût / clic"),
-                      yaxis=dict(autorange="reversed"), showlegend=False)
-    return fig
 
 
 def _show_reglages(db, artist_id, track: str) -> None:
@@ -154,24 +52,15 @@ def _show_reglages(db, artist_id, track: str) -> None:
         st.info(t("trigger_algo.reg.admin", "Sélectionne un artiste."))
         return
 
+    # R557 (owner Y2, fiche 53) — the per-setting bars (button, objective, creative title)
+    # moved to the cross view's « 🧪 Tes meilleurs réglages », beside the hooks, countries,
+    # placements and ages: one tool answers « qu'est-ce que je change ? », not two.
     st.caption(t(
-        "trigger_algo.reg.intro",
-        "Tout ce qui se règle sur une campagne, classé par ce que ça change "
-        "RÉELLEMENT sur ton compte — pas par ce qu'on lit ailleurs. Un réglage "
-        "marqué ⚠️ repose sur trop peu d'annonces pour en tirer une leçon."))
-
-    recos = []
-    for axe, (titre, _nom) in _LIBELLES.items():
-        reco = _rendre_axe(titre, _lire_axe(db, artist_id, axe))
-        if reco:
-            recos.append(reco)
-        st.markdown("")
-
-    if recos:
-        gains = " · ".join(
-            f"**{r['retenir']}** (×{r['facteur']:.1f})" for r in recos)
-        st.info(t("trigger_algo.reg.summary",
-                  "📌 **À retenir, tous axes confondus** : {gains}").format(gains=gains))
+        "trigger_algo.reg.moved",
+        "Quel bouton, quel objectif, quelle créative, quel pays, quel âge : tout est "
+        "comparé au même endroit — **🔀 Vue croisée › Créatives › 🧪 Tes meilleurs "
+        "réglages**. Ici : combien dépenser pour déclencher les playlists, et ce que "
+        "ça te rapporte."))
 
     _budget_declenchement(db, artist_id, track)
     _retour_sur_investissement(db, artist_id)

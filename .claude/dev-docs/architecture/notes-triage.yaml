@@ -909,7 +909,7 @@
   priorite: P3
   preuve_statut: R213 (archive.md:329) — « 🔀 Tout mon funnel », onglet « Le parcours complet » (meta_x_spotify.py:835-847)
     ; nom choisi différent de la demande
-  preuve_ciblee: tests/test_a_creative_funnel_never_widens.py::test_the_measured_widening_row_now_nests
+  preuve_ciblee: tests/test_the_funnel_runs_from_budget_to_revenue.py::test_streams_are_never_a_share_of_the_platform_clicks
 - ligne: 127
   resume: 'Meta Ads : incohérence du funnel (643 vues LP pour 5 972 clics Spotify)'
   type: action-produit
@@ -918,7 +918,7 @@
   priorite: P2
   preuve_statut: meta_ads_overview.py:390-410 — lp_views et custom_conversions mesurent la même étape (91/91 jours
     incohérents) ; lp_views devient une note de qualité
-  preuve_ciblee: tests/test_a_creative_funnel_never_widens.py::test_a_goal_result_is_never_drawn_as_outbound_clicks
+  preuve_ciblee: tests/test_the_funnel_runs_from_budget_to_revenue.py::test_an_unmeasured_step_is_not_drawn_and_breaks_the_chain
 - ligne: 127
   resume: 'Meta Ads : lisibilité de « performance par campagne » et de la comparaison multi-métriques'
   type: action-produit
@@ -2732,7 +2732,7 @@
   statut: livré
   priorite: P3
   preuve_statut: src/dashboard/views/meta_creatives.py (onglet Classement, archive.md:4456)
-  preuve_ciblee: tests/test_a_creative_funnel_never_widens.py::test_one_creative_in_two_campaigns_is_summed_not_picked
+  preuve_ciblee: tests/test_the_best_settings_tool_ranks_every_setting.py::test_a_value_is_summed_across_its_rows
 - ligne: 519
   resume: Quelle créative génère réellement le plus de streams ?
   type: question
@@ -2740,7 +2740,7 @@
   statut: livré
   priorite: P3
   preuve_statut: archive.md:219 R233 + archive.md:121 R237 ; src/dashboard/utils/campaign_compare.py:109 creative_streams
-  preuve_ciblee: tests/test_a_creative_funnel_never_widens.py::test_a_goal_result_is_never_drawn_as_outbound_clicks
+  preuve_ciblee: tests/test_the_funnel_runs_from_budget_to_revenue.py::test_an_unmeasured_step_is_not_drawn_and_breaks_the_chain
 - ligne: 520
   resume: Quel placement Meta produit les meilleurs résultats downstream ?
   type: question

@@ -780,20 +780,6 @@ EN = {
     # ── 🎛️ Comment régler tes campagnes (2026-09-22) ────────────────────────
     "trigger_algo.reg.header": "🎛️ How to set up your campaigns",
     "trigger_algo.reg.admin": "Pick an artist.",
-    "trigger_algo.reg.intro": (
-        "Everything you can set on a campaign, ranked by what it ACTUALLY changes on "
-        "your account — not by what you read elsewhere. A setting flagged ⚠️ rests on "
-        "too few ads to draw a lesson from."),
-    "trigger_algo.reg.axis_empty": "No data on this axis yet.",
-    "trigger_algo.reg.col_cpc": "Cost / click",
-    "trigger_algo.reg.reco": (
-        "✅ **Keep « {retenir} »** — {cpc_min:.4f} € per click against {cpc_max:.4f} € "
-        "for « {eviter} », i.e. **{facteur:.1f} times cheaper**. Measured on {ads} ads "
-        "and {dep} €."),
-    "trigger_algo.reg.no_reco": (
-        "No recommendation on this axis: it takes **two** settings compared over "
-        "enough ads. A single try is not a lesson."),
-    "trigger_algo.reg.summary": "📌 **Worth keeping, across all axes**: {gains}",
     "trigger_algo.reg.budget_header": "💰 The budget to trigger each playlist",
     "trigger_algo.reg.budget_nopred": "No prediction for this track yet.",
     "trigger_algo.reg.budget_none": "No gate is waiting on extra streams for this track.",
@@ -841,4 +827,5 @@ EN = {
     "trigger_algo.titre.bar_axis": 'Progress toward the target',
     "trigger_algo.titre.cost_range": 'With Meta Ads, from the best to the average CPR',
     "trigger_algo.common.meta_cpr_axis": 'CPR € per outbound click',
+    'trigger_algo.reg.moved': 'Which button, which objective, which creative, which country, which age: everything is compared in one place — **🔀 Cross view › Creatives › 🧪 Your best settings**. Here: how much to spend to trigger the playlists, and what it pays back.',
 }

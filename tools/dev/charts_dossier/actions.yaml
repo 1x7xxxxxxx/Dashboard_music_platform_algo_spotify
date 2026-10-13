@@ -132,42 +132,18 @@ src/dashboard/views/meta_creatives.py::_render_hooks#1:
   - qui: moi
     texte: Juger le doublon avec 29, décision écrite ou retrait
     rid: R246
-src/dashboard/views/meta_creatives.py::_render_creative_timeline#1:
+src/dashboard/views/meta_creatives.py::_render_one_creative#1:
   valide: false
   actions:
   - qui: moi
     texte: Un seul graphique
     rid: R244
-src/dashboard/views/meta_creatives.py::_render_scatter#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Écrire la décision ou retirer
-    rid: R246
-src/dashboard/views/meta_creatives.py::_render_funnel#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Funnel complet jusqu'aux streams, décision écrite
-    rid: R246
 src/dashboard/views/meta_creatives.py::_render_fatigue#1:
   valide: false
   actions:
   - qui: moi
     texte: Un graphique à deux axes légendés
     rid: R244
-src/dashboard/views/meta_creatives.py::_render_activity#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Garder si aucune autre figure ne le dit, sinon retirer
-    rid: R246
-src/dashboard/views/meta_creatives.py::_render_activity#2:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Juger le doublon (filtre par créa)
-    rid: R246
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   valide: false
   actions:

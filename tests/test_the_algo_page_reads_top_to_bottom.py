@@ -72,8 +72,8 @@ def test_no_table_is_read_on_the_algo_page(page) -> None:
 
 # ── R404 (V61, V63, V68) ────────────────────────────────────────────────────
 # Mutations, 2026-10-05: `_pastilles` call dropped → RED; `MAX_TRACKS = 5` → RED;
-# the Groover rate table put back → RED; `_figure_axe` colouring the retained
-# setting NEUTRE → RED.
+# the Groover rate table put back → RED. (The settings chart moved to the cross view,
+# R557 — its guard is tests/test_the_best_settings_tool_ranks_every_setting.py.)
 
 def test_each_playlist_is_a_readable_pill(page) -> None:
     pills = [m.value for m in page.markdown if "-badge[" in m.value]
@@ -86,16 +86,3 @@ def test_the_trigger_values_compare_two_tracks() -> None:
     from src.dashboard.views.trigger_algo._release_targets import MAX_TRACKS
 
     assert MAX_TRACKS == 2, "V63: « 2 au lieu de 5 »"
-
-
-def test_the_settings_chart_greens_the_setting_to_keep() -> None:
-    import pandas as pd
-
-    from src.dashboard.utils.semantic_colors import BON
-    from src.dashboard.views.trigger_algo._tab_reglages import _figure_axe
-
-    df = pd.DataFrame({"valeur": ["LISTEN_NOW", "SANS"], "cpc": [0.12, 0.21],
-                       "fiable": [True, True]})
-    bar = _figure_axe(df, {"retenir": "LISTEN_NOW"}).data[0]
-    assert list(bar.marker.color) == [BON, bar.marker.color[1]]
-    assert bar.marker.color[1] != BON

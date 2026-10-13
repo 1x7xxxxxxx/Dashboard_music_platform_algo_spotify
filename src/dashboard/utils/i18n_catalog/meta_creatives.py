@@ -24,9 +24,7 @@ EN = {
         "({ref:.3f} €)"),
     "meta_creatives.nothing_to_cut": "No creative is drifting on a budget that matters.",
     "meta_creatives.section_ranking": "🏁 Your creatives, ranked",
-    "meta_creatives.section_hooks": "🎣 Which hook converts",
     "meta_creatives.section_fatigue": "🪫 Is the audience saturated?",
-    "meta_creatives.section_details": "🔬 Dig deeper",
     "meta_creatives.no_ranking": "No creative with any spend.",
     "meta_creatives.ranking_caption": (
         "Best on top, by the chosen step. A missing bar = no measured result, so no CPR — "
@@ -36,7 +34,6 @@ EN = {
         "Only the {n} highest-spending creatives are drawn; the collapsed table "
         "below holds them all."),
     "meta_creatives.table_expander": "🔢 The ranking down to the cent — table",
-    "meta_creatives.funnel_expander": "🔻 One creative's journey — detail",
     "meta_creatives.hook_cpr": "Cost per result (€)",
     "meta_creatives.hook_spend": "Spend it was judged on (€)",
     "meta_creatives.hooks_absent": (
@@ -50,7 +47,6 @@ EN = {
         "**Decision**: open your next creative with the cheapest hook — this chart compares "
         "hook FAMILIES, the ranking above compares creatives one by one."),
     "meta_creatives.rank_sort": "Sort by",
-    "meta_creatives.heatmap_decision": "What it is for: see which creatives ran AT THE SAME TIME. Two overlapping creatives share the track's streams — read their numbers together, never one without the other.",
     "meta_creatives.rank.cpr": "CPR (€)",
     "meta_creatives.rank.total_spend": "Spend (€)",
     "meta_creatives.rank.total_results": "Outbound clicks",
@@ -115,37 +111,32 @@ EN = {
     "meta_creatives.metric.ctr": "CTR (%)",
     "meta_creatives.metric.cpr": "CPR (€)",
     # Scatter
-    "meta_creatives.no_scatter": "No creative with a CPR (results) for this scatter.",
-    "meta_creatives.spend_eur": "Spend (€)",
-    "meta_creatives.avg_ctr_pct": "Avg CTR (%)",
-    "meta_creatives.impressions": "Impressions",
-    "meta_creatives.scatter_caption": (
-        "One bubble = one creative. Low = efficient CPR; size = impressions, colour = CTR. "
-        "Creatives without a result (no CPR) are not drawn. CPR counts CLICKS to the "
-        "platforms, not streams: « cut » means « expensive per click » — confirm it in "
-        "🔀 Cross view › My whole funnel › Compare my campaigns."),
-    "meta_creatives.q_push": "▶ Push: much spent, cheap result",
-    "meta_creatives.q_cut": "✂ Cut: much spent, expensive result",
     # Efficiency / funnel / fatigue / activity
     "meta_creatives.no_creative": "No creative.",
-    "meta_creatives.results": "Outbound clicks",
-    "meta_creatives.link_clicks": "Link clicks",
-    "meta_creatives.clicks_all": "Clicks (all types)",
-    "meta_creatives.funnel_thin": "Not enough measured stages to draw this creative's journey.",
-    "meta_creatives.funnel_campaigns": "Summed over {n} campaigns running this creative.",
     "meta_creatives.frequency": "Frequency",
     "meta_creatives.fatigue_caption": (
         "Rising frequency **and** falling CTR = saturated audience (fatigue) → refresh the creative."
     ),
-    "meta_creatives.no_spend_series": "No per-creative spend series.",
-    "meta_creatives.heatmap_title": "**🗓️ Spend per creative and per week**",
-    "meta_creatives.activity_expander": "🗓️ Creative activity (weekly spend) — detail",
-    "meta_creatives.scatter_expander": "🔬 CPR × spend scatter — detail",
     "meta_creatives.unit_cpr": "Cost per result (€)",
-    "meta_creatives.funnel_no_outbound": "No « outbound clicks » step for this creative: Meta returned them only at campaign grain; the ad grain carries them since 2026-09-27 and fills in at each collection.",
-    "meta_creatives.funnel_steps_note": "**Impressions**: times the ad was shown. **Link clicks**: clicks to the smart link (failing that, **all clicks**, likes and profile included). **Outbound clicks**: clicks leaving the smart link for a platform, sent back by Hypeddit. Each step is contained in the previous one.",
     "meta_creatives.col_outbound": "Platform clicks",
     "meta_creatives.col_cost_outbound": "€ / platform click",
     "meta_creatives.outbound_caption": "« Platform clicks »: clicks leaving the smart link for a platform, per creative ({m}/{n} measured). A creative without a measure shows « — »: Meta only returned this figure per campaign; it fills in creative by creative at the next full collection of your Meta account.",
     "meta_creatives.pair_caption": "Blue: « {a} » · orange: « {b} » · grey: a creative of both campaigns. CPR, CTR, CPM and CPC are costs and rates: they compare from one campaign to the other, whatever the budget.",
+    'meta_creatives.section_best': '🧪 Your best settings',
+    'meta_creatives.bs_creative': 'Creative',
+    'meta_creatives.bs_hook': 'Hook',
+    'meta_creatives.bs_country': 'Country',
+    'meta_creatives.bs_placement': 'Placement',
+    'meta_creatives.bs_platform': 'Platform',
+    'meta_creatives.bs_age': 'Age',
+    'meta_creatives.bs_cta': 'Call-to-action button (€/click)',
+    'meta_creatives.bs_objective': 'Objective (€/click)',
+    'meta_creatives.bs_empty': 'Not enough measured spend yet to compare your settings.',
+    'meta_creatives.hooks_expander': '🎣 Hooks in detail — cost and spend judged',
+    'meta_creatives.pareto_expander': '💶 Where the money went — spend and CPR per creative',
+    'meta_creatives.pareto_title': 'Spend per creative (bars) and its CPR (line)',
+    'meta_creatives.pareto_caption': 'The creatives that took the most money are on the left. A line rising to the right = creatives expensive per outbound click that ran little; a line high ON THE LEFT = money put on a creative that does not convert.',
+    'meta_creatives.compare_with': 'Compare with',
+    'meta_creatives.compare_none': '— none —',
+    'meta_creatives.tl_totals': '**Total spend** {spend} € · **Average CPR** {cpr}',
 }

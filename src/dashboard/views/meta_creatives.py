@@ -9,32 +9,40 @@ import re
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
 from src.dashboard.utils import charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_pair import pair_colors
-from src.dashboard.utils.campaign_funnel import funnel_stages  # R209: moved out, still importable from here
-from src.dashboard.utils.creative_decisions import _a_couper, add_quadrants, by_creative, render_creative_gain  # R233: moved out, still importable from here
+from src.dashboard.utils.creative_decisions import _a_couper, by_creative, render_creative_gain  # R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
 from src.dashboard.utils.date_format import format_date
 
-# All-creatives daily series (for the heatmap + cumulative-budget charts).
-# La jointure `meta_insights` x `meta_ads` vivait ici et dans deux autres requetes
-# de ce fichier. `v_meta_creative_daily` (migration 106) la porte — y compris son
-# `artist_id`, qu'il suffit d'oublier une fois pour melanger deux locataires.
-_QUERY_TS_ALL = """
-SELECT creative_name, day AS date, SUM(spend) AS spend
-FROM v_meta_creative_daily
-WHERE artist_id = %s{acct}
-GROUP BY creative_name, day
-ORDER BY day
-"""
+# R557 — the two settings the ad set holds and the breakdowns do not: button and objective.
+# Moved from the algo page's settings tab. `v_meta_ad_daily` carries no conversions, so these
+# are priced per AD click (said in the caption). Two literals, not one template:
+# `tools/dev/gold_coverage.py` reads the view name from each query's text.
+# Classe : `a-join-that-multiplies-the-grain` (the view names its tenant, migration 138).
+_Q_AXE = {
+    "cta": """
+        SELECT call_to_action AS valeur, COUNT(DISTINCT ad_id) AS ads,
+               SUM(spend) AS depense, SUM(clicks) AS clics,
+               SUM(impressions) AS impressions
+          FROM v_meta_ad_daily
+         WHERE artist_id = %s GROUP BY 1
+    """,
+    "objectif": """
+        SELECT objective AS valeur, COUNT(DISTINCT ad_id) AS ads,
+               SUM(spend) AS depense, SUM(clicks) AS clics,
+               SUM(impressions) AS impressions
+          FROM v_meta_ad_daily
+         WHERE artist_id = %s GROUP BY 1
+    """,
+}
 
 
 # Each metric gets its own Y-axis (scales differ wildly: € vs thousands of impressions).
@@ -500,18 +508,21 @@ def _render_hooks(df: pd.DataFrame) -> None:
     fig.update_layout(height=max(260, 46 * len(h) + 120),
                       margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
     fig.update_yaxes(automargin=True)
-    charts.plotly_chart(fig, width="stretch")
-
-    part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
-    st.caption(t(
-        "meta_creatives.hooks_caption",
-        "Le hook est lu dans le NOM que tu donnes à ta créative — Meta ne le "
-        "connaît pas. **{part:.0f} % de ta dépense** porte un hook nommé ; le "
-        "reste n'est pas classé ici. Un coût plus bas sur une dépense minuscule "
-        "n'est pas un verdict : c'est pourquoi le second cadre existe. **Décision** : "
-        "ouvre ta prochaine créa avec l'accroche la moins chère — ce graphique compare des "
-        "FAMILLES d'accroche, le classement au-dessus compare des créas une à une."
-    ).format(part=part))
+    # R557 — folded under the best-settings tool, whose « Accroche » panel gives the verdict;
+    # this figure keeps the spend each hook was judged on.
+    with secondary_analyses(t("meta_creatives.hooks_expander",
+                              "🎣 Le détail des accroches — coût et dépense jugée")):
+        charts.plotly_chart(fig, width="stretch")
+        part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
+        st.caption(t(
+            "meta_creatives.hooks_caption",
+            "Le hook est lu dans le NOM que tu donnes à ta créative — Meta ne le "
+            "connaît pas. **{part:.0f} % de ta dépense** porte un hook nommé ; le "
+            "reste n'est pas classé ici. Un coût plus bas sur une dépense minuscule "
+            "n'est pas un verdict : c'est pourquoi le second cadre existe. **Décision** : "
+            "ouvre ta prochaine créa avec l'accroche la moins chère — ce graphique compare des "
+            "FAMILLES d'accroche, le classement au-dessus compare des créas une à une."
+        ).format(part=part))
 
 
 def _render_table(df: pd.DataFrame) -> None:
@@ -706,9 +717,44 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
                   "Aucune créative avec des insights ad-level pour cette sélection."))
         return
 
-    creative = st.selectbox(t("meta_creatives.creative", "Créative"),
-                            names['ad_name'].tolist(), key="tl_creative")
+    # R557 (fiche 37) — two creatives side by side, each with its spend, its mean CPR and
+    # the streams it gained: « laquelle a mieux marché » is read across, not remembered.
+    pick, other = st.columns(2)
+    choices = names['ad_name'].tolist()
+    creative = pick.selectbox(t("meta_creatives.creative", "Créative"), choices,
+                              key="tl_creative")
+    none = t("meta_creatives.compare_none", "— aucune —")
+    second = other.selectbox(t("meta_creatives.compare_with", "Comparer avec"),
+                             [none, *[c for c in choices if c != creative]], key="tl_creative_b")
+    from src.dashboard.utils.campaign_compare import creative_gains
+    gains = creative_gains(db, artist_id, acct, acct_params)
+    if second == none:
+        _render_one_creative(db, artist_id, creative, selected_campaign, acct, acct_params,
+                             window, gains)
+        return
+    for col, name in zip(st.columns(2), (creative, second)):
+        with col:
+            _render_one_creative(db, artist_id, name, selected_campaign, acct, acct_params,
+                                 window, gains)
 
+
+def _creative_totals(tsf: pd.DataFrame, creative: str, gains: dict) -> None:
+    """The three numbers of fiche 37: spend, mean CPR (Σspend/Σresults), streams gained."""
+    from src.dashboard.utils.ratios import per
+    spend = float(pd.to_numeric(tsf['spend'], errors='coerce').sum())
+    res = float(pd.to_numeric(tsf['conversions'], errors='coerce').sum())
+    cpr = per(spend, res)
+    # One line, not two tiles: the timeline above is the figure, these are its totals.
+    st.markdown(t("meta_creatives.tl_totals",
+                  "**Dépense totale** {spend} € · **CPR moyen** {cpr}").format(
+        spend=num(spend, 2), cpr=f"{num(cpr, 3)} €" if cpr is not None else "—"))
+    render_creative_gain(creative, gains)
+
+
+def _render_one_creative(db, artist_id: int, creative: str, selected_campaign: str,
+                         acct: str, acct_params: tuple, window, gains: dict) -> None:
+    """The timeline of ONE creative and its totals — drawn once, or twice side by side."""
+    campaign_clause = "" if selected_campaign == "Toutes" else " AND campaign_name = %s"
     ts = db.fetch_df(
         _QUERY_TIMELINE.format(acct=acct, campaign_clause=campaign_clause),
         (artist_id, *acct_params, creative) if selected_campaign == "Toutes"
@@ -729,6 +775,8 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
         return
 
     tsf, partial_weeks, weekly = _prepare_timeline(tsf)
+    st.markdown(f"**{creative}**")
+    _creative_totals(tsf, creative, gains)
     granularity = (t("meta_creatives.granularity_weekly", "hebdomadaire") if weekly
                    else t("meta_creatives.granularity_daily", "journalière"))
 
@@ -797,100 +845,71 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
              d_from=format_date(d_from), d_to=format_date(d_to)))
 
 
-def _render_scatter(df: pd.DataFrame) -> None:
-    """#1 — bubble comparison: spend × CPR, size=impressions, color=CTR."""
-    with secondary_analyses(t("meta_creatives.scatter_expander",
-                              "🔬 Nuage CPR × dépense — détail")):
-        d = by_creative(df)   # R246 — one bubble per creative, like the ranking
-        for c in ('total_spend', 'cpr', 'total_impressions', 'avg_ctr'):
-            d[c] = pd.to_numeric(d[c], errors='coerce')
-        d = d.dropna(subset=['total_spend', 'cpr'])
-        if d.empty:
-            st.info(t("meta_creatives.no_scatter", "Aucune créative avec un CPR (résultats) pour ce scatter."))
-            return
-        fig = px.scatter(
-            d, x='total_spend', y='cpr', size='total_impressions', color='avg_ctr',
-            hover_name='creative_name', color_continuous_scale='Viridis', size_max=40,
-            labels={'total_spend': t("meta_creatives.spend_eur", "Dépense (€)"), 'cpr': 'CPR (€)',
-                    'avg_ctr': t("meta_creatives.avg_ctr_pct", "CTR moyen (%)"),
-                    'total_impressions': t("meta_creatives.impressions", "Impressions")},
-        )
-        fig.update_layout(height=460)
-        add_quadrants(fig, d)   # R246 (fiche 32) : la décision écrite sur le nuage
+def _render_best_settings(db, artist_id: int, bar, df: pd.DataFrame) -> None:
+    """R557 (owner Y2, fiches 36, 38, 53) — every setting the artist can change, one CPR panel
+    each, the one to keep in green. Replaces the spend × CPR cloud and the settings tab of
+    the algo page: the same question was answered three times, by eye each time.
+
+    The creative and hook panels follow the bar's period; country, placement, platform and
+    age come from Meta's breakdowns, which have no date (said in the caption)."""
+    from src.dashboard.utils import best_settings
+    from src.dashboard.views.meta_breakdowns import _breakdown_frame, _panel
+
+    acct, acct_params = bar.acct()
+    entity = ("campaign_name", bar.campaign) if bar.campaign else (None, None)
+    bd = _breakdown_frame(db, artist_id, "performance", "campaign", *entity, acct, acct_params)
+    # psycopg2 returns SUM() as Decimal (object dtype): `_panel` keeps only numeric columns
+    # when it folds placements into platforms, and would drop the spend.
+    for col in ("spend", "results"):
+        if col in bd:
+            bd[col] = pd.to_numeric(bd[col], errors="coerce")
+    hooks = _par_hook(df)
+    panels = [(t("meta_creatives.bs_creative", "Créative"),
+               best_settings.rank(by_creative(df), "creative_name", "total_spend",
+                                  "total_results")),
+              (t("meta_creatives.bs_hook", "Accroche"),
+               best_settings.rank(hooks, "hook", "total_spend", "total_results"))]
+    for panel, label in (("country", t("meta_creatives.bs_country", "Pays")),
+                         ("placement", t("meta_creatives.bs_placement", "Placement")),
+                         ("platform", t("meta_creatives.bs_platform", "Plateforme")),
+                         ("age", t("meta_creatives.bs_age", "Âge"))):
+        part = _panel(bd, panel) if not bd.empty else bd
+        panels.append((label, best_settings.rank(part, "dim_label")))
+    for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
+                       ("objectif", t("meta_creatives.bs_objective", "Objectif (€/clic)"))):
+        panels.append((label, best_settings.rank(
+            db.fetch_df(_Q_AXE[axe], (artist_id,)), "valeur", "depense", "clics")))
+    fig = best_settings.figure(panels)
+    if fig is None:
+        st.info(t("meta_creatives.bs_empty", "Pas encore assez de dépense mesurée pour "
+                  "comparer tes réglages."))
+        return
+    charts.plotly_chart(fig, width="stretch")
+    for line in best_settings.verdicts(panels):
+        st.markdown(f"- {line}")
+    st.caption(best_settings.caption())
+
+
+def _render_spend_pareto(df: pd.DataFrame) -> None:
+    """R557 (fiche 41) — where the money went, most spent first, its CPR on the line.
+
+    Replaces the creative × week heatmap: the owner could not read a decision in it."""
+    d = by_creative(df).rename(columns={"total_spend": "spend", "total_results": "results"})
+    fig = charts.pareto_spend_cpr(d, "creative_name",
+                           t("meta_creatives.pareto_title",
+                             "Dépense par créative (barres) et son CPR (ligne)"), top_n=15)
+    if fig is None:
+        return
+    fig.update_xaxes(automargin=True, tickangle=-35)
+    # Folded: the first screen holds five figures, and this one refines the ranking.
+    with secondary_analyses(t("meta_creatives.pareto_expander",
+                              "💶 Où est passé l'argent — dépense et CPR par créative")):
         charts.plotly_chart(fig, width="stretch")
-        st.caption(t("meta_creatives.scatter_caption",
-                     "Une bulle = une créative. Bas = CPR efficace ; taille = impressions, couleur = CTR. "
-                     "Les créatives sans résultat (CPR absent) ne sont pas tracées. Le CPR compte des "
-                     "CLICS vers les plateformes, pas des écoutes : « à couper » veut dire « cher par "
-                     "clic » — à confirmer dans 🔀 Vue croisée › Tout mon funnel › Comparer mes campagnes."))
-
-
-
-
-@st.fragment
-def _render_funnel(df: pd.DataFrame, gains: dict | None = None) -> None:
-    """L'entonnoir d'une créative — rejoué SEUL quand on en choisit une autre.
-
-    @st.fragment (R118, 2026-09-16) : bouger ce filtre ne rejoue QUE ce corps. Avant, il
-    rejouait tout le script — les SIX onglets, dont `st.tabs` exécute tous les corps, plus
-    la barre latérale. La mesure serveur du 2026-09-16 a montré que c'est la VUE qui pèse
-    (11-13 ms de chrome contre 50 à 777 ms de vue), donc c'est bien ici que le levier agit.
-
-    ⚠️ Cette fonction ne reçoit qu'un **DataFrame**, jamais la connexion : `show()` ferme
-    la sienne dès la fin du rendu complet, et un fragment se rejoue après. Garde :
-    `tests/test_a_fragment_never_captures_a_connection.py`.
-
-    (Docstring d'origine : #3 — Impressions → Clics → Résultats funnel for one creative.)
-    """
-    with secondary_analyses(t("meta_creatives.funnel_expander",
-                              "🔻 Le parcours d'une créative — détail")):
-        names = (df.dropna(subset=['creative_name'])
-                   .sort_values('creative_created', ascending=False, na_position='last')
-                   ['creative_name'].drop_duplicates().tolist())
-        if not names:
-            st.info(t("meta_creatives.no_creative", "Aucune créative."))
-            return
-        sel = st.selectbox(t("meta_creatives.creative", "Créative"), names, key="funnel_creative")
-        rows = df[df['creative_name'] == sel]
-        stages = funnel_stages(rows)
-        if len(stages) < 2:
-            st.info(t("meta_creatives.funnel_thin",
-                      "Pas assez d'étapes mesurées pour dessiner le parcours de cette créative."))
-            return
-        if rows['campaign_name'].nunique() > 1:
-            st.caption(t("meta_creatives.funnel_campaigns",
-                         "Somme sur {n} campagnes qui diffusent cette créative.").format(
-                             n=rows['campaign_name'].nunique()))
-        # Literal t() calls, so the i18n orphan sweep sees every key the stages use.
-        labels = {
-            "meta_creatives.impressions": t("meta_creatives.impressions", "Impressions"),
-            "meta_creatives.link_clicks": t("meta_creatives.link_clicks", "Clics sur le lien"),
-            "meta_creatives.clicks_all": t("meta_creatives.clicks_all", "Clics (tous types)"),
-            "meta_creatives.results": t("meta_creatives.results", "Clics sortants"),
-        }
-        fig = go.Figure(go.Funnel(
-            y=[labels[key] for key, _, _ in stages],
-            x=[v for _, _, v in stages],
-            textinfo="value+percent previous",
-            marker={'color': ['#1f77b4', '#2ca02c', '#ff6b35'][:len(stages)]},
-        ))
-        fig.update_layout(height=400)
-        fig.update_yaxes(automargin=True)       # R209: « s (tous types) » was cut at left
-        charts.plotly_chart(fig, width="stretch")
-        # R209 — the owner: « "corriger" n'était pas assez clair ». Say what each step
-        # counts, and why the outbound step can be missing.
-        render_creative_gain(sel, gains or {})
-        if not any(key == "meta_creatives.results" for key, _, _ in stages):
-            st.caption(t("meta_creatives.funnel_no_outbound",
-                         "Pas d'étape « clics sortants » pour cette créative : Meta ne les "
-                         "rendait qu'à la maille campagne ; la maille publicité les porte "
-                         "depuis le 2026-09-27 et se remplit à chaque collecte."))
-        st.caption(t("meta_creatives.funnel_steps_note",
-                     "**Impressions** : affichages de la pub. **Clics sur le lien** : clics "
-                     "vers le smart link (à défaut, **tous les clics**, likes et profil "
-                     "compris). **Clics sortants** : les clics qui quittent le smart link "
-                     "vers une plateforme, renvoyés par Hypeddit. Chaque étape est "
-                     "contenue dans la précédente."))
+        st.caption(t("meta_creatives.pareto_caption",
+                     "Les créatives qui ont pris le plus d'argent à gauche. Une ligne qui "
+                     "monte à droite = des créas chères par clic sortant qui ont peu tourné ; "
+                     "une ligne haute À GAUCHE = de l'argent mis sur une créa qui ne "
+                     "convertit pas."))
 
 
 @st.fragment
@@ -956,42 +975,10 @@ def _render_fatigue(db, artist_id: int, acct: str = "",
     fig.update_layout(hovermode="x unified", showlegend=False, height=420)
     charts.plotly_chart(charts.to_base100(fig)[0], width="stretch")   # R244 fiche 35 : UN repère
     st.caption(t("meta_creatives.fatigue_caption",
-                 "Fréquence qui monte **et** CTR qui baisse = audience saturée (fatigue) → renouveler la créative."))
-
-
-def _render_activity(ts_all: pd.DataFrame) -> None:
-    """#5 heatmap (creative × week) + #6 cumulative spend area."""
-    if ts_all is None or ts_all.empty:
-        st.info(t("meta_creatives.no_spend_series", "Aucune série de dépense par créative."))
-        return
-    d = ts_all.copy()
-    d['date'] = pd.to_datetime(d['date'])
-    d['spend'] = pd.to_numeric(d['spend'], errors='coerce').fillna(0.0)
-    d['week'] = d['date'].dt.to_period('W').dt.start_time
-
-    weekly = d.groupby(['creative_name', 'week'], as_index=False)['spend'].sum()
-    top = weekly.groupby('creative_name')['spend'].sum().nlargest(20).index
-    hm = weekly[weekly['creative_name'].isin(top)]
-    # Heatmap et cumul décrivent OÙ EST PASSÉ l'argent. C'est utile pour comprendre,
-    # jamais pour décider quoi faire de la prochaine créative — les graphiques de
-    # fatigue et de performance, plus haut, s'en chargent. Repliés ensemble.
-    with secondary_analyses(t("meta_creatives.activity_expander",
-                              "🗓️ Activité des créatives (dépense par semaine) — détail")):
-        st.markdown(t("meta_creatives.heatmap_title", "**🗓️ Dépense par créative et par semaine**"))
-        fig = px.density_heatmap(
-            hm, x='week', y='creative_name', z='spend', histfunc='sum',
-            color_continuous_scale='Oranges',
-            labels={'week': '', 'creative_name': '', 'spend': t("meta_creatives.spend_eur", "Dépense (€)")},
-        )
-        fig.update_layout(height=520)
-        charts.plotly_chart(fig, width="stretch")
-        # R246 (fiche 36) : la SEULE vue de quand chaque créa a tourné — lire les
-        # chevauchements avant de croire un chiffre par créa. Le cumul par créa (fiche 37)
-        # est retiré : le classement en tête de page porte déjà la dépense totale.
-        st.caption(t("meta_creatives.heatmap_decision",
-                     "À quoi ça sert : voir quelles créas ont tourné EN MÊME TEMPS. Deux "
-                     "créas qui se chevauchent se partagent les écoutes du titre — lis leurs "
-                     "chiffres ensemble, jamais l'une sans l'autre."))
+                 "**Fréquence** = combien de fois, en moyenne, une même personne a vu cette "
+                 "pub ce jour-là (impressions ÷ personnes touchées). Fréquence qui monte "
+                 "**et** CTR qui baisse = les mêmes gens revoient la pub et cliquent de moins "
+                 "en moins : l'audience est saturée → renouvelle la créative."))
 
 
 def show() -> None:
@@ -1064,7 +1051,8 @@ def _render_body(db, artist_id, bar) -> None:
     # qui ne fait que raffiner cette décision se replie elle-même.
     #
     # Reste donc à l'écran, dans cet ordre : la décision, le classement, les
-    # hooks, la fatigue, l'évolution. Cinq blocs, quatre figures.
+    # hooks, les meilleurs réglages, la fatigue, l'évolution — cinq figures ; la
+    # dépense par créative (R557) est repliée.
     _render_decision_banner(df)
     st.markdown("---")
 
@@ -1073,7 +1061,8 @@ def _render_body(db, artist_id, bar) -> None:
     _render_table(df)
 
     st.markdown("---")
-    st.subheader(t("meta_creatives.section_hooks", "🎣 Quelle accroche convertit"))
+    st.subheader(t("meta_creatives.section_best", "🧪 Tes meilleurs réglages"))
+    _render_best_settings(db, artist_id, bar, df)
     _render_hooks(df)
 
     st.markdown("---")
@@ -1082,11 +1071,4 @@ def _render_body(db, artist_id, bar) -> None:
 
     _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params, bar.window)
 
-    st.markdown("---")
-    st.subheader(t("meta_creatives.section_details", "🔬 Pour creuser"))
-    from src.dashboard.utils.campaign_compare import creative_gains
-    _render_funnel(df, creative_gains(db, artist_id, _acct_bare, _acct_params))   # R246 fiche 34
-    _render_scatter(df)
-    ts_all = db.fetch_df(_QUERY_TS_ALL.format(acct=_acct_ma),
-                         (artist_id, *_acct_params))
-    _render_activity(ts_all)
+    _render_spend_pareto(df)
