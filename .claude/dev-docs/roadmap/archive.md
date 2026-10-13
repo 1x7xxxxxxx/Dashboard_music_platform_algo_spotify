@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R558 — Audiences & Instagram (fiches 45, 33, 18, 19) : 45 en Pareto par €/écoute avec CPR ; 33… (livrée 2026-10-13)
+
+- [x] **R558 — Audiences & Instagram (fiches 45, 33, 18, 19) : 45 en Pareto par €/écoute avec CPR ; 33 commentaires/partages LISIBLES (mesuré : 39 et 8 contre 12 248 réactions — pas un défaut de collecte) ; 18 et 19 avec la dépense Meta en aire, l'engagement défini** (P3) ✅ (2026-10-13, 0d691888)
+  Mesuré par : Pareto trié ; aire Meta sur 2 figures Instagram
+  Livré 0d691888, CI verte (run 38427647870) : pays en Pareto €/écoute + ligne CPR (fiche 45), engagement en grille à échelle par colonne (fiche 33 — 39 commentaires et 8 partages n'étaient pas perdus, écrasés par 12 248 réactions), dépense Meta en aire derrière Instagram (fiches 18-19)
+  Commits : 0d691888 R558 : audiences et Instagram — pays classés par €/écoute avec la lign
+
 ## ✅ R557 — Créas & réglages (fiches 35, 36, 38, 37, 40, 41, 53) : outil « meilleurs réglages » — p… (livrée 2026-10-13)
 
 - [x] **R557 — Créas & réglages (fiches 35, 36, 38, 37, 40, 41, 53) : outil « meilleurs réglages » — pour chaque critère modifiable (créa, hook, objectif, placement, âge, pays, plateforme) la meilleure valeur par CPR, en barres, sans tableau ; fiche 37 deux créas côte à côte avec totaux (dépense, CPR moyen, streams) ; fiche 40 fréquence définie ; fiche 41 → Pareto dépense par créa + ligne de CPR ; fiche 53 absorbée par l'outil** (P3) ✅ (2026-10-13, 2a9a4308, 05e9103a)

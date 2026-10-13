@@ -4295,30 +4295,27 @@
   resume: 'Fiche 45 (€/écoute par pays) : ajouter le CPR, trier en Pareto sur €/écoute'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R558
+  preuve_statut: R558 (archivée) — 0d691888
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f18
   resume: 'Fiche 18 (communauté Instagram) : ajouter la dépense Meta en aire'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R558
+  preuve_statut: R558 (archivée) — 0d691888
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f19
   resume: 'Fiche 19 (mois les plus engageants) : définir l''engagement, ajouter la dépense Meta en aire'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R558
+  preuve_statut: R558 (archivée) — 0d691888
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f25
@@ -4336,10 +4333,9 @@
     contre 12 248 réactions) ; les rendre lisibles'
   type: action-produit
   domaine: cross-view
-  statut: ouvert
+  statut: livré
   priorite: P3
-  preuve_statut: —
-  roadmap: R558
+  preuve_statut: R558 (archivée) — 0d691888
 - ligne: 16
   source: revue/notes-vocales-2026-10-13.md
   note: Y2 II f34
