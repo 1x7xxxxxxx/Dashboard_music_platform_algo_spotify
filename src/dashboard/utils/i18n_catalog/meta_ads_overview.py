@@ -2,8 +2,6 @@
 
 EN = {
     "meta_ads_overview.one_campaign": "Only one campaign spent over the chosen period: widen the period to compare your campaigns.",
-    "meta_ads_overview.streams_day": "Spotify streams / day",
-    "meta_ads_overview.streams_axis": "Streams",
     "meta_ads_overview.scope_period": "**{spend} €** across **{campaigns}** "
                                       "campaign(s), from {start} to {end}.",
     "meta_ads_overview.scope_linked": " **{linked}** campaign(s) are linked to a track: "
@@ -58,32 +56,36 @@ EN = {
     "meta_ads_overview.perf.3": "CPM (€)",
     "meta_ads_overview.perf.4": "CPC (€)",
     "meta_ads_overview.perf.5": "CPR (€)",
-    "meta_ads_overview.waves_header": "🌊 How long the effect of an ad wave lasts",
-    "meta_ads_overview.waves_caption": "A WAVE groups the campaigns that overlap or follow each other within 28 days: separately, they cannot be told apart. A wave often coincides with a release: this is an association, not proof that the ad caused these streams.",
     "meta_ads_overview.engagement": "##### ❤️ Engagement",
     "meta_ads_overview.total_interactions": "⚡ Total Interactions",
-    "meta_ads_overview.spotify_clicks": "Hypeddit clicks",
-    "meta_ads_overview.spend_eur": "Spend (€)",
-    "meta_ads_overview.time_evolution": "⏳ Spend, clicks and cost — on one clock",
-    "meta_ads_overview.daily_dynamics": "Daily Dynamics",
     "meta_ads_overview.no_time_data": "No time-series data.",
     "meta_ads_overview.summary_table": "🗃️ Summary Table",
     # La figure fusionnée et la comparaison lisible (2026-09-21).
-    "meta_ads_overview.axis_volume": "Spend (€) · clicks",
     # R146 — la série nomme le clic sortant.
-    "meta_ads_overview.cpr_series": "CPR (€ per outbound click)",
     # R301 — the curve around each wave (R282 B).
-    "meta_ads_overview.curve_title": "Streams around each wave — how long the effect lasts",
-    "meta_ads_overview.curve_x": "days since the wave began (0 = first euro)",
-    "meta_ads_overview.curve_y": "streams / day (100 = the 28 days before)",
-    "meta_ads_overview.curve_caption": (
-        "100 = the average of the 28 days before the wave. A curve that rises BEFORE day 0 "
-        "is a release, not the ads. {d} wave(s) with no measured baseline (under 10 streams "
-        "a day before it) are not drawn: an index there would mean nothing."),
     # R350 — two campaigns on the day-0 clock.
     "meta_ads_overview.pair_head": "##### ⏱️ The two campaigns on the same clock",
     "meta_ads_overview.pair_caption": (
         "Day 0 = the first day each campaign spent. The whole life of each campaign, "
         "whatever the date filter; a pause day counts 0. The CPC is the cumulative spend "
         "divided by the cumulative clicks."),
+    # R555 — the one chronology and the effect of each campaign.
+    "meta_ads_overview.timeline_header": "📈 Everything on one clock — ads, streams, audience",
+    "meta_ads_overview.timeline_caption": (
+        "Click a series in the legend to show or hide it. The orange area is the Meta budget "
+        "spent each day (€ axis on the right): where it is, the ads were running. An "
+        "**outbound click** is a click on a button of your Hypeddit smart link towards a "
+        "streaming platform — the « result » Meta counts — and the **CPR** is the budget "
+        "divided by those clicks. Spotify flows are 7-day means; a day not imported stays a "
+        "gap."),
+    "meta_ads_overview.effect_header": "⏱️ How long the effect of each campaign lasts",
+    "meta_ads_overview.effect_caption": (
+        "One curve per campaign, set on its first euro (day 0). 100 = the average Spotify "
+        "streams of the 28 days before it; the curve tells how many days it stays above. A "
+        "curve that rises BEFORE day 0 is a release, not the ads. Two campaigns running at "
+        "the same time share the same streams: an association, not proof that each caused "
+        "them. {d} campaign(s) with no measured baseline (under 10 streams a day before it) "
+        "are not drawn."),
+    "meta_ads_overview.effect_x": "days since the campaign's first euro",
+    "meta_ads_overview.effect_y": "streams / day (100 = the 28 days before)",
 }

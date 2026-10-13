@@ -566,8 +566,9 @@ def test_the_fixed_sites_did_not_come_back() -> None:
     # marqueur partagé par plusieurs sites ne garde aucun d'eux.
     fixed = {
         # fichier -> (ce qu'on compte dans l'arbre, combien de fois)
-        "src/dashboard/views/meta_x_spotify.py": ("connectgaps", 2),
-        "src/dashboard/views/meta_ads_overview.py": ("connectgaps", 2),
+        # R555 (2026-10-13) — the two campaign figures (meta_x_spotify, meta_ads_overview)
+        # became ONE chronology; its single trace loop carries the gap for every series.
+        "src/dashboard/utils/chronology.py": ("connectgaps", 1),
         # ⚠️ HYPEDDIT NE COMPTE PLUS `connectgaps` MAIS `min_count` — 2026-09-21.
         #
         # Le marqueur suit le MÉCANISME, et le mécanisme a changé avec la figure.

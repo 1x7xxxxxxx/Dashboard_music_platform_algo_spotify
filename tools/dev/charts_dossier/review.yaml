@@ -79,16 +79,6 @@ src/dashboard/views/apple_music.py::show#1:
   owner_v: garder
   owner: "W7 (2026-10-09) : les Shazams en graphique à droite du top 10, les totaux dans les titres."
   note: "Une figure, deux panneaux sur les mêmes lignes (R484) : un titre se lit une fois, les totaux sont dans les titres des panneaux. Remplace show#1 + show#2."
-src/dashboard/views/apple_music.py::render_shazam_launches#1:
-  q: "Ma dernière sortie se fait-elle Shazamer plus vite que la précédente ?"
-  decision: "Comparer deux sorties au même âge pour savoir si la dernière démarre mieux, et donc si sa promo marche."
-  decision_en: "Compare two releases at the same age to tell whether the latest starts faster, and so whether its promo works."
-  role: plateforme
-  d: 4
-  c: 4
-  p: 3
-  v: garder
-  note: "R351. Cumul depuis J0, jamais un « par jour » ; ancre J0 = 0 en point creux (pas une mesure). Peu de relevés : la courbe est faite de paliers entre exports."
 src/dashboard/views/soundcloud.py::_render_age_comparison#1:
   q: "Mes titres SoundCloud progressent-ils autant, à âge égal ?"
   decision: "Comparer tes titres au même âge, pour savoir lequel continue de gagner et mérite une relance."
@@ -315,10 +305,10 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   owner_v: garder
   owner: "On garde."
   note: "756 € pour 5 963 clics lien, CPR 0,22 € — six petits multiples lisibles."
-src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
-  q: "Combien de temps l'effet d'une vague de pub dure-t-il, donc quand la juger et quand relancer ?"
-  decision: "Voir combien de temps l'effet d'une vague dure, pour savoir quand juger une campagne et quand relancer."
-  decision_en: "See how long a wave's effect lasts, to know when to judge a campaign and when to relaunch."
+src/dashboard/views/meta_ads_overview.py::_render_effect_duration#1:
+  q: "Combien de temps dure l'effet de chaque campagne, donc quand la juger et quand relancer ?"
+  decision: "Voir combien de jours les écoutes restent au-dessus de leur niveau d'avant chaque campagne, pour savoir quand la juger et quand relancer."
+  decision_en: "See how many days streams stay above their pre-campaign level after each campaign, to know when to judge it and when to relaunch."
   role: meta
   mq: M4
   d: 4
@@ -326,11 +316,11 @@ src/dashboard/views/meta_ads_overview.py::_render_campaign_waves#1:
   p: 4
   v: garder
   note: "R301 (ta R282, proposition B, gardée sur ma reco) : regardée le 2026-09-28. Deux vagues tracées (02/04/24 et 27/06/24), la troisième écartée faute de base mesurée. La vague du 02/04/24 monte AVANT le jour 0 : c'est la sortie, pas la pub — la légende le dit. Premier rendu dans l'app en zig-zag (jours non triés par la requête) : corrigé dans event_study, garde muté rouge."
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
+src/dashboard/views/meta_ads_overview.py::_render_timeline#1:
   mq: M4
-  q: "Au jour le jour, la dépense produit-elle des clics, à quel coût ?"
-  decision: "Suivre au jour le jour si la dépense produit des clics à bon prix, pour couper ou pousser une campagne."
-  decision_en: "Follow day by day whether spend buys clicks at a good price, to cut or push a campaign."
+  q: "Au jour le jour, la pub a-t-elle amené des auditeurs, des écoutes et des clics, à quel coût ?"
+  decision: "Lire sur une seule horloge ce que le budget a produit (auditeurs, écoutes, sauvegardes, clics, Shazam) pour couper, relancer ou changer la créa."
+  decision_en: "Read on one clock what the budget produced (listeners, streams, saves, clicks, Shazam) to cut, relaunch or change the creative."
   role: meta
   d: 4
   c: 4
@@ -338,7 +328,7 @@ src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
   v: garder
   owner_v: corriger
   owner: "Ajouter les streams Spotify obtenus ; « clic Spotify » → « clic Hypeddit » ; le CPR c'est très bien."
-  note: "Dépense, clics et CPR sur la campagne : on voit les clics s'effondrer avec le budget le 20/09."
+  note: "R555 (Y2, fiches 42 + 43 + 29 fusionnées) : une figure, chaque série dans sa légende ; le budget en aire remplace les bandes « jours de pub »."
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   mq: M7
   q: "Pays, placement, plateforme, âge côte à côte : où l'euro rend-il le clic sortant le moins cher ? (R208 — ex-sélecteur de dimension)"
@@ -462,32 +452,6 @@ src/dashboard/views/meta_creatives.py::_render_activity#1:
   owner: "Je ne vois pas la plus-value ; garder seulement si unique."
   cause: libelles-tronques
   note: "Carte de chaleur lisible ; noms de créas coupés à gauche."
-src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
-  mq: M1
-  q: "Ma dernière pub m'a-t-elle amené des auditeurs ?"
-  decision: "Savoir si ta dernière pub a amené des auditeurs, pour décider de la reconduire."
-  decision_en: "Know whether your last ad brought listeners, to decide whether to renew it."
-  role: meta
-  d: 5
-  c: 5
-  p: 5
-  v: garder
-  owner_v: corriger
-  owner: "Très bien ; ajouter streams, abonnés, ajouts en playlist, sauvegardes, streams cumulés pendant les jours de pub."
-  note: "Refuse de conclure quand deux campagnes se chevauchent — c'est exactement ce que demande « corrélation n'est pas causalité » (Observability Engineering, p. 49)."
-src/dashboard/views/meta_x_spotify.py::_render_chart#1:
-  mq: M1
-  q: "Pendant la campagne, qu'ont fait budget, clics, streams (base 100) ?"
-  decision: "Voir si budget, clics et écoutes bougent ensemble pendant la campagne, pour juger son effet."
-  decision_en: "See whether budget, clicks and streams move together during the campaign, to judge its effect."
-  role: meta
-  d: 3
-  c: 4
-  p: 5
-  v: garder
-  owner_v: corriger
-  owner: "Couleurs trop proches (vert, bleu, pointillés), fouillis ; voir la redondance."
-  note: "Streams montent avec le budget puis retombent à ~150 (au-dessus de la base 100) — lisible, mais six séries en base 100."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre la pub et l'écoute (impressions → clics → Hypeddit → stores) ?"

@@ -90,12 +90,12 @@ src/dashboard/views/sacem.py::show#1:
 src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
   valide: true
   actions: []
-src/dashboard/views/meta_ads_overview.py::_show_meta_ads#1:
+src/dashboard/views/meta_ads_overview.py::_render_timeline#1:
   valide: false
   actions:
   - qui: moi
-    texte: Ajouter les streams, renommer en « clics Hypeddit »
-    rid: R246
+    texte: Fusionner les fiches 42, 43 et 29 en une chronologie
+    rid: R555
 src/dashboard/views/meta_breakdowns.py::_render_performance#1:
   valide: false
   actions:
@@ -174,18 +174,6 @@ src/dashboard/views/meta_creatives.py::_render_activity#2:
   - qui: moi
     texte: Juger le doublon (filtre par créa)
     rid: R246
-src/dashboard/views/meta_x_spotify.py::_render_listener_verdict#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Ajouter ces métriques d'impact
-    rid: R246
-src/dashboard/views/meta_x_spotify.py::_render_chart#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Palette distincte, moins de séries
-    rid: R243
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   valide: false
   actions:

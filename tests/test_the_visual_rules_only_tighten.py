@@ -138,10 +138,11 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
     # Dans les deux cas l'axe de droite est TEINTÉ de la couleur de sa seule
     # série : sans ça, deux échelles se lisent comme une, et c'est là que naît le
     # faux croisement.
-    "meta_ads_overview.py": (
-        3, "dépense (€) + clics (volumes) vs CPR (€/résultat, un PRIX) — deux "
-           "natures ; les trois cadres empilés d'avant faisaient 150 px chacun sur "
-           "une campagne de 31 jours, et aucune courbe ne s'y lisait"),
+    # R555 (2026-10-13, owner Y2) — fiches 29, 42, 43 merged into ONE chronology: the
+    # campaign view's own axis left with them (3 → 0), and the new figure carries ONE
+    # right axis, in EUROS (budget area + CPR) against the daily VOLUMES on the left —
+    # the volume/spend pair already admitted below, axis tinted in the budget's ink.
+    "chronology.py": (1, "volumes par jour (écoutes, auditeurs, clics, Shazams) vs budget Meta € / jour et CPR — la paire volume/dépense, axe teinté"),
     "meta_x_spotify.py": (
         3, "dépense (€) + écoutes (volumes) vs € par écoute (un PRIX) — deux "
            "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
@@ -157,11 +158,7 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
     # (a RATIO, right): the « volume vs price » pair already admitted three times.
     "instagram.py": (3, "posts du mois (volume) vs likes + commentaires par publication "
                         "(ratio) — deux natures, « publier plus ou mieux »"),
-    # R476 (owner W7, 2026-10-09 : « Shazam depuis la sortie + Meta → vue croisée ») — the
-    # Shazams gained since release (a VOLUME, left) vs the Meta spend per day (a SPEND,
-    # right): the pair admitted for spotify_s4a_combined since R436, same convention.
-    "apple_music.py": (3, "Shazams depuis la sortie (volume) vs dépense Meta € / jour — la "
-                          "paire volume/dépense déjà admise pour spotify_s4a_combined"),
+    # apple_music.py — its Shazam/spend axis left with fiche 6 (R555, 2026-10-13).
     "spotify_s4a_combined.py": (
         9, "(6 → 9 le 2026-10-07, R436 : la dépense Meta CUMULÉE (€) devient une aire à "
            "l'axe de droite de la figure des streams cumulés (écoutes) — un VOLUME contre "

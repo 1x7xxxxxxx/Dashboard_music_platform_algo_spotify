@@ -9,7 +9,7 @@ from src.dashboard.utils.platform_colors import platform_color
 from src.dashboard.utils.filters import account_clause
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
-from src.dashboard.utils.ratios import per, per_series
+from src.dashboard.utils.ratios import per
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.campaign_pair import day0_cumulative, render_day0
@@ -108,18 +108,109 @@ class Section:
 
 
 def _render_chrono(db, artist_id, bar: MetaFilters) -> None:
-    """📈 Chronologie — every reading that has a calendar: spend and clicks per day, the
-    streams around each wave, the releases at equal age, Shazam since release."""
-    from src.dashboard.views.apple_music import render_shazam_launches
+    """📈 Chronologie — R555: ONE figure on the calendar (fiches 42, 43, 29), then the
+    effect of each campaign (fiche 28) and the releases at equal age (fiches 2, 6): age is
+    another x axis, so it is another figure (ADR-033)."""
     from src.dashboard.views.spotify_s4a_combined import render_release_cohort
 
-    _show_meta_ads(db, artist_id, bar)
-    _render_campaign_waves(db, artist_id)
+    _render_timeline(db, artist_id, bar)
+    _render_effect_duration(db, artist_id)
     st.markdown("---")
     render_release_cohort(db, " AND artist_id = %s", (artist_id,), overlays=True,
                           key="cross_release_pick")
-    st.markdown("---")
-    render_shazam_launches(db, artist_id)
+
+
+def _render_timeline(db, artist_id, bar: MetaFilters) -> None:
+    """The one chronology (R555), with the verdict on the last campaign above it."""
+    import datetime as _dt
+
+    from src.dashboard.utils import chronology, meta_impact
+
+    st.subheader(t("meta_ads_overview.timeline_header",
+                   "📈 Tout sur une seule horloge — pub, écoutes, audience"))
+    scope_sql, scope_params, _ = _campaign_scope(bar)
+    frames = chronology.load(db, artist_id, scope_sql, scope_params)
+    camps = meta_impact.campaigns(frames["all_spend"])
+    aud = frames["audience"]
+    if camps and not aud.empty:
+        listeners = pd.Series(pd.to_numeric(aud["listeners"], errors="coerce").values,
+                              index=pd.to_datetime(aud["day"])).dropna()
+        st.markdown(f"**{meta_impact.verdict(listeners, camps, _dt.date.today()).text}**")
+    fig = chronology.figure(frames, chronology.default_range(frames, bar.window))
+    if fig is None:
+        st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
+        return
+    charts.plotly_chart(fig, width="stretch")
+    st.caption(t("meta_ads_overview.timeline_caption",
+                 "Clique une série dans la légende pour l'afficher ou la masquer. L'aire "
+                 "orange est le budget Meta dépensé chaque jour (axe € à droite) : là où elle "
+                 "est, la pub tournait. Un **clic sortant** est un clic sur un bouton de ton "
+                 "smart link Hypeddit vers une plateforme d'écoute — c'est le « résultat » "
+                 "que Meta compte, et le **CPR** est le budget divisé par ces clics. Les flux "
+                 "Spotify sont des moyennes sur 7 jours ; un jour non importé reste un trou."))
+
+
+def _render_effect_duration(db, artist_id) -> None:
+    """Fiche 28, redefined (R555): the streams around EACH campaign's first euro, one
+    curve per campaign — how long an effect lasts, hence when to judge and relaunch.
+
+    The owner did not read « vague de 2 / 3 campagnes » (2026-10-13): the grouping is
+    gone from the screen. Overlapping campaigns share the same days, so their curves
+    share the same streams — the caption says it, as an association, not a cause."""
+    fig, dropped = _effect_figure(db, artist_id)
+    if fig is None:
+        return
+    with secondary_analyses(t("meta_ads_overview.effect_header",
+                              "⏱️ Combien de temps dure l'effet de chaque campagne"),
+                            expanded=False):
+        charts.plotly_chart(fig, width="stretch")
+        st.caption(t(
+            "meta_ads_overview.effect_caption",
+            "Une courbe par campagne, calée sur son premier euro (jour 0). 100 = la moyenne "
+            "des écoutes Spotify des 28 jours avant elle ; la courbe dit combien de jours "
+            "elle reste au-dessus. Une courbe qui monte AVANT le jour 0 est une sortie, pas "
+            "la pub. Deux campagnes qui tournent en même temps partagent les mêmes écoutes : "
+            "c'est une association, pas la preuve que chacune les a causées. {d} campagne(s) "
+            "sans base mesurée (moins de 10 écoutes par jour avant elle) ne sont pas "
+            "tracées.").format(d=dropped))
+
+
+_EFFECT_SHOWN = 5   # the latest campaigns drawn on arrival; older ones wait in the legend
+
+
+def _effect_figure(db, artist_id) -> tuple[go.Figure | None, int]:
+    """(figure, campaigns left out) — `meta_impact.event_study`, one start per campaign."""
+    from src.dashboard.utils import meta_impact
+    from src.dashboard.utils.platform_colors import DISTINCT
+
+    spend = db.fetch_df("SELECT ad_account_id, campaign_name, day, spend FROM v_meta_daily "
+                        "WHERE artist_id = %s", (artist_id,))
+    streams = db.fetch_df("SELECT day, SUM(streams) AS streams FROM v_s4a_song_daily "
+                          "WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY day",
+                          (artist_id, "%1x7xxxxxxx%"))
+    if spend.empty or streams.empty:
+        return None, 0
+    series = streams.set_index(pd.to_datetime(streams["day"]))["streams"].astype(float)
+    camps = meta_impact.campaigns(spend)
+    es = meta_impact.event_study(
+        series, [(f"{c.name} · {format_date(c.start)}", c.start) for c in camps])
+    if es.empty:
+        return None, len(camps)
+    labels = list(dict.fromkeys(es["wave"]))
+    fig = go.Figure()
+    for i, lab in enumerate(labels):
+        g = es[es["wave"] == lab]
+        fig.add_trace(go.Scatter(
+            x=g["offset"], y=g["index"], mode="lines", name=lab,
+            visible=True if i >= len(labels) - _EFFECT_SHOWN else "legendonly",
+            line=dict(color=DISTINCT[i % len(DISTINCT)], width=2)))
+    fig.add_hline(y=100, line_dash="dot", line_color="#999")
+    fig.add_vline(x=0, line_dash="dash", line_color="#999")
+    fig.update_layout(
+        height=380,
+        xaxis_title=t("meta_ads_overview.effect_x", "jours depuis le premier euro de la campagne"),
+        yaxis_title=t("meta_ads_overview.effect_y", "écoutes / jour (100 = les 28 jours avant)"))
+    return fig, len(camps) - len(labels)
 
 
 def _render_funnel_section(db, artist_id, bar: MetaFilters) -> None:
@@ -294,92 +385,6 @@ _PERF_PANNEAUX = [
 ]
 
 
-def _waves_and_verdicts(db, artist_id) -> tuple[list, pd.Series | None]:
-    """([(wave, names, verdict)], the daily streams series) on Spotify STREAMS, oldest
-    first — gold reads only. The series also draws the curve around each wave (R301)."""
-    import datetime as _dt
-
-    from src.dashboard.utils import meta_impact
-    spend = db.fetch_df("SELECT ad_account_id, campaign_name, day, spend FROM v_meta_daily "
-                        "WHERE artist_id = %s", (artist_id,))
-    streams = db.fetch_df("SELECT day, SUM(streams) AS streams FROM v_s4a_song_daily "
-                          "WHERE artist_id = %s AND song NOT ILIKE %s GROUP BY day",
-                          (artist_id, "%1x7xxxxxxx%"))
-    if spend.empty or streams.empty:
-        return [], None
-    series = streams.set_index(pd.to_datetime(streams["day"]))["streams"].astype(float)
-    grouped = meta_impact.waves(meta_impact.campaigns(spend))
-    everyone = [w for w, _ in grouped]
-    today = _dt.date.today()
-    return [(w, names, meta_impact.verdict_for(w, everyone, series, today, meta_impact.STREAMS))
-            for w, names in grouped], series
-
-
-def _render_campaign_waves(db, artist_id) -> None:
-    """R301 — the streams around each WAVE of campaigns: how long an effect lasts, hence
-    when to judge a campaign and when to relaunch.
-
-    R554 (fiche 27, 2026-10-13): the bars per wave (budget, streams gained, € per stream)
-    left — the owner read them as a second chronology of the same waves. The curve keeps
-    the waves and the baseline of the listener verdict (`meta_impact`), one definition."""
-    rows, series = _waves_and_verdicts(db, artist_id)
-    curve = _wave_curves_figure(rows, series) if rows else None
-    if curve is None:
-        return
-    # Folded (the page's first-screen ceiling, Few): it refines the daily figure above.
-    with secondary_analyses(t("meta_ads_overview.waves_header",
-                              "🌊 Combien de temps l'effet d'une vague de pub dure"),
-                            expanded=False):
-        charts.plotly_chart(curve[0], width="stretch")
-        _curve_caption(curve[1])
-        st.caption(t("meta_ads_overview.waves_caption",
-                     "Une VAGUE regroupe les campagnes qui se chevauchent ou se suivent à moins "
-                     "de 28 jours : séparément, elles ne se distinguent pas. Une vague coïncide "
-                     "souvent avec une sortie : c'est une association, pas la preuve que la pub "
-                     "a causé ces écoutes."))
-
-
-def _wave_curves_figure(rows: list, series: pd.Series | None):
-    """R301 — the owner's R282, proposal B kept on my recommendation (2026-09-28): the
-    streams AROUND each wave, as an index (100 = the 28 days before it). The only figure
-    saying how long an effect lasts — hence when to judge a campaign and when to relaunch.
-
-    Same waves and same baseline floor as the listener verdict (`meta_impact.event_study`),
-    never a second definition. A curve that rises BEFORE day 0 is a release, not the ads.
-    Returns (figure, waves left out) or None; DRAWN by `_render_campaign_waves`, whose own
-    gold reads the layer scan can then follow (a figure fed an argument read as « — »)."""
-    from src.dashboard.utils import meta_impact
-    from src.dashboard.utils.platform_colors import DISTINCT
-    if series is None:
-        return None
-    es = meta_impact.event_study(
-        series, [(f"{format_date(w.start)} · {len(n)} camp.", w.start) for w, n, _ in rows])
-    if es.empty:
-        return None
-    fig = go.Figure()
-    for i, (lab, g) in enumerate(es.groupby("wave", sort=False)):
-        fig.add_trace(go.Scatter(x=g["offset"], y=g["index"], mode="lines", name=lab,
-                                 line=dict(color=DISTINCT[i % len(DISTINCT)], width=2)))
-    fig.add_hline(y=100, line_dash="dot", line_color="#999")
-    fig.add_vline(x=0, line_dash="dash", line_color="#999")
-    fig.update_layout(
-        height=380, title=t("meta_ads_overview.curve_title",
-                "Les écoutes autour de chaque vague — combien de temps l'effet dure"),
-        xaxis_title=t("meta_ads_overview.curve_x",
-                      "jours depuis le début de la vague (0 = premier euro)"),
-        yaxis_title=t("meta_ads_overview.curve_y", "écoutes / jour (100 = les 28 jours avant)"))
-    return fig, len(rows) - es["wave"].nunique()
-
-
-def _curve_caption(dropped: int) -> None:
-    st.caption(t(
-        "meta_ads_overview.curve_caption",
-        "100 = la moyenne des 28 jours avant la vague. Une courbe qui monte AVANT le jour 0 "
-        "est une sortie, pas la pub. {d} vague(s) sans base mesurée (moins de 10 écoutes par "
-        "jour avant elle) ne sont pas tracées : un indice n'y voudrait rien dire."
-    ).format(d=dropped))
-
-
 def _render_global_perf(df_perf: pd.DataFrame) -> None:
     """La performance globale, CAMPAGNE PAR CAMPAGNE — six cadres, une unité chacun.
 
@@ -514,25 +519,6 @@ def _summary_query(campaign_in: str) -> str:
 
 
 
-def _add_streams_row(fig, db, artist_id: int, days) -> None:
-    """Spotify streams per day of the whole artist, under the ad dynamics (R246, fiche 22).
-
-    `v_s4a_song_daily` without the CSV « Total » row; a day not exported stays a gap."""
-    if days is None or len(days) == 0:
-        return
-    rows = db.fetch_df(
-        "SELECT day, SUM(streams) AS streams FROM v_s4a_song_daily WHERE artist_id = %s "
-        "AND song NOT ILIKE '%%1x7xxxxxxx%%' AND day BETWEEN %s AND %s GROUP BY day ORDER BY day",
-        (artist_id, pd.Timestamp(min(days)).date(), pd.Timestamp(max(days)).date()))
-    if rows is None or rows.empty:
-        return
-    fig.add_trace(go.Scatter(
-        x=pd.to_datetime(rows['day']), y=pd.to_numeric(rows['streams'], errors='coerce'),
-        name=t("meta_ads_overview.streams_day", "Écoutes Spotify / jour"), mode='lines',
-        connectgaps=False, line=dict(color=platform_color("spotify"), width=2)), row=2, col=1)
-    fig.update_yaxes(title_text=t("meta_ads_overview.streams_axis", "Écoutes"), row=2, col=1)
-
-
 def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> None:
     """R350 — two campaigns at a comparable scale: each on ITS day 0 (first euro spent).
 
@@ -569,7 +555,7 @@ def _campaign_scope(bar: MetaFilters) -> tuple[str, tuple, list[str]]:
 
 def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
     """R554 — the totals per campaign, under the funnel: they answer « how much at each
-    step », the funnel's question, not « when » (they left `_show_meta_ads`)."""
+    step », the funnel's question, not « when » (they left the daily figure)."""
     _render_scope_notice(db, artist_id)
     _campaign_in, scope_params, selected_campaigns = _campaign_scope(bar)
     params = (artist_id, *scope_params)
@@ -634,107 +620,4 @@ def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
                 }, na_rep="—"),
                 width="stretch",
             )
-    st.markdown("---")
-
-
-def _show_meta_ads(db, artist_id, bar: MetaFilters):
-    """⏳ Spend, clicks and cost on one clock, with the streams under them (R246) — the
-    Chronologie's first figure since R554; the totals moved to `_render_campaign_totals`."""
-    _campaign_in, scope_params, _ = _campaign_scope(bar)
-    params = (artist_id, *scope_params)
-    st.subheader(t("meta_ads_overview.time_evolution",
-                   "⏳ Dépense, clics et coût — sur une seule horloge"))
-
-    # `v_meta_daily` (migration 106) porte cette maille — (locataire, compte,
-    # campagne, jour) — et dix surfaces la demandaient. Les colonnes gardent leurs
-    # noms d'affichage (`day_date`) par un alias : la figure en aval les lit.
-    query_day = (
-        "SELECT day AS day_date, SUM(spend) as spend, SUM(results) as results, "
-        "SUM(custom_conversions) as custom_conversions "
-        f"FROM v_meta_daily WHERE artist_id = %s{_campaign_in} "
-        "GROUP BY day ORDER BY day ASC"
-    )
-    df_day = db.fetch_df(query_day, params)
-
-    if not df_day.empty:
-        for c in ['spend', 'results', 'custom_conversions']:
-            df_day[c] = pd.to_numeric(df_day[c], errors='coerce')
-
-        # UN JOUR SANS LIGNE N'EST PAS UN JOUR À ZÉRO, ET IL N'EST PAS NON PLUS UNE
-        # LIGNE DROITE.
-        #
-        # `v_meta_daily` ne rend que les jours qui ont des lignes. Un jour manquant
-        # sortait donc de l'axe entièrement, et la courbe des clics le TRAVERSAIT en
-        # ligne droite — une interpolation que personne n'a mesurée, d'autant plus
-        # trompeuse que le lecteur y cherche l'effet d'une dépense. On réindexe sur
-        # le calendrier complet : le jour existe, sa valeur est `NaN`, la ligne s'y
-        # coupe (`connectgaps=False`) et la barre n'y dessine rien.
-        df_day['day_date'] = pd.to_datetime(df_day['day_date'])
-        df_day = (df_day.set_index('day_date')
-                  .reindex(pd.date_range(df_day['day_date'].min(),
-                                         df_day['day_date'].max(), freq='D'))
-                  .rename_axis('day_date').reset_index())
-
-        # LE CPR D'UN JOUR SANS CONVERSION EST INDÉFINI, PAS NUL. `fillna(0)` le
-        # traçait à 0 €, c'est-à-dire « ce jour-là les résultats étaient gratuits » —
-        # l'inverse de la vérité, qui est qu'il n'y en a pas eu. Le collecteur fait
-        # déjà ce choix pour les objectifs sans conversion (CPR NULL), et
-        # `meta_x_spotify` le documente : « No recompute — that would fabricate a
-        # CPR Meta hid. »
-        df_day['cpr'] = per_series(df_day['spend'], df_day['custom_conversions'])
-
-        # UN SEUL GRAPHIQUE — 2026-09-21, demandé : « essaye de tout mettre sur
-        # un même graphique ». Les trois cadres empilés avaient une bonne raison
-        # d'exister (trois unités, trois ordres de grandeur) et un vrai défaut :
-        # sur une campagne de 31 jours, chaque cadre faisait 150 px de haut et
-        # aucune des trois courbes ne se lisait.
-        #
-        # Ce qui rend la fusion honnête, et qui manquait à la version d'avant :
-        #
-        #   · la DÉPENSE et les CLICS partagent l'axe de GAUCHE — ce sont deux
-        #     volumes, comparables entre eux ;
-        #   · le CPR va seul à DROITE — c'est un PRIX, donc une autre nature.
-        #     C'est le seul cas que ce dépôt admet pour un double axe, et celui
-        #     que `charts.py` documente depuis le 2026-09-12 ;
-        #   · l'axe de droite est TEINTÉ de la couleur de sa seule série, sans
-        #     quoi deux échelles se lisent comme une.
-        #
-        # Un croisement reste visible à l'œil ; rien dans la figure ne le présente
-        # comme un évènement.
-        from plotly.subplots import make_subplots
-        _INK_SPEND, _INK_CLICKS, _INK_CPR = "#2a78d6", "#1baf7a", "#eda100"
-        # R246 (fiche 22) : les ÉCOUTES Spotify dans leur propre rangée, sur la même horloge
-        # — sur l'axe des clics elles écrasaient la série (même règle que le double axe).
-        fig_time = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28],
-                                 vertical_spacing=0.08,
-                                 specs=[[{"secondary_y": True}], [{}]])
-        fig_time.add_trace(go.Bar(
-            x=df_day['day_date'], y=df_day['spend'],
-            name=t("meta_ads_overview.spend_eur", "Dépenses (€)"),
-            marker_color=_INK_SPEND, opacity=0.55), row=1, col=1, secondary_y=False)
-        fig_time.add_trace(go.Scatter(
-            x=df_day['day_date'], y=df_day['custom_conversions'],
-            name=t("meta_ads_overview.spotify_clicks", "Clics Hypeddit"),   # R246 fiche 22 : le clic sortant passe par le smart link
-            mode='lines', connectgaps=False,
-            line=dict(color=_INK_CLICKS, width=2)), row=1, col=1, secondary_y=False)
-        fig_time.add_trace(go.Scatter(
-            x=df_day['day_date'], y=df_day['cpr'],
-            name=t("meta_ads_overview.cpr_series", "CPR (€/clic sortant)"),
-            mode='lines+markers', connectgaps=False,
-            line=dict(color=_INK_CPR, width=2, dash='dot'),
-            marker=dict(size=6)), row=1, col=1, secondary_y=True)
-        fig_time.update_yaxes(
-            title_text=t("meta_ads_overview.axis_volume", "Dépense (€) · clics"),
-            row=1, col=1, secondary_y=False)
-        fig_time.update_yaxes(
-            title_text="CPR (€)", showgrid=False, row=1, col=1, secondary_y=True,
-            title_font=dict(color=_INK_CPR), tickfont=dict(color=_INK_CPR))
-        _add_streams_row(fig_time, db, artist_id, df_day['day_date'])
-        fig_time.update_layout(
-            height=560, hovermode="x unified", barmode='overlay',
-            title=t("meta_ads_overview.daily_dynamics", "Dynamique Quotidienne"))
-        charts.plotly_chart(fig_time, width="stretch")
-    else:
-        st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
-
     st.markdown("---")

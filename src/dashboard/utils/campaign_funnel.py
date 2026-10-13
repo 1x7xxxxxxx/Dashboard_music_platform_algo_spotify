@@ -233,8 +233,8 @@ _AUDIENCE_FLOWS = (
 )
 
 
-def audience_flows(daily: pd.DataFrame) -> dict[str, pd.Series]:
-    """{label: 7-day mean per day} — every one a FLOW, never a cumul (fiche 38). Pure.
+def audience_flows(daily: pd.DataFrame) -> dict[str, tuple[str, pd.Series]]:
+    """{column: (label, 7-day mean per day)} — every one a FLOW, never a cumul (fiche 38). Pure.
 
     The owner asked for streams, subscribers, playlist adds, saves and cumulative streams
     next to the listeners. The cumul is left out on purpose: drawn beside daily flows on
@@ -253,16 +253,5 @@ def audience_flows(daily: pd.DataFrame) -> dict[str, pd.Series]:
         s = pd.to_numeric(d[col], errors="coerce").reindex(full)
         if level:
             s = s.diff()
-        out[t(f"campaign_funnel.flow_{col}", label)] = s.rolling(7, min_periods=4).mean()
+        out[col] = (t(f"campaign_funnel.flow_{col}", label), s.rolling(7, min_periods=4).mean())
     return out
-
-
-def add_audience_flows(fig, db, artist_id: int) -> None:
-    """The flows above, hidden by default (legend click), on the listeners' figure."""
-    import plotly.graph_objects as go
-    daily = db.fetch_df(
-        "SELECT day, streams, saves, playlist_adds, followers_level FROM v_s4a_audience_daily "
-        "WHERE artist_id = %s ORDER BY day", (artist_id,))
-    for label, serie in audience_flows(daily).items():
-        fig.add_trace(go.Scatter(x=serie.index, y=serie.values, mode="lines", name=label,
-                                 visible="legendonly", connectgaps=False, line=dict(width=1.5)))

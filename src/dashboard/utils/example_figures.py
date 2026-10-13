@@ -50,8 +50,7 @@ ILLUSTRATION_COUNTERPART: dict[str, dict] = {
     CAMPAIGN: {
         "cross_view": "partial",
         "counterparts": (
-            ("meta_ads_overview", "src/dashboard/views/meta_ads_overview.py", "_show_meta_ads"),
-            ("meta_ads_overview", "src/dashboard/views/meta_x_spotify.py", "_render_chart"),
+            ("meta_ads_overview", "src/dashboard/views/meta_ads_overview.py", "_render_timeline"),
         ),
         "gap": "streams, Meta €/jour, clics Hypeddit et CPR y sont ; la prévision des "
                "streams, la fenêtre Discover Weekly et le conseil « couper / relancer » non",

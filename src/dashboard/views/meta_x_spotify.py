@@ -81,7 +81,6 @@ from src.dashboard.utils.i18n import t
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
-    add_audience_flows,
     BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury, engagement_lift,
     shazam_stream_lag, step_texts, streams_gained,
 )
@@ -351,119 +350,6 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
                      "📸 **Instagram** : aucun relevé d'abonnés sur cette fenêtre."))
 
 
-# ── La figure : la COULEUR dit la plateforme, le TRAIT dit la série ────────────
-#
-# (colonne, libellé, plateforme, tiret, format du survol)
-#
-# Six séries, QUATRE teintes. C'est une contrainte mesurée, pas une préférence :
-# sept teintes attribuables sont impossibles dans cette palette (recherche
-# conjointe du 2026-09-21, détail dans `platform_colors`). Le tiret porte donc la
-# distinction À L'INTÉRIEUR d'une plateforme — et il la porte MIEUX qu'une teinte,
-# parce qu'un tiret survit à la deutéranopie.
-_SHOWN_FIRST = {"results", "streams", "hypeddit_visits"}   # + the budget area (R243)
-_SERIES = [
-    # R146 — résidu dans un fichier par ailleurs corrigé le 2026-09-21 : la page
-    # porte la meilleure info-bulle du dépôt sur ce sujet (tuile « Coût par
-    # stream ») et sa propre légende de figure disait encore « Résultats ».
-    ("results",         "Clics sortants",       "meta",     None,     ",.0f"),
-    ("impressions",     "Impressions",          "meta",     "dashdot", ",.0f"),
-    ("reach",           "Couverture (personnes)", "meta",   "longdash", ",.0f"),
-    ("cpr_display",     "CPR (€/clic sortant)", "meta",     "dot",    ",.2f"),
-    ("streams",         "Streams / jour",       "spotify",  None,     ",.0f"),
-    ("popularity",      "Indice de popularité", "spotify",  "dot",    ",.0f"),
-    ("hypeddit_visits", "Visites Hypeddit",     "hypeddit", None,     ",.0f"),
-    ("hypeddit_clicks", "Clics vers les stores", "hypeddit", "dash",  ",.0f"),
-    # R213 (lot e) — Apple is a series of CUMULATIVE snapshots; only a gap of ONE day
-    # between two readings is a daily quantity (`v_apple_song_daily.days_since_previous`).
-    ("apple_plays",     "Écoutes Apple / jour", "apple",    None,     ",.0f"),
-    ("apple_shazams",   "Shazams / jour",       "apple",    "dot",    ",.0f"),
-]
-
-
-def _index100(master: pd.DataFrame, col: str):
-    """(série indexée à 100, série brute) ou (None, None) si aucune base positive."""
-    if col not in master.columns:
-        return None, None
-    raw = pd.to_numeric(master[col], errors="coerce")
-    positive = raw[raw > 0]
-    if positive.empty:
-        return None, None
-    return raw / positive.iloc[0] * 100, raw
-
-
-def _render_chart(master: pd.DataFrame, campaign: str) -> None:
-    pal = _palette()
-    fig = go.Figure()
-
-    # Le budget en AIRE PÂLE — un contexte, pas une série qu'on lit point à point.
-    idx, raw = _index100(master, "spend")
-    if idx is not None:
-        r, g, b = (int(pal["meta"].lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-        fig.add_trace(go.Scatter(
-            x=master["date"], y=idx, mode="lines", connectgaps=False,
-            name=t("meta_x_spotify.budget_eur", "Budget (€)"),
-            line=dict(color=pal["meta"], width=0), fill="tozeroy",
-            fillcolor=f"rgba({r},{g},{b},0.13)", customdata=raw,
-            hovertemplate=t("meta_x_spotify.budget_hover",
-                            "Budget : %{customdata:,.2f} €<extra></extra>")))
-
-    for col, default_label, platform, dash, fmt in _SERIES:
-        idx, raw = _index100(master, col)
-        if idx is None:
-            continue
-        label = t(f"meta_x_spotify.series_{col}", default_label)
-        fig.add_trace(go.Scatter(
-            x=master["date"], y=idx, mode="lines", connectgaps=False,
-            name=label, customdata=raw,
-            line=dict(color=pal[platform], width=2, dash=dash),
-            # R243 (fiche 39 « fouillis ») : le cœur du funnel visible, le reste à un clic.
-            visible=True if col in _SHOWN_FIRST else "legendonly",
-            hovertemplate=f"{label} : %{{customdata:{fmt}}} (idx %{{y:.0f}})<extra></extra>"))
-
-    # LE JOUR OÙ LA DÉPENSE S'ARRÊTE — la question « ça tient après ? » se lisait
-    # jusqu'ici en comparant deux courbes à l'œil, sans repère.
-    last_spend = _last_spend_day(master)
-    if last_spend is not None:
-        # ⚠️ PAS `add_vline`. Son assistant d'annotation fait la MOYENNE des
-        # bornes en x pour placer le texte, et cette moyenne est une addition
-        # d'horodatages : « Addition/subtraction of integers and integer-arrays
-        # with Timestamp is no longer supported » (levé au premier rendu,
-        # 2026-09-21, plotly 6 / pandas 2). La forme d'avant — une ligne et une
-        # annotation posées séparément — ne calcule rien sur les dates.
-        x = last_spend.isoformat()
-        fig.add_shape(type="line", xref="x", yref="paper", x0=x, x1=x, y0=0, y1=1,
-                      line=dict(color=pal["meta"], width=1.5, dash="dash"))
-        fig.add_annotation(x=x, xref="x", y=1.0, yref="paper", yanchor="bottom",
-                           showarrow=False, font=dict(color=pal["meta"], size=11),
-                           text=t("meta_x_spotify.spend_ends", "fin de la dépense"))
-
-    fig.update_layout(
-        height=560, hovermode="x unified", showlegend=True, separators=", ",
-        title_text=t("meta_x_spotify.chart_title",
-                     "Analyse détaillée : {campaign}").format(campaign=campaign),
-        xaxis=dict(title=t("common.date", "Date"), type="date"),
-        yaxis=dict(title=t("meta_x_spotify.index_axis",
-                           "Indice (base 100 = début de période)"), rangemode="tozero"))
-    fig.add_hline(y=100, line_dash="dot", line_color="rgba(128,128,128,0.35)",
-                  annotation_text="base 100", annotation_position="top left")
-    charts.plotly_chart(fig, width="stretch")
-
-    st.caption(t("meta_x_spotify.index_caption",
-                 "Séries indexées (base 100 = 1ᵉʳ jour non nul de la période) : c'est "
-                 "ce qui permet de comparer des €, des écoutes et un indice 0-100 sur "
-                 "un seul axe. Valeurs absolues au survol. **La couleur dit la "
-                 "plateforme** — Meta en bleu, Spotify en vert, Hypeddit en cyan — "
-                 "**et le trait dit la série** : un trait se distingue encore quand on "
-                 "ne distingue pas les couleurs."))
-
-
-def _last_spend_day(master: pd.DataFrame):
-    if "spend" not in master.columns:
-        return None
-    spent = master[pd.to_numeric(master["spend"], errors="coerce").fillna(0) > 0]
-    return None if spent.empty else spent["date"].max()
-
-
 def _render_shazam_lag(master: pd.DataFrame) -> None:
     """R235 — do Shazams turn into streams, and after how long? Said in one line."""
     if "apple_shazams" not in master.columns:
@@ -636,102 +522,6 @@ def _merge(frames: list) -> pd.DataFrame:
     return master
 
 
-# The inks of the listener-verdict figure, moved with it from the Spotify page (R195):
-# the same two colours an artist already learned there for listeners and ad days.
-_VERDICT_LISTENER_INK = "#7C4DFF"
-_VERDICT_AD_INK = "#FF6D00"
-
-
-def _render_listener_verdict(db, artist_id) -> None:
-    """📣 La pub t'a-t-elle amené des auditeurs ? — R187, 2026-09-26.
-
-    Remplace « auditeurs-jour », qui montrait trois séries et ne tranchait rien : le
-    propriétaire ne voyait pas quelle décision en tirer. Celle-ci en porte UNE — relancer,
-    couper ou changer la créa — en posant les jours de dépense Meta (bandes) sur la courbe des
-    auditeurs par jour (moyenne 7 j), et en écrivant le verdict de la dernière campagne dans
-    le titre. Le verdict est calculé par `meta_impact.verdict`, qui REFUSE de conclure quand
-    la donnée ne le permet pas (campagne en cours, trop peu de jours mesurés, campagnes qui se
-    chevauchent, hausse dans le bruit) — code-critic l'a exigé : le chiffre se lit comme un
-    jugement sur la pub.
-
-    Déménagée le 2026-09-26 (R195) de la page Spotify vers celle-ci, à la demande du
-    propriétaire : c'est une question sur la PUB, et c'est ici qu'on vient la poser. Elle
-    juge la DERNIÈRE campagne de tous les comptes — pas celle choisie plus bas — parce que
-    deux campagnes qui se chevauchent, quel que soit leur compte, ne se séparent pas : elle
-    vit donc AU-DESSUS du sélecteur, et son titre le dit.
-    """
-    from src.dashboard.utils import meta_impact
-
-    st.subheader(t("meta_x_spotify.meta_impact_header",
-                   "📣 Ta dernière pub t'a-t-elle amené des auditeurs ?"))
-    aud = _df(db, """
-        SELECT day, SUM(listeners) AS listeners FROM v_s4a_audience_daily
-         WHERE listeners IS NOT NULL AND artist_id = %s
-         GROUP BY day ORDER BY day
-    """, (artist_id,))
-    spend = _df(db, """
-        SELECT ad_account_id, campaign_name, day, SUM(spend) AS spend
-          FROM v_meta_daily
-         WHERE spend > 0 AND artist_id = %s
-         GROUP BY ad_account_id, campaign_name, day
-         ORDER BY day
-    """, (artist_id,))
-    camps = meta_impact.campaigns(spend)
-    if not camps:
-        st.info(t("meta_x_spotify.verdict_no_campaign",
-                  "Aucune campagne Meta avec dépense : cette figure juge l'effet d'une pub "
-                  "sur tes auditeurs dès qu'une campagne a tourné."))
-        return
-    if aud.empty:
-        st.info(t("meta_x_spotify.no_audience",
-                  "Aucun rapport d'audience importé. Il s'importe depuis "
-                  "**📂 Ajouter mes chiffres Spotify for Artists & Apple**."))
-        return
-
-    aud = aud.copy()
-    aud["day"] = pd.to_datetime(aud["day"])
-    listeners = aud.set_index("day")["listeners"].astype(float)
-    v = meta_impact.verdict(listeners, camps, _dt.date.today())
-
-    # Les jours NON mesurés restent des trous (reindex → NaN, `connectgaps=False`) : une
-    # moyenne glissante qui enjamberait un import manquant dessinerait une tendance inventée.
-    full = listeners.reindex(pd.date_range(listeners.index.min(), listeners.index.max()))
-    smooth = full.rolling(7, min_periods=4).mean()
-    last = camps[-1]
-    x0 = max(pd.Timestamp(last.start) - pd.Timedelta(days=60), full.index.min())
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=smooth.index, y=smooth.values, mode="lines", connectgaps=False,
-        name=t("meta_x_spotify.listeners_7d", "Auditeurs / jour (moyenne 7 j)"),
-        line=dict(color=_VERDICT_LISTENER_INK, width=2.5)))
-    # Les bandes ne portent PAS de texte : deux campagnes voisines superposaient leurs noms
-    # (vu à l'écran le 2026-09-26). Le nom et la dépense sont dans le verdict ; la bande
-    # a son entrée de légende, portée par une trace vide — une forme sans donnée.
-    for c in camps:
-        fig.add_vrect(x0=pd.Timestamp(c.start), x1=pd.Timestamp(c.end) + pd.Timedelta(days=1),
-                      fillcolor=_VERDICT_AD_INK, opacity=0.14, line_width=0, layer="below")
-    fig.add_trace(go.Scatter(
-        x=[None], y=[None], mode="markers",
-        marker=dict(symbol="square", size=12, color=_VERDICT_AD_INK, opacity=0.35),
-        name=t("meta_x_spotify.ad_days", "Jours de pub Meta")))
-    add_audience_flows(fig, db, artist_id)   # R246 (fiche 38) : les autres effets, à un clic
-    # Le VERDICT au-dessus de la figure, en texte qui passe à la ligne : en titre Plotly il
-    # était coupé net sur une demi-largeur d'écran (vu à l'écran le 2026-09-26).
-    st.markdown(f"**{v.text}**")
-    fig.update_layout(
-        height=380,
-        hovermode="x unified", xaxis_range=[x0, full.index.max()],
-        yaxis_title=t("meta_x_spotify.listeners_axis", "Auditeurs / jour"),
-        # R536 : the legend's place is the door's (`charts.apply_defaults`) — inside the
-        # plot, top right, clear of the toolbar that R189 found it under at y=1.12.
-        margin=dict(t=70))
-    charts.plotly_chart(fig, width="stretch")
-    st.caption(t("meta_x_spotify.meta_impact_rule",
-                 "La bande (jours de pub) ne soulève pas la courbe ? La pub achète des clics, "
-                 "pas des auditeurs : coupe ou change la créa. Elle la soulève ? Compare le € "
-                 "par auditeur-jour gagné à ce que tu es prêt à payer — en dessous, relance."))
-
-
 def _show_body(db, artist_id, bar) -> None:
     """Le corps — la connexion est tenue par la page, les filtres par sa barre (R399)."""
     # Le compte et la campagne viennent de la barre : le même nom de campagne peut
@@ -783,7 +573,7 @@ def _show_body(db, artist_id, bar) -> None:
     # pertinentes ») — the four tabs are gone. This section tells ONE campaign's journey,
     # top to bottom; « par pays » moved to « Qui a vu tes pubs », « comparer mes
     # campagnes » to « Performance des campagnes » (ADR-032).
-    _render_chart(master, campaign)
+    # R555 — the index-100 journey (fiche 43) merged into the Chronologie's figure.
     _render_shazam_lag(master)
     _render_engagement(db, artist_id, d0, d1)
     _render_absences(absences, d0, d1)
@@ -801,10 +591,7 @@ def show():
 
 def render_funnel(db, artist_id, bar) -> None:
     """The funnel section of the cross view (R348), read through its filter bar (R399)."""
-    # En TÊTE, au-dessus du sélecteur de campagne (R195) : elle juge la dernière
-    # campagne de tous les comptes, pas celle qu'on choisit plus bas.
-    _render_listener_verdict(db, artist_id)
-    st.markdown("---")
+    # R555 — the listener verdict (fiche 42) moved to the Chronologie, above its one figure.
     _show_body(db, artist_id, bar)
 
 

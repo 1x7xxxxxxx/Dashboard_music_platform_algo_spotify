@@ -56,46 +56,11 @@ def _docstrings() -> set[int]:
     return out
 
 
-def _series_columns() -> list[str]:
-    """Les colonnes de `_SERIES`, lues dans l'AST — jamais importées.
-
-    Importer la vue tirerait Streamlit et la base ; on lit la déclaration.
-    """
-    for node in ast.walk(_tree()):
-        if not isinstance(node, ast.Assign):
-            continue
-        cibles = [t.id for t in node.targets if isinstance(t, ast.Name)]
-        if "_SERIES" not in cibles or not isinstance(node.value, ast.List):
-            continue
-        return [el.elts[0].value for el in node.value.elts
-                if isinstance(el, ast.Tuple) and isinstance(el.elts[0], ast.Constant)]
-    raise AssertionError("`_SERIES` est introuvable dans la vue")
-
-
-def test_the_series_declaration_is_readable_and_not_empty() -> None:
-    """NON-VACUITÉ. Tout ce fichier est paramétré par cette liste."""
-    cols = _series_columns()
-    assert len(cols) >= 6, (
-        f"{len(cols)} série(s) déclarée(s) — il y en avait 8 le 2026-09-21. Une "
-        "liste vide rendrait tous les cas ci-dessous vacants et verts.")
-
-
-@pytest.mark.parametrize("col", _series_columns())
-def test_every_plotted_series_is_named(col: str) -> None:
-    """Une série tracée sans libellé s'affiche avec sa clé brute en anglais.
-
-    La clé est construite en f-string (`t(f"meta_x_spotify.series_{col}")`), donc
-    le détecteur d'orphelines de `test_i18n_orphans` ne peut pas la rapprocher du
-    catalogue : ce test est la contrepartie qui empêche l'exemption de préfixe
-    d'ouvrir une porte sans contrôle.
-    """
-    import sys
-    sys.path.insert(0, str(_ROOT))
-    from src.dashboard.utils.i18n_catalog.meta_x_spotify import EN
-    cle = f"meta_x_spotify.series_{col}"
-    assert cle in EN, (
-        f"la série '{col}' s'affichera avec sa clé brute en anglais — ajoute "
-        f"'{cle}' au catalogue")
+# R555 (2026-10-13) — `_SERIES` and its chart left this view for the one chronology
+# (`src/dashboard/utils/chronology.py`). Each of its series is labelled by a literal
+# `t()` key there, which `test_i18n_orphans` and the missing-key guard both see: the
+# f-string exemption these two tests compensated for no longer exists.
+# Guard: tests/test_the_chronology_is_one_figure.py.
 
 
 # Les noms de colonne, par ORTHOGRAPHE. C'est la seule chose qui compte : la

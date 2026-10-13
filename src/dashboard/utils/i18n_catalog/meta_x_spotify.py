@@ -42,26 +42,6 @@ EN = {
     "meta_x_spotify.insta_none": "📸 **Instagram**: no follower reading over this window.",
 
     # The figure — one key per plotted column (built as t(f"…series_{col}"))
-    "meta_x_spotify.budget_eur": "Budget (€)",
-    "meta_x_spotify.budget_hover": "Budget: %{customdata:,.2f} €<extra></extra>",
-    "meta_x_spotify.series_results": "Results",
-    "meta_x_spotify.series_impressions": "Impressions",
-    "meta_x_spotify.series_reach": "Reach (people)",
-    "meta_x_spotify.series_cpr_display": "CPR (€)",
-    "meta_x_spotify.series_streams": "Streams / day",
-    "meta_x_spotify.series_popularity": "Popularity index",
-    "meta_x_spotify.series_hypeddit_visits": "Hypeddit visits",
-    "meta_x_spotify.series_hypeddit_clicks": "Clicks to stores",
-    "meta_x_spotify.spend_ends": "spend ends",
-    "meta_x_spotify.chart_title": "Detailed analysis: {campaign}",
-    "meta_x_spotify.index_axis": "Index (base 100 = start of window)",
-    "meta_x_spotify.index_caption": "Series indexed (base 100 = first non-zero day of the "
-                                    "window): that is what lets €, listens and a 0-100 "
-                                    "index share one axis. Absolute values on hover. "
-                                    "**Colour says the platform** — Meta blue, Spotify "
-                                    "green, Hypeddit cyan — **and the stroke says the "
-                                    "series**: a stroke is still telling when the colours "
-                                    "are not.",
 
     # What is NOT on the figure, and why
     "meta_x_spotify.absences_header": "ℹ️ What is not on the figure, and why ({n})",
@@ -125,15 +105,6 @@ EN = {
                                         "The left scale is **logarithmic** — without it, "
                                         "a country at 56,000 listens crushes every other.",
     # R195 — the listener verdict, moved from the Spotify page
-    "meta_x_spotify.ad_days": 'Meta ad days',
-    "meta_x_spotify.meta_impact_header": "📣 Did your latest ad bring you listeners?",
-    "meta_x_spotify.verdict_no_campaign": "No Meta campaign with spend: this chart judges an ad's effect on your listeners once a campaign has run.",
-    "meta_x_spotify.listeners_7d": 'Listeners / day (7-day average)',
-    "meta_x_spotify.listeners_axis": 'Listeners / day',
-    "meta_x_spotify.meta_impact_rule": 'The band (ad days) does not lift the curve? The ad buys clicks, not listeners: stop it or change the creative. It lifts it? Compare the € per listener-day gained with what you are willing to pay — below it, run it again.',
-    "meta_x_spotify.no_audience": "No audience report imported. Import it from "
-                                        "**📂 Add my Spotify for Artists & Apple "
-                                        "figures**.",
     "meta_x_spotify.f_kept": "{p} % of the previous step",
     "meta_x_spotify.f_cpm": "{c} € per 1,000",
     "meta_x_spotify.f_cost": "{c} € each",
@@ -141,8 +112,6 @@ EN = {
     "meta_x_spotify.funnel_gain_note": "🎧 **{g} streams gained** on Spotify over the window{cost} — compared with the average of the {n} days before ({b} streams/day). A rise that would have happened without the ad is counted too, and a stream is not a funnel step: one visitor streams many times.",
     "meta_x_spotify.funnel_gain_cost": ", i.e. **{c} €** per stream gained",
     "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",
-    "meta_x_spotify.series_apple_plays": "Apple plays / day",
-    "meta_x_spotify.series_apple_shazams": "Shazams / day",
     "meta_x_spotify.abs_apple_none": "🎎 **Apple Music / Shazam** — no Apple reading for this track (or no confirmed Apple link in **🔗 Cross-platform mapping**).",
     "meta_x_spotify.abs_apple_late": "🎎 **Apple Music / Shazam** — this track's Apple readings start on **{d}**, after this window.",
     "meta_x_spotify.abs_apple_sparse": "🎎 **Apple Music / Shazam** — readings exist over this window, but more than a day apart: a gap between two readings is not a daily quantity. Import the Apple export every campaign day for it to be drawn here.",

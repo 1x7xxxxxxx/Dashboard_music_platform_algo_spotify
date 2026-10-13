@@ -51,8 +51,8 @@ def test_the_five_sections_in_reading_order() -> None:
 
 def test_the_chronology_holds_every_reading_with_a_calendar() -> None:
     calls = _called(_function(VIEWS / "meta_ads_overview.py", SECTIONS["chrono"].render.__name__))
-    for name in ("_show_meta_ads", "_render_campaign_waves", "render_release_cohort",
-                 "render_shazam_launches"):
+    # R555 — one calendar figure, the effect per campaign, the releases at equal age.
+    for name in ("_render_timeline", "_render_effect_duration", "render_release_cohort"):
         assert name in calls, f"« {name} » is not in the chronology"
 
 
@@ -64,16 +64,16 @@ def test_the_funnel_section_holds_the_totals_and_the_comparison() -> None:
         assert name in calls, f"« {name} » is not in the funnel section"
 
 
-def test_the_waves_draw_the_curve_only() -> None:
-    """Fiche 27: one figure, the curve — the bars per wave are gone."""
-    calls = _called(_function(VIEWS / "meta_ads_overview.py", "_render_campaign_waves"))
+def test_the_effect_duration_draws_the_curve_only() -> None:
+    """Fiche 27: one figure, the curve — the bars per wave are gone (R555: per campaign)."""
+    calls = _called(_function(VIEWS / "meta_ads_overview.py", "_render_effect_duration"))
     assert calls.count("plotly_chart") == 1, calls
     assert "make_subplots" not in calls
 
 
 def test_the_daily_figure_no_longer_carries_the_targeting_ring() -> None:
-    """Fiche 30: the ring by optimisation goal left `_show_meta_ads`."""
-    calls = _called(_function(VIEWS / "meta_ads_overview.py", "_show_meta_ads"))
+    """Fiche 30: the ring by optimisation goal left the daily figure (R555: the timeline)."""
+    calls = _called(_function(VIEWS / "meta_ads_overview.py", "_render_timeline"))
     assert "spend_ring" not in calls
     assert calls.count("plotly_chart") == 1, calls
 

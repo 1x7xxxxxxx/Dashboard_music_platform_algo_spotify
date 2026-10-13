@@ -40,6 +40,8 @@ sys.path.insert(0, str(ROOT))
 _LECTEURS = (
     "src/dashboard/views/apple_music.py",
     "src/dashboard/utils/pdf_exporter/_collectors.py",
+    # R555 — the daily Shazams of the cross view's chronology.
+    "src/dashboard/utils/chronology.py",
 )
 
 
@@ -136,7 +138,7 @@ def test_a_span_difference_is_never_presented_as_a_daily_figure(rel: str) -> Non
     requetes = [c for c in _literaux(rel)
                 if "SELECT" in c.upper() and "FROM" in c.upper()]
     sql = "\n".join(requetes)
-    gain = re.search(r"LAG\s*\(\s*plays", sql) or "daily_plays" in sql
+    gain = re.search(r"LAG\s*\(\s*plays", sql) or re.search(r"daily_(plays|shazams)", sql)
     if not gain:
         pytest.skip(f"{rel} n'expose plus de gain Apple entre deux relevés")
 
@@ -160,6 +162,12 @@ def test_the_surface_actually_shows_the_span() -> None:
     fenêtres.
     """
     vue = ROOT / "src" / "dashboard" / "views" / "apple_music.py"
+    # R555 (2026-10-13) — the page's last gain figure (fiche 6) left: it reads cumulative
+    # levels only. The span is then nothing to show, exactly as the guard above skips.
+    sql = "\n".join(c for c in _literaux("src/dashboard/views/apple_music.py")
+                    if "SELECT" in c.upper() and "FROM" in c.upper())
+    if not (re.search(r"LAG\s*\(\s*plays", sql) or re.search(r"daily_(plays|shazams)", sql)):
+        pytest.skip("apple_music.py n'expose plus de gain Apple entre deux relevés")
     arbre = ast.parse(vue.read_text(encoding="utf-8"))
     docs = set()
     for n in ast.walk(arbre):

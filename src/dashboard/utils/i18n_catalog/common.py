@@ -22,7 +22,6 @@ EN = {
     "common.period": "Period",
     "common.year": "Year",
     "common.month": "Month",
-    "common.date": "Date",
     "common.artist": "Artist",
     "common.delete": "🗑️ Delete",
     "common.cancel": "Cancel",
