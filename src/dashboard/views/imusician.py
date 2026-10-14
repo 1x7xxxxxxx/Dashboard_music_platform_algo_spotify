@@ -37,12 +37,14 @@ def _roi_data_span(db, artist_id):
     """Return (min_date, max_date) spanning distributor revenue + Meta spend, or (None, None).
 
     The ROI filter is bounded to this so the default window always contains data —
-    a fixed "last 6 months" returned zero because Meta spend is historical.
+    a fixed "last 6 months" returned zero because Meta spend is historical. R566: the
+    months come from the NET ledger, like every euro on this page — the gross view has
+    no business here (`tests/test_the_money_has_one_definition.py`).
     """
     if artist_id is not None:
         rows = db.fetch_query(
             """SELECT MIN(d), MAX(d) FROM (
-                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_revenue WHERE artist_id = %s
+                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_cashflow WHERE artist_id = %s
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day WHERE artist_id = %s
                ) t""",
@@ -51,7 +53,7 @@ def _roi_data_span(db, artist_id):
     else:
         rows = db.fetch_query(
             """SELECT MIN(d), MAX(d) FROM (
-                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_revenue
+                   SELECT make_date(year, month, 1) AS d FROM v_artist_monthly_cashflow
                    UNION ALL
                    SELECT day_date::date FROM meta_insights_performance_day
                ) t"""
@@ -340,15 +342,6 @@ def render_break_even(db, artist_id: int) -> None:
         st.info(t("imusician.roi_empty_period",
                   "Aucune donnée de revenus ou dépenses sur cette période."))
         return
-    # R561 (owner, 2026-10-13 evening) — the point mort and the ROI regression are ONE
-    # figure now; the caption says how to read it before the reader has to guess.
-    st.caption(t("imusician.roi_read",
-                 "Chaque point est un mois : **à droite**, tout ce que tu as dépensé depuis "
-                 "le début (pub + coûts) ; **en haut**, tout ce qui t'est rentré (ventes + "
-                 "SACEM). La **diagonale** est le point mort : au-dessus, tu es rentré dans "
-                 "tes frais. En pointillé, la tendance prévue au rythme des 12 derniers mois "
-                 "— là où elle croise la diagonale, c'est la date du point mort. L'étoile : "
-                 "ce qu'ajouterait un titre qui entre dans Discover Weekly."))
     charts.plotly_chart(_break_even_chart(db, artist_id, cashflow, mensuel), width="stretch")
 
 

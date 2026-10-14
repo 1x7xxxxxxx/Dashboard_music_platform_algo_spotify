@@ -180,17 +180,6 @@ EN = {
     "trigger_algo.roi.possible_submissions_metric": "Possible submissions",
     "trigger_algo.roi.budget_insufficient": "Insufficient budget for one more submission.",
     "trigger_algo.roi.can_submit": "You can still submit to **{n}** curators on {platform}.",
-    "trigger_algo.roi.decision_none": (
-        "**Over {n} months, your revenue does not follow your ads** — the months you spent "
-        "more did not bring more. Judge your ads on the streams they bring (Meta tabs), "
-        "not on your sales."),
-    "trigger_algo.roi.decision_pays": (
-        "**Over {n} months, each euro of ads brought back about {k} € of revenue** — ads pay "
-        "for themselves in sales: you can raise them carefully."),
-    "trigger_algo.roi.decision_short": (
-        "**Over {n} months, each euro of ads only brought back about {k} € of revenue** — "
-        "they do not pay for themselves in sales: keep them for the streams they bring, or "
-        "lower them."),
     "trigger_algo.model.forecast_vs_recorded": (
         "📊 Volume forecast by the model and algorithm streams recorded"),
     "trigger_algo.model.no_recorded": (
@@ -219,12 +208,6 @@ EN = {
     "trigger_algo.model.verdict_close": (
         "**Same order of magnitude**: {p:.0f} forecast (median), {r:.0f} recorded across "
         "{n} tracks — the volume can be shown."),
-    "trigger_algo.roi.insufficient_data": (
-        "To tell whether ads sell month by month, at least {n} months are needed where "
-        "Meta Ads spend AND distributor revenue coexist."
-    ),
-    "trigger_algo.roi.scipy_unavailable": "scipy unavailable — regression disabled.",
-    "trigger_algo.roi.regression_unavailable": "ROI chart unavailable: {err}",
     # _common.py
     "trigger_algo.common.heuristic_mode": (
         "⚠️ **Heuristic mode** — no prediction for this track yet. The model's probabilities arrive at the next computation, late morning."),

@@ -375,8 +375,9 @@ SEEN_RED: dict[str, str] = {
     # every generic mutation: each mutated by hand on the defect it names, all bite.
     "tests/test_the_treasury_reads_in_green_and_red.py":
         "2026-10-14 — R563 : ramps swapped in `flux_shades` (revenue on the red ramp) → 1 "
-        "rouge ; `ascending=True` (biggest source lightest) → 1 rouge ; `share_of_total` "
-        "not divided by the whole (the circle no longer sums to 100) → 1 rouge",
+        "rouge ; `ascending=True` (biggest source lightest) → 1 rouge ; 2026-10-15 — R566 : the ROI colour condition inverted → 1 rouge ; the circle "
+        "back to `%{percent}` → 1 rouge ; marks reduced to (2,) → 1 rouge ; the « pas avant 50 "
+        "ans » branch unreachable → 1 rouge",
     "tests/test_every_euro_is_on_the_treasury_page.py":
         "2026-10-14 — R563 : `revenue_forecast` routed back to `views.trigger_algo` → 1 rouge ; "
         "`render_artist_money` call dropped from imusician → 1 rouge ; `render_ltv` without "

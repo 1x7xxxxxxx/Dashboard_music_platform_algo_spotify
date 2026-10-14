@@ -3,7 +3,7 @@ regression in ONE figure, the trigger chart said in words.
 
 Type: Guard
 Uses: src.dashboard.utils.treasury_chart (cashflow_figure, breakeven_figure),
-      src/dashboard/views/revenue_forecast.py (AST, trigger_paragraph)
+      src/dashboard/views/revenue_forecast.py (AST, render_artist_money)
 Depends on: nothing
 Persists in: nothing
 
@@ -52,14 +52,42 @@ def test_money_in_is_green_money_out_is_red_biggest_darkest() -> None:
         "the biggest outflow is not the darkest")
 
 
-def test_one_circle_beside_the_bars_sums_to_100_in_the_same_colours() -> None:
+def test_the_circle_says_each_source_in_euros_in_the_bars_colours() -> None:
+    # R566 (owner, 2026-10-15 : « le montant en euros et le nom, pas de pourcentage »)
     fig = cashflow_figure(_cashflow())
     (pie,) = [tr for tr in fig.data if tr.type == "pie"]
-    assert abs(sum(pie.values) - 100.0) < 1e-9, "the circle is not the whole of the money"
     bars = {tr.name: tr.marker.color for tr in fig.data if tr.type == "bar"}
     assert dict(zip(pie.labels, pie.marker.colors)) == bars, "the circle's shades are not the bars'"
     assert list(pie.labels)[:2] == ["iMusician", "SACEM"], "money in does not open the circle"
-    assert pie.values[0] == 100 * 90 / 300, pie.values
+    assert dict(zip(pie.labels, pie.values)) == {
+        "iMusician": 90.0, "SACEM": 15.0, "Publicité Meta": 150.0, "Distribution": 45.0}
+    assert "€" in pie.texttemplate and "percent" not in (pie.texttemplate + (pie.textinfo or ""))
+    assert "%" not in pie.title.text and "105" in pie.title.text, pie.title.text
+
+
+def test_the_title_says_revenue_green_spend_red_and_roi_by_its_sign() -> None:
+    from src.dashboard.utils.treasury_chart import (
+        BREAKEVEN_REVENUE as GREEN, BREAKEVEN_SPEND as RED, breakeven_title)
+    loss = breakeven_title(105.0, 195.0)
+    assert f"color:{GREEN}'>105 €" in loss and f"color:{RED}'>195 €" in loss, loss
+    assert f"color:{RED}'>-46 %" in loss, loss
+    gain = breakeven_title(300.0, 200.0)
+    assert f"color:{GREEN}'>+50 %" in gain, gain
+
+
+def test_the_projection_is_marked_at_2_10_30_and_50_years() -> None:
+    from src.dashboard.utils.treasury_chart import (
+        PROJECTION_CAP_MONTHS, breakeven_text, projection_marks)
+    assert PROJECTION_CAP_MONTHS == 600
+    marks = projection_marks(PROJECTION_CAP_MONTHS)
+    assert {i: m for i, m in enumerate(marks) if m} == {
+        24: "2 ans", 120: "10 ans", 360: "30 ans", 600: "50 ans"}
+    far = breakeven_text({"etat": "atteint", "mois": 900, "cumul": -500.0, "rythme": 0.5,
+                          "date": None})
+    assert "pas avant <b>50 ans</b>" in far and "plus de" not in far, far
+    mid = breakeven_text({"etat": "atteint", "mois": 120, "cumul": -500.0, "rythme": 4.0,
+                          "date": pd.Timestamp("2036-10-01")})
+    assert "≈ 10 ans" in mid and "10/2036" in mid, mid
 
 
 def _break_even() -> object:
@@ -73,7 +101,7 @@ def test_the_point_mort_is_the_diagonal_of_a_spend_by_revenue_plane() -> None:
     assert fig.layout.xaxis.type == "log" and fig.layout.yaxis.type == "log"
     (diag,) = [tr for tr in fig.data if tr.line.dash == "dash"]
     assert list(diag.x) == list(diag.y), "the break-even is not the line revenue = spend"
-    (path,) = [tr for tr in fig.data if tr.mode == "lines+markers+text"]
+    (path,) = [tr for tr in fig.data if tr.name == "Toi, mois après mois"]
     assert list(path.x) == [65.0, 130.0, 195.0], "x is not the spend cumulated"
     assert list(path.y) == [35.0, 70.0, 105.0], "y is not the revenue cumulated"
 
@@ -90,20 +118,21 @@ def _functions() -> dict[str, ast.FunctionDef]:
     return {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
 
 
-def test_the_trigger_and_the_fit_are_words_not_charts() -> None:
+def _i18n_keys_called(path: Path) -> set[str]:
+    """The keys a module passes to `t(...)` — its code, never its comments."""
+    return {c.args[0].value for c in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "t" and c.args
+            and isinstance(c.args[0], ast.Constant)}
+
+
+def test_the_page_is_read_from_its_figures_not_from_prose() -> None:
+    # R566 (owner, 2026-10-15 : « on doit comprendre par le graphique seul ») — the fit
+    # verdict, the trigger paragraph and the ledger table are gone, and stay gone
     fns = _functions()
-    assert "_render_trigger_value" not in fns and "_render_fit" not in fns
-    for name in ("_render_trigger_sentence", "render_spend_revenue_fit", "render_artist_money"):
-        calls = {getattr(c.func, "attr", getattr(c.func, "id", ""))
-                 for c in ast.walk(fns[name]) if isinstance(c, ast.Call)}
-        assert not calls & {"plotly_chart", "Figure"}, f"{name} draws a chart again"
-
-
-def test_the_trigger_paragraph_says_what_each_number_is_made_of() -> None:
-    from src.dashboard.views.revenue_forecast import trigger_paragraph
-    row = {"streams_med": 6000.0, "valeur_eur": 23.78, "n": 104}
-    espoir = {"par_algo": pd.DataFrame([{"algo": "DW", "proba_moyenne": 0.068,
-                                         "esperance_eur": 17.99, "titres": 11}])}
-    text = trigger_paragraph(row, 0.003963, espoir)
-    for part in ("6 000 écoutes", "0,0040 € l'écoute", "23,78 €", "11 titres", "6,8 %", "17,99 €"):
-        assert part.replace(" ", " ") in text.replace(" ", " "), (part, text)
+    gone = {"render_spend_revenue_fit", "_render_trigger_sentence", "_render_ledger"}
+    assert not gone & set(fns), gone & set(fns)
+    calls = {getattr(c.func, "attr", getattr(c.func, "id", ""))
+             for c in ast.walk(fns["render_artist_money"]) if isinstance(c, ast.Call)}
+    assert not calls & {"plotly_chart", "dataframe", "table", "caption"}, calls
+    assert "imusician.roi_read" not in _i18n_keys_called(Path("src/dashboard/views/imusician.py")), (
+        "the how-to-read caption is back")

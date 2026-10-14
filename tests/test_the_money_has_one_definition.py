@@ -39,7 +39,9 @@ from pathlib import Path
 import pytest
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
-_VUE = _ROOT / "src" / "dashboard" / "views" / "revenue_forecast.py"
+# R566: the ledger and the fit sentence left `revenue_forecast` — the money page is the
+# Trésorerie section of `imusician`, and its cashflow reader lives there.
+_VUE = _ROOT / "src" / "dashboard" / "views" / "imusician.py"
 _UTIL = _ROOT / "src" / "dashboard" / "utils" / "revenue_forecast.py"
 
 # La vue BRUTE. Elle existe et sert ailleurs ; elle n'a rien à faire dans le
@@ -51,7 +53,7 @@ _NETTE = "v_artist_monthly_cashflow"
 # module. `_tab_ltv` n'en fait pas partie : c'est l'onglet SaaS de l'exploitant.
 # R553 (ADR-033) : `_tab_artist_forecast` is gone — the money pieces under the Trésorerie
 # break-even enter by `render_artist_money`.
-_RACINE = "render_artist_money"
+_RACINE = "_render_money"
 
 
 def _module() -> ast.Module:

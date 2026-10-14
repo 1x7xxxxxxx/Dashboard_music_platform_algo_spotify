@@ -2831,15 +2831,15 @@
   statut: livré
   priorite: P3
   preuve_statut: archive.md:345 R212 trésorerie (iMusician + SACEM)
-  preuve_ciblee: tests/test_the_ledger_line_adds_up.py::test_in_out_ads_and_the_cost_per_stream
+  preuve_ciblee: tests/test_the_treasury_reads_in_green_and_red.py::test_the_circle_says_each_source_in_euros_in_the_bars_colours
 - ligne: 537
   resume: 'Finance : combien est dépensé en publicité'
   type: action-produit
   domaine: pages-ux
   statut: livré
   priorite: P3
-  preuve_statut: archive.md:198 R236 (colonne « dont pub ») ; treasury_chart.py:167 ledger_summary
-  preuve_ciblee: tests/test_the_ledger_line_adds_up.py::test_in_out_ads_and_the_cost_per_stream
+  preuve_statut: archive.md:198 R236 ; R566 — le cercle de la Trésorerie dit la pub en €
+  preuve_ciblee: tests/test_the_treasury_reads_in_green_and_red.py::test_the_circle_says_each_source_in_euros_in_the_bars_colours
 - ligne: 538
   resume: 'Finance : les différentes charges (coûts d''exploitation)'
   type: action-produit
@@ -2855,7 +2855,7 @@
   statut: livré
   priorite: P3
   preuve_statut: archive.md:345 R212 + archive.md:51 R248 (cumul avec SACEM)
-  preuve_ciblee: 'test to write: ledger_summary inclut les lignes SACEM dans Revenus — treasury_chart.py:167'
+  preuve_ciblee: tests/test_the_treasury_reads_in_green_and_red.py::test_the_circle_says_each_source_in_euros_in_the_bars_colours
 - ligne: 540
   resume: 'Finance : autres dépenses pertinentes (coût de distribution par titre)'
   type: action-produit
@@ -2863,7 +2863,7 @@
   statut: livré
   priorite: P3
   preuve_statut: R262 (archivée) — cdd0fa2c
-  preuve_ciblee: 'test to write: un coût distribution saisi apparaît dans Dépenses de ledger_summary — treasury_chart.py:167'
+  preuve_ciblee: tests/test_the_treasury_reads_in_green_and_red.py::test_the_circle_says_each_source_in_euros_in_the_bars_colours
 - ligne: 542-544
   resume: 'Une seule vue financière très simple : trésorerie / revenus / dépenses / acquisition / résultat streams
     / résultat financier'
@@ -2872,7 +2872,7 @@
   statut: livré
   priorite: P3
   preuve_statut: archive.md:198 R236 + archive.md:86 R244 ; revenue_forecast.py:297-300
-  preuve_ciblee: tests/test_the_ledger_line_adds_up.py::test_no_streams_measured_gives_no_cost_rather_than_infinity
+  preuve_ciblee: tests/test_the_treasury_reads_in_green_and_red.py::test_the_title_says_revenue_green_spend_red_and_roi_by_its_sign
 - ligne: 546
   resume: Relecture du dossier KPI (revue/relecture-kpi.md) traduite en actions
   type: action-produit

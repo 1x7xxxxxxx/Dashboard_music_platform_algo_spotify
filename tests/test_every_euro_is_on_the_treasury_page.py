@@ -27,7 +27,6 @@ _VIEWS = Path("src/dashboard/views")
 _OWNER = {
     "render_break_even": "imusician.py",
     "render_artist_money": "imusician.py",
-    "render_spend_revenue_fit": "revenue_forecast.py",
     "breakeven_figure": "imusician.py",
     "render_ltv": "admin.py",
 }

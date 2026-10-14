@@ -13,7 +13,11 @@ EN = {
         "⏳ Break-even in <b>{d}</b>{q}<br>"
         "{c:,.0f} € short at a pace of {r:+.2f} €/month"),
     "revenue_forecast.be_months": "{n} months",
-    "revenue_forecast.be_beyond": "more than {n} years",
+    "revenue_forecast.be_years": "≈ {a:,.0f} years",
+    "revenue_forecast.be_not_before": (
+        "⏳ Break-even not before <b>{n} years</b><br>"
+        "{c:,.0f} € short at a pace of {r:+.2f} €/month"),
+    "revenue_forecast.projection_mark": "{n} years",
     "revenue_forecast.projection": "Trend forecast at the pace of the last 12 months",
     # R561
     "revenue_forecast.path": "You, month after month",
@@ -27,17 +31,6 @@ EN = {
     "revenue_forecast.diagonal": "Break-even: earned = spent",
     "revenue_forecast.axis_spend": "Spent since the start (ads + costs), €",
     "revenue_forecast.axis_revenue": "Earned since the start (sales + SACEM), €",
-    "revenue_forecast.trigger_value_text": (
-        "🚀 **What if a track entered Discover Weekly?** A track that gets in usually makes "
-        "**{s} streams**; at **{tx} € per stream** (what your distributor really pays you), "
-        "that would earn you **≈ {v}** — the star on the figure."),
-    "revenue_forecast.trigger_expect_text": (
-        "But each of your **{k} tracks** has only about a **{p} %** chance to get in: over "
-        "your whole catalogue, expect **≈ {e}** in total, not {v} per track."),
-    "revenue_forecast.trigger_caveat": (
-        "An order of magnitude, not a promise: the value comes from the {n} cohort tracks "
-        "that entered Discover Weekly (half did more, half less) — with no control track, "
-        "we cannot say what the algorithm added on its own{d}."),
     "revenue_forecast.be_short_done": "reached",
     "revenue_forecast.be_short_never": "never at this pace",
     "revenue_forecast.be_short_months": "{n} months",
@@ -93,19 +86,6 @@ EN = {
     "revenue_forecast.source.materiel": "Gear",
     "revenue_forecast.source.autre": "Other",
     # ── Ce que vaut un déclenchement d'algorithme ────────────────────────────
-    "revenue_forecast.no_rate": (
-        "At least one distributor sales report is needed to know what a stream "
-        "earns you. Import a CSV from **CSV import**."),
-    "revenue_forecast.no_benchmark":
-        "The reference cohort is not loaded on this database.",
-    "revenue_forecast.pred_dated": " (predictions from {d})",
-    "revenue_forecast.trigger_small": (
-        "**The decision**: it would take about **{n}** triggers at {v} € to cover your costs. "
-        "The algorithms bring you listeners, not enough to pay back your ads — judge your "
-        "ads on the streams they buy, and your costs on what they bring."),
-    "revenue_forecast.trigger_worth": (
-        "**The decision**: a trigger brings up to {v} €, on the scale of what you are "
-        "missing — push the track closest to a gate (Road to Algo)."),
     # ── Les tiroirs ──────────────────────────────────────────────────────────
     # Entry point
     # Tab 1 — Current MRR
@@ -129,8 +109,6 @@ EN = {
     # Meta Ads ROI
     # ML predictions
     # Net margin
-    "revenue_forecast.ledger_head": "| Revenue | Spend | of which ads | Financial result | Streams (all platforms) | Ads per stream |",
-    "revenue_forecast.ledger_caption": "Since the start. « Ads per stream » divides ad spend by ALL streams, organic included: it is a ceiling, not what a gained stream cost — that one is in « Meta Ads › My whole funnel », campaign by campaign.",
     "revenue_forecast.be_short_too_short": "too early to date",
     "revenue_forecast.be_too_short": ("⏳ {c:,.0f} € to go — only {n} month(s) known:<br>"
                                       "too early to date the break-even point"),

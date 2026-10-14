@@ -36,7 +36,10 @@ REVENUE_CUMUL = "#1F4E79"   # the same navy as the distributors' cumul (imusicia
 # semantic pair, separated by LIGHTNESS (ΔE 20,1 in deuteranopia), not by hue alone.
 BREAKEVEN_REVENUE, BREAKEVEN_SPEND = BON, MAUVAIS
 # The projection is DRAWN on a bounded horizon, never written as « 270 ans » (fiche 25).
-PROJECTION_CAP_MONTHS = 24
+# R565/R566 (owner, Trésorerie 2026-10-15 : « projections à 2, 10, 30, 50 ans en
+# logarithmique ») — 50 years, marked at each of the owner's milestones on the path.
+PROJECTION_CAP_MONTHS = 600
+PROJECTION_MARKS_YEARS = (2, 10, 30, 50)
 
 FLUX_NAMES = {
     "imusician": "iMusician", "distrokid": "DistroKid", "sacem": "SACEM",
@@ -153,23 +156,35 @@ def breakeven_figure(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
             bgcolor="rgba(0,0,0,0.55)", bordercolor="#FF6B35", borderwidth=1,
             borderpad=7, font={'size': 13, 'color': "#FFFFFF"})
     r, s_ = float(rev.iloc[-1]), float(spend.iloc[-1])
-    roi = f"{100 * (r - s_) / s_:+.0f} %" if s_ else "—"
     bounds = _plane_bounds(values)
     if bounds:
         rng = [math.log10(bounds[0]), math.log10(bounds[1])]
         fig.update_xaxes(range=rng, dtick=1, tickformat=",.0f")
         fig.update_yaxes(range=rng, dtick=1, tickformat=",.0f")
     fig.update_layout(
-        title=t("revenue_forecast.breakeven_title",
-                "Revenus {r} contre dépenses {s} · ROI {roi}"
-                ).format(r=f"{r:,.0f} €".replace(",", " "),
-                         s=f"{s_:,.0f} €".replace(",", " "), roi=roi),
+        title=breakeven_title(r, s_),
         hovermode='closest', height=500, margin={'t': 50, 'b': 60}, separators=", ",
         xaxis={'type': 'log', 'title': t("revenue_forecast.axis_spend",
                                          "Dépensé depuis le début (pub + coûts), €")},
         yaxis={'type': 'log', 'title': t("revenue_forecast.axis_revenue",
                                          "Rentré depuis le début (ventes + SACEM), €")})
     return fig
+
+
+def _coloured(text: str, colour: str) -> str:
+    return f"<span style='color:{colour}'>{text}</span>"
+
+
+def breakeven_title(revenue: float, spend: float) -> str:
+    """Revenue in green, spend in red, the ROI in the colour of its sign (R566, owner
+    2026-10-15 : « revenus en vert, dépenses en rouge, ROI rouge si négatif »). Pure."""
+    eur = lambda v: f"{v:,.0f} €".replace(",", " ")   # noqa: E731
+    roi = _coloured(f"{100 * (revenue - spend) / spend:+.0f} %",
+                    BREAKEVEN_REVENUE if revenue >= spend else BREAKEVEN_SPEND) if spend else "—"
+    return t("revenue_forecast.breakeven_title",
+             "Revenus {r} contre dépenses {s} · ROI {roi}").format(
+        r=_coloured(eur(revenue), BREAKEVEN_REVENUE),
+        s=_coloured(eur(spend), BREAKEVEN_SPEND), roi=roi)
 
 
 def _ends(index) -> list[str]:
@@ -239,16 +254,24 @@ def _add_projection(fig: go.Figure, p_rev: pd.Series, p_spend: pd.Series) -> Non
     """The path continued, dotted, at the pace of the last `FENETRE_RYTHME` months."""
     if p_rev.empty:
         return
+    marks = projection_marks(len(p_rev) - 1)
     fig.add_trace(go.Scatter(
-        x=_positive(p_spend), y=_positive(p_rev), mode='lines+text',
+        x=_positive(p_spend), y=_positive(p_rev), mode='lines+markers+text',
         name=t("revenue_forecast.projection", "Tendance prévue au rythme des 12 derniers mois"),
         line={'color': REVENUE_CUMUL, 'width': 2, 'dash': 'dot'},
-        text=[""] * (len(p_rev) - 1) + [f"{p_rev.index[-1]:%m/%Y}"],
-        textposition='bottom right', cliponaxis=False,
+        marker={'size': [9 if m else 0 for m in marks], 'color': REVENUE_CUMUL},
+        text=marks, textposition='bottom right', cliponaxis=False,
         customdata=[f"{d:%m/%Y}" for d in p_rev.index],
         hovertemplate=t("revenue_forecast.projection_hover",
                         "%{customdata} (prévu)<br>dépensé : %{x:,.0f} €"
                         "<br>rentré : %{y:,.0f} €<extra></extra>")))
+
+
+def projection_marks(months: int) -> list[str]:
+    """« 2 ans », « 10 ans »… on the projected month that reaches each milestone. Pure."""
+    label = t("revenue_forecast.projection_mark", "{n} ans")
+    at = {12 * n: label.format(n=n) for n in PROJECTION_MARKS_YEARS}
+    return [at.get(i, "") for i in range(months + 1)]
 
 
 def _add_trigger(fig: go.Figure, rev: pd.Series, spend: pd.Series, trigger) -> None:
@@ -333,26 +356,20 @@ def cashflow_figure(cashflow: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def share_of_total(d: pd.DataFrame, order) -> list[float]:
-    """Each (flux, source)'s share of everything that moved, in %, summing to 100. Pure."""
-    totals = [float(d[(d['flux'] == f) & (d['source'] == s)]['amount_eur'].abs().sum())
-              for f, s in order]
-    whole = sum(totals)
-    return [100.0 * v / whole if whole else 0.0 for v in totals]
-
-
 def _add_share_circle(fig: go.Figure, d: pd.DataFrame, order, shades,
                       money_in: float, money_out: float) -> None:
-    shares = share_of_total(d, order)
-    whole = money_in + money_out
+    # R566 (owner 2026-10-15 : « le montant en euros et le nom, pas de pourcentage »)
+    totals = [float(d[(d['flux'] == f) & (d['source'] == s)]['amount_eur'].abs().sum())
+              for f, s in order]
     fig.add_trace(go.Pie(
-        labels=[FLUX_NAMES.get(s, s) for _, s in order], values=shares, hole=0.55,
+        labels=[FLUX_NAMES.get(s, s) for _, s in order], values=totals, hole=0.55,
         sort=False, direction='clockwise', showlegend=False,
         marker={'colors': [shades[k] for k in order], 'line': {'color': "#FFFFFF", 'width': 1}},
-        textinfo='percent', textposition='inside', insidetextorientation='horizontal',
-        title={'text': t("imusician.circle_centre", "{p} %<br>entrés").format(
-            p=f"{100 * money_in / whole:.0f}" if whole else "—"), 'font': {'size': 14}},
-        hovertemplate="%{label} : %{percent} du total<extra></extra>"),
+        texttemplate="%{label}<br>%{value:,.0f} €", textposition='auto',
+        insidetextorientation='horizontal',
+        title={'text': t("imusician.circle_centre", "{i}<br>entrés").format(
+            i=f"{money_in:,.0f} €".replace(",", " ")), 'font': {'size': 14}},
+        hovertemplate="%{label} : %{value:,.0f} €<extra></extra>"),
         row=1, col=2)
 
 
@@ -368,31 +385,6 @@ def source_cumuls(d: pd.DataFrame, months) -> dict[str, pd.Series]:
             serie = part[part['source'] == source].groupby('date')['amount_eur'].sum(min_count=1)
             out[source] = (serie.reindex(idx).fillna(0) * sign).cumsum()
     return out
-
-
-def ledger_summary(cashflow: pd.DataFrame, mensuel: pd.DataFrame,
-                   streams_total: float | None) -> dict:
-    """The one-line ledger above the treasury (R236): money in, money out (ads apart),
-    the result, and what the ads bought in streams. Pure.
-
-    `streams_total` is every platform's streams from the start (`platform_totals`); the
-    cost per stream divides ad spend by ALL streams, organic included — it is a ceiling
-    on what ads cost per stream, not an attribution, and the page says so."""
-    d = cashflow.copy() if cashflow is not None else pd.DataFrame(columns=['flux', 'source', 'amount_eur'])
-    d['amount_eur'] = pd.to_numeric(d.get('amount_eur'), errors='coerce')
-    rev = d.loc[d['flux'] == 'revenu', 'amount_eur'].sum(min_count=1)
-    out = d.loc[d['flux'] == 'depense', 'amount_eur'].sum(min_count=1)
-    ads = d.loc[(d['flux'] == 'depense') & (d['source'] == 'meta_ads'), 'amount_eur'].sum(min_count=1)
-    cumul = float(mensuel['cumul'].iloc[-1]) if mensuel is not None and not mensuel.empty else None
-    def val(v):
-        return None if pd.isna(v) else float(v)
-    ads_v = val(ads)
-    return {
-        'revenue': val(rev), 'spend': val(out), 'ads': ads_v,
-        'other': (val(out) - (ads_v or 0.0)) if val(out) is not None else None,
-        'result': cumul, 'streams': streams_total,
-        'cost_per_stream': (ads_v / streams_total) if ads_v and streams_total else None,
-    }
 
 
 # ── R262 — the break-even sentence, ONE definition for every page that draws the treasury
@@ -432,11 +424,17 @@ def breakeven_text(pm: dict) -> str:
                  "il manque {c:,.0f} € et le rythme est de {r:+.2f} €/mois"
                  ).format(c=-pm['cumul'], r=pm['rythme']).replace(",", " ")
     # R553 (fiche 25 : « pas avec 270 ans en toutes lettres ») — beyond the drawn
-    # horizon the sentence says « beyond », the dotted lines say how far apart.
+    # horizon the sentence says « not before », the dotted lines say how far apart.
     if pm['mois'] > PROJECTION_CAP_MONTHS:
-        duree = t("revenue_forecast.be_beyond", "plus de {n} ans").format(
-            n=PROJECTION_CAP_MONTHS // 12)
-        date = ""
+        return t("revenue_forecast.be_not_before",
+                 "⏳ Point mort pas avant <b>{n} ans</b><br>"
+                 "il manque {c:,.0f} € au rythme de {r:+.2f} €/mois"
+                 ).format(n=PROJECTION_CAP_MONTHS // 12, c=-pm['cumul'],
+                          r=pm['rythme']).replace(",", " ")
+    if pm['mois'] >= 24:
+        duree = t("revenue_forecast.be_years", "≈ {a:,.0f} ans").format(
+            a=pm['mois'] / 12.0).replace(",", " ")
+        date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
     else:
         duree = t("revenue_forecast.be_months", "{n} mois").format(n=pm['mois'])
         date = (f" ({pm['date']:%m/%Y})" if pm['date'] else "")
