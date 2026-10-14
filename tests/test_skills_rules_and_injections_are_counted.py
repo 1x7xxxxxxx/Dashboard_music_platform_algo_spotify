@@ -117,3 +117,16 @@ def test_slash_commands_and_make_targets_are_counted(tmp_path, monkeypatch) -> N
     data = ur.read()
     assert data["commands"] == {"resume": 1}
     assert data["make_targets"] == {"test-changed": 1, "roadmap-close": 1}
+
+
+def test_prose_after_make_is_not_counted_as_a_target(tmp_path, monkeypatch) -> None:
+    """R562: `make the guard…` in a commit heredoc counted "the" among the top targets."""
+    (tmp_path / "s.jsonl").write_text("\n".join([
+        _tool("Bash", {"command": "make test-changed"}),
+        _tool("Bash", {"command": "git commit -m 'fix: make the guard read structure'"}),
+    ]))
+    monkeypatch.setattr(ur, "_TRANSCRIPTS", tmp_path)
+    monkeypatch.setattr(ur, "_INJECTIONS", tmp_path / "none.jsonl")
+    targets = ur.read()["make_targets"]
+    assert targets.get("test-changed") == 1
+    assert "the" not in targets

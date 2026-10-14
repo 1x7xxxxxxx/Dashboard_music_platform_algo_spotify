@@ -153,6 +153,10 @@ def refusals(events: list[dict]) -> list[tuple[str, int, list[str]]]:
     """Refusals by reason, most repeated first: the gestures I keep making."""
     by: dict[str, list[str]] = defaultdict(list)
     for e in events:
+        # R562: session "probe" is a replay, not a gesture — its 35 lines (2026-10-07/08)
+        # each duplicated a real refusal and doubled those days' counts.
+        if e.get("session") == "probe":
+            continue
         if e["kind"] in ("hook_refusal", "precommit_refusal"):
             by[e["fingerprint"]].append(e["ts"][:10])
     return sorted(((fp, len(d), sorted(set(d))) for fp, d in by.items()),

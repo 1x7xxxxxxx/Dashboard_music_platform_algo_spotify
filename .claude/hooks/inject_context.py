@@ -144,6 +144,17 @@ def detect_domains(prompt: str) -> list[str]:
     return matched[:_MAX_DOMAINS]
 
 
+# R562: a background-task notification reaches this hook as a "prompt". Its text is a
+# subagent's report — keyword-dense by nature — so it injected 12 KB of unrelated
+# playbooks twice in the session that found it. Only a human turn picks a domain.
+_MACHINE_MARKERS = ("<task-notification>", "[SYSTEM NOTIFICATION")
+
+
+def is_machine_turn(prompt: str) -> bool:
+    head = prompt.lstrip()[:400]
+    return any(marker in head for marker in _MACHINE_MARKERS)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 _LOG = os.path.join(_CLAUDE_DIR, "sessions", "injections.jsonl")
@@ -169,7 +180,7 @@ def main() -> None:
         sys.exit(0)
 
     prompt = data.get("prompt", "")
-    if not prompt:
+    if not prompt or is_machine_turn(prompt):
         sys.exit(0)
 
     detected = detect_domains(prompt)

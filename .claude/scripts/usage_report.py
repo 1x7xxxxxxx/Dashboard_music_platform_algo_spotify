@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import functools
 import json
 import os
 import pathlib
@@ -85,6 +86,21 @@ _AGENT_TOOLS = ("Agent", "Task")
 _RULE_LOAD = re.compile(r"Contents of [^ \"]*?/\.claude/rules/([\w.-]+)\.md")
 _SLASH = re.compile(r"<command-name>/([\w:-]+)</command-name>")
 _MAKE = re.compile(r"(?:^|[;&|(\s])make\s+(?:-\S+\s+)*([a-z][\w-]*)")
+_TARGET_DEF = re.compile(r"^([a-z][\w-]*)\s*:(?!=)", re.M)
+
+
+@functools.lru_cache(maxsize=1)
+def makefile_targets() -> frozenset[str] | None:
+    """R562: the targets the Makefile declares, or None when there is no Makefile.
+
+    `make` inside a commit message or a heredoc ("make the guard…") matched the regex
+    and counted prose as targets — "the", "it", "qui" sat among the most-run.
+    """
+    try:
+        text = (_REPO / "Makefile").read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    return frozenset(_TARGET_DEF.findall(text))
 _INJECTIONS = _REPO / ".claude" / "sessions" / "injections.jsonl"
 # The harness records every hook run as an `attachment` line: hook_success, hook_blocking_error,
 # hook_non_blocking_error, hook_cancelled — each with `command`, `durationMs`, `exitCode`.
@@ -172,7 +188,10 @@ def _scan_line(acc: dict, line: str, rules_here: set) -> None:
             acc["workflows"][key] += 1
             _seen(acc, f"workflow:{key}", ts)
         elif name == "Bash":
+            known = makefile_targets()
             for target in _MAKE.findall(inp.get("command") or ""):
+                if known is not None and target not in known:
+                    continue
                 acc["make_targets"][target] += 1
                 _seen(acc, f"make:{target}", ts)
 
@@ -323,8 +342,9 @@ def main() -> int:
             print(f"  {name:30s} {n:4d}")
     print("\nHOOKS (runs that left a trace · mean ms · non-success) — a silent hook leaves none")
     for name, n in sorted(data["hooks"].items(), key=lambda kv: -kv[1]):
+        gone = "" if not name.startswith(".claude/") or (_REPO / name).exists() else "   (retired — file gone)"
         print(f"  {name:40s} {n:5d} {data['hook_ms'].get(name, 0) // n:6d} ms "
-              f"{data['hook_failures'].get(name, 0):4d}")
+              f"{data['hook_failures'].get(name, 0):4d}{gone}")
     inj = data["injections"]
     print("\nPLAYBOOK INJECTIONS (inject_context.py)" + ("" if inj["found"] else " — no log yet"))
     for name, n in sorted(inj["counts"].items(), key=lambda kv: -kv[1]):
