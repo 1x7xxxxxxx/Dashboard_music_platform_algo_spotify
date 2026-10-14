@@ -173,6 +173,16 @@ def open_rows(checklist: str) -> dict[str, str]:
     return ids
 
 
+_ARCHIVED = re.compile(r"^## ✅ (R\d+)\b", re.M)
+
+
+def reopened(checklist: str, archive: str) -> set[str]:
+    """R564: open index ids that already head an archive entry. R562 was given twice
+    (2026-10-13, 2026-10-14) and roadmap-close then retired the row without writing the
+    archive — silently, since a second close of the same id is refused."""
+    return open_ids(checklist) & set(_ARCHIVED.findall(archive))
+
+
 def next_id(*texts: str) -> str:
     nums = [int(n) for t in texts for n in _ANY_ID.findall(t)]
     return f"R{max(nums, default=0) + 1}"
@@ -262,6 +272,13 @@ def check_staged(msg_file: str) -> int:
     merging = bool(_git("rev-parse", "-q", "--verify", "MERGE_HEAD").strip())
     parent = _show("HEAD", CHECKLIST)
     reason = verdict(files, message, parent, 2 if merging else 1)
+    if CHECKLIST in files:
+        dup = reopened(_show("", CHECKLIST), _show("HEAD", ARCHIVE))
+        if dup:
+            print(f"🚫 R564 — {', '.join(sorted(dup))} est déjà archivé : un id ne se "
+                  f"réattribue pas. Prends {next_id(_show('', CHECKLIST), _show('HEAD', ARCHIVE))}.",
+                  file=sys.stderr)
+            return 1
     if reason:
         print(_gesture(reason), file=sys.stderr)
         return 1
