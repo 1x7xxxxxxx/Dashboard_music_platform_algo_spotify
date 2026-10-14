@@ -233,6 +233,8 @@ def resolve_theme_placeholders(spec: str) -> tuple[str, int]:
 
 def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict:
     import plotly.io as pio
+
+    import legends                            # R565 — the legend inventory's source
     manifest, failed, themed = [], [], 0
     for i, r in enumerate(records):
         name = f"{i:03d}_{r['view']}.png"
@@ -247,12 +249,13 @@ def _write(records: list[dict], errors: dict, figs_dir: Path, out: Path) -> dict
                 h = fig.layout.height or 450
                 fig.write_image(figs_dir / name, width=1000, height=int(h), scale=1)
                 title = fig.layout.title.text if fig.layout.title else ""
+                legend = legends.legend_of(json.loads(r["spec"]))
             else:
                 (figs_dir / name).write_bytes(r["png"])
-                title, shapes = "", []
+                title, shapes, legend = "", [], {"entries": [], "place": "—"}
             manifest.append({"id": i, "view": r["view"], "kind": r["kind"], "site": r["site"],
                              "view_site": r["view_site"], "title": title or "", "png": name,
-                             "traces": shapes})
+                             "traces": shapes, "legend": legend})
         except Exception as exc:  # noqa: BLE001 — listed as not rendered, never dropped
             failed.append({"view": r["view"], "site": r["site"], "reason": str(exc)[:200]})
     print(f"couleurs du thème Streamlit résolues dans {themed} figure(s)")

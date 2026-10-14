@@ -138,14 +138,37 @@ def _legend_would_show(fig) -> int:
     return sum(1 for tr in fig.data if tr.name and tr.showlegend is not False)
 
 
-# R536 (owner, 2026-10-12) : « les légendes en haut à droite, SUR le graphique, partout
-# pareil ». ONE place, set here and nowhere else: a view that writes `orientation`, `x`,
-# `y`, `xanchor` or `yanchor` into its legend is overridden by the door, and
-# `tests/test_one_legend_position.py` refuses it in the source. Inside the plot (y=1 is the
-# plot's top edge), so it never climbs into the margin where the title and the toolbar
-# live (R189, R476) ; a faint background keeps it readable over a line in both themes.
+# R536 (owner, 2026-10-12) put every legend top right, on the plot. R565 (owner,
+# 2026-10-15) : « mal placées partout — un placement optimal calculé ». ONE place still
+# decides, here and nowhere else (`tests/test_one_legend_position.py` refuses a position
+# written in a view): the first EMPTY corner of the plot, top right first
+# (`legend_place.empty_corner`), else a horizontal row below the plot. Inside the plot it
+# never climbs into the margin where the title and the toolbar live (R189, R476); a faint
+# background keeps it readable over a gridline in both themes.
 LEGEND_POSITION = dict(orientation="v", yanchor="top", y=1, xanchor="right", x=1,
                        bgcolor="rgba(127,127,127,0.12)")
+LEGEND_BELOW = dict(orientation="h", yref="container", yanchor="bottom", y=0,
+                    xanchor="left", x=0, bgcolor="rgba(0,0,0,0)")
+_BELOW_ROOM = 40  # px added to the bottom margin for the row
+
+
+def legend_position(fig) -> dict:
+    """Where the door puts this figure's legend (R565). Pure."""
+    from src.dashboard.utils.legend_place import empty_corner
+    corner = empty_corner(fig, _legend_would_show(fig))
+    if corner is None:
+        return LEGEND_BELOW
+    vert, horiz = corner.split()
+    return {**LEGEND_POSITION, "yanchor": vert, "y": 1 if vert == "top" else 0,
+            "xanchor": horiz, "x": 1 if horiz == "right" else 0}
+
+
+def _place_legend(fig) -> None:
+    pos = legend_position(fig)
+    fig.update_layout(legend=pos)
+    if pos is LEGEND_BELOW:
+        bottom = fig.layout.margin.b
+        fig.update_layout(margin_b=(80 if bottom is None else bottom) + _BELOW_ROOM)
 
 
 def apply_defaults(fig, *, pareto: bool | None = None):
@@ -154,8 +177,6 @@ def apply_defaults(fig, *, pareto: bool | None = None):
     lay = fig.layout
     if lay.showlegend is None and _legend_would_show(fig) >= 2:
         fig.update_layout(showlegend=True)
-    if lay.showlegend:
-        fig.update_layout(legend=LEGEND_POSITION)
     if not lay.colorway and not any(_has_colour(tr) for tr in fig.data):
         fig.update_layout(colorway=list(DISTINCT))
     if pareto is None:
@@ -168,6 +189,8 @@ def apply_defaults(fig, *, pareto: bool | None = None):
                 ref = (tr.yaxis if horiz else tr.xaxis) or axis[0]
                 key = axis + ref[1:]
                 fig.layout[key].categoryorder = "total ascending" if horiz else "total descending"
+    if lay.showlegend:
+        _place_legend(fig)  # after the Pareto order: the first bar must be where it is drawn
     _unclip_outside_labels(fig)
     return fig
 

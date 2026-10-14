@@ -98,6 +98,11 @@ SEEN_RED: dict[str, str] = {
     "tests/test_one_legend_position.py":
         "2026-10-12 — R539 : `charts.apply_defaults` n'impose plus `LEGEND_POSITION` (la "
         "légende locale, en bas ou centrée, survit à la porte, R536) → 1 rouge",
+    "tests/test_the_legend_sits_in_an_empty_corner.py":
+        "2026-10-15 — R565 : `empty_corner` rend toujours le 1ᵉʳ coin → rouge ; empilement "
+        "ignoré → rouge ; log lu linéaire → rouge ; trace masquée comptée → rouge ; ordre "
+        "Pareto ignoré → rouge ; repli dessous remplacé par le coin fixe → rouge ; zéro des "
+        "barres ajouté à l'axe des dates → rouge ; négatifs empilés sur les positifs → rouge ; plage de dates ignorée → rouge",
     "tests/test_youtube_analytics_figures.py":
         "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "
         "R530) → 1 rouge ; `traffic_figure` replie au-delà de 7 sources au lieu de 5 (une "

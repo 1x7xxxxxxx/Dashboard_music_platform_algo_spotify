@@ -1,7 +1,7 @@
-"""One legend position for the whole app: top right, on the chart (R536).
+"""One legend PLACER for the whole app: the door (R536, computed corner since R565).
 
 Type: Test
-Uses: src.dashboard.utils.charts (apply_defaults, LEGEND_POSITION)
+Uses: src.dashboard.utils.charts (apply_defaults, legend_position, LEGEND_BELOW)
 
 Owner, 2026-10-12: « les légendes en haut à droite, sur le graphique, cohérent dans toute
 l'app ». On that day 31 local `legend=dict(...)` placements put it below, above, centred,
@@ -33,11 +33,13 @@ def _two_traces(**layout) -> go.Figure:
     return fig
 
 
-def test_a_local_placement_leaves_the_door_top_right():
-    fig = charts.apply_defaults(_two_traces(legend=dict(orientation="h", y=-0.3, x=0,
-                                                        groupclick="toggleitem")))
-    leg = fig.layout.legend
-    assert (leg.x, leg.y, leg.xanchor, leg.yanchor) == (1, 1, "right", "top")
+def test_a_local_placement_is_replaced_by_the_doors():
+    fig = _two_traces(legend=dict(orientation="h", y=-0.3, x=0, groupclick="toggleitem"))
+    want = charts.legend_position(fig)
+    leg = charts.apply_defaults(fig).layout.legend
+    assert (leg.x, leg.y, leg.xanchor, leg.yanchor) == (want["x"], want["y"],
+                                                        want["xanchor"], want["yanchor"])
+    assert (leg.x, leg.y) != (0, -0.3)
     assert leg.groupclick == "toggleitem", "the door must keep what is not a position"
 
 
@@ -71,7 +73,7 @@ def test_no_module_places_its_own_legend():
     offenders = [hit for p in sorted(pathlib.Path("src").rglob("*.py"))
                  if p.name != "charts.py" for hit in _position_writes(p)]
     assert not offenders, ("a legend position written outside the door — the door "
-                           "(charts.LEGEND_POSITION) overrides it, delete it:\n"
+                           "(charts.legend_position) overrides it, delete it:\n"
                            + "\n".join(offenders))
 
 

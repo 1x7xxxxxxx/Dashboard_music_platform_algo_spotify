@@ -166,8 +166,8 @@
              },
              "groupclick": "togglegroup",
              "orientation": "v",
-             "x": 1,
-             "xanchor": "right",
+             "x": 0,
+             "xanchor": "left",
              "y": 1,
              "yanchor": "top"
             },
@@ -555,8 +555,8 @@
              },
              "groupclick": "togglegroup",
              "orientation": "v",
-             "x": 1,
-             "xanchor": "right",
+             "x": 0,
+             "xanchor": "left",
              "y": 1,
              "yanchor": "top"
             },
