@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R563 — Harnais, bruit auto-infligé : `guard-mutation` nightly rouge à JUSTE titre (run 3853251… (livrée 2026-10-14)
+
+- [x] **R563 — Harnais, bruit auto-infligé : `guard-mutation` nightly rouge à JUSTE titre (run 38532516176) : les 6 gardes de R556-R561 que personne n'a vus mordre sont mutés à la main (règle 15ter) et consignés dans `SEEN_RED`, ou corrigés s'ils sont aveugles ; `make roadmap-close` sort court par défaut (cause de 6 des 10 derniers refus « est tubé dans ») ; écriture de `stop-gate.jsonl` par R549 vérifiée avant sa revue du 2026-10-26 ; les 4 défauts ouverts rejoués** (P4) ✅ (2026-10-14, f42e49e0)
+  Mesuré par : 6/6 gardes vus rouges sur une mutation qui incarne leur défaut ; roadmap-close ≤ 5 lignes ; stop-gate.jsonl écrit sur un blocage simulé ; defect-log 0 ouvert ou cause nommée
+  Livré f42e49e0, CI verte (run 38637423253). 6/6 gardes vus rouges (19 mutations dans SEEN_RED) ; roadmap-close = 1 ligne au vert ; stop-gate.jsonl écrit sur blocage simulé (0 réel/48) ; billet récidive répondu (inferred : timeout git 5 s sous charge).
+  Commits : f42e49e0 R563 : les 6 gardes R556-R561 vus rouges à la main (SEEN_RED, 19 mutat
+
 ## ✅ R564 — Roadmap : un id inscrit à l'index alors qu'il est DÉJÀ archivé (R562, attribué deux foi… (livrée 2026-10-14)
 
 - [x] **R564 — Roadmap : un id inscrit à l'index alors qu'il est DÉJÀ archivé (R562, attribué deux fois le 2026-10-13 et le 2026-10-14) n'est refusé par rien — `make roadmap-close` retire alors la ligne sans écrire l'archive, en silence. Garde : un test qui échoue si un id ouvert de l'index porte déjà une entrée `## ✅` dans l'archive** (P4) ✅ (2026-10-14, e04ad0af)
