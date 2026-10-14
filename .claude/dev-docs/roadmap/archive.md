@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R562 (2ᵉ attribution — id déjà pris le 2026-10-13, voir R564) — Harnais, passe du 2026-10-14 : notifications sans injection, usage_report, refus probe (livrée 2026-10-14)
+
+- [x] **R562 bis — Harnais, passe du 2026-10-14 (outillage générique, remonte dans la baseline) : `inject_context.py` n'injecte plus rien sur une notification de tâche ni un message système ; `usage_report.py` ne compte plus la prose comme cible make ni les hooks supprimés ; `defect_log.refusals()` ne compte plus deux fois les copies `session:"probe"`** (P4) ✅ (2026-10-14, 24989a17)
+  Mesuré par : 0 injection sur une notification, bug-resolution toujours injecté sur un prompt de bug ; 0 cible make hors Makefile ; refus 7 j sans doublon probe
+  Livré 24989a17, CI verte (run 38585639579). Reporté dans la baseline (309ff67, ab20a26). `make roadmap-close` a retiré la ligne sans écrire l'entrée : l'id R562 était déjà archivé — R564.
+  Commits : 24989a17 R562 : inject_context ignore les tours machine ; usage_report ne compte plus la prose · 81b20974 Roadmap : R562/R563 inscrites
+
 ## ✅ R560 — Page algos, la suite (fiches 129, 48, 49, 68, « ce qui s'est vraiment passé ») : 129+48… (livrée 2026-10-13)
 
 - [x] **R560 — Page algos, la suite (fiches 129, 48, 49, 68, « ce qui s'est vraiment passé ») : 129+48 fusionnées, ordre RR → DW → Radio, prédiction en pointillé, dernière sortie ; 49 (cohorte) reproposée en « quand couper la promo » ou retirée ; 68 reformulée sans « espérance » ni « titre médian » ; la section « réalisé » réagencée** (P3) ✅ (2026-10-13, 56c72e50, 90b7f506, dcd75ee9)
