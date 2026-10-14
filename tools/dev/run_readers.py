@@ -82,13 +82,20 @@ def main(argv: list[str]) -> int:
     if not PY.exists():
         print("❌ venv absent — make sync", file=sys.stderr)
         return 1
-    print(f"governance-readers : {len(tests)} test(s) nomment {', '.join(files)}")
-    rc = subprocess.run([str(PY), "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                         "-n", _workers(), *tests], cwd=ROOT).returncode
-    if rc:
+    # R563: green says ONE line, red says everything. The full pytest output made
+    # `make roadmap-close` long enough to be piped into `| tail`, and a pipe before
+    # `&& git push` is refused by guard_destructive (6 of the last 10 such refusals).
+    run = subprocess.run([str(PY), "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                          "-n", _workers(), *tests], cwd=ROOT, capture_output=True, text=True)
+    summary = next((ln for ln in reversed(run.stdout.splitlines()) if ln.strip()), "")
+    if run.returncode:
+        sys.stdout.write(run.stdout)
+        sys.stderr.write(run.stderr)
         print("❌ un test qui LIT ce fichier de pilotage est rouge — la CI de main le serait "
               "aussi (R361).", file=sys.stderr)
-    return rc
+    else:
+        print(f"governance-readers : {len(tests)} test(s) nomment {', '.join(files)} — {summary}")
+    return run.returncode
 
 
 if __name__ == "__main__":

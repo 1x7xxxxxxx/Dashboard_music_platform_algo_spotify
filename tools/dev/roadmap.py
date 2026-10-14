@@ -343,20 +343,24 @@ def cmd_close(args) -> int:
     ids = _index_ids(text)
     text = _set_anchor(text, ids)
     CHECKLIST.write_text(text, encoding="utf-8")
-    print(f"✅ {tid} retirée de l'index · ancre → {', '.join(ids) or '(vide)'}")
+    extra = []
     if close_night_unit(tid, args.note):
-        print(f"   unité de nuit [{tid}] fermée avec la tâche")
+        extra.append(f"unité de nuit [{tid}] fermée")
     notes = _close_notes(tid, sha or "?")
     if notes:
-        print(f"   {notes} note(s) du propriétaire passée(s) « livré »")
+        extra.append(f"{notes} note(s) du propriétaire « livré »")
     # R279 (owner decision 2026-09-28): the discipline report is generated ON DEMAND
     # (`make roadmap-discipline WRITE=1`), no longer rewritten by every closure — it put
     # a generated file in every closing commit. The nightly still measures it live.
-    print(f"   reste {len(ids)} tâche(s) ouverte(s)")
+    # R563: one line per closure, so the gesture is never piped into `| tail`.
+    print(f"✅ {tid} retirée de l'index · ancre → {', '.join(ids) or '(vide)'} · reste "
+          f"{len(ids)} ouverte(s)" + "".join(f" · {e}" for e in extra))
     # R361: the narrow hint once missed a requirement left pointing at the closed line
-    # (R356 → main red). `make roadmap-close` now runs every test that NAMES the roadmap.
-    print("   vérifier : python3 tools/dev/run_readers.py .claude/dev-docs/roadmap/checklist.md "
-          ".claude/dev-docs/roadmap/archive.md   (lancé par make roadmap-close)")
+    # (R356 → main red). `make roadmap-close` runs every test that NAMES the roadmap; the
+    # hint is printed only when this script was called by hand, outside make.
+    if "MAKELEVEL" not in os.environ:
+        print("   vérifier : python3 tools/dev/run_readers.py .claude/dev-docs/roadmap/checklist.md "
+              ".claude/dev-docs/roadmap/archive.md")
     return 0
 
 

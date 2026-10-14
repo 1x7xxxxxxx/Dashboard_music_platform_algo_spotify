@@ -366,6 +366,33 @@ SEEN_RED: dict[str, str] = {
         "le CTR de META_WEEKLY_SPEND_SQL → 1 rouge (« la colonne 1 rend Decimal('0') ») ; "
         "`{last_7d:,}` remis à nu dans le gabarit de weekly_digest.py → 1 rouge (« interpolés "
         "à nu : last_7d (ligne 204) »)",
+    # R563 — the six guards the nightly of 2026-10-14 (run 38532516176) flagged green on
+    # every generic mutation: each mutated by hand on the defect it names, all bite.
+    "tests/test_the_treasury_reads_in_green_and_red.py":
+        "2026-10-14 — R563 : ramps swapped in `flux_shades` (revenue on the red ramp) → 1 "
+        "rouge ; `ascending=True` (biggest source lightest) → 1 rouge ; `share_of_total` "
+        "not divided by the whole (the circle no longer sums to 100) → 1 rouge",
+    "tests/test_every_euro_is_on_the_treasury_page.py":
+        "2026-10-14 — R563 : `revenue_forecast` routed back to `views.trigger_algo` → 1 rouge ; "
+        "`render_artist_money` call dropped from imusician → 1 rouge ; `render_ltv` without "
+        "`is_admin()` → 1 rouge",
+    "tests/test_the_chronology_is_one_figure.py":
+        "2026-10-14 — R563 : budget area off the euro axis (`yaxis='y2'` dropped) → 1 rouge ; "
+        "one shared `legendgroup` → 1 rouge ; empty frames draw a figure → 1 rouge",
+    "tests/test_the_funnel_runs_from_budget_to_revenue.py":
+        "2026-10-14 — R563 : streams nested in store clicks (said as a %) → 1 rouge ; an "
+        "unmeasured step no longer breaks the chain → 1 rouge",
+    "tests/test_the_best_settings_tool_ranks_every_setting.py":
+        "2026-10-14 — R563 : `fiable` without the MIN_RESULTS floor (a thin value wins) → 1 "
+        "rouge ; `.first()` instead of `.sum()` per value → 1 rouge ; every reliable bar green "
+        "→ 1 rouge",
+    "tests/test_audiences_and_instagram_read_at_a_glance.py":
+        "2026-10-14 — R563 : grid shaded on the GLOBAL maximum → 1 rouge ; all-zero column "
+        "left NaN → 1 rouge ; zero-spend days kept → 1 rouge ; countries not re-ranked by "
+        "cost per listen → 1 rouge",
+    "tests/test_roadmap_close_speaks_in_few_lines.py":
+        "2026-10-14 — R563 : run_readers writes the pytest output on green → 1 rouge ; hides "
+        "it on red → 1 rouge ; an unconditional `print` added after the closure → 1 rouge",
 }
 
 
