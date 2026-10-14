@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R564 — Roadmap : un id inscrit à l'index alors qu'il est DÉJÀ archivé (R562, attribué deux foi… (livrée 2026-10-14)
+
+- [x] **R564 — Roadmap : un id inscrit à l'index alors qu'il est DÉJÀ archivé (R562, attribué deux fois le 2026-10-13 et le 2026-10-14) n'est refusé par rien — `make roadmap-close` retire alors la ligne sans écrire l'archive, en silence. Garde : un test qui échoue si un id ouvert de l'index porte déjà une entrée `## ✅` dans l'archive** (P4) ✅ (2026-10-14, e04ad0af)
+  Mesuré par : test rouge sur l'état du 2026-10-14 (R562 ouvert + archivé), vert après
+  Livré e04ad0af, CI verte (run 38589651968) ; reopened() + refus au commit-msg, test muté rouge
+  Commits : e04ad0af R564 : un id déjà archivé ne peut plus être rouvert — reopened() + ref
+
 ## ✅ R562 (2ᵉ attribution — id déjà pris le 2026-10-13, voir R564) — Harnais, passe du 2026-10-14 : notifications sans injection, usage_report, refus probe (livrée 2026-10-14)
 
 - [x] **R562 bis — Harnais, passe du 2026-10-14 (outillage générique, remonte dans la baseline) : `inject_context.py` n'injecte plus rien sur une notification de tâche ni un message système ; `usage_report.py` ne compte plus la prose comme cible make ni les hooks supprimés ; `defect_log.refusals()` ne compte plus deux fois les copies `session:"probe"`** (P4) ✅ (2026-10-14, 24989a17)
