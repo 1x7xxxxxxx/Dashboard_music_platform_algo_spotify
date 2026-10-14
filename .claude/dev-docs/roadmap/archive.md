@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R565 — Légendes (transverse, commentaires du 2026-10-15) : `charts.apply_defaults` place la lé… (livrée 2026-10-15)
+
+- [x] **R565 — Légendes (transverse, commentaires du 2026-10-15) : `charts.apply_defaults` place la légende dans le coin le moins chargé en données (axes lin et log), repli horizontal sous le tracé ; inventaire `revue/legendes.md` (page · figure · entrées · position) via `make legend-inventory`** (P3) ✅ (2026-10-15, caed2362, 39c3b9cc)
+  Mesuré par : test pur `_legend_corner` muté rouge ; inventaire généré sur toutes les figures <!-- home: oui -->
+  Livré caed2362, CI verte (run 38654443558), déployé en prod
+  Commits : caed2362 R565 : la légende se pose dans un coin VIDE du tracé, sinon dessous —  · 39c3b9cc Roadmap : R565 touche l'Accueil (home: oui) ; mails ops du 2026-10-14/
+
 ## ✅ R563 — Harnais, bruit auto-infligé : `guard-mutation` nightly rouge à JUSTE titre (run 3853251… (livrée 2026-10-14)
 
 - [x] **R563 — Harnais, bruit auto-infligé : `guard-mutation` nightly rouge à JUSTE titre (run 38532516176) : les 6 gardes de R556-R561 que personne n'a vus mordre sont mutés à la main (règle 15ter) et consignés dans `SEEN_RED`, ou corrigés s'ils sont aveugles ; `make roadmap-close` sort court par défaut (cause de 6 des 10 derniers refus « est tubé dans ») ; écriture de `stop-gate.jsonl` par R549 vérifiée avant sa revue du 2026-10-26 ; les 4 défauts ouverts rejoués** (P4) ✅ (2026-10-14, f42e49e0)
