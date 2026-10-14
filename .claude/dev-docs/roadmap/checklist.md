@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R562 | Harnais, passe du 2026-10-14 (outillage générique, remonte dans la baseline) : `inject_context.py` n'injecte plus rien sur une notification de tâche ni un message système (2 × 12 Ko hors sujet injectés dans la séance même) ; `usage_report.py` ne compte plus la prose comme cible make ni les hooks supprimés ; `defect_log.refusals()` ne compte plus deux fois les copies `session:"probe"` <!-- critic: non — filtres d'entrée d'outils de mesure, aucune décision produit --> <!-- scope: .claude/hooks/, .claude/scripts/, tools/dev/, tests/, .test_durations --> | P4 | 0 injection sur une notification, bug-resolution toujours injecté sur un prompt de bug ; 0 cible make hors Makefile ; refus 7 j sans doublon probe |
+| R563 | Harnais, bruit auto-infligé : `guard-mutation` nightly ne rougit plus pour un garde déjà daté rouge dans `guard-red-log.jsonl` ni la nuit de son ajout ; `make roadmap-close` sort court par défaut (cause de 6 des 10 derniers refus « est tubé dans ») ; écriture de `stop-gate.jsonl` par R549 vérifiée avant sa revue du 2026-10-26 ; les 4 défauts ouverts rejoués <!-- critic: non — gardes de processus, pas de chemin produit --> <!-- scope: tools/dev/, .github/workflows/, Makefile, .claude/hooks/, .claude/dev-docs/, tests/, .test_durations --> | P4 | guard-mutation vert sur l'arbre du 2026-10-14 ; roadmap-close ≤ 5 lignes ; stop-gate.jsonl écrit sur un blocage simulé ; defect-log 0 ouvert ou cause nommée |
 
 ---
 
@@ -37,7 +39,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open= -->
+<!-- reprise: open=R562,R563 -->
 
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
