@@ -126,3 +126,24 @@ def test_the_broken_tree_really_has_no_src(tmp_path: Path) -> None:
 # (`test_a_step_is_offered_only_where_it_draws.py:152` dit « A ÉTÉ RETIRÉ LE
 # 2026-09-13 », donc nommer le test retiré est exactement son travail). Le tri site par
 # site est la tâche ; inventer le garde avant le tri crantait un chiffre faux.
+
+
+def test_the_alert_survives_a_host_python_without_dotenv(tmp_path: Path) -> None:
+    """R573 — the prod HOST python has `src/` but no `python-dotenv`.
+
+    `load_project_env` imports `dotenv` when CALLED, not when imported, so the
+    `except ImportError` around its import never saw it: measured 2026-10-15 on the
+    VPS, the cron mailer died with `ModuleNotFoundError: dotenv` before any decision.
+    """
+    racine = _arbre_sans_src(tmp_path)
+    for rel in ("src/__init__.py", "src/utils/__init__.py", "src/utils/env_files.py"):
+        (racine / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(_ROOT / rel, racine / rel)
+    # the script's own directory is first on sys.path: this shadows any installed dotenv
+    (racine / "tools" / "dotenv.py").write_text(
+        'raise ModuleNotFoundError("No module named \'dotenv\'")\n', encoding="utf-8")
+    r = _lancer(racine, ["--subject", "TEST"])
+    sortie = r.stdout + r.stderr
+    assert "Traceback" not in r.stderr, f"died before deciding:\n{r.stderr[:800]}"
+    assert "email not configured" not in sortie, f"the .env fallback read nothing:\n{sortie[:600]}"
+    assert "email send failed" in sortie or "emailed to" in sortie, sortie[:600]

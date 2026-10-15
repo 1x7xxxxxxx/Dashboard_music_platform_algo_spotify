@@ -48,9 +48,14 @@ except ImportError:  # pragma: no cover — couvert par test_the_alert_survives_
 # prod exporte l'environnement lui-même — c'est-à-dire pour une raison qui vit
 # ailleurs que dans ce fichier, et qu'une réécriture du cron peut retirer sans le
 # savoir. Un outil qui a besoin de l'environnement le charge.
+# R573 — `load_project_env` imports `dotenv` when CALLED: on the prod host python, which
+# has `src/` but no python-dotenv, the import above succeeded and this call raised.
 if load_project_env is not None:
-    load_project_env()
-else:
+    try:
+        load_project_env()
+    except ImportError:
+        load_project_env = None  # type: ignore[assignment]
+if load_project_env is None:
     _ENV_BOOTSTRAP = Path(__file__).resolve().parents[1]
     for _f in (".env.local", ".env"):
         _p = _ENV_BOOTSTRAP / _f
