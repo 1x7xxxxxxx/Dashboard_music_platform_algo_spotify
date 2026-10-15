@@ -64,11 +64,33 @@ def test_too_few_days_fall_back_to_a_flat_rhythm() -> None:
     assert all(p["lo"] == p["value"] == p["hi"] for p in path)
 
 
+def _series(name: str, hist: pd.DataFrame, rate=None, colour="#444444") -> dict:
+    return {"name": name, "path": fc.cumulative_path(hist, fc.fit_decay(hist)),
+            "overlays": [], "rate": rate, "colour": colour}
+
+
 def test_one_axis_and_revenue_only_with_a_rate() -> None:
     hist = _hist(60)
-    path = fc.cumulative_path(hist, fc.fit_decay(hist))
-    bare = fc.forecast_figure(path, [], rate=None)
-    paid = fc.forecast_figure(path, [], rate=0.003)
+    bare = fc.forecast_figure([_series("A", hist)])
+    paid = fc.forecast_figure([_series("A", hist, rate=0.003)])
     assert "yaxis2" not in bare.to_plotly_json()["layout"]
     assert not any("€" in (x or "") for tr in bare.data for x in (tr.text or ()))
     assert any("€" in (x or "") for tr in paid.data for x in (tr.text or ()))
+
+
+def test_both_titles_share_one_figure_and_the_long_term_has_its_colour() -> None:
+    """R584 (owner, 2026-10-15) — reference and comparison on the SAME graph, one colour
+    each, and the 5- and 10-year points in a colour of their own."""
+    fig = fc.forecast_figure([_series("Ref", _hist(60), colour=fc.TITLE_COLORS[0]),
+                              _series("Cmp", _hist(200), colour=fc.TITLE_COLORS[1])])
+    lines = [tr for tr in fig.data if tr.mode and "lines" in tr.mode]
+    assert {tr.name for tr in lines} == {"Ref", "Cmp"}
+    assert {tr.line.color for tr in lines} == set(fc.TITLE_COLORS)
+    for tr in lines:
+        if tr.line.dash != "dot":
+            continue
+        far = [c for x, c in zip(tr.x, tr.marker.color) if x >= 1826]
+        near = [c for x, c in zip(tr.x, tr.marker.color) if x < 1826]
+        assert far and set(far) == {fc.LONG_TERM_COLOR}, tr.name
+        assert fc.LONG_TERM_COLOR not in near, tr.name
+    assert any(tr.name and "long terme" in tr.name for tr in fig.data), "the colour is named"

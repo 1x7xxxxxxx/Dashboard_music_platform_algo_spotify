@@ -2,7 +2,8 @@
 
 Type: Sub
 Uses: streamlit, pandas, plotly, ._catalogue, src.dashboard.utils.semantic_colors
-Depends on: ml_song_predictions (lu ICI, dans la fonction qui dessine)
+Depends on: ml_song_predictions (lu ICI, dans la fonction qui dessine), v_meta_campaign_daily
+            (meilleur CPR, R581), algo_stream_estimates.json + s4a_song_timeline (R583)
 Triggers: views/trigger_algo/router.py
 Persists in: nothing
 
@@ -70,27 +71,23 @@ def _show_tab_catalogue(db, artist_id) -> list[str]:
 
     df = construire(lignes.to_dict("records"))
 
-    # R477 (owner W14, 2026-10-09) : « dernière release sélectionnée automatiquement »,
-    # « deux releases au lieu de cinq, pas de tableau, des graphiques ». The three tiles,
-    # the head texts, the note under the gauges and « 📋 Le tableau complet » (with its
-    # note — « le vrai pour tout ton catalogue ») are gone: the two figures ARE the answer.
-    # The selector is the app's shared one (`release_picker`, R478), newest release first.
-    from src.dashboard.utils.release_picker import release_picker
-    from ._release_targets import (MAX_TRACKS, by_proximity, indicators_figure,
+    # R579 (owner, 2026-10-15) — two separate filters: the reference release (newest by
+    # default) and the one it is compared with (second-newest by default, or none).
+    from ._release_targets import (by_proximity, comparison_options, indicators_figure,
                                    last_releases, lever_weights, track_levers,
                                    values_figure)
     newest_first = last_releases(df, n=len(df))
-    choix = release_picker(t("trigger_algo.cat.releases", "🎵 Tes deux dernières sorties"),
-                           newest_first, key=f"cat_compare_{artist_id}")
-    # The cap is applied HERE, not by `max_selections`: Streamlit RAISES when the session
-    # already holds more (this key served the uncapped selector before R247), and a
-    # widened filter crashed the tab (test_a_widened_filter_still_renders).
-    if len(choix) > MAX_TRACKS:
-        st.caption(t("trigger_algo.cat.releases_cut",
-                     "Les {n} premiers titres choisis sont montrés.").format(n=MAX_TRACKS))
-        choix = choix[:MAX_TRACKS]
-    if not choix:
+    if not newest_first:
         return []
+    left, right = st.columns(2)
+    ref = left.selectbox(t("trigger_algo.cat.reference", "🎵 Sortie de référence"),
+                         newest_first, index=0, key=f"cat_ref_{artist_id}")
+    options = comparison_options(newest_first, ref)
+    cmp_ = right.selectbox(t("trigger_algo.cat.comparison", "🎵 Comparée à"), options,
+                           index=1 if len(options) > 1 else 0, key=f"cat_cmp_{artist_id}",
+                           format_func=lambda o: o or t("trigger_algo.cat.no_comparison",
+                                                        "— aucune —"))
+    choix = [ref] + ([cmp_] if cmp_ else [])
     feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
     levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}
     # R559 (fiches 46, 56, 57) — the 28-day figures and the SHAP weights
@@ -102,10 +99,38 @@ def _show_tab_catalogue(db, artist_id) -> list[str]:
     stats = {r["song"]: {"streams": r["streams_28d"], "saves": r["saves_28d"],
                          "adds": r["adds_28d"], "until": until}
              for r in df.to_dict("records") if r["song"] in choix}
-    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights, stats),
+    money, readings = _money_and_readings(db, artist_id, choix)
+    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights, stats,
+                                          feats={s_: feats_of.get(s_, {}) for s_ in choix},
+                                          money=money, readings=readings),
                         width="stretch")
     st.divider()
     fig = values_figure(choix, levers, weights)
     if fig is not None:
         charts.plotly_chart(fig, width="stretch")
+        # R582 — what the bars and their « repère » say, once, under the chart.
+        st.caption(t("trigger_algo.cat.values_note",
+                     "Chaque barre : où en est le titre sur un critère, en % de la valeur qui "
+                     "déclenche la playlist selon le modèle (100 % = elle part, les autres "
+                     "critères inchangés). Nombres : valeur actuelle / valeur visée. "
+                     "« repère » : le modèle n'atteint jamais 80 % sur ce critère seul — la "
+                     "cible vient alors de la base de connaissance. Barre pleine = sortie de "
+                     "référence, hachurée = sortie comparée."))
     return list(choix)
+
+
+def _money_and_readings(db, artist_id, choix: list[str]) -> tuple[dict, dict]:
+    """R581/R583 — the best CPR, each title's € per stream, the cohort estimates and each
+    title's measured algo streams. A part that cannot be read is left out, never invented."""
+    from src.dashboard.utils.algo_preview_data import lire_cpr_bornes
+    from src.dashboard.utils.artist_cashflow import track_stream_rate
+    from ._tab_algo_streams import load_estimates, load_readings, release_date
+    bornes = lire_cpr_bornes(db, artist_id)
+    rates = {}
+    for s_ in choix:
+        r = track_stream_rate(db, artist_id, s_)
+        rates[s_] = r["eur_par_stream"] if r else None
+    money = {"cpr": bornes[0] if bornes else None, "rate": rates, "est": load_estimates()}
+    readings = {s_: load_readings(db, artist_id, s_, release_date(db, artist_id, s_))
+                for s_ in choix}
+    return money, readings

@@ -5,7 +5,7 @@ Uses: numpy, pandas, plotly, src.dashboard.utils.artist_cashflow (track_stream_r
       ._tab_algo_streams (load_estimates, TRIGGER_ORDER)
 Reads: v_s4a_song_daily (gold view over the S4A CSVs) — in `show_forecast`, the function
        that draws, so the gold-coverage map can attribute the figure
-Triggers: views/trigger_algo/router.py (« Où en sont mes titres », once per picked release)
+Triggers: views/trigger_algo/router.py (« Où en sont mes titres », once for the picked releases)
 Persists in: nothing
 
 Owner, 2026-10-15 : « écoutes cumulées + revenus » of each release at J+7, J+28, 3 months,
@@ -146,11 +146,21 @@ def _point_text(p: dict, rate: float | None) -> str:
     return txt + (f"<br>{eur(p['value'] * rate, 0)}" if rate else "")
 
 
-def _base_traces(fig, path: list[dict], rate: float | None, below: set = frozenset()) -> None:
-    """The measured part (solid), the projected part (dotted) and its P25–P75 band.
+#: R584 — one colour per title (the reference first), and the 5- and 10-year points in a
+#: colour of their own: a long-term forecast, read as such (owner, 2026-10-15).
+TITLE_COLORS = ("#444444", "#1e8b7a")
+LONG_TERM_COLOR = "#8e5bd0"
+LONG_TERM = frozenset({"y5", "y10"})
 
-    A point at an age in `below` writes its label UNDER it: an overlay sits above."""
+
+def _base_traces(fig, s: dict, below: set = frozenset(), under: set = frozenset()) -> None:
+    """One title's measured part (solid), projected part (dotted) and P25–P75 band; its
+    5- and 10-year points are marked in `LONG_TERM_COLOR`.
+
+    A point at an age in `below` writes its label beside and under it (an overlay sits
+    above); one in `under` writes it under (the other title's point sits above)."""
     import plotly.graph_objects as go
+    path, rate, colour, name = s["path"], s.get("rate"), s["colour"], s["name"]
     done = [p for p in path if p["measured"] and p["value"] > 0]
     ahead = [p for p in path if not p["measured"] and p["value"] > 0]
     joint = done[-1:] + ahead
@@ -158,52 +168,81 @@ def _base_traces(fig, path: list[dict], rate: float | None, below: set = frozens
         xs = [p["age"] for p in joint]
         fig.add_trace(go.Scatter(
             x=xs + xs[::-1], y=[p["hi"] for p in joint] + [p["lo"] for p in joint][::-1],
-            fill="toself", fillcolor="rgba(120,120,120,0.18)", line=dict(width=0),
-            hoverinfo="skip", name=t("trigger_algo.fc.band", "Fourchette P25–P75 de la prévision")))
-    for part, dash, name in ((done, "solid", t("trigger_algo.fc.measured", "Mesuré")),
-                             (joint if ahead else [], "dot",
-                              t("trigger_algo.fc.projected", "Prévu — rythme actuel du titre"))):
+            fill="toself", fillcolor=_alpha(colour, 0.14), line=dict(width=0),
+            hoverinfo="skip", legendgroup=name, showlegend=False))
+    for part, dash in ((done, "solid"), (joint if ahead else [], "dot")):
         if not part:
             continue
         fig.add_trace(go.Scatter(
-            x=[p["age"] for p in part], y=[p["value"] for p in part], name=name,
-            mode="lines+markers+text", line=dict(color="#444", dash=dash, width=2),
+            x=[p["age"] for p in part], y=[p["value"] for p in part],
+            name=name, legendgroup=name, showlegend=dash == "solid" or not done,
+            mode="lines+markers+text", line=dict(color=colour, dash=dash, width=2),
+            marker=dict(size=[13 if p["key"] in LONG_TERM else 7 for p in part],
+                        color=[LONG_TERM_COLOR if p["key"] in LONG_TERM else colour
+                               for p in part]),
             # the dotted part starts ON the last measured point: label it once
             text=[_point_text(p, rate) if p["measured"] == (dash == "solid") else ""
                   for p in part],
-            textposition=["bottom right" if p["age"] in below else "top center" for p in part],
+            textfont=dict(color=colour),
+            textposition=["bottom right" if p["age"] in below else
+                          "bottom center" if p["age"] in under else "top center" for p in part],
             cliponaxis=False, customdata=[p["label"] for p in part],
             hovertext=[_point_text(p, rate).replace("<br>", " · ") for p in part],
-            hovertemplate="%{customdata} : %{hovertext}<extra></extra>"))
+            hovertemplate=name + " · %{customdata} : %{hovertext}<extra></extra>"))
 
 
-def _overlay_traces(fig, overlays: list[dict]) -> None:
+def _overlay_traces(fig, s: dict, shift: float = 1.0) -> None:
     import plotly.graph_objects as go
     from src.dashboard.utils.platform_colors import ALGO_COLORS
     from src.utils.algo_order import ALGO_NAMES
+    overlays = s["overlays"]
     algos = list(dict.fromkeys(o["algo"] for o in overlays))
     for i, algo in enumerate(algos):
         mine = [o for o in overlays if o["algo"] == algo]
-        dodge = 1 + 0.12 * (i - (len(algos) - 1) / 2)   # side by side on the log axis
+        dodge = shift * (1 + 0.12 * (i - (len(algos) - 1) / 2))  # side by side, log axis
         fig.add_trace(go.Scatter(
             x=[o["age"] * dodge for o in mine], y=[o["y"] for o in mine], mode="markers",
-            marker=dict(color=ALGO_COLORS[algo], size=12, symbol="diamond"),
+            marker=dict(color=ALGO_COLORS[algo], size=12, symbol="diamond",
+                        line=dict(color=s["colour"], width=2)),
             error_y=dict(type="data", symmetric=False, color=ALGO_COLORS[algo],
                          array=[o["y_hi"] - o["y"] for o in mine],
                          arrayminus=[o["y"] - o["y_lo"] for o in mine]),
+            legendgroup=f"algo-{algo}", showlegend=shift == 1.0,
             name=t("trigger_algo.fc.if_algo", "Si {algo} se déclenche (P50, barre P25–P75)")
             .format(algo=ALGO_NAMES[algo]),
-            hovertemplate=ALGO_NAMES[algo] + " : %{y:,.0f}<extra></extra>"))
+            hovertemplate=s["name"] + " · " + ALGO_NAMES[algo] + " : %{y:,.0f}<extra></extra>"))
 
 
-def forecast_figure(path: list[dict], overlays: list[dict], rate: float | None = None):
-    """Cumulative streams on log-log axes; revenue written on each point at `rate`. Pure."""
+def _long_term_key(fig) -> None:
+    """A legend entry naming the long-term colour — the markers alone would not say it."""
+    import plotly.graph_objects as go
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode="markers",
+        marker=dict(size=13, color=LONG_TERM_COLOR),
+        name=t("trigger_algo.fc.long_term", "Prévision long terme (5 et 10 ans)")))
+
+
+def _lower_ages(s: dict, series: list[dict]) -> set:
+    """The ages where `s` lies under another title — its label goes below. Pure."""
+    others = [{p["age"]: p["value"] for p in o["path"]} for o in series if o is not s]
+    return {p["age"] for p in s["path"]
+            if any(p["value"] < o.get(p["age"], -1) for o in others)}
+
+
+def forecast_figure(series: list[dict]):
+    """Every picked title's cumulative streams on ONE log-log figure (R584). Pure.
+
+    `series`: one dict per title — name, path, overlays, rate (€ per stream or None),
+    colour. Revenue is written on each point at the title's own rate."""
     import plotly.graph_objects as go
     fig = go.Figure()
-    _base_traces(fig, path, rate, {o["age"] for o in overlays})
-    _overlay_traces(fig, overlays)
-    ys = [v for p in path for v in (p["lo"], p["hi"], p["value"]) if v > 0]
-    ys += [o["y_hi"] for o in overlays]
+    for i, s in enumerate(series):
+        _base_traces(fig, s, {o["age"] for o in s["overlays"]}, _lower_ages(s, series))
+        _overlay_traces(fig, s, shift=1.0 + 0.06 * i)
+    if any(p["key"] in LONG_TERM for s in series for p in s["path"]):
+        _long_term_key(fig)
+    ys = [v for s in series for p in s["path"] for v in (p["lo"], p["hi"], p["value"]) if v > 0]
+    ys += [o["y_hi"] for s in series for o in s["overlays"]]
     if not ys:
         return fig
     yr = [math.log10(min(ys)) - 0.15, math.log10(max(ys)) + 0.35]
@@ -212,8 +251,14 @@ def forecast_figure(path: list[dict], overlays: list[dict], rate: float | None =
                      range=[math.log10(4.2), math.log10(5600)])
     fig.update_yaxes(type="log", range=yr,
                      title_text=t("trigger_algo.fc.axis", "Écoutes cumulées depuis la sortie"))
-    fig.update_layout(height=430, margin=dict(t=30, r=60))
+    fig.update_layout(height=470, margin=dict(t=30, r=60))
     return fig
+
+
+def _alpha(hex_colour: str, a: float) -> str:
+    h = hex_colour.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r},{g},{b},{a})"
 
 
 def _forecast_note(fit: dict, rate: dict | None, overlays: list[dict]) -> str:
@@ -243,29 +288,45 @@ def _forecast_note(fit: dict, rate: dict | None, overlays: list[dict]) -> str:
     return " ".join(parts)
 
 
-def show_forecast(db, artist_id: int, song: str, release) -> None:
-    """The forecast of ONE picked release — read here, drawn here (gold coverage)."""
-    import streamlit as st
-
-    from src.dashboard.utils import charts
-    from src.dashboard.utils.artist_cashflow import track_stream_rate
+def _title_series(daily: pd.DataFrame, release, est: dict, rate: dict | None) -> dict | None:
+    """One title's path, fit and overlays from its imported days. Pure."""
     from src.utils.algo_order import ALGO_ORDER
-
-    from ._tab_algo_streams import load_estimates
-    st.markdown(t("trigger_algo.fc.head",
-                  "**🔮 Prévision — écoutes cumulées et revenus de {song}**").format(song=song))
-    daily = db.fetch_df(
-        "SELECT day, streams FROM v_s4a_song_daily WHERE artist_id = %s AND song = %s "
-        "ORDER BY day", (artist_id, song))
     hist = daily_by_age(daily, release)
     fit = fit_decay(hist)
     path = cumulative_path(hist, fit)
     if not path:
-        st.info(t("trigger_algo.fc.empty",
-                  "Aucune écoute importée pour ce titre : pas de prévision."))
+        return None
+    return {"path": path, "fit": fit, "rate_info": rate,
+            "rate": rate["eur_par_stream"] if rate else None,
+            "overlays": algo_overlays(est, path, int(hist["age"].max()), ALGO_ORDER)}
+
+
+def show_forecast(db, artist_id: int, picks: list[tuple]) -> None:
+    """The picked releases' forecast on ONE figure (R584) — read here, drawn here (gold
+    coverage). `picks`: (song, release date) pairs, the reference first."""
+    import streamlit as st
+
+    from src.dashboard.utils import charts
+    from src.dashboard.utils.artist_cashflow import track_stream_rate
+
+    from ._tab_algo_streams import load_estimates
+    st.markdown(t("trigger_algo.fc.head_all",
+                  "**🔮 Prévision — écoutes cumulées et revenus**"))
+    est, series = load_estimates(), []
+    for song, release in picks:
+        daily = db.fetch_df(
+            "SELECT day, streams FROM v_s4a_song_daily WHERE artist_id = %s AND song = %s "
+            "ORDER BY day", (artist_id, song))
+        s = _title_series(daily, release, est, track_stream_rate(db, artist_id, song))
+        if s is None:
+            st.caption(t("trigger_algo.fc.empty_one",
+                         "{song} : aucune écoute importée, pas de prévision.").format(song=song))
+            continue
+        series.append({**s, "name": song,
+                       "colour": TITLE_COLORS[len(series) % len(TITLE_COLORS)]})
+    if not series:
         return
-    overlays = algo_overlays(load_estimates(), path, int(hist["age"].max()), ALGO_ORDER)
-    rate = track_stream_rate(db, artist_id, song)
-    fig = forecast_figure(path, overlays, rate["eur_par_stream"] if rate else None)
-    charts.plotly_chart(fig, width="stretch")
-    st.caption(_forecast_note(fit, rate, overlays))
+    charts.plotly_chart(forecast_figure(series), width="stretch")
+    st.caption(" ".join(f"**{s['name']}** — " + _forecast_note(s["fit"], s["rate_info"],
+                                                                s["overlays"])
+                        for s in series))

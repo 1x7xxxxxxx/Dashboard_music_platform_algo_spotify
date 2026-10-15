@@ -2,12 +2,9 @@
 
 EN = {
     # router.py — page-level
-    "trigger_algo.est_caption": "The playlist's streams over 28 days AT THAT AGE, not a cumulative total — drawn from the {n} songs of the training set. Solid point = your « 28 days » entry. « Not enough songs »: fewer than {m} triggered songs of that age.",
     "trigger_algo.est_band": "P25–P75 band = half of the triggered songs",
-    "trigger_algo.est_axis": "Algorithm streams over 28 days",
     "trigger_algo.est_refused": "not enough songs ({n})",
     "trigger_algo.est_pred": "Dotted = median of the triggered songs (P50)",
-    "trigger_algo.est_real": "Your track — measured",
     "trigger_algo.est_hover": "%{x} days: %{y:,.0f} streams over 28 d (median)<extra></extra>",
     "trigger_algo.real_hover": "at %{x} days: %{y:,.0f} streams over 28 d (your entry)<extra></extra>",
     "trigger_algo.title": "🚀 Spotify algorithm trigger prediction",
@@ -66,9 +63,6 @@ EN = {
     "trigger_algo.alias_landing_page": "This page is now part of « Spotify algorithm trigger prediction ».",
     "trigger_algo.alias_landing": ("This page is now part of « Trigger prediction »: "
                                    "[↓ go to the {section} section](#{anchor})"),
-    "trigger_algo.algostreams_header": "**📈 What a trigger brings — {song}**",
-    "trigger_algo.algostreams_empty": "No forecast and no entry for this track. Enter DW/RR/Radio streams "
-                                      "in 📝 S4A manual entry.",
 
 
     # _tab_model.py
@@ -549,7 +543,7 @@ EN = {
     # ── 🎧 Ce titre : ce qu'il reste à faire (2026-09-22) ────────────────────
     "trigger_algo.tab_declenche": "🎯 Once triggered",
     "trigger_algo.rel.adds28": "Playlist adds 28 d",
-    "trigger_algo.rel.triggered_by": "triggered by:",
+    "trigger_algo.rel.triggered_by": "triggered by (weight · value):",
     # ── 🔮 Prévision par titre (R570) ────────────────────────────────────────
     "trigger_algo.fc.h.j7": "D+7",
     "trigger_algo.fc.h.j28": "D+28",
@@ -558,9 +552,6 @@ EN = {
     "trigger_algo.fc.h.y1": "1 year",
     "trigger_algo.fc.h.y5": "5 years",
     "trigger_algo.fc.h.y10": "10 years",
-    "trigger_algo.fc.band": "P25–P75 range of the forecast",
-    "trigger_algo.fc.measured": "Measured",
-    "trigger_algo.fc.projected": "Forecast — the track's current pace",
     "trigger_algo.fc.if_algo": "If {algo} triggers (P50, bar P25–P75)",
     "trigger_algo.fc.axis": "Cumulative streams since release",
     "trigger_algo.fc.note_power": "Base: the track's own decay, fitted on its last {d} imported days.",
@@ -576,9 +567,23 @@ EN = {
     "trigger_algo.fc.no_overlay": (
         "No « if the playlist triggers » diamond: the track is past the ages where a "
         "trigger was measured (first month, around 6 months)."),
-    "trigger_algo.fc.head": "**🔮 Forecast — cumulative streams and revenue of {song}**",
-    "trigger_algo.fc.empty": "No stream imported for this track: no forecast.",
-    "trigger_algo.cat.releases": "🎵 Your two latest releases",
-    "trigger_algo.cat.releases_cut": "The first {n} selected tracks are shown.",
     # ── 🎛️ Comment régler tes campagnes (2026-09-22) ────────────────────────
+    "trigger_algo.cat.reference": "🎵 Reference release",
+    "trigger_algo.cat.comparison": "🎵 Compared with",
+    "trigger_algo.cat.no_comparison": "— none —",
+    "trigger_algo.cat.values_note": (
+        "Each bar: where the track stands on one criterion, as a % of the value that "
+        "triggers the playlist according to the model (100 % = it fires, other criteria "
+        "unchanged). Numbers: current value / target value. « reference »: the model never "
+        "reaches 80 % on this criterion alone — the target then comes from the knowledge "
+        "base. Solid bar = reference release, hatched = compared release."),
+    "trigger_algo.est_real_song": "{song} — measured",
+    "trigger_algo.fc.head_all": "**🔮 Forecast — cumulative streams and revenue**",
+    "trigger_algo.fc.empty_one": "{song}: no stream imported, no forecast.",
+    "trigger_algo.fc.long_term": "Long-term forecast (5 and 10 years)",
+    "trigger_algo.rel.gap": "{n} streams (7 d) missing",
+    "trigger_algo.rel.gap_met": "streams (7 d): reached",
+    "trigger_algo.rel.budget": "≈ {b} of ads (best CPR {c})",
+    "trigger_algo.rel.worth": "if triggered: {s} streams / 28 d",
+    "trigger_algo.rel.mini_head": "<b>What a trigger brings</b> — streams / 28 d",
 }

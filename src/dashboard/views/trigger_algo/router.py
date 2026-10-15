@@ -1,7 +1,7 @@
 """trigger_algo — router: the slim show() entry point.
 
-R570 (owner, 2026-10-15) : one filter — the two latest releases (`release_picker`, in the
-catalogue) — drives the whole page; two parts, « Où en sont mes titres » then « Une fois
+R570 (owner, 2026-10-15) : the releases picked in the catalogue drive the whole page —
+R579: a reference and a comparison filter, newest and second-newest by default; two parts, « Où en sont mes titres » then « Une fois
 déclenché ». The title selectbox, the period filter, the per-track coach, the budget/ROI
 part and the CPR cards are gone.
 """
@@ -9,13 +9,12 @@ import streamlit as st
 
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
-from src.utils.track_matching import canonical_song_sql
 
 from ._custom_window_entry import render_custom_grid
 from ._forecast import show_forecast
 from ._outcome_entry import render_outcomes
 from ._sections import arrival_section, guide_sections_md, is_alias_arrival, section_label
-from ._tab_algo_streams import _show_tab_algo_streams
+from ._tab_algo_streams import release_date
 from ._tab_catalogue import _show_tab_catalogue
 
 
@@ -90,27 +89,11 @@ def show():
     with view_session() as (db, artist_id), page_db_scope(db, artist_id):
         _section("catalogue", first=True)
         choix = _show_tab_catalogue(db, artist_id)
-        for song in choix:
-            release = _release_date(db, artist_id, song)
-            _show_tab_algo_streams(db, song, artist_id, release_date=release)
-            show_forecast(db, artist_id, song, release)
+        # R584 — both titles on ONE forecast; R583 moved the estimates beside the gauges.
+        show_forecast(db, artist_id, [(s_, release_date(db, artist_id, s_)) for s_ in choix])
         _section("declenche")
         render_outcomes(db, artist_id, tracks=choix or None)
         render_custom_grid(db, artist_id, tracks=choix or None)
-
-
-def _release_date(db, artist_id, song: str):
-    """The track's release date (None when unknown) — `tracks` is scoped by saas_artist_id."""
-    try:
-        rows = db.fetch_query(
-            f"SELECT release_date FROM tracks WHERE {canonical_song_sql('track_name')} = %s "
-            "AND saas_artist_id = %s LIMIT 1", (song, artist_id))
-    except Exception as e:                           # noqa: BLE001 — said, not hidden (R525)
-        st.caption(t("trigger_algo.release_date_unreadable",
-                     "Date de sortie illisible ({err}) — la prévision part du premier "
-                     "jour importé.").format(err=type(e).__name__))
-        return None
-    return rows[0][0] if rows and rows[0][0] else None
 
 
 def _section(key: str, *, first: bool = False) -> None:

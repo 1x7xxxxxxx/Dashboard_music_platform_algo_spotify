@@ -107,6 +107,15 @@ def last_releases(df: pd.DataFrame, n: int = MAX_TRACKS) -> list[str]:
     return d.sort_values("_age", na_position="last")["song"].head(n).tolist()
 
 
+NO_COMPARISON = None
+
+
+def comparison_options(newest_first: list[str], reference: str | None) -> list:
+    """The comparison filter's options (R579): « none » first, then every other release,
+    newest first — the default index (1) is the release before the reference. Pure."""
+    return [NO_COMPARISON] + [s_ for s_ in newest_first if s_ != reference]
+
+
 def lever_weights(feats_by_track: dict, loader=None) -> dict:
     """{algo: {feature: mean |SHAP|}} over the chosen tracks — R559 (fiches 46, 47, 57).
 
@@ -166,36 +175,136 @@ def lever_label(feature: str) -> str:
     return t(f"algo.label.{feature}", _FEATURE_LABELS.get(feature, (feature, True))[0])
 
 
-def _playlist_box(algo: str, weights: dict) -> str:
-    """The playlist's name as a pill, then « déclenché par » its three heaviest criteria."""
+def feature_value(key: str, feats: dict | None):
+    """A model column's human value: `_log` columns are stored as log1p. Pure."""
+    import math
+    raw = (feats or {}).get(key)
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return math.expm1(v) if key.endswith("_log") else v
+
+
+def _value_text(v) -> str:
+    if v is None:
+        return "—"
+    return num(v, 2) if abs(v) < 10 and v != int(v) else num(v, 0)
+
+
+def shap_share(weights: dict, algo: str, key: str) -> float | None:
+    """`key`'s share of the playlist's total mean |SHAP| — « 40 % » of the decision. Pure."""
+    w = weights.get(algo, {})
+    total = sum(w.values())
+    return w.get(key, 0.0) / total if total > 0 else None
+
+
+def _playlist_box(algo: str, weights: dict, feats: dict | None = None) -> str:
+    """The playlist's name as a pill, then « déclenché par » its three heaviest criteria —
+    each with its SHAP share and its current value per title (R580)."""
     tops = top_features(weights, algo)
     if not tops:
         return f"<b>{ALGO_NAMES[algo]}</b>"
-    lines = "<br>".join(f"{i}. {lever_label(f)}" for i, f in enumerate(tops, start=1))
-    head = t("trigger_algo.rel.triggered_by", "déclenché par :")
+    feats = feats or {}
+    lines = []
+    for i, f in enumerate(tops, start=1):
+        share = shap_share(weights, algo, f)
+        vals = " / ".join(_value_text(feature_value(f, x)) for x in feats.values())
+        lines.append(f"{i}. {lever_label(f)} — <b>{round(100 * share)} %</b>"
+                     + (f" · {vals}" if vals else ""))
+    head = t("trigger_algo.rel.triggered_by", "déclenché par (poids · valeur) :")
     return (f"<b>{ALGO_NAMES[algo]}</b><br><span style='font-size:11px'><i>{head}</i>"
-            f"<br>{lines}</span>")
+            f"<br>{'<br>'.join(lines)}</span>")
+
+
+def streams_gap(levers: dict, algo: str) -> float | None:
+    """The 7-day streams still missing to the model's target for `algo` — a GAP. Pure."""
+    v = levers.get((algo, "StreamsLast7Days"))
+    if not v:
+        return None
+    return max(float(v["target"]) - float(v["current"] or 0.0), 0.0)
+
+
+def trigger_value(est: dict | None, algo: str, rate: float | None) -> tuple | None:
+    """(streams, €) a triggered playlist usually brings in its first 28 days: the cohort's
+    P50 at one month, at the title's own rate. None when refused or unreadable. Pure."""
+    cell = ((est or {}).get("estimates") or {}).get(algo.lower(), {}).get("j28") or {}
+    if cell.get("refused") or "p50" not in cell:
+        return None
+    streams = float(cell["p50"])
+    return streams, (streams * rate if rate else None)
+
+
+def money_line(levers: dict, algo: str, money: dict | None, song: str) -> str:
+    """Under a gauge (R581): the Meta budget to close the 7-day streams gap at the best
+    CPR, and what the playlist would bring once triggered. Pure.
+
+    The gap is a GAP, never a threshold (`test_no_view_buys_streams_up_to_a_threshold`);
+    pricing streams with a cost per CLICK assumes one click ≈ one stream — « ≈ »."""
+    from src.dashboard.utils.algo_preview_data import budget_pour_streams
+    from src.dashboard.utils.formats import eur
+    if not money:
+        return ""
+    parts = []
+    gap, cpr = streams_gap(levers, algo), money.get("cpr")
+    if gap is not None and gap <= 0:
+        parts.append(t("trigger_algo.rel.gap_met", "écoutes 7 j : atteint"))
+    elif gap is not None:
+        cost = budget_pour_streams(gap, cpr)
+        parts.append(t("trigger_algo.rel.gap", "manque {n} écoutes 7 j").format(n=num(gap, 0)))
+        if cost is not None:
+            parts.append(t("trigger_algo.rel.budget", "≈ {b} de pub (meilleur CPR {c})").format(
+                b=eur(cost, 0), c=f"{cpr:.3f} €".replace(".", ",")))
+    value = trigger_value(money.get("est"), algo, (money.get("rate") or {}).get(song))
+    if value:
+        parts.append(t("trigger_algo.rel.worth", "si déclenchée : {s} écoutes / 28 j").format(
+            s=num(value[0], 0)) + ("" if value[1] is None else f" ≈ {eur(value[1], 0)}"))
+    return "<br>".join(parts)
+
+
+def _mini_chart(fig, algo: str, row: int, col: int, est: dict, readings: dict) -> None:
+    """R583 — « ce qu'un déclenchement rapporte » beside the playlist: the cohort's 28-day
+    streams by age, dotted over its P25–P75 band, and each title's readings."""
+    from . import _tab_algo_streams as ests
+    cells = (est.get("estimates") or {}).get(algo.lower()) or {}
+    first = row == 1
+    ests.cohort_traces(fig, cells, ALGO_COLORS[algo], row=row, col=col, first=first)
+    for song, symbol in zip(readings, ("circle", "square")):
+        ests.reading_trace(fig, readings[song], algo, song=song, symbol=symbol,
+                           row=row, col=col, first=first)
+    limit = ests.x_max(est.get("estimates") or {}, list(readings.values()))
+    ests.refused_notes(fig, cells, limit, row=row, col=col)
+    vals, text = ests.age_ticks(limit)
+    fig.update_xaxes(tickvals=vals, ticktext=text, range=[0, round(limit * 1.18)],
+                     tickfont=dict(size=10), row=row, col=col)
+    fig.update_yaxes(rangemode="tozero", tickfont=dict(size=10), row=row, col=col)
 
 
 def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None,
-                      stats: dict | None = None):
-    """One gauge per (algorithm, track): the shortest route, 0-100 %. Pure.
+                      stats: dict | None = None, *, feats: dict | None = None,
+                      money: dict | None = None, readings: dict | None = None):
+    """One row per playlist: its pill, one gauge per track, and what a trigger brings. Pure.
 
-    R477 (W14) — each row opens on its playlist's name in a pill drawn in the playlist's
-    colour. R559 (fiches 46, 56, 57) — the pill names « déclenché par » the playlist's three
-    heaviest criteria (`lever_weights`); each track's title carries its 28-day streams,
-    saves and playlist adds. R570 (owner, 2026-10-15) — the Meta CPR budget under the DW
-    and Radio gauges is gone, and the gauge's number is larger.
+    R477 (W14) — the pill is drawn in the playlist's colour. R559 — it names « déclenché
+    par » the three heaviest criteria; each track's title carries its 28-day figures.
+    R580 (owner, 2026-10-15) — each criterion carries its SHAP share and its value per
+    title. R581 — under each gauge, the Meta budget at the best CPR to close the 7-day
+    streams gap, and what the playlist brings once triggered. R583 — with `money["est"]`,
+    a last column draws the cohort's 28-day streams by age beside the gauges.
     """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-    weights, stats = weights or {}, stats or {}
+    weights, stats, money = weights or {}, stats or {}, money or {}
+    est, readings = money.get("est") or {}, readings or {}
+    mini = bool(est.get("estimates"))
     cols = max(len(tracks), 1)
     names = dict(zip(tracks, short_labels(tracks, 24)))
-    fig = make_subplots(rows=len(ALGOS), cols=cols + 1,
-                        column_widths=[0.24] + [0.76 / cols] * cols,
-                        specs=[[None] + [{"type": "indicator"}] * cols] * len(ALGOS),
-                        vertical_spacing=0.14, horizontal_spacing=0.04)
+    gauge_w = (0.46 if mini else 0.72) / cols
+    widths = [0.28] + [gauge_w] * cols + ([0.26] if mini else [])
+    spec_row = [None] + [{"type": "indicator"}] * cols + ([{"type": "xy"}] if mini else [])
+    fig = make_subplots(rows=len(ALGOS), cols=len(widths), column_widths=widths,
+                        specs=[spec_row] * len(ALGOS), vertical_spacing=0.12,
+                        horizontal_spacing=0.03)
     for r, algo in enumerate(ALGOS, start=1):
         for c, song in enumerate(tracks, start=2):
             route = shortest_route(levers_by_track.get(song, {}), algo)
@@ -208,13 +317,27 @@ def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | 
                        "bar": {"color": ALGO_COLORS[algo]},
                        "threshold": {"line": {"color": "#333", "width": 2}, "value": 100}}),
                 row=r, col=c)
+            line = money_line(levers_by_track.get(song, {}), algo, money, song)
+            if line:
+                x0, x1 = fig.data[-1].domain.x
+                fig.add_annotation(x=(x0 + x1) / 2, y=fig.data[-1].domain.y[0], xref="paper",
+                                   yref="paper", yanchor="top", showarrow=False, text=line,
+                                   font={"size": 10, "color": "#555"})
         y0, y1 = fig.data[-1].domain.y
         fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
                            xanchor="left", align="left", showarrow=False,
-                           text=_playlist_box(algo, weights),
+                           text=_playlist_box(algo, weights, {s_: (feats or {}).get(s_)
+                                                              for s_ in tracks}),
                            font={"size": 13, "color": "white"}, bordercolor=ALGO_COLORS[algo],
                            borderwidth=2, borderpad=6, bgcolor=ALGO_COLORS[algo])
-    fig.update_layout(height=180 * len(ALGOS) + 70, margin=dict(t=70, b=20, l=10, r=10))
+        if mini:
+            _mini_chart(fig, algo, r, len(widths), est, readings)
+    if mini:
+        fig.add_annotation(x=1.0, y=1.0, xref="paper", yref="paper", xanchor="right",
+                           yanchor="bottom", showarrow=False, font={"size": 12},
+                           text=t("trigger_algo.rel.mini_head",
+                                  "<b>Ce qu'un déclenchement rapporte</b> — écoutes / 28 j"))
+    fig.update_layout(height=240 * len(ALGOS) + 120, margin=dict(t=80, b=70, l=10, r=10))
     return fig
 
 

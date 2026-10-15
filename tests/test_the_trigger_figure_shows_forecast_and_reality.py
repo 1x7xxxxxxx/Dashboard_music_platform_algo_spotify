@@ -1,7 +1,8 @@
 """R560 — one figure answers « what does a trigger bring, and what did MY title do ».
 
 Owner's notes of 2026-10-13, fiches 129 and 48: the forecast table and the lifecycle
-cohort were two answers to one question. They are one figure now: per algorithm, in
+cohort were two answers to one question. R583 (2026-10-15) moved the figure beside each
+playlist's gauges — its drawing is tested in test_a_release_target_says_where_it_comes_from. They are one figure now: per algorithm, in
 trigger order (RR → DW → Radio, ADR-033 §3), the dotted median of triggered titles over
 its P25–P75 band, and the title's own 28-day readings as solid points at their age.
 """
@@ -32,12 +33,8 @@ def test_a_reading_is_placed_at_its_age_and_never_before_release():
     assert 99 not in out["RR"].tolist()
 
 
-def test_the_forecast_is_dotted_and_the_reading_solid():
-    readings = pd.DataFrame({"age_days": [27], "DW": [420.0], "RADIO": [900.0], "RR": [700.0]})
-    fig = m.estimates_figure(_EST, readings)
-    pred = [tr for tr in fig.data if tr.legendgroup == "pred"]
-    real = [tr for tr in fig.data if tr.legendgroup == "real"]
-    assert len(pred) == 3 and all(tr.line.dash == "dot" for tr in pred)
-    assert len(real) == 3 and all(tr.mode == "markers" for tr in real)
-    # Refused ages are said, not drawn.
-    assert any("(0)" in (a.text or "") for a in fig.layout.annotations)
+def test_the_last_age_shown_is_the_last_with_something_to_draw():
+    """R570 — a refused age past every reading is not drawn; a later reading widens it."""
+    assert m.x_max(_EST["estimates"], []) == 182
+    late = pd.DataFrame({"age_days": [300], "DW": [1.0], "RADIO": [1.0], "RR": [1.0]})
+    assert m.x_max(_EST["estimates"], [late]) == 300

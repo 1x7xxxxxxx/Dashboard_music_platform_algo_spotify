@@ -137,13 +137,66 @@ def test_lever_weights_average_the_absolute_shap(monkeypatch):
     assert rt.lever_weights({}, loader=lambda n: object()) == {}
 
 
-def test_no_gauge_carries_a_meta_budget_any_more():
-    """R570 (owner, 2026-10-15) — the CPR budget under the DW and Radio gauges is gone,
-    and the gauge's number is larger."""
-    levers = {"A": {(a, "StreamsLast7Days"): _lever(300.0, 1000.0, "modèle")
-                    for a in ("DW", "RADIO", "RR")}}
-    fig = rt.indicators_figure(["A"], levers)
-    texts = [a.text or "" for a in fig.layout.annotations]
-    assert len(texts) == 3, "one playlist pill per row, nothing else"
-    assert not [x for x in texts if "CPR" in x or "€" in x], texts
-    assert all(tr.number.font.size >= 30 for tr in fig.data)
+_EST = {"estimates": {a: {"j28": {"p25": 200, "p50": 500, "p75": 1400, "n": 40},
+                          "m6": {"n": 3, "refused": True}, "y1": {"n": 0, "refused": True}}
+                      for a in ("dw", "rr", "radio")}}
+
+
+def _three_levers(current: float, target: float) -> dict:
+    return {"A": {(a, "StreamsLast7Days"): _lever(current, target, "modèle")
+                  for a in ("DW", "RADIO", "RR")}}
+
+
+def test_each_gauge_prices_the_streams_gap_at_the_best_cpr():
+    """R581 (owner, 2026-10-15) — under each gauge: the 7-day streams still missing, the
+    Meta budget to buy them at the BEST CPR, and what the playlist brings once triggered."""
+    money = {"cpr": 0.05, "rate": {"A": 0.004}, "est": _EST}
+    fig = rt.indicators_figure(["A"], _three_levers(300.0, 1000.0), money=money)
+    lines = [a.text for a in fig.layout.annotations if "CPR" in (a.text or "")]
+    assert len(lines) == 3, "one budget line per gauge"
+    assert all("700" in x and "35 €" in x for x in lines), lines   # 700 × 0,05 €
+    assert all("500 écoutes" in x and "2 €" in x for x in lines), lines   # P50 × 0,004 €
+    assert all(tr.number.font.size >= 30 for tr in fig.data if tr.type == "indicator")
+
+
+def test_no_budget_is_invented_without_a_cpr_or_past_the_target():
+    fig = rt.indicators_figure(["A"], _three_levers(300.0, 1000.0),
+                               money={"cpr": None, "rate": {}, "est": {}})
+    assert not [a for a in fig.layout.annotations if "€" in (a.text or "")]
+    met = rt.money_line(_three_levers(1200.0, 1000.0)["A"], "DW", {"cpr": 0.05}, "A")
+    assert "atteint" in met and "€" not in met
+
+
+def test_the_pill_gives_each_criterion_its_shap_share_and_its_value():
+    """R580 — « déclenché par » names each criterion's share of the decision and its
+    current value per title; a `_log` column is shown back in streams."""
+    w = {"DW": {"StreamsLast7Days_log": 3.0, "SavesLast28Days_adj": 1.0, "x": 0.0}}
+    feats = {"A": {"StreamsLast7Days_log": math.log1p(99.0), "SavesLast28Days_adj": 12.0}}
+    box = rt._playlist_box("DW", w, feats)
+    assert "75 %" in box and "25 %" in box, box
+    assert "99" in box and "12" in box, box
+    assert rt.shap_share({}, "DW", "x") is None
+
+
+def test_the_comparison_defaults_to_the_release_before_the_reference():
+    """R579 — two filters; the comparison's index 1 is the second-newest, « none » first."""
+    opts = rt.comparison_options(["new", "old", "older"], "new")
+    assert opts == [None, "old", "older"]
+    assert rt.comparison_options(["new", "old"], "old") == [None, "new"]
+
+
+def test_a_trigger_brings_is_drawn_beside_each_playlist():
+    """R583 — the cohort's 28-day streams sit in a last column, one panel per playlist."""
+    readings = {"A": pd.DataFrame({"age_days": [27], "DW": [420.0], "RADIO": [900.0],
+                                   "RR": [700.0]})}
+    fig = rt.indicators_figure(["A"], _three_levers(300.0, 1000.0),
+                               money={"cpr": 0.05, "rate": {}, "est": _EST}, readings=readings)
+    xy = [tr for tr in fig.data if tr.type == "scatter"]
+    pred = [tr for tr in xy if tr.legendgroup == "pred"]
+    assert len(pred) == 3 and all(tr.line.dash == "dot" for tr in pred)
+    assert len({tr.xaxis for tr in pred}) == 3, "one panel per playlist"
+    real = [tr for tr in xy if (tr.legendgroup or "").startswith("real-")]
+    assert len(real) == 3 and all(tr.mode == "markers" for tr in real)
+    assert any("rapporte" in (a.text or "") for a in fig.layout.annotations)
+    assert not [tr for tr in rt.indicators_figure(["A"], _three_levers(1, 2)).data
+                if tr.type != "indicator"], "no estimates, no column"
