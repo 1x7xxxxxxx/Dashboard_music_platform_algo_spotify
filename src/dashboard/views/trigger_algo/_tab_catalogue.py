@@ -105,7 +105,8 @@ def _show_tab_catalogue(db, artist_id) -> list[str]:
                                           money=money, readings=readings),
                         width="stretch")
     st.divider()
-    fig = values_figure(choix, levers, weights)
+    fig = values_figure(choix, levers, weights,
+                        feats={s_: feats_of.get(s_, {}) for s_ in choix})
     if fig is not None:
         charts.plotly_chart(fig, width="stretch")
         # R582 — what the bars and their « repère » say, once, under the chart.

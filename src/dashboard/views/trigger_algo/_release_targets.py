@@ -212,7 +212,8 @@ def _playlist_box(algo: str, weights: dict, feats: dict | None = None) -> str:
         vals = " / ".join(_value_text(feature_value(f, x)) for x in feats.values())
         lines.append(f"{i}. {lever_label(f)} — <b>{round(100 * share)} %</b>"
                      + (f" · {vals}" if vals else ""))
-    head = t("trigger_algo.rel.triggered_by", "déclenché par (poids · valeur) :")
+    head = t("trigger_algo.rel.triggered_by",
+             "déclenché par — poids principaux<br>des modèles de machine learning :")
     return (f"<b>{ALGO_NAMES[algo]}</b><br><span style='font-size:11px'><i>{head}</i>"
             f"<br>{'<br>'.join(lines)}</span>")
 
@@ -336,8 +337,10 @@ def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | 
                                    yref="paper", yanchor="top", showarrow=False, text=line,
                                    font={"size": 10, "color": "#555"})
         y0, y1 = fig.data[-1].domain.y
+        # R600 — `yanchor` left to « auto » anchored the top pill by its top and the bottom
+        # one by its bottom: each sat off its row of gauges. Centred, it reads as their label.
         fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
-                           xanchor="left", align="left", showarrow=False,
+                           xanchor="left", yanchor="middle", align="left", showarrow=False,
                            text=_playlist_box(algo, weights, {s_: (feats or {}).get(s_)
                                                               for s_ in tracks}),
                            font={"size": 13, "color": "white"}, bordercolor=ALGO_COLORS[algo],
@@ -360,7 +363,8 @@ def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | 
     return fig
 
 
-def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None):
+def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None,
+                  feats: dict | None = None):
     """One panel per playlist, DW → Radio → RR: each lever's progress toward the value that
     would trigger it, one bar per track, levers in decreasing SHAP weight. Pure.
 
@@ -368,6 +372,8 @@ def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None
     the four panels of raw values put a few dozen saves beside a target in thousands, and
     three markers per slot. Each bar is now a share of ITS target (100 % = triggers), the
     two numbers are written on it, and a target the model never reached says « repère ».
+    R602 (owner, 2026-10-15) — each panel is named on its LEFT by the same pill as the
+    gauges' (« déclenché par »), and the dashed line says what 100 % means.
     """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -384,8 +390,7 @@ def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None
                       key=lambda f: (-_lever_weight(weights, a, f), LEVERS.index(f)))
             for a in algos}
     fig = make_subplots(rows=len(algos), cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=[ALGO_NAMES[a] for a in algos],
-                        row_heights=[len(fids[a]) for a in algos])
+                        row_heights=[max(len(fids[a]), 2) for a in algos])
     xs = short_labels(tracks, 18)
     for r, algo in enumerate(algos, start=1):
         for k, (song, name) in enumerate(zip(tracks, xs)):
@@ -401,9 +406,21 @@ def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None
                 marker_pattern_shape="" if k == 0 else "/",
                 hovertemplate=name + " · %{y}<br>%{text}<extra></extra>"),
                 row=r, col=1)
-        fig.add_vline(x=100, line_dash="dash", line_color="#666", row=r, col=1)
+        fig.add_vline(x=100, line_dash="dash", line_color="#666", row=r, col=1,
+                      **({"annotation_text": t("trigger_algo.rel.full_mark", "100 % = déclenche"),
+                          "annotation_position": "top", "annotation_font_size": 11}
+                         if r == 1 else {}))
+        y0, y1 = fig.layout[f"yaxis{'' if r == 1 else r}"].domain
+        fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
+                           xanchor="left", yanchor="middle", align="left", showarrow=False,
+                           text=_playlist_box(algo, weights, {s_: (feats or {}).get(s_)
+                                                              for s_ in tracks}),
+                           font={"size": 12, "color": "white"}, bordercolor=ALGO_COLORS[algo],
+                           borderwidth=2, borderpad=6, bgcolor=ALGO_COLORS[algo])
     fig.update_yaxes(autorange="reversed", automargin=True)
-    fig.update_xaxes(range=[0, 135], ticksuffix=" %", showticklabels=False)
-    fig.update_layout(barmode="group", height=90 + 60 * sum(len(v) for v in fids.values()),
+    # The pills take the left third; the levers' names sit between them and the bars.
+    fig.update_xaxes(range=[0, 135], ticksuffix=" %", showticklabels=False, domain=[0.5, 1])
+    fig.update_layout(barmode="group",
+                      height=90 + 60 * sum(max(len(v), 2) for v in fids.values()),
                       margin=dict(t=50, l=10, r=10, b=20))
     return fig

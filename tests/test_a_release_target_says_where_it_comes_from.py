@@ -94,8 +94,13 @@ def test_the_values_figure_is_one_panel_per_playlist_one_bar_per_track():
                   ("RADIO", "StreamsLast7Days"): _lever(300.0, 900.0, "modèle")}
               for s in ("A - Original", "A - Remix")}
     fig = rt.values_figure(["A - Original", "A - Remix"], levers)
-    titles = [a.text for a in fig.layout.annotations]
-    assert titles == [rt.ALGO_NAMES[a] for a in ("DW", "RADIO", "RR")], titles
+    # R602 — each panel is named on its LEFT by the gauges' pill, and 100 % is named.
+    pills = [a for a in fig.layout.annotations if a.bgcolor]
+    assert [p.text.split("</b>")[0] for p in pills] == [
+        f"<b>{rt.ALGO_NAMES[a]}" for a in ("DW", "RADIO", "RR")], [p.text for p in pills]
+    assert all(p.x == 0.0 and p.xanchor == "left" and p.yanchor == "middle" for p in pills)
+    assert min(fig.layout.xaxis.domain) > 0.3, "the bars leave the left to the pills"
+    assert any("100 %" in (a.text or "") for a in fig.layout.annotations if not a.bgcolor)
     dw = [tr for tr in fig.data if tr.xaxis == "x"]
     assert len(dw) == 2 and len({tr.name for tr in dw}) == 2, "one bar per track"
     assert all(tr.marker.color == rt.ALGO_COLORS["DW"] for tr in dw)
@@ -212,3 +217,18 @@ def test_the_best_cpr_is_said_once_not_under_each_gauge():
     texts = [a.text or "" for a in fig.layout.annotations]
     assert sum("0,068" in x for x in texts) == 1, texts
     assert any("de pub" in x and "0,068" not in x for x in texts), texts
+
+
+def test_each_pill_is_centred_on_its_row_of_gauges():
+    """R600 (owner, 2026-10-15) — « pastilles alignées sur leur rangée de jauges »: with
+    `yanchor` left to « auto », the top pill hung from its top and the bottom one stood on
+    its bottom. Each pill's vertical centre is its row's."""
+    fig = rt.indicators_figure(["A", "B"], {**_three_levers(300.0, 1000.0),
+                                            "B": _three_levers(300.0, 1000.0)["A"]})
+    pills = [a for a in fig.layout.annotations if a.bgcolor]
+    gauges = [tr for tr in fig.data if tr.type == "indicator"]
+    rows = sorted({tuple(tr.domain.y) for tr in gauges}, reverse=True)
+    assert len(pills) == len(rows) == 3
+    for pill, (y0, y1) in zip(pills, rows):
+        assert pill.yanchor == "middle" and abs(pill.y - (y0 + y1) / 2) < 1e-9
+    assert "machine learning" in rt._playlist_box("DW", {"DW": {"StreamsLast7Days_log": 1.0}})

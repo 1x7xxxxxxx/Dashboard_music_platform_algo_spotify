@@ -542,7 +542,8 @@ EN = {
     # R587
     "trigger_algo.entry_btn": "🎯 Enter the algorithmic streams obtained",
     "trigger_algo.rel.adds28": "Playlist adds 28 d",
-    "trigger_algo.rel.triggered_by": "triggered by (weight · value):",
+    "trigger_algo.rel.full_mark": "100 % = triggers",
+    "trigger_algo.rel.triggered_by": "triggered by — main weights<br>of the machine learning models:",
     # ── 🔮 Prévision par titre (R570) ────────────────────────────────────────
     "trigger_algo.fc.h.j7": "D+7",
     "trigger_algo.fc.h.j28": "D+28",
