@@ -43,6 +43,13 @@ import sys
 
 def main() -> int:
     """Démarre l'exportateur, puis rend la main à `streamlit run`. Ne rend jamais 0."""
+    # R619 — l'environnement d'abord : en production, une clé requise absente ou mal
+    # typée refuse le démarrage (hors production : un avertissement). Le contrôle de
+    # FERNET_KEY vivait dans `app.py`, rejoué à chaque rerun et écrit pour UN lecteur.
+    from src.utils.env_schema import main as check_env
+
+    if check_env(["dashboard"]):
+        return 1
     try:
         from src.utils.metrics import start_metrics_server
 

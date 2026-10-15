@@ -249,7 +249,8 @@ services:
       - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
       - ./machine_learning:/opt/airflow/machine_learning:ro
-    command: scheduler
+    # R619 — the env schema first: in production a missing or mistyped key refuses the start.
+    command: bash -c "python -m src.utils.env_schema airflow-scheduler && exec airflow scheduler"
     restart: unless-stopped
     networks:
       - airflow_network
@@ -409,6 +410,10 @@ services:
       API_SECRET_KEY: ${API_SECRET_KEY}               # JWT signing (no ephemeral fallback in prod)
       API_STRICT_BOOT: '1'                            # fail loud at boot on weak/absent API_SECRET_KEY / DATABASE_URL
       STREAMLYTICS_ENV: ${STREAMLYTICS_ENV:-local}    # R267 — `production` makes the boot strict even without the flag above
+      # R619 — reached through src/api/deps.py → src.dashboard.utils (the upward arc R626
+      # retires): the API's import graph reads these, so its boot schema requires them.
+      FERNET_KEY: ${FERNET_KEY:?set FERNET_KEY in .env (compose reads .env, not .env.local) - see .env.example}
+      APP_BASE_URL: ${APP_BASE_URL}
       CORS_ORIGINS: ${CORS_ORIGINS}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-}           # leave empty in prod (/docs + /redoc off)
       # Brute-force / rate-limit posture (src/api/security.py). Without these the code

@@ -42,26 +42,23 @@ def _strict() -> bool:
 
 
 def _preflight() -> None:
-    """Fail loud in prod on weak/absent security-critical config — instead of silently
-    degrading (API_SECRET_KEY falls back to an EPHEMERAL key in auth.py, so JWTs die on
-    every restart / differ per worker). Warns by default so dev/test keep working; raises
-    only under API_STRICT_BOOT=1 (set in the prod compose). Mirrors the dashboard's
-    boot-time FERNET/AIRFLOW checks."""
+    """Fail loud in production on an absent or mistyped key the API reads — instead of
+    silently degrading (API_SECRET_KEY falls back to an EPHEMERAL key in auth.py, so JWTs
+    die on every restart / differ per worker). Warns elsewhere so dev/test keep working;
+    raises when `_strict()` (production, or API_STRICT_BOOT=1). The keys are those of
+    `src.utils.env_schema` the API's import graph reaches (R619) — the dashboard runs the
+    same schema from serve.py."""
     import logging
-    problems = []
-    if len(os.getenv("API_SECRET_KEY", "")) < 32:
-        problems.append("API_SECRET_KEY missing or <32 chars — JWTs won't survive a "
-                        "restart / multi-worker (set `openssl rand -hex 32`)")
-    if not os.getenv("DATABASE_URL"):
-        problems.append("DATABASE_URL not set")
-    if not problems:
+
+    from src.utils.env_schema import problems
+    found = problems("api")
+    if not found:
         return
-    msg = "API startup preflight: " + "; ".join(problems)
+    msg = "API startup preflight: " + "; ".join(found)
     if _strict():
         raise RuntimeError(msg + " — refusing to start (production or API_STRICT_BOOT=1).")
     logging.getLogger("api.preflight").warning(
         "⚠️ %s — set API_STRICT_BOOT=1 in prod to make this fatal.", msg)
-
 
 _preflight()
 

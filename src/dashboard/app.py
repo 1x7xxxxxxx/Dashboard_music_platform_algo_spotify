@@ -9,7 +9,6 @@ warnings.filterwarnings("ignore", message="Unable to import Axes3D")
 import streamlit as st
 from pathlib import Path
 import sys
-import os
 
 # ✅ IMPORTANT : Ajouter le chemin AVANT les imports src.*
 # resolve() → chemin absolu garanti, insert(0) → priorité maximale
@@ -59,16 +58,9 @@ config = config_loader.load()
 # classe garder ses défauts littéraux `admin`/`admin` — et trois autres appelants
 # sont nés depuis, dont un qui construisait `AirflowTrigger()` nu. Il vit désormais
 # dans `build_airflow_trigger()`, le seul lecteur de ces identifiants.
-# Fail loud at boot, not at the first credential save. Without FERNET_KEY every stored API
-# credential is undecryptable and every connection test silently fails (the kind of silent
-# gap the Benken session hit). Resolution mirrors _core._get_fernet (env → config.yaml).
-if not (os.getenv('FERNET_KEY') or config.get('fernet_key')):
-    raise RuntimeError(
-        "FERNET_KEY not configured (env var or config/config.yaml `fernet_key`). Stored API "
-        "credentials cannot be decrypted — credential saves and connection tests would "
-        "silently fail. Generate one: python -c \"from cryptography.fernet import Fernet; "
-        "print(Fernet.generate_key().decode())\""
-    )
+# The FERNET_KEY boot check lived here until R619 (2026-10-15): it now runs once, at
+# container start, in `src.utils.env_schema` (called by serve.py), with every other key
+# the dashboard reads — env, then config.yaml `fernet_key`, as before.
 airflow_trigger = build_airflow_trigger(config)
 
 # Les deux pages atteintes depuis un e-mail vivent à part : elles n'ont ni

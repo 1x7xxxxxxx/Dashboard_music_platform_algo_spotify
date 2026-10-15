@@ -47,9 +47,20 @@ _ALLOWED_TO_RESOLVE = {
 # local production snapshot by setting DATABASE_URL before rendering — the door still
 # resolves. `test_a_feeder_only_writes_the_door` keeps it to writes.
 _FEEDS_THE_DOOR = {REPO / "tools" / "dev" / "charts_dossier" / "capture.py"}
+# Modules that NAME a DSN variable to check it is SET, never to build a connection.
+# R619 (2026-10-15): the boot env schema requires DATABASE_URL (or DATABASE_HOST) and
+# names both as data; `src/api/main.py` left the ratchet the same day, its presence
+# check having moved there. `test_a_declarer_never_connects` keeps it a declaration.
+_DECLARES_THE_KEYS = {REPO / "src" / "utils" / "env_schema.py"}
 _SCANNED_TREES = [REPO / "src", REPO / "airflow" / "dags", REPO / "tools"]
 _DSN_VARS = {"DATABASE_URL", "DATABASE_HOST", "DATABASE_PORT",
              "DATABASE_NAME", "DATABASE_USER", "DATABASE_PASSWORD"}
+
+# The ratchet of known DSN readers. 10 on 2026-08-22; EMPTY since R619 (2026-10-15): the
+# stale check read a one-entry COPY of this list, so the nine others had been migrated to
+# the door without anyone removing them — the ratchet was measuring nothing. It is now a
+# ban: a module that reads a DSN variable itself is red.
+_KNOWN_READERS: frozenset[str] = frozenset()
 
 
 def _modules_reading_dsn_env() -> dict:
@@ -57,7 +68,7 @@ def _modules_reading_dsn_env() -> dict:
     out: dict[str, list[str]] = {}
     for tree_root in _SCANNED_TREES:
         for path in sorted(tree_root.rglob("*.py")):
-            if path in _ALLOWED_TO_RESOLVE or path in _FEEDS_THE_DOOR:
+            if path in _ALLOWED_TO_RESOLVE | _FEEDS_THE_DOOR | _DECLARES_THE_KEYS:
                 continue
             try:
                 found = dsn_reads(path.read_text(encoding="utf-8"))
@@ -120,19 +131,7 @@ def test_no_new_module_resolves_the_database_itself():
     #
     # The list may shrink, never grow. Removing an entry as it is migrated is the
     # intended direction of travel.
-    known = {
-        "src/api/main.py",
-        "src/dashboard/utils/usage_tracker.py",
-        "airflow/dags/alert_monitor.py",
-        "airflow/dags/data_quality_check.py",
-        "airflow/dags/ml_outcome_labeling.py",
-        "airflow/dags/ml_scoring_daily.py",
-        "airflow/dags/onboarding_report.py",
-        "airflow/dags/spotify_api_daily.py",
-        "airflow/dags/weekly_digest.py",
-        "airflow/dags/youtube_daily.py",
-    }
-    offenders = sorted(set(_modules_reading_dsn_env()) - known)
+    offenders = sorted(set(_modules_reading_dsn_env()) - _KNOWN_READERS)
     assert not offenders, (
         "module(s) de test ouvrant une connexion depuis des variables de DSN, "
         "sans passer par `tests/db_gate.dsn()` :\n  " + "\n  ".join(offenders)
@@ -149,8 +148,9 @@ def test_the_known_list_has_not_rotted():
     stale exemption is an exemption nobody re-examines.
     """
     reading = set(_modules_reading_dsn_env())
-    known = {"src/api/main.py"}
-    stale = sorted(known - reading)
+    # It reads THE ratchet's list. Until R619 (2026-10-15) it kept its own one-entry copy,
+    # so nine of the ten entries could rot unseen.
+    stale = sorted(_KNOWN_READERS - reading)
     assert not stale, (
         f"{stale} no longer read a DSN variable — remove them from the ratchet so it "
         "keeps measuring something"
@@ -466,3 +466,15 @@ def test_a_feeder_only_writes_the_door() -> None:
         with open(path, encoding="utf-8") as fh:
             reads = env_reads(fh.read())
         assert not reads, f"{path.relative_to(REPO)} READS {reads} — it would be a second door"
+
+
+def test_a_declarer_never_connects():
+    """An exempted declarer may name the DSN keys, never import a driver or the door."""
+    for path in _DECLARES_THE_KEYS:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        mods = {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+        mods |= {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+        assert not {m for m in mods if m.split(".")[0] in {"psycopg2", "sqlalchemy"}
+                    or m in {"src.database.postgres_handler", "src.utils.pg_connect"}}, (
+            f"{path.relative_to(REPO)} now connects — it is no longer a declaration; "
+            "remove it from _DECLARES_THE_KEYS and route it through the door")
