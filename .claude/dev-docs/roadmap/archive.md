@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R591 — Vue croisée — retirer la prose (« du 31/08 … CPR, coût d'un clic sortant ») et les tuil… (livrée 2026-10-15)
+
+- [x] **R591 — Vue croisée — retirer la prose (« du 31/08 … CPR, coût d'un clic sortant ») et les tuiles dépenses / écoutes sur N jours / coût par écoute / CPR moyen** (P3) ✅ (2026-10-15, f076c7ce, 3a48a9f3)
+  Mesuré par : test : aucune `st.metric` ni caption de définition dans l'entonnoir
+  Livré 3a48a9f3 + f076c7ce, déployé f076c7ce, CI verte (run 38741625028)
+  Commits : f076c7ce R591 : clés EN orphelines des tuiles et notes retirées (18), plancher  · 3a48a9f3 R591 : Vue croisée — plus de prose ni de tuiles autour de l'entonnoir 
+
 ## ✅ R589 — Vue croisée — entonnoir : budget en tête comme une case, puis impressions, couverture,… (livrée 2026-10-15)
 
 - [x] **R589 — Vue croisée — entonnoir : budget en tête comme une case, puis impressions, couverture, clics sur la pub, visites smart link, clics smart link, écoutes, revenus ; libellés lisibles (police plus grande) ; noms des deux campagnes encadrés avec un petit carré de couleur (titre 1 / titre 2)** (P3) ✅ (2026-10-15, da2ba290)
