@@ -151,7 +151,7 @@ Follow .claude/skills/impact-analysis.md steps 1-3 EXACTLY, in order:
     to it, say so in root_cause and set confidence="inferred". Do not dress a hypothesis as a cause.
  3. WHOLE-REPO SIBLING SWEEP — the core step, and the one that is always skipped. grep the symbol
     across EVERY source tree the project has — application code, scripts, tools, tests AND
-    `.claude/` — the config layer is inside the set, it is not exempt (a sweep that skipped
+    \`.claude/\` — the config layer is inside the set, it is not exempt (a sweep that skipped
     .claude/ is how a sensor wrote 735 unread rows for 9 days). Ask the INVERSE question too:
     producer→caller AND artefact→reader (A17 hides in the first direction, A32 in the second).
     List EVERY hit. For each, decide same-bug or false-alarm and WRITE DOWN WHY. A hit you cleared
