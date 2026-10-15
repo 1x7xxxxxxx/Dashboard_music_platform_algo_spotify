@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R629 — Un journal CI qui dit « envoyé » quand le mail est en PAUSE (R572) : run nightly-recap… (livrée 2026-10-16)
+
+- [x] **R629 — Un journal CI qui dit « envoyé » quand le mail est en PAUSE (R572) : run nightly-recap 38732548355 du 2026-10-15 imprime « ⏸️ not mailed » PUIS « ✅ recap sent ». `mail_red_verdict.send()` ne rend rien, ses 3 appelants (`github_nightly_recap`, `ci_break_mail`, `nightly_verdict`) annoncent le succès sans condition. Fix : `send()` rend `bool`, chaque appelant n'imprime ✅ que sur `True` + test** (P3) ✅ (2026-10-16, 4592ae72)
+  Mesuré par : test : en pause, aucun appelant n'imprime ✅
+  Livré 4592ae72 : send() rend bool, les 4 appelants n'impriment ✅ que sur un envoi réel ; garde AST muté (résultat ignoré ⇒ rouge). test-changed 7240 verts, CI verte (run 38825378658).
+  Commits : 4592ae72 R629 : send() rend bool — aucun journal CI ne dit « envoyé » quand le 
+
 ## ✅ R626 — Retirer les 8 arcs montants cliquetés par R616 (`python3 tools/dev/layer_arcs.py`) : `s… (livrée 2026-10-16)
 
 - [x] **R626 — Retirer les 8 arcs montants cliquetés par R616 (`python3 tools/dev/layer_arcs.py`) : `src/api/deps.py` → `src.dashboard.utils` au niveau module d'abord (l'import de l'API tire la porte du dashboard), puis les modules du dashboard lus par `src/utils` (`i18n`, `platform_timeseries`, `algo_preview_data`, `throttle`, `guide_pdf`, `credentials._registry`) et `src.api.security` vers une couche basse ; puis les 3 DAGs qui importent `src.dashboard.utils.{status_matrix, pdf_exporter, i18n}`, hors cliquet aujourd'hui. Chaque déplacement retire sa clé de `tests/layer_arcs_baseline.json`. **Critic 2026-10-16 : ACCEPT WITH CHANGES** — ordre : arc 5 (fenêtres → `request_throttle`), arc 6 (`output_pdf_path` → `src/utils/guide_paths.py`), arc 2 (plancher ML → `src/utils/ml_floor.py`), arc 1 (`open_db()` sous `src/database/`, la porte du dashboard l'enveloppe), `save_probe` → `src/utils/probe_store.py`, arc 7 (`translate` sans Streamlit, langue explicite), arc 3 (`git mv` platform_timeseries), arc 4 NE PAS déplacer (`CONNECTION_TESTS` appartient au registre : baseline avec sa raison ou dépendance inversée), puis `layer_arcs.py` balaie `airflow/dags/` (onboarding_report → pdf_exporter en baseline avec sa raison). Un commit par arc, importeurs et chaînes `patch()` dans le même commit (arc 3 : seuls les chemins de patch de tests/home_snapshot.py changent, le rendu de l'Accueil reste identique)** (P4) ✅ (2026-10-16, 00d876a8, 4740417e, a8de09ea, 8504a35e, 13c7992c, 24bb3324, 349950b1, 46f5697c)
