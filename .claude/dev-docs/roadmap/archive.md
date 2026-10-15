@@ -11,6 +11,76 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R584 — Prédiction algos — prévision : les deux titres (référence + comparaison) sur le MÊME gr… (livrée 2026-10-15)
+
+- [x] **R584 — Prédiction algos — prévision : les deux titres (référence + comparaison) sur le MÊME graphique ; 5 ans et 10 ans en couleur distincte (long terme)** (P3) ✅ (2026-10-15, 63177739)
+  Mesuré par : test : une figure, deux titres, horizons longs colorés à part
+  Livré 63177739 — prévision des deux titres sur un seul graphique ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R583 — Prédiction algos — mini-graphique « ce qu'un déclenchement rapporte » déplacé à côté de… (livrée 2026-10-15)
+
+- [x] **R583 — Prédiction algos — mini-graphique « ce qu'un déclenchement rapporte » déplacé à côté de la playlist dans « où en sont mes titres », fusionné avec le taux de déclenchement** (P3) ✅ (2026-10-15, 63177739)
+  Mesuré par : test : la section séparée n'existe plus
+  Livré 63177739 — mini-graphique en dernière colonne à côté de chaque playlist ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R582 — Prédiction algos — description du graphique d'estimations (ce que dit le repère de réfé… (livrée 2026-10-15)
+
+- [x] **R582 — Prédiction algos — description du graphique d'estimations (ce que dit le repère de référence)** (P3) ✅ (2026-10-15, 63177739)
+  Mesuré par : rendu : description présente sous le graphique
+  Livré 63177739 — légende du graphique de valeurs ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R581 — Prédiction algos — remettre le budget Meta restant au meilleur CPR pour déclencher la p… (livrée 2026-10-15)
+
+- [x] **R581 — Prédiction algos — remettre le budget Meta restant au meilleur CPR pour déclencher la playlist, et la valeur générée si déclenchée, à côté de chaque playlist** (P3) ✅ (2026-10-15, 7e44fc27, 63177739)
+  Mesuré par : test : budget restant et valeur par playlist rendus
+  Livré 63177739 + 7e44fc27 — budget au meilleur CPR et valeur si déclenchée sous chaque jauge, CPR dit une fois ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 7e44fc27 R581 : Prédiction algos — sous chaque jauge, « manque N écoutes 7 j /  · 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R580 — Prédiction algos — à côté de « déclenché par 3 paramètres », le poids SHAP en % de chaq… (livrée 2026-10-15)
+
+- [x] **R580 — Prédiction algos — à côté de « déclenché par 3 paramètres », le poids SHAP en % de chaque paramètre et sa valeur** (P3) ✅ (2026-10-15, 63177739)
+  Mesuré par : test : chaque paramètre porte son % et sa valeur
+  Livré 63177739 — poids SHAP en % et valeur par titre ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R579 — Prédiction algos — deux filtres séparés : sortie de référence (défaut dernière) et sort… (livrée 2026-10-15)
+
+- [x] **R579 — Prédiction algos — deux filtres séparés : sortie de référence (défaut dernière) et sortie de comparaison (défaut avant-dernière)** (P3) ✅ (2026-10-15, 63177739)
+  Mesuré par : test : défauts = dernière / avant-dernière
+  Livré 63177739 — deux filtres référence / comparée ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 63177739 R579, R580, R581, R582, R583, R584 : Prédiction algos — deux filtres (
+
+## ✅ R578 — Vue croisée — « quel titre transforme le mieux les clics en écoutes » : autre visuel qu… (livrée 2026-10-15)
+
+- [x] **R578 — Vue croisée — « quel titre transforme le mieux les clics en écoutes » : autre visuel que Pareto (nuage clics × écoutes gagnées) ; hiérarchie campagne → ad set → pub explicite dans les libellés** (P3) ✅ (2026-10-15, a0d23e0c)
+  Mesuré par : test : figure en nuage ; libellé « campagne › ad set › pub »
+  Livré a0d23e0c — titres en nuage clics × écoutes avec rayons 1/2/5, libellés campagne › ad set › pub ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : a0d23e0c R577, R578 : Vue croisée — « quelle campagne a acheté l'écoute la moin
+
+## ✅ R577 — Vue croisée — supprimer « quelle campagne a acheté l'écoute la moins chère » (`campaign… (livrée 2026-10-15)
+
+- [x] **R577 — Vue croisée — supprimer « quelle campagne a acheté l'écoute la moins chère » (`campaign_compare.render#1`)** (P3) ✅ (2026-10-15, 7e44fc27, a0d23e0c)
+  Mesuré par : test cross_view : figure absente du registre et de la marche
+  Livré a0d23e0c — classement « écoute la moins chère » retiré ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 7e44fc27 R581 : Prédiction algos — sous chaque jauge, « manque N écoutes 7 j /  · a0d23e0c R577, R578 : Vue croisée — « quelle campagne a acheté l'écoute la moin
+
+## ✅ R576 — Vue croisée — CPM/CPC/CPR présentés autrement (cartes KPI par campagne) ; courbes cumul… (livrée 2026-10-15)
+
+- [x] **R576 — Vue croisée — CPM/CPC/CPR présentés autrement (cartes KPI par campagne) ; courbes cumulées « même horloge » en petits multiples (un panneau par métrique, couleur = campagne, traits pleins, légende sur le graphique)** (P3) ✅ (2026-10-15, 45dac531)
+  Mesuré par : tests : aucune largeur de trait ne code une métrique ; registre cross_view à jour
+  Livré 45dac531 — CPM/CPC/CPR en trois panneaux sucette, même horloge en valeurs réelles ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 45dac531 R576 : Vue croisée — CPM/CPC/CPR en trois panneaux « sucette » (un poi
+
+## ✅ R575 — Vue croisée — entonnoir en VRAIE forme d'entonnoir (haut→bas, large→étroit, `go.Funnel`… (livrée 2026-10-15)
+
+- [x] **R575 — Vue croisée — entonnoir en VRAIE forme d'entonnoir (haut→bas, large→étroit, `go.Funnel`), et deux campagnes ⇒ deux entonnoirs côte à côte visibles par défaut** (P3) ✅ (2026-10-15, 2b1111c4)
+  Mesuré par : test : la figure est un `go.Funnel` ordonné ; rendu à deux campagnes = 2 figures
+  Livré 2b1111c4 — go.Funnel impressions→clics→visites→clics plateformes, largeurs log jamais croissantes ; CI verte (run 38716652742), déployée en prod 7e44fc27
+  Commits : 2b1111c4 R575 : Vue croisée — l'entonnoir est un VRAI entonnoir (`go.Funnel`, h
+
 ## ✅ R574 — Légendes TOUJOURS sur le graphique, à la position la moins couvrante (coins + milieux),… (livrée 2026-10-15)
 
 - [x] **R574 — Légendes TOUJOURS sur le graphique, à la position la moins couvrante (coins + milieux), jamais dessous (commentaire Trésorerie du 2026-10-15) ; livrable `revue/legendes.md` : par figure, position retenue + nombre de points couverts** (P3) ✅ (2026-10-15, e7c95073)
