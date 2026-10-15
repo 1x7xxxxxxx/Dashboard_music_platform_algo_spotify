@@ -142,6 +142,9 @@ dev = [
     # R509 — mutation of the pure parsers (`make mutate-parsers`, weekly workflow). Pinned
     # to 2.5: mutmut 3 refuses a package named `src` (tools/dev/mutate_parsers.py).
     "mutmut==2.5.1",
+    # R609 (2026-10-15): the dead-code ratchet (`tools/dev/dead_code.py`). Pinned EXACTLY:
+    # its candidate set is the ratchet's input, and a range would move it silently.
+    "vulture==2.14",
     # Le seul client qui parle vraiment le websocket de Streamlit : un navigateur.
     # `tools/loadtest_dashboard.py:27-40` explique pourquoi la mesure de concurrence
     # ne peut PAS se faire sous `AppTest` — il se sature lui-même (un `st.write` passe
