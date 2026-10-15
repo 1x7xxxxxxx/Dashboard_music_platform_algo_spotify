@@ -128,7 +128,7 @@ NAV_SECTIONS: list = [
      [("🏠 Accueil", "home"),
       ("📄 Rapport PDF", "export_pdf"),
       ("🎯 Faire piloter mes campagnes", "service")]),
-    ("data",      "⚙️ Configuration de streaMLytics",
+    ("data",      "⚙️ Configuration et saisie manuelle de streaMLytics",  # R588
      [("🚀 Mise en route (assistant)", "onboarding"),
       ("🚦 Santé onboarding", "onboarding_health"),
       ("🔑 Credentials API + imports CSV", "credentials"),

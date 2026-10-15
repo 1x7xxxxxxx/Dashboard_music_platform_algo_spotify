@@ -46,7 +46,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.view_as_help": "Free/Premium access preview. Data stays admin-wide.",
         "nav.plan_badge_premium": "Your plan: **💎 Premium**",
         "nav.plan_badge_free": "Your plan: **🆓 Free**  ·  🔒 = **Premium** features",
-        "nav.section.data": "📁 Data",
+        "nav.section.data": "⚙️ streaMLytics setup and manual entry",  # R588
         "nav.section.analytics": "📊 Platform analytics",
         "nav.section.advanced": "🔮 Spotify algo prediction",
         "nav.section.ads": "📣 Meta Ads advertising",
