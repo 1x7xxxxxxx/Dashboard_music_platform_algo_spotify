@@ -37,6 +37,8 @@ EXEMPT = {
     # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
     "soundcloud.py": "titres comparés à âge égal (jours depuis l'upload) ; le catalogue montre ses 19 relevés, toute la collecte",
     # R570 — one filter on the page: the two latest releases (`release_picker`).
+    # R581 — `v_meta_campaign_daily` is read for ONE number (the best CPR), never drawn per day.
+    "trigger_algo/_tab_catalogue.py": "lit le meilleur CPR de toutes les campagnes, aucune série par jour n'est tracée",
     "trigger_algo/_forecast.py": "cumul depuis la SORTIE du titre choisi, axe en âge : une fenêtre de dates tronquerait le cumul",
 }
 

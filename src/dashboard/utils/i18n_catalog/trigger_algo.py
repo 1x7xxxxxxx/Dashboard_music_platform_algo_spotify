@@ -583,7 +583,8 @@ EN = {
     "trigger_algo.fc.long_term": "Long-term forecast (5 and 10 years)",
     "trigger_algo.rel.gap": "{n} streams (7 d) missing",
     "trigger_algo.rel.gap_met": "streams (7 d): reached",
-    "trigger_algo.rel.budget": "≈ {b} of ads (best CPR {c})",
-    "trigger_algo.rel.worth": "if triggered: {s} streams / 28 d",
+    "trigger_algo.rel.budget": "≈ {b} of ads",
+    "trigger_algo.rel.cpr_note": "ad budgets at the best CPR: {c}",
+    "trigger_algo.rel.worth": "if triggered:<br>{s} streams / 28 d",
     "trigger_algo.rel.mini_head": "<b>What a trigger brings</b> — streams / 28 d",
 }

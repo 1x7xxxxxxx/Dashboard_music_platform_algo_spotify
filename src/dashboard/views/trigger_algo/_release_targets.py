@@ -247,19 +247,29 @@ def money_line(levers: dict, algo: str, money: dict | None, song: str) -> str:
         return ""
     parts = []
     gap, cpr = streams_gap(levers, algo), money.get("cpr")
+    # The CPR is the same under every gauge: `cpr_note` writes it ONCE, under the figure —
+    # repeated per gauge, the line was wider than a gauge and two neighbours overlapped.
     if gap is not None and gap <= 0:
         parts.append(t("trigger_algo.rel.gap_met", "écoutes 7 j : atteint"))
     elif gap is not None:
         cost = budget_pour_streams(gap, cpr)
         parts.append(t("trigger_algo.rel.gap", "manque {n} écoutes 7 j").format(n=num(gap, 0)))
         if cost is not None:
-            parts.append(t("trigger_algo.rel.budget", "≈ {b} de pub (meilleur CPR {c})").format(
-                b=eur(cost, 0), c=f"{cpr:.3f} €".replace(".", ",")))
+            parts.append(t("trigger_algo.rel.budget", "≈ {b} de pub").format(b=eur(cost, 0)))
     value = trigger_value(money.get("est"), algo, (money.get("rate") or {}).get(song))
     if value:
-        parts.append(t("trigger_algo.rel.worth", "si déclenchée : {s} écoutes / 28 j").format(
+        parts.append(t("trigger_algo.rel.worth", "si déclenchée :<br>{s} écoutes / 28 j").format(
             s=num(value[0], 0)) + ("" if value[1] is None else f" ≈ {eur(value[1], 0)}"))
     return "<br>".join(parts)
+
+
+def cpr_note(money: dict | None) -> str:
+    """The best CPR the budgets under the gauges are priced at, said once. Pure."""
+    cpr = (money or {}).get("cpr")
+    if not cpr:
+        return ""
+    return t("trigger_algo.rel.cpr_note", "budgets de pub au meilleur CPR : {c}").format(
+        c=f"{cpr:.3f} €".replace(".", ","))
 
 
 def _mini_chart(fig, algo: str, row: int, col: int, est: dict, readings: dict) -> None:
@@ -332,6 +342,11 @@ def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | 
                            borderwidth=2, borderpad=6, bgcolor=ALGO_COLORS[algo])
         if mini:
             _mini_chart(fig, algo, r, len(widths), est, readings)
+    note = cpr_note(money)
+    if note:
+        fig.add_annotation(x=0.0, y=0.0, xref="paper", yref="paper", xanchor="left",
+                           yanchor="top", yshift=-48, showarrow=False, text=note,
+                           font={"size": 11, "color": "#555"})
     if mini:
         fig.add_annotation(x=1.0, y=1.0, xref="paper", yref="paper", xanchor="right",
                            yanchor="bottom", showarrow=False, font={"size": 12},

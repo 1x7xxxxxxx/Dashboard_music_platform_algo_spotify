@@ -132,7 +132,14 @@ def test_the_tracks_are_a_scatter_of_clicks_and_gained_streams() -> None:
 
 
 def test_the_campaign_ranking_is_not_rendered() -> None:
+    """R577: `render` draws no chart of its own — only the tracks and creatives sections."""
+    import ast
     import inspect
+    import textwrap
 
-    src = inspect.getsource(cc.render)
-    assert "cost_per_gained" not in src and "campaign_compare.head" not in src
+    tree = ast.parse(textwrap.dedent(inspect.getsource(cc.render)))
+    called = {n.func.id if isinstance(n.func, ast.Name) else n.func.attr
+              for n in ast.walk(tree) if isinstance(n, ast.Call)
+              and isinstance(n.func, (ast.Name, ast.Attribute))}
+    assert {"_render_tracks", "_render_creatives"} <= called
+    assert not called & {"pareto_figure", "plotly_chart"}, called

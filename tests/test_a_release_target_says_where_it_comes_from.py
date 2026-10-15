@@ -152,7 +152,8 @@ def test_each_gauge_prices_the_streams_gap_at_the_best_cpr():
     Meta budget to buy them at the BEST CPR, and what the playlist brings once triggered."""
     money = {"cpr": 0.05, "rate": {"A": 0.004}, "est": _EST}
     fig = rt.indicators_figure(["A"], _three_levers(300.0, 1000.0), money=money)
-    lines = [a.text for a in fig.layout.annotations if "CPR" in (a.text or "")]
+    lines = [a.text for a in fig.layout.annotations if "≈" in (a.text or "")
+             and "de pub" in (a.text or "")]
     assert len(lines) == 3, "one budget line per gauge"
     assert all("700" in x and "35 €" in x for x in lines), lines   # 700 × 0,05 €
     assert all("500 écoutes" in x and "2 €" in x for x in lines), lines   # P50 × 0,004 €
@@ -200,3 +201,14 @@ def test_a_trigger_brings_is_drawn_beside_each_playlist():
     assert any("rapporte" in (a.text or "") for a in fig.layout.annotations)
     assert not [tr for tr in rt.indicators_figure(["A"], _three_levers(1, 2)).data
                 if tr.type != "indicator"], "no estimates, no column"
+
+
+def test_the_best_cpr_is_said_once_not_under_each_gauge():
+    """R581 — repeated under every gauge, the CPR made each line wider than its gauge and
+    two neighbours overlapped (`test_a_rendered_figure_is_laid_out[trigger_algo]`)."""
+    fig = rt.indicators_figure(["A", "B"], {**_three_levers(300.0, 1000.0),
+                                            "B": _three_levers(300.0, 1000.0)["A"]},
+                               money={"cpr": 0.068, "rate": {}, "est": {}})
+    texts = [a.text or "" for a in fig.layout.annotations]
+    assert sum("0,068" in x for x in texts) == 1, texts
+    assert any("de pub" in x and "0,068" not in x for x in texts), texts

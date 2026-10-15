@@ -100,8 +100,9 @@ _SAME_SOURCE_BOTH_SIDES: dict[str, str] = {}
 _JOINS = {
     # `_tab_budget_roi.py` lost its `track_popularity_history` join on 2026-09-27 (R248);
     # R570 (2026-10-15) deleted it and `_common/_budget_roi.py` (`campaign_track_mapping`)
-    # with the Budget & ROI section.
-    "src/dashboard/views/trigger_algo/router.py": "tracks",
+    # with the Budget & ROI section. R579 (2026-10-15) moved the release-date lookup out of
+    # `router.py` into the section that draws it.
+    "src/dashboard/views/trigger_algo/_tab_algo_streams.py": "tracks",
 }
 
 
