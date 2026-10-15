@@ -277,7 +277,9 @@ def _mini_chart(fig, algo: str, row: int, col: int, est: dict, readings: dict) -
     streams by age, dotted over its P25–P75 band, and each title's readings."""
     from . import _tab_algo_streams as ests
     cells = (est.get("estimates") or {}).get(algo.lower()) or {}
-    first = row == 1
+    # R586 — no legend: beside the pills and the gauges it had no free corner and sat on
+    # a gauge. The column's header names the dotted median, the band and the two marks.
+    first = False
     ests.cohort_traces(fig, cells, ALGO_COLORS[algo], row=row, col=col, first=first)
     for song, symbol in zip(readings, ("circle", "square")):
         ests.reading_trace(fig, readings[song], algo, song=song, symbol=symbol,
@@ -351,7 +353,9 @@ def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | 
         fig.add_annotation(x=1.0, y=1.0, xref="paper", yref="paper", xanchor="right",
                            yanchor="bottom", showarrow=False, font={"size": 12},
                            text=t("trigger_algo.rel.mini_head",
-                                  "<b>Ce qu'un déclenchement rapporte</b> — écoutes / 28 j"))
+                                  "<b>Ce qu'un déclenchement rapporte</b> — écoutes / 28 j")
+                           + "<br>" + t("trigger_algo.rel.mini_key",
+                                        "┄ médiane (P50) · bande P25–P75 · ● ■ tes titres"))
     fig.update_layout(height=240 * len(ALGOS) + 120, margin=dict(t=80, b=70, l=10, r=10))
     return fig
 

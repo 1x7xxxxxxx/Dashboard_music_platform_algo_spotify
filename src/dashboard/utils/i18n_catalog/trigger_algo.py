@@ -586,4 +586,5 @@ EN = {
     "trigger_algo.rel.cpr_note": "ad budgets at the best CPR: {c}",
     "trigger_algo.rel.worth": "if triggered:<br>{s} streams / 28 d",
     "trigger_algo.rel.mini_head": "<b>What a trigger brings</b> — streams / 28 d",
+    "trigger_algo.rel.mini_key": "┄ median (P50) · P25–P75 band · ● ■ your tracks",
 }

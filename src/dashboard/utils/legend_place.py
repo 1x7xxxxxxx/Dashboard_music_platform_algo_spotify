@@ -15,6 +15,7 @@ NAME, never a position: placing the legend stays the door's job (`tests/test_one
 from __future__ import annotations
 
 import math
+import re
 
 import pandas as pd
 
@@ -170,6 +171,49 @@ def paper_points(fig) -> list[tuple[float, float]]:
     return out
 
 
+_DOMAIN_FREE = _CARTESIAN | {"histogram", "box", "violin", "heatmap", "contour", "candlestick",
+                             "ohlc", "waterfall", "funnel", "scattergeo", "choropleth"}
+_TAG = re.compile(r"<[^>]+>")
+
+
+def _annotation_box(a) -> tuple[float, float, float, float] | None:
+    """A paper-placed annotation's box, a conservative superset of its text (R586)."""
+    if not (str(a.xref or "").startswith("paper") and str(a.yref or "").startswith("paper")):
+        return None
+    if a.x is None or a.y is None or not a.text:
+        return None
+    lines = _TAG.sub("", re.sub(r"<br\s*/?>", "\n", a.text, flags=re.I)).split("\n")
+    size = (a.font.size if a.font and a.font.size else 12) / 12
+    pad = 2 * ((a.borderpad or 0) + (a.borderwidth or 0)) / 600
+    w = min(1.0, 0.009 * size * max(len(s) for s in lines) + pad)
+    h = min(1.0, 0.05 * size * len(lines) + pad)
+    x0 = {"left": a.x, "right": a.x - w}.get(a.xanchor, a.x - w / 2)
+    y0 = {"bottom": a.y, "top": a.y - h}.get(a.yanchor, a.y - h / 2)
+    return x0, x0 + w, y0, y0 + h
+
+
+def occupied_boxes(fig) -> list[tuple[float, float, float, float]]:
+    """What is not a cartesian point but must not sit under a legend: the domain of a pie,
+    a gauge…, and every annotation placed on the paper — a playlist pill (R586). Pure."""
+    out = []
+    for tr in fig.data:
+        dom = getattr(tr, "domain", None) if tr.type not in _DOMAIN_FREE else None
+        if dom is not None and _visible(tr):
+            (x0, x1), (y0, y1) = dom.x or (0, 1), dom.y or (0, 1)
+            out.append((x0, x1, y0, y1))
+    for a in fig.layout.annotations or ():
+        b = _annotation_box(a)
+        if b:
+            out.append(b)
+    return out
+
+
+def blocked(boxes: list, place: str, entries: int) -> int:
+    """How many occupied boxes the legend would overlap at that place. Pure."""
+    x0, x1, y0, y1 = box(place, entries)
+    return sum(1 for a0, a1, b0, b1 in boxes if a0 < x1 and x0 < a1 and b0 < y1 and y0 < b1)
+
+
 def box(place: str, entries: int) -> tuple[float, float, float, float]:
     """(x0, x1, y0, y1) the legend covers at that place, growing with its entries."""
     w, h = 0.32, min(0.6, 0.08 * entries + 0.06)
@@ -189,7 +233,11 @@ def least_covered(fig, entries: int) -> tuple[str, int]:
     """The place on the plot hiding the fewest points, and that count (R574). Pure.
 
     Owner, 2026-10-15: the legend sits ON the chart, « à l'endroit le moins gênant » —
-    never below it. Ties go to the earlier place in `PLACES` (corners first)."""
-    pts = paper_points(fig)
-    best = min(PLACES, key=lambda p: (covered(pts, p, entries), PLACES.index(p)))
+    never below it. Ties go to the earlier place in `PLACES` (corners first). R586: a
+    place overlapping a pie, a gauge or a paper annotation loses outright — boxes are
+    compared as boxes, never pooled with points (a 64-point grid would outweigh a short
+    series and push the legend onto the data)."""
+    pts, boxes = paper_points(fig), occupied_boxes(fig)
+    best = min(PLACES, key=lambda p: (blocked(boxes, p, entries), covered(pts, p, entries),
+                                      PLACES.index(p)))
     return best, covered(pts, best, entries)
