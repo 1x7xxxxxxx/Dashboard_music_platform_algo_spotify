@@ -83,7 +83,7 @@ def _due_accounts(db):
 
 def _body(artist_name: str, ends_on, lang: str, user_id: int) -> tuple[str, str]:
     from src.utils.verification_email import _base_url, _unsubscribe_footer
-    from src.dashboard.utils.i18n import translate as _t
+    from src.utils.email_i18n import translate as _t
 
     billing = f"{_base_url()}?page=billing&lang={lang}"
     date_str = ends_on.strftime('%d/%m/%Y')

@@ -38,10 +38,8 @@ def _base_url() -> str:
 def _tr(key: str, fr: str, lang: str, **fmt) -> str:
     """Translate one email string for `lang` (FR = inline source + fallback), then format.
 
-    Reuses the dashboard i18n helper (headless-safe: `translate()` with an explicit lang
-    never touches st.session_state). Imported lazily so this module stays importable
-    without a Streamlit context if i18n's transitive imports ever change."""
-    from src.dashboard.utils.i18n import translate
+    The catalog lives in src/utils/email_i18n.py: no Streamlit, no dashboard import."""
+    from src.utils.email_i18n import translate
     txt = translate(key, fr, lang)
     return txt.format(**fmt) if fmt else txt
 
