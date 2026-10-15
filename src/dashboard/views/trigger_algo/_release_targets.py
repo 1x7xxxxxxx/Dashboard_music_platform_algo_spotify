@@ -170,9 +170,14 @@ def _budget_line(gap: float | None, cost, bornes) -> str:
 def _track_title(name: str, stats: dict | None) -> str:
     if not stats:
         return f"<b>{name}</b>"
+    # R571 — « 28 j » ends on the last imported day: say it, or a stale import reads
+    # as a track that stopped streaming.
+    until = stats.get("until")
+    span = (t("trigger_algo.rel.window_until", "28 j jusqu'au {d}").format(
+                d=until.strftime("%d/%m")) if until is not None else "28 j")
     return (f"<b>{name}</b><br><span style='font-size:11px'>"
-            + t("trigger_algo.rel.stats28", "28 j : {s} écoutes · {v} saves · {a} ajouts").format(
-                s=num(stats.get("streams"), 0), v=num(stats.get("saves"), 0),
+            + t("trigger_algo.rel.stats28", "{w} : {s} écoutes · {v} saves · {a} ajouts").format(
+                w=span, s=num(stats.get("streams"), 0), v=num(stats.get("saves"), 0),
                 a=num(stats.get("adds"), 0)) + "</span>")
 
 

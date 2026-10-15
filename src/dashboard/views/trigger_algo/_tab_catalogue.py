@@ -97,8 +97,11 @@ def _show_tab_catalogue(db, artist_id) -> None:
     # R559 (fiches 46, 56, 57) — the 28-day figures, the SHAP weights and the CPR range
     # ride on the gauges: fiche 56's threshold bars said the same thing a second time.
     weights = lever_weights({s_: feats_of.get(s_, {}) for s_ in choix})
+    # R571 — the windows end on the last IMPORTED S4A day; the gauge says which one.
+    from src.utils.import_window import s4a_last_day_value
+    until = s4a_last_day_value(db, artist_id)
     stats = {r["song"]: {"streams": r["streams_28d"], "saves": r["saves_28d"],
-                         "adds": r["adds_28d"]}
+                         "adds": r["adds_28d"], "until": until}
              for r in df.to_dict("records") if r["song"] in choix}
     charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights,
                                           stats, lire_cpr_bornes(db, artist_id)),

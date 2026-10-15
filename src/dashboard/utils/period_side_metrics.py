@@ -145,7 +145,11 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                        (p.features_json->>'NonAlgoStreams28Days_log')::float AS nonalgo28_log,
                        (SELECT SUM(d.streams) FROM v_s4a_song_daily d
                          WHERE d.artist_id = %s AND d.song = r.song
-                           AND d.day > CURRENT_DATE - 28)  AS streams28
+                           -- R571: the 28 days end on the last IMPORTED day, not today.
+                           -- Uncorrelated on purpose: correlated on `d`, the view is
+                           -- re-read per row and the statement times out.
+                           AND d.day > (SELECT MAX(x.day) FROM v_s4a_song_daily x
+                                         WHERE x.artist_id = %s) - 28)  AS streams28
                   FROM (SELECT song, first_streamed FROM v_s4a_song_measured_span
                          WHERE artist_id = %s AND first_streamed IS NOT NULL
                          ORDER BY first_streamed DESC, song LIMIT 1) r
@@ -435,7 +439,7 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                   WHERE artist_id = %s AND placement IS NOT NULL
                   GROUP BY 1) x)                             AS axe_placement
         """, (artist_id, since, since, until, until,     # best_cpr
-              artist_id, artist_id, artist_id,            # last_release (streams28, span, lateral)
+              artist_id, artist_id, artist_id, artist_id, # last_release (streams28 ×2, span, lateral)
               artist_id, since, since, until, until,      # hypeddit_release
               artist_id, artist_id,                       # best_algo
               # ig_first / ig_last : 5 paramètres chacun depuis la migration 121

@@ -48,15 +48,18 @@ def get_kpis(
     filt = ("AND artist_id = %s" if aid is not None else
             f"AND artist_id IN (SELECT id FROM saas_artists WHERE NOT {NON_HUMAN_TENANT})")
 
-    # Spotify — streams last 7 days
+    # Spotify — streams over the last 7 IMPORTED days (R571: S4A is a hand-dropped CSV;
+    # counted back from today, a week-old import answered 0). Admin = newest import.
+    from src.utils.import_window import s4a_last_day
+    anchor, anchor_params = s4a_last_day(aid)
     raw_spotify = _first_val(
         db,
         f"""
         SELECT COALESCE(SUM(streams), 0) AS total
         FROM v_s4a_song_daily
-        WHERE day >= CURRENT_DATE - 7 {filt}
+        WHERE day >= {anchor} - 7 {filt}
         """,
-        p_aid,
+        (*anchor_params, *p_aid),
         "total",
     )
     spotify_7d = int(raw_spotify) if raw_spotify else None

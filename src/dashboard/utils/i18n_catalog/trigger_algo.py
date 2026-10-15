@@ -641,7 +641,8 @@ EN = {
     "trigger_algo.rel.gap_met": "7-day streams: threshold met",
     "trigger_algo.rel.gap": "{n} streams missing over 7 days",
     "trigger_algo.rel.budget": "≈ {lo} (CPR {c_lo}) → {hi} (CPR {c_hi})",
-    "trigger_algo.rel.stats28": "28 d: {s} streams · {v} saves · {a} adds",
+    "trigger_algo.rel.stats28": "{w}: {s} streams · {v} saves · {a} adds",
+    "trigger_algo.rel.window_until": "28 d to {d}",
     "trigger_algo.rel.gauge_note": (
         "Under each gauge: the 7-day streams the model still needs to trigger, and their "
         "price in Meta ads — at your account's best CPR, then at the mean CPR. An order of "

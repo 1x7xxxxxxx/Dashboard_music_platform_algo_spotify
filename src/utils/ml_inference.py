@@ -258,22 +258,28 @@ def build_features(db, artist_id: int, song: str) -> dict:
         dict avec les 13 features + raw values pour stockage dans features_json.
     """
     # --- Streams last 7 / 28 days ---
+    # R571 — the windows end on the artist's LAST IMPORTED day (`import_window`): S4A is
+    # a hand-dropped CSV, and a window counted back from today read 0 streams on a track
+    # whose playlist adds were on screen, as soon as the last import was a week old.
+    from src.utils.import_window import s4a_last_day
+    anchor, anchor_params = s4a_last_day(artist_id)
     row = db.fetch_query(
-        """
+        f"""
+        WITH a AS (SELECT {anchor} AS last_day)
         SELECT
-            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s7,
-            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 28 THEN streams ELSE 0 END), 0) AS s28,
-            COALESCE(SUM(CASE WHEN day >= CURRENT_DATE - 35 AND day < CURRENT_DATE - 7 THEN streams ELSE 0 END), 0) AS s_prev21,
+            COALESCE(SUM(CASE WHEN day >= a.last_day - 7 THEN streams ELSE 0 END), 0) AS s7,
+            COALESCE(SUM(CASE WHEN day >= a.last_day - 28 THEN streams ELSE 0 END), 0) AS s28,
+            COALESCE(SUM(CASE WHEN day >= a.last_day - 35 AND day < a.last_day - 7 THEN streams ELSE 0 END), 0) AS s_prev21,
             MIN(day) AS first_date
         -- Les features du modèle lisent la MÊME définition que les tuiles et le PDF.
         -- La version brute sommait les lignes ; la couche or somme le MAX par jour et
         -- par titre. Les deux s'accordent tant qu'un index unique interdit le doublon
         -- (0 couple en double le 2026-09-12) — le jour où il saute, le modèle
         -- s'entraîne sur des écoutes que personne n'affiche.
-        FROM v_s4a_song_daily
+        FROM v_s4a_song_daily, a
         WHERE artist_id = %s AND song = %s
         """,
-        (artist_id, song)
+        (*anchor_params, artist_id, song)
     )
     if not row or row[0][0] is None:
         return {}
@@ -635,16 +641,21 @@ def score_all_songs(db, artist_id: int) -> list[dict]:
     import json
     from datetime import date
 
+    from src.utils.import_window import s4a_last_day
+
+    # R571: 35 days back from the last IMPORTED day, not from today — an import a
+    # month old must still score its songs.
+    anchor, anchor_params = s4a_last_day(artist_id)
     active_songs = db.fetch_query(
-        """
+        f"""
         SELECT DISTINCT song
         FROM s4a_song_timeline
         WHERE artist_id = %s
-          AND date >= CURRENT_DATE - 35
+          AND date >= {anchor} - 35
           AND song NOT ILIKE '%%1x7xxxxxxx%%'
         ORDER BY song
         """,
-        (artist_id,)
+        (artist_id, *anchor_params)
     )
 
     if not active_songs:

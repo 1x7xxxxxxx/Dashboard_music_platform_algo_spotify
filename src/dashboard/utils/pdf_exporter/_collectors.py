@@ -2,6 +2,7 @@
 import logging
 from datetime import timedelta
 from src.utils.track_matching import track_title_matches, canonical_song_sql
+from src.utils.import_window import s4a_last_day
 # UNE LECTURE QUI ÉCHOUE LAISSAIT UNE SECTION VIDE, SANS UNE TRACE.
 #
 # Ce module portait 36 gestionnaires d'exception muets, un par collecteur, tous en
@@ -11,6 +12,12 @@ from src.utils.track_matching import track_title_matches, canonical_song_sql
 logger = logging.getLogger(__name__)
 from ._config import _t
 
+
+
+# R571 — "streams 7 derniers jours" ends on the last IMPORTED S4A day, not on today:
+# a week-old CSV printed « 0 » next to a track that streams. SQL fragments, no input.
+_LAST_DAY_ONE = s4a_last_day(0)[0]
+_LAST_DAY_ALL = s4a_last_day(None)[0]
 
 
 def _latest_release(db, artist_id):
@@ -133,17 +140,17 @@ def _collect_songs_focus(db, artist_id, songs, from_date, to_date):
         try:
             if artist_id is not None:
                 row = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0)
+                    f"""SELECT COALESCE(SUM(streams), 0)
                        FROM v_s4a_song_daily
                        WHERE song = %s AND artist_id = %s
-                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song, artist_id),
+                         AND day >= {_LAST_DAY_ONE} - 7""",
+                    (song, artist_id, artist_id),
                 )
             else:
                 row = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0)
+                    f"""SELECT COALESCE(SUM(streams), 0)
                        FROM v_s4a_song_daily
-                       WHERE song = %s AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                       WHERE song = %s AND day >= {_LAST_DAY_ALL} - 7""",
                     # `(song)` n'est pas un tuple : psycopg2 recevait une CHAÎNE
                     # et levait `TypeError: not all arguments converted`. Corrigé
                     # le 2026-09-18 avec les deux frères de ce fichier.
@@ -252,16 +259,16 @@ def _collect_s4a_top_songs(db, artist_id, from_date, to_date, songs_filter=None)
         for song in songs_list:
             if artist_id is not None:
                 r7 = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
+                    f"""SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
                        WHERE song = %s AND artist_id = %s
-                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
-                    (song,artist_id),
+                         AND day >= {_LAST_DAY_ONE} - 7""",
+                    (song, artist_id, artist_id),
                 )
             else:
                 r7 = db.fetch_query(
-                    """SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
+                    f"""SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily
                        WHERE song = %s
-                         AND day >= CURRENT_DATE - INTERVAL '7 days'""",
+                         AND day >= {_LAST_DAY_ALL} - 7""",
                     (song,),
                 )
             last7_map[song] = int(r7[0][0] or 0) if r7 else 0

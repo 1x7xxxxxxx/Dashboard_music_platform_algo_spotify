@@ -85,7 +85,13 @@ def _sql_literals(path: Path) -> list[tuple[int, str]]:
     except SyntaxError:
         return []
     out = []
+    # an f-string's literal halves are read ONCE, stitched: alone, the half before an
+    # interpolated `{anchor}` reads the table without the filter that follows (R571)
+    halves = {id(v) for n in ast.walk(tree) if isinstance(n, ast.JoinedStr)
+              for v in n.values}
     for node in ast.walk(tree):
+        if id(node) in halves:
+            continue
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             out.append((node.lineno, node.value))
         elif isinstance(node, ast.JoinedStr):
@@ -162,6 +168,18 @@ def test_the_detector_recognises_the_defect_it_is_written_for() -> None:
             "         WHERE artist_id = %s AND song NOT ILIKE '%1x7xxxxxxx%'\"\"\"\n",
             encoding="utf-8")
         assert _unfiltered_reads(good) == [], "the literal form must be accepted"
+
+        split = Path(d) / "split.py"
+        split.write_text(
+            "q = f'SELECT song FROM s4a_song_timeline WHERE date >= {a} - 35 "
+            "AND song NOT ILIKE %s'\n", encoding="utf-8")
+        assert _unfiltered_reads(split) == [], (
+            "an f-string is one query: its half before `{a}` is not a read on its own")
+        bad_f = Path(d) / "bad_f.py"
+        bad_f.write_text(
+            "q = f'SELECT SUM(streams) FROM s4a_song_timeline WHERE date >= {a}'\n",
+            encoding="utf-8")
+        assert _unfiltered_reads(bad_f) == [1], "an unfiltered f-string is still a defect"
 
         param = Path(d) / "param.py"
         param.write_text(
