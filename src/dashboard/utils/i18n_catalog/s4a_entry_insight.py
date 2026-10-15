@@ -31,7 +31,7 @@ EN = {
     # ── Le pari du modèle ────────────────────────────────────────────────────
     "s4a_insight.bet_header": "🎲 What the model bet, and what happened",
     "s4a_insight.bet_unreadable": (
-        "Comparison unavailable: the predictions table could not be read. That is not "
+        "Comparison unavailable: the predictions could not be read. That is not "
         "the same as « no prediction »."),
     "s4a_insight.bet_none": (
         "No track has BOTH a prediction and a recorded outcome. The recorded "

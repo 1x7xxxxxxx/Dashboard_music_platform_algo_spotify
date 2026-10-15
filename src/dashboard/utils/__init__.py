@@ -97,7 +97,7 @@ def require_db(db: "PostgresHandler | None") -> PostgresHandler:
 
         from src.dashboard.utils.i18n import t
         st.error(t("ui.db_unreachable",
-                   "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`"))
+                   "❌ streaMLytics est momentanément indisponible. Réessaie dans quelques minutes."))
         st.stop()
     return db
 
@@ -120,7 +120,7 @@ def project_db() -> Iterator[PostgresHandler]:
     db = get_db_connection()
     if db is None:
         st.error(t("ui.db_unreachable",
-                   "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`"))
+                   "❌ streaMLytics est momentanément indisponible. Réessaie dans quelques minutes."))
         st.stop()
     try:
         yield db

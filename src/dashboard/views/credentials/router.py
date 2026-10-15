@@ -224,7 +224,12 @@ def show():
         # banner used to say "absent" for both.
         _fernet_state = fernet_state()
         fernet_ok = _fernet_state == 'ok'
-        if _fernet_state == 'malformed':
+        if _fernet_state != 'ok' and not is_admin():
+            # R622 — the key is the operator's; the artist only learns saving is off.
+            st.warning(t("credentials.save_unavailable",
+                         "⚠️ L'enregistrement des connexions est momentanément "
+                         "indisponible. Réessaie dans quelques minutes."))
+        elif _fernet_state == 'malformed':
             st.error(t(
                 "credentials.fernet_malformed",
                 "⚠️ La clé de chiffrement (`FERNET_KEY`) est **présente mais "

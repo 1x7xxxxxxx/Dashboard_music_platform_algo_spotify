@@ -339,7 +339,7 @@ def _resend_verification(username: str, email: str, db) -> None:
                       "Email de vérification renvoyé à {email}.").format(email=email))
     else:
         st.error(_t("auth.resend_fail",
-                    "Échec de l'envoi de l'email. Vérifiez la config SMTP dans config/config.yaml."))
+                    "L'email n'a pas pu partir. Réessaie dans une minute."))
 
 
 def _fin_de_session(notice: str) -> None:
@@ -750,8 +750,8 @@ def require_login() -> bool:
     db = _get_db()
     if db is None:
         st.error(_t("auth.db_unreachable",
-                    "❌ Base de données injoignable. Vérifiez que Docker est lancé : "
-                    "`docker-compose up -d`"))
+                    "❌ streaMLytics est momentanément indisponible. "
+                    "Réessaie dans quelques minutes."))
         return False
 
     try:

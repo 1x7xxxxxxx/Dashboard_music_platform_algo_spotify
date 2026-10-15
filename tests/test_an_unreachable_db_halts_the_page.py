@@ -42,8 +42,8 @@ def test_view_session_halts_on_an_unreachable_base_before_the_body() -> None:
             pass
     assert not entered, "the view's body ran with db=None"
     st.error.assert_called_once()
-    assert "injoignable" in st.error.call_args[0][0].lower() or \
-        "unreachable" in st.error.call_args[0][0].lower()
+    assert "indisponible" in st.error.call_args[0][0].lower() or \
+        "unavailable" in st.error.call_args[0][0].lower()
 
 
 def _unguarded(tree: ast.AST) -> list[int]:

@@ -6,7 +6,7 @@ EN = {
         "Are your releases published under a label's or a collective's account? "
         "Declare them below: we will collect their plays even when hosted elsewhere."
     ),
-    "soundcloud.sql_error_kpi": "SQL error (KPIs): {err}",
+    "soundcloud.sql_error_kpi": "SoundCloud figures could not be read right now. Try again in a few minutes.",
     "soundcloud.plays": "Plays",
     "soundcloud.comments": "Comments",
     "soundcloud.top_tracks": "🏆 My tracks compared",

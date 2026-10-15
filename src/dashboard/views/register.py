@@ -366,8 +366,8 @@ def _render_success(artist_name: str, email: str, discount_msg: str,
         st.warning(
             t("register.email_failed",
               "✅ Compte créé pour **{name}**,{msg} mais l'email de vérification "
-              "n'a pas pu être envoyé (SMTP non configuré). "
-              "Demandez à un admin de vérifier votre compte manuellement.").format(
+              "n'a pas pu partir. Utilise « Renvoyer l'email de vérification » sur la "
+              "page de connexion dans quelques minutes.").format(
                   name=artist_name, msg=discount_msg)
         )
     # Le bouton pointait vers `/?page=onboarding`. À cet instant précis le compte

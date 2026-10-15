@@ -40,6 +40,8 @@ en prenant le DERNIER relevé de chaque titre dans la journée, parce que les ti
 d'une même nuit ne sont pas écrits au même instant (317 horodatages pour 19 jours,
 mesuré).
 """
+import logging
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -51,6 +53,8 @@ from src.dashboard.utils.release_picker import release_picker
 from src.dashboard.utils.platform_colors import DISTINCT, PALETTE_LIGHT
 from src.dashboard.views.soundcloud_claims import render_claimed_tracks
 from src.dashboard.utils.date_format import format_serie
+
+logger = logging.getLogger(__name__)
 
 # L'orange MESURÉ de SoundCloud — pas `#FF5500`, la teinte de marque exacte, que
 # le balayage du 2026-09-08 a refusée (ΔE 4,6 contre YouTube en deutéranopie).
@@ -148,8 +152,11 @@ def show():
                 render_claimed_tracks(db, artist_id)
                 return
 
-        except Exception as e:
-            st.error(t("soundcloud.sql_error_kpi", "Erreur SQL (KPIs) : {err}").format(err=e))
+        except Exception:
+            # R622 — the driver's text goes to the log, never to the artist.
+            logger.exception("soundcloud KPI read failed")
+            st.error(t("soundcloud.sql_error_kpi",
+                       "Les chiffres SoundCloud n'ont pas pu être lus. Réessaie dans quelques minutes."))
             return
 
         # R385 (V46), R486 (W9) : the most useful first — every title on the five

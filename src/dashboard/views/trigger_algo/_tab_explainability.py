@@ -76,8 +76,8 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
     if not _shap_available:
         st.warning(t(
             "trigger_algo.explain.shap_missing",
-            "Bibliothèque `shap` non installée. Ajoutez `shap>=0.44.0` dans requirements.txt "
-            "puis reconstruisez l'image Docker (`docker-compose build && docker-compose up -d`)."
+            "L'explication variable par variable est indisponible pour le moment. "
+            "Le score ci-dessus n'en dépend pas."
         ))
     else:
         X_df = pd.DataFrame(

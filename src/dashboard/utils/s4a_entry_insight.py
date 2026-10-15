@@ -299,7 +299,7 @@ def render_prediction_vs_reality(db, artist_id: int) -> None:
             """, (artist_id, artist_id))
     except Exception:                                   # noqa: BLE001
         st.info(t("s4a_insight.bet_unreadable",
-                  "Comparaison indisponible : la table des prédictions n'a pas pu être lue. "
+                  "Comparaison indisponible : les prédictions n'ont pas pu être lues. "
                   "Ce n'est pas « aucune prédiction »."))
         return
 

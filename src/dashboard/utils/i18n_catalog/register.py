@@ -75,8 +75,8 @@ EN = {
                         "A verification email has been sent to **{email}**. "
                         "Click the link in the email to activate your account.",
     "register.email_failed": "✅ Account created for **{name}**,{msg} but the verification email "
-                             "could not be sent (SMTP not configured). "
-                             "Ask an admin to manually verify your account.",
+                             "could not be sent. Use « Resend verification email » on the "
+                             "sign-in page in a few minutes.",
     "register.failed": "Sign-up did not go through. Try again; if the problem persists, contact us quoting reference **{ref}**.",
     # ── Inscription raccourcie via Google (2026-09-22) ───────────────────────
     "register.google_title": "\U0001F3B5 Two more things",

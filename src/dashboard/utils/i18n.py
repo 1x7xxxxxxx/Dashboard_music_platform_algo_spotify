@@ -34,13 +34,13 @@ _TR: dict[str, dict[str, str]] = {
         "nav.title": "🎵 Navigation",
         "ui.invalid_session": "Session invalide.",
         "ui.language": "🌐 Langue / Language",
-        "ui.db_unreachable": "❌ Base de données injoignable. Vérifiez que Docker tourne : `docker-compose up -d`",
+        "ui.db_unreachable": "❌ streaMLytics est momentanément indisponible. Réessaie dans quelques minutes.",
     },
     "en": {
         "nav.title": "🎵 Navigation",
         "ui.invalid_session": "Invalid session.",
         "ui.language": "🌐 Langue / Language",
-        "ui.db_unreachable": "❌ Database unreachable. Make sure Docker is running: `docker-compose up -d`",
+        "ui.db_unreachable": "❌ streaMLytics is temporarily unavailable. Try again in a few minutes.",
         # Admin "View as" QA toggle + artist plan badge
         "nav.view_as_header": "###### 👁️ View as (admin QA)",
         "nav.view_as_help": "Free/Premium access preview. Data stays admin-wide.",

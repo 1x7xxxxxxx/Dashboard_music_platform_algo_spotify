@@ -12,7 +12,7 @@ EN = {
     "auth.pw_mismatch": "Passwords do not match.",
     # Resend verification
     "auth.resend_ok": "Verification email resent to {email}.",
-    "auth.resend_fail": "Failed to send email. Check SMTP config in config/config.yaml.",
+    "auth.resend_fail": "The email could not be sent. Try again in a minute.",
     "auth.resend_btn": "Resend verification email",
     "auth.verify_email_first": ("📧 Please verify your email address before signing in. "
                                 "Check the inbox you registered with."),
@@ -46,8 +46,8 @@ EN = {
     "auth.pw_encrypted_notice": ("🔒 Your password is encrypted (bcrypt) and never stored "
                                  "in plain text — GDPR compliant."),
     "auth.session_expired": "🔒 Session expired after inactivity. Please sign in again.",
-    "auth.db_unreachable": ("❌ Database unreachable. Make sure Docker is running: "
-                            "`docker-compose up -d`"),
+    "auth.db_unreachable": ("❌ streaMLytics is temporarily unavailable. "
+                            "Try again in a few minutes."),
     # Sidebar user block
     "auth.role_admin": "👑 Admin",
     "auth.global_access": "Global access (all artists)",

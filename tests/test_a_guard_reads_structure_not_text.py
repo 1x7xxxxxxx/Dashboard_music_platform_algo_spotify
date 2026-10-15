@@ -53,7 +53,6 @@ _TEXTUAL_GUARDS = {
     "test_a_tenant_flag_is_applied_everywhere.py",
     "test_alert_subject_names_the_tenant.py",
     "test_allowed_tables_coverage.py",
-    "test_an_artist_never_reads_our_plumbing.py",
     "test_api_partial_dates.py",
     # `test_a_make_target_names_the_mechanism_that_blocks.py` — AJOUTE le 2026-09-17.
     # Il ne lit AUCUN Python : son seul `read_text` porte sur le `Makefile`, et les

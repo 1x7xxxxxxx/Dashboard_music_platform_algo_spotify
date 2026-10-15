@@ -94,8 +94,7 @@ EN = {
     "trigger_algo.explain.inference_unavailable": "ml_inference unavailable: {err}",
     "trigger_algo.explain.calib_note": "📖 Reading the probabilities (uncalibrated model): {note}",
     "trigger_algo.explain.shap_missing": (
-        "`shap` library not installed. Add `shap>=0.44.0` to requirements.txt "
-        "then rebuild the Docker image (`docker-compose build && docker-compose up -d`)."
+        "The per-feature explanation is unavailable for now. The score above is unaffected."
     ),
     "trigger_algo.explain.shap_waterfall": "🔍 SHAP Waterfall — {algo}",
     "trigger_algo.explain.model_not_found": "Model `{key}` not found in machine_learning/mlruns/.",

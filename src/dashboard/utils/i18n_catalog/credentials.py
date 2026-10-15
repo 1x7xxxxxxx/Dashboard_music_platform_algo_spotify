@@ -93,6 +93,8 @@ EN = {
     # they belonged to. Left behind they would have been orphans — EN text nothing
     # renders — which `tests/test_i18n_orphans.py` catches, and did.
     # --- Setup matrix header (replaced the fleet-level KPI strip, 2026-08-22) ---
+    "credentials.save_unavailable": (
+        "⚠️ Saving connections is temporarily unavailable. Try again in a few minutes."),
     "credentials.fernet_malformed":
         "⚠️ The encryption key (`FERNET_KEY`) is **present but invalid** — most "
         "likely truncated when copied. Do NOT generate a new one: already-saved "
