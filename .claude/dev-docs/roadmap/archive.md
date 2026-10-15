@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R568 — Vue croisée 2/3 — Créas, Audiences, Instagram : prose retirée ; best_settings trié Pare… (livrée 2026-10-15)
+
+- [x] **R568 — Vue croisée 2/3 — Créas, Audiences, Instagram : prose retirée ; best_settings trié Pareto ; Pareto des créatives coloré par campagne (créa · adset · campagne) ; « audience saturée » et `_render_goal_pareto` supprimés ; évolution d'une créative annotée campagne + objectif ; Audiences en CPR, sans doublon de best_settings ; « où l'euro rapporte » en Pareto ; « Publications récentes » en graphique** (P3) ✅ (2026-10-15, 2cfadddd)
+  Mesuré par : 0 tableau dans ces sections ; rendu smoke vert
+  Livré 2cfadddd, CI verte (run 38688353519), déployé dashboard
+  Commits : 2cfadddd R568 : vue croisée 2/3 — créas en Pareto coloré par campagne (créa · a
+
 ## ✅ R567 — Vue croisée 1/3 — Chronologie + Entonnoir : 2 campagnes par défaut (dernière / avant-de… (livrée 2026-10-15)
 
 - [x] **R567 — Vue croisée 1/3 — Chronologie + Entonnoir : 2 campagnes par défaut (dernière / avant-dernière sortie) en 2 colonnes ; streams 7 j désactivé ; CPR en légende ; cohorte en temps log ; « streams par résultat » → CPR moyen ; tableaux engagement/récap supprimés ; vrai entonnoir vertical Impressions→clics créa→clics smartlink→écoutes→revenus avec « meilleur » placement/âge/plateforme ; Performance globale en camemberts + cumuls fusionnés ; tableaux `campaign_compare` → Pareto ; vue or `v_meta_engagement_daily` retirée (mig. 151, plus aucun lecteur)** (P3) ✅ (2026-10-15, 5cbefec2)
