@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R569 — Vue croisée 3/3 — inventaire anti-doublon généré (`revue/vue-croisee-inventaire.md`) et… (livrée 2026-10-15)
+
+- [x] **R569 — Vue croisée 3/3 — inventaire anti-doublon généré (`revue/vue-croisee-inventaire.md`) et garde : aucune paire (dimension, métrique) tracée deux fois, aucun tableau hors `detail()`** (P3) ✅ (2026-10-15, ff9037de)
+  Mesuré par : garde muté rouge sur un doublon réintroduit
+  Livré ff9037de, CI verte (run 38693945760), déployé (health 200). make cross-view-inventory : 22 figures, 0 doublon, 0 tableau ; garde tests/test_the_cross_view_draws_each_datum_once.py vu rouge sur 4 défauts plantés (doublon, figure non déclarée, st.dataframe, tableau markdown). Doublons retirés : pli des hooks, cadres CPR/dépense du classement, ligne CPR par pays (au survol).
+  Commits : ff9037de R569 : vue croisée 3/3 — inventaire anti-doublon (make cross-view-inve
+
 ## ✅ R570 — Prédiction déclenchement algos : titre renommé ; un seul filtre (2 dernières sorties) ;… (livrée 2026-10-15)
 
 - [x] **R570 — Prédiction déclenchement algos : titre renommé ; un seul filtre (2 dernières sorties) ; 2 sections séparées par des traits — « Où en sont mes titres » (jauges agrandies, pastilles playlist + 3 paramètres, SHAP décroissant atteint vs déclenchement DW→Radio→RR, pointillés expliqués, prévision écoutes cumulées + revenus J+7…10 ans en temps log) et « Une fois déclenché » (grilles réalisé + J+1…) ; supprimer pareto, valeur si ça s'ouvre, gain probable, playlist par playlist, fourchette CPR, « ce qui s'est vraiment passé », Budget & ROI, « autre fenêtre »** (P3) ✅ (2026-10-15, ed0fe5ea)
