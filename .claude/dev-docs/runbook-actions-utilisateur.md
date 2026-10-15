@@ -2238,3 +2238,36 @@ que seule ta décision peut le changer.
 
 Oui : `tests/test_home_is_frozen.py` vert sur la nouvelle photo, et la légende visible
 sous la figure en mode cumulé. Non : R627 dans `archive.md`.
+
+## 44. R628 — Compléter l'environnement de production (avant tout déploiement du dashboard)
+
+Depuis R619, le dashboard **refuse de démarrer en production** si une clé que son code
+lit est absente ou mal typée. La production n'a pas `ALERT_EMAIL` côté dashboard, et
+l'API n'a ni `STREAMLYTICS_ENV`, ni `API_STRICT_BOOT`, ni `FERNET_KEY`, ni
+`APP_BASE_URL`. Déployer le dashboard avant ce geste le mettrait hors ligne.
+
+### Étapes
+
+1. `ssh` sur le serveur, puis `cd /opt/streamlytics && cp docker-compose.yml docker-compose.yml.bak-r628`.
+2. Dans `docker-compose.yml`, service `dashboard`, bloc `environment:` — ajouter
+   `ALERT_EMAIL: ${ALERT_EMAIL}`, et mettre `ALERT_EMAIL=<ton adresse d'alerte>` dans `.env`
+   s'il n'y est pas.
+3. Même fichier, service `api`, bloc `environment:` — ajouter :
+   ```yaml
+   STREAMLYTICS_ENV: production
+   API_STRICT_BOOT: "1"
+   FERNET_KEY: ${FERNET_KEY}
+   APP_BASE_URL: ${APP_BASE_URL}
+   ```
+   (les mêmes variables que le dashboard lit déjà dans `.env`, rien de nouveau à générer).
+4. `git pull` puis `docker compose up -d --force-recreate dashboard api`.
+
+### Vérification
+
+```bash
+docker compose exec dashboard python -m src.utils.env_schema dashboard; echo rc=$?
+docker compose exec api python -m src.utils.env_schema api; echo rc=$?
+curl -fsS https://app.streamlytics.fr/ -o /dev/null && echo dashboard-ok
+```
+Les deux premières commandes rendent `rc=0` **sans aucune ligne** au-dessus (une ligne
+nomme une clé absente — jamais sa valeur). Puis le dire dans la séance : R628 close.
