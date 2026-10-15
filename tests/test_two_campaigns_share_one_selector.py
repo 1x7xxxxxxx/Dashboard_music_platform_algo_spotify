@@ -157,15 +157,19 @@ def test_a_pick_outside_the_list_is_refused(monkeypatch) -> None:
     assert cp.second_campaign(["A", "B"], "A", key="k") == "B"
 
 
-def test_each_cumulative_ends_at_100_percent_of_its_own_campaign() -> None:
-    """R567 — 30 € and 750 € campaigns compare as shapes on one % axis."""
-    got = cp.normalised(cp.day0_cumulative(_daily([
+def test_the_day0_clock_draws_real_values_one_panel_per_measure() -> None:
+    """R576 — three panels (spend, clicks, CPC) in REAL units; colour = campaign, every
+    line solid (owner: « la largeur des pointillés … pas bien »), one legend per campaign."""
+    curves = cp.day0_cumulative(_daily([
         ("A", D(2024, 1, 1), 10, 1), ("A", D(2024, 1, 2), 30, 3),
-        ("B", D(2024, 3, 1), 500, 5), ("B", D(2024, 3, 2), 250, 5)]), "A", "B"))
-    last = got.groupby("campaign").tail(1).set_index("campaign")
-    assert last["spend_cum_pct"].tolist() == [100.0, 100.0]
-    first = got.groupby("campaign").head(1).set_index("campaign")["spend_cum_pct"]
-    assert first["A"] == 25.0 and round(first["B"], 1) == 66.7
+        ("B", D(2024, 3, 1), 500, 5), ("B", D(2024, 3, 2), 250, 5)]), "A", "B")
+    fig = cp.day0_figure(curves, "A", "B")
+    assert {tr.xaxis for tr in fig.data} == {"x", "x2", "x3"}
+    assert all(tr.line.dash in (None, "solid") for tr in fig.data), "a dash codes a measure"
+    assert {tr.line.color for tr in fig.data} == set(cp.PAIR_COLORS[:2])
+    assert sum(bool(tr.showlegend) for tr in fig.data) == 2
+    spend_a = next(tr for tr in fig.data if tr.xaxis == "x" and tr.name == "A")
+    assert list(spend_a.y)[-1] == 40.0, "the real running spend, not a % of it"
 
 
 def test_a_creative_of_both_campaigns_is_grey() -> None:
@@ -273,7 +277,7 @@ def test_the_overview_draws_two_campaigns_on_the_day0_clock() -> None:
     assert day0, "two campaigns chosen and no figure on the day-0 clock"
     colours = {tr["line"]["color"] for tr in day0[0]["data"]}
     assert len(colours) == 2, f"one colour per campaign (R567), got {colours}"
-    assert len(day0) == 1, "R567: the three cumulative frames share ONE normalised axis"
+    assert len(day0) == 1, "R576: the three cumulative panels are ONE figure"
     for tr in day0[0]["data"]:
         assert tr["x"][0] == 0 and all(x >= 0 for x in tr["x"]), "a series is not on its day 0"
 

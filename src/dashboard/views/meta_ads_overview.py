@@ -378,25 +378,41 @@ def _perf_pies(d: pd.DataFrame, court: list[str]) -> go.Figure:
 
 
 def _perf_costs(d: pd.DataFrame, court: list[str]) -> go.Figure:
-    """CPM, CPC, CPR per campaign — grouped bars, cheapest CPR on the left (R567)."""
+    """CPM, CPC, CPR — three lollipop panels, one dot per campaign, cheapest CPR on top (R576).
+
+    Owner, 2026-10-15: « présenter CPC/CPR/CPM plus joliment ». Three costs of different
+    sizes on one grouped-bar axis crushed the CPC under the CPM; each cost now has ITS
+    panel and its own scale, the campaign keeps its pie colour, the value sits by its dot.
+    """
+    from plotly.subplots import make_subplots
+
+    from src.dashboard.utils.platform_colors import DISTINCT
     costs = _PERF_PANNEAUX[3:]
+    colors = [DISTINCT[i % len(DISTINCT)] for i in range(len(court))]
     vals = {lab: [float(calc(r)) for _, r in d.iterrows()] for lab, calc, _f in costs}
-    order = sorted(range(len(court)), key=lambda i: (pd.isna(vals[costs[2][0]][i]),
-                                                     vals[costs[2][0]][i]))
-    fig = go.Figure()
-    for j, (lab, _calc, fmt) in enumerate(costs):
-        ys = [vals[lab][i] for i in order]
-        fig.add_trace(go.Bar(
-            x=[court[i] for i in order], y=ys,
-            name=t(f"meta_ads_overview.perf.{j + 3}", lab), marker_color=_COST_INK[j],
-            text=[fmt.format(v).replace(",", " ") if pd.notna(v) else "—" for v in ys],
-            textposition="outside", cliponaxis=False))
-    fig.update_layout(barmode="group", height=360, yaxis_title="€",
-                      margin={'l': 10, 'r': 10, 't': 30, 'b': 20})
+    cpr = vals[costs[2][0]]
+    # Plotly stacks categories from the bottom: the dearest first puts the cheapest on top.
+    order = sorted(range(len(court)), key=lambda i: (pd.notna(cpr[i]), -cpr[i] if pd.notna(cpr[i]) else 0))
+    fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.06,
+                        subplot_titles=[t(f"meta_ads_overview.perf.{j + 3}", lab)
+                                        for j, (lab, _c, _f) in enumerate(costs)])
+    for j, (lab, _calc, fmt) in enumerate(costs, start=1):
+        keep = [i for i in order if pd.notna(vals[lab][i])]
+        xs, ys, ink = [vals[lab][i] for i in keep], [court[i] for i in keep], [colors[i] for i in keep]
+        fig.add_trace(go.Bar(x=xs, y=ys, orientation="h", width=0.06, marker_color=ink,
+                             showlegend=False, hoverinfo="skip"), row=1, col=j)
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys, mode="markers+text", showlegend=False,
+            marker={"size": 16, "color": ink, "line": {"color": "white", "width": 1}},
+            text=[fmt.format(v).replace(",", " ") + " €" for v in xs],
+            textposition="middle right", cliponaxis=False,
+            hovertemplate=f"%{{y}}<br>{lab} : %{{x:,.2f}} €<extra></extra>"), row=1, col=j)
+        fig.update_xaxes(range=[0, max(xs, default=1) * 1.5], showticklabels=False,
+                         showgrid=False, zeroline=False, row=1, col=j)
+    fig.update_yaxes(categoryorder="array", categoryarray=[court[i] for i in order],
+                     automargin=True)
+    fig.update_layout(height=110 + 42 * len(court), margin={'l': 10, 'r': 10, 't': 50, 'b': 10})
     return fig
-
-
-_COST_INK = ("#9E9E9E", "#616161", "#212121")   # CPM, CPC, CPR — one grey ramp, one unit
 
 
 def _render_global_perf(df_perf: pd.DataFrame) -> None:

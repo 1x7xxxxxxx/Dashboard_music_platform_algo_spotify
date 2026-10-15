@@ -148,46 +148,37 @@ def _day0_titles() -> list[str]:
             t("campaign_pair.day0.cpc_cum", "CPC cumulé (€)")]
 
 
-_DAY0_DASH = ("solid", "dash", "dot")   # spend, clicks, CPC — the measure is the line style
+def day0_figure(curves: pd.DataFrame, first: str, second: str) -> go.Figure:
+    """Three panels side by side (R576): spend, clicks, CPC on the day-0 clock, in REAL
+    values; the colour is the campaign, every line solid, one legend entry per campaign.
 
-
-def normalised(curves: pd.DataFrame) -> pd.DataFrame:
-    """`curves` plus `<col>_pct`: each campaign's running value in % of ITS last one. Pure.
-
-    R567 — one axis for three units (€, clicks, € per click): the visual ratchet refuses a
-    second axis, and two campaigns of 30 € and 750 € only compare as shapes anyway."""
-    out = curves.copy()
-    for col in _DAY0_COLS:
-        last = out.groupby("campaign")[col].transform(
-            lambda v: v.dropna().iloc[-1] if v.notna().any() else float("nan"))
-        out[f"{col}_pct"] = (pd.to_numeric(out[col], errors="coerce") / last * 100
-                             ).where(last > 0)
-    return out
+    Owner, 2026-10-15: one frame with the measure as a dash style and % of the final value
+    was misread (« la largeur des pointillés … pas bien »); each measure gets its panel
+    and its unit, so no dash has to carry a meaning. Pure."""
+    from plotly.subplots import make_subplots
+    titles = _day0_titles()
+    fig = make_subplots(rows=1, cols=3, horizontal_spacing=0.08, subplot_titles=titles)
+    for j, (col, lab) in enumerate(zip(_DAY0_COLS, titles), start=1):
+        for name, color in zip((first, second), PAIR_COLORS):
+            s = curves[curves["campaign"] == name]
+            fig.add_trace(go.Scatter(
+                x=s["offset"], y=s[col], mode="lines", name=name[:30], legendgroup=name,
+                showlegend=j == 1, line={"color": color, "width": 2}, connectgaps=False,
+                hovertemplate=f"J+%{{x}}<br>{lab} : %{{y:,.2f}}<extra>{name[:30]}</extra>"),
+                row=1, col=j)
+    fig.update_xaxes(title=t("campaign_pair.day0_axis", "Jours depuis J0"), rangemode="tozero")
+    fig.update_yaxes(rangemode="tozero")
+    fig.update_layout(height=360, margin={"l": 50, "r": 10, "t": 50, "b": 20})
+    return fig
 
 
 def render_day0(curves: pd.DataFrame, first: str, second: str) -> None:
-    """ONE frame (R567): both campaigns, three measures each, in % of their final value;
-    the colour is the campaign, the line style the measure, the hover the real value."""
+    """Both campaigns on the day-0 clock — or the reason there is nothing to align."""
     if curves.empty or curves["campaign"].nunique() < 2:
         st.caption(t("campaign_pair.day0_missing",
                      "Une des deux campagnes n'a aucun jour de dépense : rien à aligner."))
         return
-    curves = normalised(curves)
-    fig = go.Figure()
-    for col, lab, dash in zip(_DAY0_COLS, _day0_titles(), _DAY0_DASH):
-        for name, color in zip((first, second), PAIR_COLORS):
-            s = curves[curves["campaign"] == name]
-            fig.add_trace(go.Scatter(
-                x=s["offset"], y=s[f"{col}_pct"], customdata=s[col], mode="lines",
-                name=f"{lab} · {name[:24]}", line={"color": color, "width": 2, "dash": dash},
-                connectgaps=False,
-                hovertemplate=f"J+%{{x}}<br>{lab} : %{{customdata:,.2f}}<extra>{name[:30]}</extra>"))
-    fig.update_layout(
-        height=380, margin={"l": 50, "r": 10, "t": 30, "b": 20},
-        xaxis={"title": t("campaign_pair.day0_axis", "Jours depuis J0"), "rangemode": "tozero"},
-        yaxis={"title": t("campaign_pair.day0_pct", "% de la valeur finale"),
-               "ticksuffix": " %", "rangemode": "tozero"})
-    charts.plotly_chart(fig, width="stretch")
+    charts.plotly_chart(day0_figure(curves, first, second), width="stretch")
 
 
 def render_share_pair(panels: dict, first: str, second: str) -> None:
