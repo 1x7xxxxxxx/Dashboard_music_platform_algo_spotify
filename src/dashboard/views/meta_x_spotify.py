@@ -76,15 +76,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.utils import charts
-from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
 
 from src.dashboard.utils.campaign_funnel import (
-    BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury,
-    shazam_stream_lag, streams_gained,
+    BASELINE_DAYS, MIN_PAIRED_DAYS, shazam_stream_lag, streams_gained,
 )
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
-from src.dashboard.utils.ratios import per, per_series
+from src.dashboard.utils.ratios import per_series
 from src.dashboard.utils.date_format import format_date
 
 
@@ -257,96 +255,6 @@ def _day_of(df: pd.DataFrame, column: str):
 
 
 # ── Les chiffres qui TRAVERSENT les deux plateformes ───────────────────────────
-def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
-    """Dépense · streams · € par stream · CPR moyen · abonnés Instagram.
-
-    Les deux du milieu n'existaient nulle part dans le produit. Le CPR que Meta
-    rend est le prix d'un RÉSULTAT (un clic, une vue de page) ; il ne dit pas ce
-    qu'une ÉCOUTE coûte. C'est pourtant la seule question qui traverse les deux
-    plateformes, et celle qu'on se pose en regardant cette page.
-
-    Des tuiles, pas des courbes : un PRIX indexé en base 100 ne veut rien dire, et
-    la figure a son budget (`tests/test_chart_budget.py`).
-    """
-    spend = float(pd.to_numeric(master.get("spend"), errors="coerce").sum()) \
-        if "spend" in master else 0.0
-    results = float(pd.to_numeric(master.get("results"), errors="coerce").sum()) \
-        if "results" in master else 0.0
-
-    # LES DEUX DÉNOMINATEURS NE SONT PAS LE MÊME, et c'est tout le sujet.
-    #
-    # `streams_window` = les écoutes de la FENÊTRE affichée, ce que montre la
-    # figure. `streams_paid` = les écoutes des seuls jours où la campagne a
-    # PAYÉ — c'est le seul dénominateur qui donne un sens à « coût par stream ».
-    #
-    # Mesuré le 2026-09-21 avant cette distinction : la fenêtre par défaut allait
-    # jusqu'à aujourd'hui, donc 31 jours de dépense se divisaient par 646 jours
-    # d'écoutes et la tuile affichait **0,057 € le stream**. Le nombre était
-    # calculé correctement et ne décrivait rien.
-    streams_window = float(pd.to_numeric(master.get("streams"), errors="coerce").sum()) \
-        if "streams" in master else 0.0
-    paid = master[pd.to_numeric(master.get("spend"), errors="coerce").fillna(0) > 0] \
-        if "spend" in master else master.iloc[0:0]
-    streams_paid = float(pd.to_numeric(paid.get("streams"), errors="coerce").sum()) \
-        if "streams" in paid else 0.0
-    streams = streams_window
-
-    # QUATRE TUILES, PAS CINQ — plafond de premier écran (Few : un tableau de bord
-    # tient dans un coup d'œil ; `test_the_first_screen_counts_its_gauges` compte les
-    # jauges AVEC les figures, et la page en rendait 7 pour un plafond de 5).
-    # Celle qui sort est Instagram, et ce n'est pas un tirage au sort : c'est la
-    # seule qui ne mesure pas CETTE campagne. Elle descend en ligne de contexte,
-    # ce qui est de toute façon sa vraie nature.
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(t("meta_x_spotify.tile_spend", "💸 Dépense"),
-              eur(spend, 2))
-    days = (d1 - d0).days + 1
-    c2.metric(t("meta_x_spotify.tile_streams_days", "🎵 Streams sur les {n} jours").format(
-              n=days), num(streams, 0) if streams else "—")
-    # ⚠️ Un dénominateur nul rend « — », jamais 0 ni l'infini : « 0 € le stream »
-    # se lirait comme une acquisition gratuite, ce qui est l'inverse du fait.
-    c3.metric(t("meta_x_spotify.tile_cost_per_stream", "🎯 Coût par stream"),
-              eur(spend / streams_paid, 3) if streams_paid else "—",
-              help=t("meta_x_spotify.tile_cps_help",
-                     "Dépense ÷ écoutes des **jours où la campagne a payé** — pas "
-                     "de la fenêtre affichée : diviser une dépense de 31 jours par "
-                     "les écoutes de deux ans donnerait un prix qui ne décrit "
-                     "rien. À ne pas confondre avec le CPR de Meta, qui est le "
-                     "prix d'un RÉSULTAT (clic, vue de page) et jamais celui d'une "
-                     "écoute."))
-    # R567 — « streams par résultat » read as a cost; the owner asked for the CPR itself.
-    cpr = per(spend, results)
-    c4.metric(t("meta_x_spotify.tile_cpr", "🎯 CPR moyen"),
-              eur(cpr, 3) if cpr is not None else "—",
-              help=t("meta_x_spotify.tile_cpr_help",
-                     "Dépense ÷ résultats (clics sortants) sur la période."))
-
-    # INSTAGRAM EN CHIFFRE, PAS EN COURBE — et c'est une décision, pas un repli.
-    # Le compteur porte les abonnés du COMPTE ENTIER : posé sur l'axe d'UNE
-    # campagne, il invite à lire « cette campagne m'a fait gagner des abonnés »
-    # d'une série qui compte tout ce qui en fait gagner. (Et la mesure du
-    # 2026-09-21 dit qu'il n'a de toute façon pas de teinte attribuable à côté du
-    # cyan d'Hypeddit — voir `platform_colors`.)
-    insta = _df(db, """
-        SELECT MIN(followers) AS f0, MAX(day) AS dmax,
-               (ARRAY_AGG(followers ORDER BY day DESC))[1] AS f1
-          FROM v_instagram_followers_daily
-         WHERE artist_id = %s AND day BETWEEN %s AND %s
-    """, (artist_id, d0, d1))
-    if not insta.empty and pd.notna(insta.iloc[0]["f1"]):
-        row = insta.iloc[0]
-        delta = int(row["f1"]) - int(row["f0"])
-        st.caption(t("meta_x_spotify.insta_line",
-                     "📸 **Instagram** : {f} abonné(s) ({d} sur la fenêtre) — du "
-                     "**compte entier**, pas de cette campagne : tout ce que tu "
-                     "publies y contribue. Un contexte, pas un résultat.")
-                   .format(f=num(int(row['f1']), 0),
-                           d=f"{delta:+d}"))
-    else:
-        st.caption(t("meta_x_spotify.insta_none",
-                     "📸 **Instagram** : aucun relevé d'abonnés sur cette fenêtre."))
-
-
 def _render_shazam_lag(master: pd.DataFrame) -> None:
     """R235 — do Shazams turn into streams, and after how long? Said in one line."""
     if "apple_shazams" not in master.columns:
@@ -531,7 +439,7 @@ def _show_body(db, artist_id, bar, funnel: bool = True) -> None:
         return
 
     master = _merge(frames)
-    _render_tiles(db, artist_id, master, d0, d1)
+    # R591 — the four tiles and the Instagram line are gone: the funnel draws them.
 
     # R476 (owner W2 : « tout mon funnel … c'est flou → déplacer le contenu dans les vues
     # pertinentes ») — the four tabs are gone. This section tells ONE campaign's journey,
@@ -640,39 +548,6 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                   "Pas assez d'étapes mesurées pour dessiner un parcours."))
         return
     charts.plotly_chart(fig, width="stretch")
-    st.caption(_funnel_note(db, artist_id, m, rate, d0, d1, s4a_song))
-
-
-def _funnel_note(db, artist_id, m: dict, rate, d0, d1, s4a_song) -> str:
-    note = t("meta_x_spotify.funnel_caption",
-             "**% de l'étape d'avant** : sur 100 personnes à l'étape du dessus, combien "
-             "passent à celle-ci. **€ l'unité** : le budget divisé par le volume de l'étape — "
-             "ce qu'a coûté UN clic, UNE visite. L'arrivée sur le smart link est mesurée par "
-             "« {src} », la plus complète des sources disponibles.").format(src=m["source"])
-    if m["lp_views"] and m["capi"] and m["lp_views"] < m["capi"]:
-        note += " " + t(
-            "meta_x_spotify.funnel_lp_note",
-            "⚠️ Le pixel Meta ne compte que **{lp}** vues de page pour **{capi}** "
-            "évènements renvoyés par la CAPI : le pixel SOUS-COMPTE, il ne mesure pas une "
-            "étape suivante.").format(lp=num(m["lp_views"], 0), capi=num(m["capi"], 0))
-    if m["gain"] and m["gain"]["gained"] >= 1:
-        note += " " + t("meta_x_spotify.funnel_gain_note",
-                        "🎧 Les **écoutes gagnées** sont comparées à la moyenne des {n} jours "
-                        "d'avant ({b} écoutes/jour) : une hausse qui aurait eu lieu sans la pub "
-                        "y est comptée aussi, et un même visiteur écoute plusieurs fois — d'où "
-                        "« écoutes par clic » et pas un %.").format(
-            n=m["gain"]["baseline_days"],
-            b=f"{m['gain']['baseline_per_day']:.1f}".replace(".", ","))
-        if rate:
-            note += " " + t("meta_x_spotify.funnel_rate_note",
-                            "💶 Revenus = écoutes gagnées × **{r} €**, ton revenu par écoute "
-                            "mesuré sur les ventes du distributeur.").format(r=num(rate, 5))
-    elif s4a_song:
-        note += " " + t("meta_x_spotify.funnel_no_gain",
-                        "Pas d'étape « écoutes gagnées » : il faut au moins {n} jours "
-                        "d'écoutes relevés avant la campagne, et une hausse mesurable.").format(
-            n=BASELINE_MIN_DAYS)
-    return note + campaign_treasury(db, artist_id, d0, d1, m["spend"])
 
 
 def campaign_badge(campaign: str, i: int) -> str:
@@ -690,7 +565,6 @@ def campaign_badge(campaign: str, i: int) -> str:
 
 def _render_pair(db, artist_id, bar) -> None:
     """Two campaigns, two funnels on one row, each on its own dates (fiches 23, 26)."""
-    from src.dashboard.utils.full_funnel import indicators
     acct, acct_p = bar.acct()
     st.subheader(t("meta_x_spotify.pair_header", "⚖️ Deux campagnes, deux entonnoirs"))
     for i, (col, campaign) in enumerate(zip(st.columns(2), (bar.campaign, bar.second))):
@@ -708,12 +582,6 @@ def _render_pair(db, artist_id, bar) -> None:
             fig, _ = _funnel_figure(db, artist_id, m, d0, d1, height=400)
             if fig is not None:
                 charts.plotly_chart(fig, width="stretch", key=f"pair_funnel_{i}")
-            st.caption(f"{format_date(d0)} → {format_date(d1)} · " + " · ".join(
-                f"**{k}** {v}" for k, v in indicators(m)))
-    st.caption(t("meta_x_spotify.pair_caption",
-                 "Chaque campagne sur ses propres dates, du premier au dernier euro dépensé. "
-                 "CPM = coût des 1 000 impressions, CPC = coût d'un clic sur la pub, CPR = "
-                 "coût d'un clic sortant vers les plateformes."))
 
 
 # ── Le croisement PAYS — où l'euro rapporte le plus d'écoutes ──────────────────

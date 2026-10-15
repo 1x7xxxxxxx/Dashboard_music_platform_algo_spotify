@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.dashboard.utils.date_format import format_date
 from src.dashboard.utils.i18n import t
 
 # R213 (lot b) — the minimum baseline before a « streams gained » step is drawn. Fewer
@@ -81,33 +80,6 @@ def shazam_stream_lag(master: pd.DataFrame) -> dict | None:
     """The lag at which daily Shazams best precede daily streams (daily Apple export,
     migration 142)."""
     return best_lag(master, "apple_shazams", "streams")
-
-
-# ── The money around a campaign (moved from views/meta_x_spotify.py, R235) ─────────
-def campaign_treasury(db, artist_id, d0, d1, spend: float | None) -> str:
-    """R213 (lot f) — the money around this campaign, from the ONE money door.
-
-    Revenue is monthly and a campaign is counted in days, so the sentence speaks of the
-    WHOLE months the window touches — `get_roi_data` widens it and says so, and it is the
-    same definition the treasury (R212) draws. Revenue is never attributed to the
-    campaign: royalties of those months come from every track, and they arrive months
-    after the streams."""
-    from src.dashboard.utils.kpi_helpers import get_roi_data
-
-    def fmt_eur(v):
-        # The page writes euros the French way (« 1 463,61 € »), like its other captions.
-        return "—" if v is None else f"{v:,.2f} €".replace(",", " ").replace(".", ",")
-
-    roi = get_roi_data(db, artist_id, d0, d1)
-    if roi['revenue_eur'] is None and roi['total_spend'] is None:
-        return ""
-    return " " + t("meta_x_spotify.funnel_treasury",
-                   "💶 Sur les mois de cette campagne ({a} → {b}) : **{rev}** de revenus "
-                   "nets (tous titres, versés avec retard), **{tot}** de dépenses au total, "
-                   "dont **{sp}** pour cette campagne sur la fenêtre.").format(
-        a=format_date(roi['effective_from']), b=format_date(roi['effective_to']),
-        rev=fmt_eur(roi['revenue_eur']), tot=fmt_eur(roi['total_spend']),
-        sp=fmt_eur(spend))
 
 
 # ── R246 (fiche 38) — the other effects of the ad days, beside the listeners ──────────

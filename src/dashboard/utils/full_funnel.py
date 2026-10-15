@@ -110,18 +110,6 @@ def steps(m: dict, eur_per_stream: float | None, best: dict | None = None) -> li
     return out
 
 
-def indicators(m: dict) -> list[tuple[str, str]]:
-    """Fiche 26's six numbers for one campaign: spend, impressions, clicks, CPM, CPC, CPR."""
-    spend, imp = m.get("spend"), m.get("impressions")
-    clicks, capi = m.get("link_clicks"), m.get("capi")
-    per = lambda num, den, k=1: _n(num / den * k, 2) + " €" if num and den else "—"  # noqa: E731
-    return [(t("full_funnel.i_spend", "Dépense"), _n(spend, 2) + " €" if spend else "—"),
-            (t("full_funnel.i_imp", "Impressions"), _n(imp) if imp else "—"),
-            (t("full_funnel.i_clicks", "Clics"), _n(clicks) if clicks else "—"),
-            ("CPM", per(spend, imp, 1000)), ("CPC", per(spend, clicks)),
-            ("CPR", per(spend, capi))]
-
-
 def widths(values: list[float]) -> list[float]:
     """Funnel widths, wide to narrow: log-scaled so 40 clicks under 100 000 impressions
     stay visible, and never wider than the step above (a funnel narrows). Pure."""
