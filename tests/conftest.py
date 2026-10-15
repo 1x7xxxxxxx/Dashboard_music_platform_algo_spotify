@@ -84,6 +84,18 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 @pytest.fixture(autouse=True)
+def _ops_mails_unpaused(monkeypatch):
+    """Tests judge the mail paths as they run once the ops mails resume (R572).
+
+    The pause itself is judged by `tests/test_the_ops_mail_pause_spares_artist_mails.py`,
+    which sets the flag back. The SMTP and HTTP boundaries below still bound every send.
+    """
+    from src.utils import ops_mail_pause
+
+    monkeypatch.setattr(ops_mail_pause, "OPS_MAIL_PAUSED", False)
+
+
+@pytest.fixture(autouse=True)
 def _no_walk_into_a_nested_repo_copy():
     """Fail a test whose disk walk yields a path inside `<repo>/.claude/worktrees/`.
 

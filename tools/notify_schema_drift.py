@@ -87,6 +87,14 @@ except ImportError:  # pragma: no cover — couvert par test_the_alert_survives_
     def from_header() -> str:
         return ""
 
+# R572 — the owner paused the ops mails. A broken import must not silence the alert,
+# so the fallback is NOT paused.
+try:
+    from src.utils.ops_mail_pause import paused_reason  # noqa: E402
+except ImportError:  # pragma: no cover
+    def paused_reason() -> str | None:
+        return None
+
 try:
     from src.utils.instance_identity import instance_label  # noqa: E402
 except ImportError:  # pragma: no cover
@@ -125,6 +133,10 @@ def main() -> int:
     ap.add_argument("--subject", required=True)
     ap.add_argument("--to", default=None, help="recipient (défaut : $ALERT_EMAIL ; aucun autre repli)")
     args = ap.parse_args()
+
+    if paused_reason():
+        print(f"not emailed — {paused_reason()}", file=sys.stderr)
+        return 0
 
     root = Path(__file__).resolve().parents[1]
     _load_env(root)

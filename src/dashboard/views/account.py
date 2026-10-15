@@ -438,7 +438,7 @@ def _section_delete_account(user: dict) -> None:
 
     alert = EmailAlert()
     if alert.send_alert(f"Demande de suppression de compte — {user['username']}",
-                        _deletion_request_body(user)):
+                        _deletion_request_body(user), essential=True):
         st.session_state["_account_delete_sent"] = True
         st.success(t("account.delete_sent",
                      "✅ Demande envoyée. Tu recevras une confirmation par mail."))

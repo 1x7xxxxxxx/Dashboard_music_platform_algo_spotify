@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.utils.email_identity import from_header  # noqa: E402 — stdlib-only module
+from src.utils.ops_mail_pause import paused_reason  # noqa: E402 — stdlib-only module
 
 _REQUIRED = ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "PROD_HEALTH_MAIL_TO")
 
@@ -54,6 +55,10 @@ def build_message(env: dict, detail: str | None = None) -> EmailMessage:
 
 
 def send(env: dict, msg: EmailMessage) -> None:
+    paused = paused_reason()
+    if paused:
+        print(f"⏸️  not mailed — {paused}: {msg['Subject']}")
+        return
     with smtplib.SMTP(env["SMTP_HOST"], int(env.get("SMTP_PORT") or 587), timeout=30) as s:
         s.starttls(context=ssl.create_default_context())
         s.login(env["SMTP_USER"], env["SMTP_PASSWORD"])
@@ -61,6 +66,9 @@ def send(env: dict, msg: EmailMessage) -> None:
 
 
 def main() -> int:
+    if paused_reason():
+        print(f"⏸️  red verdict not mailed — {paused_reason()}")
+        return 0
     missing = [k for k in _REQUIRED if not os.environ.get(k)]
     if missing:
         print(f"❌ cannot mail the red verdict: {', '.join(missing)} absent from the "

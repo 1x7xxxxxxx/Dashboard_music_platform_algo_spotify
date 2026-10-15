@@ -25,7 +25,9 @@ from src.dashboard.views import account
 
 _original = email_alerts.EmailAlert.send_alert
 
-def _record(self, subject, body):
+def _record(self, subject, body, essential=False):
+    # R572 — a user's request must outlive the ops-mail pause
+    assert essential, "the deletion request must be sent as essential"
     st.session_state.setdefault("_sent", []).append(subject)
     return {ok}
 

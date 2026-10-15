@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from src.utils.email_identity import from_header
 from src.utils.instance_identity import instance_label
+from src.utils.ops_mail_pause import paused_reason
 from src.utils.safe_error import redact, safe_error
 
 logger = logging.getLogger(__name__)
@@ -83,10 +84,14 @@ class EmailAlert:
         return (f"instance '{instance_env()}' is not production — not sending. "
                 f"Set {self._OPT_IN}=1 for this run to send anyway.")
 
-    def send_alert(self, subject: str, body: str) -> bool:
-        """Envoie une alerte par email. Retourne True si succès."""
+    def send_alert(self, subject: str, body: str, essential: bool = False) -> bool:
+        """Envoie une alerte par email. Retourne True si succès.
+
+        `essential=True` : un mail qu'un UTILISATEUR a déclenché (demande de suppression
+        de compte) — il part même quand les mails ops sont en pause (R572).
+        """
         self.last_error = None
-        blocked = self._outbound_blocked()
+        blocked = self._outbound_blocked() or (None if essential else paused_reason())
         if blocked:
             self.last_error = blocked
             logger.info("✉️  suppressed (%s): %s", blocked, subject)
@@ -245,7 +250,7 @@ def deliver_or_raise(subject: str, body: str) -> None:
     # the distinction the two branches below carry ("SMTP absent" vs "SMTP configured
     # and the send failed") stays legible; collapsing all three into one message is
     # what `tests/test_alert_delivery_is_proven` caught when this gate was added.
-    suppressed = alert._outbound_blocked()
+    suppressed = alert._outbound_blocked() or paused_reason()
     if suppressed:
         logger.info("✉️  nightly alert suppressed (%s): %r", suppressed, subject)
         return
@@ -265,6 +270,8 @@ def dag_failure_callback(context):
         from src.utils.email_alerts import dag_failure_callback
         default_args = { ..., 'on_failure_callback': dag_failure_callback }
     """
+    if paused_reason():
+        return
     dag_id = context.get('dag').dag_id
     task_instance = context.get('task_instance')
     task_id = task_instance.task_id if task_instance else 'N/A'
