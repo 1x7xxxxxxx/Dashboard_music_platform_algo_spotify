@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R572 — Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2… (livrée 2026-10-15)
+
+- [x] **R572 — Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2026-10-15) — un seul interrupteur `src/utils/ops_mail_pause.py` lu par `send_alert`, `deliver_or_raise`, `dag_failure_callback`, `mail_red_verdict.send` et `notify_schema_drift` ; les mails artistes (`send_email`) et la demande de suppression de compte continuent** (P3) ✅ (2026-10-15, f6613d07)
+  Mesuré par : test : en pause, aucun SMTP ouvert pour une alerte ops, un mail artiste part
+  Livré f6613d07, CI verte (run 38700534461) + nightly sécurité verte (38700880744), dashboard déployé (health 200), scheduler prod lit OPS_MAIL_PAUSED=True ; suite locale 12742 verts ; 3 gardes mutés rouges
+  Commits : f6613d07 R572 : mails ops au propriétaire en pause (interrupteur unique src/uti
+
 ## ✅ R569 — Vue croisée 3/3 — inventaire anti-doublon généré (`revue/vue-croisee-inventaire.md`) et… (livrée 2026-10-15)
 
 - [x] **R569 — Vue croisée 3/3 — inventaire anti-doublon généré (`revue/vue-croisee-inventaire.md`) et garde : aucune paire (dimension, métrique) tracée deux fois, aucun tableau hors `detail()`** (P3) ✅ (2026-10-15, ff9037de)
