@@ -31,3 +31,15 @@ def test_the_cheapest_cpr_is_on_top_and_an_undefined_one_is_not_drawn() -> None:
     assert order[-1] == "A", "Plotly stacks from the bottom: the cheapest CPR goes last"
     cpr_dots = [tr for tr in fig.data if tr.xaxis == "x3" and tr.type == "scatter"][0]
     assert "C" not in list(cpr_dots.y), "C has no result: no CPR dot at 0"
+
+
+def test_each_panel_is_framed_and_its_best_cost_marked() -> None:
+    """R593 — a dotted box per panel, a dotted vertical at the lowest cost of each."""
+    fig = _perf_costs(_D, ["A", "B", "C"])
+    rects = [s for s in fig.layout.shapes if s.type == "rect"]
+    assert len(rects) == 3 and all(s.line.dash == "dot" for s in rects)
+    lines = {s.xref: s.x0 for s in fig.layout.shapes if s.type == "line"}
+    assert all(s.line.dash == "dot" for s in fig.layout.shapes if s.type == "line")
+    for ax in ("x", "x2", "x3"):
+        dots = [tr for tr in fig.data if tr.xaxis == ax and tr.type == "scatter"][0]
+        assert lines[ax] == min(dots.x), f"{ax}: the vertical sits on the best cost"

@@ -409,6 +409,12 @@ def _perf_costs(d: pd.DataFrame, court: list[str]) -> go.Figure:
             hovertemplate=f"%{{y}}<br>{lab} : %{{x:,.2f}} €<extra></extra>"), row=1, col=j)
         fig.update_xaxes(range=[0, max(xs, default=1) * 1.5], showticklabels=False,
                          showgrid=False, zeroline=False, row=1, col=j)
+        # R593: each panel framed by a dotted box, the best (lowest) cost by a dotted line.
+        ax = "" if j == 1 else str(j)
+        fig.add_shape(type="rect", xref=f"x{ax} domain", yref=f"y{ax} domain",
+                      x0=0, x1=1, y0=0, y1=1, line={"dash": "dot", "color": "#9E9E9E"})
+        if xs:
+            fig.add_vline(x=min(xs), line_dash="dot", line_color="#9E9E9E", row=1, col=j)
     fig.update_yaxes(categoryorder="array", categoryarray=[court[i] for i in order],
                      automargin=True)
     fig.update_layout(height=110 + 42 * len(court), margin={'l': 10, 'r': 10, 't': 50, 'b': 10})
