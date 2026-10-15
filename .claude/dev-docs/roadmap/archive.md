@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R571 — Défaut : un titre affiche des ajouts en playlist mais 0 écoute sur 7 j — `ml_inference`… (livrée 2026-10-15)
+
+- [x] **R571 — Défaut : un titre affiche des ajouts en playlist mais 0 écoute sur 7 j — `ml_inference` compte 7 j relatifs à AUJOURD'HUI alors que l'import S4A s'arrête plus tôt ; ancrer sur le dernier jour importé et l'écrire sur la jauge** (P2) ✅ (2026-10-15, faeae041)
+  Mesuré par : test rouge sur un import arrêté 10 j avant aujourd'hui, vert après
+  Livré faeae041, CI verte (run 38662647648), déployé ; prod : dernier import S4A artiste 1 = 2026-09-05, fenêtre 7 j non vide
+  Commits : faeae041 R571 : les fenêtres 7/28/35 j de S4A finissent au dernier jour IMPORTÉ
+
 ## ✅ R566 — Trésorerie : étiquettes du cercle en € + libellé ; titre point mort Revenus vert / Dépe… (livrée 2026-10-15)
 
 - [x] **R566 — Trésorerie : étiquettes du cercle en € + libellé ; titre point mort Revenus vert / Dépenses rouge / ROI coloré par signe ; projection jusqu'à 50 ans sur temps log avec repères 2/10/30/50 ans ; retirer captions, `fit_sentence`, paragraphe Discover Weekly et tableau `_render_ledger`** (P3) ✅ (2026-10-15, e5b72dfa)
