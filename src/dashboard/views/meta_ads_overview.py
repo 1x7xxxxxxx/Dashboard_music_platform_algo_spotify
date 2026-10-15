@@ -463,6 +463,34 @@ def _perf_query(campaign_in: str) -> str:
     )
 
 
+def _with_spotify_days(db, artist_id: int, daily: pd.DataFrame) -> pd.DataFrame:
+    """R594 — each campaign-day gets the artist's listeners and its mapped track's streams.
+
+    Listeners exist only for the whole artist in S4A (no per-title listeners), so both
+    campaigns read the same listener days; streams are the campaign's own title, absent
+    (NaN, not 0) when the campaign is mapped to no title."""
+    from src.dashboard.utils.campaign_compare import campaign_songs
+    if daily.empty:
+        return daily
+    daily = daily.assign(day=pd.to_datetime(daily["day"]))
+    start = daily["day"].min().date()
+    aud = db.fetch_df("SELECT day, listeners FROM v_s4a_audience_daily "
+                      "WHERE artist_id = %s AND day >= %s", (artist_id, start))
+    songs = campaign_songs(db, artist_id)
+    songs = songs[songs["campaign_name"].isin(daily["campaign_name"])] if not songs.empty else songs
+    streams = pd.DataFrame(columns=["campaign_name", "day", "streams"])
+    if not songs.empty:
+        per_song = db.fetch_df(
+            "SELECT song, day, streams FROM v_s4a_song_daily WHERE artist_id = %s "
+            "AND song = ANY(%s) AND day >= %s AND song NOT ILIKE '%%1x7xxxxxxx%%'",
+            (artist_id, sorted(songs["song"].unique()), start))
+        streams = songs.merge(per_song, on="song")[["campaign_name", "day", "streams"]]
+    for f in (aud, streams):
+        f["day"] = pd.to_datetime(f["day"])
+    out = daily.merge(aud, on="day", how="left", validate="many_to_one")
+    return out.merge(streams, on=["campaign_name", "day"], how="left", validate="one_to_one")
+
+
 def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> None:
     """R350 — two campaigns at a comparable scale: each on ITS day 0 (first euro spent).
 
@@ -471,10 +499,12 @@ def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> N
     life of each campaign, NOT the period window: a window would cut one of them mid-run."""
     acct, acct_params = account_clause(account)
     daily = db.fetch_df(
-        "SELECT campaign_name, day, SUM(spend) AS spend, SUM(link_clicks) AS link_clicks "
+        "SELECT campaign_name, day, SUM(spend) AS spend, SUM(link_clicks) AS link_clicks, "
+        "SUM(custom_conversions) AS custom_conversions "
         f"FROM v_meta_campaign_daily WHERE artist_id = %s{acct} "
         "AND campaign_name IN (%s, %s) GROUP BY campaign_name, day ORDER BY day",
         (artist_id, *acct_params, first, second))
+    daily = _with_spotify_days(db, artist_id, daily)
     st.markdown(t("meta_ads_overview.pair_head", "##### ⏱️ Les deux campagnes sur la même horloge"))
     st.caption(t("meta_ads_overview.pair_caption",
                  "J0 = le premier jour où chaque campagne a dépensé. Toute la vie de chaque "

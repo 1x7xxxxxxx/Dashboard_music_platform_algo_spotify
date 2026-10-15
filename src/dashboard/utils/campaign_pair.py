@@ -88,35 +88,49 @@ def pair_colors(names: list, rows: pd.DataFrame, first: str, second: str) -> lis
     return out
 
 
-def day0_cumulative(daily: pd.DataFrame, first: str, second: str | None) -> pd.DataFrame:
-    """[campaign, offset, spend_cum, clicks_cum, cpc_cum] — each campaign on ITS day 0.
+_META_DAY = ("spend", "link_clicks", "custom_conversions")
+_S4A_DAY = ("listeners", "streams")
+_DAY0_OUT = ["campaign", "offset", "spend_cum", "clicks_cum", "cpc_cum", "cpr_cum",
+             "listeners_cum", "streams_cum"]
 
-    `daily` holds (campaign_name, day, spend, link_clicks), one row per campaign-day.
-    Day 0 is the first day with spend > 0; days before it are dropped, a day without a
-    row inside the life is a 0 (pause), never interpolated."""
+
+def day0_cumulative(daily: pd.DataFrame, first: str, second: str | None) -> pd.DataFrame:
+    """[campaign, offset, spend_cum, clicks_cum, cpc_cum, cpr_cum, listeners_cum,
+    streams_cum] — each campaign on ITS day 0.
+
+    `daily` holds (campaign_name, day, spend, link_clicks) and, when known,
+    custom_conversions, listeners and streams — one row per campaign-day. Day 0 is the
+    first day with spend > 0; days before it are dropped. A Meta day without a row inside
+    the life is a 0 (pause), never interpolated; a Spotify day without a row is NOT a 0 —
+    nothing was measured, so its running sum is not drawn there (R594)."""
     out = []
     for name in [c for c in (first, second) if c]:
         mine = daily[daily["campaign_name"] == name].copy()
         mine["day"] = pd.to_datetime(mine["day"])
-        for c in ("spend", "link_clicks"):
-            mine[c] = pd.to_numeric(mine[c], errors="coerce").fillna(0)
+        for c in (*_META_DAY, *_S4A_DAY):
+            mine[c] = pd.to_numeric(mine[c], errors="coerce") if c in mine else float("nan")
+        mine[list(_META_DAY)] = mine[list(_META_DAY)].fillna(0)
         spent = mine.loc[mine["spend"] > 0, "day"]
         if spent.empty:
             continue
         j0, last = spent.min(), mine["day"].max()
-        per_day = (mine[mine["day"] >= j0].groupby("day")[["spend", "link_clicks"]].sum()
-                   .reindex(pd.date_range(j0, last, freq="D"), fill_value=0))
-        frame = pd.DataFrame({
-            "campaign": name,
-            "offset": (per_day.index - j0).days,
-            "spend_cum": per_day["spend"].cumsum().to_numpy(),
-            "clicks_cum": per_day["link_clicks"].cumsum().to_numpy(),
-        })
+        days = pd.date_range(j0, last, freq="D")
+        alive = mine[mine["day"] >= j0].groupby("day")
+        meta = alive[list(_META_DAY)].sum().reindex(days, fill_value=0)
+        s4a = alive[list(_S4A_DAY)].sum(min_count=1).reindex(days)
+        frame = pd.DataFrame({"campaign": name, "offset": (days - j0).days,
+                              "spend_cum": meta["spend"].cumsum().to_numpy(),
+                              "clicks_cum": meta["link_clicks"].cumsum().to_numpy()})
+        results = meta["custom_conversions"].cumsum().to_numpy()
         frame["cpc_cum"] = per_series(frame["spend_cum"], frame["clicks_cum"])
+        frame["cpr_cum"] = per_series(frame["spend_cum"], pd.Series(results))
+        for c in _S4A_DAY:
+            run = s4a[c].cumsum()          # skips a gap, then masked: unmeasured stays NaN
+            frame[f"{c}_cum"] = run.where(s4a[c].notna()).to_numpy()
         out.append(frame)
     if not out:
-        return pd.DataFrame(columns=["campaign", "offset", "spend_cum", "clicks_cum", "cpc_cum"])
-    return pd.concat(out, ignore_index=True)
+        return pd.DataFrame(columns=_DAY0_OUT)
+    return pd.concat(out, ignore_index=True)[_DAY0_OUT]
 
 
 def share_pair(a: pd.DataFrame, b: pd.DataFrame, label_col: str, value_col: str,
@@ -138,37 +152,44 @@ def share_pair(a: pd.DataFrame, b: pd.DataFrame, label_col: str, value_col: str,
     return both.rename_axis("label").reset_index()
 
 
-_DAY0_COLS = ("spend_cum", "clicks_cum", "cpc_cum")
+_DAY0_COLS = ("spend_cum", "clicks_cum", "cpc_cum", "cpr_cum", "listeners_cum", "streams_cum")
 
 
 def _day0_titles() -> list[str]:
-    """One title per frame, in `_DAY0_COLS` order — literal keys, so the i18n guard sees them."""
+    """One title per row, in `_DAY0_COLS` order — literal keys, so the i18n guard sees them."""
     return [t("campaign_pair.day0.spend_cum", "Dépense cumulée (€)"),
             t("campaign_pair.day0.clicks_cum", "Clics lien cumulés"),
-            t("campaign_pair.day0.cpc_cum", "CPC cumulé (€)")]
+            t("campaign_pair.day0.cpc_cum", "CPC cumulé (€)"),
+            t("campaign_pair.day0.cpr_cum", "CPR cumulé (€)"),
+            t("campaign_pair.day0.listeners_cum", "Auditeurs cumulés (somme des jours, artiste)"),
+            t("campaign_pair.day0.streams_cum", "Écoutes cumulées du titre")]
 
 
 def day0_figure(curves: pd.DataFrame, first: str, second: str) -> go.Figure:
-    """Three panels side by side (R576): spend, clicks, CPC on the day-0 clock, in REAL
-    values; the colour is the campaign, every line solid, one legend entry per campaign.
+    """ONE figure, ONE x-axis (R594): six measures stacked on the day-0 clock, real values;
+    the colour is the campaign, every line solid, one legend entry per campaign.
 
-    Owner, 2026-10-15: one frame with the measure as a dash style and % of the final value
-    was misread (« la largeur des pointillés … pas bien »); each measure gets its panel
-    and its unit, so no dash has to carry a meaning. Pure."""
+    Owner, 2026-10-15: « même horloge : un seul graphique, une seule abscisse » — the
+    three side-by-side panels each had their own day axis; stacked rows share it, so a
+    day reads straight down through spend, clicks, CPC, CPR, listeners and streams.
+    A measure with no value for either campaign keeps its row, empty. Pure."""
     from plotly.subplots import make_subplots
     titles = _day0_titles()
-    fig = make_subplots(rows=1, cols=3, horizontal_spacing=0.08, subplot_titles=titles)
-    for j, (col, lab) in enumerate(zip(_DAY0_COLS, titles), start=1):
+    fig = make_subplots(rows=len(_DAY0_COLS), cols=1, shared_xaxes=True,
+                        vertical_spacing=0.035, subplot_titles=titles)
+    for i, (col, lab) in enumerate(zip(_DAY0_COLS, titles), start=1):
         for name, color in zip((first, second), PAIR_COLORS):
             s = curves[curves["campaign"] == name]
             fig.add_trace(go.Scatter(
                 x=s["offset"], y=s[col], mode="lines", name=name[:30], legendgroup=name,
-                showlegend=j == 1, line={"color": color, "width": 2}, connectgaps=False,
+                showlegend=i == 1, line={"color": color, "width": 2}, connectgaps=False,
                 hovertemplate=f"J+%{{x}}<br>{lab} : %{{y:,.2f}}<extra>{name[:30]}</extra>"),
-                row=1, col=j)
-    fig.update_xaxes(title=t("campaign_pair.day0_axis", "Jours depuis J0"), rangemode="tozero")
+                row=i, col=1)
+    fig.update_xaxes(title=t("campaign_pair.day0_axis", "Jours depuis J0"), rangemode="tozero",
+                     row=len(_DAY0_COLS), col=1)
     fig.update_yaxes(rangemode="tozero")
-    fig.update_layout(height=360, margin={"l": 50, "r": 10, "t": 50, "b": 20})
+    fig.update_layout(height=150 * len(_DAY0_COLS), hovermode="x unified",
+                      margin={"l": 50, "r": 10, "t": 40, "b": 20})
     return fig
 
 

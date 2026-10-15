@@ -7,5 +7,8 @@ EN = {
     "campaign_pair.day0.spend_cum": "Cumulative spend (€)",
     "campaign_pair.day0.clicks_cum": "Cumulative link clicks",
     "campaign_pair.day0.cpc_cum": "Cumulative CPC (€)",
+    "campaign_pair.day0.cpr_cum": "Cumulative CPR (€)",
+    "campaign_pair.day0.listeners_cum": "Cumulative listeners (sum of days, artist)",
+    "campaign_pair.day0.streams_cum": "Cumulative streams of the track",
     "campaign_pair.day0_axis": "Days since day 0",
 }

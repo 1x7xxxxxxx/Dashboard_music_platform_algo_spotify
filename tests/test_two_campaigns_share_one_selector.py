@@ -157,19 +157,37 @@ def test_a_pick_outside_the_list_is_refused(monkeypatch) -> None:
     assert cp.second_campaign(["A", "B"], "A", key="k") == "B"
 
 
-def test_the_day0_clock_draws_real_values_one_panel_per_measure() -> None:
-    """R576 — three panels (spend, clicks, CPC) in REAL units; colour = campaign, every
-    line solid (owner: « la largeur des pointillés … pas bien »), one legend per campaign."""
+def test_the_day0_clock_is_one_figure_six_measures_one_shared_axis() -> None:
+    """R594 — « même horloge » : ONE figure, six measures stacked on ONE day axis, real
+    values; colour = campaign, every line solid, one legend entry per campaign."""
     curves = cp.day0_cumulative(_daily([
         ("A", D(2024, 1, 1), 10, 1), ("A", D(2024, 1, 2), 30, 3),
         ("B", D(2024, 3, 1), 500, 5), ("B", D(2024, 3, 2), 250, 5)]), "A", "B")
     fig = cp.day0_figure(curves, "A", "B")
-    assert {tr.xaxis for tr in fig.data} == {"x", "x2", "x3"}
+    rows = sorted({tr.yaxis for tr in fig.data})
+    assert len(rows) == 6, f"six measures, got {rows}"
+    shared = [fig.layout[f"xaxis{i if i > 1 else ''}"].matches for i in range(1, 6)]
+    assert shared == ["x6"] * 5, f"every row reads the bottom day axis, got {shared}"
     assert all(tr.line.dash in (None, "solid") for tr in fig.data), "a dash codes a measure"
     assert {tr.line.color for tr in fig.data} == set(cp.PAIR_COLORS[:2])
     assert sum(bool(tr.showlegend) for tr in fig.data) == 2
-    spend_a = next(tr for tr in fig.data if tr.xaxis == "x" and tr.name == "A")
+    spend_a = next(tr for tr in fig.data if tr.yaxis == "y" and tr.name == "A")
     assert list(spend_a.y)[-1] == 40.0, "the real running spend, not a % of it"
+
+
+def test_cpr_listeners_and_streams_run_on_the_same_clock() -> None:
+    """R594 — CPR from the two running sums; a Spotify day without a row is NOT a zero."""
+    daily = pd.DataFrame({
+        "campaign_name": ["A"] * 3, "day": [D(2024, 1, 1), D(2024, 1, 2), D(2024, 1, 3)],
+        "spend": [10, 10, 10], "link_clicks": [1, 1, 1], "custom_conversions": [0, 2, 3],
+        "listeners": [100, None, 50], "streams": [7, 8, 9]})
+    got = cp.day0_cumulative(daily, "A", None)
+    assert math.isnan(got["cpr_cum"][0]) and got["cpr_cum"].tolist()[1:] == [10.0, 6.0]
+    assert got["streams_cum"].tolist() == [7, 15, 24]
+    lis = got["listeners_cum"].tolist()
+    assert lis[0] == 100 and math.isnan(lis[1]) and lis[2] == 150, "unmeasured day: not drawn"
+    bare = cp.day0_cumulative(_daily([("A", D(2024, 1, 1), 5, 1)]), "A", None)
+    assert bare["streams_cum"].isna().all(), "no mapped title: no streams, not zeros"
 
 
 def test_a_creative_of_both_campaigns_is_grey() -> None:
@@ -273,7 +291,8 @@ def _specs(at) -> list[dict]:
 def test_the_overview_draws_two_campaigns_on_the_day0_clock() -> None:
     at = _pick_second(_app("meta_ads_overview"), "meta_second")
     day0 = [s for s in _specs(at)
-            if "J0" in str(((s.get("layout") or {}).get("xaxis") or {}).get("title", ""))]
+            if any("J0" in str((v or {}).get("title", ""))
+                   for k, v in (s.get("layout") or {}).items() if k.startswith("xaxis"))]
     assert day0, "two campaigns chosen and no figure on the day-0 clock"
     colours = {tr["line"]["color"] for tr in day0[0]["data"]}
     assert len(colours) == 2, f"one colour per campaign (R567), got {colours}"

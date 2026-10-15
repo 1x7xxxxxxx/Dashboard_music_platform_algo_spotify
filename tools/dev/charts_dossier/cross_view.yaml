@@ -25,7 +25,8 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#2:
   draws: [campagne · CPM, campagne · CPC, campagne · CPR]
 src/dashboard/utils/campaign_pair.py::render_day0#1:
   draws: [jours depuis J0 · dépense cumulée, jours depuis J0 · clics cumulés,
-          jours depuis J0 · CPC cumulé]
+          jours depuis J0 · CPC cumulé, jours depuis J0 · CPR cumulé,
+          jours depuis J0 · auditeurs cumulés, jours depuis J0 · écoutes cumulées]
 src/dashboard/utils/campaign_compare.py::_render_tracks#1:
   draws: [titre · clics plateformes × écoutes gagnées]
 src/dashboard/utils/campaign_compare.py::_render_creative_funnel#1:

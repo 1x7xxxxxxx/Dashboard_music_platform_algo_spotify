@@ -61,6 +61,20 @@ def _df(db, sql: str, params: tuple) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def campaign_songs(db, artist_id: int) -> pd.DataFrame:
+    """[campaign_name, song] — each mapped campaign's S4A title (one definition, R594)."""
+    return _df(db, """
+        SELECT DISTINCT ON (m.campaign_name) m.campaign_name, s4a.platform_title AS song
+          FROM campaign_track_mapping m
+          JOIN track_platform_link any_l
+            ON any_l.artist_id = m.artist_id AND any_l.status = 'confirmed'
+           AND TRIM(any_l.platform_title) = TRIM(m.track_name)
+          JOIN track_platform_link s4a
+            ON s4a.artist_id = any_l.artist_id AND s4a.match_key = any_l.match_key
+           AND s4a.platform = 's4a' AND s4a.status = 'confirmed'
+         WHERE m.artist_id = %s ORDER BY m.campaign_name""", (artist_id,))
+
+
 def load(db, artist_id: int, acct: str, acct_p: tuple) -> dict:
     """The five batched reads. Each frame may be empty — absent, never an error."""
     daily = _df(db, f"""
@@ -72,16 +86,7 @@ def load(db, artist_id: int, acct: str, acct_p: tuple) -> dict:
         SELECT campaign_name, MAX(objective) AS objective
           FROM v_meta_ad_daily WHERE artist_id = %s
          GROUP BY campaign_name""", (artist_id,))
-    tracks = _df(db, """
-        SELECT DISTINCT ON (m.campaign_name) m.campaign_name, s4a.platform_title AS song
-          FROM campaign_track_mapping m
-          JOIN track_platform_link any_l
-            ON any_l.artist_id = m.artist_id AND any_l.status = 'confirmed'
-           AND TRIM(any_l.platform_title) = TRIM(m.track_name)
-          JOIN track_platform_link s4a
-            ON s4a.artist_id = any_l.artist_id AND s4a.match_key = any_l.match_key
-           AND s4a.platform = 's4a' AND s4a.status = 'confirmed'
-         WHERE m.artist_id = %s ORDER BY m.campaign_name""", (artist_id,))
+    tracks = campaign_songs(db, artist_id)
     songs = sorted(tracks["song"].dropna().unique()) if not tracks.empty else []
     streams = pd.DataFrame()
     if songs and not daily.empty:
