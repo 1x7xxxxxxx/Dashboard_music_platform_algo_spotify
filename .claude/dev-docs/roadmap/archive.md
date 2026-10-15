@@ -11,6 +11,24 @@ si le total passe sous son plancher.
 
 ---
 
+## 🚫 R610 — Coût de CLAUDE.md : décidée NON (close 2026-10-15)
+
+- [x] **R610 — REA·4 — coût de CLAUDE.md (7 640 mots contre 1 455 chez REA).** (P3) ✅ (2026-10-15, décidée NON — aucune section inutilisée en 30 j)
+
+  **Critère écrit avant la mesure :** oui si une section ne sert jamais en 30 jours.
+  **Mesure :** 29 séances de 30 jours. Une section « sert » quand un APPEL D'OUTIL
+  (Bash, Read, Agent, Skill, Workflow, MCP) porte une commande, un chemin ou un nom
+  qu'elle seule fournit ; un mot cité dans la prose ne compte pas. **Aucune section à 0.**
+  Les plus faibles : table Skills 1/29, règle 18 (code-architecture-reviewer) 3/29,
+  Graphify 4/29 pour 371 mots, règle 11 4/29. Les plus lourdes : règles transverses
+  2 795 mots (4 à 20/29 selon la règle), Reference docs 993 mots (19/29), « Le temps de
+  la suite » 858 mots (15/29).
+  **Limite :** une ancre prouve l'usage, pas que CLAUDE.md l'a causé (un hook ou une
+  skill peut nommer la même commande).
+  **Réouverture :** une section à 0 sur 30 jours, ou Graphify et la table Skills encore
+  ≤ 4/29 au prochain relevé — elles seraient alors à déplacer vers
+  `tooling-reference.md`.
+
 ## ✅ R609 — REA·3 — cliquet de code mort (`vulture`) : MESURER l'entonnoir candidats bruts → faux p… (livrée 2026-10-15)
 
 - [x] **R609 — REA·3 — cliquet de code mort (`vulture`) : MESURER l'entonnoir candidats bruts → faux positifs (`show()`, DAGs, fixtures) → sites vivants, muté dans les deux sens (règle 20) → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure — **DÉCIDÉ OUI 2026-10-15** : `vulture==2.14` sur `src/`+`airflow/dags/` : 199 bruts → 76 variables (hors cliquet) → 87 nommés ailleurs (.py/yml/sql/Makefile/html/js) → 10 décorés framework (routes FastAPI, validateurs, middleware, lru_cache) → **25 fonctions citées nulle part** (~340 l.). code-critic BUILD-MODIFIED : corpus sans `*.md` (sinon 25 ne se reproduit pas), cliquet clé `fichier::nom` (pas un compte), `vulture==2.14` exact, liste EXPLICITE des décorateurs framework, fixture de mutation dans les deux sens, échec si vulture absent ; supprimer les 25 = ligne séparée ; angle mort « appelée seulement par son test » mesuré et écrit, non cliqueté** (P3) ✅ (2026-10-15, 364aea78, 13eb139f, da07a2c5, c09f0005)
