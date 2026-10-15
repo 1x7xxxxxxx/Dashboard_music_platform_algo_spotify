@@ -38,7 +38,27 @@ def test_an_unmeasured_step_is_not_drawn_and_breaks_the_chain():
 
 def test_under_two_steps_there_is_no_figure():
     assert full_funnel.figure(full_funnel.steps({"spend": 10.0}, None)) is None
-    assert full_funnel.figure(full_funnel.steps(_FULL, 0.004)).layout.xaxis.type == "log"
+
+
+def test_the_funnel_is_a_funnel_wide_to_narrow():
+    """R575 — a real funnel shape: the nested counts top to bottom, never widening;
+    budget above and streams/revenue below as annotations, not funnel steps."""
+    fig = full_funnel.figure(full_funnel.steps(_FULL, 0.004))
+    assert fig.data[0].type == "funnel"
+    assert len(fig.data) == 1
+    labels = list(fig.data[0].y)
+    assert labels[0] == full_funnel._label("impressions")
+    assert labels[-1] == full_funnel._label("store_clicks")
+    w = list(fig.data[0].x)
+    assert all(a >= b for a, b in zip(w, w[1:]))
+    notes = " ".join(a.text for a in fig.layout.annotations)
+    assert full_funnel._label("budget") in notes and full_funnel._label("revenue") in notes
+
+
+def test_widths_never_widen_and_keep_a_small_step_visible():
+    assert full_funnel.widths([100_000, 2_000, 3_000, 40]) == sorted(
+        full_funnel.widths([100_000, 2_000, 3_000, 40]), reverse=True)
+    assert min(full_funnel.widths([100_000, 1])) >= 8
 
 
 def _defs(rel: str) -> dict[str, ast.FunctionDef]:

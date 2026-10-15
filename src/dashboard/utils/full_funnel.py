@@ -4,6 +4,7 @@ Type: Utility
 Uses: pandas, plotly, src.dashboard.utils.campaign_funnel (streams_gained),
       src.dashboard.utils.artist_cashflow (stream_rate), src.dashboard.utils.i18n
 Triggers: views/meta_x_spotify.py (`_render_funnel`, `render_funnel` — the comparison)
+R575: `figure` is a real `go.Funnel` — the nested counts narrow top to bottom.
 Persists in: nothing
 
 Owner's Y2 of 2026-10-13, fiches 44, 43, 128, 22, 23, 39, 26: « budget → impressions →
@@ -22,6 +23,8 @@ Revenue is streams gained × the €/stream MEASURED on the distributor's sales
 A step at 0 or unmeasured is not drawn: it would draw a collapse that did not happen.
 """
 from __future__ import annotations
+
+import math
 
 import plotly.graph_objects as go
 
@@ -113,23 +116,50 @@ def indicators(m: dict) -> list[tuple[str, str]]:
             ("CPR", per(spend, capi))]
 
 
-def figure(drawn: list[dict], height: int = 420) -> go.Figure | None:
-    """Horizontal bars on a log axis, the real value written on each. None under 2 steps.
+# The counts that narrow, in a funnel's shape; euros and streams around it (R575).
+_NARROWING = ("impressions", "link_clicks", "arrivals", "store_clicks")
 
-    A log axis because the budget, 100 000 impressions and 40 platform clicks share it:
-    on a linear one every step after the impressions is a sliver (dossier fiche 49)."""
-    if len(drawn) < 2:
+
+def widths(values: list[float]) -> list[float]:
+    """Funnel widths, wide to narrow: log-scaled so 40 clicks under 100 000 impressions
+    stay visible, and never wider than the step above (a funnel narrows). Pure."""
+    top = math.log10(max(values) + 1) or 1.0
+    out: list[float] = []
+    for v in values:
+        w = max(8.0, 100 * math.log10(v + 1) / top)
+        out.append(min(w, out[-1]) if out else w)
+    return out
+
+
+def figure(drawn: list[dict], height: int = 420) -> go.Figure | None:
+    """A real funnel, top to bottom (R575 — owner, 2026-10-15: « une vraie forme
+    d'entonnoir, du haut vers le bas, du plus large au plus étroit »). None under 2 steps.
+
+    Only the NESTED counts form the funnel; the budget stands above it and the streams
+    and revenue they bought below it — euros and repeat listens are not a narrowing of
+    the clicks (the render once read « 191 % »). Widths are log-scaled; the number
+    written on each step is its real value."""
+    by_key = {s["key"]: s for s in drawn}
+    cone = [by_key[k] for k in _NARROWING if k in by_key]
+    if len(cone) < 2:
         return None
-    fig = go.Figure(go.Bar(
-        y=[s["label"] for s in drawn], x=[s["value"] for s in drawn], orientation="h",
-        marker_color=[_INK[s["key"]] for s in drawn], text=[s["text"] for s in drawn],
-        textposition="outside", cliponaxis=False, hoverinfo="text",
-        hovertext=[f"{s['label']} : {s['text']}" for s in drawn]))
-    top = max(s["value"] for s in drawn)
-    fig.update_layout(
-        height=height, showlegend=False, margin=dict(l=10, r=20, t=20, b=40),
-        xaxis=dict(type="log", range=[0, len(f"{int(top)}") + 1.6], showticklabels=False,
-                   title=t("full_funnel.log_axis",
-                           "Longueur en échelle log — le chiffre écrit est la vraie valeur")),
-        yaxis=dict(autorange="reversed", automargin=True))
+    fig = go.Figure(go.Funnel(
+        y=[s["label"] for s in cone], x=widths([s["value"] for s in cone]),
+        text=[s["text"] for s in cone], textinfo="text", textposition="inside",
+        marker_color=[_INK[s["key"]] for s in cone], connector={"line": {"width": 0}, "fillcolor": "rgba(0,0,0,0.06)"},
+        hoverinfo="text", hovertext=[f"{s['label']} : {s['text']}" for s in cone]))
+    above = by_key.get("budget")
+    below = [by_key[k] for k in ("streams", "revenue") if k in by_key]
+    if above:
+        fig.add_annotation(text=f"💶 <b>{above['label']}</b> : {above['text']}",
+                           xref="paper", yref="paper", x=0.5, y=1.0, yanchor="bottom",
+                           showarrow=False)
+    for i, s in enumerate(below):
+        fig.add_annotation(text=f"{'🎧' if s['key'] == 'streams' else '💰'} "
+                                f"<b>{s['label']}</b> : {s['text']}",
+                           xref="paper", yref="paper", x=0.5, y=-0.02 - 0.09 * i,
+                           yanchor="top", showarrow=False)
+    fig.update_layout(height=height, showlegend=False,
+                      margin=dict(l=10, r=10, t=40, b=20 + 34 * len(below)),
+                      yaxis=dict(automargin=True))
     return fig

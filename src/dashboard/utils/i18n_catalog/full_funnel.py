@@ -16,5 +16,4 @@ EN = {
     "full_funnel.i_spend": "Spend",
     "full_funnel.i_imp": "Impressions",
     "full_funnel.i_clicks": "Clicks",
-    "full_funnel.log_axis": "Length on a log scale — the written number is the real value",
 }
