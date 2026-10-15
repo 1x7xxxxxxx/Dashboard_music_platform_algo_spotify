@@ -94,17 +94,20 @@ def test_a_creative_alone_in_its_campaign_gets_its_streams_and_a_shared_one_does
     assert split == 1
 
 
-# ── R578: the tracks are a scatter, R577: the campaign ranking is gone ─────────
-def test_the_tracks_are_a_scatter_of_clicks_and_gained_streams() -> None:
+# ── R595: the tracks are sorted bars of streams per click, R577: the ranking is gone ──
+def test_the_tracks_are_sorted_bars_of_streams_per_click() -> None:
     import pandas as pd
 
-    tracks = pd.DataFrame({"song": ["a", "b", "c"], "store_clicks": [10, 400, 0],
-                           "gained": [30.0, 400.0, 5.0], "per_click": [3.0, 1.0, None]})
+    tracks = pd.DataFrame({"song": ["a", "b", "c", "d"], "store_clicks": [10, 400, 0, 50],
+                           "gained": [30.0, 400.0, 5.0, 150.0],
+                           "per_click": [3.0, 1.0, None, 3.0 / 1.5]})
     fig = cc.tracks_figure(tracks)
-    dots = [tr for tr in fig.data if "markers" in tr.mode]
-    assert len(dots) == 1 and dots[0].type == "scatter"
-    assert list(dots[0].x) == [10, 400], "a track with no click has no slope to read"
-    assert list(dots[0].y) == [30.0, 400.0], "the volume is kept, not only the ratio"
+    assert [tr.type for tr in fig.data] == ["bar"], "one bar trace, no ray behind it"
+    bar = fig.data[0]
+    assert bar.orientation == "h"
+    assert list(bar.y) == ["b", "d", "a"], "best on top: Plotly stacks from the bottom"
+    assert "c" not in list(bar.y), "a track with no click has no ratio"
+    assert "400" in bar.text[0], "the clicks the ratio rests on are written by its bar"
     assert cc.tracks_figure(tracks.assign(store_clicks=0)) is None
 
 

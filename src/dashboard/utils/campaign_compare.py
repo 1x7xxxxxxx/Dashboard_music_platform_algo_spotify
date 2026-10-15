@@ -247,48 +247,38 @@ def _render_tracks(df: pd.DataFrame, store: pd.DataFrame) -> None:
 
 
 def tracks_figure(tracks: pd.DataFrame):
-    """R578 — one dot per track: store clicks across, streams gained up, the slope is the
-    conversion. Pure.
+    """R595 — one bar per track, streams gained per platform click, best on top; the
+    clicks it rests on are written by the bar. Pure.
 
-    Owner, 2026-10-15: « autre visuel que Pareto ». A ratio alone hides its volume: 3
-    streams per click on 4 clicks and on 400 are the same bar. The dot keeps both, and the
-    dotted rays (1, 2, 5 streams per click) read the ratio off the slope."""
+    Owner, 2026-10-15: « barres triées, sans rayons » — R578's cloud read the ratio off a
+    slope against dotted rays; the bar reads it straight. The volume is not lost: 3
+    streams per click on 4 clicks and on 400 carry their click count on the bar."""
     import plotly.graph_objects as go
     from src.dashboard.utils.labels import unique_short_labels
     from src.dashboard.utils.platform_colors import DISTINCT
 
-    d = tracks.dropna(subset=["store_clicks", "gained"])
-    d = d[d["store_clicks"] > 0]
+    d = tracks.dropna(subset=["store_clicks", "gained", "per_click"])
+    d = d[d["store_clicks"] > 0].sort_values("per_click")   # Plotly stacks from the bottom
     if d.empty:
         return None
     names = unique_short_labels(d["song"].astype(str).tolist(), 24)
-    x_max = float(d["store_clicks"].max()) * 1.25
-    y_max = max(float(d["gained"].max()), 0.0) * 1.25 or 1.0
-    fig = go.Figure()
-    for k in _RAYS:
-        end = min(x_max, y_max / k)
-        fig.add_trace(go.Scatter(
-            x=[0, end], y=[0, end * k], mode="lines+text", showlegend=False,
-            line={"color": "#BDBDBD", "width": 1, "dash": "dot"}, hoverinfo="skip",
-            text=["", t("campaign_compare.ray", "{k} écoute(s) / clic").format(k=k)],
-            textposition="top left", textfont={"size": 10, "color": "#9E9E9E"}))
-    fig.add_trace(go.Scatter(
-        x=d["store_clicks"], y=d["gained"], mode="markers+text", text=names,
-        textposition="top center", showlegend=False, cliponaxis=False,
-        marker={"size": 14, "color": [DISTINCT[i % len(DISTINCT)] for i in range(len(d))]},
-        customdata=d["per_click"],
-        hovertemplate="<b>%{text}</b><br>" + t("campaign_compare.c_clicks", "Clics plateformes")
-                      + " : %{x:,.0f}<br>" + t("campaign_compare.c_gained", "Écoutes gagnées")
-                      + " : %{y:,.0f}<br>%{customdata:,.2f} / clic<extra></extra>"))
-    fig.update_layout(height=380, margin={"t": 20, "b": 10},
-                      xaxis={"title": t("campaign_compare.c_clicks", "Clics plateformes"),
-                             "range": [0, x_max]},
-                      yaxis={"title": t("campaign_compare.c_gained", "Écoutes gagnées"),
-                             "range": [min(0.0, float(d["gained"].min()) * 1.25), y_max]})
+    clicks = t("campaign_compare.c_clicks", "Clics plateformes")
+    fig = go.Figure(go.Bar(
+        x=d["per_click"], y=names, orientation="h", showlegend=False, cliponaxis=False,
+        marker={"color": DISTINCT[0]},
+        text=[f"{v:,.2f} · {c:,.0f} {clicks.lower()}".replace(",", " ")
+              for v, c in zip(d["per_click"], d["store_clicks"])],
+        textposition="outside", customdata=d[["store_clicks", "gained"]],
+        hovertemplate="<b>%{y}</b><br>" + clicks + " : %{customdata[0]:,.0f}<br>"
+                      + t("campaign_compare.c_gained", "Écoutes gagnées")
+                      + " : %{customdata[1]:,.0f}<extra></extra>"))
+    hi = max(float(d["per_click"].max()), 0.0) * 1.45 or 1.0
+    fig.update_layout(height=max(240, 40 * len(d) + 110), margin={"t": 20, "b": 50},
+                      xaxis={"title": t("campaign_compare.per_click", "Écoutes gagnées par clic"),
+                             "range": [min(0.0, float(d["per_click"].min()) * 1.2), hi]},
+                      yaxis={"categoryorder": "array", "categoryarray": names,
+                             "automargin": True})
     return fig
-
-
-_RAYS = (1, 2, 5)   # streams per click — the slopes drawn behind the dots
 
 
 def _render_creative_funnel(df: pd.DataFrame, data: dict) -> None:

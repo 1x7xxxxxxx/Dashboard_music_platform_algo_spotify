@@ -48,8 +48,8 @@ _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
     frozenset({"src/dashboard/utils/campaign_compare.py::_render_creative_funnel#1",
                "src/dashboard/utils/campaign_compare.py::_render_tracks#1"}):
-        ("faux doublon — le nuage dit, par titre, les clics plateformes contre les "
-         "écoutes gagnées ; l'icicle descend le budget par campagne, ad set et créa "
+        ("faux doublon — les barres disent, par titre, les écoutes gagnées par clic "
+         "plateforme ; l'icicle descend le budget par campagne, ad set et créa "
          "(dépense, CPR, écoutes gagnées) : deux grains, deux questions (R590).",
          frozenset()),
     frozenset({"src/dashboard/views/meta_creatives.py::_render_one_creative#1",
