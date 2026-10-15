@@ -6,8 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
 
 from src.api.auth import decode_token
-from src.dashboard.utils import get_db_connection
-from src.database.postgres_handler import PostgresHandler
+from src.database.postgres_handler import PostgresHandler, open_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -15,11 +14,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 def get_db() -> Generator[PostgresHandler, None, None]:
     """Open a DB connection, yield it, then close it — one per request.
 
-    get_db_connection() returns None when Postgres is unreachable; the teardown must
+    open_db() returns None when Postgres is unreachable; the teardown must
     not crash on that (else an auth 401 — which never touches the DB — turns into a
     500 'NoneType has no attribute close'). Endpoints that actually query guard their
     own None handling."""
-    db = get_db_connection()
+    db = open_db()
     try:
         yield db
     finally:

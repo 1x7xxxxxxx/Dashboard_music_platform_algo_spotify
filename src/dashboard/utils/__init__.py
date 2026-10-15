@@ -68,20 +68,22 @@ def get_db_connection() -> Optional[PostgresHandler]:
     # passent à 13 sur une base neuve. Gains mesurés en production : ~40 ms de
     # poignées de main évitées par le pool, et l'accueil artiste de 13 à 11 requêtes
     # par le cache.
-    from src.database.postgres_handler import enable_pool
-    enable_pool(minconn=1, maxconn=8)
     from src.dashboard.utils.series_cache import install as _install_series_cache
+    from src.database.postgres_handler import open_db
     _install_series_cache()
 
-    try:
-        return PostgresHandler.from_env_or_config()
-    except Exception as e:
+    db = open_db()
+    if db is None:
         # Import LOCAL : ce module est la porte de la base, pas une surface d'UI.
         # Le chemin d'échec est le seul qui parle à un humain, et il n'est pris que
-        # dans un processus Streamlit, où le module est déjà chargé.
+        # dans un processus Streamlit, où le module est déjà chargé. La cause est
+        # dans le journal (`open_db`), jamais sous les yeux de l'artiste (R622).
         import streamlit as st
-        st.error(f"❌ Erreur de connexion BDD : {e}")
-        return None
+
+        from src.dashboard.utils.i18n import t
+        st.error(t("ui.db_unreachable",
+                   "❌ streaMLytics est momentanément indisponible. Réessaie dans quelques minutes."))
+    return db
 
 
 def require_db(db: "PostgresHandler | None") -> PostgresHandler:

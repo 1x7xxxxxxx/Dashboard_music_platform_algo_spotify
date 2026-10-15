@@ -1,5 +1,4 @@
 {
- "src/api/deps.py::src.dashboard.utils": "module",
  "src/utils/metric_bounds.py::src.dashboard.utils.platform_timeseries": "local",
  "src/utils/platform_probes.py::src.dashboard.views.credentials._registry": "local",
  "src/utils/verification_email.py::src.dashboard.utils.i18n": "local"

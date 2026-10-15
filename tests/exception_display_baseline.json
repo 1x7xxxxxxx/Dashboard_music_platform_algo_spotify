@@ -1,6 +1,5 @@
 [
  "src/dashboard/auth.py::_show_bootstrap_form",
- "src/dashboard/utils/__init__.py::get_db_connection",
  "src/dashboard/views/apple_music.py::show",
  "src/dashboard/views/credentials/_render.py::_handle_save",
  "src/dashboard/views/data_wrapped.py::_render_wrapped_body",

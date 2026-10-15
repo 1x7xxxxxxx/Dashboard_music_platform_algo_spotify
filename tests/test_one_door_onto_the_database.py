@@ -101,9 +101,18 @@ def test_the_dashboard_uses_the_shared_door():
     fn = next((n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and n.name == "get_db_connection"), None)
     assert fn is not None, "get_db_connection has disappeared from the shared door"
+    # R626: the door may delegate through `open_db` (src/database), the request-serving
+    # door it shares with the API — but then `open_db` must itself call the precedence.
+    handler = ast.parse((REPO / "src" / "database" / "postgres_handler.py").read_text("utf-8"))
+    open_db = next(n for n in ast.walk(handler)
+                   if isinstance(n, ast.FunctionDef) and n.name == "open_db")
+    open_db_delegates = any(isinstance(n, ast.Call)
+                            and ast.unparse(n.func).endswith("from_env_or_config")
+                            for n in ast.walk(open_db))
     delegates = [n for n in ast.walk(fn)
                  if isinstance(n, ast.Call)
-                 and ast.unparse(n.func).endswith("from_env_or_config")]
+                 and (ast.unparse(n.func).endswith("from_env_or_config")
+                      or (open_db_delegates and ast.unparse(n.func) == "open_db"))]
     assert delegates, (
         "get_db_connection no longer CALLS PostgresHandler.from_env_or_config (it may "
         "still name it in a comment) — whatever it does instead is a second "

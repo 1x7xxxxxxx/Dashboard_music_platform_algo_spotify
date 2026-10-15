@@ -724,3 +724,21 @@ class PostgresHandler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
+
+
+def open_db() -> Optional[PostgresHandler]:
+    """A pooled connection for a request-serving process, or None when unreachable.
+
+    The one door both servers share (R626, arc 1): the API used to borrow the
+    dashboard's `get_db_connection`, so importing `src.api.deps` pulled the dashboard
+    package in. What is common lives here — the pool armed on first need (an import
+    must not open a socket) and `from_env_or_config()`'s precedence. What is
+    Streamlit's stays in the dashboard door: the series cache and the red banner.
+    The failure is logged with its cause; the caller decides what a human reads.
+    """
+    enable_pool(minconn=1, maxconn=8)
+    try:
+        return PostgresHandler.from_env_or_config()
+    except Exception:  # noqa: BLE001 — None is the contract; the cause goes to the log
+        logger.exception("database unreachable")
+        return None
