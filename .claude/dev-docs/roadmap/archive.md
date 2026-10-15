@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R589 — Vue croisée — entonnoir : budget en tête comme une case, puis impressions, couverture,… (livrée 2026-10-15)
+
+- [x] **R589 — Vue croisée — entonnoir : budget en tête comme une case, puis impressions, couverture, clics sur la pub, visites smart link, clics smart link, écoutes, revenus ; libellés lisibles (police plus grande) ; noms des deux campagnes encadrés avec un petit carré de couleur (titre 1 / titre 2)** (P3) ✅ (2026-10-15, da2ba290)
+  Mesuré par : test : 8 étapes dans l'ordre, budget en tête, couverture présente, en-têtes encadrés
+  Livré da2ba290, déployé da2ba290, CI verte (run 38739506268)
+  Commits : da2ba290 R589 : Vue croisée — un seul entonnoir, dans l'ordre : budget en tête 
+
+## ✅ R586 — Légendes — le placement calculé (R574) tient compte des DOMAINES non-xy (cercle de Trés… (livrée 2026-10-15)
+
+- [x] **R586 — Légendes — le placement calculé (R574) tient compte des DOMAINES non-xy (cercle de Trésorerie) et des annotations (pastilles de playlist de Prédiction algos) comme occupés ; « l'argent mois par mois » met sa légende en bas à gauche du graphe temporel, la légende de « où en sont mes titres » ne couvre plus la pastille Discover Weekly ; livrable : `revue/legendes.md` régénéré** (P3) ✅ (2026-10-15, 015624c5)
+  Mesuré par : test : légende hors du domaine d'un camembert et hors d'une annotation ; inventaire régénéré
+  Livré 015624c5, déployé da2ba290, CI verte (run 38739506268)
+  Commits : 015624c5 R586 : Légendes — le placement calculé compte un camembert, une jauge 
+
 ## ✅ R587 — Prédiction algos — vue « 🎯 Saisie streams algorithmiques » (section config, juste après… (livrée 2026-10-15)
 
 - [x] **R587 — Prédiction algos — vue « 🎯 Saisie streams algorithmiques » (section config, juste après Saisie trésorerie) : la saisie « une fois déclenché » (streams algorithmiques réalisés + ajouts en playlist J+1, J+2…) quitte la page Prédiction ; on y saisit aussi le coût de distribution** (P3) ✅ (2026-10-15, 75711960)
