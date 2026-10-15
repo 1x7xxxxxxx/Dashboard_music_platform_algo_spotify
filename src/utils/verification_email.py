@@ -413,7 +413,7 @@ def _guide_pdf_paths(lang: str = "fr") -> list[str]:
     """
     try:
         import os
-        from src.dashboard.guides.guide_pdf import output_pdf_path
+        from src.utils.guide_paths import output_pdf_path
         wanted = str(output_pdf_path(lang if lang in ("fr", "en") else "fr"))
         if os.path.exists(wanted):
             return [wanted]

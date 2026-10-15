@@ -24,6 +24,7 @@ from src.dashboard.content.credential_guides import (
     CREDENTIAL_GUIDES, PlatformCred,
 )
 from src.dashboard.content.credential_guides import screenshot_path as cred_screenshot_path
+from src.utils.guide_paths import output_pdf_path  # noqa: F401 — used below, patched by tests
 
 # WeasyPrint's base font has no emoji glyphs (they render as tofu), so strip them
 # from the PDF. The Streamlit renderer keeps emojis (its fonts support them).
@@ -311,13 +312,6 @@ def build_guide_html(lang: str = "fr") -> str:
         f"<h1 style='margin-top:30px;'>{ui['part2']}</h1>"
         f"{csv_sections}</body></html>"
     )
-
-
-def output_pdf_path(lang: str = "fr") -> Path:
-    """FR → onboarding_guide.pdf (default); EN → onboarding_guide_en.pdf."""
-    from src.utils.config_loader import config_loader
-    name = "onboarding_guide.pdf" if lang == "fr" else f"onboarding_guide_{lang}.pdf"
-    return config_loader.project_root / "docs" / "guides" / name
 
 
 def fingerprint_path() -> Path:
