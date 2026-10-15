@@ -87,7 +87,7 @@ jobs:
       #
       # Le défaut était INVISIBLE en local — le test y passe, puisque l'histoire
       # y est. Sept runs rouges d'affilée sur `main` avant que quelqu'un regarde.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
 
@@ -115,7 +115,7 @@ jobs:
       # amont, pas contre le numéro de la dernière release ; le rapporteur imprime
       # désormais le tag exact, pour que ce qu'il suggère soit écrivable tel quel.
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
@@ -331,12 +331,12 @@ jobs:
       #
       # Le défaut était INVISIBLE en local — le test y passe, puisque l'histoire
       # y est. Sept runs rouges d'affilée sur `main` avant que quelqu'un regarde.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
@@ -421,7 +421,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Install pinned gitleaks
@@ -448,7 +448,7 @@ jobs:
     if: ${{ github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Every product-code commit cites an open roadmap row (blocking)
@@ -476,8 +476,8 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: "3.11"
       - name: Mail the owner when main turns red

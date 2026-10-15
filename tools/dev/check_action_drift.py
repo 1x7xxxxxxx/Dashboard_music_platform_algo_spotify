@@ -30,6 +30,16 @@ sait de quoi on s'abstient.
 
 Il ne regarde que les actions TIERCES : une action locale (`./.github/actions/...`) n'a
 pas de version amont.
+
+Épinglage par SHA (R607, 2026-10-15)
+------------------------------------
+Toutes les actions sont épinglées par SHA de commit, la version en commentaire :
+`uses: owner/repo@<40 hex>  # v6.1.0` — la forme que Dependabot réécrit d'un seul geste.
+Avant R607, cet outil lisait le SHA comme une version : les deux épinglages SHA de
+l'époque sortaient « 🚫 INTROUVABLE » chaque nuit et un retard de « -23434 » majeures
+(le premier nombre trouvé dans le hex). La version se lit donc dans le COMMENTAIRE, et
+le commentaire est vérifié contre le SHA : un commentaire qui ment sur la version
+épinglée est exactement le mensonge qu'un épinglage par SHA rend possible.
 """
 from __future__ import annotations
 
@@ -50,12 +60,23 @@ sys.path.insert(0, str(_ROOT))
 from src.utils.env_files import load_project_env  # noqa: E402
 
 load_project_env()
-_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)\s*(?:#.*)?$")
+_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)\s*(?:#(.*))?$")
+_SHA = re.compile(r"[0-9a-f]{40}")
+_COMMENT_VERSION = re.compile(r"^\s*(v\d[\w.-]*)")
 
 
-def pinned_actions() -> dict[str, set[str]]:
-    """{ 'owner/repo': {'v4', 'v6'} } — lu dans les workflows ET les actions locales."""
-    found: dict[str, set[str]] = {}
+def pin_of(ref: str, comment: str | None) -> tuple[str | None, str | None]:
+    """(version, sha) of one `uses:` — the version from the ref, or from the comment
+    when the ref is a SHA. None where the line does not say it: never guessed."""
+    if _SHA.fullmatch(ref):
+        m = _COMMENT_VERSION.match(comment or "")
+        return (m.group(1) if m else None), ref
+    return ref, None
+
+
+def pinned_actions() -> dict[str, set[tuple[str | None, str | None]]]:
+    """{ 'owner/repo': {('v6.1.0', '<sha>'), ('v4', None)} } — workflows ET actions locales."""
+    found: dict[str, set[tuple[str | None, str | None]]] = {}
     roots = [_ROOT / ".github" / "workflows", _ROOT / ".github" / "actions"]
     for root in roots:
         if not root.is_dir():
@@ -64,7 +85,7 @@ def pinned_actions() -> dict[str, set[str]]:
             for line in path.read_text(encoding="utf-8").splitlines():
                 m = _USES.match(line)
                 if m:
-                    found.setdefault(m.group(1), set()).add(m.group(2))
+                    found.setdefault(m.group(1), set()).add(pin_of(m.group(2), m.group(3)))
     return found
 
 
@@ -119,50 +140,85 @@ def resolves(repo: str, ref: str) -> bool | None:
     return None if out is None and _gh("api", f"repos/{repo}") is None else bool(out)
 
 
-def row_marks(behind: int, resolves_upstream: bool | None) -> tuple[str, str]:
+def tag_commit(repo: str, tag: str) -> str | None:
+    """The COMMIT a tag points to (an annotated tag dereferenced), "" if the tag does not
+    exist upstream, None if the API is silent."""
+    out = _gh("api", f"repos/{repo}/git/ref/tags/{tag}", "--jq", '.object.type+" "+.object.sha')
+    if out is None:
+        return None if _gh("api", f"repos/{repo}") is None else ""
+    kind, sha = (out.split() + ["", ""])[:2]
+    if kind == "tag":
+        return (_gh("api", f"repos/{repo}/git/tags/{sha}", "--jq", ".object.sha") or "").strip() or None
+    return sha
+
+
+def sha_resolution(pinned_sha: str, upstream_sha: str | None) -> bool | str | None:
+    """Does the version written in the comment name the pinned SHA? True / None (could not
+    ask) / False (the tag does not exist) / "menteur" (it exists and names another commit)."""
+    if upstream_sha is None:
+        return None
+    if not upstream_sha:
+        return False
+    return True if upstream_sha == pinned_sha else "menteur"
+
+
+def row_marks(behind: int, resolves_upstream: bool | str | None) -> tuple[str, str]:
     """(retard, résolution) as the report prints them — the two signatures of the
     catalogue grep these marks (`🔴`, `INTROUVABLE`). Pure, so a test can fabricate them.
 
     An unanswered API call is `❓`, never `INTROUVABLE`: « could not ask » is not
     « does not exist »."""
     mark = "🔴" if behind >= 2 else ("🟠" if behind == 1 else "✅")
-    res = "✅" if resolves_upstream else ("❓" if resolves_upstream is None else "🚫 INTROUVABLE")
+    if resolves_upstream == "menteur":
+        return mark, "🚫 COMMENTAIRE MENTEUR"
+    res = "✅" if resolves_upstream is True else ("❓" if resolves_upstream is None else "🚫 INTROUVABLE")
     return mark, res
 
 
 def main() -> int:
     rows = []
     unknown = []
-    for repo, versions in sorted(pinned_actions().items()):
+    unversioned = []
+    for repo, pins in sorted(pinned_actions().items()):
         got = latest(repo)
         if got is None:
             unknown.append(repo)
             continue
         major, tag = got
-        for v in sorted(versions):
-            m = re.search(r"(\d+)", v)
+        latest_sha = tag_commit(repo, tag)
+        target = f"{repo}@{latest_sha}  # {tag}" if latest_sha else f"{repo}@{tag}"
+        for v, sha in sorted(pins, key=lambda p: (p[0] or "", p[1] or "")):
+            m = re.match(r"v?(\d+)", v or "")
             if not m:
+                unversioned.append(f"{repo}@{sha or v}")
                 continue
-            rows.append((major - int(m.group(1)), repo, v, tag, resolves(repo, v)))
+            ok = sha_resolution(sha, tag_commit(repo, v)) if sha else resolves(repo, v)
+            rows.append((major - int(m.group(1)), repo, v, target, ok))
 
     rows.sort(key=lambda r: (-r[0], r[1]))
     print("| retard | action | épinglée | résout ? | à écrire pour monter |")
     print("|---|---|---|---|---|")
     broken = []
-    for behind, repo, v, tag, ok in rows:
+    for behind, repo, v, target, ok in rows:
         mark, res = row_marks(behind, ok)
-        if ok is False:
+        if ok is False or ok == "menteur":
             broken.append(f"{repo}@{v}")
-        suggestion = f"`{repo}@{tag}`" if behind else "—"
+        suggestion = f"`{target}`" if behind else "—"
         print(f"| {mark} {behind} | `{repo}` | `{v}` | {res} | {suggestion} |")
     if unknown:
         print()
         print("Sans réponse de l'API (jeton ou dépôt sans release) : "
               + ", ".join(f"`{r}`" for r in unknown))
 
+    if unversioned:
+        print()
+        print("Épinglées par SHA SANS version en commentaire (`# vX.Y.Z`) — retard non "
+              "mesurable : " + ", ".join(f"`{u}`" for u in unversioned))
+
     if broken:
         print()
-        print("🚫 **ÉPINGLAGE IRRÉSOLVABLE** — ces `uses:` n'existent pas en amont. "
+        print("🚫 **ÉPINGLAGE IRRÉSOLVABLE OU MENTEUR** — ces `uses:` n'existent pas en "
+              "amont, ou leur commentaire nomme un autre commit que le SHA épinglé. "
               "Tous les jobs qui les portent échoueront en **neuf secondes**, avant la "
               "mise en route, sur `Unable to resolve action` : "
               + ", ".join(f"`{b}`" for b in broken))

@@ -42,11 +42,11 @@ jobs:
       # advisory leave this job « success » for notify. The first non-success wins.
       outcome: ${{ steps.count.outcome != 'success' && steps.count.outcome || steps.gate.outcome != 'success' && steps.gate.outcome || steps.gate_api.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: "3.11"
           cache: pip
@@ -109,7 +109,7 @@ jobs:
       hits: ${{ steps.audit.outputs.hits }}
       outcome: ${{ steps.audit.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
@@ -119,7 +119,7 @@ jobs:
       # held by tests/test_a_synced_job_runs_python_from_its_venv.py. `make audit || true` hid that on every night until
       # 2026-09-25 — the first run that could fail found it at once.
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
@@ -177,7 +177,7 @@ jobs:
     outputs:
       outcome: ${{ steps.drift.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
@@ -204,13 +204,13 @@ jobs:
     outputs:
       outcome: ${{ steps.scan.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # gitleaks needs full history to scan all commits
 
       - name: Run gitleaks
         id: scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gitleaks-action writes its own Job Summary + SARIF artifact.
@@ -257,12 +257,12 @@ jobs:
           --health-retries 12
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # les outils de ce dépôt dérivent de `git log` (voir ci.yml)
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           # EXPLICITE, parce que la v10 a changé le défaut sous nos pieds : elle clé
@@ -336,7 +336,7 @@ jobs:
     outputs:
       outcome: ${{ steps.reopen.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Reopening conditions (exit 1 = a parked task must reopen)
@@ -360,11 +360,11 @@ jobs:
     outputs:
       outcome: ${{ steps.probe.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0   # error_class_health derives from `git log`
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
@@ -396,7 +396,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
       - name: Install pinned gitleaks
         run: bash tools/dev/install_gitleaks.sh "$RUNNER_TEMP/bin"
       - name: Sweep every public surface (exit 1 = a leak outside this repo's history)
@@ -419,11 +419,11 @@ jobs:
     outputs:
       outcome: ${{ steps.p1.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
@@ -462,11 +462,11 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
@@ -486,7 +486,7 @@ jobs:
       - name: Keep the dated reds
         id: keep
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: guard-red-log
           path: .claude/dev-docs/guard-red-log.jsonl
@@ -501,7 +501,7 @@ jobs:
     outputs:
       outcome: ${{ steps.trend.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Did a catalogue debt counter fall in 14 days? (exit 1 = frozen)
@@ -519,7 +519,7 @@ jobs:
     outputs:
       outcome: ${{ steps.probe.outcome }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
         with:
           fetch-depth: 0
       - name: Roadmap discipline over 14 days (exit 1 = bypass or stale row)
@@ -541,8 +541,8 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: "3.11"
       - name: Mail the owner when a nightly job failed
