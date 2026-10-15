@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R587 — Prédiction algos — vue « 🎯 Saisie streams algorithmiques » (section config, juste après… (livrée 2026-10-15)
+
+- [x] **R587 — Prédiction algos — vue « 🎯 Saisie streams algorithmiques » (section config, juste après Saisie trésorerie) : la saisie « une fois déclenché » (streams algorithmiques réalisés + ajouts en playlist J+1, J+2…) quitte la page Prédiction ; on y saisit aussi le coût de distribution** (P3) ✅ (2026-10-15, 75711960)
+  Mesuré par : test : vue routée après Saisie trésorerie, la page Prédiction ne rend plus de grille de saisie, le coût de distribution est enregistré
+  Vue « 🎯 Saisie streams algorithmiques » + coût de distribution ; la page Prédiction n'a plus de grille ; déployé 75711960
+  Commits : 75711960 R587 : Prédiction algos — la saisie « une fois déclenché » (streams al
+
+## ✅ R585 — Trésorerie — la saisie manuelle quitte la page Trésorerie pour une vue « 💰 Saisie tréso… (livrée 2026-10-15)
+
+- [x] **R585 — Trésorerie — la saisie manuelle quitte la page Trésorerie pour une vue « 💰 Saisie trésorerie » (section config, juste après Hypeddit) ; Trésorerie garde deux boutons : « Importer l'export » (vue import CSV) et « Saisie manuelle » (nouvelle vue)** (P3) ✅ (2026-10-15, fe4ff921)
+  Mesuré par : test : la vue existe, est routée après Hypeddit, Trésorerie n'a plus de formulaire mais deux liens
+  Vue « 💰 Saisie trésorerie » après Hypeddit ; Trésorerie garde deux boutons ; déployé 75711960
+  Commits : fe4ff921 R585 : Trésorerie — la saisie manuelle (revenus, suppression, coûts) q
+
+## ✅ R588 — Menu — section « ⚙️ Configuration de streaMLytics » renommée « ⚙️ Configuration et sais… (livrée 2026-10-15)
+
+- [x] **R588 — Menu — section « ⚙️ Configuration de streaMLytics » renommée « ⚙️ Configuration et saisie manuelle de streaMLytics »** (P3) ✅ (2026-10-15, 25159865)
+  Mesuré par : test : libellé de section
+  Section renommée « ⚙️ Configuration et saisie manuelle de streaMLytics » ; déployé 75711960, CI verte
+  Commits : 25159865 R588 : Menu — section « ⚙️ Configuration et saisie manuelle de streaML
+
 ## ✅ R584 — Prédiction algos — prévision : les deux titres (référence + comparaison) sur le MÊME gr… (livrée 2026-10-15)
 
 - [x] **R584 — Prédiction algos — prévision : les deux titres (référence + comparaison) sur le MÊME graphique ; 5 ans et 10 ans en couleur distincte (long terme)** (P3) ✅ (2026-10-15, 63177739)
