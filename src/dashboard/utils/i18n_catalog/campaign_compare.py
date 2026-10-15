@@ -13,6 +13,7 @@ EN = {
                                     "during its campaigns.",
     "campaign_compare.tree_root": "Budget",
     "campaign_compare.tree_gained": "{g} streams gained",
+    "campaign_compare.tree_cpr_note": "CPR: spend per result, an outbound click or a conversion",
     "campaign_compare.tracks_empty": "No Hypeddit link attached to a Spotify track: attach "
                                      "them in **🔗 Cross-platform mapping**.",
 }

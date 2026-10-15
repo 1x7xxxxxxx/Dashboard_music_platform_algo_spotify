@@ -60,6 +60,8 @@ _ALLOWED = {
     ("src/dashboard/views/meta_mapping/_campaigns.py", "_trunc"): "table cells, not an axis",
     ("src/dashboard/utils/pdf_exporter/_renderers.py", "_trunc"): "HTML <td> cells, not an axis",
     ("src/dashboard/views/billing.py", "_admin_frame"): "a Stripe id in a table cell",
+    ("src/dashboard/utils/campaign_compare.py", "creative_tree_figure"):
+        "icicle box text, not an axis: ids are the full paths, the hover keeps the name",
 }
 
 

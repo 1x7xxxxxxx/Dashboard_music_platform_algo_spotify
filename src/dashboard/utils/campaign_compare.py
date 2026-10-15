@@ -376,7 +376,10 @@ def creative_tree_figure(tree: pd.DataFrame):
         # Leaves carry the money, every box above is the sum of its children.
         values=[s if lv == 3 else 0 for s, lv in zip(tree["spend"], tree["level"])],
         branchvalues="remainder", text=text, texttemplate="<b>%{label}</b><br>%{text}",
-        hovertemplate="<b>%{customdata}</b><br>%{text}<extra></extra>",
+        hovertemplate="<b>%{customdata}</b><br>%{text}<br><i>"
+                      + t("campaign_compare.tree_cpr_note",
+                          "CPR : dépense par résultat, un clic sortant ou une conversion")
+                      + "</i><extra></extra>",
         tiling={"orientation": "v"}, sort=False, textfont={"size": 14},
         marker={"colors": ["#9E9E9E" if c is None else colour[c] for c in tree["campaign"]]}))
     fig.update_layout(height=520, margin={"t": 10, "b": 10, "l": 10, "r": 10})
