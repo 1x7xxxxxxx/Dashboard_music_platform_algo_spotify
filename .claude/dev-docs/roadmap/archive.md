@@ -18,6 +18,26 @@ si le total passe sous son plancher.
   Livré 82da045a : contents: read en tête de ci.yml, prod-health.yml, security-nightly.yml ; actions: read sur suite et full-suite-random-order ; garde yaml muté rouge 3 fois. CI 38792616208 verte, nuit dispatchée 38792620608 13/13 jobs verts (étapes comprises), prod-health 38792626594 verte.
   Commits : 82da045a R623 : chaque workflow porte sa borne de jeton — contents: read en têt
 
+## 🚫 R613 — Tests à côté du code : décidée NON (close 2026-10-15)
+
+- [x] **R613 — REA·7 — tests à côté du code plutôt que sous `tests/`.** (P4) ✅ (2026-10-15, décidée NON — gain plafond 11 % contre un seuil de 20 %)
+
+  **Critère écrit avant la mesure :** oui si la sélection (`select_tests.py`) gagne plus de 20 %.
+  **Ce que l'emplacement change :** rien au graphe d'imports — un test est choisi par
+  ce qu'il IMPORTE, pas par son dossier. Le seul effet de l'emplacement : un test qui
+  manipule `sys.path` (pour atteindre `tools/dev/`, `.claude/scripts/`) est pris à
+  CHAQUE diff ; colocalisé, il importerait par le chemin que pytest insère lui-même.
+  **Mesure :** 124 fichiers de tests sur 877 manipulent `sys.path` sans import
+  dynamique. Simulation sur les 30 derniers commits de code (`select()` avec ces
+  tests retirés de l'ensemble « toujours pris », pondéré par `.test_durations`) :
+  27 sélectifs, 3 suite entière ; 17 704 s → 15 760 s cumulés, **−11,0 %**. C'est une
+  borne HAUTE : la simulation leur retire aussi leurs vraies arêtes vers `tools/`.
+  **Et le gain ne demande pas de déplacer 877 fichiers :** le sélecteur peut résoudre
+  un `sys.path.insert(0, str(ROOT / "tools" / "dev"))` littéral comme une racine
+  d'imports. Pas inscrit : 11 % en borne haute, sous le même seuil.
+  **Réouverture :** la part des tests à `sys.path` dépasse 20 % de la durée d'une
+  sélection médiane.
+
 ## 🚫 R612 — CI planifiée par le diff : décidée NON (close 2026-10-15)
 
 - [x] **R612 — REA·6 — CI planifiée par le diff.** (P4) ✅ (2026-10-15, décidée NON — p50 3,7 min contre un seuil de 15)
