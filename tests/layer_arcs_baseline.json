@@ -1,3 +1,10 @@
 {
-  "src/utils/platform_probes.py::src.dashboard.views.credentials._registry": "local"
+  "airflow/dags/onboarding_report.py::src.dashboard.utils.pdf_exporter": {
+    "level": "local",
+    "reason": "The onboarding DAG mails the SAME PDF the dashboard's export button builds; pdf_exporter is a package of dashboard figures, i18n and layout. Moving it under src/utils would drag the dashboard's figure helpers down with it, and a second exporter would let the two PDFs drift. Imported inside the task, so the DAG file still parses without WeasyPrint."
+  },
+  "src/utils/platform_probes.py::src.dashboard.views.credentials._registry": {
+    "level": "local",
+    "reason": "CONNECTION_TESTS belongs to the credentials registry, next to the field definitions and guides it dispatches (code-critic, R626): splitting the map from its view would make two registries to keep in step. Imported inside the probe, never at import time."
+  }
 }

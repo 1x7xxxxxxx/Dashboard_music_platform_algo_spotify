@@ -2,7 +2,7 @@
 """Upward import arcs between the layers of src/: a low layer importing an app, or an app another.
 
 Type: Utility
-Uses: ast, git ls-files
+Uses: ast, git ls-files (src/ and airflow/dags/)
 Triggers: tests/test_layer_arcs_only_shrink.py (the ratchet) ; by hand —
           `python3 tools/dev/layer_arcs.py [--json]`
 Persists in: nothing (stdout) — the baseline is tests/layer_arcs_baseline.json (BASELINE)
@@ -24,12 +24,16 @@ from it), and `from src import dashboard` to `src.dashboard`. Its VALUE is the l
 `module` (runs at import — a cost and a cycle risk, `TYPE_CHECKING` and `try` included)
 or `local` (inside a function).
 
+Since R626 the DAGs are scanned too: `airflow/dags/` is the layer `dags`, above the
+shared code and below the apps — a DAG importing `src.dashboard` or `src.api` is an arc.
+Each baseline entry is `{"level": …, "reason": …}`: an arc that stays says why, in
+writing, or the ratchet is red.
+
 What this tool does NOT see (guard_scope)
 -----------------------------------------
 * `importlib.import_module("src.dashboard…")` or `__import__` with a string — 0 crossing a
   layer on 2026-10-15 (the two in src/dashboard stay inside it).
-* `airflow/dags/` — 3 DAGs import `src.dashboard.utils.{status_matrix, pdf_exporter,
-  i18n}`; out of this ratchet, on the same roadmap line as the moves.
+* Imports from `tools/`, `tests/` or scripts — they may reach any layer.
 * Imports between low layers (`database` → `collectors`, …): no direction is declared
   among them.
 """
@@ -51,7 +55,7 @@ APPS = frozenset({"api", "dashboard"})
 def is_upward(source_layer: str, target_layer: str) -> bool:
     if source_layer == target_layer:
         return False
-    return target_layer in APPS and (source_layer in LOW or source_layer in APPS)
+    return target_layer in APPS and (source_layer in LOW | APPS | {"dags"})
 
 
 def _is_module(root: Path, dotted: str) -> bool:
@@ -83,17 +87,27 @@ def _local_nodes(tree: ast.AST) -> set[int]:
     return inside
 
 
-def arcs_of(path: str, source: str, root: Path = ROOT) -> dict[str, str]:
-    """{`path::target`: `module`|`local`} for the upward arcs of one file under src/."""
+def layer_of(path: str) -> str | None:
+    """`src/<layer>/…` → `<layer>` ; `airflow/dags/…` → `dags` ; anything else → None."""
     parts = Path(path).parts
-    if len(parts) < 3 or parts[0] != "src":
+    if len(parts) >= 3 and parts[0] == "src":
+        return parts[1]
+    if len(parts) >= 3 and parts[:2] == ("airflow", "dags"):
+        return "dags"
+    return None
+
+
+def arcs_of(path: str, source: str, root: Path = ROOT) -> dict[str, str]:
+    """{`path::target`: `module`|`local`} for the upward arcs of one file (src/ or a DAG)."""
+    layer = layer_of(path)
+    if layer is None:
         return {}
     tree = ast.parse(source)
     local = _local_nodes(tree)
     out: dict[str, str] = {}
     for node in ast.walk(tree):
         for tgt in targets(node, root):
-            if not is_upward(parts[1], tgt.split(".")[1]):
+            if not is_upward(layer, tgt.split(".")[1]):
                 continue
             key, level = f"{path}::{tgt}", "local" if id(node) in local else "module"
             out[key] = "module" if out.get(key) == "module" else level
@@ -101,8 +115,8 @@ def arcs_of(path: str, source: str, root: Path = ROOT) -> dict[str, str]:
 
 
 def current() -> dict[str, str]:
-    files = subprocess.run(["git", "ls-files", "src/*.py"], cwd=ROOT, capture_output=True,
-                           text=True, check=True).stdout.split()
+    files = subprocess.run(["git", "ls-files", "src/*.py", "airflow/dags/*.py"], cwd=ROOT,
+                           capture_output=True, text=True, check=True).stdout.split()
     out: dict[str, str] = {}
     for f in files:
         if (ROOT / f).is_file():
@@ -110,7 +124,8 @@ def current() -> dict[str, str]:
     return out
 
 
-def load_baseline() -> dict[str, str]:
+def load_baseline() -> dict[str, dict[str, str]]:
+    """{key: {"level": `module`|`local`, "reason": why this arc stays}}."""
     return json.loads(BASELINE.read_text(encoding="utf-8"))
 
 

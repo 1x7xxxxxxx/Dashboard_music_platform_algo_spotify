@@ -1,8 +1,8 @@
 """Upward arcs between src/ layers only shrink: they are exactly the baseline (R616).
 
 Type: Hook
-Uses: tools/dev/layer_arcs.py (ast over `git ls-files 'src/*.py'`)
-Persists in: tests/layer_arcs_baseline.json — `file::target module` → `module`|`local`
+Uses: tools/dev/layer_arcs.py (ast over `git ls-files 'src/*.py' 'airflow/dags/*.py'`)
+Persists in: tests/layer_arcs_baseline.json — `file::target module` → {level, reason}
 
 Strict BOTH ways, like the dead-code ratchet: a new arc is red (import downward, or move
 the module), and a baseline arc that is gone is red too (remove it — a stale key lets a
@@ -12,7 +12,8 @@ now runs at import (cost, cycle risk).
 
 guard_scope: `import` / `from … import` nodes in tracked src/ files, at any depth
 (`TYPE_CHECKING`, `try` included). NOT covered: `importlib.import_module` / `__import__`
-with a string, `airflow/dags/`, imports between low layers.
+with a string, `tools/` and `tests/`, imports between low layers. `airflow/dags/` is
+scanned since R626, as the layer `dags`.
 """
 from __future__ import annotations
 
@@ -31,12 +32,24 @@ def test_the_upward_arcs_are_exactly_the_baseline() -> None:
                      + "\n  ".join(new))
     assert not gone, ("no longer an arc — remove from tests/layer_arcs_baseline.json "
                       "(a renamed file: drop its old key):\n  " + "\n  ".join(gone))
-    raised = sorted(k for k in now if now[k] == "module" and known[k] == "local")
+    raised = sorted(k for k in now if now[k] == "module" and known[k]["level"] == "local")
     assert not raised, f"a lazy arc now runs at import time:\n  {raised}"
 
 
-def test_the_baseline_only_records_levels() -> None:
-    assert set(layer_arcs.load_baseline().values()) <= {"module", "local"}
+def test_every_arc_that_stays_says_why() -> None:
+    """R626: the baseline is not a backlog — each arc left in it is a written decision."""
+    for key, entry in layer_arcs.load_baseline().items():
+        assert set(entry) == {"level", "reason"}, key
+        assert entry["level"] in {"module", "local"}, key
+        assert len(entry["reason"].split()) >= 8, f"{key}: a reason is a sentence, not a tag"
+
+
+def test_a_dag_importing_an_app_is_an_arc(tmp_path: Path) -> None:
+    root = _tree(tmp_path)
+    src = "def task():\n    from src.dashboard.utils import i18n\nimport src.utils.config_loader\n"
+    assert layer_arcs.arcs_of("airflow/dags/d.py", src, root) == {
+        "airflow/dags/d.py::src.dashboard.utils.i18n": "local"}
+    assert layer_arcs.arcs_of("tools/dev/x.py", src, root) == {}
 
 
 def _tree(tmp_path: Path) -> Path:
