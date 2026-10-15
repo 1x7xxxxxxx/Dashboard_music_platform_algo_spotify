@@ -59,7 +59,7 @@ def _verdict_message(ml_pred: dict | None) -> tuple[str, str, str | None, float 
     2026-09-26 the max of three floors was always Radio's intercept (~10,7 %), and
     the banner told the artist to STOP their ads on it.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
+    from src.utils.ml_floor import proba_affichable
 
     if not ml_pred:
         return None

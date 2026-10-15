@@ -443,7 +443,7 @@ def _draw_ml_probabilities(pred) -> str:
     verdict (measured 2026-09-26: 33 of 33 production probabilities on the floor).
     The STOP/SCALER lines are drawn only when at least one bar is a real measure.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
+    from src.utils.ml_floor import proba_affichable
 
     # `pred` is the SELECT's column order (dw, rr, radio); the bars follow ALGO_ORDER.
     by_algo = {"DW": pred[0], "RR": pred[1], "RADIO": pred[2]}

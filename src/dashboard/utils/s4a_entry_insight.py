@@ -259,7 +259,7 @@ def _bar_label(dw, rr, radio) -> str:
     every floor bar is removed — an unlabelled bar is the floor; a percentage only
     ever appears where the model actually decided something.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
+    from src.utils.ml_floor import proba_affichable
 
     from src.utils.algo_order import ALGO_ORDER
 

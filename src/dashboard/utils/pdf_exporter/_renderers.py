@@ -189,7 +189,7 @@ def _prob_bar(pct, algo=None):
     probabilities on the floor). `algo` is required for that test; without it the
     value cannot be checked, so it is refused too.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
+    from src.utils.ml_floor import proba_affichable
 
     if algo is None or proba_affichable(algo, pct) is None:
         return (f'<span style="font-size:8pt;color:#999;">'
@@ -459,7 +459,7 @@ def _render_trigger_then_now(cmp_):
     def _delta(p):
         # No delta when EITHER endpoint is on the floor: floor minus floor is the
         # calibration intercept minus itself, not a movement of this title.
-        from src.dashboard.utils.algo_preview_data import proba_affichable
+        from src.utils.ml_floor import proba_affichable
 
         v = p["delta"]
         if (v is None or proba_affichable(p["algo"], p["early"]) is None

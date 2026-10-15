@@ -45,7 +45,7 @@ import json
 import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import nearest_gate
-from src.dashboard.utils.algo_preview_data import BRUT_NEGLIGEABLE, sur_le_plancher  # noqa: F401,E402 — moved (R193)
+from src.utils.ml_floor import BRUT_NEGLIGEABLE, sur_le_plancher  # noqa: F401,E402 — moved (R193)
 
 #: Les colonnes de la trame, dans l'ordre d'affichage. La probabilité vient EN
 #: DERNIER : elle est vraie, et inutile pour comparer deux titres (voir le module).

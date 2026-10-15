@@ -11,7 +11,7 @@ dead tab, `_show_pi_gate_section` (fiche 49, whose PI bands now feed the redesig
 42) and `render_prerelease_rr_estimator` (fiche 56) are deleted. `_proba_series` stays:
 the floor guard proves on it that a floor value becomes a GAP, never a level.
 """
-from src.dashboard.utils.algo_preview_data import proba_affichable
+from src.utils.ml_floor import proba_affichable
 
 
 def _proba_series(algo: str, values) -> list[float | None]:

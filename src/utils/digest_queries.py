@@ -149,7 +149,7 @@ def ml_top_candidate(rows) -> tuple[str, str] | None:
     mailed a « Top Discovery Weekly candidate — 6.5% probability » that was the
     intercept, not a candidate. With nothing off the floor, the section is omitted.
     """
-    from src.dashboard.utils.algo_preview_data import proba_affichable
+    from src.utils.ml_floor import proba_affichable
 
     kept = [(str(r[0]), p) for r in (rows or [])
             if (p := proba_affichable("dw", r[1])) is not None]
