@@ -32,6 +32,43 @@ si le total passe sous son plancher.
   Livré 82da045a : contents: read en tête de ci.yml, prod-health.yml, security-nightly.yml ; actions: read sur suite et full-suite-random-order ; garde yaml muté rouge 3 fois. CI 38792616208 verte, nuit dispatchée 38792620608 13/13 jobs verts (étapes comprises), prod-health 38792626594 verte.
   Commits : 82da045a R623 : chaque workflow porte sa borne de jeton — contents: read en têt
 
+## 🚫 R618 — Erreurs typées + projection stable : décidée NON (close 2026-10-15)
+
+- [x] **R618 — REA·A3 — erreurs typées + projection stable `{code, catégorie, retryable, remède}`.** (P3) ✅ (2026-10-15, décidée NON — n=1 et mesure invalide ; code-critic DO-NOT-BUILD)
+
+  **Critère écrit avant la mesure :** oui si >30 % des empreintes n'ont pas de classe, ou
+  ≥1 mauvais routage.
+  **Mesure (prod, lecture seule) :** `app_error_log` porte **1 empreinte en tout**
+  (2026-09-04, résolue en 15 min), **0 mauvais routage** observé.
+  **Pourquoi le critère qui tire littéralement (1/1 = 100 %) ne décide rien :** n=1 n'a
+  aucune puissance, et la part « sans classe » était invalide par construction —
+  `src/utils/error_registry.py:41-53` n'écrit jamais `error_class`, la colonne est NULL
+  pour toute empreinte. Le routage existe déjà et il est gardé : `src/utils/retry.py`
+  (429/5xx rejoués avec `Retry-After`, 4xx permanents) et `PermanentFailure`
+  (`src/utils/failure_kinds.py`). `remède` et `catégorie` n'auraient aucun lecteur : le
+  mail d'alerte et l'inbox lisent `exc_type`.
+  **Réouverture :** ≥20 empreintes distinctes ET ≥1 mauvais routage démontré (un échec
+  permanent rejoué par `retry`, ou un transitoire qui a déclenché une alerte), lu dans un
+  journal de tâche ou un mail. Jamais sur la seule part non classée. Étape moins chère
+  à faire d'abord le jour venu : passer `error_class` à `record_error`.
+
+## 🚫 R617 — Un contrat par objet : décidée NON (close 2026-10-15)
+
+- [x] **R617 — REA·A2 — un contrat par objet, plusieurs consommateurs (leur `ToolContract`).** (P3) ✅ (2026-10-15, décidée NON — 0 forme définie deux fois)
+
+  **Critère écrit avant la mesure :** oui si ≥2 objets ont divergé ou peuvent diverger.
+  **Mesure :** 8 modèles Pydantic dans tout `src/` — 7 réponses d'API définies une seule
+  fois dans leur routeur (`ArtistOut`, `KPISummary`, `MLPrediction`, `StreamPoint`,
+  `StreamSummary`, `Token`, `VideoStats`) et `_TenantScoped` (collecteurs Meta). Aucun
+  n'a de second consommateur : le dashboard ne lit pas l'API, il lit la base. Le risque
+  réel de divergence n'est pas la FORME mais la VALEUR (le précédent `/kpis` →
+  `/youtube`), et il est déjà tenu par la couche or (ADR-019) : `make gold-coverage` rend
+  **0 agrégat hors cliquet** (`gold-coverage-unguarded-aggregates: total=0`), les routes
+  `kpis`/`streams` lisent `v_platform_totals` et `v_s4a_song_daily`.
+  **Réouverture :** un second consommateur d'une forme d'API (le dashboard qui appelle
+  l'API, un client mobile, un export qui sérialise le même objet), ou un agrégat hors
+  cliquet dans `make gold-coverage`.
+
 ## 🚫 R615 — REA sur un concurrent : décidée NON (close 2026-10-15)
 
 - [x] **R615 — REA·9 — utiliser REA sur un concurrent (Chartmetric, Songstats, Soundcharts).** (P4) ✅ (2026-10-15, décidée NON — CGU interdisent chez l'un, aucune question produit nommée)
