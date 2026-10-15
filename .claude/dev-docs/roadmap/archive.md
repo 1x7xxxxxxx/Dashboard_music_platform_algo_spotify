@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R596 — Vue croisée — « où est passé l'argent » : dépense ET CPR d'un coup d'œil (barres de dép… (livrée 2026-10-15)
+
+- [x] **R596 — Vue croisée — « où est passé l'argent » : dépense ET CPR d'un coup d'œil (barres de dépense colorées par CPR, CPR écrit)** (P3) ✅ (2026-10-15, c9f38f48)
+  Mesuré par : test : couleur des barres = CPR, échelle de couleur nommée
+  Livré 1056a111, CI verte (run 38748815040), déployé (santé 200)
+  Commits : c9f38f48 R596 : Vue croisée — « où est passé l'argent » : barres de dépense col
+
+## ✅ R595 — Vue croisée — « quel titre transforme le mieux les clics en écoutes » : barres triées d… (livrée 2026-10-15)
+
+- [x] **R595 — Vue croisée — « quel titre transforme le mieux les clics en écoutes » : barres triées d'écoutes gagnées par clic (clics en étiquette), sans rayons** (P3) ✅ (2026-10-15, 3cd68873)
+  Mesuré par : test : barres horizontales triées, pas de trace de rayon
+  Livré 1056a111, CI verte (run 38748815040), déployé (santé 200)
+  Commits : 3cd68873 R595 : Vue croisée — « quel titre transforme le mieux les clics en éco
+
+## ✅ R594 — Vue croisée — « même horloge » : un seul graphique, une seule abscisse : dépense, clics… (livrée 2026-10-15)
+
+- [x] **R594 — Vue croisée — « même horloge » : un seul graphique, une seule abscisse : dépense, clics lien, CPC, CPR cumulés, auditeurs cumulés et écoutes cumulées** (P3) ✅ (2026-10-15, 1056a111, 1dd302ce)
+  Mesuré par : test : une figure, 6 mesures, axe des x partagé
+  Livré 1056a111, CI verte (run 38748815040), déployé (santé 200)
+  Commits : 1056a111 R594 : jointure titre → jours déclarée many_to_many (grain campagne ×  · 1dd302ce R594 : Vue croisée — « même horloge » : une seule figure, une seule ab
+
 ## ✅ R593 — Vue croisée — CPM/CPC/CPR : un rectangle pointillé par panneau, et une verticale pointi… (livrée 2026-10-15)
 
 - [x] **R593 — Vue croisée — CPM/CPC/CPR : un rectangle pointillé par panneau, et une verticale pointillée au meilleur score toutes campagnes confondues** (P3) ✅ (2026-10-15, c7d45177)
