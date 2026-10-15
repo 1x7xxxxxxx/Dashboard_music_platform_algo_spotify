@@ -15,7 +15,7 @@ def _force_lang(monkeypatch, lang):
 def test_en_translation_used(monkeypatch):
     _force_lang(monkeypatch, "en")
     assert i18n.t("nav.item.home", "🏠 Accueil") == "🏠 Home"
-    assert i18n.t("nav.section.data", "📁 Données") == "📁 Data"
+    assert i18n.t("nav.section.data", "📁 Données") == "⚙️ streaMLytics setup and manual entry"
 
 
 def test_fr_falls_back_to_default_source(monkeypatch):

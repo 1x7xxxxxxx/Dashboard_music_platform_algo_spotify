@@ -67,6 +67,7 @@ _PDF_MAP = {
     # Deliberate exclusions (covered elsewhere or not report-shaped):
     # R461 (2026-10-07): `sacem` left the menu — a section of `imusician`, key kept as alias.
     "saisie_s4a":           None,   # data-entry form, not a report
+    "saisie_tresorerie":    None,   # R585 — data-entry form, not a report
     "onboarding_health":    None,   # ops/status matrix, not a report
     "onboarding":           None,   # assistant de mise en route : un parcours,
                                     # pas un rapport. Entré dans la navigation le

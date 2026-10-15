@@ -54,7 +54,7 @@ def test_the_treasury_is_one_figure_revenue_up_spend_down_balance_as_a_line() ->
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the distributor page against the live DB")
-def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
+def test_the_page_has_no_tabs_and_starts_with_the_treasury() -> None:
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_string(TENANT_SCRIPT.format(root=os.getcwd(), view="imusician",
@@ -63,8 +63,10 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     assert not at.exception, at.exception
     assert len(at.tabs) == 0, "the page is split into tabs again"
     heads = [s.value for s in at.subheader]
-    assert heads and "Saisie" in heads[0], f"the entry form is not on top: {heads}"
-    assert any("mois par mois" in h for h in heads), f"the treasury figure is gone: {heads}"
+    # R585 : the entry form left for « 💰 Saisie trésorerie » — the treasury comes first.
+    assert not any("Saisie" in h for h in heads), f"an entry form is back: {heads}"
+    assert heads and "mois par mois" in heads[0], f"the treasury is not on top: {heads}"
+    assert len(at.get("form")) == 0, "a form is back on the Trésorerie page"
     # R553 (ADR-033, owner Y1) reverses R476: every euro is on this page, the break-even
     # under the treasury, SACEM last.
     point_mort = next((i for i, h in enumerate(heads) if "Point mort" in h), None)
@@ -73,4 +75,5 @@ def test_the_page_has_no_tabs_and_starts_with_the_entry_form() -> None:
     # R488 (W11): « pas de tableaux là où un graphique suffit » — the folded SACEM ledger
     # left too; and the import is a button at the top, not a sentence.
     assert len(at.dataframe) == 0, "a table is back on the distributor page"
-    assert any(b.key == "distributor_import" for b in at.button), "the import button is gone"
+    keys = {b.key for b in at.button}
+    assert {"distributor_import", "distributor_manual"} <= keys, f"a door is gone: {keys}"

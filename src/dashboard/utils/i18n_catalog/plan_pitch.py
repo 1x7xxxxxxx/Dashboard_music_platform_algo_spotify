@@ -20,6 +20,7 @@ EN = {
     "pitch.imusician": ("💰 **What your streams earned you** — iMusician, "
                         "DistroKid, and the break-even point against your ads"),
     "pitch.sacem": "🎼 **Your SACEM royalties**",
+    "pitch.saisie_tresorerie": "✍️ **Enter your revenue and costs** — what no API sends back",
     "pitch.mapping": ("🔗 **Link your tracks across platforms** — automatic "
                       "suggestions"),
     "pitch.export_csv": ("⬇️ **Your data stays yours** — full CSV export, on "

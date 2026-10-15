@@ -29,16 +29,19 @@ EN = {
     "imusician.no_revenue": (
         "No revenue recorded for this selection. Import an iMusician or DistroKid "
         "export (**📂 Add my Spotify for Artists & Apple figures** page) or enter a "
-        "revenue manually above."
+        "revenue (**✍️ Manual entry** button)."
     ),
     "imusician.roi_header": "💹 Break-even",
     "imusician.roi_no_data": (
         "No distributor revenue or Meta Ads spend data for this artist. "
-        "Import an iMusician export (CSV Import page), enter a revenue above, "
+        "Import an iMusician export (CSV Import page), enter a revenue (✍️ Manual entry), "
         "or launch the Meta collection from the home page."
     ),
     # R488
-    "imusician.import_btn": "📂 Import an iMusician / DistroKid export",
+    "imusician.import_btn": "📂 Import the export",
+    "imusician.manual_btn": "✍️ Manual entry",
+    # R585
+    "saisie_tresorerie.title": "💰 Treasury entry",
     # R553
     "imusician.money_artist": "Break-even of the artist",
 }

@@ -198,15 +198,12 @@ def show():
     st.title(t("imusician.title", "💶 Trésorerie (distributeurs, SACEM, Meta Ads)"))
     # R488 (W11) : the import is a BUTTON at the top, like SACEM's — not a sentence
     # naming another page.
-    if st.button(t("imusician.import_btn", "📂 Importer un export iMusician / DistroKid"),
-                 key="distributor_import", type="primary"):
-        from src.dashboard.views.credentials.router import CSV_TAB_KEY, goto_tab
-        goto_tab(CSV_TAB_KEY)
+    # R585 (owner, 2026-10-15) : the manual entry left for « 💰 Saisie trésorerie » —
+    # two buttons, the import and the entry page, and the page is read.
+    _render_entry_buttons()
     db = require_db(get_db_connection())
     try:
         artist_id, _ = _get_artist_filter()
-        _render_entry_form(db, artist_id)
-        st.markdown("---")
         _render_treasury(db, artist_id)
         # R553 (ADR-033, owner Y1) : every euro is on this page — the break-even came back
         # from the cross view, the algo page's « Budget & ROI » and « Mon argent » with it.
@@ -217,6 +214,19 @@ def show():
         render_section(db, artist_id)
     finally:
         db.close()
+
+
+def _render_entry_buttons() -> None:
+    """The two doors of the page: the export import and the manual entry (R585)."""
+    c1, c2 = st.columns(2)
+    if c1.button(t("imusician.import_btn", "📂 Importer l'export"),
+                 key="distributor_import", type="primary", width="stretch"):
+        from src.dashboard.views.credentials.router import CSV_TAB_KEY, goto_tab
+        goto_tab(CSV_TAB_KEY)
+    if c2.button(t("imusician.manual_btn", "✍️ Saisie manuelle"),
+                 key="distributor_manual", width="stretch"):
+        from src.dashboard.utils.navigation import goto
+        goto("saisie_tresorerie")
 
 
 def _render_treasury(db, artist_id):
@@ -233,7 +243,7 @@ def _render_treasury(db, artist_id):
             "imusician.no_revenue",
             "Aucun revenu enregistré pour cette sélection. Importez un export "
             "iMusician ou DistroKid (page **📂 Ajouter mes chiffres Spotify for Artists & Apple**) "
-            "ou saisissez un revenu manuellement ci-dessus."
+            "ou saisissez un revenu (bouton **✍️ Saisie manuelle**)."
         ))
         return
     starts = pd.to_datetime(dict(year=cashflow['year'].astype(int),
@@ -248,7 +258,6 @@ def _render_treasury(db, artist_id):
                   "Aucune donnée de revenus ou dépenses sur cette période."))
     else:
         charts.plotly_chart(cashflow_figure(shown), width="stretch")
-    _render_delete(db, artist_id)
 
 
 def _render_delete(db, artist_id):
@@ -323,7 +332,7 @@ def render_break_even(db, artist_id: int) -> None:
             "imusician.roi_no_data",
             "Aucune donnée de revenus distributeur ni de dépenses Meta Ads pour cet artiste. "
             "Importez un export iMusician (page Import CSV), saisissez un revenu "
-            "ci-dessus, ou lancez la collecte Meta depuis l'accueil."
+            "(bouton ✍️ Saisie manuelle), ou lancez la collecte Meta depuis l'accueil."
         ))
         return
     # R259/R478 — the shared selector (same presets, whole history by default).

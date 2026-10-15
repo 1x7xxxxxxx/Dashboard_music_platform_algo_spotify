@@ -74,6 +74,8 @@ _FREE_FEATURES = {
     # Et la brider se retournait contre nous : ces saisies NOURRISSENT les modèles
     # prédictifs. Les réserver aux payants, c'est dégrader la précision qu'on vend.
     'saisie_s4a',
+    # R585 — the manual money entry left the Trésorerie page, which is free: so is it.
+    'saisie_tresorerie',
     # ── TES DONNÉES SONT GRATUITES, LES PRÉDICTIONS SONT PAYANTES — 2026-09-26 (ADR-029) ──
     #
     # Décision du propriétaire, adossée au corpus (*Monetizing Innovation* : faire payer à

@@ -145,6 +145,8 @@ NAV_SECTIONS: list = [
       # link se recopient à la main depuis son tableau de bord. Même déplacement,
       # même raison, que « 📝 Saisie S4A » le 2026-09-12.
       ("📱 Hypeddit (saisie smart link)", "hypeddit"),
+      # R585 — every hand-typed euro, out of the Trésorerie page that reads them.
+      ("💰 Saisie trésorerie", "saisie_tresorerie"),
       ("🗄️ Santé des données", "db_health")]),
     # ── CE QU'ON REGARDE, AVANT CE QU'ON ACHÈTE — 2026-09-22 ──────────────────
     #

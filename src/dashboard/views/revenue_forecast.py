@@ -323,8 +323,7 @@ def render_artist_money(db, artist_id: int) -> None:
             "revenue_forecast.trigger_locked",
             "Ce qu'un déclenchement des algorithmes te rapporterait, et la projection "
             "de ton point mort : compris dans Premium"))
-    st.markdown("---")
-    _render_cost_entry(db, artist_id)
+    # R585 — the cost entry moved to « 💰 Saisie trésorerie » with every manual euro.
 
 
 def render_ltv() -> None:

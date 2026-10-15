@@ -322,6 +322,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `instagram.py` | Instagram | instagram_* | all |
 | `apple_music.py` | Apple Music | apple_* | all |
 | `hypeddit.py` | Hypeddit | hypeddit_* | all |
+| `saisie_tresorerie.py` | 💰 Saisie trésorerie — R585 : revenus distributeurs saisis, suppression d'une entrée, coûts de l'artiste ; la page Trésorerie n'y mène plus que par un bouton | imusician_monthly_revenue, distrokid_monthly_revenue, artist_cost_entries | all |
 | `imusician.py` | Distributeur iMusician DistroKid + SACEM (section SACEM depuis R461) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
 | `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | premium |
 | `algo_preview.py` | Aperçu : déclencher les algos — FREE preview of Road to Algo for the latest scored release (R193, ADR-029): nearest gate + action per algorithm (`algo_knowledge.split_coach_actions`), no percentage while on the calibration floor, one order-of-magnitude budget (`algo_preview_data.budget_pour_streams`), CTA to Premium | ml_song_predictions, v_meta_daily, v_s4a_song_daily | all |

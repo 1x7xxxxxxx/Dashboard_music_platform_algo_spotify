@@ -28,6 +28,7 @@ ROUTES: dict[str, str] = {
     "meta_x_spotify": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "spotify_s4a_combined": "views.spotify_s4a_combined",
     "hypeddit": "views.hypeddit",
+    "saisie_tresorerie": "views.saisie_tresorerie",  # R585
     "apple_music": "views.apple_music",
     "youtube": "views.youtube",
     "soundcloud": "views.soundcloud",

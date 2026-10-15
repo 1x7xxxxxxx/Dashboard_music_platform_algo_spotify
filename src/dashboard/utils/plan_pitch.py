@@ -66,6 +66,8 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
      "💰 **Ce que tes écoutes t'ont rapporté** — iMusician, DistroKid, et le "
      "point d'équilibre avec ta pub"),
     ("sacem", "pitch.sacem", "🎼 **Tes royalties SACEM**"),
+    ("saisie_tresorerie", "pitch.saisie_tresorerie",
+     "✍️ **Saisir tes revenus et tes coûts** — ce qu'aucune API ne renvoie"),
     ("meta_mapping", "pitch.mapping",
      "🔗 **Relier tes titres entre plateformes** — suggestions automatiques"),
     ("export_csv", "pitch.export_csv",

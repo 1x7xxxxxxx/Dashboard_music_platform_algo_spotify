@@ -60,7 +60,7 @@ VIEWS = [
     "meta_breakdowns", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance",
     "promo_admin", "referral", "referral_admin",
-    "saisie_s4a", "soundcloud",
+    "saisie_s4a", "saisie_tresorerie", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
     "useful_links", "youtube",
     "onboarding", "onboarding_health", "register",
@@ -90,7 +90,7 @@ EMPTY_TENANT_VIEWS = [
     "service",
     "home", "onboarding", "onboarding_health", "credentials", "account",
     "soundcloud", "youtube", "instagram", "spotify_s4a_combined", "apple_music",
-    "export_csv", "export_pdf", "useful_links",
+    "export_csv", "export_pdf", "useful_links", "saisie_tresorerie",
     # its empty state (no prediction yet) is the most frequent one while activation is
     # the blocker (ADR-028) — so it is rendered for a brand-new tenant too.
     "algo_preview",
