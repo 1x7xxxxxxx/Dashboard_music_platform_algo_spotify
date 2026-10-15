@@ -119,12 +119,6 @@ def test_the_heaviest_three_features_come_first():
     assert rt.top_features(w, "RR") == []
 
 
-def test_the_streams_gap_is_a_gap_never_negative():
-    assert rt.streams_gap({("DW", "StreamsLast7Days"): _lever(300.0, 1000.0)}, "DW") == 700.0
-    assert rt.streams_gap({("DW", "StreamsLast7Days"): _lever(1200.0, 1000.0)}, "DW") == 0.0
-    assert rt.streams_gap({}, "DW") is None
-
-
 def test_lever_weights_average_the_absolute_shap(monkeypatch):
     import numpy as np
 
@@ -143,10 +137,13 @@ def test_lever_weights_average_the_absolute_shap(monkeypatch):
     assert rt.lever_weights({}, loader=lambda n: object()) == {}
 
 
-def test_the_dw_and_radio_gauges_say_the_gap_and_its_price_rr_does_not():
+def test_no_gauge_carries_a_meta_budget_any_more():
+    """R570 (owner, 2026-10-15) — the CPR budget under the DW and Radio gauges is gone,
+    and the gauge's number is larger."""
     levers = {"A": {(a, "StreamsLast7Days"): _lever(300.0, 1000.0, "modèle")
                     for a in ("DW", "RADIO", "RR")}}
-    fig = rt.indicators_figure(["A"], levers, bornes=(0.07, 0.12))
-    gaps = [a.text for a in fig.layout.annotations if "700" in (a.text or "")]
-    assert len(gaps) == 2, gaps
-    assert all("CPR" in g for g in gaps)
+    fig = rt.indicators_figure(["A"], levers)
+    texts = [a.text or "" for a in fig.layout.annotations]
+    assert len(texts) == 3, "one playlist pill per row, nothing else"
+    assert not [x for x in texts if "CPR" in x or "€" in x], texts
+    assert all(tr.number.font.size >= 30 for tr in fig.data)

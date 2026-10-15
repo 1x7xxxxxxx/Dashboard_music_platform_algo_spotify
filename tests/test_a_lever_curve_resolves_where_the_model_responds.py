@@ -1,10 +1,11 @@
-"""A lever curve must have its resolution where the model responds, and the Pareto
-must price a lever from the model, not from that curve.
+"""A lever curve must have its resolution where the model responds.
+
+(Its second half — the Pareto pricing a lever from the model — left with the Pareto,
+removed by R570.)
 
 Type: Utility
 Uses: src.utils.ml_inference (local_sensitivity, lever_probability, load_model,
-      _calibrate), src.dashboard.views.trigger_algo._pareto (_delta_proba),
-      src.dashboard.utils.algo_knowledge (ALGO_FEATURE_ZONES)
+      _calibrate), src.dashboard.utils.algo_knowledge (ALGO_FEATURE_ZONES)
 Depends on: the committed v3 model artefacts under machine_learning/models/v3 (no DB)
 Triggers: nothing
 Persists in: nothing
@@ -34,7 +35,6 @@ import pytest
 pytest.importorskip("xgboost")
 
 from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES  # noqa: E402
-from src.dashboard.views.trigger_algo import _pareto  # noqa: E402
 from src.utils import ml_inference as mi  # noqa: E402
 
 _FEATS = {
@@ -125,16 +125,3 @@ def test_current_and_target_are_exact_grid_points(lever):
         _direct(algo, feature, target), abs=1e-6)
     assert float(np.interp(cur, xs, ps)) == pytest.approx(
         _direct(algo, feature, cur), abs=1e-6)
-
-
-@pytest.mark.parametrize("lever", _LOG_LEVERS, ids=_ids)
-def test_the_pareto_prices_a_lever_from_the_model(lever):
-    algo, feature, target = lever
-    cur = float(np.expm1(_FEATS[feature]))
-    expected = max(0.0, _direct(algo, feature, target) - _direct(algo, feature, cur))
-    got = _pareto._delta_proba(algo, feature, _FEATS, cur, target)
-    assert got == pytest.approx(expected, abs=1e-6), (
-        f"{algo}/{feature}: the Pareto prices {cur:,.0f} -> {target:,.0f} at "
-        f"{(got or 0) * 100:+.2f} pts, the model says {expected * 100:+.2f}. "
-        "A lever's euro value must come from two model calls, not a display curve."
-    )

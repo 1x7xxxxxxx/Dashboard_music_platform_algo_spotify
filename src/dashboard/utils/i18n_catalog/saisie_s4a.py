@@ -43,11 +43,8 @@ EN = {
                                "model's training labels (thresholds 137 / 130 / 639); the 7d is for tracking.",
     "saisie_s4a.save_outcomes": "💾 Save realized outcomes (7d + 28d)",
     "saisie_s4a.saved_outcomes": "Realized outcomes saved (7d + 28d) for {n} tracks.",
-    "saisie_s4a.outcome_custom_header": "📅 Custom range (DW/RR/Radio streams generated)",
-    "saisie_s4a.outcome_custom_save": "💾 Save range (algos)",
-    "saisie_s4a.outcome_custom_saved": "Range {start} → {end} saved for {n} tracks.",
     # Custom grid
-    "saisie_s4a.custom_header": "📅 Custom range (e.g. first days post-release)",
+    "saisie_s4a.custom_header": "📅 Playlist adds since release (D+1, D+2…)",
     "saisie_s4a.custom_release": "Reference release",
     "saisie_s4a.save_custom": "💾 Save custom range",
     "saisie_s4a.saved_custom": "Range {start} → {end} saved for {n} tracks.",

@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, src.dashboard.utils.ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« 📈 Ce qui s'est vraiment passé ») — the only
+Triggers: views/trigger_algo/router.py (« 🎯 Une fois déclenché », R570) — the only
           caller since R481 (W4) ; R405 had drawn it on views/saisie_s4a.py too
 Persists in: s4a_song_algo_outcomes
 
@@ -18,7 +18,6 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils.entry_period import entry_period_selector
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.ui import flash
 
@@ -98,54 +97,18 @@ def render_outcome_grid(db, artist_id, tracks) -> None:
             st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
 
 
-def render_outcome_custom_grid(db, artist_id, tracks) -> None:
-    st.markdown("**" + t("saisie_s4a.outcome_custom_header",
-                         "📅 Autre fenêtre (streams DW/RR/Radio générés)") + "**")
-    # ⚠️ DES RACCOURCIS, PAS DEUX DATES À TAPER — 2026-09-22.
-    # « début fin avec des valeurs à rentrer c'est pas très agréable ». Et le fond
-    # dépasse le confort : les seules fenêtres pour lesquelles S4A affiche un chiffre
-    # sont 7 j, 28 j et 12 mois. Une paire de dates libres invite à saisir une période
-    # dont la source ne produit aucune valeur. Détail : `utils/entry_period.py`.
-    fenetre = entry_period_selector(key=f"algo_custom_{artist_id}")
-    start, end = fenetre.start, fenetre.end
-
-    df = pd.DataFrame([{"Titre": s, "DW": 0, "RR": 0, "Radio": 0} for s in tracks])
-    _num = st.column_config.NumberColumn(min_value=0, step=1)
-    edited = st.data_editor(
-        df, hide_index=True, width="stretch", num_rows="fixed",
-        column_config={"Titre": st.column_config.TextColumn(disabled=True),
-                       "DW": _num, "RR": _num, "Radio": _num},
-        key=f"grid_outcome_custom_{artist_id}",
-    )
-    if st.button(t("saisie_s4a.outcome_custom_save", "💾 Enregistrer la période (algos)"),
-                 type="primary", key=f"save_outcome_custom_{artist_id}"):
-        rows = [{"artist_id": artist_id, "song": r["Titre"], "time_window": "custom",
-                 "recorded_at": end, "dw_streams": int(r["DW"] or 0), "rr_streams": int(r["RR"] or 0),
-                 "radio_streams": int(r["Radio"] or 0), "period_start": start, "period_end": end}
-                for _, r in edited.iterrows()]
-        try:
-            db.upsert_many("s4a_song_algo_outcomes", rows,
-                           ["artist_id", "song", "time_window", "recorded_at"],
-                           ["dw_streams", "rr_streams", "radio_streams", "period_start", "period_end"])
-            flash(t("saisie_s4a.outcome_custom_saved",
-                         "Période {start} → {end} enregistrée pour {n} titres.")
-                       .format(start=start, end=end, n=len(rows)))
-            st.rerun()
-        except Exception as exc:
-            st.error(t("saisie_s4a.error", "Erreur : {exc}").format(exc=exc))
-
-
-def render_outcomes(db, artist_id) -> None:
+def render_outcomes(db, artist_id, tracks: list[str] | None = None) -> None:
     """The entry of the real outcome — the grids that feed the model.
 
     SHARED (R405) by the algo page (Premium) and « 📝 Saisie S4A » (Free): the entry
     feeds the model, so it is never locked behind the paywall. R442 (owner,
     2026-10-07): the model's bet against what happened moved to the admin ML page
-    (tab « 🎲 Pari vs réalité ») — the grids stay here, with their tenant.
+    (tab « 🎲 Pari vs réalité ») — the grids stay here, with their tenant. R570: the
+    tracks are the page's two picked releases; « Autre fenêtre » left (its J+1… sibling,
+    `render_custom_grid`, answers the post-release question).
     """
     from src.dashboard.utils.s4a_entry_insight import load_entry_tracks
 
-    tracks = load_entry_tracks(db, artist_id)
+    tracks = tracks or load_entry_tracks(db, artist_id)
     if tracks:
         render_outcome_grid(db, artist_id, tracks)
-        render_outcome_custom_grid(db, artist_id, tracks)

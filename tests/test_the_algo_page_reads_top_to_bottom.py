@@ -7,7 +7,7 @@ Persists in: nothing
 
 Owner's notes V59/V69 (2026-10-05): the four tabs of « Prédiction déclenchement » hid
 three quarters of the page behind clicks, and its tables read before its figures. The
-page is now four sections separated by a divider, in the order of `PAGE_SECTIONS`, and
+page is now sections separated by a divider (two since R570), in the order of `PAGE_SECTIONS`, and
 every read-only table sits in an expander (`_sections.detail`). An input grid
 (`st.data_editor`, the R376 outcome entry) is a form, not a table: it stays in the open.
 
@@ -19,6 +19,7 @@ Mutations, 2026-10-05:
 """
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -41,9 +42,9 @@ def page():
                                                   artist_id=1))
     at.run(timeout=300)
     assert not at.exception, at.exception
-    # R525: without a title the page still draws its budget and money sections, so
-    # « no header » no longer says « no track » — the no-timeline warning does.
-    if not at.header or any("Aucune donnée de timeline" in w.value for w in at.warning):
+    # R525/R570: without a scored title the page still draws its sections, so « no
+    # header » no longer says « no track » — the empty-catalogue notice does.
+    if not at.header or any("pas encore été noté" in i.value for i in at.info):
         pytest.skip("no track to follow in this base — the per-track sections are not drawn")
     return at
 
@@ -51,7 +52,7 @@ def page():
 pytestmark = pytest.mark.skipif(not db_ready(), reason="renders the algo page against the live DB")
 
 
-def test_the_page_has_no_tabs_and_its_four_sections_in_order(page) -> None:
+def test_the_page_has_no_tabs_and_its_sections_in_order(page) -> None:
     from src.dashboard.views.trigger_algo._sections import section_labels
 
     assert not page.tabs, f"the algo page draws {len(page.tabs)} tabs again"
@@ -72,11 +73,14 @@ def test_no_table_is_read_on_the_algo_page(page) -> None:
 
 # ── R404 (V61, V63, V68) ────────────────────────────────────────────────────
 # Mutations, 2026-10-05: `_pastilles` call dropped → RED; `MAX_TRACKS = 5` → RED;
+# R570 (2026-10-15): the markdown badges left with the per-playlist sections — the pill
+# is now the playlist's name drawn beside its gauges (`_release_targets._playlist_box`).
 # the Groover rate table put back → RED. (The settings chart moved to the cross view,
 # R557 — its guard is tests/test_the_best_settings_tool_ranks_every_setting.py.)
 
 def test_each_playlist_is_a_readable_pill(page) -> None:
-    pills = [m.value for m in page.markdown if "-badge[" in m.value]
+    pills = [a.get("text", "") for chart in page.get("plotly_chart")
+             for a in json.loads(chart.proto.spec).get("layout", {}).get("annotations", ())]
     assert len(pills) > 0, "no playlist pill on the page"
     for name in ("Discover Weekly", "Radio", "Release Radar"):
         assert any(name in p for p in pills), f"{name} has no pill: {pills}"

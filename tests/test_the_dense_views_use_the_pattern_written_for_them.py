@@ -23,8 +23,11 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 VIEWS = REPO / "src/dashboard/views"
 
 # The five named in R51, with the figure counts measured when it was written.
+# R570 (2026-10-15) retired `trigger_algo`: the owner cut the page to one filter and two
+# sections, every element of which they NAMED as visible (gauges, SHAP bars, estimates,
+# forecast) — ≈6 figures for two releases. Its two `secondary_analyses` sites lived in
+# `_tab_titre.py` and `_tab_reglages.py`, both deleted with the sections they collapsed.
 _DENSE = {
-    "trigger_algo": "≈35 figures (15 charts + up to 17 gauges)",
     "data_wrapped": "9 figures",
     "meta_creatives": "8 figures",
     "meta_ads_overview": "8 figures",

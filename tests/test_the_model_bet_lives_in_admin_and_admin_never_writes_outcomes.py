@@ -52,7 +52,8 @@ def test_the_admin_ml_page_never_writes_outcomes() -> None:
 def test_the_artist_entry_no_longer_draws_the_bet() -> None:
     calls = _called(_ENTRY, "render_outcomes")
     assert "render_prediction_vs_reality" not in calls
-    assert {"render_outcome_grid", "render_outcome_custom_grid"} <= calls
+    # R570 (2026-10-15) removed « Autre fenêtre » (`render_outcome_custom_grid`).
+    assert "render_outcome_grid" in calls
 
 
 def test_the_page_blurb_no_longer_promises_the_model_bet() -> None:

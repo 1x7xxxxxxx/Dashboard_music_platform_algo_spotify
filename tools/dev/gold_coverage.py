@@ -217,12 +217,6 @@ _DECLARED_RAW_AGGREGATES: dict[tuple[str, str], str] = {
     ("src/dashboard/views/meta_mapping/_campaigns.py", "meta_adsets"):
         "MIN/MAX des dates d'activité d'un ad set, pour comparer à la date de "
         "sortie du titre. Une fenêtre, pas un chiffre affiché.",
-    ("src/dashboard/views/trigger_algo/_common/_budget_roi.py", "meta_campaigns"):
-        "string_agg(DISTINCT call_to_action) — l'inventaire des appels à l'action "
-        "d'une campagne, à côté de sa performance qui, elle, vient de la couche or.",
-    ("src/dashboard/views/trigger_algo/_common/_budget_roi.py", "meta_ads"):
-        "même requête que ci-dessus : la jointure vers les créatives sert à lire "
-        "leur call_to_action, jamais à sommer.",
     ("src/dashboard/views/meta_creatives.py", "meta_campaigns"):
         "`_QUERY_UNCOLLECTED` : COUNT(DISTINCT ad_id) et un `HAVING SUM(spend) = 0` "
         "qui SÉLECTIONNE les campagnes sans détail par créative. Le montant affiché "

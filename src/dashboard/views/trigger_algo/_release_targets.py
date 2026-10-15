@@ -27,7 +27,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.dashboard.utils.algo_knowledge import ALGO_FEATURE_ZONES, decode_feature_value
-from src.dashboard.utils.formats import eur, num
+from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.platform_colors import ALGO_COLORS
 from src.dashboard.utils.labels import unique_short_labels as short_labels  # R209
@@ -144,29 +144,6 @@ def _lever_weight(weights: dict, algo: str, fid: str) -> float:
     return weights.get(algo, {}).get(key, 0.0)
 
 
-def streams_gap(levers: dict, algo: str) -> float | None:
-    """The 7-day streams still missing to the model's target for `algo` — a GAP. Pure."""
-    v = levers.get((algo, "StreamsLast7Days"))
-    if not v:
-        return None
-    return max(float(v["target"]) - float(v["current"] or 0.0), 0.0)
-
-
-def _budget_line(gap: float | None, cost, bornes) -> str:
-    if gap is None:
-        return ""
-    if gap <= 0:
-        return t("trigger_algo.rel.gap_met", "écoutes 7 j : seuil atteint")
-    line = t("trigger_algo.rel.gap", "il manque {n} écoutes en 7 j").format(n=num(gap, 0))
-    if cost and bornes:
-        line += "<br>" + t("trigger_algo.rel.budget",
-                           "≈ {lo} (CPR {c_lo}) → {hi} (CPR {c_hi})").format(
-            lo=eur(cost[0], 0), hi=eur(cost[1], 0),
-            c_lo=f"{bornes[0]:.3f} €".replace(".", ","),
-            c_hi=f"{bornes[1]:.3f} €".replace(".", ","))
-    return line
-
-
 def _track_title(name: str, stats: dict | None) -> str:
     if not stats:
         return f"<b>{name}</b>"
@@ -181,66 +158,63 @@ def _track_title(name: str, stats: dict | None) -> str:
                 a=num(stats.get("adds"), 0)) + "</span>")
 
 
+def lever_label(feature: str) -> str:
+    """A criterion's name on this page — R570: « ajouts en playlist 28 j », not the column."""
+    from ._common._explain import _FEATURE_LABELS
+    if feature.startswith("PlaylistAddsLast28Days"):
+        return t("trigger_algo.rel.adds28", "Ajouts en playlist 28 j")
+    return t(f"algo.label.{feature}", _FEATURE_LABELS.get(feature, (feature, True))[0])
+
+
 def _playlist_box(algo: str, weights: dict) -> str:
-    from ._playlist_detail import _label
+    """The playlist's name as a pill, then « déclenché par » its three heaviest criteria."""
     tops = top_features(weights, algo)
     if not tops:
         return f"<b>{ALGO_NAMES[algo]}</b>"
-    lines = "<br>".join(f"{i}. {_label(f)}" for i, f in enumerate(tops, start=1))
-    return f"<b>{ALGO_NAMES[algo]}</b><br><span style='font-size:10px'>{lines}</span>"
+    lines = "<br>".join(f"{i}. {lever_label(f)}" for i, f in enumerate(tops, start=1))
+    head = t("trigger_algo.rel.triggered_by", "déclenché par :")
+    return (f"<b>{ALGO_NAMES[algo]}</b><br><span style='font-size:11px'><i>{head}</i>"
+            f"<br>{lines}</span>")
 
 
 def indicators_figure(tracks: list[str], levers_by_track: dict, weights: dict | None = None,
-                      stats: dict | None = None, bornes=None):
+                      stats: dict | None = None):
     """One gauge per (algorithm, track): the shortest route, 0-100 %. Pure.
 
-    R477 (W14) — each row opens on its playlist's name in a small box drawn in the
-    playlist's colour. R559 (fiches 46, 56, 57, owner 2026-10-13) — the box also names the
-    playlist's three heaviest criteria (`lever_weights`); each track's title carries its
-    28-day streams, saves and playlist adds; under the DW and Radio gauges, the 7-day
-    streams still missing and what buying them costs at the best → mean CPR. Release
-    Radar gets no budget: it plays in the first days, the owner said, not on a budget.
+    R477 (W14) — each row opens on its playlist's name in a pill drawn in the playlist's
+    colour. R559 (fiches 46, 56, 57) — the pill names « déclenché par » the playlist's three
+    heaviest criteria (`lever_weights`); each track's title carries its 28-day streams,
+    saves and playlist adds. R570 (owner, 2026-10-15) — the Meta CPR budget under the DW
+    and Radio gauges is gone, and the gauge's number is larger.
     """
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-    from src.dashboard.utils.algo_preview_data import budget_fourchette
     weights, stats = weights or {}, stats or {}
     cols = max(len(tracks), 1)
     names = dict(zip(tracks, short_labels(tracks, 24)))
     fig = make_subplots(rows=len(ALGOS), cols=cols + 1,
                         column_widths=[0.24] + [0.76 / cols] * cols,
                         specs=[[None] + [{"type": "indicator"}] * cols] * len(ALGOS),
-                        vertical_spacing=0.16, horizontal_spacing=0.04)
+                        vertical_spacing=0.14, horizontal_spacing=0.04)
     for r, algo in enumerate(ALGOS, start=1):
         for c, song in enumerate(tracks, start=2):
-            levers = levers_by_track.get(song, {})
-            route = shortest_route(levers, algo)
+            route = shortest_route(levers_by_track.get(song, {}), algo)
             value = None if route is None else round(100 * route["progress"])
             fig.add_trace(go.Indicator(
-                mode="gauge+number", value=value, number={"suffix": " %", "font": {"size": 18}},
+                mode="gauge+number", value=value, number={"suffix": " %", "font": {"size": 30}},
                 title={"text": _track_title(names[song], stats.get(song)) if r == 1 else "",
-                       "font": {"size": 14}},
+                       "font": {"size": 15}},
                 gauge={"axis": {"range": [0, 100], "visible": False},
                        "bar": {"color": ALGO_COLORS[algo]},
                        "threshold": {"line": {"color": "#333", "width": 2}, "value": 100}}),
                 row=r, col=c)
-            if algo != "RR":
-                gap = streams_gap(levers, algo)
-                text = _budget_line(gap, budget_fourchette(gap, bornes), bornes)
-                x0, x1 = fig.data[-1].domain.x
-                y0 = fig.data[-1].domain.y[0]
-                if text:
-                    # xanchor explicit: plotly's « auto » right-aligns past x = 2/3.
-                    fig.add_annotation(x=(x0 + x1) / 2, y=y0, xref="paper", yref="paper",
-                                       xanchor="center", yanchor="top", showarrow=False, text=text,
-                                       font={"size": 10})
         y0, y1 = fig.data[-1].domain.y
         fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
                            xanchor="left", align="left", showarrow=False,
                            text=_playlist_box(algo, weights),
-                           font={"size": 12}, bordercolor=ALGO_COLORS[algo], borderwidth=2,
-                           borderpad=5, bgcolor="rgba(0,0,0,0)")
-    fig.update_layout(height=190 * len(ALGOS) + 70, margin=dict(t=70, b=40, l=10, r=10))
+                           font={"size": 13, "color": "white"}, bordercolor=ALGO_COLORS[algo],
+                           borderwidth=2, borderpad=6, bgcolor=ALGO_COLORS[algo])
+    fig.update_layout(height=180 * len(ALGOS) + 70, margin=dict(t=70, b=20, l=10, r=10))
     return fig
 
 
@@ -256,7 +230,8 @@ def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
     weights = weights or {}
-    labels = {fid: next((z[fid]["label"] for z in ALGO_FEATURE_ZONES.values() if fid in z), fid)
+    labels = {fid: (lever_label(fid) if fid.startswith("PlaylistAdds") else
+                    next((z[fid]["label"] for z in ALGO_FEATURE_ZONES.values() if fid in z), fid))
               for fid in LEVERS}
     algos = [a for a in ALGOS if any((a, f) in levers_by_track.get(s, {})
                                      for s in tracks for f in LEVERS)]

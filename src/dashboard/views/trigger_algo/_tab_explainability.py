@@ -13,7 +13,6 @@ from ._common import (
     _show_imputation_caveat,
     _show_key_factors,
     _show_lime_explanation,
-    _show_meta_lever_scoring,
 )
 
 
@@ -202,4 +201,3 @@ def _show_tab_explainability(db, ml_pred, track: str, artist_id):
         st.markdown("---")
     _show_key_factors(features_json)
     _show_lime_explanation(ml_pred)
-    _show_meta_lever_scoring(db, track, artist_id)

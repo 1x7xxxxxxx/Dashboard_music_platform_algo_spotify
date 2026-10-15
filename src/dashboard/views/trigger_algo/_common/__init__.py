@@ -5,9 +5,6 @@ from ._loaders import (
 from ._pi_gates import (
     _PI_BINS, _pi_bracket, _show_pi_breakeven,
 )
-from ._budget_roi import (
-    _META_LEVER_QUERY, _show_budget_pacing_calculator, _show_meta_lever_scoring, _show_velocity_budget_advice,
-)
 from ._explain import (
     _DM_KEY, _FEATURE_LABELS, _IMPUTED_FEATURES, _MARKETING_ACTIONS, _show_drift_status, _show_imputation_caveat, _show_key_factors, _show_lime_explanation,
 )
@@ -16,5 +13,5 @@ from ._verdict import (
 )
 
 __all__ = [
-    'ELBOW_THRESHOLDS_28D', '_DM_KEY', '_FEATURE_LABELS', '_IMPUTED_FEATURES', '_MARKETING_ACTIONS', '_META_LEVER_QUERY', '_PHASES', '_PI_BINS', '_clean_feat', '_load_feature_importance', '_load_ml_pred', '_load_scored_tracks', '_load_threshold_tables', '_load_xgb_model', '_pi_bracket', '_show_budget_pacing_calculator', '_show_discovery_mode_protocol', '_show_drift_status', '_show_feature_importance', 'show_no_prediction_yet', '_show_imputation_caveat', '_show_key_factors', '_show_lime_explanation', '_show_meta_lever_scoring', '_show_phase_strategy', '_show_pi_breakeven', '_show_radio_snowball', '_show_resurrection_radar', '_show_velocity_budget_advice', '_show_verdict_banner',
+    'ELBOW_THRESHOLDS_28D', '_DM_KEY', '_FEATURE_LABELS', '_IMPUTED_FEATURES', '_MARKETING_ACTIONS', '_PHASES', '_PI_BINS', '_clean_feat', '_load_feature_importance', '_load_ml_pred', '_load_scored_tracks', '_load_threshold_tables', '_load_xgb_model', '_pi_bracket', '_show_discovery_mode_protocol', '_show_drift_status', '_show_feature_importance', 'show_no_prediction_yet', '_show_imputation_caveat', '_show_key_factors', '_show_lime_explanation', '_show_phase_strategy', '_show_pi_breakeven', '_show_radio_snowball', '_show_resurrection_radar', '_show_verdict_banner',
 ]

@@ -26,7 +26,6 @@
     "src/dashboard/views/meta_breakdowns.py": 5,
     "src/dashboard/views/meta_creatives.py": 4,
     "src/dashboard/views/soundcloud.py": 3,
-    "src/dashboard/views/trigger_algo/_tab_budget_roi.py": 8,
     "src/dashboard/views/usage_analytics.py": 4,
     "src/dashboard/views/meta_x_spotify.py": 8,
     "src/dashboard/views/spotify_s4a_combined.py": 3,

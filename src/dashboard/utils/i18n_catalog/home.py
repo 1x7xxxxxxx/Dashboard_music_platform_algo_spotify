@@ -198,8 +198,7 @@ EN = {
     "home.advice_cta": "\U0001F4CA Compare all my campaigns",
     "home.advice_cta_locked": "Compare all my campaigns",
     "home.advice_cta_help": (
-        "The per-campaign score, the cheapest age bracket, and which budgets to "
-        "raise or cut."),
+        "The cross view: cost per outbound click by campaign, creative and audience."),
     "home.advice_cta_locked_help": (
         "The detailed comparison of your campaigns is included in the subscription."),
     "home.money_caveat": (

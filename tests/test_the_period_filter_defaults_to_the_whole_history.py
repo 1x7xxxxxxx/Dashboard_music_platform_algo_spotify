@@ -25,25 +25,19 @@ VIEWS = ROOT / "src" / "dashboard" / "views"
 
 # Views that draw a daily series WITHOUT the shared filter — each with its reason.
 EXEMPT = {
-    "trigger_algo/_common/_budget_roi.py": "CPR par campagne mappée au titre, sur TOUTE la vie : une barre par campagne, pas une série temporelle (R477)",
     "db_health.py": "admin : la fenêtre est « hier » par construction (anomalie d'ingestion)",
     "admin.py": "supervision : on y choisit un mois de facturation, pas une fenêtre",
     "airflow_kpi.py": "ops : fenêtre de supervision des DAG, public exploitant",
     "revenue_forecast.py": "trésorerie : un cumul part du premier euro, une fenêtre le fausserait",
-    "trigger_algo/_tab_budget_roi.py": "point mort : cumul depuis le premier euro, même raison",
-    # R368 — seen only once `_uses_the_layer` stopped counting an ACCOUNT-filter import.
-    "meta_cpr_optimizer.py": "coût par résultat sur TOUTE la vie de chaque campagne : une fenêtre tronquerait le CPR",
     "meta_x_spotify.py": "la fenêtre EST celle de la campagne choisie (`campaign_window` de la barre, R399), pas une période libre",
     # R399 — the page's one filter bar draws the period; the section reads `bar.window`.
     "meta_creatives.py": "la fenêtre vient de la barre de filtres unique de la page Meta (R399)",
     # R377 (V24) — the default « depuis la dernière sortie » hid the previous campaign.
-    # R404 (V68) — the settings bars aggregate each setting over the account's whole life.
-    "trigger_algo/_tab_reglages.py": "réglages comparés sur TOUTE la vie du compte : une fenêtre ferait tomber chaque réglage sous le seuil d'annonces fiable",
     "hypeddit.py": "on compare des CAMPAGNES choisies (deux dernières par défaut), pas une période libre",
     # R385 (V44) — the dated per-track chart became an equal-AGE comparison.
-    # R381 (V66) — SHAP bars per playlist; the CPR range reads each campaign's whole life.
-    "trigger_algo/_playlist_detail.py": "barres SHAP par playlist, pas une série temporelle ; le CPR lit toute la vie des campagnes",
     "soundcloud.py": "titres comparés à âge égal (jours depuis l'upload) ; le catalogue montre ses 19 relevés, toute la collecte",
+    # R570 — one filter on the page: the two latest releases (`release_picker`).
+    "trigger_algo/_forecast.py": "cumul depuis la SORTIE du titre choisi, axe en âge : une fenêtre de dates tronquerait le cumul",
 }
 
 

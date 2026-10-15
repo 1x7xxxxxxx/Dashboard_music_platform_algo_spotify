@@ -2,8 +2,7 @@
 free preview.
 
 Type: Utility
-Uses: src.utils.ml_inference (calibration), v_meta_daily, v_s4a_song_daily, ml_song_predictions,
-      v_s4a_song_measured_span
+Uses: src.utils.ml_inference (calibration), ml_song_predictions
 Depends on: nothing from views/
 Persists in: nothing
 
@@ -12,12 +11,15 @@ budget and prediction loader as the Premium `trigger_algo` package. They lived t
 helpers; moved HERE so both read one definition (a copy would drift — the class
 `a-second-door-that-knows-fewer-sources-than-the-first`). The old modules re-export them under
 their old names, so every existing caller and test keeps working unchanged.
+
+R570 (2026-10-15) removed the money half — `budget_declenchement`, `budget_fourchette`,
+`cpr_bornes` and the cost-per-stream helpers: the algo page no longer prices a trigger
+(the Trésorerie covers the budget), and nothing else called them.
 """
 from __future__ import annotations
 
 import math
 
-from src.utils.algo_order import named_algos
 
 #: Le score BRUT en dessous duquel on considère que le modèle n'a rien tranché.
 #:
@@ -115,182 +117,6 @@ def format_proba(algo: str, proba, decimals: int = 0, absent: str = "—",
     if not present:
         return absent
     return floor_text if floor_text is not None else texte_plancher()
-
-
-def budget_pour_streams(streams_manquants: float, cout_par_stream: float | None) -> float | None:
-    """Ce que coûterait d'acheter ces écoutes, au coût observé — ou `None`.
-
-    ⚠️ **Ce nombre porte une limite qu'il faut afficher AVEC lui.** `cout_par_stream`
-    est agrégé sur toutes les campagnes et tous les titres de l'artiste : il ne dit
-    pas ce que coûtent les écoutes de CE titre. L'attribution passerait par
-    `campaign_track_mapping`, qui porte 19 correspondances, et la dépense Meta
-    s'arrête au 2024-09-30 quand les écoutes vont jusqu'en 2026.
-
-    On le rend quand même, parce qu'un ordre de grandeur aide à décider d'un budget
-    — mais la vue doit écrire que c'en est un, et non un devis.
-    """
-    if not cout_par_stream or cout_par_stream <= 0 or streams_manquants is None:
-        return None
-    manque = float(streams_manquants)
-    return manque * float(cout_par_stream) if manque > 0 else 0.0
-
-
-def cout_par_stream(db, artist_id, date_from, date_to) -> float | None:
-    """Dépense ÷ écoutes sur la fenêtre — agrégé TOUS TITRES, et la vue le dit.
-
-    Extrait pour que le panneau de réglages lise la même valeur que les tuiles de
-    budget plus bas. Deux calculs du même coût finiraient par diverger.
-    """
-    # R372 — no `except Exception: return None` any more: a failed read rendered as
-    # « no cost », i.e. a database outage read as « you never advertised ».
-    dep = db.fetch_query(
-        "SELECT COALESCE(SUM(spend), 0) FROM v_meta_daily "
-        "WHERE artist_id = %s AND day BETWEEN %s AND %s",
-        (artist_id, date_from, date_to)) if artist_id else None
-    st_ = db.fetch_query(
-        "SELECT COALESCE(SUM(streams), 0) FROM v_s4a_song_daily "
-        "WHERE artist_id = %s AND day BETWEEN %s AND %s",
-        (artist_id, date_from, date_to)) if artist_id else None
-    if not dep or not st_:
-        return None
-    depense, streams = float(dep[0][0] or 0), float(st_[0][0] or 0)
-    return depense / streams if depense > 0 and streams > 0 else None
-
-
-#: R381 (V66) — the campaign query behind the CPR range. One row per campaign with
-#: results; spend and results are summed so the mean is weighted, never a mean of ratios.
-_CPR_SQL = """
-    SELECT campaign_name, SUM(spend) AS spend, SUM(results) AS results
-      FROM v_meta_campaign_daily
-     WHERE artist_id = %s AND results > 0
-     GROUP BY campaign_name
-"""
-
-
-def cpr_bornes(campagnes: list[tuple]) -> tuple[float, float] | None:
-    """(best CPR, mean CPR) over `(name, spend, results)` rows — or `None`. Pure.
-
-    The mean is weighted (total spend ÷ total results). The best is the lowest CPR
-    among campaigns that carry AT LEAST the median spend: measured on artist 1 on
-    2026-10-05, the raw lowest is a 18 € post boost at 0,011 € — six times below the
-    best real campaign (0,0685 € on 353 €). A CPR bought with a few euros is luck,
-    and the range would start from it.
-    """
-    rows = [(float(s), float(r)) for _n, s, r in campagnes
-            if s is not None and r is not None and float(s) > 0 and float(r) > 0]
-    if not rows:
-        return None
-    spends = sorted(s for s, _r in rows)
-    mid = len(spends) // 2
-    median = spends[mid] if len(spends) % 2 else (spends[mid - 1] + spends[mid]) / 2
-    best = min(s / r for s, r in rows if s >= median)
-    mean = sum(s for s, _r in rows) / sum(r for _s, r in rows)
-    return best, max(best, mean)
-
-
-def lire_cpr_bornes(db, artist_id) -> tuple[float, float] | None:
-    """The artist's cost-per-outbound-click range. A failed read raises, never « no ads »."""
-    if not artist_id:
-        return None
-    return cpr_bornes(db.fetch_query(_CPR_SQL, (artist_id,)) or [])
-
-
-def budget_fourchette(gap: float | None,
-                      bornes: tuple[float, float] | None) -> tuple[float, float] | None:
-    """THE cost range to close a gap: (at the best CPR, at the mean CPR) — or `None`.
-
-    Both bounds go through `budget_pour_streams`, the one euro formula (R372). The
-    gap is a GAP (the coach's streams lever), never a threshold — see
-    `tests/test_no_view_buys_streams_up_to_a_threshold.py`. CPR is a cost per CLICK:
-    pricing streams with it assumes one click ≈ one stream, which is why the view
-    says « ordre de grandeur » next to it.
-    """
-    if gap is None or not bornes:
-        return None
-    bas = budget_pour_streams(gap, bornes[0])
-    haut = budget_pour_streams(gap, bornes[1])
-    if bas is None or haut is None:
-        return None
-    return bas, haut
-
-
-#: The three algorithmic playlists, in the order every surface lists them.
-PORTES = named_algos()
-
-
-def budget_par_porte(feats: dict, cout: float | None) -> list[dict]:
-    """Per playlist: the 7-day streams still missing and what buying them costs. Pure.
-
-    The gap is the coach's `StreamsLast7Days` lever, the price `budget_pour_streams`.
-    A playlist whose streams lever is already met is left out.
-    """
-    from src.dashboard.utils.algo_knowledge import split_coach_actions
-
-    out = []
-    for algo, nom in PORTES:
-        leviers, _artiste = split_coach_actions(algo, feats or {})
-        streams = next((a for a in leviers if a["feature"] == "StreamsLast7Days"), None)
-        if streams:
-            out.append({"algo": algo, "name": nom, "gap": streams["gap"],
-                        "budget": budget_pour_streams(streams["gap"], cout)})
-    return out
-
-
-_BUDGET_SQL = """
-    WITH rel AS (
-        SELECT song, first_streamed FROM v_s4a_song_measured_span
-         WHERE artist_id = %(a)s AND first_streamed IS NOT NULL
-           AND (%(song)s::text IS NULL OR song = %(song)s)
-         ORDER BY first_streamed DESC, song LIMIT 1
-    ), pred AS (
-        SELECT p.dw_probability, p.rr_probability, p.radio_probability, p.features_json
-          FROM ml_song_predictions p JOIN rel ON rel.song = p.song
-         WHERE p.artist_id = %(a)s ORDER BY p.prediction_date DESC LIMIT 1
-    ), pub AS (
-        SELECT MIN(day) AS d0, MAX(day) AS d1, SUM(spend) AS spend
-          FROM v_meta_daily WHERE artist_id = %(a)s AND spend > 0
-    ), ecoutes AS (
-        SELECT SUM(s.streams) AS streams FROM v_s4a_song_daily s, pub
-         WHERE s.artist_id = %(a)s AND s.day BETWEEN pub.d0 AND pub.d1
-    )
-    SELECT rel.song, rel.first_streamed, pred.dw_probability, pred.rr_probability,
-           pred.radio_probability, pred.features_json, pub.spend, ecoutes.streams,
-           pub.d0, pub.d1, pred.features_json IS NOT NULL OR pred.dw_probability IS NOT NULL
-      FROM rel LEFT JOIN pred ON TRUE CROSS JOIN pub CROSS JOIN ecoutes
-"""
-
-
-def budget_declenchement(db, artist_id, song: str | None = None) -> dict | None:
-    """THE trigger budget of one title — the home page and the algo view call this (R372).
-
-    `song=None` picks the latest release: the title whose first streamed day in
-    `v_s4a_song_measured_span` is the most recent. It never falls back to another
-    title: a release without a prediction comes back with `pred=None`.
-
-    The cost per stream is spend ÷ streams over the artist's WHOLE advertising span
-    (first to last day with Meta spend), not over the page's period — Meta spend can
-    stop years before the streams do, and a recent window would read « no cost ».
-    Aggregated over all titles: an order of magnitude, never a quote. ONE query.
-    """
-    if not artist_id:
-        return None
-    rows = db.fetch_query(_BUDGET_SQL, {"a": artist_id, "song": song})
-    if not rows:
-        return None
-    (titre, debut, dw, rr, radio, feats, spend, streams, d0, d1, has_pred) = rows[0]
-    cout = (float(spend) / float(streams)
-            if spend and streams and float(spend) > 0 and float(streams) > 0 else None)
-    if isinstance(feats, str):
-        import json
-        try:
-            feats = json.loads(feats)
-        except (ValueError, TypeError):
-            feats = {}
-    pred = ({"dw_probability": dw, "rr_probability": rr, "radio_probability": radio}
-            if has_pred else None)
-    return {"song": titre, "first_streamed": debut, "pred": pred, "cost": cout,
-            "cost_span": (d0, d1),
-            "gates": budget_par_porte(feats or {}, cout) if has_pred else []}
 
 
 def load_ml_pred(db, track: str, artist_id) -> dict | None:

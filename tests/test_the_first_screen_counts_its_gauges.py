@@ -152,8 +152,6 @@ _BOUCLES_CONNUES: dict[str, str] = {
         "st.metric par ligne de récapitulatif, par rangées de 4 — suit le nombre de lignes",
     "src/dashboard/views/airflow_kpi.py::_render_insertion_test":
         "une rangée de st.metric par DAG testé — 16 jauges au balayage du 2026-09-18",
-    "src/dashboard/views/meta_cpr_optimizer.py::_render_detail_cards":
-        "3 st.metric par campagne (`df.iterrows()`) — suit le nombre de campagnes",
     "src/dashboard/views/ml_performance.py::_show_scorecard_tab":
         "ak.populated_algos() × render_classification_scorecard (5 metric + 1 matrice) — "
         "MÊME forme que le défaut des 38 jauges ; borné à 3 par le registre, pas par le code",

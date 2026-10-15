@@ -18,7 +18,9 @@ _SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
 _DYNAMIC_PREFIXES = (
     # R380 — the parts of the trigger_algo page, keyed in `_sections.PAGE_SECTIONS`.
     *(f"trigger_algo.{kind}_{part}" for kind in ("tab", "guide_section")
-      for part in ("catalogue", "titre", "realise", "budget")),
+      for part in ("catalogue", "declenche")),
+    # R570 — the forecast's horizons, keyed by `_forecast.HORIZONS`.
+    "trigger_algo.fc.h.",
     # R246 — funnel stages, chains and audience flows are keyed by their column name.
     "campaign_compare.stage_", "campaign_compare.chain_", "campaign_funnel.flow_",
     # R243 — the drawing door's glossary: keys held in `charts.GLOSSARY`, rendered by t().

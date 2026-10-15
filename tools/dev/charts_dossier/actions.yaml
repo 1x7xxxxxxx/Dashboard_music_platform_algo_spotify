@@ -105,12 +105,6 @@ src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
   - qui: moi
     texte: Même vue que placement, âge, plateforme
     rid: R246
-src/dashboard/views/meta_cpr_optimizer.py::_render_age_panel#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Tri Pareto par défaut (porte de dessin)
-    rid: R243
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   valide: false
   actions:

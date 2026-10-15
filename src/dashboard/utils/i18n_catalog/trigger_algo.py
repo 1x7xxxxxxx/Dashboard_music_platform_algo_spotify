@@ -2,16 +2,16 @@
 
 EN = {
     # router.py — page-level
-    "trigger_algo.est_head": "**If the algorithm triggers, what it usually brings** — dotted, the forecast drawn from the {n} songs of the training set; solid points, what **{song}** really did.",
-    "trigger_algo.est_caption": "Dotted = the median of triggered songs at that age; band = from P25 to P75 (half of those songs fall in it). These are streams over 28 days AT THAT AGE, not a cumulative total. Solid point = your « 28 days » entry, placed at the track's age on the day of the reading. « Not enough songs »: fewer than {m} triggered songs of that age, so no forecast.",
+    "trigger_algo.est_caption": "The playlist's streams over 28 days AT THAT AGE, not a cumulative total — drawn from the {n} songs of the training set. Solid point = your « 28 days » entry. « Not enough songs »: fewer than {m} triggered songs of that age.",
+    "trigger_algo.est_band": "P25–P75 band = half of the triggered songs",
     "trigger_algo.est_axis": "Algorithm streams over 28 days",
     "trigger_algo.est_refused": "not enough songs ({n})",
-    "trigger_algo.est_pred": "Forecast (median of triggered songs)",
+    "trigger_algo.est_pred": "Dotted = median of the triggered songs (P50)",
     "trigger_algo.est_real": "Your track — measured",
     "trigger_algo.est_hover": "%{x} days: %{y:,.0f} streams over 28 d (median)<extra></extra>",
     "trigger_algo.real_hover": "at %{x} days: %{y:,.0f} streams over 28 d (your entry)<extra></extra>",
-    "trigger_algo.title": "🚀 Road to Algorithms (J+28)",
-    "trigger_algo.subtitle": "ML tracking, budget, ROI and explainability of algorithmic scores.",
+    "trigger_algo.title": "🚀 Spotify algorithm trigger prediction",
+    "trigger_algo.subtitle": "Your two latest releases: where they stand, what triggers each playlist, and their streams to come.",
     "trigger_algo.guide_expander": "📖 How to read this page (artist guide) — open once",
     "trigger_algo.guide_body": (
         "This page answers **one single question**: *\"Will Spotify push my "
@@ -55,23 +55,18 @@ EN = {
         "not reliable). **Trust the %, not the € volume forecasts.**"
     ),
     "trigger_algo.guide_sections_head": "**🗂️ The parts of the page**",
-    "trigger_algo.guide_section_catalogue": "your catalogue ranked by progress toward the nearest door.",
-    "trigger_algo.guide_section_titre": "the chosen track's verdict, its levers and its J+28 trajectory.",
-    "trigger_algo.guide_section_realise": (
-        "what a trigger usually brings (dotted) against what your track really did (points), then your entries."),
-    "trigger_algo.guide_section_budget": "your campaign settings, remaining Meta budget and spend pace.",
-    "trigger_algo.no_timeline": "No timeline data available.",
-    "trigger_algo.tracks_unreadable": (
-        "Your tracks could not be read ({err}) — the per-track sections are not shown."
-    ),
+    "trigger_algo.guide_section_catalogue": (
+        "your two latest releases: their progress toward each playlist, what triggers it, "
+        "what a trigger brings and the forecast of their streams."),
+    "trigger_algo.guide_section_declenche": (
+        "your entries of the algorithmic streams obtained and of the playlist adds since release."),
     "trigger_algo.release_date_unreadable": (
-        "Release date unreadable ({err}) — the period starts at D-28."
+        "Release date unreadable ({err}) — the forecast starts on the first imported day."
     ),
-    "trigger_algo.sel_track": "🎵 Track",
-    "trigger_algo.tab_budget": "💰 Budget & ROI",
+    "trigger_algo.alias_landing_page": "This page is now part of « Spotify algorithm trigger prediction ».",
     "trigger_algo.alias_landing": ("This page is now part of « Trigger prediction »: "
                                    "[↓ go to the {section} section](#{anchor})"),
-    "trigger_algo.algostreams_header": "📈 What a trigger brings — forecast and measured",
+    "trigger_algo.algostreams_header": "**📈 What a trigger brings — {song}**",
     "trigger_algo.algostreams_empty": "No forecast and no entry for this track. Enter DW/RR/Radio streams "
                                       "in 📝 S4A manual entry.",
 
@@ -134,52 +129,6 @@ EN = {
     # _tab_global.py
 
     # _tab_budget_roi.py
-    "trigger_algo.roi.caption": (
-        "💰 **Budget decision** — which tracks to push first (top-N% by score), your "
-        "remaining Meta Ads budget, and the risk-adjusted cost (cost ÷ trigger "
-        "probability) = the real € to pay to hope to open an algorithmic door."
-    ),
-    "trigger_algo.roi.meta_budget_header": "💶 Meta Ads Budget",
-    "trigger_algo.roi.lifetime_budget_metric": "Lifetime budget allocated",
-    "trigger_algo.roi.spent_metric": "Spent (period)",
-    "trigger_algo.roi.remaining_metric": "Estimated remaining",
-    "trigger_algo.roi.overspent_metric": "Budget overspent by",
-    "trigger_algo.roi.remaining_help": (
-        "Lifetime budget of the active campaigns minus everything they have "
-        "already spent — independent of the selected period."
-    ),
-    "trigger_algo.roi.lifetime_spent_label": "Spent (since launch)",
-    "trigger_algo.roi.cost_per_stream_metric": "Cost / stream",
-    "trigger_algo.roi.no_active_campaign": "No active Meta campaign found for this artist.",
-    "trigger_algo.roi.meta_budget_unavailable": "Meta budget unavailable: {err}",
-    "trigger_algo.roi.organic_scaling_header": "🔊 Organic scaling threshold (DW volume)",
-    "trigger_algo.roi.organic_scaling_info": (
-        "To trigger the **volume scaling** of Discover Weekly, aim for a base "
-        "of at least **~{scale:,} organic streams/28d** (search, profile — excluding "
-        "autoplay). Below this threshold, the impact on volume is flat; above it, Spotify "
-        "\"opens the floodgates\" and multiplies the throughput."
-    ),
-    "trigger_algo.roi.organic_gap_none": (
-        "Enter this track's non-algo streams (28 d) in « 📝 Saisie S4A » to see the gap "
-        "to this threshold."
-    ),
-    "trigger_algo.roi.organic_gap_reached": (
-        "✅ Your entry of {day}: {n:,} non-algo streams over 28 d — threshold reached."
-    ),
-    "trigger_algo.roi.organic_gap_missing": (
-        "Your entry of {day}: {n:,} non-algo streams over 28 d — **{gap:,}** to go."
-    ),
-    "trigger_algo.roi.playlist_budget_expander": "💶 Playlist budget — Groover & Fluence",
-    "trigger_algo.roi.reference_rates": "Reference rates — check current prices on the platforms.",
-    "trigger_algo.roi.budget_simulator": "**Budget simulator**",
-    "trigger_algo.roi.total_budget_input": "Total budget (€)",
-    "trigger_algo.roi.platform_select": "Platform",
-    "trigger_algo.roi.already_spent_input": "Already spent (€)",
-    "trigger_algo.roi.remaining_budget_metric": "Remaining budget",
-    "trigger_algo.roi.cost_per_submission_metric": "Cost / submission",
-    "trigger_algo.roi.possible_submissions_metric": "Possible submissions",
-    "trigger_algo.roi.budget_insufficient": "Insufficient budget for one more submission.",
-    "trigger_algo.roi.can_submit": "You can still submit to **{n}** curators on {platform}.",
     "trigger_algo.model.forecast_vs_recorded": (
         "📊 Volume forecast by the model and algorithm streams recorded"),
     "trigger_algo.model.no_recorded": (
@@ -313,50 +262,6 @@ EN = {
     "trigger_algo.common.dm_protocol_caption": (
         "Live Discovery Mode status not collected (imputed to 0 at inference) — "
         "protocol shown for guidance only."
-    ),
-    "trigger_algo.common.velocity_advice": (
-        "⚡ High velocity ({vel:.2f}) on « {track} » — Radio (threshold {radio:g}) "
-        "and DW ({dw:g}) penalise hyper-growth (\"flash in the pan\"). Suggestion: "
-        "cut spend by ~30 % ({spent:,.0f} € → {reduced:,.0f} €) to smooth the traffic."
-    ),
-    "trigger_algo.common.pacing_header": "📅 Budget smoother (Pacing)",
-    "trigger_algo.common.pacing_budget_input": "Budget to spread (€)",
-    "trigger_algo.common.pacing_default_unavailable": (
-        "Meta budget unreadable — default of €200 proposed ({err})."
-    ),
-    "trigger_algo.common.pacing_window_input": "Smoothing window (days)",
-    "trigger_algo.common.pacing_window_help": "28 d = algo evaluation window.",
-    "trigger_algo.common.pacing_daily_metric": "Recommended daily spend",
-    "trigger_algo.common.pacing_penalty_threshold": "the penalty threshold",
-    "trigger_algo.common.pacing_info": (
-        "Spread **{budget:,.0f} €** over **{window} days** (~{per_day:,.0f} €/day) to "
-        "maintain organic growth and avoid the \"suspicious spike\" that Discover "
-        "Weekly penalises (velocity beyond {vtxt})."
-    ),
-    "trigger_algo.common.pacing_burn_warning": (
-        "⚠️ Your current daily budget (~{daily:,.0f} €/day) would burn "
-        "this budget in ~{burn:.0f} days → velocity-spike risk. "
-        "Reduce to ~{per_day:,.0f} €/day."
-    ),
-    "trigger_algo.common.pacing_caption": (
-        "The €→velocity link is a smoothing heuristic (spread over the eval "
-        "window), not a guaranteed target velocity."
-    ),
-    "trigger_algo.common.meta_lever_header": "**🎯 Marketing levers — real Meta Ads performance of this track**",
-    "trigger_algo.common.meta_lever_unavailable": "Meta data unavailable: {err}",
-    "trigger_algo.common.meta_lever_no_campaign": (
-        "No Meta campaign mapped to this track — map them in the "
-        "« Meta ↔ Spotify » view to score your levers on real performance."
-    ),
-    "trigger_algo.common.meta_best_lever": "✅ Best lever: **{name}** — CPR {cpr:.3f} € ({cta})",
-    "trigger_algo.common.cta_na": "CTA n/a",
-    "trigger_algo.common.meta_worst_lever": (
-        "⚠️ Less effective: **{name}** — CPR {cpr:.3f} € "
-        "→ reallocate toward the CTA/audience that performs."
-    ),
-    "trigger_algo.common.meta_cpr_caption": (
-        "CPR = cost per result (lower = better). Cross-check with the penalised SHAP "
-        "lever: the « Add to playlist » CTA beats « Listen » on DW."
     ),
     "trigger_algo.common.lime_expander": "🍋 Local LIME explanation — Discover Weekly",
     "trigger_algo.common.lime_caption": (
@@ -638,92 +543,42 @@ EN = {
         "**Your catalogue has not been scored yet.** The computation runs every night "
         "as soon as a track has at least one stream over the last 35 days. It needs "
         "your Spotify for Artists data: upload it on the **📝 Saisie S4A** page."),
-    "trigger_algo.rel.gap_met": "7-day streams: threshold met",
-    "trigger_algo.rel.gap": "{n} streams missing over 7 days",
-    "trigger_algo.rel.budget": "≈ {lo} (CPR {c_lo}) → {hi} (CPR {c_hi})",
     "trigger_algo.rel.stats28": "{w}: {s} streams · {v} saves · {a} adds",
     "trigger_algo.rel.window_until": "28 d to {d}",
-    "trigger_algo.rel.gauge_note": (
-        "Under each gauge: the 7-day streams the model still needs to trigger, and their "
-        "price in Meta ads — at your account's best CPR, then at the mean CPR. An order of "
-        "magnitude: a click is not a stream. Release Radar has no budget: it plays out in "
-        "the first days."),
     "trigger_algo.detail": "📋 The figures in detail",
     # ── 🎧 Ce titre : ce qu'il reste à faire (2026-09-22) ────────────────────
-    "trigger_algo.tab_titre": "🎧 This track: what's left to do",
-    "trigger_algo.titre.nothing_left": (
-        "✅ No measured metric of this track is below its target. Nothing to fix here "
-        "— check the **Where my tracks stand** tab to see which one to push."),
-    "trigger_algo.titre.tile_gate": "Closest gate",
-    "trigger_algo.titre.tile_value": "What it's worth if it opens",
-    "trigger_algo.titre.tile_expect": "Probable gain today",
-    "trigger_algo.titre.smooth": "🐢 **{label}** is too high ({cur:,.2f} {unit}) — {lever}",
-    "trigger_algo.titre.pareto_header": "🪜 What's left to do",
-    "trigger_algo.titre.money_header": "💶 Where these euros come from",
-    "trigger_algo.titre.rate": "Rate used: **{taux:.6f} € / stream** ({origine}).",
-    "trigger_algo.titre.rate_track": "measured on THIS track",
-    "trigger_algo.titre.rate_artist": (
-        "your catalogue average — this track has no distributor statement yet"),
-    "trigger_algo.titre.money_caveat": (
-        "⚠️ **This is not the gain from a trigger.** The reference cohort contains "
-        "ONLY tracks that did trigger — no comparable control that did not. It gives "
-        "an order of magnitude, not a causal effect. And a probable gain is not a "
-        "promise: half the draws land below it."),
-    "trigger_algo.titre.no_cost": (
-        "🚫 **This page says what a gate is WORTH, not what it COSTS to open.** Ad "
-        "spend is attached to only 19 tracks and stops in September 2024: a per-track "
-        "cost computed from that would be a fiction."),
-    "trigger_algo.tab_realise": "📈 What actually happened",
+    "trigger_algo.tab_declenche": "🎯 Once triggered",
+    "trigger_algo.rel.adds28": "Playlist adds 28 d",
+    "trigger_algo.rel.triggered_by": "triggered by:",
+    # ── 🔮 Prévision par titre (R570) ────────────────────────────────────────
+    "trigger_algo.fc.h.j7": "D+7",
+    "trigger_algo.fc.h.j28": "D+28",
+    "trigger_algo.fc.h.m3": "3 months",
+    "trigger_algo.fc.h.m6": "6 months",
+    "trigger_algo.fc.h.y1": "1 year",
+    "trigger_algo.fc.h.y5": "5 years",
+    "trigger_algo.fc.h.y10": "10 years",
+    "trigger_algo.fc.band": "P25–P75 range of the forecast",
+    "trigger_algo.fc.measured": "Measured",
+    "trigger_algo.fc.projected": "Forecast — the track's current pace",
+    "trigger_algo.fc.if_algo": "If {algo} triggers (P50, bar P25–P75)",
+    "trigger_algo.fc.axis": "Cumulative streams since release",
+    "trigger_algo.fc.note_power": "Base: the track's own decay, fitted on its last {d} imported days.",
+    "trigger_algo.fc.note_flat": (
+        "Too few streaming days to measure a decay: the base extends the recent average, "
+        "without a range."),
+    "trigger_algo.fc.no_rate": (
+        "Revenue not shown: no measurable rate per stream (no revenue statement imported)."),
+    "trigger_algo.fc.rate_track": "Revenue at this track's measured rate ({r} € per stream).",
+    "trigger_algo.fc.rate_artist": (
+        "Revenue at the artist's average rate ({r} € per stream) — this track has no "
+        "statement of its own yet."),
+    "trigger_algo.fc.no_overlay": (
+        "No « if the playlist triggers » diamond: the track is past the ages where a "
+        "trigger was measured (first month, around 6 months)."),
+    "trigger_algo.fc.head": "**🔮 Forecast — cumulative streams and revenue of {song}**",
+    "trigger_algo.fc.empty": "No stream imported for this track: no forecast.",
     "trigger_algo.cat.releases": "🎵 Your two latest releases",
     "trigger_algo.cat.releases_cut": "The first {n} selected tracks are shown.",
-    "trigger_algo.titre.best_bet": (
-        "🎯 **Best probable gain: {algo}** — {val:.2f} € (what it is worth × the chance "
-        "it happens). That is not necessarily the "
-        "closest gate nor the best paying one: it is the product of both. At equal "
-        "odds, aim for the richer one; at equal value, for the likelier one."),
     # ── 🎛️ Comment régler tes campagnes (2026-09-22) ────────────────────────
-    "trigger_algo.reg.header": "🎛️ How to set up your campaigns",
-    "trigger_algo.reg.admin": "Pick an artist.",
-    "trigger_algo.reg.budget_header": "💰 The budget to trigger each playlist",
-    "trigger_algo.reg.budget_nopred": "No prediction for this track yet.",
-    "trigger_algo.reg.budget_none": "No gate is waiting on extra streams for this track.",
-    "trigger_algo.reg.col_algo": "Playlist",
-    "trigger_algo.reg.col_missing": "Streams missing (7 d)",
-    "trigger_algo.reg.col_budget": "Order of magnitude",
-    "trigger_algo.reg.budget_caveat": (
-        "⚠️ **An order of magnitude, not a quote.** The cost per stream is aggregated "
-        "over ALL your campaigns and ALL your tracks: it does not say what this one's "
-        "streams cost. Per-track attribution would need a campaign↔track mapping, "
-        "which exists for only 19 tracks, and ad spend that does not stop in "
-        "September 2024."),
-    "trigger_algo.reg.roi_header": "⏳ How long until it pays for itself",
-    "trigger_algo.reg.roi_unreadable": (
-        "Monthly series unreadable — that is not « no data »."),
-    "trigger_algo.reg.roi_done": (
-        "✅ You are already in the black: net cumulative **{cumul:,.2f} €**."),
-    "trigger_algo.reg.roi_date": (
-        "At the pace of the last months (**{rythme:,.2f} €/month**), break-even lands "
-        "in **{mois} months** — {date}."),
-    "trigger_algo.reg.roi_never": (
-        "⛔ **At the current pace, never.** The monthly net is zero or negative "
-        "(**{rythme:,.2f} €/month** against a **{cumul:,.2f} €** cumulative). Inventing "
-        "a distant date would be a polite lie: what needs changing is not patience."),
-    "trigger_algo.reg.roi_unknown": "Not enough history yet to say when.",
-    "trigger_algo.reg.budget_shared": (
-        "The **{n} playlists ask for the SAME thing** here: **{manque} streams** over "
-        "7 days, i.e. **{budget}**. That is not three budgets to add up — it is one, "
-        "and it unlocks the stream condition of all three."),
-    "trigger_algo.detail.header": "🔬 Playlist by playlist",
-    "trigger_algo.detail.shap_floor": (
-        "No explanation for {names}: the model does not tell this track apart there "
-        "(probability at the floor) — detailing what it does not say would teach nothing."),
-    "trigger_algo.detail.missing": (
-        "⚠ **Missing criterion**: the data was not received, the model read it as 0. "
-        "Upload your Spotify for Artists CSVs to fill it."),
-    "trigger_algo.titre.bar_done": '✓ target reached',
-    "trigger_algo.titre.bar_gap": '{gap} {unit} to go',
-    "trigger_algo.titre.bar_axis": 'Progress toward the target',
-    "trigger_algo.titre.cost_range": 'With Meta Ads, from the best to the average CPR',
-    "trigger_algo.common.meta_cpr_axis": 'CPR € per outbound click',
-    'trigger_algo.reg.moved': 'Which button, which objective, which creative, which country, which age: everything is compared in one place — **🔀 Cross view › Creatives › 🧪 Your best settings**. Here: how much to spend to trigger the playlists, and what it pays back.',
 }

@@ -38,8 +38,9 @@ _AGE_DAYS = {"j28": 28, "m6": 182, "y1": 365}
 
 
 def _show_tab_algo_streams(db, song, artist_id, release_date=None):
-    st.subheader(t("trigger_algo.algostreams_header",
-                   "📈 Ce qu'un déclenchement rapporte — prévu et mesuré"))
+    """R570 — drawn in « Où en sont mes titres », once per picked release."""
+    st.markdown(t("trigger_algo.algostreams_header",
+                  "**📈 Ce qu'un déclenchement rapporte — {song}**").format(song=song or "—"))
     est = load_estimates()
     readings = pd.DataFrame()
     if song and "1x7xxxxxxx" not in song.lower():
@@ -49,19 +50,12 @@ def _show_tab_algo_streams(db, song, artist_id, release_date=None):
                   "Aucune estimation ni saisie pour ce titre. Saisis les streams "
                   "DW/RR/Radio dans 📝 Saisie S4A."))
         return
-    st.markdown(t("trigger_algo.est_head",
-                  "**Si l'algorithme se déclenche, ce qu'il rapporte d'habitude** — "
-                  "en pointillé, la prévision tirée des {n} titres du jeu d'entraînement ; "
-                  "en points pleins, ce que **{song}** a vraiment fait."
-                  ).format(n=est.get("rows", "?"), song=song or "—"))
     charts.plotly_chart(estimates_figure(est, readings), width="stretch")
     st.caption(t("trigger_algo.est_caption",
-                 "Pointillé = la médiane des titres déclenchés à cet âge ; bande = de P25 à "
-                 "P75 (la moitié de ces titres y est). Ce sont des streams sur 28 jours À CET "
-                 "ÂGE, pas un total cumulé. Point plein = ta saisie « 28 jours », placée à "
-                 "l'âge du titre le jour du relevé. « Pas assez de titres » : moins de {m} "
-                 "titres déclenchés de cet âge, donc aucune prévision."
-                 ).format(m=est.get("min_n", 10)))
+                 "Streams de la playlist sur 28 jours À CET ÂGE, pas un total cumulé — tirés "
+                 "des {n} titres du jeu d'entraînement. Point plein = ta saisie « 28 jours ». "
+                 "« Pas assez de titres » : moins de {m} titres déclenchés de cet âge."
+                 ).format(n=est.get("rows", "?"), m=est.get("min_n", 10)))
 
 
 def _load_readings(db, artist_id, song, release_date) -> pd.DataFrame:
@@ -105,53 +99,77 @@ def load_estimates() -> dict:
         return {}
 
 
+def _x_max(ests: dict, readings: pd.DataFrame | None) -> int:
+    """The last age with something to show — a refused age past it is not drawn (R570)."""
+    ages = [_AGE_DAYS[k] for a in TRIGGER_ORDER for k, c in (ests.get(a.lower()) or {}).items()
+            if not c.get("refused")]
+    if readings is not None and not readings.empty:
+        ages += [int(v) for v in readings["age_days"]]
+    return max(ages, default=max(_AGE_DAYS.values()))
+
+
+def _cohort_traces(fig, ages: dict, colour: str, col: int) -> None:
+    """The P25–P75 band and the dotted median of one algorithm's triggered tracks."""
+    kept = [(_AGE_DAYS[k], c) for k, c in ages.items() if not c.get("refused")]
+    if not kept:
+        return
+    xs = [x for x, _ in kept]
+    fig.add_trace(go.Scatter(
+        x=xs + xs[::-1], y=[c["p75"] for _, c in kept] + [c["p25"] for _, c in kept][::-1],
+        mode="lines", fill="toself", fillcolor=_alpha(colour, 0.15), line=dict(width=0),
+        hoverinfo="skip", showlegend=col == 1, legendgroup="band",
+        name=t("trigger_algo.est_band", "Bande P25–P75 = la moitié des titres déclenchés")),
+        row=1, col=col)
+    fig.add_trace(go.Scatter(
+        x=xs, y=[c["p50"] for _, c in kept], mode="lines+markers+text",
+        line=dict(color=colour, dash="dot", width=2), marker=dict(size=7, symbol="circle-open"),
+        text=[f"{c['p50']:,.0f}".replace(",", " ") for _, c in kept],
+        textposition="top center", cliponaxis=False, showlegend=col == 1,
+        name=t("trigger_algo.est_pred", "Pointillé = médiane des titres déclenchés (P50)"),
+        legendgroup="pred",
+        hovertemplate=t("trigger_algo.est_hover",
+                        "%{x} jours : %{y:,.0f} streams sur 28 j (médiane)<extra></extra>")),
+        row=1, col=col)
+
+
+def _reading_trace(fig, readings: pd.DataFrame | None, algo: str, colour: str, col: int) -> None:
+    if readings is None or readings.empty:
+        return
+    r = readings[readings[algo].notna()]
+    fig.add_trace(go.Scatter(
+        x=r["age_days"], y=r[algo], mode="markers",
+        marker=dict(color=colour, size=11, line=dict(color="white", width=1)),
+        showlegend=col == 1, legendgroup="real",
+        name=t("trigger_algo.est_real", "Ton titre — mesuré"),
+        hovertemplate=t("trigger_algo.real_hover",
+                        "à %{x} jours : %{y:,.0f} streams sur 28 j (ta saisie)<extra></extra>")),
+        row=1, col=col)
+
+
 def estimates_figure(est: dict, readings: pd.DataFrame | None = None):
     """One panel per algorithm in `TRIGGER_ORDER`, each on its OWN scale (Radio at 6 months
     runs to 22 490): the cohort median dotted over its P25–P75 band, and the track's
-    readings as solid points. A refused age is WRITTEN, never drawn as a zero."""
+    readings as solid points. A refused age is WRITTEN, never drawn as a zero. R570 — the
+    x axis stops at the last age with something to show."""
     ests = est.get("estimates") or {}
+    x_max = _x_max(ests, readings)
     fig = make_subplots(rows=1, cols=len(TRIGGER_ORDER), horizontal_spacing=0.07,
                         subplot_titles=[ALGO_NAMES[a] for a in TRIGGER_ORDER])
     for col, algo in enumerate(TRIGGER_ORDER, start=1):
-        colour = ALGO_COLORS[algo]
         ages = ests.get(algo.lower()) or {}
-        kept = [(_AGE_DAYS[k], c) for k, c in ages.items() if not c.get("refused")]
-        if kept:
-            xs = [x for x, _ in kept]
-            fig.add_trace(go.Scatter(
-                x=xs + xs[::-1], y=[c["p75"] for _, c in kept] + [c["p25"] for _, c in kept][::-1],
-                mode="lines", fill="toself", fillcolor=_alpha(colour, 0.15), line=dict(width=0),
-                hoverinfo="skip", showlegend=False), row=1, col=col)
-            fig.add_trace(go.Scatter(
-                x=xs, y=[c["p50"] for _, c in kept], mode="lines+markers+text",
-                line=dict(color=colour, dash="dot", width=2), marker=dict(size=7, symbol="circle-open"),
-                text=[f"{c['p50']:,.0f}".replace(",", " ") for _, c in kept],
-                textposition="top center", cliponaxis=False, showlegend=col == 1,
-                name=t("trigger_algo.est_pred", "Prévision (médiane des titres déclenchés)"),
-                legendgroup="pred",
-                hovertemplate=t("trigger_algo.est_hover",
-                                "%{x} jours : %{y:,.0f} streams sur 28 j (médiane)<extra></extra>")),
-                row=1, col=col)
+        _cohort_traces(fig, ages, ALGO_COLORS[algo], col)
         for k, c in ages.items():
-            if c.get("refused"):
+            if c.get("refused") and _AGE_DAYS[k] <= x_max:
                 fig.add_annotation(
                     x=_AGE_DAYS[k], y=0, row=1, col=col, yanchor="bottom", showarrow=False,
                     font=dict(size=10, color="#888"),
                     text="<br>".join(textwrap.wrap(
                         t("trigger_algo.est_refused", "pas assez de titres ({n})").format(n=c["n"]), 12)))
-        if readings is not None and not readings.empty:
-            r = readings[readings[algo].notna()]
-            fig.add_trace(go.Scatter(
-                x=r["age_days"], y=r[algo], mode="markers",
-                marker=dict(color=colour, size=11, line=dict(color="white", width=1)),
-                showlegend=col == 1, legendgroup="real",
-                name=t("trigger_algo.est_real", "Ton titre — mesuré"),
-                hovertemplate=t("trigger_algo.real_hover",
-                                "à %{x} jours : %{y:,.0f} streams sur 28 j (ta saisie)<extra></extra>")),
-                row=1, col=col)
-    fig.update_xaxes(tickvals=list(_AGE_DAYS.values()),
-                     ticktext=[t(f"trigger_algo.est_age.{k}", v) for k, v in _AGE_LABELS.items()],
-                     range=[0, 400])
+        _reading_trace(fig, readings, algo, ALGO_COLORS[algo], col)
+    shown = {k: v for k, v in _AGE_LABELS.items() if _AGE_DAYS[k] <= x_max}
+    fig.update_xaxes(tickvals=[_AGE_DAYS[k] for k in shown],
+                     ticktext=[t(f"trigger_algo.est_age.{k}", v) for k, v in shown.items()],
+                     range=[0, round(x_max * 1.18)])
     fig.update_yaxes(rangemode="tozero")
     fig.update_yaxes(title_text=t("trigger_algo.est_axis", "Streams de l'algorithme sur 28 jours"),
                      row=1, col=1)

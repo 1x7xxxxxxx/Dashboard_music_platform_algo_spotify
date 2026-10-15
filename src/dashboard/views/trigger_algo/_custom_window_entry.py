@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, s4a_entry_insight, ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« Ce qui s'est vraiment passé »), after the outcomes
+Triggers: views/trigger_algo/router.py (« 🎯 Une fois déclenché », R570), after the outcomes
 Persists in: s4a_song_playlist_adds (time_window = 'custom')
 
 R481 (W4, owner 2026-10-09) : « le tableau autre fenêtre / streams → Prédiction
@@ -21,13 +21,14 @@ from src.dashboard.utils.s4a_entry_insight import load_entry_tracks, load_releas
 from src.dashboard.utils.ui import flash
 
 
-def render_custom_grid(db, artist_id) -> None:
-    """« Autre fenêtre » : playlist adds over a window counted from one release."""
-    tracks = load_entry_tracks(db, artist_id)
+def render_custom_grid(db, artist_id, tracks: list[str] | None = None) -> None:
+    """Playlist adds over a window counted from one release (J+1, J+2…) — R570: the
+    tracks are the page's picked releases when it passes them."""
+    tracks = tracks or load_entry_tracks(db, artist_id)
     if not tracks:
         return
     st.subheader(t("saisie_s4a.custom_header",
-                   "📅 Autre fenêtre (ex. premiers jours post-release)"))
+                   "📅 Ajouts en playlist depuis la sortie (J+1, J+2…)"))
     # Même raison qu'au-dessus. J+1 … J+7 et « Depuis la sortie » sont ici les
     # raccourcis utiles : c'est exactement le cas que ce bloc existe pour servir. Ils
     # se comptent depuis la sortie D'UN titre — on le choisit, le plus récent d'abord

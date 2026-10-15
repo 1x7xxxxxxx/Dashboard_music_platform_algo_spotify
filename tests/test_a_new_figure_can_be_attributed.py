@@ -71,7 +71,10 @@ def test_the_measurement_still_finds_figures_at_all() -> None:
     # FAUSSE — `_FERME` ne connaissait pas `charts.plotly_chart(` (la porte unique depuis
     # R243), une figure ne se fermait pas et les suivantes s'y fondaient, gonflant le
     # compte. Segmentée juste, la même base en rend 18.
-    assert len(toutes) >= 15, (
+    # 15 → 14 le 2026-10-15 (R570) : les figures de Budget & ROI et du pareto de la page
+    # algos ont été supprimées à la demande du propriétaire — une population retirée,
+    # pas un détecteur devenu aveugle.
+    assert len(toutes) >= 14, (
         f"seulement {len(toutes)} figure(s) à ≥2 couleurs de série trouvées. Le détecteur "
         "a cessé de voir le parc — un renommage de `go.Figure`, un déplacement des vues, "
         "ou un motif d'ouverture devenu faux. Toutes les assertions ci-dessous seraient "

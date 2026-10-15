@@ -14,32 +14,34 @@ import streamlit as st
 from src.dashboard.utils.i18n import t
 
 # (key, label i18n key, FR label, description i18n key, FR description)
+# R570 (owner, 2026-10-15) : two parts only — where my tracks stand, then once triggered.
 PAGE_SECTIONS = (
     ("catalogue", "trigger_algo.tab_catalogue", "🎯 Où en sont mes titres",
      "trigger_algo.guide_section_catalogue",
-     "ton catalogue classé par l'avancement vers la porte la plus proche."),
-    ("titre", "trigger_algo.tab_titre", "🎧 Ce titre : ce qu'il reste à faire",
-     "trigger_algo.guide_section_titre",
-     "le verdict du titre choisi, ses leviers et sa trajectoire J+28."),
-    ("realise", "trigger_algo.tab_realise", "📈 Ce qui s'est vraiment passé",
-     "trigger_algo.guide_section_realise",
-     "ce qu'un déclenchement rapporte d'habitude (pointillé) face à ce que ton titre a vraiment fait (points), puis tes saisies."),
-    ("budget", "trigger_algo.tab_budget", "💰 Budget & ROI",
-     "trigger_algo.guide_section_budget",
-     "tes réglages de campagne, ton budget Meta restant et ton rythme de dépense."),
+     "tes deux dernières sorties : leur avancement vers chaque playlist, ce qui la déclenche, "
+     "ce qu'un déclenchement rapporte et la prévision de leurs écoutes."),
+    ("declenche", "trigger_algo.tab_declenche", "🎯 Une fois déclenché",
+     "trigger_algo.guide_section_declenche",
+     "tes saisies des streams algorithmiques réalisés et des ajouts en playlist depuis la sortie."),
 )
 
 # R553 (ADR-033) : `revenue_forecast` is no longer one — it is an alias of the Trésorerie.
-# R405 (V73, V74) : two former pages are sections of this one. Their keys stay routed —
-# mails and PDFs link to them — and open the page on THEIR section.
-ALIAS_SECTION = {
-    "meta_campaign_settings": "budget",
-    "meta_cpr_optimizer": "budget",  # R477 (W14)
+# R405 (V73, V74) : two former pages were sections of this one. R570 removed the budget
+# section (the Trésorerie covers it); their keys stay routed — mails and PDFs link to
+# them — and open the page with NO section (None): the key's presence is the arrival.
+ALIAS_SECTION: dict[str, str | None] = {
+    "meta_campaign_settings": None,
+    "meta_cpr_optimizer": None,  # R477 (W14)
 }
 
 
+def is_alias_arrival(alias: str | None) -> bool:
+    """True when the run arrives from a former page key — app.py sets it on that run only."""
+    return bool(alias) and alias in ALIAS_SECTION
+
+
 def arrival_section(alias: str | None) -> str | None:
-    """The section an old page key names — app.py sets the alias on the arriving run only."""
+    """The section an old page key names, or None (no section, or not an alias)."""
     return ALIAS_SECTION.get(alias) if alias else None
 
 

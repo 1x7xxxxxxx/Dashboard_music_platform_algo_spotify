@@ -28,7 +28,7 @@ import pytest
 
 from src.dashboard.routes import ROUTES
 from src.dashboard.views.trigger_algo._sections import (ALIAS_SECTION, arrival_section,
-                                                        section_keys)
+                                                        is_alias_arrival, section_keys)
 
 
 @pytest.mark.parametrize("alias", sorted(ALIAS_SECTION))
@@ -37,9 +37,12 @@ def test_each_old_key_routes_to_the_algo_page(alias: str) -> None:
 
 
 @pytest.mark.parametrize("alias,section", sorted(ALIAS_SECTION.items()))
-def test_an_alias_points_at_a_section_the_page_draws(alias: str, section: str) -> None:
-    assert section in section_keys()
+def test_an_alias_points_at_a_section_the_page_draws(alias: str, section: str | None) -> None:
+    # R570 — an alias whose section was removed lands on the page itself (None).
+    assert section is None or section in section_keys()
     assert arrival_section(alias) == section
+    assert is_alias_arrival(alias), "an alias with no section still says where it landed"
+    assert not is_alias_arrival(None) and not is_alias_arrival("trigger_algo")
     # A run that did not arrive by an alias (app.py sets None) shows no banner.
     assert arrival_section(None) is None
     assert arrival_section("trigger_algo") is None

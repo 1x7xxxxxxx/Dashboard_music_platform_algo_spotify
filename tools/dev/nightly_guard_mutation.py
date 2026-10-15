@@ -330,9 +330,6 @@ SEEN_RED: dict[str, str] = {
     "tests/test_apple_shazams_sit_beside_the_top10.py":
         "2026-10-05 — le graphique Shazam replié dans un expander « Shazams par chanson » "
         "→ rouge (« folded in an expander again »)",
-    "tests/test_the_release_budget_is_one_call.py":
-        "2026-10-05 — `_release_budget_line` ne compare plus le titre du budget → rouge "
-        "(« a budget priced for A shown under B »)",
     "tests/test_the_home_stops_at_the_numbers.py":
         "2026-10-05 — home.show() rappelle `render_meta_advice` → rouge "
         "(« home.py calls render_meta_advice again »)",

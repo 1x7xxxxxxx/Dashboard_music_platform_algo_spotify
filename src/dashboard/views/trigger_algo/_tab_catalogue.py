@@ -42,18 +42,18 @@ SELECT song, days_since_release, streams_28d, features_json
                             FROM ml_song_predictions WHERE artist_id = %s)
 """
 
-def _show_tab_catalogue(db, artist_id) -> None:
-    """Les dix titres, classés par ce qui leur manque le moins."""
+def _show_tab_catalogue(db, artist_id) -> list[str]:
+    """The picked releases' gauges and levers; returns the picks — they drive the page (R570)."""
     if not artist_id:
         st.info(t("trigger_algo.cat.admin",
                   "Sélectionne un artiste pour voir son catalogue."))
-        return
+        return []
     try:
         lignes = db.fetch_df(_Q_CATALOGUE, (artist_id, artist_id))
     except Exception:                                    # noqa: BLE001
-        st.info(t("trigger_algo.cat.unreadable",
+        st.error(t("trigger_algo.cat.unreadable",
                   "Catalogue illisible pour le moment — ce n'est pas « aucun titre »."))
-        return
+        return []
 
     if lignes is None or lignes.empty:
         # ⚠️ L'ÉTAT VIDE EST LA PREMIÈRE CHOSE QUE VOIT UN CLIENT PREMIUM.
@@ -66,7 +66,7 @@ def _show_tab_catalogue(db, artist_id) -> None:
                   "nuit dès qu'un titre a au moins une écoute sur les 35 derniers "
                   "jours. Il lui faut tes données Spotify for Artists : dépose-les "
                   "sur la page **📝 Saisie S4A**."))
-        return
+        return []
 
     df = construire(lignes.to_dict("records"))
 
@@ -76,7 +76,6 @@ def _show_tab_catalogue(db, artist_id) -> None:
     # note — « le vrai pour tout ton catalogue ») are gone: the two figures ARE the answer.
     # The selector is the app's shared one (`release_picker`, R478), newest release first.
     from src.dashboard.utils.release_picker import release_picker
-    from src.dashboard.utils.algo_preview_data import lire_cpr_bornes
     from ._release_targets import (MAX_TRACKS, by_proximity, indicators_figure,
                                    last_releases, lever_weights, track_levers,
                                    values_figure)
@@ -91,10 +90,10 @@ def _show_tab_catalogue(db, artist_id) -> None:
                      "Les {n} premiers titres choisis sont montrés.").format(n=MAX_TRACKS))
         choix = choix[:MAX_TRACKS]
     if not choix:
-        return
+        return []
     feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
     levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}
-    # R559 (fiches 46, 56, 57) — the 28-day figures, the SHAP weights and the CPR range
+    # R559 (fiches 46, 56, 57) — the 28-day figures and the SHAP weights
     # ride on the gauges: fiche 56's threshold bars said the same thing a second time.
     weights = lever_weights({s_: feats_of.get(s_, {}) for s_ in choix})
     # R571 — the windows end on the last IMPORTED S4A day; the gauge says which one.
@@ -103,15 +102,10 @@ def _show_tab_catalogue(db, artist_id) -> None:
     stats = {r["song"]: {"streams": r["streams_28d"], "saves": r["saves_28d"],
                          "adds": r["adds_28d"], "until": until}
              for r in df.to_dict("records") if r["song"] in choix}
-    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights,
-                                          stats, lire_cpr_bornes(db, artist_id)),
+    charts.plotly_chart(indicators_figure(by_proximity(choix, levers), levers, weights, stats),
                         width="stretch")
-    st.caption(t("trigger_algo.rel.gauge_note",
-                 "Sous chaque jauge : les écoutes sur 7 jours qui manquent au modèle pour "
-                 "déclencher, et leur prix en pub Meta — au meilleur CPR de ton compte, "
-                 "puis au CPR moyen. Un ordre de grandeur : un clic n'est pas une écoute. "
-                 "Release Radar n'a pas de budget : il se joue dans les premiers jours."))
     st.divider()
     fig = values_figure(choix, levers, weights)
     if fig is not None:
         charts.plotly_chart(fig, width="stretch")
+    return list(choix)

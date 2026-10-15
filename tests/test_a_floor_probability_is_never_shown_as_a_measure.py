@@ -20,7 +20,7 @@ The fix is ONE door, `proba_affichable` / `format_proba`, policy REFUSE. This fi
       The floor fixture is DERIVED at test time from the running calibration
       (`_calibrate(algo, 0.0)` — raw score 0 is on the floor by definition), never a
       literal copied from today's snapshot: a recalibration cannot make it vacuous.
-  (b) SCORE — the CPR optimizer's score does not move with the floor-driven max.
+  (b) SCORE — retired with the CPR optimizer page (R570, 2026-10-15).
   (c) RATCHET — every module under src/ and airflow/dags/ whose SQL reads a
       `*_probability` column goes through the door or is allowlisted with a reason;
       and inside such modules every percentage token must be bound to the door's
@@ -221,13 +221,6 @@ def test_verdict_banner():
     assert algo == "RR", "the argmax ran over a floor value"
 
 
-def test_cpr_optimizer_labels():
-    from src.dashboard.views.meta_cpr_optimizer import _ml_label
-
-    _no_pct(_ml_label(FLOOR["dw"], FLOOR["rr"], FLOOR["radio"]), "meta_cpr_optimizer._ml_label")
-    assert _ml_label(OFF, FLOOR["rr"], FLOOR["radio"]) == "60%"
-
-
 def test_s4a_insight_bar_label():
     from src.dashboard.utils.s4a_entry_insight import _bar_label
 
@@ -249,42 +242,6 @@ def test_algos_tab_curve_leaves_gaps():
     from src.dashboard.views.trigger_algo._tab_algos import _proba_series
 
     assert _proba_series("radio", [FLOOR["radio"], OFF]) == [None, pytest.approx(60.0)]
-
-
-# ── (b) the CPR SCORE, not its rendering ─────────────────────────────────────
-
-def _campaigns(dw, rr, radio):
-    return pd.DataFrame({
-        "campaign_name": ["A", "B"], "track_name": ["a", "b"],
-        "total_spend": [10.0, 10.0], "total_results": [100, 400],
-        "cpr": [0.10, 0.20],
-        "dw_prob": dw, "rr_prob": rr, "radio_prob": radio})
-
-
-def test_cpr_score_is_unmoved_by_the_floor_driven_max():
-    from src.dashboard.views.meta_cpr_optimizer import _compute_scores
-
-    fl = FLOOR
-    # two floor configurations: B's max floor (Radio) higher than A's in one, equal in
-    # the other. With the ML factor in, the ratio of the two scores would change.
-    s1 = _compute_scores(_campaigns([fl["dw"]] * 2, [fl["rr"]] * 2,
-                                    [fl["dw"], fl["radio"]]), 0.15)
-    s2 = _compute_scores(_campaigns([fl["dw"]] * 2, [fl["rr"]] * 2,
-                                    [fl["radio"], fl["dw"]]), 0.15)
-    assert list(s1["score_raw"]) == pytest.approx(list(s2["score_raw"])), (
-        "the CPR score moved with which title's FLOOR is higher")
-    assert s1.attrs["ml_in_score"] is False
-    # neutral = the score with ML factor 1.0
-    none = _compute_scores(_campaigns([None] * 2, [None] * 2, [None] * 2), 0.15)
-    assert list(s1["score_raw"]) == pytest.approx(list(none["score_raw"]))
-    # a MIXED set is neutral too: one real probability must not rank below neutrals
-    mixed = _compute_scores(_campaigns([OFF, fl["dw"]], [fl["rr"]] * 2,
-                                       [fl["radio"]] * 2), 0.15)
-    assert list(mixed["score_raw"]) == pytest.approx(list(none["score_raw"]))
-    # reciprocal: all off-floor ⇒ the ML factor DOES enter the score
-    real = _compute_scores(_campaigns([0.9, OFF], [fl["rr"]] * 2, [fl["radio"]] * 2), 0.15)
-    assert real.attrs["ml_in_score"] is True
-    assert real["score_raw"].iloc[0] == pytest.approx(none["score_raw"].iloc[0] * 0.9)
 
 
 # ── (c) the ratchet ──────────────────────────────────────────────────────────

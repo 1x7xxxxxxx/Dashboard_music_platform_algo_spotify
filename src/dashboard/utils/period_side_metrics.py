@@ -121,9 +121,9 @@ def period_side_metrics(db, artist_id, since=None, until=None) -> dict:
                 -- ── LA DERNIÈRE SORTIE = LE TITRE LE PLUS RÉCEMMENT ÉCOUTÉ POUR LA
                 --    PREMIÈRE FOIS (R372, 2026-10-05) ─────────────────────────────
                 --
-                -- Même définition que `algo_preview_data.budget_declenchement`, que
-                -- l'accueil appelle pour le budget : les portes, le Shazam de la
-                -- sortie et le budget nomment donc LE MÊME titre. Elle se lisait
+                -- Même définition que l'ancien `budget_declenchement` (retiré par
+                -- R570) : les portes et le Shazam de la sortie nomment donc LE MÊME
+                -- titre. Elle se lisait
                 -- avant dans la prédiction (plus petit `days_since_release`) : un
                 -- titre pas encore noté n'était jamais « la dernière sortie », et
                 -- l'accueil affichait la précédente sans le dire.

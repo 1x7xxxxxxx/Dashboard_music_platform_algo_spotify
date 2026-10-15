@@ -91,16 +91,6 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
     ("meta_x_spotify", "pitch.meta_x",
      "🔀 **Quel euro de pub a produit quelles écoutes** — Meta × Spotify × "
      "Hypeddit, et le coût d'une écoute pays par pays"),
-    # R146 — un argumentaire d'abonnement qui promet un « coût par résultat »
-    # promet plus que ce que la donnée porte. Le mot juste est le clic sortant :
-    # une promesse fausse dans une page de vente se paie en confiance, et ce dépôt
-    # a mesuré le 2026-09-22 ce que coûtent deux promesses non tenues.
-    ("meta_cpr_optimizer", "pitch.cpr",
-     "💶 **Combien remettre sur quelle campagne** — augmenter, tenir ou couper, "
-     "d'après le coût par clic sortant et l'âge de ton audience"),
-    ("meta_campaign_settings", "pitch.campaign_settings",
-     "⚙️ **Quel réglage de campagne a marché** — objectif, budget, audience, "
-     "emplacements et bouton, à côté du coût par clic sortant"),
     ("meta_creatives", "pitch.creatives",
      "🎨 **Quelle créative et quel hook coûtent le moins cher** par clic sortant"),
     ("meta_breakdowns", "pitch.breakdowns",

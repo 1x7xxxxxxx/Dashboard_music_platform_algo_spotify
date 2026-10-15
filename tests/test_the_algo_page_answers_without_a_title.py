@@ -1,4 +1,4 @@
-"""The algo page still shows its budget and money sections with no S4A title (R525).
+"""The algo page still answers with no scored title, and says a failed read (R525, R570).
 
 Type: Guard
 Uses: src.dashboard.views.trigger_algo.router (show), src.dashboard.utils.navigation
@@ -7,11 +7,12 @@ Depends on: live Postgres for the renders (skipped without)
 Persists in: nothing
 
 The defect (code-critic of R403/R405, 2026-10-12): `router.show()` returned right after
-« Aucune donnée de timeline » — so an artist with Meta spend and no S4A import, or anyone
-following an old `meta_cpr_optimizer` link, saw an empty page although the CPR cards and
-the money section need no title. A raising track read was silenced the same way
-(`except: tracks = []`). And `goto(alias)` dropped the alias: the in-app click landed on
-the top of the page, with no word of where the old page went.
+« Aucune donnée de timeline », so a tenant with no title saw an empty page. A raising
+read was silenced the same way (`except: tracks = []`). And `goto(alias)` dropped the
+alias: the in-app click landed on the top of the page, with no word of where the old
+page went. R570 (2026-10-15) removed the budget and money sections the first two tests
+used to look for: the page now reads `ml_song_predictions` for its picks, and the
+« Une fois déclenché » section must still render without them.
 """
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ import pandas as pd
 from src.database.postgres_handler import PostgresHandler
 _real = PostgresHandler.fetch_df
 def _fetch_df(self, query, *a, **k):
-    if "FROM s4a_song_timeline" in query and "GROUP BY song" in query:
+    if "FROM ml_song_predictions" in query and "features_json" in query:
         return pd.DataFrame({"song": []})
     return _real(self, query, *a, **k)
 PostgresHandler.fetch_df = _fetch_df
@@ -38,7 +39,7 @@ _RAISING_READ = """
 from src.database.postgres_handler import PostgresHandler
 _real = PostgresHandler.fetch_df
 def _fetch_df(self, query, *a, **k):
-    if "FROM s4a_song_timeline" in query and "GROUP BY song" in query:
+    if "FROM ml_song_predictions" in query and "features_json" in query:
         raise RuntimeError("relation unreadable")
     return _real(self, query, *a, **k)
 PostgresHandler.fetch_df = _fetch_df
@@ -66,20 +67,21 @@ def _render(extra: str, artist_id: int = 1):
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo page against the live DB")
-def test_an_artist_without_s4a_still_sees_the_budget_section() -> None:
-    at = _render(_NO_TITLE)        # a premium tenant whose title read comes back empty
+def test_an_artist_without_a_scored_title_still_sees_the_page() -> None:
+    at = _render(_NO_TITLE)        # a premium tenant whose catalogue read comes back empty
     headers = [h.value for h in at.header]
-    assert section_label("budget") in headers, f"no budget section without a title: {headers}"
+    assert section_label("declenche") in headers, f"the page stops without a title: {headers}"
+    assert any("pas encore été noté" in i.value for i in at.info), "the empty state is not said"
 
 
 @pytest.mark.skipif(not db_ready(), reason="renders the algo page against the live DB")
 def test_a_raising_track_read_is_said_not_shown_as_no_data() -> None:
     at = _render(_RAISING_READ)
     errors = [e.value for e in at.error]
-    assert any("Lecture de vos titres impossible" in e for e in errors), errors
-    assert not [w for w in at.warning if "Aucune donnée de timeline" in w.value], (
+    assert any("Catalogue illisible" in e for e in errors), errors
+    assert not [i for i in at.info if "pas encore été noté" in i.value], (
         "a failed read is still told as « no data »")
-    assert section_label("budget") in [h.value for h in at.header]
+    assert section_label("declenche") in [h.value for h in at.header]
 
 
 def test_goto_keeps_the_alias_for_one_run(monkeypatch) -> None:

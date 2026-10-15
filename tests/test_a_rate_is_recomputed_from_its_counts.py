@@ -2,7 +2,8 @@
 
 Type: Sub
 Uses: the live `spotify_etl` schema (v_meta_creative_daily, v_meta_campaign_daily),
-      src/dashboard/views/meta_creatives.py, trigger_algo/_common/_budget_roi.py
+      src/dashboard/views/meta_creatives.py (the algo page's Meta lever CTR left with
+      Budget & ROI, R570 — 2026-10-15)
 Depends on: tests/db_gate.py (the DB tests skip without a live Postgres)
 Persists in: nothing — the synthetic tenant and its rows are deleted on exit
 
@@ -33,9 +34,7 @@ from tests.db_gate import requires_live_db
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _EXPECTED = round(100 * 11 / 1001, 2)          # 1.10
-_EXPECTED_LINK = 100 * 11 / 2001               # three days, one of them zero-click
 _DAY = dt.date.today() - dt.timedelta(days=3)
-_TRACK = "rate-guard-track"
 
 
 # ── pure: the weekly resample derives CTR from the week's sums ─────────────────────
@@ -135,22 +134,6 @@ def _seed_creative(db, tenant: int, tag: str) -> None:
                          (tenant, ad_id, _DAY, imp, clk, imp, ctr))
 
 
-def _seed_campaign(db, tenant: int, tag: str) -> None:
-    name = f"Lever campaign {tag}"
-    # Day 3 has no click at all: `AVG(NULLIF(ctr, 0))` drops it, a ratio of sums does not.
-    for i, (imp, clk, ctr) in enumerate(((1, 1, 100.0), (1000, 10, 1.0), (1000, 0, 0.0))):
-        day = _DAY - dt.timedelta(days=i)
-        db.execute_query("INSERT INTO meta_insights_performance (artist_id, campaign_name, "
-                         "date_start, spend, impressions, reach, results, link_clicks, ctr) "
-                         "VALUES (%s, %s, %s, 5, %s, %s, %s, %s, %s)",
-                         (tenant, name, day, imp, imp, clk, clk, ctr))
-        db.execute_query("INSERT INTO meta_insights_performance_day (artist_id, "
-                         "campaign_name, day_date, spend, results, impressions, reach) "
-                         "VALUES (%s, %s, %s, 5, %s, %s, %s)", (tenant, name, day, clk, imp, imp))
-    db.execute_query("INSERT INTO campaign_track_mapping (campaign_name, track_name, artist_id) "
-                     "VALUES (%s, %s, %s)", (name, _TRACK, tenant))
-
-
 @pytest.fixture
 def tenant(db):
     tag = uuid.uuid4().hex[:10]
@@ -159,7 +142,6 @@ def tenant(db):
                          (f"rate-{tag}", f"rate-{tag}"))[0][0]
     try:
         _seed_creative(db, tid, tag)
-        _seed_campaign(db, tid, tag)
         yield tid
     finally:
         for table in ("meta_insights", "meta_ads", "meta_adsets", "meta_campaigns",
@@ -189,13 +171,6 @@ class TestLive:
         assert round(float(out["ctr"].iloc[0]), 2) == _EXPECTED, (
             f"timeline ctr {out['ctr'].iloc[0]!r} != {_EXPECTED}")
 
-    def test_the_lever_link_ctr_counts_the_zero_click_day(self, db, tenant) -> None:
-        from src.dashboard.views.trigger_algo._common._budget_roi import _META_LEVER_QUERY
-        df = db.fetch_df(_META_LEVER_QUERY, (tenant, tenant, tenant, _TRACK))
-        assert len(df) == 1
-        assert float(df["ctr"].iloc[0]) == pytest.approx(_EXPECTED_LINK), (
-            f"lever ctr {df['ctr'].iloc[0]!r} != 100*11/2001 "
-            "(50.5 = mean of non-zero daily rates)")
 
     def test_no_displayed_ctr_exceeds_100_on_the_real_base(self, db) -> None:
         from src.dashboard.views.meta_creatives import _QUERY_CREATIVES

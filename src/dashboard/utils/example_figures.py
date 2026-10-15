@@ -72,7 +72,7 @@ ILLUSTRATION_COUNTERPART: dict[str, dict] = {
     SHAP_OVERVIEW: {
         "cross_view": "absent",
         "counterparts": (
-            ("trigger_algo", "src/dashboard/views/trigger_algo/_playlist_detail.py", "_figure"),
+            ("trigger_algo", "src/dashboard/views/trigger_algo/_release_targets.py", "values_figure"),
         ),
         "gap": "le poids des critères par playlist vit dans Prédiction, sans le panneau "
                "« Ta track » ni le Meta € derrière",

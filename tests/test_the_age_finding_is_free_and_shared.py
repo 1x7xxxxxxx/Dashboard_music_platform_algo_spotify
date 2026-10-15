@@ -1,8 +1,7 @@
 """The age finding is on the free breakdowns, computed once with the Premium score (R409).
 
 Type: Guard
-Uses: src.dashboard.utils.age_brackets, src.dashboard.views.meta_breakdowns,
-  src.dashboard.views.meta_cpr_optimizer
+Uses: src.dashboard.utils.age_brackets, src.dashboard.views.meta_breakdowns
 Depends on: nothing (pure functions, source text of two views)
 Persists in: nothing
 
@@ -13,6 +12,9 @@ Owner, 2026-10-05: « la tranche d'âge va dans la vue croisée free, ce sont de
 déjà accessibles sur Meta Ads ». Two properties: the finding is drawn by the free
 section and no longer by the Premium page, and both read ONE bracket computation —
 two would let the free page call a bracket cheapest that the score does not reward.
+
+R570 (2026-10-15) deleted the Premium CPR page and its score: the free section is now
+the bracket computation's only reader, and the two-reader half of this guard left with it.
 """
 from __future__ import annotations
 
@@ -54,28 +56,8 @@ def _defined(module) -> set[str]:
             if isinstance(n, ast.FunctionDef)}
 
 
-def test_the_free_section_draws_it_and_the_premium_page_does_not() -> None:
-    from src.dashboard.views import meta_breakdowns, meta_cpr_optimizer
+def test_the_free_section_draws_it() -> None:
+    from src.dashboard.views import meta_breakdowns
 
     assert "_render_age_finding" in _called_names(meta_breakdowns)
     assert "finding" in _called_names(meta_breakdowns)
-    assert "finding" not in _called_names(meta_cpr_optimizer)
-    assert not {d for d in _defined(meta_cpr_optimizer) if "age_panel" in d}, (
-        "the age finding is still drawn behind the Premium gate")
-
-
-def test_the_score_reads_the_same_brackets(monkeypatch) -> None:
-    from src.dashboard.utils import age_brackets
-    from src.dashboard.views import meta_cpr_optimizer
-
-    calls = []
-    real = age_brackets.brackets
-    monkeypatch.setattr(age_brackets, "brackets", lambda rows: calls.append(1) or real(rows))
-
-    class _Db:
-        def fetch_df(self, _sql, _params):
-            return _ROWS.assign(campaign_name=["A", "A", "B", "B", "B"])
-
-    affinite, par = meta_cpr_optimizer._affinite_age(_Db(), 1, "", ())
-    assert calls, "the score computes its own brackets"
-    assert affinite["A"] > 1 > affinite["B"], affinite

@@ -321,7 +321,7 @@ def render_meta_advice(side: dict) -> None:
         return
 
     st.subheader(t("home.advice_header", "📱 Ce que ta publicité a appris"))
-    note_de_plan("meta_cpr_optimizer")
+    note_de_plan("meta_ads_overview")
 
     cpr = side.get("best_cpr")
     nom = side.get("best_cpr_name")
@@ -361,17 +361,19 @@ def render_meta_advice(side: dict) -> None:
 
     # Le renvoi vers ce que l'accueil ne peut PAS payer : la comparaison complète,
     # la tranche d'âge la moins chère, et les budgets à monter ou à baisser.
+    # R570 — the CPR cards left with the algo page's budget part; the Vue croisée
+    # compares the campaigns.
     if bouton_vers(
-        "meta_cpr_optimizer",
+        "meta_ads_overview",
         ouvert=t("home.advice_cta", "📊 Comparer toutes mes campagnes"),
         ferme=t("home.advice_cta_locked", "Comparer toutes mes campagnes"),
         aide_ouvert=t("home.advice_cta_help",
-                      "Le score par campagne, la tranche d'âge la moins chère, et "
-                      "les budgets à monter ou à baisser."),
+                      "La vue croisée : coût par clic sortant par campagne, créative "
+                      "et audience."),
         aide_ferme=t("home.advice_cta_locked_help",
                      "La comparaison détaillée de tes campagnes est comprise dans "
                      "l'abonnement."),
         key="home_to_cpr",
     ):
         from src.dashboard.utils.navigation import goto
-        goto("meta_cpr_optimizer")
+        goto("meta_ads_overview")

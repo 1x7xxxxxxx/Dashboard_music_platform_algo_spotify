@@ -112,7 +112,7 @@ graph LR
 | `dashboard/routes.py` | Core | rien — la table page → module (R261) ; lue par app.py, `tools/artist_first_look.py` et les gardes (`tests/nav_source.routed_pages`) |
 | `src/api/error_capture.py` | Utility | `error_registry.record_error`, `postgres_handler` — une exception non gérée de l'API devient un défaut de `app_error_log` (R265) |
 | `src/utils/dag_callbacks.py` | Utility | `email_alerts.dag_failure_callback`, `error_registry.record_error` — LE rappel d'échec des 13 DAG (R265) |
-| `dashboard/utils/ratios.py` | Utility | rien — CPC, CPM, CPR, CTR définis une fois (R258) ; `meta_ads_overview`, `meta_creatives`, `meta_cpr_optimizer`, `trigger_algo/_reglages` |
+| `dashboard/utils/ratios.py` | Utility | rien — CPC, CPM, CPR, CTR définis une fois (R258) ; `meta_ads_overview`, `meta_creatives` |
 | `dashboard/utils/onboarding_journey.py` | Utility | `saas_users`, `artist_credentials`, `etl_run_log` en une requête ; lu par `onboarding_health.py` (R270) |
 | `init_db.sql` | Core | Docker entrypoint (runs once) |
 | `auth.py` | Core | PostgresHandler, saas_artists table |
@@ -171,7 +171,7 @@ graph LR
 > title join across this boundary** must route the CSV/API side through `canonical_song_sql()` (or
 > normalise on write via `canonical_song()`) — both single-sourced in `src/utils/track_matching.py`
 > (preserve accents/remix, unlike `normalize_track_title()`). Applied: `parse_songs_global`
-> (write-side), `_tab_algos.py`, `meta_cpr_optimizer.py`, `router.py` (query-side); migration 043
+> (write-side), `_tab_algos.py`, `router.py` (query-side); migration 043
 > backfilled existing `?`-titled rows. `track_release_reference` was already immune.
 
 > **Meta Ads — SINGLE ingestion path (since 2026-05-29 — legacy CSV stack archived):**
@@ -325,7 +325,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `imusician.py` | Distributeur iMusician DistroKid + SACEM (section SACEM depuis R461) | imusician_monthly_revenue (derived from imusician_sales_detail) | all |
 | `revenue_forecast.py` | 📈 Prévisions revenus | imusician_monthly_revenue (derived), ml_song_predictions | premium |
 | `algo_preview.py` | Aperçu : déclencher les algos — FREE preview of Road to Algo for the latest scored release (R193, ADR-029): nearest gate + action per algorithm (`algo_knowledge.split_coach_actions`), no percentage while on the calibration floor, one order-of-magnitude budget (`algo_preview_data.budget_pour_streams`), CTA to Premium | ml_song_predictions, v_meta_daily, v_s4a_song_daily | all |
-| `trigger_algo/` (package) | Trigger Algo — **4 tabs since the 2026-09 rework** (`router.py:190` : Où en sont mes titres / Ce titre : ce qu'il reste à faire / Ce qui s'est vraiment passé / Budget & ROI ; Modèle and Explainabilité moved to `ml_performance`). ⚠️ The description below is the PREVIOUS 7-tab layout, kept for history — (Global/Suivi Algos/Budget/Explainabilité/Modèle/Cycle de vie & Benchmark/**Streams algos générés** — last one NEW 2026-06-12: stacked bar of realized DW/RR/Radio streams, cumulative total + per-playlist, 7d/28d/custom, from `s4a_song_algo_outcomes`); Modèle + Explainabilité tabs stack ALL populated algos (DW + Radio + RR — all 3 populated as of 2026-05-30) via `ml_widgets` scorecard / feature gauges + `algo_knowledge` zones; volume layer (2026-05-30): floor wording in `_display_prob_bar`, `render_volume_gauges` in the coach loop, regressor SHAP autopsy (`render_shap_narrative`/`render_regressor_badge`) in Explainabilité, organic budget-scaling section in Budget; Budget tab `_show_velocity_budget_advice` cross-link routes through `algo_knowledge.velocity_penalty_threshold` | ml_song_predictions, algo_lifecycle_benchmark (lifecycle tab, GLOBAL read-only) | all |
+| `trigger_algo/` (package) | 🚀 Prédiction déclenchement algos Spotify — **R570 (2026-10-15)** : one filter (`release_picker`, the 2 latest releases) and two sections, « Où en sont mes titres » (gauges, SHAP bars, estimates, `_forecast.py` cumulative streams + revenue on a log age axis) and « Une fois déclenché » (realised algo streams, J+1… grid). Pareto, Budget & ROI, playlist detail, settings and « Autre fenêtre » were deleted; the old CPR-optimizer and campaign-settings links are aliases landing on the page | ml_song_predictions, v_s4a_song_daily, s4a_song_algo_outcomes | all |
 | `ml_performance.py` | ML Performance — + "Scorecard classification" tab (shared `ml_widgets`) since 2026-05-29; scorecard grid loops `ak.populated_algos()` (no hardcoded algo tuple) since 2026-05-30 | ml_song_predictions, mlruns | admin |
 | `airflow_kpi.py` | Airflow KPI | Airflow REST API | admin |
 | `admin.py` | Admin | saas_artists, artist_credentials | admin |
@@ -336,7 +336,6 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `onboarding.py` | 🚀 Mise en route (assistant) — 3 étapes post-inscription. Verrouillé par aucun plan depuis le 2026-08-23 : faire payer le droit de brancher ses propres comptes n'aurait pas de sens | saas_artists, artist_credentials | all |
 | `onboarding_health.py` | 🚦 Santé onboarding — matrice de préparation par artiste | `src.utils.artist_readiness` | all |
 | `db_health.py` | 🗄️ Santé des données — imports et fraîcheur | pg_stat_user_tables, colonnes `collected_at` | admin (`_ADMIN_ONLY`, `app.py:94-96`) |
-| `meta_cpr_optimizer.py` | 📊 CPR Optimizer — **hors du menu depuis R477** : ses cartes par campagne sont rendues sous la section budget de `trigger_algo` (`render`), la clé reste un alias | meta_insights_*, ml_song_predictions | premium |
 | `sacem.py` | 🎼 SACEM — SECTION de `imusician` depuis R461 (`?page=sacem` est un alias) : brut → retenues → net, virements, relevé | sacem_statement | all |
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution — **hors navigation** : absente de `NAV_SECTIONS`, atteinte par sa seule route (`app.py:590`) | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
@@ -452,8 +451,8 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 > `revenue_forecast` ML table ("(plancher ≥)" columns). `ALGO_VOLUME_ZONES` (DW only) holds
 > the regressor-SHAP zones where raw fuel (StreamsLast7Days, NonAlgoStreams28Days) drives
 > volume while saves/playlist-adds are `volume_flat` ("quality buys the ticket, volume
-> writes the cheque"), rendered by `render_volume_gauges`. The Budget & ROI tab adds a
-> static organic-budget-scaling section (≥6000 organic/28j via `volume_scaling_threshold`),
+> writes the cheque"), rendered by `render_volume_gauges`. The Budget & ROI tab (deleted by
+> R570, 2026-10-15) added a static organic-budget-scaling section (≥6000 organic/28j via `volume_scaling_threshold`),
 > labelled "cible, pas écart live". Tier B (zones + scaling target) runs in
 > rule+static-target mode and auto-upgrades at Phase 2: the regressor's #1 SHAP driver
 > `NonAlgoStreams28Days_log`, plus `DiscoveryMode`/`RadioCount`, are imputed to 0.0 until

@@ -59,8 +59,8 @@ def test_the_three_old_answers_are_gone_and_the_tool_is_wired():
     cr = _defs("src/dashboard/views/meta_creatives.py")
     assert {"_render_best_settings", "_render_spend_pareto", "_Q_AXE"} <= cr
     assert not {"_render_scatter", "_render_activity", "_render_funnel"} & cr
-    assert not {"_Q_AXE", "_rendre_axe", "_figure_axe"} & _defs(
-        "src/dashboard/views/trigger_algo/_tab_reglages.py")
+    # R570 (2026-10-15) deleted `trigger_algo/_tab_reglages.py`, the third old answer.
+    assert not (ROOT / "src/dashboard/views/trigger_algo/_tab_reglages.py").exists()
 
 
 def test_the_body_calls_the_tool():
