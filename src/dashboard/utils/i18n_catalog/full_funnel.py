@@ -15,7 +15,4 @@ EN = {
     "full_funnel.unit": "{c} € each",
     "full_funnel.per_click": "{r} streams per smart-link click",
     "full_funnel.recovered": "{p} % of the budget recovered",
-    "full_funnel.i_spend": "Spend",
-    "full_funnel.i_imp": "Impressions",
-    "full_funnel.i_clicks": "Clicks",
 }

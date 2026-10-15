@@ -343,7 +343,9 @@ _FLOOR: dict[str, int] = {
     # meta_creatives et ses trois `metric` sont retirés — la vue croisée ne porte plus de prose.
     # 115 → 95 le 2026-10-15 (R570) : la moitié argent de la page algos est retirée
     # (pareto, Budget & ROI, optimiseur CPR — la Trésorerie porte le budget).
-    "tiles.total": 95,
+    # 95 → 91 le 2026-10-15 (R591, demandé par le propriétaire) : les quatre tuiles de
+    # l'entonnoir (dépense, écoutes sur N jours, coût par écoute, CPR moyen) sont retirées.
+    "tiles.total": 91,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,
