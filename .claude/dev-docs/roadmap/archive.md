@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R623 — `permissions:` de `security-nightly.yml` — séparé de R607 par code-critic : seul `publi… (livrée 2026-10-15)
+
+- [x] **R623 — `permissions:` de `security-nightly.yml` — séparé de R607 par code-critic : seul `public-surface-sweep` déclare ses permissions, les autres jobs reçoivent le jeton par défaut. MESURER sur un vrai run de nuit ce que gitleaks-action écrit (commentaire, SARIF) → décider `contents: read` au niveau du fichier + exceptions par job → design revu par code-critic. **DÉCIDÉ OUI 2026-10-15** : jeton par défaut du dépôt = `read`, 3 dernières nuits vertes ; gitleaks n'écrit rien sur `schedule`. Critic BUILD-MODIFIED : `contents: read` en tête de ci.yml, prod-health.yml, security-nightly.yml ; `actions: read` par job là où la suite lit les runs ; garde yaml (formes scalaires, liste d'écriture par (fichier, scope), entrée périmée rouge)** (P2) ✅ (2026-10-15, 82da045a)
+  Mesuré par : oui si un job n'a besoin que de lire ; garde : tout workflow déclare `permissions:`
+  Livré 82da045a : contents: read en tête de ci.yml, prod-health.yml, security-nightly.yml ; actions: read sur suite et full-suite-random-order ; garde yaml muté rouge 3 fois. CI 38792616208 verte, nuit dispatchée 38792620608 13/13 jobs verts (étapes comprises), prod-health 38792626594 verte.
+  Commits : 82da045a R623 : chaque workflow porte sa borne de jeton — contents: read en têt
+
 ## 🚫 R612 — CI planifiée par le diff : décidée NON (close 2026-10-15)
 
 - [x] **R612 — REA·6 — CI planifiée par le diff.** (P4) ✅ (2026-10-15, décidée NON — p50 3,7 min contre un seuil de 15)
