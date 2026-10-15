@@ -30,6 +30,7 @@ if _root not in sys.path:
 from fastapi import FastAPI, Response  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
+from src.api import __version__  # noqa: E402
 from src.api.routers import auth, artists, streams, youtube, ml, kpis, stripe_webhook  # noqa: E402
 from src.api.security import install as install_security  # noqa: E402
 
@@ -72,7 +73,7 @@ app = FastAPI(
         "REST API for the music analytics SaaS platform.\n\n"
         "All endpoints (except `/auth/token` and `/health`) require a Bearer JWT obtained via `POST /auth/token`."
     ),
-    version="1.0.0",
+    version=__version__,  # R621 — single source: src/api/__init__.py
     docs_url="/docs" if _docs_enabled else None,
     redoc_url="/redoc" if _docs_enabled else None,
     # Gate the raw schema too: with docs/redoc off but openapi_url at its default,
