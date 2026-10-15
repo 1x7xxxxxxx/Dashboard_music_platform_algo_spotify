@@ -548,6 +548,15 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
                   "Pas assez d'étapes mesurées pour dessiner un parcours."))
         return
     charts.plotly_chart(fig, width="stretch")
+    _estimate_caption(fig)
+
+
+def _estimate_caption(fig) -> None:
+    """R614 — say what « ≈ » means under a funnel that draws an estimated step."""
+    from src.dashboard.utils.full_funnel import estimate_note
+    note = estimate_note(fig)
+    if note:
+        st.caption(note)
 
 
 def campaign_badge(campaign: str, i: int) -> str:
@@ -582,6 +591,7 @@ def _render_pair(db, artist_id, bar) -> None:
             fig, _ = _funnel_figure(db, artist_id, m, d0, d1, height=400)
             if fig is not None:
                 charts.plotly_chart(fig, width="stretch", key=f"pair_funnel_{i}")
+                _estimate_caption(fig)
 
 
 # ── Le croisement PAYS — où l'euro rapporte le plus d'écoutes ──────────────────

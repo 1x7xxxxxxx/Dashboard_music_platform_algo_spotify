@@ -43,6 +43,11 @@ STEPS = (
     ("revenue", "eur", False),
 )
 _META_STEPS = ("impressions", "link_clicks")   # the steps Meta's breakdowns describe
+# R614: streams gained are a counterfactual (campaign streams minus the pre-campaign daily
+# mean) and revenue is that × €/stream — ESTIMATED, drawn beside measured steps. Their
+# label and every figure on them, derived ones included, carry the mark.
+ESTIMATED = frozenset({"streams", "revenue"})
+ESTIMATE_MARK = "≈ "
 _INK = {"budget": "#FF6D00", "impressions": platform_color("meta"),
         "reach": platform_color("meta"),
         "link_clicks": platform_color("meta"), "arrivals": "#7C4DFF",
@@ -50,7 +55,7 @@ _INK = {"budget": "#FF6D00", "impressions": platform_color("meta"),
 
 
 def _label(key: str) -> str:
-    return {
+    return (ESTIMATE_MARK if key in ESTIMATED else "") + {
         "budget": t("full_funnel.budget", "Budget dépensé"),
         "impressions": t("full_funnel.impressions", "Impressions"),
         "reach": t("full_funnel.reach", "Couverture (personnes touchées)"),
@@ -102,6 +107,8 @@ def steps(m: dict, eur_per_stream: float | None, best: dict | None = None) -> li
                 p=_n(100 * v / spend, 1)))
         if key == "reach":
             parts.append(t("full_funnel.reach_days", "somme des jours"))
+        if key in ESTIMATED:
+            parts = [ESTIMATE_MARK + p for p in parts]
         if key in _META_STEPS and (best or {}).get(key):
             parts.append(best[key])
         out.append({"key": key, "label": _label(key), "value": float(v),
@@ -119,6 +126,16 @@ def widths(values: list[float]) -> list[float]:
         w = max(8.0, 100 * math.log10(v + 1) / top)
         out.append(min(w, out[-1]) if out else w)
     return out
+
+
+def estimate_note(fig: go.Figure | None) -> str | None:
+    """The line under a funnel that says what « ≈ » means — None when no DRAWN step is
+    estimated (read on the figure, so it cannot disagree with what is on screen)."""
+    if fig is None or not any(str(y).startswith(ESTIMATE_MARK) for y in fig.data[0].y):
+        return None
+    return t("full_funnel.estimate_note",
+             "≈ = estimé : les écoutes au-delà de la moyenne quotidienne d'avant la campagne, "
+             "et leurs revenus à ton €/écoute mesuré.")
 
 
 def figure(drawn: list[dict], height: int = 460) -> go.Figure | None:

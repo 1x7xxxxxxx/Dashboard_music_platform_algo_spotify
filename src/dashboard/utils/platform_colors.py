@@ -187,6 +187,7 @@ TYPE_COLOURS: dict[str, str] = {
     "release.2": DISTINCT[2],
     **{f"playlist.{a}": c for a, c in ALGO_COLORS.items()},
     "projection.long_term": "#8e5bd0",
+    "projection.key": "#9e9e9e",    # R614 — the dotted « estimated » legend glyph, no title's
     **{f"platform.{p}": c for p, c in PALETTE_LIGHT.items()},
 }
 

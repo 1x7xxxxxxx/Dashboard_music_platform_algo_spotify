@@ -412,6 +412,12 @@ def platform_evolution(series, cumulative, since=None, until=None) -> str | None
               ncol=len(order) + (1 if _gaps else 0))
     ax.margins(x=0)
     fig.autofmt_xdate(rotation=30)
+    # R614 — the screen's caption, as a footnote: a counter's plateau is CARRIED.
+    from src.dashboard.utils.platform_chart_notes import carried_level_note
+    note = carried_level_note([k for k in served if k in order],
+                                 {k: _ascii_label(v) for k, v in pc.PLATFORM_LABELS.items()})
+    if note:
+        fig.text(0.01, -0.02, note, fontsize=7, color=_GREY, ha="left", va="top", wrap=True)
     return _fig_to_uri(fig)
 
 

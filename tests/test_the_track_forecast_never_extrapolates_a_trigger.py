@@ -83,7 +83,8 @@ def test_both_titles_share_one_figure_and_the_long_term_has_its_colour() -> None
     each, and the 5- and 10-year points in a colour of their own."""
     fig = fc.forecast_figure([_series("Ref", _hist(60), colour=fc.TITLE_COLORS[0]),
                               _series("Cmp", _hist(200), colour=fc.TITLE_COLORS[1])])
-    lines = [tr for tr in fig.data if tr.mode and "lines" in tr.mode]
+    lines = [tr for tr in fig.data if tr.mode and "lines" in tr.mode
+             and list(tr.x) != [None]]   # legend-only keys (R614) draw nothing
     assert {tr.name for tr in lines} == {"Ref", "Cmp"}
     assert {tr.line.color for tr in lines} == set(fc.TITLE_COLORS)
     for tr in lines:

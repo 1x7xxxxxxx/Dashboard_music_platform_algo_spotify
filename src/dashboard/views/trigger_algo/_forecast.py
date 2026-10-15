@@ -146,7 +146,16 @@ def algo_overlays(est: dict, path: list[dict], last_age: int, order: tuple) -> l
 def _point_text(p: dict, rate: float | None) -> str:
     from src.dashboard.utils.formats import eur, num
     txt = num(p["value"], 0)
-    return txt + (f"<br>{eur(p['value'] * rate, 0)}" if rate else "")
+    # R614: revenue is streams × an ASSUMED rate, on measured points too — always « ≈ ».
+    return txt + (f"<br>≈ {eur(p['value'] * rate, 0)}" if rate else "")
+
+
+def _rate_hover(rate: float | None) -> str:
+    """The hover's last words: the rate the « ≈ » revenue is priced at. Pure."""
+    if not rate:
+        return ""
+    return " · " + t("trigger_algo.fc.at_rate", "revenu au taux de {r} €/écoute").format(
+        r=f"{rate:.4f}".replace(".", ","))
 
 
 #: R584 — one colour per title (the reference first), and the 5- and 10-year points in a
@@ -191,7 +200,8 @@ def _base_traces(fig, s: dict, below: set = frozenset(), under: set = frozenset(
             textposition=["bottom right" if p["age"] in below else
                           "bottom center" if p["age"] in under else "top center" for p in part],
             cliponaxis=False, customdata=[p["label"] for p in part],
-            hovertext=[_point_text(p, rate).replace("<br>", " · ") for p in part],
+            hovertext=[_point_text(p, rate).replace("<br>", " · ") + _rate_hover(rate)
+                       for p in part],
             hovertemplate=name + " · %{customdata} : %{hovertext}<extra></extra>"))
 
 
@@ -226,6 +236,15 @@ def _long_term_key(fig) -> None:
         name=t("trigger_algo.fc.long_term", "Prévision long terme (5 et 10 ans)")))
 
 
+def _projection_key(fig) -> None:
+    """R614 — ONE legend entry naming the dotted line: each title's projected part has no
+    entry of its own (its name is on the solid part), so the dotting alone said nothing."""
+    import plotly.graph_objects as go
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode="lines", line=dict(color=TYPE_COLOURS["projection.key"], dash="dot", width=2),
+        name=t("trigger_algo.fc.projected", "Prévision (estimée)")))
+
+
 def _lower_ages(s: dict, series: list[dict]) -> set:
     """The ages where `s` lies under another title — its label goes below. Pure."""
     others = [{p["age"]: p["value"] for p in o["path"]} for o in series if o is not s]
@@ -243,6 +262,8 @@ def forecast_figure(series: list[dict]):
     for i, s in enumerate(series):
         _base_traces(fig, s, {o["age"] for o in s["overlays"]}, _lower_ages(s, series))
         _overlay_traces(fig, s, shift=1.0 + 0.06 * i)
+    if any(not p["measured"] and p["value"] > 0 for s in series for p in s["path"]):
+        _projection_key(fig)
     if any(p["key"] in LONG_TERM for s in series for p in s["path"]):
         _long_term_key(fig)
     ys = [v for s in series for p in s["path"] for v in (p["lo"], p["hi"], p["value"]) if v > 0]

@@ -132,6 +132,9 @@ EN = {
         "{names} — **{counts}** plays precede our first measurement. These platforms "
         "only return a **lifetime counter**: we know how many, never on which day. No "
         "API and no export gives that detail back, so the curve cannot start earlier."),
+    "platform_chart.carried_level": (
+        "{names}: between two readings, the curve keeps the last reading's level carried "
+        "forward — a plateau is not that day's measurement."),
     "platform_chart.week_of": "the week of {d}",
     "platform_chart.day_of": "{d}",
     "home.trend_discarded": (

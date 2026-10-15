@@ -15,4 +15,6 @@ EN = {
     "full_funnel.unit": "{c} € each",
     "full_funnel.per_click": "{r} streams per smart-link click",
     "full_funnel.recovered": "{p} % of the budget recovered",
+    "full_funnel.estimate_note": ("≈ = estimated: the streams above the pre-campaign daily "
+                                  "average, and their revenue at your measured €/stream."),
 }

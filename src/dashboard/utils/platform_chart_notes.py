@@ -365,6 +365,23 @@ def render_counter_history_note(levels: dict, labels: dict) -> None:
         counts=" et ".join(f"{n:,}".replace(",", "\u202f") for _l, n in prior)))
 
 
+def carried_level_note(served: list, labels: dict) -> str | None:
+    """R614 — the one line that says a counter's flat run is CARRIED, not measured. Pure.
+
+    Between two readings, a lifetime counter keeps its last level (`_carry_forward`): 61 %
+    of YouTube days are carried. No per-point marker (it would cover the line); one
+    caption naming the platforms whose series is read that way. None when none is."""
+    from src.dashboard.utils.i18n import t
+
+    names = [labels.get(k, k) for k in served]
+    if not names:
+        return None
+    return t("platform_chart.carried_level",
+             "{names} : entre deux relevés, la courbe garde le niveau du dernier relevé "
+             "reporté — un palier n'est pas une mesure du jour.").format(
+                 names=" · ".join(names))
+
+
 # `MISSING_HISTORY` ET `render_missing_history_note` ONT ÉTÉ RETIRÉS LE 2026-09-13.
 #
 # La fonction bouclait sur un dict VIDE depuis qu'il avait été vidé : elle était

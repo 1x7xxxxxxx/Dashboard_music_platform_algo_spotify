@@ -591,6 +591,8 @@ EN = {
     "trigger_algo.fc.head_all": "**🔮 Forecast — cumulative streams and revenue**",
     "trigger_algo.fc.empty_one": "{song}: no stream imported, no forecast.",
     "trigger_algo.fc.long_term": "Long-term forecast (5 and 10 years)",
+    "trigger_algo.fc.projected": "Forecast (estimated)",
+    "trigger_algo.fc.at_rate": "revenue at {r} €/stream",
     "trigger_algo.rel.gap": "{n} streams (7 d) missing",
     "trigger_algo.rel.gap_met": "streams (7 d): reached",
     "trigger_algo.rel.budget": "≈ {b} of ads",
