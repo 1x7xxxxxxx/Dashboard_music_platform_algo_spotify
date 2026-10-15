@@ -2202,3 +2202,20 @@ tâche `collect_youtube_analytics` saute l'artiste (`skipped`, jamais `failed`).
 
 **Vérification** : le lendemain (ou après un déclenchement du DAG `youtube_daily`),
 `make prod-psql Q="SELECT count(*) FROM youtube_analytics_channel_daily WHERE artist_id = N"` > 0.
+
+## 42. R608 — Activer le signalement privé de vulnérabilités (GitHub)
+
+Le dépôt est public et n'offre aucune voie privée pour signaler une faille : un
+chercheur n'a que l'issue publique. `SECURITY.md` est prêt mais ne part pas avant
+le canal qu'il nomme — sinon il renvoie vers un bouton qui n'existe pas.
+
+### Étapes
+
+1. `gh api -X PUT repos/1x7xxxxxxx/Dashboard_music_platform_algo_spotify/private-vulnerability-reporting`
+   (ou : Settings → Code security → Private vulnerability reporting → **Enable**).
+2. Le dire dans la séance : `SECURITY.md` est alors commité, et R608 close.
+
+### Vérification
+
+`gh api repos/1x7xxxxxxx/Dashboard_music_platform_algo_spotify/private-vulnerability-reporting`
+rend `{"enabled":true}`, et l'onglet Security du dépôt montre « Report a vulnerability ».
