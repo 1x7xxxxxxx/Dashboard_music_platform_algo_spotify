@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R567 — Vue croisée 1/3 — Chronologie + Entonnoir : 2 campagnes par défaut (dernière / avant-de… (livrée 2026-10-15)
+
+- [x] **R567 — Vue croisée 1/3 — Chronologie + Entonnoir : 2 campagnes par défaut (dernière / avant-dernière sortie) en 2 colonnes ; streams 7 j désactivé ; CPR en légende ; cohorte en temps log ; « streams par résultat » → CPR moyen ; tableaux engagement/récap supprimés ; vrai entonnoir vertical Impressions→clics créa→clics smartlink→écoutes→revenus avec « meilleur » placement/âge/plateforme ; Performance globale en camemberts + cumuls fusionnés ; tableaux `campaign_compare` → Pareto ; vue or `v_meta_engagement_daily` retirée (mig. 151, plus aucun lecteur)** (P3) ✅ (2026-10-15, 5cbefec2)
+  Mesuré par : 0 `st.dataframe`/tableau markdown dans ces deux sections ; rendu smoke vert
+  Livré 5cbefec2, CI verte (run 38685439312), déployé dashboard + migration 151 en prod
+  Commits : 5cbefec2 R567 : vue croisée — chronologie + entonnoir : CPR en tuile, meilleur 
+
 ## ✅ R571 — Défaut : un titre affiche des ajouts en playlist mais 0 écoute sur 7 j — `ml_inference`… (livrée 2026-10-15)
 
 - [x] **R571 — Défaut : un titre affiche des ajouts en playlist mais 0 écoute sur 7 j — `ml_inference` compte 7 j relatifs à AUJOURD'HUI alors que l'import S4A s'arrête plus tôt ; ancrer sur le dernier jour importé et l'écrire sur la jauge** (P2) ✅ (2026-10-15, faeae041)

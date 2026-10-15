@@ -858,3 +858,4 @@
 {"at": "2026-10-13T19:35:53+00:00", "head": "8e97670f", "kind": "start", "task": "R561", "what": "trésorerie : dégradés, cercle, point mort fusionné"}
 {"at": "2026-10-13T20:06:05+00:00", "kind": "done", "task": "R561", "what": "fermée par roadmap-close — Livré 5a1eb4a1, CI verte (run 38459570822) : trésorerie en dégradé vert/rouge + cercle 100 % ; point mort et régression ROI = 1 figure (plan dépensé × rentré, diagonale, tendance, étoile DW) ; graphique « Et si un titre déclenchait » retiré, ses chiffres dits en mots"}
 {"at": "2026-10-15T04:23:26+00:00", "head": "807fbaf3", "kind": "start", "task": "R567", "what": "vue croisée chronologie + entonnoir"}
+{"at": "2026-10-15T05:17:40+00:00", "kind": "done", "task": "R567", "what": "fermée par roadmap-close — Livré 5cbefec2, CI verte (run 38685439312), déployé dashboard + migration 151 en prod"}
