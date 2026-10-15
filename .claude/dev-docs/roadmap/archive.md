@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R570 — Prédiction déclenchement algos : titre renommé ; un seul filtre (2 dernières sorties) ;… (livrée 2026-10-15)
+
+- [x] **R570 — Prédiction déclenchement algos : titre renommé ; un seul filtre (2 dernières sorties) ; 2 sections séparées par des traits — « Où en sont mes titres » (jauges agrandies, pastilles playlist + 3 paramètres, SHAP décroissant atteint vs déclenchement DW→Radio→RR, pointillés expliqués, prévision écoutes cumulées + revenus J+7…10 ans en temps log) et « Une fois déclenché » (grilles réalisé + J+1…) ; supprimer pareto, valeur si ça s'ouvre, gain probable, playlist par playlist, fourchette CPR, « ce qui s'est vraiment passé », Budget & ROI, « autre fenêtre »** (P3) ✅ (2026-10-15, ed0fe5ea)
+  Mesuré par : 2 sections ; rendu smoke vert ; alias meta_cpr_optimizer résout
+  Livré ed0fe5ea, CI verte (run 38690808186), déployé dashboard (santé 200). Prédiction déclenchement algos : un seul filtre, deux sections, prévision cumulée écoutes + revenus en log, moitié argent retirée (tuiles or 115 → 95).
+  Commits : ed0fe5ea R570 : prédiction déclenchement algos — titre renommé, un seul filtre 
+
 ## ✅ R568 — Vue croisée 2/3 — Créas, Audiences, Instagram : prose retirée ; best_settings trié Pare… (livrée 2026-10-15)
 
 - [x] **R568 — Vue croisée 2/3 — Créas, Audiences, Instagram : prose retirée ; best_settings trié Pareto ; Pareto des créatives coloré par campagne (créa · adset · campagne) ; « audience saturée » et `_render_goal_pareto` supprimés ; évolution d'une créative annotée campagne + objectif ; Audiences en CPR, sans doublon de best_settings ; « où l'euro rapporte » en Pareto ; « Publications récentes » en graphique** (P3) ✅ (2026-10-15, 2cfadddd)
