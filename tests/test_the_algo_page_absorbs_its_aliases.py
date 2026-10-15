@@ -56,13 +56,15 @@ def test_the_premium_menu_no_longer_lists_the_absorbed_pages() -> None:
     assert not keys & set(ALIAS_SECTION), f"absorbed pages still in the menu: {keys & set(ALIAS_SECTION)}"
 
 
-def test_the_outcomes_live_on_the_algo_page_only() -> None:
-    """R481 (W4, 2026-10-09) reverses R405's second site : ONE place, the algo page."""
+def test_the_outcomes_live_on_the_entry_page_only() -> None:
+    """R481 (W4) : ONE place. R587 (2026-10-15) : that place is « 🎯 Saisie streams
+    algorithmiques », no longer the algo page."""
     def calls(path: str) -> list:
         tree = ast.parse(Path(path).read_text(encoding="utf-8"))
         return [c for c in ast.walk(tree) if isinstance(c, ast.Call)
                 and getattr(c.func, "id", getattr(c.func, "attr", "")) == "render_outcomes"]
     assert not calls("src/dashboard/views/saisie_s4a.py"), (
         "the S4A entry page draws the outcomes again — W4 moved them to the algo page")
-    assert calls("src/dashboard/views/trigger_algo/router.py"), (
-        "the algo page no longer draws the outcome entry")
+    assert not calls("src/dashboard/views/trigger_algo/router.py"), (
+        "the algo page draws the outcome entry again — R587 moved it to its own page")
+    assert calls("src/dashboard/views/saisie_algo.py"), "the entry page lost the outcome grid"

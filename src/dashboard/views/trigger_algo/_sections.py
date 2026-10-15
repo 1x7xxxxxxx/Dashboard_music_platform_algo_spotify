@@ -20,9 +20,7 @@ PAGE_SECTIONS = (
      "trigger_algo.guide_section_catalogue",
      "tes deux dernières sorties : leur avancement vers chaque playlist, ce qui la déclenche, "
      "ce qu'un déclenchement rapporte et la prévision de leurs écoutes."),
-    ("declenche", "trigger_algo.tab_declenche", "🎯 Une fois déclenché",
-     "trigger_algo.guide_section_declenche",
-     "tes saisies des streams algorithmiques réalisés et des ajouts en playlist depuis la sortie."),
+    # R587 — « Une fois déclenché » left for « 🎯 Saisie streams algorithmiques ».
 )
 
 # R553 (ADR-033) : `revenue_forecast` is no longer one — it is an alias of the Trésorerie.

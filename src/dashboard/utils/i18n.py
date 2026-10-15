@@ -74,6 +74,7 @@ _TR: dict[str, dict[str, str]] = {
         "nav.item.instagram": "📸 Instagram",
         "nav.item.hypeddit": "📱 Hypeddit",
         "nav.item.saisie_tresorerie": "💰 Treasury entry",  # R585
+        "nav.item.saisie_algo": "🎯 Algorithmic streams entry",  # R587
         "nav.item.saisie_s4a": "📝 S4A entry (playlist & Discovery)",
         "nav.item.trigger_algo": "🚀 Discover Weekly prediction",
         "nav.item.meta_ads_overview": "🔀 Cross view — Meta × Hypeddit × Spotify × Insta × Shazam × Revenue",

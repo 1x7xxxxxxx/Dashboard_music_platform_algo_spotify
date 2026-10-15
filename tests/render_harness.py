@@ -60,7 +60,7 @@ VIEWS = [
     "meta_breakdowns", "meta_creatives", "meta_mapping",
     "meta_x_spotify", "ml_performance",
     "promo_admin", "referral", "referral_admin",
-    "saisie_s4a", "saisie_tresorerie", "soundcloud",
+    "saisie_s4a", "saisie_tresorerie", "saisie_algo", "soundcloud",
     "spotify_s4a_combined", "trigger_algo", "upgrade", "usage_analytics",
     "useful_links", "youtube",
     "onboarding", "onboarding_health", "register",

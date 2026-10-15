@@ -51,4 +51,13 @@ EN = {
     # Shared
     "saisie_s4a.error": "Error: {exc}",
     # Les trois onglets (2026-09-22) — la page empilait quatre grilles.
+    # R587 — the « 🎯 Saisie streams algorithmiques » page
+    "saisie_algo.title": "🎯 Algorithmic streams entry",
+    "saisie_algo.cost_header": "💳 A release's distribution cost",
+    "saisie_algo.cost_track": "Track",
+    "saisie_algo.cost_amount": "Amount (€)",
+    "saisie_algo.cost_month": "Month",
+    "saisie_algo.cost_save": "💾 Save",
+    "saisie_algo.cost_zero": "Pick a track and an amount above zero.",
+    "saisie_algo.cost_saved": "✅ {m:.2f} € of distribution saved for « {s} ».",
 }

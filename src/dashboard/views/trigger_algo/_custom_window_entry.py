@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, s4a_entry_insight, ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« 🎯 Une fois déclenché », R570), after the outcomes
+Triggers: views/saisie_algo.py (R587), after the outcomes
 Persists in: s4a_song_playlist_adds (time_window = 'custom')
 
 R481 (W4, owner 2026-10-09) : « le tableau autre fenêtre / streams → Prédiction

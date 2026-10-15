@@ -76,6 +76,8 @@ _FREE_FEATURES = {
     'saisie_s4a',
     # R585 — the manual money entry left the Trésorerie page, which is free: so is it.
     'saisie_tresorerie',
+    # R587 — the realised algo streams feed the model: never behind the paywall (R405).
+    'saisie_algo',
     # ── TES DONNÉES SONT GRATUITES, LES PRÉDICTIONS SONT PAYANTES — 2026-09-26 (ADR-029) ──
     #
     # Décision du propriétaire, adossée au corpus (*Monetizing Innovation* : faire payer à

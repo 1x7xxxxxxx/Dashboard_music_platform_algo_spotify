@@ -2,8 +2,7 @@
 
 Type: Sub
 Uses: streamlit, pandas, src.dashboard.utils.entry_period, src.dashboard.utils.ui.flash, i18n
-Triggers: views/trigger_algo/router.py (« 🎯 Une fois déclenché », R570) — the only
-          caller since R481 (W4) ; R405 had drawn it on views/saisie_s4a.py too
+Triggers: views/saisie_algo.py (R587) — the only caller; R570 had it on the algo page
 Persists in: s4a_song_algo_outcomes
 
 R376 (2026-10-05, owner's screen review): the S4A entry page carried three tabs —

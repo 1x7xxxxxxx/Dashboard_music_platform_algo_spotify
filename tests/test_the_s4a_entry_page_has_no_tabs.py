@@ -87,11 +87,13 @@ def test_the_entry_page_is_signals_then_coverage(data: dict) -> None:
     assert not any(_BET in h for h in heads), f"« {_BET} » is back on the entry page: {heads}"
 
 
-def test_the_algo_view_carries_the_outcome_entry_but_not_the_bet(data: dict) -> None:
+def test_the_algo_entry_view_carries_the_outcome_entry_but_not_the_bet(data: dict) -> None:
+    # R587 (owner, 2026-10-15): the outcomes left the prediction page for « Saisie streams
+    # algorithmiques ».
     _need(data, "tracks")
-    at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="trigger_algo", artist_id=1))
+    at = _run(TENANT_SCRIPT.format(root=os.getcwd(), view="saisie_algo", artist_id=1))
     heads = _subheaders(at)
-    assert any(_OUTCOMES in h for h in heads), f"« {_OUTCOMES} » is not on the algo view: {heads}"
+    assert any(_OUTCOMES in h for h in heads), f"« {_OUTCOMES} » is not on the entry view: {heads}"
     # R442: the bet is an admin reading now (ml_performance, « 🎲 Pari vs réalité »).
     assert not any(_BET in h for h in heads), f"« {_BET} » is back on the algo view: {heads}"
 

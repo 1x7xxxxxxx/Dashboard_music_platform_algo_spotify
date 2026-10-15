@@ -19,6 +19,7 @@ DECLARED = {
     "admin.py:_render_costs": "saisie : début et fin d'un coût d'exploitation",
     "revenue_forecast.py:_render_cost_entry": "saisie : début et fin d'un coût de l'artiste",
     "promo_admin.py:show": "saisie : date d'expiration d'un code promo",
+    "saisie_algo.py:render_distribution_cost": "saisie : mois du coût de distribution d'une sortie (R587)",
     "hypeddit.py:_render_entry_form": "saisie : date d'une campagne entrée à la main",
     "export_pdf.py:_custom_dates": "filtre gardé À PART, et dit pourquoi : ses préréglages "
         "glissants (28 j, 3/6/12 mois) n'existent pas dans le filtre partagé, et « depuis "

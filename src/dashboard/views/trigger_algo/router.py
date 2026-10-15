@@ -1,8 +1,8 @@
 """trigger_algo — router: the slim show() entry point.
 
 R570 (owner, 2026-10-15) : the releases picked in the catalogue drive the whole page —
-R579: a reference and a comparison filter, newest and second-newest by default; two parts, « Où en sont mes titres » then « Une fois
-déclenché ». The title selectbox, the period filter, the per-track coach, the budget/ROI
+R579: a reference and a comparison filter, newest and second-newest by default. R587: one
+part, « Où en sont mes titres » — the « Une fois déclenché » entry is its own page. The title selectbox, the period filter, the per-track coach, the budget/ROI
 part and the CPR cards are gone.
 """
 import streamlit as st
@@ -10,9 +10,7 @@ import streamlit as st
 from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
-from ._custom_window_entry import render_custom_grid
 from ._forecast import show_forecast
-from ._outcome_entry import render_outcomes
 from ._sections import arrival_section, guide_sections_md, is_alias_arrival, section_label
 from ._tab_algo_streams import release_date
 from ._tab_catalogue import _show_tab_catalogue
@@ -91,9 +89,17 @@ def show():
         choix = _show_tab_catalogue(db, artist_id)
         # R584 — both titles on ONE forecast; R583 moved the estimates beside the gauges.
         show_forecast(db, artist_id, [(s_, release_date(db, artist_id, s_)) for s_ in choix])
-        _section("declenche")
-        render_outcomes(db, artist_id, tracks=choix or None)
-        render_custom_grid(db, artist_id, tracks=choix or None)
+    # R587 (owner, 2026-10-15) : the « une fois déclenché » entry left for its own page.
+    _entry_button()
+
+
+def _entry_button() -> None:
+    """The door to the entry page the post-trigger grids moved to (R587)."""
+    st.divider()
+    if st.button(t("trigger_algo.entry_btn", "🎯 Saisir les streams algorithmiques réalisés"),
+                 key="algo_entry_door"):
+        from src.dashboard.utils.navigation import goto
+        goto("saisie_algo")
 
 
 def _section(key: str, *, first: bool = False) -> None:

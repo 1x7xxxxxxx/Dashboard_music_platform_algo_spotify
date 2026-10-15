@@ -42,7 +42,7 @@ from src.dashboard.utils.entry_period import DEFAULT, PRESETS, resolve
 _ROOT = Path(__file__).resolve().parents[1]
 # R481 (W4) : the « autre fenêtre » grid — the page's only period — moved to the algo page.
 _PAGE = _ROOT / "src" / "dashboard" / "views" / "trigger_algo" / "_custom_window_entry.py"
-_ROUTER = _ROOT / "src" / "dashboard" / "views" / "trigger_algo" / "router.py"
+_ROUTER = _ROOT / "src" / "dashboard" / "views" / "saisie_algo.py"  # R587 — the entry page calls the grid
 _TODAY = _dt.date(2026, 9, 22)
 
 
@@ -151,7 +151,7 @@ def test_the_selector_is_reachable_from_the_page():
     appelle = any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "render_custom_grid"
                   for n in ast.walk(ast.parse(_ROUTER.read_text(encoding="utf-8"))))
     assert appelle, (
-        "la page algo n'appelle plus la grille « autre fenêtre »")
+        "la page de saisie n'appelle plus la grille J+1…")
 
 
 # ── R441 (2026-10-07) : les premiers jours après une sortie ─────────────────

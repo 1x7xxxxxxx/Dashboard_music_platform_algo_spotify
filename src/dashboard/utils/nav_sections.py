@@ -147,6 +147,8 @@ NAV_SECTIONS: list = [
       ("📱 Hypeddit (saisie smart link)", "hypeddit"),
       # R585 — every hand-typed euro, out of the Trésorerie page that reads them.
       ("💰 Saisie trésorerie", "saisie_tresorerie"),
+      # R587 — the « une fois déclenché » entry, out of the prediction page.
+      ("🎯 Saisie streams algorithmiques", "saisie_algo"),
       ("🗄️ Santé des données", "db_health")]),
     # ── CE QU'ON REGARDE, AVANT CE QU'ON ACHÈTE — 2026-09-22 ──────────────────
     #

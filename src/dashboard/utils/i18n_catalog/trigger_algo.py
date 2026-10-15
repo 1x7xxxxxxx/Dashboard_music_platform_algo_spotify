@@ -55,8 +55,6 @@ EN = {
     "trigger_algo.guide_section_catalogue": (
         "your two latest releases: their progress toward each playlist, what triggers it, "
         "what a trigger brings and the forecast of their streams."),
-    "trigger_algo.guide_section_declenche": (
-        "your entries of the algorithmic streams obtained and of the playlist adds since release."),
     "trigger_algo.release_date_unreadable": (
         "Release date unreadable ({err}) — the forecast starts on the first imported day."
     ),
@@ -541,7 +539,8 @@ EN = {
     "trigger_algo.rel.window_until": "28 d to {d}",
     "trigger_algo.detail": "📋 The figures in detail",
     # ── 🎧 Ce titre : ce qu'il reste à faire (2026-09-22) ────────────────────
-    "trigger_algo.tab_declenche": "🎯 Once triggered",
+    # R587
+    "trigger_algo.entry_btn": "🎯 Enter the algorithmic streams obtained",
     "trigger_algo.rel.adds28": "Playlist adds 28 d",
     "trigger_algo.rel.triggered_by": "triggered by (weight · value):",
     # ── 🔮 Prévision par titre (R570) ────────────────────────────────────────
