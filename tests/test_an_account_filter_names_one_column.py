@@ -357,7 +357,8 @@ def test_the_gold_views_still_carry_the_column(carriers) -> None:
     que tous leurs lecteurs cessaient de filtrer dessus — un prédicat sans site,
     la forme d'aveuglement que ce dépôt a mesurée cinq fois.
     """
-    for view in ("v_meta_creative_daily", "v_meta_adset_daily", "v_meta_daily"):
+    # v_meta_adset_daily retired by migration 152 (R597): its last reader was removed.
+    for view in ("v_meta_creative_daily", "v_meta_daily"):
         assert view in carriers, (
             f"{view} ne porte plus {_COLUMN}. C'est le défaut de la migration 108 : "
             "la vue or a perdu une colonne que ses lecteurs filtrent, et la page "

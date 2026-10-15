@@ -104,15 +104,16 @@ INVARIANTS: tuple[Invariant, ...] = (
             "ou qui en perd une, fait diverger les deux sommes.",
     ),
     Invariant(
-        name="meta_spend_creative_vs_adset",
+        name="meta_spend_creative_vs_ad",
         left_sql="SELECT artist_id, SUM(spend) FROM v_meta_creative_daily GROUP BY 1",
-        right_sql="SELECT artist_id, SUM(spend) FROM v_meta_adset_daily GROUP BY 1",
+        right_sql="SELECT artist_id, SUM(spend) FROM v_meta_ad_daily GROUP BY 1",
         left_label="v_meta_creative_daily",
-        right_label="v_meta_adset_daily",
-        why="La même dépense à deux mailles (créative, ad set), par deux chaînes de "
+        right_label="v_meta_ad_daily",
+        why="La même dépense à deux mailles (créative, annonce), par deux chaînes de "
             "jointures distinctes. Un euro qui tombe d'un côté et pas de l'autre est "
             "une jointure qui a perdu une ligne — la classe que la migration 106 "
-            "nomme et que la 108 a vue se reproduire.",
+            "nomme et que la 108 a vue se reproduire. (Le côté ad set a été retiré "
+            "avec sa vue, migration 152, R597.)",
     ),
     Invariant(
         name="meta_spend_totals_vs_daily",

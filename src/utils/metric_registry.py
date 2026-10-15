@@ -121,9 +121,6 @@ REGISTRY: dict[str, Metric] = {
     "v_meta_campaign_daily": Metric(
         "campaign_funnel", "Impressions, clics, clics lien, vues de page, clics sortants, dépense par campagne.",
         "v_meta_campaign_daily.*", "jour × campagne", FLUX, "fenêtre de campagne"),
-    "v_meta_adset_daily": Metric(
-        "adset_performance", "Les mêmes mesures par ensemble de publicités.",
-        "v_meta_adset_daily", "jour × adset", FLUX, "période choisie"),
     "v_meta_ad_daily": Metric(
         "ad_performance", "Les mêmes mesures par publicité, avec ses réglages.",
         "v_meta_ad_daily", "jour × publicité", FLUX, "période choisie"),

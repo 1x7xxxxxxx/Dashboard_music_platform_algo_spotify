@@ -74,7 +74,10 @@ def test_the_measurement_still_finds_figures_at_all() -> None:
     # 15 → 14 le 2026-10-15 (R570) : les figures de Budget & ROI et du pareto de la page
     # algos ont été supprimées à la demande du propriétaire — une population retirée,
     # pas un détecteur devenu aveugle.
-    assert len(toutes) >= 14, (
+    # 14 → 13 le 2026-10-15 (R597) : « Tes meilleurs réglages » colorie par CAMPAGNE
+    # (`PAIR_COLORS`, tiré de la palette mesurée `DISTINCT`) au lieu de trois littéraux —
+    # le détecteur ne lit que les littéraux. Population retirée, pas détecteur aveugle.
+    assert len(toutes) >= 13, (
         f"seulement {len(toutes)} figure(s) à ≥2 couleurs de série trouvées. Le détecteur "
         "a cessé de voir le parc — un renommage de `go.Figure`, un déplacement des vues, "
         "ou un motif d'ouverture devenu faux. Toutes les assertions ci-dessous seraient "
