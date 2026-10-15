@@ -54,15 +54,18 @@ def build_message(env: dict, detail: str | None = None) -> EmailMessage:
     return msg
 
 
-def send(env: dict, msg: EmailMessage) -> None:
+def send(env: dict, msg: EmailMessage) -> bool:
+    """True when the mail left; False when ops mails are paused (R572) — a caller prints
+    its ✅ only on True (R629: the recap log said « sent » right under « not mailed »)."""
     paused = paused_reason()
     if paused:
         print(f"⏸️  not mailed — {paused}: {msg['Subject']}")
-        return
+        return False
     with smtplib.SMTP(env["SMTP_HOST"], int(env.get("SMTP_PORT") or 587), timeout=30) as s:
         s.starttls(context=ssl.create_default_context())
         s.login(env["SMTP_USER"], env["SMTP_PASSWORD"])
         s.send_message(msg)
+    return True
 
 
 def main() -> int:
@@ -75,8 +78,8 @@ def main() -> int:
               "workflow env. Set them as repo secrets (`gh secret set <NAME>`).")
         return 1
     env = dict(os.environ)
-    send(env, build_message(env))
-    print(f"✅ red verdict mailed ({env.get('GITHUB_WORKFLOW', 'workflow')})")
+    if send(env, build_message(env)):
+        print(f"✅ red verdict mailed ({env.get('GITHUB_WORKFLOW', 'workflow')})")
     return 0
 
 

@@ -82,7 +82,7 @@ def test_paused_the_github_red_verdict_opens_no_smtp(paused, monkeypatch) -> Non
     monkeypatch.setattr(mail_red_verdict.smtplib, "SMTP", _Smtp)
     msg = EmailMessage()
     msg["Subject"] = "s"
-    mail_red_verdict.send({"SMTP_HOST": "smtp.test"}, msg)
+    assert mail_red_verdict.send({"SMTP_HOST": "smtp.test"}, msg) is False
     assert mail_red_verdict.main() == 0
     assert paused == []
 
@@ -94,3 +94,26 @@ def test_paused_the_schema_drift_mail_opens_no_smtp(paused, monkeypatch) -> None
     monkeypatch.setattr(sys, "argv", ["notify_schema_drift.py", "--subject", "s"])
     assert notify_schema_drift.main() == 0
     assert paused == []
+
+
+def _senders_that_claim_success_unconditionally(source: str) -> list[int]:
+    """Lines of a `send(...)` call used as a bare statement, its result dropped."""
+    import ast
+    return [n.lineno for n in ast.walk(ast.parse(source))
+            if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
+            and getattr(n.value.func, "attr", getattr(n.value.func, "id", None)) == "send"]
+
+
+def test_no_caller_says_sent_when_the_mail_was_paused() -> None:
+    """R629 — nightly-recap run 38732548355 printed « ⏸️ not mailed » then « ✅ recap sent ».
+    Every caller of the red-verdict `send()` must branch on its result."""
+    from pathlib import Path
+    hits = [f"{p}:{line}" for p in sorted(Path("tools/dev").glob("*.py"))
+            if "mail_red_verdict" in (src := p.read_text(encoding="utf-8")) or p.name == "mail_red_verdict.py"
+            for line in _senders_that_claim_success_unconditionally(src)]
+    assert not hits, f"send() result dropped — its ✅ would lie while paused: {hits}"
+
+
+def test_the_detector_sees_a_dropped_result_and_not_a_branch() -> None:
+    assert _senders_that_claim_success_unconditionally("mail.send(env, m)\nprint('ok')\n") == [1]
+    assert _senders_that_claim_success_unconditionally("if mail.send(env, m):\n    print('ok')\n") == []

@@ -104,8 +104,8 @@ def main() -> int:
     msg["Subject"], msg["From"], msg["To"] = subject, from_header(), env["PROD_HEALTH_MAIL_TO"]
     msg.set_content("Récap de la nuit — version HTML jointe.")
     msg.add_alternative(body, subtype="html")
-    mail.send(env, msg)
-    print(f"✅ recap sent ({'red' if red else 'calm'}): {subject}")
+    if mail.send(env, msg):
+        print(f"✅ recap sent ({'red' if red else 'calm'}): {subject}")
     return 0
 
 

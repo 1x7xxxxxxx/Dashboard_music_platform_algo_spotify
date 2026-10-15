@@ -102,8 +102,8 @@ def main() -> int:
         print(f"❌ cannot mail: {', '.join(missing)} absent")
         return 1
     env = dict(os.environ)
-    mail.send(env, mail.build_message(env, detail=body))
-    print("✅ verdict du nightly envoyé")
+    if mail.send(env, mail.build_message(env, detail=body)):
+        print("✅ verdict du nightly envoyé")
     return 0
 
 

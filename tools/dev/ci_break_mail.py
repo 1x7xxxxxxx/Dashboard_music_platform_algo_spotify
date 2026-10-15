@@ -100,8 +100,8 @@ def main() -> int:
     if missing:
         print(f"❌ cannot mail: {', '.join(missing)} absent")
         return 1
-    mail.send(env, mail.build_message(env, detail=body))
-    print("✅ cassure de main envoyée")
+    if mail.send(env, mail.build_message(env, detail=body)):
+        print("✅ cassure de main envoyée")
     return 0
 
 
