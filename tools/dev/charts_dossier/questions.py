@@ -51,11 +51,6 @@ SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
         ("faux doublon — deux grains d'une même table : le classement compare les créas "
          "entre elles, la chronologie suit UNE créa jour par jour (R568 ; les hooks "
          "sont partis en R569, 2026-10-15).", frozenset()),
-    frozenset({"src/dashboard/utils/campaign_compare.py::_render_tracks#1",
-               "src/dashboard/utils/campaign_compare.py::_render_creatives#1"}):
-        ("faux doublon — deux questions : clics × écoutes gagnées par titre (nuage, R578), "
-         "€ / écoute gagnée par créa seule (Pareto) ; le classement des campagnes est "
-         "retiré (R577, 2026-10-15).", frozenset()),
     frozenset({"src/dashboard/views/meta_ads_overview.py::_render_global_perf#1",
                "src/dashboard/views/meta_ads_overview.py::_render_global_perf#2"}):
         ("faux doublon — les camemberts disent les VOLUMES par campagne (parts), les barres "

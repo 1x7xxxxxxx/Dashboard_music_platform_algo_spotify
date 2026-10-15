@@ -94,29 +94,6 @@ def test_a_creative_alone_in_its_campaign_gets_its_streams_and_a_shared_one_does
     assert split == 1
 
 
-# ── R567: the three tables became Pareto bars ─────────────────────────────────
-def test_a_cost_pareto_puts_the_cheapest_left_and_drops_the_unmeasured() -> None:
-    import pandas as pd
-
-    df = pd.DataFrame({"campaign_name": ["dear", "cheap", "none", "mid"],
-                       "cost_per_gained": [0.9, 0.1, None, 0.5],
-                       "overlap": [False, False, False, True]})
-    fig = cc.pareto_figure(df, "campaign_name", "cost_per_gained", best_low=True,
-                           axis="€", hover=["h"] * 4)
-    bar = fig.data[0]
-    assert list(bar.x) == ["cheap", "mid", "dear"], "cheapest first, unmeasured left out"
-    assert bar.marker.color[0] == cc._BEST and bar.marker.color[1] == cc._OVERLAP
-    assert list(fig.layout.xaxis.categoryarray) == ["cheap", "mid", "dear"]
-
-
-def test_a_yield_pareto_puts_the_highest_left() -> None:
-    import pandas as pd
-
-    df = pd.DataFrame({"song": ["a", "b"], "per_click": [1.0, 3.0]})
-    fig = cc.pareto_figure(df, "song", "per_click", best_low=False, axis="x", hover=["", ""])
-    assert list(fig.data[0].x) == ["b", "a"]
-
-
 # ── R578: the tracks are a scatter, R577: the campaign ranking is gone ─────────
 def test_the_tracks_are_a_scatter_of_clicks_and_gained_streams() -> None:
     import pandas as pd
@@ -132,7 +109,7 @@ def test_the_tracks_are_a_scatter_of_clicks_and_gained_streams() -> None:
 
 
 def test_the_campaign_ranking_is_not_rendered() -> None:
-    """R577: `render` draws no chart of its own — only the tracks and creatives sections."""
+    """R577: `render` draws no chart of its own — only the tracks and the creatives' funnel."""
     import ast
     import inspect
     import textwrap
@@ -141,5 +118,46 @@ def test_the_campaign_ranking_is_not_rendered() -> None:
     called = {n.func.id if isinstance(n.func, ast.Name) else n.func.attr
               for n in ast.walk(tree) if isinstance(n, ast.Call)
               and isinstance(n.func, (ast.Name, ast.Attribute))}
-    assert {"_render_tracks", "_render_creatives"} <= called
-    assert not called & {"pareto_figure", "plotly_chart"}, called
+    assert {"_render_tracks", "_render_creative_funnel"} <= called
+    assert not called & {"_render_creatives", "plotly_chart"}, called
+    assert not hasattr(cc, "_render_creatives"), "R590: « quelle créa a rapporté » is gone"
+
+
+# ── R590: the second funnel, budget › campaign › ad set › creative ──────────────
+def _tree():
+    camps = [("A", D0, 10, 100.0, "T"), ("B", D0 + dt.timedelta(days=200), 10, 80.0, "T")]
+    streams = pd.concat([_streams("T", 100, 150),
+                         _streams("T", 100, 150).assign(
+                             date=lambda d: d["date"] + dt.timedelta(days=200))])
+    df = cc.compare(_data(camps, streams))
+    creatives = pd.DataFrame([("A", "solo", 100.0, 50, True), ("B", "x", 50.0, 10, True),
+                              ("B", "y", 30.0, None, False)],
+                             columns=["campaign_name", "creative_name", "spend", "results",
+                                      "conv"])
+    adsets = pd.DataFrame([("solo", "A", "fr"), ("x", "B", "be"), ("y", "B", "be")],
+                          columns=["creative_name", "campaign_name", "adset_name"])
+    return cc.creative_tree(df, creatives, adsets)
+
+
+def test_the_creatives_funnel_has_one_box_per_level() -> None:
+    tree = _tree().set_index("id")
+    assert sorted(tree["level"].value_counts().items()) == [(0, 1), (1, 2), (2, 2), (3, 3)]
+    assert tree.loc["B", "spend"] == 80.0 and tree.loc["B › be", "parent"] == "B"
+    assert tree.loc["B", "cpr"] == 8.0, "80 € for 10 results"
+    assert pd.isna(tree.loc["B › be › y", "cpr"]), "no conversion goal, no CPR"
+
+
+def test_streams_gained_sit_on_the_campaign_and_on_a_lone_creative_only() -> None:
+    tree = _tree().set_index("id")
+    assert tree.loc["A › fr › solo", "gained"] == 500 and tree.loc["A", "gained"] == 500
+    assert pd.isna(tree.loc["B › be › x", "gained"]), "a shared creative is never split"
+    assert pd.isna(tree.loc["B › be", "gained"])
+
+
+def test_the_creatives_funnel_is_one_icicle_read_top_down() -> None:
+    fig = cc.creative_tree_figure(_tree())
+    assert len(fig.data) == 1 and fig.data[0].type == "icicle"
+    assert fig.data[0].tiling.orientation == "v"
+    assert any("CPR 8" in x for x in fig.data[0].text)
+    assert any("500 " in x for x in fig.data[0].text)
+    assert cc.creative_tree_figure(cc.creative_tree(pd.DataFrame(), None, None)) is None

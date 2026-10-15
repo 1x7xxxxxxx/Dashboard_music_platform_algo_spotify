@@ -32,7 +32,6 @@ import streamlit as st
 from src.dashboard.utils import charts
 from src.dashboard.utils.campaign_funnel import BASELINE_DAYS, best_lag, streams_gained
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.semantic_colors import ATTENTION, BON
 
 _FAMILY = {
     "OUTCOME_ENGAGEMENT": "engagement", "POST_ENGAGEMENT": "engagement",
@@ -45,6 +44,9 @@ _FAMILY = {
 # floor of a weak positive correlation. A delay is named only above it (measured
 # 2026-09-27, artist 1: « 6 j » came out of a correlation of −0.09).
 MIN_LAG_CORR = 0.3
+# The optimisation goals whose « result » is a conversion: a CPR is only a price of a
+# result on them. Single definition — `views/meta_creatives.py` reads it from here.
+_CONVERSION_GOALS_SQL = "('OFFSITE_CONVERSIONS','ONSITE_CONVERSIONS','LEAD_GENERATION','QUALITY_LEAD')"
 
 
 def objective_family(objective) -> str:
@@ -101,11 +103,21 @@ def load(db, artist_id: int, acct: str, acct_p: tuple) -> dict:
            AND s4a.platform = 's4a' AND s4a.status = 'confirmed'
          WHERE h.artist_id = %s GROUP BY s4a.platform_title""", (artist_id,))
     creatives = _df(db, f"""
-        SELECT campaign_name, creative_name, SUM(spend) AS spend
+        SELECT campaign_name, creative_name, SUM(spend) AS spend,
+               SUM(conversions) AS results,
+               BOOL_OR(optimization_goal IN {_CONVERSION_GOALS_SQL}) AS conv
           FROM v_meta_creative_daily WHERE artist_id = %s{acct}
          GROUP BY campaign_name, creative_name HAVING SUM(spend) > 0""", (artist_id, *acct_p))
+    # R590 — the ad set of each creative: only the raw catalogue names it. Not filtered by
+    # account: it is merged onto `creatives`, which already is. Tenant named at each join.
+    adsets = _df(db, """
+        SELECT d.ad_name AS creative_name, c.campaign_name, s.adset_name
+          FROM meta_ads d
+          JOIN meta_adsets s ON s.adset_id = d.adset_id AND s.artist_id = d.artist_id
+          JOIN meta_campaigns c ON c.campaign_id = d.campaign_id AND c.artist_id = d.artist_id
+         WHERE d.artist_id = %s AND d.ad_name IS NOT NULL""", (artist_id,))
     return {"daily": daily, "objective": objective, "tracks": tracks,
-            "streams": streams, "store": store, "creatives": creatives}
+            "streams": streams, "store": store, "creatives": creatives, "adsets": adsets}
 
 
 def creative_streams(df: pd.DataFrame, creatives: pd.DataFrame) -> tuple[pd.DataFrame, int]:
@@ -193,57 +205,14 @@ def track_conversion(df: pd.DataFrame, store: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values("per_click", ascending=False, na_position="last")
 
 
-def _fmt(v, digits: int = 0) -> str:
-    if v is None or pd.isna(v):
-        return "—"
-    return f"{v:,.{digits}f}".replace(",", " ").replace(".", ",")
-
-
 def _lag_text(lag) -> str:
     if not isinstance(lag, dict) or lag["corr"] < MIN_LAG_CORR:
         return "—"
     return t("campaign_compare.lag_days", "{n} j").format(n=lag["lag"])
 
 
-_BEST, _REST, _OVERLAP = BON, "#9E9E9E", ATTENTION
-
-
-def pareto_figure(df: pd.DataFrame, label: str, value: str, *, best_low: bool, axis: str,
-                  hover: list[str]):
-    """R567 — one Pareto bar per row, the best on the LEFT; unmeasured rows left out. Pure.
-
-    `best_low` = a cost (lowest first); otherwise a yield (highest first). The best bar is
-    green, a campaign overlapping another one orange: its gain is shared, not its own."""
-    import plotly.graph_objects as go
-
-    keep = df.assign(_hover=list(hover)).dropna(subset=[value])
-    keep = keep.sort_values(value, ascending=best_low, kind="stable")
-    names = keep[label].astype(str).tolist()
-    overlap = keep["overlap"].tolist() if "overlap" in keep else [False] * len(keep)
-    colours = [_OVERLAP if o else (_BEST if i == 0 else _REST)
-               for i, o in enumerate(overlap)]
-    fig = go.Figure(go.Bar(x=names, y=keep[value].tolist(), marker_color=colours,
-                           customdata=keep["_hover"].tolist(), showlegend=False,
-                           hovertemplate="<b>%{x}</b><br>%{y:,.3f}<br>%{customdata}"
-                                         "<extra></extra>"))
-    fig.update_layout(height=340, margin={"t": 20, "b": 10},
-                      xaxis={"categoryorder": "array", "categoryarray": names},
-                      yaxis={"title": axis})
-    return fig
-
-
-def _campaign_hover(df: pd.DataFrame) -> list[str]:
-    return [f"{t('campaign_compare.c_track', 'Titre lié')} : {r.get('song') or '—'}<br>"
-            f"{t('campaign_compare.c_spend', 'Dépense (€)')} : {_fmt(r['spend'], 2)}<br>"
-            f"{t('campaign_compare.c_gained', 'Écoutes gagnées')} : {_fmt(r['gained'])}<br>"
-            f"{t('campaign_compare.c_lag', 'Délai pub → écoute')} : {_lag_text(r.get('lag'))}"
-            + ("<br>⚠️ " + t("campaign_compare.c_overlap", "Chevauche une autre")
-               if r.get("overlap") else "")
-            for r in df.to_dict("records")]
-
-
 def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
-    """The tab body: the tracks, the creatives (R577 — the campaign ranking « quelle campagne a
+    """The tab body: the tracks, the creatives' funnel (R577 — the campaign ranking « quelle campagne a
     acheté l'écoute la moins chère » is gone, owner 2026-10-15)."""
     data = load(db, artist_id, acct, acct_p)
     df = compare(data)
@@ -251,7 +220,7 @@ def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
         st.info(t("campaign_compare.empty", "Aucune campagne à comparer sur ce compte."))
         return
     _render_tracks(df, data["store"])
-    _render_creatives(df, data.get("creatives"))
+    _render_creative_funnel(df, data)
     st.caption(t("campaign_compare.countries",
                  "Le pays qui transforme le mieux : onglet **🌍 Par pays**, campagne par "
                  "campagne."))
@@ -317,24 +286,101 @@ def tracks_figure(tracks: pd.DataFrame):
 _RAYS = (1, 2, 5)   # streams per click — the slopes drawn behind the dots
 
 
-def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
-    """R239 — streams gained PER CREATIVE, where it can be measured."""
-    alone, split = creative_streams(df, creatives)
-    st.markdown(t("campaign_compare.crea_head",
-                  "**Quelle créa a rapporté des écoutes ?** — mesuré quand la créa a "
-                  "tourné SEULE dans sa campagne : ses écoutes gagnées sont alors les "
-                  "siennes, sans répartition supposée."))
-    if not alone.empty:
-        charts.plotly_chart(pareto_figure(
-            alone.assign(label=alone["campaign_name"].astype(str).str[:24] + " › "
-                         + alone["creative_name"].astype(str).str[:24]),
-            "label", "cost_per_gained", best_low=True,
-            axis=t("campaign_compare.c_cost", "€ / écoute gagnée"),
-            hover=_campaign_hover(alone)), pareto=False, width="stretch")
-    st.caption(t("campaign_compare.crea_split",
-                 "{n} campagne(s) ont fait tourner plusieurs créas ensemble : leurs écoutes "
-                 "ne se séparent pas par créa. Pour mesurer une créa, lance-la seule dans sa "
-                 "campagne, ou donne-lui son propre lien Hypeddit.").format(n=split))
+def _render_creative_funnel(df: pd.DataFrame, data: dict) -> None:
+    """R590 — the second funnel: budget › campaign › ad set › creative (replaces R239's
+    « quelle créa a rapporté des écoutes », which only saw the creatives that ran alone)."""
+    fig = creative_tree_figure(creative_tree(df, data.get("creatives"), data.get("adsets")))
+    if fig is not None:
+        charts.plotly_chart(fig, width="stretch")
+
+
+def creative_tree(df: pd.DataFrame, creatives: pd.DataFrame,
+                  adsets: pd.DataFrame) -> pd.DataFrame:
+    """R590 — one row per box of the creatives' funnel: budget › campaign › ad set › creative.
+
+    Columns: id, parent, level (0 budget … 3 creative), label, campaign, spend, cpr, gained.
+    Streams gained are written on a campaign (its track's gain) and on a creative only when
+    it ran ALONE in its campaign (R239): an ad set or a shared creative has none. Pure."""
+    cols = ["id", "parent", "level", "label", "campaign", "spend", "cpr", "gained"]
+    if creatives is None or creatives.empty:
+        return pd.DataFrame(columns=cols)
+    c = creatives.assign(spend=pd.to_numeric(creatives["spend"], errors="coerce").fillna(0.0),
+                         results=pd.to_numeric(creatives.get("results"), errors="coerce"))
+    c["conv"] = c["conv"].fillna(False).astype(bool) if "conv" in c else False
+    keys = ["creative_name", "campaign_name"]
+    names = (adsets.dropna(subset=["adset_name"]).groupby(keys)["adset_name"]
+             .agg(lambda s: " / ".join(sorted(set(s)))).reset_index()
+             if adsets is not None and not adsets.empty
+             else pd.DataFrame(columns=[*keys, "adset_name"]))
+    c = c.merge(names, on=keys, how="left", validate="many_to_one")
+    c["adset_name"] = c["adset_name"].fillna("—")
+    camp_gain = dict(zip(df["campaign_name"], df["gained"])) if not df.empty else {}
+    alone, _ = creative_streams(df, creatives)
+    lone = ({(r["campaign_name"], r["creative_name"]): r["gained"]
+             for r in alone.to_dict("records")} if not alone.empty else {})
+    rows = [_box("budget", "", 0, t("campaign_compare.tree_root", "Budget"), None, c, None)]
+    order = c.groupby("campaign_name")["spend"].sum().sort_values(ascending=False).index
+    for camp in order:
+        g = c[c["campaign_name"] == camp]
+        rows.append(_box(camp, "budget", 1, camp, camp, g, camp_gain.get(camp)))
+        for adset, h in g.groupby("adset_name", sort=False):
+            aid = f"{camp} › {adset}"
+            rows.append(_box(aid, camp, 2, adset, camp, h, None))
+            for r in h.sort_values("spend", ascending=False).to_dict("records"):
+                rows.append(_box(f"{aid} › {r['creative_name']}", aid, 3, r["creative_name"],
+                                 camp, pd.DataFrame([r]),
+                                 lone.get((camp, r["creative_name"]))))
+    return pd.DataFrame(rows, columns=cols)
+
+
+def _box(box_id, parent, level, label, campaign, g: pd.DataFrame, gained) -> dict:
+    """One box: its spend, its CPR (spend per result, conversion goals only), its gain."""
+    spend, results = float(g["spend"].sum()), g["results"].sum(min_count=1)
+    cpr = (spend / float(results)
+           if bool(g["conv"].any()) and pd.notna(results) and results > 0 else None)
+    return {"id": box_id, "parent": parent, "level": level, "label": str(label),
+            "campaign": campaign, "spend": spend, "cpr": cpr,
+            "gained": float(gained) if gained is not None and pd.notna(gained) else None}
+
+
+_BOX_CHARS = 40   # a box label longer than this is cut; the hover keeps the whole name
+
+
+def creative_tree_figure(tree: pd.DataFrame):
+    """R590 — the second funnel, read top to bottom: budget, then each campaign's share of
+    it, its ad sets, its creatives; each box says its spend, its CPR, its streams gained.
+    Pure."""
+    import plotly.graph_objects as go
+    from src.dashboard.utils.formats import num
+    from src.dashboard.utils.platform_colors import DISTINCT
+
+    if tree.empty or len(tree) < 2:
+        return None
+    camps = list(dict.fromkeys(tree["campaign"].dropna()))
+    colour = {c: DISTINCT[i % len(DISTINCT)] for i, c in enumerate(camps)}
+    text = []
+    for r in tree.to_dict("records"):
+        line = f"{num(r['spend'], 0)} €"
+        if pd.notna(r["cpr"]):
+            line += f" · CPR {num(r['cpr'], 3)} €"
+        if pd.notna(r["gained"]):
+            line += "<br>" + t("campaign_compare.tree_gained", "{g} écoutes gagnées").format(
+                g=f"{r['gained']:+,.0f}".replace(",", " "))
+        text.append(line)
+    fig = go.Figure(go.Icicle(
+        # A creative run in five ad sets names all five: the box shows the start, the
+        # hover the whole name (PNG read 2026-10-15, artist 1).
+        ids=tree["id"], parents=tree["parent"],
+        labels=[x if len(x) <= _BOX_CHARS else x[:_BOX_CHARS - 1] + "…" for x in tree["label"]],
+        customdata=tree["label"],
+        # Leaves carry the money, every box above is the sum of its children.
+        values=[s if lv == 3 else 0 for s, lv in zip(tree["spend"], tree["level"])],
+        branchvalues="remainder", text=text, texttemplate="<b>%{label}</b><br>%{text}",
+        hovertemplate="<b>%{customdata}</b><br>%{text}<extra></extra>",
+        tiling={"orientation": "v"}, sort=False, textfont={"size": 14},
+        marker={"colors": ["#9E9E9E" if c is None else colour[c] for c in tree["campaign"]]}))
+    fig.update_layout(height=520, margin={"t": 10, "b": 10, "l": 10, "r": 10})
+    return fig
 
 
 def creative_gains(db, artist_id: int, acct: str, acct_p: tuple) -> dict[str, dict]:

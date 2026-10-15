@@ -64,7 +64,7 @@ _TIMELINE_METRICS = [
 # total_results = the ad set goal's native result (mi.conversions, objective-aware).
 # CPR is shown ONLY for conversion goals (cost-per-result on an engagement/traffic ad
 # would imply a conversion that didn't happen — see collector _CONVERSION_GOALS).
-_CONVERSION_GOALS_SQL = "('OFFSITE_CONVERSIONS','ONSITE_CONVERSIONS','LEAD_GENERATION','QUALITY_LEAD')"
+from src.dashboard.utils.campaign_compare import _CONVERSION_GOALS_SQL  # noqa: E402 — R590: one definition
 
 # La quadruple jointure a disparu dans `v_meta_creative_daily` (migrations 106 et
 # 108). Elle ne nommait le locataire que sur `ma`, et son filtre de compte
