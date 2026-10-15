@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R593 — Vue croisée — CPM/CPC/CPR : un rectangle pointillé par panneau, et une verticale pointi… (livrée 2026-10-15)
+
+- [x] **R593 — Vue croisée — CPM/CPC/CPR : un rectangle pointillé par panneau, et une verticale pointillée au meilleur score toutes campagnes confondues** (P3) ✅ (2026-10-15, c7d45177)
+  Mesuré par : test : 3 formes rect pointillées, 3 verticales à la meilleure valeur
+  Livré c7d45177, CI verte (run 38745132999), déployé 15245104
+  Commits : c7d45177 R593 : Vue croisée — CPM/CPC/CPR : chaque panneau encadré d'un rectang
+
+## ✅ R590 — Vue croisée — second entonnoir des créas : par campagne › ad set › créa, CPR et écoutes… (livrée 2026-10-15)
+
+- [x] **R590 — Vue croisée — second entonnoir des créas : par campagne › ad set › créa, CPR et écoutes gagnées ; « quelle créa a rapporté le plus d'écoutes » supprimé** (P3) ✅ (2026-10-15, 15245104, 30ef9448)
+  Mesuré par : test : figure par niveau, plus de `_render_creatives`
+  Livré 15245104 (R590 + suivi des registres), CI verte (run 38745132999), déployé 15245104
+  Commits : 15245104 R590 : registres de la figure remplacée suivis — cross_view.yaml décla · 30ef9448 R590 : Vue croisée — second entonnoir des créas : un icicle lu de haut
+
 ## ✅ R591 — Vue croisée — retirer la prose (« du 31/08 … CPR, coût d'un clic sortant ») et les tuil… (livrée 2026-10-15)
 
 - [x] **R591 — Vue croisée — retirer la prose (« du 31/08 … CPR, coût d'un clic sortant ») et les tuiles dépenses / écoutes sur N jours / coût par écoute / CPR moyen** (P3) ✅ (2026-10-15, f076c7ce, 3a48a9f3)
