@@ -33,8 +33,6 @@ EN = {
     "meta_ads_overview.section_creas": "🎨 Creatives & settings",
     "meta_ads_overview.section_audiences": "🌍 Audiences",
     "meta_ads_overview.glossary": "📖 The words on this page",
-    "meta_ads_overview.unknown": "Unknown",
-    "meta_ads_overview.goal_pareto": "🎯 Optimisation goal — spend and cost per outbound click",
     "meta_ads_overview.gloss.clic_sortant": "**Outbound click** — the click that leaves your Hypeddit smart link for a platform (Spotify, Apple…). Hypeddit sends it back to Meta through its CAPI: it is the « result » of the CPR.",
     "meta_ads_overview.gloss.frequence": "**Frequency** — impressions ÷ people reached: how many times, on average, one person saw the ad.",
     "meta_ads_overview.gloss.engagement": "**Engagement** — reactions + comments + shares + saves on the ad.",

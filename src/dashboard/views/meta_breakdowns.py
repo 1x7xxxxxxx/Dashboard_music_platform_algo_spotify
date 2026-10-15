@@ -42,7 +42,8 @@ _DIMS = {
 # The four panels, in reading order. `platform` has no table: it is summed from placement.
 _PANELS = (("country", "Pays"), ("placement", "Placement"),
            ("platform", "Plateforme"), ("age", "Âge"))
-_FAMILIES = {"Performance": "performance", "Engagement": "engagement"}
+# R568 — the default metric is named for what it shows: the cost per outbound click.
+_FAMILIES = {"CPR": "performance", "Engagement": "engagement"}
 _ENG_COLS = ["page_interactions", "post_reactions", "comments",
              "saves", "shares", "link_clicks", "post_likes"]
 # R271 (owner note L242 : « 7 séries noires hors thème, libellés coupés ») — what is
@@ -97,7 +98,7 @@ def _panel(df, panel: str):
     return part
 
 
-def _render_performance(df):
+def _render_performance(df, grain_key: str = "campaign"):
     df = df.copy()
     for c in ('spend', 'results', 'impressions', 'reach'):
         df[c] = pd.to_numeric(df[c], errors='coerce')
@@ -115,7 +116,11 @@ def _render_performance(df):
     c3.metric(t("meta_breakdowns.avg_cpr", "CPR moyen"),
               f"{total_spend / total_res:,.2f} €" if total_res else "—",
               help=cpr_help())
-
+    # R568 — one datum, one chart: at the campaign grain the best-settings tool of the
+    # Créas section already draws country, placement, platform and age by CPR. The grid
+    # stays only where that tool cannot go — an adset or a creative picked below.
+    if grain_key == "campaign":
+        return
     for row in (_PANELS[:2], _PANELS[2:]):
         cols = st.columns(2)
         for col, (panel, label) in zip(cols, row):
@@ -258,12 +263,6 @@ def render(db, artist_id, bar) -> None:
     The period is greyed in the bar: Meta breakdowns carry no date dimension.
     """
     st.subheader(t("meta_breakdowns.title", "🌍 Breakdowns Meta"))
-    st.caption(t(
-        "meta_breakdowns.subtitle",
-        "Pays, placement, plateforme et âge côte à côte, à tous les grains (campagne · adset · créative). "
-        "Données agrégées sur tout l'historique — **pas de filtre par période** "
-        "(les breakdowns Meta n'ont pas de dimension date)."
-    ))
 
     family_label = st.selectbox(
         t("meta_breakdowns.metric", "Métrique"), list(_FAMILIES.keys()), key="bd_family",
@@ -300,7 +299,7 @@ def render(db, artist_id, bar) -> None:
                              _acct, _acct_params) if second else None)
     # The pair is drawn HERE, one call from its frames: the gold-coverage tracer follows
     # three hops from a figure back to its source (`gold_coverage._MAX_HOPS`).
-    if _render_frames(df, family) and df_b is not None:
+    if _render_frames(df, family, grain_key) and df_b is not None:
         _render_pair(df, df_b, family, camp_sel, second)
 
 
@@ -338,7 +337,7 @@ def _drill_down(db, artist_id, bar, _acct_params) -> tuple:
     return adset_id, adset_sel, ad_id, ad_sel
 
 
-def _render_frames(df, family) -> bool:
+def _render_frames(df, family, grain_key: str = "campaign") -> bool:
     """Draw the section's frames; False when there is nothing to draw."""
     if df is None or df.empty:
         st.info(t(
@@ -353,7 +352,7 @@ def _render_frames(df, family) -> bool:
         # spend, so summing the four would count each euro up to four times.
         _render_coverage(df[df['dim'] == "country"])
         _render_performance(
-            df.drop(columns=["_spend_total", "_results_total"], errors="ignore"))
+            df.drop(columns=["_spend_total", "_results_total"], errors="ignore"), grain_key)
         _render_age_finding(df)
     else:
         _render_engagement(df)

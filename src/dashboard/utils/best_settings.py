@@ -81,8 +81,9 @@ def figure(panels: list[tuple[str, pd.DataFrame]]) -> go.Figure | None:
                         horizontal_spacing=0.22, vertical_spacing=0.12)
     for i, (_title, r) in enumerate(drawn):
         keep = (best(r) or {}).get("valeur")
+        labels = [v if f else f"{v} ⚠️" for v, f in zip(r["valeur"], r["fiable"])]
         fig.add_trace(go.Bar(
-            x=r["cpr"], y=[v if f else f"{v} ⚠️" for v, f in zip(r["valeur"], r["fiable"])],
+            x=r["cpr"], y=labels,
             orientation="h", showlegend=False, cliponaxis=False,
             marker_color=[BON if v == keep else (ATTENTION if f else NEUTRE)
                           for v, f in zip(r["valeur"], r["fiable"])],
@@ -92,27 +93,14 @@ def figure(panels: list[tuple[str, pd.DataFrame]]) -> go.Figure | None:
                             "%{y}<br>CPR : %{x:.3f} €<br>Dépense : %{customdata[0]:,.0f} €"
                             "<br>Clics sortants : %{customdata[1]:,.0f}<extra></extra>")),
             row=i // 2 + 1, col=i % 2 + 1)
+        # R568 — Pareto, the value to keep on top: `rank`'s order (reliable, then cheapest)
+        # pinned per panel. Left to the chart door, a cheap ⚠️ value rose above the green.
+        fig.update_yaxes(categoryorder="array", categoryarray=labels,
+                         row=i // 2 + 1, col=i % 2 + 1)
     fig.update_yaxes(autorange="reversed", automargin=True)
     fig.update_xaxes(rangemode="tozero", showticklabels=False)
     fig.update_layout(height=260 * rows + 40, margin=dict(t=40, l=10, r=40, b=20))
     return fig
-
-
-def verdicts(panels: list[tuple[str, pd.DataFrame]]) -> list[str]:
-    """One line per criterion that HAS a verdict: keep X (cpr) rather than Y (cpr)."""
-    out = []
-    for title, r in panels:
-        b = best(r)
-        if b is None:
-            continue
-        out.append(t("best_settings.verdict",
-                     "**{crit}** : garde « {keep} » ({cpr} €) plutôt que « {avoid} » "
-                     "({cpr_max} €), ×{f} moins cher").format(
-            crit=title, keep=b["valeur"], avoid=b["eviter"],
-            cpr=f"{b['cpr']:.2f}".replace(".", ","),
-            cpr_max=f"{b['cpr_max']:.2f}".replace(".", ","),
-            f=f"{b['facteur']:.1f}".replace(".", ",") if b["facteur"] else "—"))
-    return out
 
 
 def caption() -> str:

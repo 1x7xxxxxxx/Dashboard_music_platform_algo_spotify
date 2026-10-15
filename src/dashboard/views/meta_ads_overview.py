@@ -228,28 +228,8 @@ def _render_funnel_section(db, artist_id, bar: MetaFilters) -> None:
 def _render_creatives(db, artist_id, bar: MetaFilters) -> None:
     from src.dashboard.views.meta_creatives import render as render_creatives
     render_creatives(db, artist_id, bar)
-    _render_goal_pareto(db, artist_id, bar)
-
-
-def _render_goal_pareto(db, artist_id, bar: MetaFilters) -> None:
-    """The optimisation goal — the first « best setting » criterion (fiche 30 → R557).
-
-    `v_meta_adset_daily` (migration 108) names the tenant on the whole adsets → ads →
-    insights chain; the ring that read it left with fiche 30.
-    """
-    acct_sql, acct_params = bar.acct()
-    win_sql, win_params = bar.window.sql_between("day") if bar.window else ("", ())
-    df = db.fetch_df(
-        "SELECT COALESCE(optimization_goal, %s) AS goal, SUM(spend) AS spend, "
-        "SUM(conversions) AS results FROM v_meta_adset_daily WHERE artist_id = %s"
-        f"{acct_sql}{win_sql} GROUP BY 1",
-        (t("meta_ads_overview.unknown", "Inconnu"), artist_id, *acct_params, *win_params))
-    fig = charts.pareto_spend_cpr(
-        df, "goal", t("meta_ads_overview.goal_pareto",
-                      "🎯 Objectif d'optimisation — dépense et coût par clic sortant"))
-    if fig is not None:
-        st.markdown("---")
-        charts.plotly_chart(fig)
+    # R568 — the goal Pareto left: the « Optimisation de l'ad set » panel of best_settings
+    # (meta_creatives._ad_setting_panels) reads the same view.
 
 
 def _render_audiences(db, artist_id, bar: MetaFilters) -> None:

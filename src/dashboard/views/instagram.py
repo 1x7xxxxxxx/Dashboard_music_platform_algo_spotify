@@ -306,86 +306,75 @@ def render(db, artist_id) -> None:
                 "**publication**. **Engagement** = likes + commentaires. L'aire : la "
                 "dépense Meta Ads du mois, tous comptes."))
 
-        # Publications récentes — insights indispo ⇒ note + colonnes masquées
+        # R568 — the posts as one point each (x = date, y = likes + comments, hover =
+        # caption), not a table: the cross view carries no `st.dataframe`.
         st.markdown(t("instagram.recent_posts", "#### Publications récentes"))
         _ins = db.fetch_query(
             "SELECT COUNT(*) FROM instagram_media_insights WHERE artist_id = %s",
             (artist_id,),
         )
-        insights_empty = not _ins or (_ins[0][0] or 0) == 0
-
-        base_cfg = {
-            "media_url": st.column_config.ImageColumn(t("instagram.col_preview", "Aperçu")),
-            "permalink": st.column_config.LinkColumn(
-                t("instagram.col_link", "Lien"),
-                display_text=t("instagram.col_open", "Ouvrir")),
-            "caption": st.column_config.TextColumn(t("instagram.col_caption", "Légende"), width="medium"),
-            "timestamp": st.column_config.DatetimeColumn(
-                t("instagram.col_published", "Publié le"), format="DD/MM/YYYY"),
-            "like_count": "❤️ Likes",
-            "comments_count": t("instagram.col_comments", "💬 Comm."),
-        }
-
-        if insights_empty:
-            # R273 (2026-09-27) — ce message affirmait « Meta ne les sert que pour
-            # les posts de moins de 90 jours ; ce n'est pas un défaut de collecte ».
-            # C'en était un : la collecte demandait `impressions`, retirée par Meta
-            # le 2025-04-21, et une seule métrique retirée fait refuser TOUTE la
-            # requête — 51 publications sur 51, en local comme en production. La
-            # collecte demande désormais `views`/`total_interactions`, et lève si
-            # toutes les publications sont refusées : le silence ne dit plus rien.
+        if not _ins or (_ins[0][0] or 0) == 0:
+            # R273 (2026-09-27) — the collection asked for `impressions`, retired by Meta on
+            # 2025-04-21, and one retired metric refuses the WHOLE request. It now asks for
+            # `views`/`total_interactions` and raises when every post is refused.
             st.info(t(
                 "instagram.insights_pending",
                 "**Vues, portée, interactions, enregistrements et partages par "
                 "publication** ne sont pas encore collectés. Ils arrivent avec la "
                 "prochaine collecte Instagram ; si Meta les refuse, la collecte "
                 "échoue et l'administrateur est prévenu."))
-            q_media = f"""
-                SELECT media_url, caption, media_type, permalink,
-                       timestamp, like_count, comments_count
-                FROM instagram_media
-                WHERE artist_id = %s {frag_m}
-                ORDER BY timestamp DESC
-            """
-            cfg = base_cfg
-        else:
-            q_media = f"""
-                SELECT m.media_url, m.caption, m.media_type, m.permalink,
-                       m.timestamp, m.like_count, m.comments_count,
-                       i.impressions, i.reach, i.engagement, i.saved, i.shares
-                FROM instagram_media m
-                LEFT JOIN LATERAL (
-                    SELECT impressions, reach, engagement, saved, shares
-                    FROM instagram_media_insights ii
-                    WHERE ii.artist_id = m.artist_id
-                      AND ii.media_id = m.media_id
-                    ORDER BY ii.date DESC LIMIT 1
-                ) i ON TRUE
-                WHERE m.artist_id = %s {frag_m}
-                ORDER BY m.timestamp DESC
-            """
-            # `impressions` carries Meta's `views`, `engagement` its
-            # `total_interactions` since R273 — the labels say what the numbers are.
-            cfg = {**base_cfg,
-                   "impressions": t("instagram.col_views", "👁️ Vues"),
-                   "reach": t("instagram.col_reach", "Portée"),
-                   "engagement": t("instagram.col_interactions", "Interactions"),
-                   "saved": t("instagram.col_saved", "Enregistrés"),
-                   "shares": t("instagram.col_shares", "Partages")}
-
-        df_media = db.fetch_df(q_media, (artist_id, *params_m))
+        df_media = db.fetch_df(_QUERY_POSTS.format(frag=frag_m), (artist_id, *params_m))
         if not show_empty_state(
             df_media, t("instagram.no_media", "Aucune publication collectée pour cette période.")
         ):
-            st.dataframe(
-                df_media, width="stretch", hide_index=True,
-                column_config=cfg,
-            )
+            charts.plotly_chart(_posts_figure(df_media), width="stretch")
     except Exception as e:
         st.error(t("instagram.media_error", "Erreur publications : {err}").format(err=e))
 
 if __name__ == "__main__":
     show()
+
+
+# R568 — one row per post; the latest insights snapshot rides along for the hover. `views`
+# sits in `impressions`, `total_interactions` in `engagement` since R273.
+_QUERY_POSTS = """
+    SELECT m.caption, m.timestamp, m.like_count, m.comments_count, m.permalink,
+           i.impressions AS views, i.reach
+    FROM instagram_media m
+    LEFT JOIN LATERAL (
+        SELECT impressions, reach
+        FROM instagram_media_insights ii
+        WHERE ii.artist_id = m.artist_id AND ii.media_id = m.media_id
+        ORDER BY ii.date DESC LIMIT 1
+    ) i ON TRUE
+    WHERE m.artist_id = %s {frag}
+    ORDER BY m.timestamp
+"""
+
+
+def _posts_figure(df: pd.DataFrame) -> go.Figure:
+    """One marker per post: x = publication date, y = likes + comments, hover = caption."""
+    d = df.copy()
+    d["timestamp"] = to_local_naive(pd.to_datetime(d["timestamp"], utc=True))
+    likes = pd.to_numeric(d["like_count"], errors="coerce").fillna(0)
+    comments = pd.to_numeric(d["comments_count"], errors="coerce").fillna(0)
+    caption = d["caption"].fillna("").astype(str).str.slice(0, 140).str.replace("\n", " ")
+    views = pd.to_numeric(d["views"], errors="coerce")
+    custom = list(zip(caption, likes, comments,
+                      ["—" if pd.isna(v) else f"{int(v):,}".replace(",", " ") for v in views]))
+    fig = go.Figure(go.Scatter(
+        x=d["timestamp"], y=likes + comments, mode="markers+lines",
+        name=t("instagram.posts_engagement", "Engagement (likes + commentaires)"),
+        marker={"size": 9, "color": _IG},
+        line={"width": 1, "dash": "dot", "color": _IG},
+        customdata=custom,
+        hovertemplate=t("instagram.posts_hover",
+                        "%{x|%Y-%m-%d}<br>%{customdata[0]}<br>❤️ %{customdata[1]:.0f} · "
+                        "💬 %{customdata[2]:.0f} · 👁️ %{customdata[3]}<extra></extra>")))
+    fig.update_yaxes(title_text=t("instagram.posts_y", "Likes + commentaires"),
+                     rangemode="tozero")
+    fig.update_layout(height=380, margin={"t": 30})
+    return fig
 
 
 def _render_community(df_hist, window, last_date: str,

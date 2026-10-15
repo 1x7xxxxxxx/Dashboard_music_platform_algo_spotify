@@ -51,7 +51,7 @@ _ALLOWED = {
     "rank_sort": "sort order of the ranking",
     "tl_creative": "which creative's timeline, inside the bar's scope",
     "tl_creative_b": "the second creative of the side-by-side comparison (R557, fiche 37)",
-    "fatigue_creative": "which creative's fatigue curve",
+    "crea_pareto_campaigns": "narrows the creatives Pareto among the bar's campaigns (R568)",
     "ig_community": "Instagram is organic: outside the bar, its charts keep their period",
     "ig_media": "Instagram is organic: outside the bar, its charts keep their period",
 }

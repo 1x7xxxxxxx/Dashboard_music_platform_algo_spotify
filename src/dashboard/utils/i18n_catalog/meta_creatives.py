@@ -1,51 +1,18 @@
 """EN strings for the Meta Ads creatives view."""
 
 EN = {
-    # ── Page unique : décision en haut, puis classement, hooks, fatigue ──────
+    # ── One page: ranking, spend Pareto, best settings, one creative's timeline ──
     "meta_creatives.gain_unknown": "Streams gained: not separable — this creative ran with others in its campaign, or without a confirmed linked track. To measure it, run it alone.",
     "meta_creatives.gain_metric": "Streams gained (creative alone in its campaign)",
     "meta_creatives.gain_help": "The track's streams during the campaign above its level of the 28 days before. Cost per stream gained: {c}.",
-    "meta_creatives.banner_intro": (
-        "**{spend:,.0f} € spent across {n} creative(s).** Here are the three "
-        "decisions those numbers carry."),
-    "meta_creatives.best_creative": "🏆 Best creative — {nom}",
-    "meta_creatives.backed_by": "{spend:.0f} € · {res:,.0f} results",
-    "meta_creatives.no_winner": "No creative has enough results yet to be crowned.",
-    "meta_creatives.best_hook": "🎣 Best hook — {nom}",
-    "meta_creatives.hook_backed_by": (
-        "{spend:.0f} € · {n} creative(s) · {part:.0f} % of the named budget"),
-    "meta_creatives.no_hook_named": (
-        "No hook is named in your creative titles. Name them \"Hook 1 …\", "
-        "\"Hook 2 …\", \"Sans hook …\" and this card will tell you which one "
-        "converts."),
-    "meta_creatives.to_cut": "✂️ Cut this — {nom}",
-    "meta_creatives.already_spent": (
-        "{spend:.0f} € spent · ~{trop:.0f} € more than your blended cost "
-        "({ref:.3f} €)"),
-    "meta_creatives.nothing_to_cut": "No creative is drifting on a budget that matters.",
     "meta_creatives.section_ranking": "🏁 Your creatives, ranked",
-    "meta_creatives.section_fatigue": "🪫 Is the audience saturated?",
     "meta_creatives.no_ranking": "No creative with any spend.",
-    "meta_creatives.ranking_caption": (
-        "Best on top, by the chosen step. A missing bar = no measured result, so no CPR — "
-        "not a zero. **Decision**: sorted by CPR, cut the bottom creatives that spent a lot, "
-        "put budget back on the top ones."),
-    "meta_creatives.ranking_truncated": (
-        "Only the {n} highest-spending creatives are drawn; the collapsed table "
-        "below holds them all."),
-    "meta_creatives.table_expander": "🔢 The ranking down to the cent — table",
     "meta_creatives.hook_cpr": "Cost per result (€)",
     "meta_creatives.hook_spend": "Spend it was judged on (€)",
     "meta_creatives.hooks_absent": (
         "Your creative titles do not name a hook (yet). Name them \"Hook 1 — …\", "
         "\"Hook 2 — …\", \"Sans hook — …\": this chart will then compare the "
         "cost per result of each opening."),
-    "meta_creatives.hooks_caption": (
-        "The hook is read from the NAME you give your creative — Meta does not know it. "
-        "**{part:.0f}% of your spend** carries a named hook; the rest is not classified here. "
-        "A lower cost on a tiny spend is not a verdict: that is why the second frame exists. "
-        "**Decision**: open your next creative with the cheapest hook — this chart compares "
-        "hook FAMILIES, the ranking above compares creatives one by one."),
     "meta_creatives.rank_sort": "Sort by",
     "meta_creatives.rank.cpr": "CPR (€)",
     "meta_creatives.rank.total_spend": "Spend (€)",
@@ -62,47 +29,19 @@ EN = {
         "line breaks there — we do not know."),
     'meta_creatives.uncollected_admin': '🛠️ Recoverable with a full-history collection (which re-fetches the ad config, not only the insights): Airflow → `meta_ads_api_daily` → *Trigger DAG w/ config* `{{"full_history": true}}`. Caveats: the ads must still exist on Meta\'s side, and Meta only keeps insights ~37 months.',
     "meta_creatives.title": "🎨 Meta Ads Creatives",
-    "meta_creatives.subtitle": (
-        "Your creatives ranked by CPR — based on Meta Ads API data (meta_ads × meta_insights)."
-    ),
     "meta_creatives.no_data": (
         'No creative data. Check that Meta Ads is connected in **🔑 Credentials API** — the collection starts by itself when you save, and its state shows in the sidebar.'),
     "meta_creatives.no_creative_campaign": "No creative for this campaign.",
-    "meta_creatives.badge_legend": (
-        "🟢 Top creative = CPR ≤ {low}€ | 🟡 Average = CPR ≤ {high}€ | "
-        "🔴 Underperforming = CPR > {high}€"
-    ),
     # Uncollected-campaigns notice
     "meta_creatives.uncollected_title": "⚠️ {n} campaign(s) missing from the creative ranking",
     "meta_creatives.uncollected_body": (
         '**{n} campaign(s) did spend**, but the **per-creative** breakdown could not be retrieved. Common case: a **paused or archived** campaign — Meta stops serving its ad-by-ad detail.\n\nThe campaign total is still correct; only the split across creatives is missing. Tell the administrator if those campaigns matter to you.'),
-    "meta_creatives.col_campaign": "Campaign",
-    "meta_creatives.col_ads": "Ads",
-    "meta_creatives.col_campaign_spend": "Campaign spend (€)",
-    # Badges
-    "meta_creatives.badge_no_result": "⚫ No result",
-    "meta_creatives.badge_top": "🟢 Top creative",
-    "meta_creatives.badge_avg": "🟡 Around average",
-    "meta_creatives.badge_under": "🔴 Underperforming",
-    # KPI row
-    # Ranking table
-    "meta_creatives.col_status": "Status",
-    "meta_creatives.col_creative": "Creative",
-    "meta_creatives.col_spend": "Spend",
-    "meta_creatives.col_results": "Outbound clicks",
-    "meta_creatives.col_avg_ctr": "Avg CTR",
     # Timeline
     "meta_creatives.timeline_title": "📈 Creative evolution over time",
     "meta_creatives.no_adlevel_insights": "No creative with ad-level insights for this selection.",
     "meta_creatives.creative": "Creative",
     "meta_creatives.no_timeseries": "No time series for this creative.",
     "meta_creatives.no_data_period": "No data for the selected period.",
-    "meta_creatives.granularity_weekly": "weekly",
-    "meta_creatives.granularity_daily": "daily",
-    "meta_creatives.timeline_caption": (
-        "Creative **{creative}** · {granularity} granularity · {d_from} → {d_to}. "
-        "Click a metric in the legend to show/hide it (double-click = isolate)."
-    ),
     "meta_creatives.metric.spend": "Spend (€)",
     "meta_creatives.metric.impressions": "Impressions",
     "meta_creatives.metric.clicks": "Clicks",
@@ -110,18 +49,8 @@ EN = {
     "meta_creatives.metric.conversions": "Results",
     "meta_creatives.metric.ctr": "CTR (%)",
     "meta_creatives.metric.cpr": "CPR (€)",
-    # Scatter
-    # Efficiency / funnel / fatigue / activity
-    "meta_creatives.no_creative": "No creative.",
-    "meta_creatives.frequency": "Frequency",
-    "meta_creatives.fatigue_caption": (
-        "Rising frequency **and** falling CTR = saturated audience (fatigue) → refresh the creative."
-    ),
     "meta_creatives.unit_cpr": "Cost per result (€)",
-    "meta_creatives.col_outbound": "Platform clicks",
-    "meta_creatives.col_cost_outbound": "€ / platform click",
-    "meta_creatives.outbound_caption": "« Platform clicks »: clicks leaving the smart link for a platform, per creative ({m}/{n} measured). A creative without a measure shows « — »: Meta only returned this figure per campaign; it fills in creative by creative at the next full collection of your Meta account.",
-    "meta_creatives.pair_caption": "Blue: « {a} » · orange: « {b} » · grey: a creative of both campaigns. CPR, CTR, CPM and CPC are costs and rates: they compare from one campaign to the other, whatever the budget.",
+    "meta_creatives.pair_caption": "Blue: « {a} » · orange: « {b} » · grey: a creative of both campaigns.",
     'meta_creatives.section_best': '🧪 Your best settings',
     'meta_creatives.bs_creative': 'Creative',
     'meta_creatives.bs_hook': 'Hook',
@@ -132,11 +61,17 @@ EN = {
     'meta_creatives.bs_cta': 'Call-to-action button (€/click)',
     'meta_creatives.bs_objective': 'Objective (€/click)',
     'meta_creatives.bs_empty': 'Not enough measured spend yet to compare your settings.',
-    'meta_creatives.hooks_expander': '🎣 Hooks in detail — cost and spend judged',
-    'meta_creatives.pareto_expander': '💶 Where the money went — spend and CPR per creative',
-    'meta_creatives.pareto_title': 'Spend per creative (bars) and its CPR (line)',
-    'meta_creatives.pareto_caption': 'The creatives that took the most money are on the left. A line rising to the right = creatives expensive per outbound click that ran little; a line high ON THE LEFT = money put on a creative that does not convert.',
+    'meta_creatives.hooks_expander': '🎣 Hooks in detail — {part:.0f} % of the spend carries a named hook',
     'meta_creatives.compare_with': 'Compare with',
     'meta_creatives.compare_none': '— none —',
     'meta_creatives.tl_totals': '**Total spend** {spend} € · **Average CPR** {cpr}',
+    # R568
+    "meta_creatives.uncollected_row": "- **{c}** — {ads} ad(s) · {spend} €",
+    "meta_creatives.goal_unknown": "unknown goal",
+    "meta_creatives.tl_context": "{campaign} ({goal})",
+    "meta_creatives.section_pareto": "💶 Where the money went",
+    "meta_creatives.pareto_x": "Spend (€)",
+    "meta_creatives.pareto_campaigns": "Campaigns",
+    "meta_creatives.pareto_empty": "No campaign chosen.",
+    "meta_creatives.bs_goal": "Ad set optimisation (€/outbound click)",
 }

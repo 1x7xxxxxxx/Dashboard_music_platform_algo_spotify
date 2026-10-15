@@ -395,20 +395,6 @@ src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
   p: 4
   v: garder
   note: "R557 (fiche 41) : Pareto dépense par créa (barres) et CPR (ligne) ; remplace la carte de chaleur créa × semaine."
-src/dashboard/views/meta_creatives.py::_render_fatigue#1:
-  mq: M4
-  q: "Ma pub fatigue-t-elle mon audience (fréquence, CTR) ?"
-  decision: "Détecter la fatigue de l'audience (fréquence qui monte, CTR qui baisse), pour renouveler la créa."
-  decision_en: "Detect audience fatigue (rising frequency, falling CTR), to refresh the creative."
-  role: meta
-  d: 3
-  c: 2
-  p: 4
-  v: corriger
-  owner_v: fusionner
-  owner: "Regrouper sur un même graphique, deux axes, légendes."
-  cause: ctr-echelle
-  note: "Fréquence 1,01–1,07 (bonne donnée) ; CTR 100–370 % (défaut d'échelle)."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre le budget et les revenus (budget → impressions → clics → smart link → plateformes → écoutes → revenus) ?"

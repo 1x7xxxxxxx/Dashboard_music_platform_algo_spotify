@@ -37,7 +37,6 @@ def test_a_thin_value_is_never_the_best():
 def test_a_verdict_needs_two_reliable_values():
     r = best_settings.rank(_frame([("A", 100, 50), ("C", 100, 5)]), "v")
     assert best_settings.best(r) is None
-    assert best_settings.verdicts([("x", r)]) == []
 
 
 def test_the_figure_greens_the_best_only():
@@ -70,3 +69,17 @@ def test_the_body_calls_the_tool():
                 and n.name == "_render_body")
     calls = {ast.unparse(c.func) for c in ast.walk(body) if isinstance(c, ast.Call)}
     assert {"_render_best_settings", "_render_spend_pareto"} <= calls, calls
+
+
+def test_each_panel_puts_the_value_to_keep_on_top():
+    """R568 — Pareto, best on top, AFTER the chart door: its own Pareto sort (« total
+    ascending ») lifted a cheap ⚠️ value above the green one."""
+    from src.dashboard.utils import charts
+    # C is the cheapest (5 results, unreliable), A the best reliable value, B dearer.
+    r = best_settings.rank(_frame([("B", 100, 25), ("C", 100, 5), ("A", 100, 50)]), "v")
+    r.loc[r["valeur"] == "C", "cpr"] = 0.5   # cheapest of the three, still grey
+    fig = charts.apply_defaults(best_settings.figure([("x", r), ("y", r)]))
+    for axis in (fig.layout.yaxis, fig.layout.yaxis2):
+        assert axis.autorange == "reversed"
+        assert list(axis.categoryarray)[0] == "A", list(axis.categoryarray or [])
+        assert axis.categoryorder == "array"

@@ -127,9 +127,11 @@ def _aliased_names(tree: ast.AST) -> dict[str, str]:
         if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
             continue
         fn = getattr(node.value.func, "id", None) or getattr(node.value.func, "attr", None)
-        if fn != "account_clause":
+        # `bar.acct("d.")` is the filter bar's thin wrapper over `account_clause` (R568)
+        if fn not in ("account_clause", "acct"):
             continue
-        alias = node.value.args[1] if len(node.value.args) > 1 else None
+        pos = 0 if fn == "acct" else 1                # the wrapper takes the alias alone
+        alias = node.value.args[pos] if len(node.value.args) > pos else None
         for kw in node.value.keywords:
             if kw.arg == "alias":
                 alias = kw.value

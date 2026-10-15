@@ -21,10 +21,10 @@
     "src/dashboard/views/db_health.py": 5,
     "src/dashboard/views/etl_logs.py": 6,
     "src/dashboard/views/home_tiles.py": 6,
-    "src/dashboard/views/instagram.py": 5,
+    "src/dashboard/views/instagram.py": 6,
     "src/dashboard/views/meta_ads_overview.py": 6,
-    "src/dashboard/views/meta_breakdowns.py": 7,
-    "src/dashboard/views/meta_creatives.py": 7,
+    "src/dashboard/views/meta_breakdowns.py": 5,
+    "src/dashboard/views/meta_creatives.py": 4,
     "src/dashboard/views/soundcloud.py": 3,
     "src/dashboard/views/trigger_algo/_tab_budget_roi.py": 8,
     "src/dashboard/views/usage_analytics.py": 4,
@@ -41,5 +41,6 @@
   "_note_2026_10_05_apple": "R383 : apple_music entre à 6 (défaut 5) — les Shazams du Top 10, tableau replié, deviennent un graphique à côté du top, DEMANDÉ par le propriétaire (V37). Payé par le TOTAL (113 → 119), contrairement à R371 : mesuré le même jour, les 18 plafonds valent exactement leur compte, il n'y avait plus de mou à retirer.",
   "_note_2026_10_05": "R371 : home_tiles 5 → 6 — le camembert des parts par plateforme, DEMANDÉ par le propriétaire (note V2 du 2026-10-05), lu sur le même dict que le total (pas un second calcul). En contrepartie, sept plafonds ramenés à leur compte mesuré le même jour (admin 12→4, data_wrapped 8→4, db_health 8→5, meta_ads_overview 7→6, revenue_forecast 21→15, _tab_budget_roi 11→8, usage_analytics 6→4) : total 139 → 113. Une hausse locale payée par du mou retiré ailleurs, jamais par le total.",
   "_note_2026_10_05_imusician": "R388 (V75-V78, demandé par le propriétaire) : la page distributeur perd ses onglets « Données » / « ROI ». Son plafond de 0 n'existait QUE par ces onglets — un onglet borne un écran. Plutôt que de l'inscrire à 10, la vue a été ramenée à 5 (les trois tuiles d'évolution deviennent une phrase, les trois branches de la tuile ROI un seul appel) et son entrée est retirée : elle tient désormais sous le plafond par défaut d'une vue neuve, sans exemption.",
-  "_note_2026_10_12_youtube": "R547 (note vocale du propriétaire, 2026-10-12) : « durée de visionnage par jour » et « d'où viennent les vues » quittent l'onglet Analytics pour la FIN de l'onglet Chaîne et vidéos — demandé tel quel, visibles, pas repliés. youtube entre à 7. Payé par le mou mesuré le même jour : apple_music 6→2 (R546 a retiré deux figures), billing 6→3, soundcloud 7→3. Total 104 → 100."
+  "_note_2026_10_12_youtube": "R547 (note vocale du propriétaire, 2026-10-12) : « durée de visionnage par jour » et « d'où viennent les vues » quittent l'onglet Analytics pour la FIN de l'onglet Chaîne et vidéos — demandé tel quel, visibles, pas repliés. youtube entre à 7. Payé par le mou mesuré le même jour : apple_music 6→2 (R546 a retiré deux figures), billing 6→3, soundcloud 7→3. Total 104 → 100.",
+  "_note_2026_10_15_r568": "R568 (vue croisée 2/3, demandé par le propriétaire) : le tableau « Publications récentes » d'Instagram devient un graphique, un point par publication (date, likes + commentaires, légende au survol) — la vue croisée ne porte plus de tableau. instagram entre à 6. Payé par le mou mesuré le même jour sur les deux autres vues de R568 : meta_creatives 7→4 (bandeau de décision et « audience saturée ? » retirés), meta_breakdowns 7→5 (panneaux déjà dessinés par best_settings retirés). Total 100 → 96."
 }

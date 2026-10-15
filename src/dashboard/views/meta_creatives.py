@@ -15,12 +15,11 @@ from src.dashboard.utils import charts
 from src.dashboard.utils.formats import num
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.campaign_pair import pair_colors
-from src.dashboard.utils.creative_decisions import _a_couper, by_creative, render_creative_gain  # R233: moved out, still importable from here
+from src.dashboard.utils.creative_decisions import _a_couper, by_creative, render_creative_gain  # noqa: F401 — R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
-from src.dashboard.utils.date_format import format_date
 
 # R557 — the two settings the ad set holds and the breakdowns do not: button and objective.
 # Moved from the algo page's settings tab. `v_meta_ad_daily` carries no conversions, so these
@@ -194,30 +193,11 @@ def _render_uncollected_notice(uncollected: pd.DataFrame) -> None:
                     "`{{\"full_history\": true}}`. "
                     "Réserves : les publicités doivent exister encore côté Meta, et Meta "
                     "ne conserve les insights que ~37 mois."))
-        col_spend = t("meta_creatives.col_campaign_spend", "Dépense campagne (€)")
-        st.dataframe(
-            df.rename(columns={
-                'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
-                'ads': t("meta_creatives.col_ads", "Publicités"),
-                'campaign_spend': col_spend,
-            }).style.format({col_spend: '{:,.2f} €'}, na_rep='—'),
-            hide_index=True, width="stretch",
-        )
-
-
-def _badge(cpr: float, median: float) -> str:
-    if pd.isna(cpr):
-        return t("meta_creatives.badge_no_result", "⚫ Pas de résultat")
-    # cpr arrives as Decimal (Postgres numeric); median as numpy float from
-    # .median() — coerce both to float so the division can't raise on mixed types.
-    cpr = float(cpr)
-    median = float(median) if pd.notna(median) else 0.0
-    ratio = cpr / median if median > 0 else 1.0
-    if ratio <= 0.75:
-        return t("meta_creatives.badge_top", "🟢 Top créative")
-    if ratio <= 1.25:
-        return t("meta_creatives.badge_avg", "🟡 Dans la moyenne")
-    return t("meta_creatives.badge_under", "🔴 Sous-performante")
+        # R568 — a list, not a table: the cross view carries no `st.dataframe`.
+        st.markdown("\n".join(t(
+            "meta_creatives.uncollected_row", "- **{c}** — {ads} publicité(s) · {spend} €").format(
+            c=r.campaign_name, ads=int(r.ads), spend=num(float(r.campaign_spend or 0), 2))
+            for r in df.itertuples()))
 
 
 # ── Le HOOK, lu dans le nom que l'artiste donne à sa créative ────────────────
@@ -320,77 +300,6 @@ def _le_plus_sur(d: pd.DataFrame, col_cpr: str = 'cpr') -> pd.Series | None:
     return d.loc[score.idxmax()]
 
 
-def _render_decision_banner(df: pd.DataFrame) -> None:
-    """Ce qu'il faut faire, nommé — avant toute figure.
-
-    Demandé par le propriétaire le 2026-09-21 : « indique-moi tout en haut les
-    meilleures perf avec le nom des hooks et créatives les plus performantes : on
-    doit pouvoir prendre des décisions ». La page ouvrait jusque-là sur quatre
-    jauges dont deux portaient un nom TRONQUÉ à 30 caractères dans un `delta`,
-    c'est-à-dire à l'endroit exact où Streamlit écrit une variation.
-    """
-    d = _numerise(df)
-    meilleure = _le_plus_sur(d)
-    couper = _a_couper(d)
-    hooks = _par_hook(df)
-    meilleur_hook = _le_plus_sur(hooks) if not hooks.empty else None
-
-    depense = float(d['total_spend'].sum())
-    st.markdown(t(
-        "meta_creatives.banner_intro",
-        "**{spend:,.0f} € dépensés sur {n} créative(s).** Voici les trois décisions "
-        "que ces chiffres portent."
-    ).format(spend=depense, n=len(d)).replace(",", " "))
-
-    c1, c2, c3 = st.columns(3)
-    if meilleure is not None:
-        c1.metric(
-            t("meta_creatives.best_creative", "🏆 Meilleure créative — {nom}").format(
-                nom=meilleure['creative_name']),
-            f"{float(meilleure['cpr']):.3f} €",
-            delta=t("meta_creatives.backed_by",
-                    "{spend:.0f} € · {res:,.0f} résultats").format(
-                spend=float(meilleure['total_spend']),
-                res=float(meilleure['total_results'])).replace(",", " "),
-            delta_color="off")
-    else:
-        c1.info(t("meta_creatives.no_winner",
-                  "Aucune créative n'a encore assez de résultats pour être couronnée."))
-
-    if meilleur_hook is not None:
-        part = (float(hooks['total_spend'].sum()) / depense * 100) if depense else 0.0
-        c2.metric(
-            t("meta_creatives.best_hook", "🎣 Meilleur hook — {nom}").format(
-                nom=meilleur_hook['hook']),
-            f"{float(meilleur_hook['cpr']):.3f} €",
-            delta=t("meta_creatives.hook_backed_by",
-                    "{spend:.0f} € · {n} créative(s) · {part:.0f} % du budget nommé"
-                    ).format(spend=float(meilleur_hook['total_spend']),
-                             n=int(meilleur_hook['creatives']), part=part),
-            delta_color="off")
-    else:
-        c2.info(t("meta_creatives.no_hook_named",
-                  "Aucun hook nommé dans tes titres de créatives. Nomme-les "
-                  "« Hook 1 … », « Hook 2 … », « Sans hook … » et cette carte "
-                  "te dira lequel convertit."))
-
-    if couper is not None:
-        c3.metric(
-            t("meta_creatives.to_cut", "✂️ À couper — {nom}").format(
-                nom=couper['creative_name']),
-            f"{float(couper['cpr']):.3f} €",
-            delta=t("meta_creatives.already_spent",
-                    "{spend:.0f} € dépensés · ~{trop:.0f} € de trop vs ton coût "
-                    "d'ensemble ({ref:.3f} €)").format(
-                spend=float(couper['total_spend']),
-                trop=float(couper['surcout']),
-                ref=float(couper['reference'])),
-            delta_color="off")
-    else:
-        c3.info(t("meta_creatives.nothing_to_cut",
-                  "Aucune créative ne dérape sur un budget qui compte."))
-
-
 # Le classement, en figures. (label, colonne, format, couleur, sens)
 # `plus_bas_est_mieux` n'est vrai que pour un COÛT : c'est ce qui décide du sens
 # du tri et de la couleur du meilleur.
@@ -431,7 +340,6 @@ def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
     if d.empty:
         st.info(t("meta_creatives.no_ranking", "Aucune créative avec de la dépense."))
         return
-    tronque = len(d) > _RANG_MAX
     d = d.nlargest(_RANG_MAX, 'total_spend')
     # R243 (fiche 29) : trié par l'étape choisie, le MEILLEUR EN HAUT (Plotly empile du bas).
     tri = st.segmented_control(t("meta_creatives.rank_sort", "Trier par"), [c[1] for c in _RANG_PANNEAUX], format_func=dict((c[1], c[0]) for c in _RANG_PANNEAUX).get, default='cpr', key="rank_sort") or 'cpr'
@@ -458,20 +366,10 @@ def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
                       bargap=0.25)
     fig.update_yaxes(automargin=True)
     charts.plotly_chart(fig, width="stretch")
-    st.caption(t(
-        "meta_creatives.ranking_caption",
-        "Le meilleur en haut, selon l'étape choisie. Une barre absente = pas de résultat "
-        "mesuré, donc pas de CPR — ce n'est pas un zéro. **Décision** : en tri CPR, coupe "
-        "les créas du bas qui ont beaucoup dépensé, remets du budget sur celles du haut.") + (
-        " " + t("meta_creatives.ranking_truncated",
-                "Seules les {n} créatives qui ont le plus dépensé sont tracées ; "
-                "le tableau replié plus bas les porte toutes.").format(n=_RANG_MAX)
-        if tronque else ""))
-    if pair is not None:
+    if pair is not None:   # R568 — the colour key only; the prose went
         st.caption(t("meta_creatives.pair_caption",
-                     "Bleu : « {a} » · orange : « {b} » · gris : une créative des deux campagnes. "
-                     "CPR, CTR, CPM et CPC sont des coûts et des taux : ils se comparent d'une "
-                     "campagne à l'autre, quel que soit le budget.").format(a=pair[0], b=pair[1]))
+                     "Bleu : « {a} » · orange : « {b} » · gris : une créative des deux "
+                     "campagnes.").format(a=pair[0], b=pair[1]))
 
 
 def _render_hooks(df: pd.DataFrame) -> None:
@@ -510,80 +408,13 @@ def _render_hooks(df: pd.DataFrame) -> None:
     fig.update_yaxes(automargin=True)
     # R557 — folded under the best-settings tool, whose « Accroche » panel gives the verdict;
     # this figure keeps the spend each hook was judged on.
+    # R568 — the caption went; the share of spend the names do not label stays said, in
+    # the fold's title (see `_HOOK_NONE`: an unlabelled half of the money is never hidden).
+    part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
     with secondary_analyses(t("meta_creatives.hooks_expander",
-                              "🎣 Le détail des accroches — coût et dépense jugée")):
+                              "🎣 Le détail des accroches — {part:.0f} % de la dépense porte "
+                              "un hook nommé").format(part=part)):
         charts.plotly_chart(fig, width="stretch")
-        part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
-        st.caption(t(
-            "meta_creatives.hooks_caption",
-            "Le hook est lu dans le NOM que tu donnes à ta créative — Meta ne le "
-            "connaît pas. **{part:.0f} % de ta dépense** porte un hook nommé ; le "
-            "reste n'est pas classé ici. Un coût plus bas sur une dépense minuscule "
-            "n'est pas un verdict : c'est pourquoi le second cadre existe. **Décision** : "
-            "ouvre ta prochaine créa avec l'accroche la moins chère — ce graphique compare des "
-            "FAMILLES d'accroche, le classement au-dessus compare des créas une à une."
-        ).format(part=part))
-
-
-def _render_table(df: pd.DataFrame) -> None:
-    """Le tableau exact — REPLIÉ, sous la figure qui l'a remplacé.
-
-    Il n'a pas été supprimé : c'est le seul endroit où lire une valeur au
-    centième, et la figure est le seul endroit où comparer. Les deux servent.
-    """
-    with secondary_analyses(t("meta_creatives.table_expander",
-                              "🔢 Le classement au chiffre près — tableau")):
-        median_cpr = df[df['cpr'].notna()]['cpr'].median()
-
-        display = df.copy()
-        display['statut'] = display['cpr'].apply(lambda x: _badge(x, median_cpr))
-        display['cpr'] = display['cpr'].apply(lambda x: f"{x:.2f}€" if pd.notna(x) else "—")
-        display['total_spend'] = display['total_spend'].apply(lambda x: f"{x:.2f}€")
-        display['avg_ctr'] = display['avg_ctr'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "—")
-        display['total_reach'] = display['total_reach'].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
-        # R233 — the step MEASURED per creative: outbound clicks to a platform, sent back
-        # by Hypeddit's CAPI with the ad id (ad grain, migration 139). « — » where Meta did
-        # not return it — never a 0, and never an estimate of streams per creative
-        # (refused twice: nothing links a stream to a creative).
-        out = pd.to_numeric(display.get('total_outbound'), errors='coerce') \
-            if 'total_outbound' in display else pd.Series(dtype=float)
-        spend = pd.to_numeric(df['total_spend'], errors='coerce')
-        display['outbound'] = [num(int(v), 0) if pd.notna(v) else "—" for v in out]
-        display['cost_outbound'] = [f"{sp / v:.2f}€" if pd.notna(v) and v > 0 else "—"
-                                    for sp, v in zip(spend, out)]
-
-        st.dataframe(
-            display[['statut', 'creative_name', 'campaign_name', 'cpr',
-                     'total_spend', 'total_results', 'outbound', 'cost_outbound',
-                     'avg_ctr', 'total_reach']].rename(columns={
-                'outbound': t("meta_creatives.col_outbound", "Clics plateformes"),
-                'cost_outbound': t("meta_creatives.col_cost_outbound", "€ / clic plateforme"),
-                'statut': t("meta_creatives.col_status", "Statut"),
-                'creative_name': t("meta_creatives.col_creative", "Créative"),
-                'campaign_name': t("meta_creatives.col_campaign", "Campagne"),
-                'cpr': 'CPR',
-                'total_spend': t("meta_creatives.col_spend", "Dépense"),
-                'total_results': t("meta_creatives.col_results", "Résultats"),
-                'avg_ctr': t("meta_creatives.col_avg_ctr", "CTR moyen"),
-                'total_reach': 'Reach',
-            }),
-            width="stretch",
-            hide_index=True,
-        )
-        measured = int(out.notna().sum()) if len(out) else 0
-        st.caption(t("meta_creatives.outbound_caption",
-                     "« Clics plateformes » : les clics qui quittent le smart link vers une "
-                     "plateforme, par créative ({m}/{n} mesurées). Une créative sans mesure "
-                     "affiche « — » : Meta ne renvoyait ce chiffre qu'à la campagne ; il se remplit "
-                     "créative par créative à la prochaine collecte complète de ton compte Meta.")
-                   .format(m=measured, n=len(display)))
-        if pd.notna(median_cpr):
-            st.caption(t(
-                "meta_creatives.badge_legend",
-                "🟢 Top créative = CPR ≤ {low}€ | "
-                "🟡 Moyenne = CPR ≤ {high}€ | "
-                "🔴 Sous-performante = CPR > {high}€"
-            ).format(low=f"{median_cpr * 0.75:.2f}", high=f"{median_cpr * 1.25:.2f}"))
 
 
 # The timeline of ONE creative: counts only. CTR and CPR are not fetched — they are
@@ -600,15 +431,27 @@ WHERE artist_id = %s{acct} AND creative_name = %s{campaign_clause}
 GROUP BY day ORDER BY day
 """
 
-# The fatigue chart. `frequency` is still a mean of daily means: daily reach is not
-# additive, so it cannot be recomputed from summed counts (not covered by the guard).
-_QUERY_FATIGUE = f"""
-SELECT day AS date, AVG(frequency) AS frequency, {_CTR_SQL} AS ctr
+# R568 — what the timeline is annotated with: the campaign(s) the creative ran in, each with
+# its optimisation goal, most spent first.
+_QUERY_CREATIVE_CONTEXT = """
+SELECT campaign_name, STRING_AGG(DISTINCT optimization_goal, ', ') AS goal
 FROM v_meta_creative_daily
-WHERE artist_id = %s{{acct}} AND creative_name = %s
-GROUP BY day ORDER BY day
+WHERE artist_id = %s{acct} AND creative_name = %s{campaign_clause}
+GROUP BY campaign_name ORDER BY SUM(spend) DESC NULLS LAST
 """
 
+
+def _creative_context(db, artist_id: int, creative: str, selected_campaign: str,
+                      acct: str, acct_params: tuple) -> str:
+    """« campagne (objectif) · … » for one creative, inside the bar's campaign."""
+    campaign_clause = "" if selected_campaign == "Toutes" else " AND campaign_name = %s"
+    ctx = db.fetch_df(
+        _QUERY_CREATIVE_CONTEXT.format(acct=acct, campaign_clause=campaign_clause),
+        (artist_id, *acct_params, creative) if selected_campaign == "Toutes"
+        else (artist_id, *acct_params, creative, selected_campaign))
+    unknown = t("meta_creatives.goal_unknown", "objectif inconnu")
+    return " · ".join(t("meta_creatives.tl_context", "{campaign} ({goal})").format(
+        campaign=r.campaign_name or "—", goal=r.goal or unknown) for r in ctx.itertuples())
 
 def _prepare_timeline(tsf: pd.DataFrame) -> tuple[pd.DataFrame, int, bool]:
     """Numeric coercion, weekly resample past 120 days, then the derived rates.
@@ -774,11 +617,11 @@ def _render_one_creative(db, artist_id: int, creative: str, selected_campaign: s
         st.info(t("meta_creatives.no_data_period", "Aucune donnée sur la période sélectionnée."))
         return
 
-    tsf, partial_weeks, weekly = _prepare_timeline(tsf)
-    st.markdown(f"**{creative}**")
+    tsf, partial_weeks, _weekly = _prepare_timeline(tsf)
+    # R568 — the creative named with the campaign(s) it ran in and their optimisation goal.
+    st.markdown(f"**{creative}** — "
+                f"{_creative_context(db, artist_id, creative, selected_campaign, acct, acct_params)}")
     _creative_totals(tsf, creative, gains)
-    granularity = (t("meta_creatives.granularity_weekly", "hebdomadaire") if weekly
-                   else t("meta_creatives.granularity_daily", "journalière"))
 
     # TROIS PANNEAUX, UN PAR UNITÉ — et non sept axes superposés.
     #
@@ -837,12 +680,6 @@ def _render_one_creative(db, artist_id: int, creative: str, selected_campaign: s
             "ont été mesurés, et les additionner à pleine hauteur ferait lire une "
             "chute qui n'a pas eu lieu. La courbe s'y interrompt — on ne sait pas."
         ).format(n=partial_weeks))
-    st.caption(t(
-        "meta_creatives.timeline_caption",
-        "Créative **{creative}** · granularité {granularity} · {d_from} → {d_to}. "
-        "Cliquez une métrique dans la légende pour l'afficher/masquer (double-clic = isoler)."
-    ).format(creative=creative, granularity=granularity,
-             d_from=format_date(d_from), d_to=format_date(d_to)))
 
 
 def _render_best_settings(db, artist_id: int, bar, df: pd.DataFrame) -> None:
@@ -875,110 +712,121 @@ def _render_best_settings(db, artist_id: int, bar, df: pd.DataFrame) -> None:
                          ("age", t("meta_creatives.bs_age", "Âge"))):
         part = _panel(bd, panel) if not bd.empty else bd
         panels.append((label, best_settings.rank(part, "dim_label")))
-    for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
-                       ("objectif", t("meta_creatives.bs_objective", "Objectif (€/clic)"))):
-        panels.append((label, best_settings.rank(
-            db.fetch_df(_Q_AXE[axe], (artist_id,)), "valeur", "depense", "clics")))
+    panels += _ad_setting_panels(db, artist_id, bar)
     fig = best_settings.figure(panels)
     if fig is None:
         st.info(t("meta_creatives.bs_empty", "Pas encore assez de dépense mesurée pour "
                   "comparer tes réglages."))
         return
     charts.plotly_chart(fig, width="stretch")
-    for line in best_settings.verdicts(panels):
-        st.markdown(f"- {line}")
+    # R568 — the verdict lines went (the green bar on top says it); the caption stays as the
+    # chart's key: what green and ⚠️ mean, and which panels carry no date.
     st.caption(best_settings.caption())
 
 
-def _render_spend_pareto(df: pd.DataFrame) -> None:
-    """R557 (fiche 41) — where the money went, most spent first, its CPR on the line.
+def _ad_setting_panels(db, artist_id: int, bar) -> list[tuple[str, pd.DataFrame]]:
+    """The settings chosen per ad or ad set: CTA, campaign objective, optimisation goal.
 
-    Replaces the creative × week heatmap: the owner could not read a decision in it."""
-    d = by_creative(df).rename(columns={"total_spend": "spend", "total_results": "results"})
-    fig = charts.pareto_spend_cpr(d, "creative_name",
-                           t("meta_creatives.pareto_title",
-                             "Dépense par créative (barres) et son CPR (ligne)"), top_n=15)
-    if fig is None:
+    R568 — the optimisation goal had its own Pareto on the overview (R557); it is the
+    AD SET's `optimization_goal`, not the campaign's `objective`, so it joins the panels
+    here rather than leaving with that chart. It follows the bar's account and period."""
+    from src.dashboard.utils import best_settings
+    out = [(label, best_settings.rank(
+        db.fetch_df(_Q_AXE[axe], (artist_id,)), "valeur", "depense", "clics"))
+        for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
+                           ("objectif", t("meta_creatives.bs_objective",
+                                          "Objectif (€/clic)")))]
+    acct, acct_params = bar.acct()
+    win, win_params = bar.window.sql_between("day") if bar.window else ("", ())
+    goal = db.fetch_df(_Q_GOAL.format(acct=acct, win=win),
+                       (t("meta_creatives.goal_unknown", "objectif inconnu"), artist_id,
+                        *acct_params, *win_params))
+    out.append((t("meta_creatives.bs_goal", "Optimisation de l'ad set (€/clic sortant)"),
+                best_settings.rank(goal, "valeur", "depense", "clics")))
+    return out
+
+
+# R568 — `v_meta_adset_daily` (migration 108) names the tenant on the whole chain.
+_Q_GOAL = """
+    SELECT COALESCE(optimization_goal, %s) AS valeur, SUM(spend) AS depense,
+           SUM(conversions) AS clics
+      FROM v_meta_adset_daily
+     WHERE artist_id = %s{acct}{win}
+     GROUP BY 1
+"""
+
+
+# R568 — the ad set each creative ran in. Only the raw catalogue names it:
+# `v_meta_creative_daily` stops at the campaign. The tenant is named at every join.
+_QUERY_ADSETS = """
+SELECT d.ad_name AS creative_name, c.campaign_name, s.adset_name
+FROM meta_ads d
+JOIN meta_adsets s ON s.adset_id = d.adset_id AND s.artist_id = d.artist_id
+JOIN meta_campaigns c ON c.campaign_id = d.campaign_id AND c.artist_id = d.artist_id
+WHERE d.artist_id = %s{acct_d} AND d.ad_name IS NOT NULL
+"""
+_PARETO_KEY = "crea_pareto_campaigns"
+_PARETO_MAX = 25
+
+
+def _pareto_frame(df: pd.DataFrame, adsets: pd.DataFrame) -> pd.DataFrame:
+    """One row per (creative, campaign), labelled « créa · adset · campagne », most spent first."""
+    d = _numerise(df)[['creative_name', 'campaign_name', 'total_spend', 'cpr']]
+    keys = ['creative_name', 'campaign_name']
+    names = (adsets.dropna(subset=['adset_name']).groupby(keys)['adset_name']
+             .agg(lambda s: " / ".join(sorted(set(s)))).reset_index()
+             if not adsets.empty else pd.DataFrame(columns=[*keys, 'adset_name']))
+    d = d.merge(names, on=keys, how='left', validate='many_to_one')
+    d['label'] = [f"{c} · {a if isinstance(a, str) else '—'} · {k}"
+                  for c, a, k in zip(d['creative_name'], d['adset_name'], d['campaign_name'])]
+    return d.sort_values('total_spend', ascending=False).reset_index(drop=True)
+
+
+def _pareto_figure(d: pd.DataFrame) -> go.Figure:
+    """Horizontal Pareto: most spent on top, one colour (one legend entry) per campaign."""
+    from src.dashboard.utils.platform_colors import DISTINCT
+    colour = {c: DISTINCT[i % len(DISTINCT)]
+              for i, c in enumerate(dict.fromkeys(d['campaign_name']))}
+    up = d.iloc[::-1]
+    fig = go.Figure()
+    # One trace per bar, least spent first: a category axis draws its first category at
+    # the BOTTOM, so the trace order IS the drawn order. `autorange="reversed"` plus one
+    # trace per campaign drew right, but the legend placer read another order and set the
+    # legend on the longest bar (R568, PNG read).
+    for camp, label, spend, cpr in zip(up['campaign_name'], up['label'],
+                                       up['total_spend'], up['cpr']):
+        fig.add_trace(go.Bar(
+            x=[spend], y=[label], orientation='h', name=camp, legendgroup=camp,
+            showlegend=False, marker={'color': colour[camp]},
+            text=[f"{num(spend, 0)} € · CPR {num(cpr, 3) + ' €' if pd.notna(cpr) else '—'}"],
+            textposition='auto', cliponaxis=False,
+            hovertemplate="%{y}<br>%{x:,.2f} €<extra></extra>"))
+    for tr in {tr.name: tr for tr in reversed(fig.data)}.values():
+        tr.showlegend = True  # the most spent bar of each campaign carries its entry
+    fig.update_yaxes(categoryorder="array", categoryarray=up['label'].tolist(),
+                     automargin=True)
+    fig.update_xaxes(title_text=t("meta_creatives.pareto_x", "Dépense (€)"), rangemode="tozero")
+    fig.update_layout(height=max(320, 30 * len(d) + 120), legend={'traceorder': 'reversed'},
+                      margin={'l': 10, 'r': 40, 't': 30, 'b': 40})
+    return fig
+
+
+def _render_spend_pareto(db, artist_id: int, bar, df: pd.DataFrame) -> None:
+    """R568 — where the money went: every creative of the bar's scope, coloured by campaign.
+
+    Replaces R557's folded dual-axis Pareto (spend bars, CPR line): the CPR is written on
+    each bar, and a campaign filter narrows the bars without touching the page's bar."""
+    acct_d, acct_params = bar.acct("d.")
+    adsets = db.fetch_df(_QUERY_ADSETS.format(acct_d=acct_d), (artist_id, *acct_params))
+    d = _pareto_frame(df, adsets)
+    camps = list(dict.fromkeys(d['campaign_name']))
+    keep = st.multiselect(t("meta_creatives.pareto_campaigns", "Campagnes"), camps,
+                          default=camps, key=_PARETO_KEY)
+    d = d[d['campaign_name'].isin(keep)].head(_PARETO_MAX)
+    if d.empty:
+        st.info(t("meta_creatives.pareto_empty", "Aucune campagne choisie."))
         return
-    fig.update_xaxes(automargin=True, tickangle=-35)
-    # Folded: the first screen holds five figures, and this one refines the ranking.
-    with secondary_analyses(t("meta_creatives.pareto_expander",
-                              "💶 Où est passé l'argent — dépense et CPR par créative")):
-        charts.plotly_chart(fig, width="stretch")
-        st.caption(t("meta_creatives.pareto_caption",
-                     "Les créatives qui ont pris le plus d'argent à gauche. Une ligne qui "
-                     "monte à droite = des créas chères par clic sortant qui ont peu tourné ; "
-                     "une ligne haute À GAUCHE = de l'argent mis sur une créa qui ne "
-                     "convertit pas."))
-
-
-@st.fragment
-def _tab_fatigue(acct: str = "", acct_params: tuple = ()) -> None:
-    """Le détecteur de fatigue publicitaire — rejoué SEUL quand son sélecteur change.
-
-    @st.fragment (R118, 2026-09-16). Bouger le sélecteur rejouait tout le script : les
-    SIX onglets, dont `st.tabs` exécute tous les corps, plus la barre latérale.
-
-    ⚠️ Il rouvre une session avec `view_session()`, et ce n'est pas un style : son
-    sélecteur pilote une REQUÊTE, donc il doit relire la base — alors que la session de
-    `show()` est refermée dès la fin du rendu complet. `view_session()` ferme par
-    construction, ce qui est la seule forme acceptée par
-    `tests/test_a_fragment_never_captures_a_connection.py` pour un fragment qui ouvre.
-    """
-    from src.dashboard.utils.fragment_db import fragment_db
-
-    with fragment_db() as (db, artist_id):
-        _render_fatigue(db, artist_id, acct, acct_params)
-
-
-def _render_fatigue(db, artist_id: int, acct: str = "",
-                    acct_params: tuple = ()) -> None:
-    """#2 — frequency (↗) vs CTR (↘) over time: ad-fatigue detector."""
-    names = db.fetch_df(
-        f"""SELECT creative_name AS ad_name, MAX(creative_created) AS last_created
-           FROM v_meta_creative_daily
-           WHERE artist_id = %s{acct} AND creative_name IS NOT NULL
-           GROUP BY creative_name ORDER BY last_created DESC NULLS LAST, creative_name""",
-        (artist_id, *acct_params),
-    )
-    if names.empty:
-        st.info(t("meta_creatives.no_creative", "Aucune créative."))
-        return
-    sel = st.selectbox(t("meta_creatives.creative", "Créative"), names['ad_name'].tolist(), key="fatigue_creative")
-    ts = db.fetch_df(
-        _QUERY_FATIGUE.format(acct=acct),
-        (artist_id, *acct_params, sel),
-    )
-    if ts.empty:
-        st.info(t("meta_creatives.no_timeseries", "Pas de séries temporelles pour cette créative."))
-        return
-    ts['date'] = pd.to_datetime(ts['date'])
-    ts['frequency'] = pd.to_numeric(ts['frequency'], errors='coerce').astype(float)
-    ts['ctr'] = pd.to_numeric(ts['ctr'], errors='coerce').astype(float)
-    # DEUX CADRES, PAS DEUX AXES. Une fréquence (autour de 2-3) et un taux de clic
-    # (autour de 1 %) n'ont ni la même unité ni le même ordre de grandeur : superposées
-    # sur un repère commun, la seconde est sous le pixel ; sur deux axes décalés, leur
-    # croisement visuel ne veut rien dire. Partagés en x, les deux cadres disent
-    # exactement ce que la légende promet — la fréquence monte PENDANT que le CTR
-    # baisse — sans qu'aucune forme soit un artefact d'échelle.
-    from plotly.subplots import make_subplots
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=[t("meta_creatives.frequency", "Fréquence"),
-                                        "CTR (%)"])
-    fig.add_trace(go.Scatter(x=ts['date'], y=ts['frequency'],
-                             name=t("meta_creatives.frequency", "Fréquence"),
-                             mode='lines+markers', line={'color': '#eb6834'}),
-                  row=1, col=1)
-    fig.add_trace(go.Scatter(x=ts['date'], y=ts['ctr'], name='CTR (%)',
-                             mode='lines+markers', line={'color': '#2a78d6'}),
-                  row=2, col=1)
-    fig.update_layout(hovermode="x unified", showlegend=False, height=420)
-    charts.plotly_chart(charts.to_base100(fig)[0], width="stretch")   # R244 fiche 35 : UN repère
-    st.caption(t("meta_creatives.fatigue_caption",
-                 "**Fréquence** = combien de fois, en moyenne, une même personne a vu cette "
-                 "pub ce jour-là (impressions ÷ personnes touchées). Fréquence qui monte "
-                 "**et** CTR qui baisse = les mêmes gens revoient la pub et cliquent de moins "
-                 "en moins : l'audience est saturée → renouvelle la créative."))
+    charts.plotly_chart(_pareto_figure(d), width="stretch")
 
 
 def show() -> None:
@@ -990,8 +838,6 @@ def show() -> None:
 def render(db, artist_id, bar) -> None:
     """The creatives section — connection, fragments' slot and filters held by the page."""
     st.subheader(t("meta_creatives.title", "🎨 Créatives Meta Ads"))
-    st.caption(t("meta_creatives.subtitle",
-                 "Classement de vos créatives par CPR — basé sur les données Meta Ads API (meta_ads × meta_insights)."))
     # R146 — toute la page classe des créatives sur un coût par CLIC SORTANT.
     st.caption(disclosure_caption())
     _render_body(db, artist_id, bar)
@@ -1046,29 +892,21 @@ def _render_body(db, artist_id, bar) -> None:
     # ⚠️ Les six onglets n'ont pas été dépliés tels quels. `st.tabs` BORNE un
     # écran — c'est écrit dans `first-screen-ceilings.json` — donc tout aplatir
     # aurait fait passer cette vue de 8 figures de premier écran à quatorze. Le
-    # remplacement n'est pas l'onglet, c'est le DÉPLIANT : la page se lit d'un
-    # bout à l'autre en scrollant, la décision est en haut, et chaque analyse
-    # qui ne fait que raffiner cette décision se replie elle-même.
+    # remplacement n'est pas l'onglet, c'est le DÉPLIANT.
     #
-    # Reste donc à l'écran, dans cet ordre : la décision, le classement, les
-    # hooks, les meilleurs réglages, la fatigue, l'évolution — cinq figures ; la
-    # dépense par créative (R557) est repliée.
-    _render_decision_banner(df)
-    st.markdown("---")
-
+    # R568 — the banner, the exact table and « Une audience saturée ? » left; the spend
+    # Pareto came out of its fold. On screen, in order: the ranking, the spend Pareto,
+    # the best settings (hooks folded), the timeline of one creative — four figures.
     st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
     _render_ranking(df, pair)
-    _render_table(df)
+
+    st.markdown("---")
+    st.subheader(t("meta_creatives.section_pareto", "💶 Où est passé l'argent"))
+    _render_spend_pareto(db, artist_id, bar, df)
 
     st.markdown("---")
     st.subheader(t("meta_creatives.section_best", "🧪 Tes meilleurs réglages"))
     _render_best_settings(db, artist_id, bar, df)
     _render_hooks(df)
 
-    st.markdown("---")
-    st.subheader(t("meta_creatives.section_fatigue", "🪫 Une audience saturée ?"))
-    _tab_fatigue(_acct_ma, _acct_params)
-
     _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params, bar.window)
-
-    _render_spend_pareto(df)

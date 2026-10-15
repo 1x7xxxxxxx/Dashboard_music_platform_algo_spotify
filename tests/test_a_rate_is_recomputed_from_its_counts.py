@@ -189,12 +189,6 @@ class TestLive:
         assert round(float(out["ctr"].iloc[0]), 2) == _EXPECTED, (
             f"timeline ctr {out['ctr'].iloc[0]!r} != {_EXPECTED}")
 
-    def test_the_fatigue_ctr_is_the_ratio_of_summed_counts(self, db, tenant) -> None:
-        from src.dashboard.views.meta_creatives import _QUERY_FATIGUE
-        ts = db.fetch_df(_QUERY_FATIGUE.format(acct=""), (tenant, "Rate guard creative"))
-        assert float(ts["ctr"].iloc[0]) == _EXPECTED, (
-            f"fatigue ctr {ts['ctr'].iloc[0]!r} != {_EXPECTED}")
-
     def test_the_lever_link_ctr_counts_the_zero_click_day(self, db, tenant) -> None:
         from src.dashboard.views.trigger_algo._common._budget_roi import _META_LEVER_QUERY
         df = db.fetch_df(_META_LEVER_QUERY, (tenant, tenant, tenant, _TRACK))
@@ -204,16 +198,13 @@ class TestLive:
             "(50.5 = mean of non-zero daily rates)")
 
     def test_no_displayed_ctr_exceeds_100_on_the_real_base(self, db) -> None:
-        from src.dashboard.views.meta_creatives import _QUERY_CREATIVES, _QUERY_FATIGUE
+        from src.dashboard.views.meta_creatives import _QUERY_CREATIVES
         over = []
+        # R568 — the fatigue chart (and its per-day CTR) left the page.
         pairs = db.fetch_query("SELECT DISTINCT artist_id, creative_name "
                                "FROM v_meta_creative_daily WHERE creative_name IS NOT NULL")
         for artist in {a for a, _ in pairs}:
             df = db.fetch_df(_QUERY_CREATIVES.format(acct=""), (artist,))
             over += [(artist, n) for n, v in zip(df["creative_name"], df["avg_ctr"])
-                     if v is not None and float(v) > 100]
-        for artist, creative in pairs:
-            ts = db.fetch_df(_QUERY_FATIGUE.format(acct=""), (artist, creative))
-            over += [(artist, creative, "fatigue") for v in ts["ctr"]
                      if v is not None and float(v) > 100]
         assert over == [], f"{len(over)} displayed CTR above 100 %: {over[:5]}"

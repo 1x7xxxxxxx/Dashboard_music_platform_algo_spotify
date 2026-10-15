@@ -24,7 +24,11 @@ _VIEWS = Path(__file__).resolve().parents[1] / "src" / "dashboard" / "views"
 # Budgets are the CURRENT counts after the 2026-08-20 pass — they are a ratchet:
 # lower them freely, raise one only with a reason written in the diff.
 _BUDGET = {
-    "instagram.py": 2,             # followers trend + engagement per month
+    # 2 → 3 le 2026-10-15 (R568, vue croisée 2/3, demandé par le propriétaire) : le
+    # tableau « Publications récentes » devient un graphique, un point par post. Ce
+    # n'est pas le graphique mensuel : celui-ci agrège par mois (un ratio par cohorte),
+    # le nouveau dit QUEL post a pris. La vue croisée ne porte plus de tableau.
+    "instagram.py": 3,             # followers trend + engagement per month + per post
     # 1 → 3 le 2026-09-21, DÉLIBÉRÉMENT, et voici les trois décisions distinctes.
     # Ce cliquet demande une raison écrite dans le diff pour toute hausse ; la
     # voici, parce que « j'ai ajouté des figures » n'en est pas une.
@@ -202,11 +206,14 @@ def test_instagram_kept_its_charts_only_moved_them():
     ⚠️ 3 → 2 le 2026-09-28 (R299) : le « taux d'engagement », replié, était la courbe
     « par publication » divisée par UN nombre d'abonnés — même forme, même mesure. Il
     passe au survol de cette courbe ; le premier écran ne change pas (il était replié).
+
+    2 → 3 le 2026-10-15 (R568) : un AJOUT, pas une relocalisation — le tableau des
+    publications récentes devient un graphique par post (voir `_BUDGET`).
     """
     text = (_VIEWS / "instagram.py").read_text(encoding="utf-8")
     # Counted in the AST since R243 (every chart goes through `charts.plotly_chart`):
     # the textual `st.plotly_chart` count saw zero after the door, and a comment would
     # have counted as a chart before it.
     assert sum(1 for n in ast.walk(ast.parse(text)) if isinstance(n, ast.Call)
-               and getattr(n.func, "attr", None) == "plotly_chart") == 2
-    assert _primary_chart_count(_VIEWS / "instagram.py") == 2
+               and getattr(n.func, "attr", None) == "plotly_chart") == 3
+    assert _primary_chart_count(_VIEWS / "instagram.py") == 3

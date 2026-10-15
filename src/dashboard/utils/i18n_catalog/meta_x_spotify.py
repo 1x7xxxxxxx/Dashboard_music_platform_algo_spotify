@@ -70,22 +70,8 @@ EN = {
     "meta_x_spotify.funnel_lp_note": '⚠️ The Meta pixel counts only **{lp}** page views for **{capi}** events returned by the CAPI: the pixel UNDERCOUNTS, it does not measure a later step.',
     "meta_x_spotify.countries_header": "🌍 Where the euro buys the most listens",
     "meta_x_spotify.countries_none": "No country breakdown on this ad account.",
+    "meta_x_spotify.c_cost_src": "€ per listen (iMusician listens, all platforms)",
     "meta_x_spotify.c_cost": "€ per listen",
-    "meta_x_spotify.best_country": "🏆 **{pays}** is your best ratio: **{c:.3f} € per "
-                                   "listen** ({s:,.0f} € spent, {e:,.0f} listens). The "
-                                   "worst is **{pp}** at **{cc:.3f} €** — **{ratio:.0f}×** "
-                                   "more expensive for the same listen. Only countries "
-                                   "above **{plancher:.0f} €** of spend enter this "
-                                   "ranking: below that, a good ratio proves nothing.",
-    "meta_x_spotify.countries_caption": "⚠️ **The listens do not come from Spotify.** The "
-                                        "Spotify for Artists export gives no country "
-                                        "breakdown: the only count in the product is the "
-                                        "**distributor's** (iMusician), which aggregates "
-                                        "every platform and arrives with an accounting "
-                                        "statement's delay. The spend comes from Meta. "
-                                        "Bars: the cost of one listen, cheapest on the "
-                                        "left; line: the CPR. ⚠️ in grey: under 50 € "
-                                        "spent, too little to conclude.",
     # R195 — the listener verdict, moved from the Spotify page
     "meta_x_spotify.funnel_gain_note": '🎧 The **streams gained** are compared with the average of the {n} days before ({b} streams/day): a rise that would have happened without the ad is counted too, and one visitor streams many times — hence « streams per click », not a %.',
     "meta_x_spotify.funnel_no_gain": "No « streams gained » step: it needs at least {n} days of streams recorded before the campaign, and a measurable rise.",

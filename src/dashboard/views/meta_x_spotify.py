@@ -805,7 +805,10 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
         x=[p if ok else f"{p} ⚠️" for p, ok in zip(meta["pays"], sur)], y=meta["cpr"],
         mode="lines+markers", name=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
         line=dict(color=_CROSS_INK, width=2), connectgaps=False), secondary_y=True)
-    fig.update_yaxes(title_text=t("meta_x_spotify.c_cost", "€ par écoute"),
+    # R568 : the banner and the caption are gone — the axis names the stream source
+    # (the distributor: S4A has no country split) and grey bars carry the spend floor.
+    fig.update_yaxes(title_text=t("meta_x_spotify.c_cost_src",
+                                  "€ par écoute (écoutes iMusician, toutes plateformes)"),
                      rangemode="tozero", secondary_y=False)
     fig.update_yaxes(title_text=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
                      showgrid=False, rangemode="tozero", title_font=dict(color=_CROSS_INK),
@@ -813,30 +816,3 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
     fig.update_layout(height=480, hovermode="x unified", margin=dict(b=110))
     fig.update_xaxes(tickangle=-35)
     charts.plotly_chart(fig, width="stretch")
-
-    # LE MEILLEUR PAYS, avec son plancher de dépense écrit.
-    eligibles = meta[(meta["spend"] >= _PLANCHER) & meta["cout_par_ecoute"].notna()]
-    if not eligibles.empty:
-        best = eligibles.loc[eligibles["cout_par_ecoute"].idxmin()]
-        pire = eligibles.loc[eligibles["cout_par_ecoute"].idxmax()]
-        st.success(t(
-            "meta_x_spotify.best_country",
-            "🏆 **{pays}** est ton meilleur rapport : **{c:.3f} € par écoute** "
-            "({s:,.0f} € dépensés, {e:,.0f} écoutes). Le moins bon est **{pp}** à "
-            "**{cc:.3f} €** — soit **{ratio:.0f}×** plus cher pour la même écoute. "
-            "Seuls les pays au-dessus de **{plancher:.0f} €** de dépense entrent "
-            "dans ce classement : sous ce seuil, un bon ratio ne prouve rien."
-        ).format(pays=best["pays"], c=best["cout_par_ecoute"],
-                 s=best["spend"], e=best["streams"], pp=pire["pays"],
-                 cc=pire["cout_par_ecoute"],
-                 ratio=pire["cout_par_ecoute"] / best["cout_par_ecoute"],
-                 plancher=_PLANCHER).replace(",", " "))
-
-    st.caption(t(
-        "meta_x_spotify.countries_caption",
-        "⚠️ **Les écoutes ne viennent pas de Spotify.** L'export Spotify for "
-        "Artists ne donne aucune ventilation par pays : le seul compte du produit "
-        "est celui du **distributeur** (iMusician), qui agrège toutes les "
-        "plateformes et arrive avec le décalage d'un relevé comptable. La dépense, "
-        "elle, vient de Meta. Barres : le coût d'une écoute, le moins cher à gauche ; "
-        "ligne : le CPR. ⚠️ en gris : moins de 50 € dépensés, trop peu pour conclure."))

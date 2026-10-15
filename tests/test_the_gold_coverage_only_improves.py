@@ -104,7 +104,7 @@ _CEILING: dict[str, int] = {
     # aussi trompeur qu'un livrable qui invente.
     # 7 → 6 le 2026-09-24 : le traceur suit désormais l'ARGUMENT d'un formateur
     # (`_n(x)`) quand le formateur lui-même ne rend aucune source.
-    "figures.unknown": 3,  # 2 → 3 le 2026-10-13 (R554), correction de MESURE comme R208 : la carte de meta_breakdowns partie, le pareto voisin (`_render_performance`) n est plus mal tracé « hors base » via le `_panel` qu elle partageait — il reçoit le verdict juste, « indéterminée · clé-à-l-exécution » ; 4 → 2 le 2026-09-27 (R247) : deux d'entre elles étaient dans le code mort retiré ; 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
+    "figures.unknown": 2,  # 3 → 2 le 2026-10-15 (R568) : le pareto de meta_breakdowns `_render_performance` (celui que R554 avait fait passer en « indéterminée ») ne figure plus parmi les indéterminées une fois sa grille réservée au grain adset/créa — mesuré, les deux restantes sont admin `_render_costs` et db_health `_show_ingestion_gaps` ; 2 → 3 le 2026-10-13 (R554), correction de MESURE comme R208 : la carte de meta_breakdowns partie, le pareto voisin (`_render_performance`) n est plus mal tracé « hors base » via le `_panel` qu elle partageait — il reçoit le verdict juste, « indéterminée · clé-à-l-exécution » ; 4 → 2 le 2026-09-27 (R247) : deux d'entre elles étaient dans le code mort retiré ; 6 → 4 le 2026-09-27 (R244/R245) : la trésorerie et l'usage admin fusionnés ;  # 5 → 6 le 2026-09-27 (R208) : la carte des dépenses de meta_breakdowns était classée « hors base » à TORT (elle lit une table breakdown dont le nom se compose à l exécution) ; elle passe par `_panel` et reçoit le verdict juste, « indéterminée · clé-à-l-exécution », comme le pareto voisin. 6 → 5 le 2026-09-26 (R216)
     # 11 → 10 le 2026-09-21. La tuile disparue est « 📅 Dernière mise à jour »
     # de SoundCloud, retirée à la demande du propriétaire : une date de collecte
     # est un fait de PLOMBERIE, et elle était indéterminée pour le lecteur de la
@@ -336,7 +336,9 @@ _FLOOR: dict[str, int] = {
     # gone (fiches 129, 48, 49 : one figure, forecast dotted beside the title's readings).
     # 2026-10-15 (R567) : 121 → 118 — the Meta engagement tiles and the summary table are
     # gone (owner: « camemberts + coûts », the funnel carries what the ads learned).
-    "tiles.total": 118,
+    # 118 → 115 le 2026-10-15 (R568, demandé par le propriétaire) : le bandeau de décision de
+    # meta_creatives et ses trois `metric` sont retirés — la vue croisée ne porte plus de prose.
+    "tiles.total": 115,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

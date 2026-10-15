@@ -84,8 +84,16 @@ def test_the_breakdowns_draw_no_map() -> None:
 
 
 def test_the_settings_section_reads_the_optimisation_goal() -> None:
-    """Fiche 30's data stays read: `v_meta_adset_daily` feeds the first « best setting »."""
-    calls = _called(_function(VIEWS / "meta_ads_overview.py", SECTIONS["creas"].render.__name__))
-    assert "_render_goal_pareto" in calls
-    assert "pareto_spend_cpr" in _called(_function(VIEWS / "meta_ads_overview.py",
-                                                   "_render_goal_pareto"))
+    """Fiche 30's question stays answered — once (R568): the separate goal Pareto of the
+    cross view left, and the best-settings tool prices the AD SET's optimisation goal —
+    not only the campaign's `objective`, which is another setting."""
+    tree = ast.parse((VIEWS / "meta_ads_overview.py").read_text(encoding="utf-8"))
+    assert "_render_goal_pareto" not in {n.name for n in tree.body
+                                         if isinstance(n, ast.FunctionDef)}
+    tool = _function(VIEWS / "meta_creatives.py", "_render_best_settings")
+    assert "_ad_setting_panels" in _called(tool)
+    panels = _function(VIEWS / "meta_creatives.py", "_ad_setting_panels")
+    assert {"_Q_AXE", "_Q_GOAL"} <= {n.id for n in ast.walk(panels) if isinstance(n, ast.Name)}
+    from src.dashboard.views.meta_creatives import _Q_AXE, _Q_GOAL
+    assert "objective" in _Q_AXE["objectif"]
+    assert "optimization_goal" in _Q_GOAL and "v_meta_adset_daily" in _Q_GOAL

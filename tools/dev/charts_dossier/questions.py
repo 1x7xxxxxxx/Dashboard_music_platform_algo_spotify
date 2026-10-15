@@ -46,6 +46,12 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/meta_creatives.py::_render_hooks#1",
+               "src/dashboard/views/meta_creatives.py::_render_one_creative#1",
+               "src/dashboard/views/meta_creatives.py::_render_ranking#1"}):
+        ("faux doublon — trois grains d'une même table : le classement compare les créas "
+         "entre elles (six unités), les hooks regroupent les créas par accroche, la "
+         "chronologie suit UNE créa jour par jour (R568, 2026-10-15).", frozenset()),
     frozenset({"src/dashboard/utils/campaign_compare.py::render#1",
                "src/dashboard/utils/campaign_compare.py::_render_tracks#1",
                "src/dashboard/utils/campaign_compare.py::_render_creatives#1"}):
@@ -87,13 +93,6 @@ SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
         ("à trancher — les jauges (% du chemin) se calculent depuis les valeurs et leurs "
          "seuils du second graphique ; ma reco : garder les valeurs, les jauges en survol",
          frozenset({_CAT + "1", _CAT + "2"})),
-    frozenset({f"src/dashboard/views/meta_creatives.py::{fn}#1" for fn in (
-        "_render_hooks", "_render_one_creative", "_render_spend_pareto",
-        "_render_fatigue", "_render_ranking")}):
-        ("faux doublons — R557 : un seul outil compare les réglages (le nuage, l'entonnoir "
-         "par créa et la carte de chaleur sont retirés) ; les autres répondent par accroche, "
-         "dans le temps, par dépense cumulée, par fréquence",
-         frozenset()),
 }
 
 #: Merged on 2026-09-28 (R299): the retired fiche, the fiche that now carries it, why.

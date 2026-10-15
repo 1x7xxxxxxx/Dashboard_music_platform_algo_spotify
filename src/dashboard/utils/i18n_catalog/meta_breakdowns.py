@@ -2,18 +2,13 @@
 
 EN = {
     "meta_breakdowns.title": "🌍 Meta Breakdowns",
-    "meta_breakdowns.subtitle": (
-        "Country, placement, platform and age side by side, at every grain (campaign · adset · creative). "
-        "Data aggregated over the full history — **no period filter** "
-        "(Meta breakdowns have no date dimension)."
-    ),
     "meta_breakdowns.metric": "Metric",
     "meta_breakdowns.dim.country": "Country",
     "meta_breakdowns.dim.placement": "Placement",
     "meta_breakdowns.dim.age": "Age",
     "meta_breakdowns.dim.platform": "Platform",
     "meta_breakdowns.panel_empty": "{dim} — no data for this selection.",
-    "meta_breakdowns.family.performance": "Performance",
+    "meta_breakdowns.family.performance": "CPR",
     "meta_breakdowns.family.engagement": "Engagement",
     "meta_breakdowns.adset": "Adset",
     "meta_breakdowns.creative": "Creative",

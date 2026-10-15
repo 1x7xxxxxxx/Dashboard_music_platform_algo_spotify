@@ -32,12 +32,6 @@ EN = {
     "instagram.posts_axis": "Posts",
     "instagram.per_post_axis": "Likes + comments per post",
     "instagram.recent_posts": "#### Recent posts",
-    "instagram.col_preview": "Preview",
-    "instagram.col_link": "Link",
-    "instagram.col_open": "Open",
-    "instagram.col_caption": "Caption",
-    "instagram.col_published": "Published on",
-    "instagram.col_comments": "💬 Comments",
     "instagram.no_media": "No posts collected for this period.",
     "instagram.media_error": "Posts error: {err}",
     # La communauté en petits multiples, en VRAIES valeurs (2026-09-21).
@@ -52,14 +46,14 @@ EN = {
                                     "in total, the latest from **{d}** — **{j} days** ago. "
                                     "Widen the period to see the history again.",
     "instagram.community_axis": "Gained since the first reading",
-    "instagram.col_views": "👁️ Views",
-    "instagram.col_reach": "Reach",
-    "instagram.col_interactions": "Interactions",
-    "instagram.col_saved": "Saved",
-    "instagram.col_shares": "Shares",
     "instagram.insights_pending": "**Views, reach, interactions, saves and shares per post** "
                                   "are not collected yet. They arrive with the next "
                                   "Instagram collection; if Meta refuses them, the "
                                   "collection fails and the administrator is told.",
     "instagram.spend_axis": "Meta spend (€)",
+    # R568 — the recent posts as a chart, one point per post.
+    "instagram.posts_engagement": "Engagement (likes + comments)",
+    "instagram.posts_hover": "%{x|%d %b %Y}<br>%{customdata[0]}<br>❤️ %{customdata[1]:.0f} · "
+                             "💬 %{customdata[2]:.0f} · 👁️ %{customdata[3]}<extra></extra>",
+    "instagram.posts_y": "Likes + comments",
 }
