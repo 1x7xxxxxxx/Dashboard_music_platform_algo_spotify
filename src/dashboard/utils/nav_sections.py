@@ -210,6 +210,7 @@ NAV_SECTIONS: list = [
      [("💶 Trésorerie (distributeurs, SACEM, Meta Ads)", "imusician")]),
     ("account",   "👤 Compte",
      [("👤 Mon compte", "account"),
+      ("📖 Glossaire", "glossary"),  # R592 — the app's flow and every technical word
       ("💳 Facturation / Abonnement", "billing"),
       ("⬇️ Export CSV", "export_csv"),
       ("🎁 Parrainage", "referral")]),

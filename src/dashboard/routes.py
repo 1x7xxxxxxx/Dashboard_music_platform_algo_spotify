@@ -56,6 +56,7 @@ ROUTES: dict[str, str] = {
     "meta_mapping": "views.meta_mapping",
     "admin": "views.admin",
     "account": "views.account",
+    "glossary": "views.glossary",
     "meta_creatives": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "meta_breakdowns": "views.meta_ads_overview",  # alias — R378 merged it into the Vue croisée, which opens its section
     "meta_cpr_optimizer": "views.trigger_algo",  # alias — R570: the algo page, no section (its CPR cards left)
@@ -66,7 +67,7 @@ ROUTES: dict[str, str] = {
     "usage_analytics": "views.usage_analytics",
     "alerts": "views.alerts",
     "recap": "views.home",  # alias — R379 retired the Récap page; old links land home
-    "meta_campaign_settings": "views.trigger_algo",  # alias — R570: the algo page, no section (its settings part left)
+    "meta_campaign_settings": "views.trigger_algo",  # alias — R598: the algo page's « réglages » section
 }
 
 
