@@ -29,11 +29,11 @@ import streamlit as st
 
 from src.dashboard.utils import charts
 from src.dashboard.utils.i18n import t
-from src.dashboard.utils.platform_colors import DISTINCT
+from src.dashboard.utils.platform_colors import TYPE_COLOURS
 from src.dashboard.utils.ratios import per_series
 
 # Campaign A then campaign B — the two first colours of the shared palette.
-PAIR_COLORS: tuple[str, str] = (DISTINCT[0], DISTINCT[1])
+PAIR_COLORS: tuple[str, str] = (TYPE_COLOURS["campaign.1"], TYPE_COLOURS["campaign.2"])
 _ALL = "Toutes"   # the « every campaign » sentinel the pages already use
 
 
@@ -70,7 +70,7 @@ def second_campaign(options: list, first: str | None, key: str) -> str | None:
     return pick if pick in offered[1:] else None
 
 
-BOTH_COLOR = "#7f7f7f"   # a creative that ran in BOTH campaigns belongs to neither colour
+BOTH_COLOR = TYPE_COLOURS["campaign.both"]   # a creative that ran in BOTH campaigns belongs to neither colour
 
 
 def pair_colors(names: list, rows: pd.DataFrame, first: str, second: str) -> list[str]:

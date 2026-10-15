@@ -172,6 +172,24 @@ ALGO_COLORS: dict[str, str] = {"DW": DISTINCT[0], "RR": DISTINCT[3], "RADIO": DI
 # attribution question does not arise — and defined HERE, once, not in each view.
 UNMEASURED_BRAND: dict[str, str] = {"instagram": "#E1306C"}
 
+# R603 (owner, 2026-10-15 : « une couleur par type de donnée dans toute l'app ») — the
+# ONE registry, keyed by what a colour MEANS, never by the page that draws it. Two types
+# that can share a figure never share a colour: campaigns are blue/yellow, the titles
+# compared by the forecast keep their dark grey/teal (a campaign and a title meet on the
+# cross view). A creative takes the colour of ITS campaign (R597). `make colour-registry`
+# writes revue/couleurs.md from this dict; tests/test_a_platform_colour_has_one_definition.py
+# ratchets the hex literals still written outside it.
+TYPE_COLOURS: dict[str, str] = {
+    "campaign.1": DISTINCT[0],
+    "campaign.2": DISTINCT[1],
+    "campaign.both": "#7f7f7f",     # a creative that ran in both belongs to neither
+    "release.1": "#444444",
+    "release.2": DISTINCT[2],
+    **{f"playlist.{a}": c for a, c in ALGO_COLORS.items()},
+    "projection.long_term": "#8e5bd0",
+    **{f"platform.{p}": c for p, c in PALETTE_LIGHT.items()},
+}
+
 
 def rgb_string(hex_colour: str) -> str:
     """`#rrggbb` → `rgb(r,g,b)`, for figures that derive a translucent band from it."""

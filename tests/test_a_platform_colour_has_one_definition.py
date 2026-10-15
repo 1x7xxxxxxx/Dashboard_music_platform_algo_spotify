@@ -188,3 +188,81 @@ def test_every_named_platform_has_a_measured_alternative(plateforme: str) -> Non
     assert plateforme in PALETTE_LIGHT and plateforme in PALETTE_DARK, (
         f"'{plateforme}' est interdite en dur et n'a pas de couleur mesurée dans "
         "`platform_colors` : l'interdiction n'a rien à proposer.")
+
+
+# ── R603 — une couleur par TYPE de donnée ─────────────────────────────────────
+# Le cliquet ci-dessus ne voit que les teintes de MARQUE. Celui-ci voit TOUT littéral
+# `#rrggbb` écrit hors du registre `TYPE_COLOURS` (platform_colors.py), fichier par
+# fichier, gelé le 2026-10-15 : un fichier ne peut qu'en perdre, un fichier neuf n'en
+# porte aucun. Il est POSITIF (une couleur en dur, quel que soit le nom qui la porte)
+# — un prédicat sur les noms (`TITLE_COLORS = …`) aurait laissé passer `_C = …` (critic).
+# Le compte est celui de tools/dev/colour_registry_report.py, que `make colour-registry`
+# publie dans revue/couleurs.md : le rapport et le garde ne peuvent pas diverger.
+_HEX_PLAFOND: dict[str, int] = {
+    "guides/guide_pdf.py": 2,
+    "utils/age_aligned.py": 1,
+    "utils/campaign_compare.py": 1,
+    "utils/charts.py": 1,
+    "utils/chronology.py": 3,
+    "utils/engagement_grid.py": 1,
+    "utils/full_funnel.py": 4,
+    "utils/kpi_helpers.py": 1,
+    "utils/ml_widgets.py": 1,
+    "utils/pdf_charts.py": 61,
+    "utils/platform_chart.py": 6,
+    "utils/semantic_colors.py": 4,
+    "utils/status_matrix.py": 4,
+    "utils/treasury_chart.py": 11,
+    "views/airflow_kpi.py": 9,
+    "views/alerts.py": 3,
+    "views/apple_music.py": 1,
+    "views/db_health.py": 2,
+    "views/etl_logs.py": 9,
+    "views/home_tiles.py": 6,
+    "views/instagram.py": 2,
+    "views/meta_ads_overview.py": 4,
+    "views/meta_creatives.py": 12,
+    "views/meta_x_spotify.py": 1,
+    "views/soundcloud.py": 1,
+    "views/spotify_s4a_combined.py": 10,
+    "views/trigger_algo/_release_targets.py": 4,
+    "views/trigger_algo/_tab_algo_streams.py": 1,
+    "views/upgrade.py": 2,
+    "views/youtube.py": 3,
+}
+
+
+def _hex():
+    import sys
+    sys.path.insert(0, str(_ROOT))
+    from tools.dev.colour_registry_report import hex_literals
+    return hex_literals
+
+
+def test_no_file_writes_a_new_hex_colour() -> None:
+    compte = _hex()()
+    over = {f: n for f, n in compte.items() if n > _HEX_PLAFOND.get(f, 0)}
+    assert not over, (
+        "couleur(s) écrite(s) en dur hors du registre — lire "
+        "`platform_colors.TYPE_COLOURS[\"<type>.<n>\"]` (campagne, titre, playlist, "
+        "plateforme, projection) ou y déclarer le type :\n"
+        + "\n".join(f"  {f}: {n} > {_HEX_PLAFOND.get(f, 0)}" for f, n in over.items()))
+
+
+def test_the_hex_counter_sees_a_colour_under_any_name(tmp_path) -> None:
+    """NON-VACUITÉ, dans les deux sens : un nom neutre est vu, une docstring ne l'est pas."""
+    (tmp_path / "v.py").write_text('"""#123456 en prose."""\n_C = ("#444444", "#1e8b7a")\n',
+                                   encoding="utf-8")
+    assert _hex()(tmp_path) == {"v.py": 2}
+
+
+def test_two_types_that_meet_never_share_a_colour() -> None:
+    """Une campagne et un titre se croisent sur la vue croisée ; une campagne et un
+    algorithme dans la prévision — une couleur n'y peut dire qu'un type."""
+    import sys
+    sys.path.insert(0, str(_ROOT))
+    from src.dashboard.utils.platform_colors import TYPE_COLOURS as T
+    camp = {T["campaign.1"], T["campaign.2"], T["campaign.both"]}
+    rel = {T["release.1"], T["release.2"]}
+    assert len(camp) == 3 and len(rel) == 2 and not camp & rel, (camp, rel)
+    assert T["projection.long_term"] not in camp | rel

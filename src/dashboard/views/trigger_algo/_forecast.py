@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.platform_colors import TYPE_COLOURS
 
 #: (key, track age in days, FR label) — the horizons the owner named.
 HORIZONS = (("j7", 7, "J+7"), ("j28", 28, "J+28"), ("m3", 91, "3 mois"),
@@ -150,8 +151,9 @@ def _point_text(p: dict, rate: float | None) -> str:
 
 #: R584 — one colour per title (the reference first), and the 5- and 10-year points in a
 #: colour of their own: a long-term forecast, read as such (owner, 2026-10-15).
-TITLE_COLORS = ("#444444", "#1e8b7a")
-LONG_TERM_COLOR = "#8e5bd0"
+# R603 — the forecast follows the one registry (titles ≠ campaigns).
+TITLE_COLORS = (TYPE_COLOURS["release.1"], TYPE_COLOURS["release.2"])
+LONG_TERM_COLOR = TYPE_COLOURS["projection.long_term"]
 LONG_TERM = frozenset({"y5", "y10"})
 
 
