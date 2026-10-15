@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R566 — Trésorerie : étiquettes du cercle en € + libellé ; titre point mort Revenus vert / Dépe… (livrée 2026-10-15)
+
+- [x] **R566 — Trésorerie : étiquettes du cercle en € + libellé ; titre point mort Revenus vert / Dépenses rouge / ROI coloré par signe ; projection jusqu'à 50 ans sur temps log avec repères 2/10/30/50 ans ; retirer captions, `fit_sentence`, paragraphe Discover Weekly et tableau `_render_ledger`** (P3) ✅ (2026-10-15, e5b72dfa)
+  Mesuré par : rendu smoke vert ; PNG relus ; aucune prose ni tableau sous le point mort
+  Livré e5b72dfa, CI verte (run 38657369582), déployé b1b13234
+  Commits : e5b72dfa R566 : Trésorerie — cercle en €, titre vert/rouge, projection 2/10/30/
+
 ## ✅ R565 — Légendes (transverse, commentaires du 2026-10-15) : `charts.apply_defaults` place la lé… (livrée 2026-10-15)
 
 - [x] **R565 — Légendes (transverse, commentaires du 2026-10-15) : `charts.apply_defaults` place la légende dans le coin le moins chargé en données (axes lin et log), repli horizontal sous le tracé ; inventaire `revue/legendes.md` (page · figure · entrées · position) via `make legend-inventory`** (P3) ✅ (2026-10-15, caed2362, 39c3b9cc)
