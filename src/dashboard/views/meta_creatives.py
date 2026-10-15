@@ -724,14 +724,15 @@ _PARETO_MAX = 25
 
 
 def _pareto_frame(df: pd.DataFrame, adsets: pd.DataFrame) -> pd.DataFrame:
-    """One row per (creative, campaign), labelled « créa · adset · campagne », most spent first."""
+    """One row per (creative, campaign), labelled « campagne › ad set › pub », most spent first."""
     d = _numerise(df)[['creative_name', 'campaign_name', 'total_spend', 'cpr']]
     keys = ['creative_name', 'campaign_name']
     names = (adsets.dropna(subset=['adset_name']).groupby(keys)['adset_name']
              .agg(lambda s: " / ".join(sorted(set(s)))).reset_index()
              if not adsets.empty else pd.DataFrame(columns=[*keys, 'adset_name']))
     d = d.merge(names, on=keys, how='left', validate='many_to_one')
-    d['label'] = [f"{c} · {a if isinstance(a, str) else '—'} · {k}"
+    # R578 — the hierarchy read left to right, as in Ads Manager: campaign › ad set › ad.
+    d['label'] = [f"{k} › {a if isinstance(a, str) else '—'} › {c}"
                   for c, a, k in zip(d['creative_name'], d['adset_name'], d['campaign_name'])]
     return d.sort_values('total_spend', ascending=False).reset_index(drop=True)
 

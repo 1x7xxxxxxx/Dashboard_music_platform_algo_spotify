@@ -52,14 +52,6 @@ def test_two_campaigns_on_one_track_are_flagged_as_overlapping():
     assert df.loc["A", "overlap"] and df.loc["B", "overlap"] and not df.loc["C", "overlap"]
 
 
-def test_the_cohort_sentence_compares_only_with_enough_campaigns_of_each_kind():
-    base = pd.DataFrame({"family": ["engagement"] * 2 + ["trafic"] * 2,
-                         "cost_per_gained": [0.1, 0.2, 0.5, 0.7]})
-    assert "engagement" in cc.cohort_sentence(base).split("**")[1]
-    thin = base.iloc[:3]
-    assert "au moins 2" in cc.cohort_sentence(thin)
-
-
 def test_objectives_group_into_families():
     assert cc.objective_family("OUTCOME_ENGAGEMENT") == "engagement"
     assert cc.objective_family("LINK_CLICKS") == "trafic"
@@ -123,3 +115,24 @@ def test_a_yield_pareto_puts_the_highest_left() -> None:
     df = pd.DataFrame({"song": ["a", "b"], "per_click": [1.0, 3.0]})
     fig = cc.pareto_figure(df, "song", "per_click", best_low=False, axis="x", hover=["", ""])
     assert list(fig.data[0].x) == ["b", "a"]
+
+
+# ── R578: the tracks are a scatter, R577: the campaign ranking is gone ─────────
+def test_the_tracks_are_a_scatter_of_clicks_and_gained_streams() -> None:
+    import pandas as pd
+
+    tracks = pd.DataFrame({"song": ["a", "b", "c"], "store_clicks": [10, 400, 0],
+                           "gained": [30.0, 400.0, 5.0], "per_click": [3.0, 1.0, None]})
+    fig = cc.tracks_figure(tracks)
+    dots = [tr for tr in fig.data if "markers" in tr.mode]
+    assert len(dots) == 1 and dots[0].type == "scatter"
+    assert list(dots[0].x) == [10, 400], "a track with no click has no slope to read"
+    assert list(dots[0].y) == [30.0, 400.0], "the volume is kept, not only the ratio"
+    assert cc.tracks_figure(tracks.assign(store_clicks=0)) is None
+
+
+def test_the_campaign_ranking_is_not_rendered() -> None:
+    import inspect
+
+    src = inspect.getsource(cc.render)
+    assert "cost_per_gained" not in src and "campaign_compare.head" not in src

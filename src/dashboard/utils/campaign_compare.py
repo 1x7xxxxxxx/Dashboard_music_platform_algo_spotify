@@ -41,7 +41,6 @@ _FAMILY = {
     "CONVERSIONS": "conversion", "OUTCOME_SALES": "conversion",
     "OUTCOME_LEADS": "conversion",
 }
-MIN_PER_FAMILY = 2
 # Below this, the « best » lag is the least bad of eight noises: 0.3 is the conventional
 # floor of a weak positive correlation. A delay is named only above it (measured
 # 2026-09-27, artist 1: « 6 j » came out of a correlation of −0.09).
@@ -183,24 +182,6 @@ def _lag(daily: pd.DataFrame, streams: pd.DataFrame | None, c: dict) -> dict | N
     return best_lag(master, "spend", "streams")
 
 
-def cohort_sentence(df: pd.DataFrame) -> str:
-    """Engagement against traffic, in one sentence — or why it cannot be said. Pure."""
-    m = df.dropna(subset=["cost_per_gained"]) if not df.empty else df
-    med = {f: g["cost_per_gained"].median() for f, g in m.groupby("family")
-           if len(g) >= MIN_PER_FAMILY} if not m.empty else {}
-    if "engagement" in med and "trafic" in med:
-        cheap, dear = sorted(("engagement", "trafic"), key=lambda f: med[f])
-        return t("campaign_compare.cohort",
-                 "Tes campagnes **{a}** ont acheté l'écoute gagnée moins cher que tes "
-                 "campagnes **{b}** : {x} € contre {y} € (médianes).").format(
-            a=cheap, b=dear, x=_eur(med[cheap]), y=_eur(med[dear]))
-    counts = m["family"].value_counts().to_dict() if not m.empty else {}
-    return t("campaign_compare.cohort_thin",
-             "Engagement contre trafic : il faut au moins {n} campagnes mesurées de "
-             "chaque sorte pour comparer — tu en as {e} en engagement et {tr} en trafic.").format(
-        n=MIN_PER_FAMILY, e=counts.get("engagement", 0), tr=counts.get("trafic", 0))
-
-
 def track_conversion(df: pd.DataFrame, store: pd.DataFrame) -> pd.DataFrame:
     """Per track: store clicks (Hypeddit), streams gained, streams gained per click. Pure."""
     if df.empty or store is None or store.empty:
@@ -210,10 +191,6 @@ def track_conversion(df: pd.DataFrame, store: pd.DataFrame) -> pd.DataFrame:
     out["gained"] = out["song"].map(gained)
     out["per_click"] = out["gained"] / out["store_clicks"].where(out["store_clicks"] > 0)
     return out.sort_values("per_click", ascending=False, na_position="last")
-
-
-def _eur(v) -> str:
-    return f"{v:,.3f}".replace(",", " ").replace(".", ",")
 
 
 def _fmt(v, digits: int = 0) -> str:
@@ -266,29 +243,13 @@ def _campaign_hover(df: pd.DataFrame) -> list[str]:
 
 
 def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
-    """The tab body: the ranking, the cohort sentence, the tracks, the biases."""
+    """The tab body: the tracks, the creatives (R577 — the campaign ranking « quelle campagne a
+    acheté l'écoute la moins chère » is gone, owner 2026-10-15)."""
     data = load(db, artist_id, acct, acct_p)
     df = compare(data)
     if df.empty:
         st.info(t("campaign_compare.empty", "Aucune campagne à comparer sur ce compte."))
         return
-    st.markdown(t("campaign_compare.head",
-                  "**Quelle campagne a acheté l'écoute la moins chère ?** — écoutes du "
-                  "titre lié pendant la campagne, au-dessus de son niveau des {n} jours "
-                  "d'avant.").format(n=BASELINE_DAYS))
-    charts.plotly_chart(pareto_figure(
-        df, "campaign_name", "cost_per_gained", best_low=True,
-        axis=t("campaign_compare.c_cost", "€ / écoute gagnée"),
-        hover=_campaign_hover(df)), pareto=False, width="stretch")
-    st.markdown(cohort_sentence(df))
-    st.caption(t("campaign_compare.biases",
-                 "Deux limites, écrites pour ne pas les oublier. ⚠️ = une autre campagne a "
-                 "poussé le même titre pendant celle-ci ou ses {n} jours d'avant : les deux "
-                 "réclament les mêmes écoutes, et le niveau « d'avant » contient déjà de la "
-                 "pub. « — » = pas de titre lié confirmé, moins de 14 jours mesurés avant, "
-                 "ou aucune écoute gagnée. Le délai n'apparaît que si la dépense ET les "
-                 "écoutes ont varié sur au moins 14 jours : une campagne à budget constant "
-                 "n'en a pas, et c'est normal.").format(n=BASELINE_DAYS))
     _render_tracks(df, data["store"])
     _render_creatives(df, data.get("creatives"))
     st.caption(t("campaign_compare.countries",
@@ -306,13 +267,54 @@ def _render_tracks(df: pd.DataFrame, store: pd.DataFrame) -> None:
                      "Aucun lien Hypeddit rattaché à un titre Spotify : rattache-les dans "
                      "**🔗 Mapping cross-plateforme**."))
         return
-    charts.plotly_chart(pareto_figure(
-        tracks, "song", "per_click", best_low=False,
-        axis=t("campaign_compare.c_per_click", "Écoutes gagnées / clic"),
-        hover=[f"{t('campaign_compare.c_clicks', 'Clics plateformes')} : {_fmt(c)}<br>"
-               f"{t('campaign_compare.c_gained', 'Écoutes gagnées')} : {_fmt(g)}"
-               for c, g in zip(tracks["store_clicks"], tracks["gained"])]),
-        pareto=False, width="stretch")
+    fig = tracks_figure(tracks)
+    if fig is not None:
+        charts.plotly_chart(fig, width="stretch")
+
+
+def tracks_figure(tracks: pd.DataFrame):
+    """R578 — one dot per track: store clicks across, streams gained up, the slope is the
+    conversion. Pure.
+
+    Owner, 2026-10-15: « autre visuel que Pareto ». A ratio alone hides its volume: 3
+    streams per click on 4 clicks and on 400 are the same bar. The dot keeps both, and the
+    dotted rays (1, 2, 5 streams per click) read the ratio off the slope."""
+    import plotly.graph_objects as go
+    from src.dashboard.utils.labels import unique_short_labels
+    from src.dashboard.utils.platform_colors import DISTINCT
+
+    d = tracks.dropna(subset=["store_clicks", "gained"])
+    d = d[d["store_clicks"] > 0]
+    if d.empty:
+        return None
+    names = unique_short_labels(d["song"].astype(str).tolist(), 24)
+    x_max = float(d["store_clicks"].max()) * 1.25
+    y_max = max(float(d["gained"].max()), 0.0) * 1.25 or 1.0
+    fig = go.Figure()
+    for k in _RAYS:
+        end = min(x_max, y_max / k)
+        fig.add_trace(go.Scatter(
+            x=[0, end], y=[0, end * k], mode="lines+text", showlegend=False,
+            line={"color": "#BDBDBD", "width": 1, "dash": "dot"}, hoverinfo="skip",
+            text=["", t("campaign_compare.ray", "{k} écoute(s) / clic").format(k=k)],
+            textposition="top left", textfont={"size": 10, "color": "#9E9E9E"}))
+    fig.add_trace(go.Scatter(
+        x=d["store_clicks"], y=d["gained"], mode="markers+text", text=names,
+        textposition="top center", showlegend=False, cliponaxis=False,
+        marker={"size": 14, "color": [DISTINCT[i % len(DISTINCT)] for i in range(len(d))]},
+        customdata=d["per_click"],
+        hovertemplate="<b>%{text}</b><br>" + t("campaign_compare.c_clicks", "Clics plateformes")
+                      + " : %{x:,.0f}<br>" + t("campaign_compare.c_gained", "Écoutes gagnées")
+                      + " : %{y:,.0f}<br>%{customdata:,.2f} / clic<extra></extra>"))
+    fig.update_layout(height=380, margin={"t": 20, "b": 10},
+                      xaxis={"title": t("campaign_compare.c_clicks", "Clics plateformes"),
+                             "range": [0, x_max]},
+                      yaxis={"title": t("campaign_compare.c_gained", "Écoutes gagnées"),
+                             "range": [min(0.0, float(d["gained"].min()) * 1.25), y_max]})
+    return fig
+
+
+_RAYS = (1, 2, 5)   # streams per click — the slopes drawn behind the dots
 
 
 def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
@@ -324,8 +326,8 @@ def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
                   "siennes, sans répartition supposée."))
     if not alone.empty:
         charts.plotly_chart(pareto_figure(
-            alone.assign(label=alone["creative_name"].astype(str).str[:24] + " · "
-                         + alone["campaign_name"].astype(str).str[:24]),
+            alone.assign(label=alone["campaign_name"].astype(str).str[:24] + " › "
+                         + alone["creative_name"].astype(str).str[:24]),
             "label", "cost_per_gained", best_low=True,
             axis=t("campaign_compare.c_cost", "€ / écoute gagnée"),
             hover=_campaign_hover(alone)), pareto=False, width="stretch")

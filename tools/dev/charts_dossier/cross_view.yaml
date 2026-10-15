@@ -26,18 +26,16 @@ src/dashboard/views/meta_ads_overview.py::_render_global_perf#2:
 src/dashboard/utils/campaign_pair.py::render_day0#1:
   draws: [jours depuis J0 · dépense cumulée, jours depuis J0 · clics cumulés,
           jours depuis J0 · CPC cumulé]
-src/dashboard/utils/campaign_compare.py::render#1:
-  draws: [campagne · € par écoute gagnée]
 src/dashboard/utils/campaign_compare.py::_render_tracks#1:
-  draws: [titre · écoutes gagnées par clic]
+  draws: [titre · clics plateformes × écoutes gagnées]
 src/dashboard/utils/campaign_compare.py::_render_creatives#1:
-  draws: [créa seule dans sa campagne · € par écoute gagnée]
+  draws: [campagne › créa seule · € par écoute gagnée]
 
 # ── 🎨 Créas & réglages ─────────────────────────────────────────────────────────
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   draws: [créative · clics sortants, créative · CTR, créative · CPM, créative · CPC]
 src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
-  draws: [créative · adset · campagne · dépense]
+  draws: [campagne › ad set › pub · dépense]
 src/dashboard/views/meta_creatives.py::_render_best_settings#1:
   draws: [créative · CPR, accroche · CPR, pays · CPR, placement · CPR, plateforme · CPR,
           âge · CPR, bouton d'action · CPR, objectif de campagne · CPR,
