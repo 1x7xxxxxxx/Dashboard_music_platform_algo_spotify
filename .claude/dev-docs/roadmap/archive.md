@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R625 — Supprimer le code mort cliqueté par R609 : les 32 clés de `tests/dead_code_baseline.jso… (livrée 2026-10-16)
+
+- [x] **R625 — Supprimer le code mort cliqueté par R609 : les 32 clés de `tests/dead_code_baseline.json` (`python3 tools/dev/dead_code.py` les liste avec fichier:ligne). Site par site : lire, confirmer qu'aucun appel dynamique ne l'atteint, supprimer, retirer la clé ; un site gardé exprès sort par un appelant nommé, jamais par la baseline. Les 42 fonctions que SEULS les tests appellent (`--without-tests`) sont une décision distincte, hors de cette ligne** (P4) ✅ (2026-10-16, 538ba76b, 364aea78)
+  Mesuré par : baseline à 0 ; `make test` vert
+  Livré 538ba76b, CI verte (run 38820608296). Mesure : 32 fonctions mortes supprimées (−467 lignes) dans 24 fichiers, + 2 imports F401 et 13 clés i18n EN orphelines en cascade ; tests/dead_code_baseline.json = [] — le cliquet R609 ne tolère plus aucun mort.
+  Commits : 538ba76b R625 : 32 fonctions mortes supprimées, baseline du cliquet R609 à 0 · 364aea78 Roadmap : R625 inscrite — supprimer les 32 fonctions mortes cliquetées
+
 ## ✅ R622 — REA·A7 — catalogue des messages d'erreur visibles (leur `user-visible-errors.csv`) : ME… (livrée 2026-10-16)
 
 - [x] **R622 — REA·A7 — catalogue des messages d'erreur visibles (leur `user-visible-errors.csv`) : MESURER les messages visibles qui nomment un détail interne (DAG, table, variable) → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure** (P3) ✅ (2026-10-16, 262a9d1f, 690144b0)
