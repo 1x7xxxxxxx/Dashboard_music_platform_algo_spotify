@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R605 — Étude REA (morluto/rea) : répliquer ? sinon que prendre de leur config ; note d’étude d… (livrée 2026-10-15)
+
+- [x] **R605 — Étude REA (morluto/rea) : répliquer ? sinon que prendre de leur config ; note d’étude datée dans studies/ + présentation PDF sur le Bureau** (P4) ✅ (2026-10-15, cca372a3, 5a7b2c06)
+  Mesuré par : note d'étude commitée + PDF relu page par page
+  Étude livrée : note .claude/dev-docs/studies/2026-10-15-rea.md + PDF 12 diapos sur le Bureau, relu page par page ; CI verte (run 38770119150). Aucun code produit ; décisions renvoyées au propriétaire.
+  Commits : cca372a3 R605 : la note REA rendue atteignable depuis l'étude d'outillage du 20 · 5a7b2c06 R605 : étude REA (morluto/rea) — pas un SaaS (MCP + CLI de rétro-ingén
+
 ## ✅ R604 — Statusline — le nombre de tâches de roadmap encore ouvertes (les deux tables, le même c… (livrée 2026-10-15)
 
 - [x] **R604 — Statusline — le nombre de tâches de roadmap encore ouvertes (les deux tables, le même compte que `make night-status`), à côté de « non commité(s) · non poussé(s) »** (P4) ✅ (2026-10-15, fae3d387)
