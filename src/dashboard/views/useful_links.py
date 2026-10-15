@@ -18,16 +18,6 @@ _DASHBOARD_URL = os.getenv("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 _API_URL = os.getenv("API_BASE_URL", "http://localhost:8502").rstrip("/")
 
 
-def _card(title: str, body: str):
-    st.markdown(
-        f"""<div style="background:#1e1e2e;border:1px solid #444;border-radius:8px;
-        padding:14px 18px;margin-bottom:10px">
-        <b style="color:#cdd6f4">{title}</b><br>
-        <span style="color:#a6adc8;font-size:0.92em">{body}</span>
-        </div>""",
-        unsafe_allow_html=True,
-    )
-
 
 def _link_row(label: str, url: str, note: str = ""):
     cols = st.columns([3, 1])

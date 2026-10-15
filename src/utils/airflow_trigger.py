@@ -1,6 +1,6 @@
 """Utilitaire pour déclencher les DAGs Airflow depuis Streamlit."""
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import logging
 from src.utils.safe_error import safe_error
 
@@ -212,77 +212,6 @@ class AirflowTrigger:
                 'message': f"Erreur lors du déclenchement de {dag_id}"
             }
 
-    def trigger_all_dags(self) -> List[Dict]:
-        """
-        Déclenche tous les DAGs de production.
-
-        Returns:
-            Liste de dicts avec les résultats de chaque DAG
-        """
-        # ⚠️ `meta_ads_api_daily`, pas `meta_ads_daily_docker`. Le second nom ne designe
-        # aucun DAG de `airflow/dags/` — mesure le 2026-09-18 : les `dag_id` declares ne
-        # le contiennent pas. Un declenchement sur ce nom rend 404 et la collecte Meta ne
-        # part jamais. Remonte la chaine : cette methode n'a aucun appelant dans le depot,
-        # donc le defaut etait INERTE ici — il ne l'etait pas dans le bloc __main__.
-        dags = [
-            'meta_ads_api_daily',
-            'spotify_api_daily',
-            'youtube_daily',
-            'data_quality_check',
-        ]
-
-        results = []
-
-        logger.info(f"🚀 Déclenchement de {len(dags)} DAGs...")
-
-        for dag_id in dags:
-            result = self.trigger_dag(dag_id)
-            results.append(result)
-
-        success_count = sum(1 for r in results if r.get('success'))
-        logger.info(f"✅ {success_count}/{len(dags)} DAGs déclenchés avec succès")
-
-        return results
-
-    def get_dag_status(self, dag_id: str) -> Dict:
-        """
-        Récupère le statut d'un DAG.
-
-        Args:
-            dag_id: ID du DAG
-
-        Returns:
-            Dict avec le statut du DAG
-        """
-        url = f"{self.base_url}/api/v1/dags/{dag_id}"
-
-        try:
-            response = self.session.get(url, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-
-                return {
-                    'success': True,
-                    'dag': dag_id,
-                    'is_paused': data.get('is_paused', True),
-                    'is_active': data.get('is_active', False),
-                    'last_parsed_time': data.get('last_parsed_time'),
-                    'data': data
-                }
-            else:
-                return {
-                    'success': False,
-                    'dag': dag_id,
-                    'error': f"HTTP {response.status_code}"
-                }
-
-        except Exception as e:
-            return {
-                'success': False,
-                'dag': dag_id,
-                'error': safe_error(e)
-            }
 
     def get_last_dag_run(self, dag_id: str) -> Optional[Dict]:
         """

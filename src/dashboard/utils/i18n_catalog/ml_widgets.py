@@ -20,7 +20,6 @@ EN = {
     "ml_widgets.cm_tp": "TP {n}",
     "ml_widgets.cm_title": "Confusion matrix (test set)",
     # Pre-release Release Radar estimator
-    "ml_widgets.calibration": "🎯 Calibration: {note}",
     # Local lever sensitivity
     "ml_widgets.sens_title": "**🎛️ Local sensitivity — move one lever on THIS track**",
     "ml_widgets.sens_select": "Lever to simulate",
@@ -60,9 +59,6 @@ EN = {
                                       "to reach the nearest bonus zone.",
     "ml_widgets.gauges_pedagogic": "Variables without a live value ({n}) — educational",
     # Volume forecast / regressor
-    "ml_widgets.floor_forecast": "🛡️ {label}: **≥ ~{val:,} streams 7d** (guaranteed floor). "
-                                 "{disclaimer}",
-    "ml_widgets.floor_text": "≥ ~{val:,} (floor)",
     "ml_widgets.regressor_badge": "🍽️ Volume model: {note}",
     # Volume decision gauges
     "ml_widgets.no_volume_zones": "No volume zones yet for this algorithm.",

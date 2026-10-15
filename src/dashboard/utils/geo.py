@@ -12,18 +12,6 @@ from __future__ import annotations
 from functools import lru_cache
 
 
-@lru_cache(maxsize=512)
-def iso2_to_iso3(code: str | None) -> str | None:
-    """Return the ISO-3 alpha-3 code for an alpha-2 code, or None if unknown."""
-    if not code or len(code) != 2 or not code.isalpha():
-        return None
-    try:
-        import pycountry
-        match = pycountry.countries.get(alpha_2=code.upper())
-        return match.alpha_3 if match else None
-    except Exception:
-        return None
-
 
 @lru_cache(maxsize=512)
 def iso2_to_name(code: str | None) -> str:

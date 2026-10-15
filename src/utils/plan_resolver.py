@@ -175,8 +175,8 @@ def has_capability(db, artist_id: int, capability: str) -> bool:
     """May this tenant use a NON-PAGE feature (a digest, an export, a webhook)?
 
     Separate from `PLAN_FEATURES`, whose keys are Streamlit page routes by contract
-    (`stripe_schema.py`: *"Keys must match page route keys defined in app.py
-    show_navigation_menu()"*) and which `tests/test_plan_gating.py` iterates **as
+    (`stripe_schema.py`: *"Keys must match page route keys defined in
+    src/dashboard/routes.py (ROUTES)"*) and which `tests/test_plan_gating.py` iterates **as
     pages**. Slipping a non-page key in there would break that test for the right
     reason. `PLAN_CAPABILITIES` is the sibling set for everything that is not a page.
     """

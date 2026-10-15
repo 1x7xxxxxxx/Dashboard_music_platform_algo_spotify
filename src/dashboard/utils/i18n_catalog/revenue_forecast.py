@@ -31,10 +31,6 @@ EN = {
     "revenue_forecast.diagonal": "Break-even: earned = spent",
     "revenue_forecast.axis_spend": "Spent since the start (ads + costs), €",
     "revenue_forecast.axis_revenue": "Earned since the start (sales + SACEM), €",
-    "revenue_forecast.be_short_done": "reached",
-    "revenue_forecast.be_short_never": "never at this pace",
-    "revenue_forecast.be_short_months": "{n} months",
-    "revenue_forecast.be_short_years": "{a:,.0f} years",
     # ── Les coûts que seul l'artiste connaît ─────────────────────────────────
     "revenue_forecast.costs_expander":
         "💳 My costs (distribution, mastering, artwork…) — enter them",
@@ -109,7 +105,6 @@ EN = {
     # Meta Ads ROI
     # ML predictions
     # Net margin
-    "revenue_forecast.be_short_too_short": "too early to date",
     "revenue_forecast.be_too_short": ("⏳ {c:,.0f} € to go — only {n} month(s) known:<br>"
                                       "too early to date the break-even point"),
     # R405 (V73)

@@ -15,9 +15,4 @@ EN = {
     "onboarding_health.csv_expected": "**{label}** — file `{hint}`",
     "onboarding_health.csv_columns": "Expected columns: {cols}",
     "onboarding_health.next_title": "🔗 Next: link your tracks",
-    "onboarding_health.next_body": (
-        "Once your sources are connected, what remains is saying which Meta "
-        "campaign matches which track. The app suggests the matches — you only "
-        "have to confirm them."),
-    "onboarding_health.next_cta": "🔗 Open cross-platform mapping →",
 }

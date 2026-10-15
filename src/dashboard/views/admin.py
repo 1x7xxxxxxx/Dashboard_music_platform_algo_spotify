@@ -69,16 +69,6 @@ def _toggle_active(db, artist_id: int, active: bool):
 
 
 
-def _delete_artist_and_users(db, artist_id: int):
-    """Hard-delete a saas_artists row. Linked saas_users rows get artist_id = NULL (FK cascade)."""
-    db.execute_query("DELETE FROM saas_artists WHERE id = %s", (artist_id,))
-
-
-
-
-
-
-
 
 # ─────────────────────────────────────────────
 # CSV Upload helpers

@@ -147,20 +147,6 @@ class CircuitBreaker:
                 f"failure {failure_count}/{self.failure_threshold}. Still CLOSED."
             )
 
-    def open_reason(self) -> str:
-        """Human-readable explanation when circuit is open."""
-        row = self._row
-        failure_count = row.get('failure_count', 0)
-        opened_at = row.get('opened_at')
-        reset_at = row.get('reset_at')
-        last_error = row.get('last_error', '')
-        opened_str = opened_at.strftime('%Y-%m-%d %H:%M UTC') if opened_at else 'unknown'
-        reset_str  = reset_at.strftime('%Y-%m-%d %H:%M UTC')  if reset_at  else 'unknown'
-        return (
-            f"Circuit OPEN for {self.platform} (artist {self.artist_id}): "
-            f"{failure_count} failures since {opened_str}. "
-            f"Next retry: {reset_str}. Last error: {_redacted(last_error)[:100]}"
-        )
 
     def reset(self):
         """Manually force circuit back to CLOSED (admin action)."""

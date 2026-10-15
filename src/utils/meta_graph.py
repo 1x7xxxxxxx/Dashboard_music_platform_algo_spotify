@@ -83,17 +83,6 @@ class MetaGraphError(RuntimeError):
         """
         return self.code in (4, 17, 32, 613, 80004)
 
-    @property
-    def is_capability(self) -> bool:
-        """L'app n'a pas le droit — inutile de réessayer, de retester ou d'alerter.
-
-        Mesuré le 2026-09-05 : `POST business/client_ad_accounts` et
-        `POST adaccount/agencies` répondent tous deux `(#3)` avec un jeton portant
-        pourtant `business_management`, et pendant qu'une écriture Business ordinaire
-        passe. Ce n'est donc pas une panne : c'est une porte fermée.
-        """
-        return self.code == 3
-
 
 def resolve_token(token: str | None = None) -> str:
     """Le jeton, résolu UNE fois. Vide ⇒ on le dit, on ne part pas en appel."""

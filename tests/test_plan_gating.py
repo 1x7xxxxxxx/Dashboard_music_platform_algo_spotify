@@ -1,6 +1,6 @@
 """Plan-gating contract — the highest revenue-risk path (free vs premium).
 
-The dashboard locks pages via this exact predicate in app.show_navigation_menu:
+The dashboard locks pages via this exact predicate in app.render_navigation:
 
     accessible = PLAN_FEATURES.get(plan, set())
     is_all = '*' in accessible

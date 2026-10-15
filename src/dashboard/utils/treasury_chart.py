@@ -389,21 +389,6 @@ def source_cumuls(d: pd.DataFrame, months) -> dict[str, pd.Series]:
 
 # ── R262 — the break-even sentence, ONE definition for every page that draws the treasury
 # (it lived in revenue_forecast only; the Distributeurs page drew the same curve mute).
-def breakeven_short(pm: dict) -> str:
-    """La même vérité en trois mots, pour une tuile."""
-    if pm['etat'] == 'deja':
-        return t("revenue_forecast.be_short_done", "atteint")
-    if pm['etat'] == 'jamais':
-        return t("revenue_forecast.be_short_never", "jamais à ce rythme")
-    if pm['etat'] == 'trop_court':
-        return t("revenue_forecast.be_short_too_short", "trop tôt pour dater")
-    if pm['etat'] == 'inconnu' or pm.get('mois') is None:
-        return "—"
-    if pm['mois'] < 24:
-        return t("revenue_forecast.be_short_months", "{n} mois").format(n=pm['mois'])
-    return t("revenue_forecast.be_short_years", "{a:,.0f} ans").format(
-        a=pm['mois'] / 12.0).replace(",", " ")
-
 
 def breakeven_text(pm: dict) -> str:
     """La phrase du point mort — et les quatre états qu'elle doit savoir dire."""

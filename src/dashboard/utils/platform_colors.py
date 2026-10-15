@@ -190,9 +190,3 @@ TYPE_COLOURS: dict[str, str] = {
     "projection.key": "#9e9e9e",    # R614 — the dotted « estimated » legend glyph, no title's
     **{f"platform.{p}": c for p, c in PALETTE_LIGHT.items()},
 }
-
-
-def rgb_string(hex_colour: str) -> str:
-    """`#rrggbb` → `rgb(r,g,b)`, for figures that derive a translucent band from it."""
-    h = hex_colour.lstrip("#")
-    return "rgb({},{},{})".format(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))

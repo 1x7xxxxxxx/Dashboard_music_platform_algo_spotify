@@ -394,10 +394,6 @@ def render_navigation(role: str, rendered, all_skeys) -> str:
     return 'upgrade' if _is_locked(page_key) else page_key
 
 
-def show_navigation_menu(role: str = 'artist'):
-    """Back-compat wrapper: resolve then render in one call."""
-    page, rendered, all_skeys = resolve_nav_page(role)
-    return render_navigation(role, rendered, all_skeys)
 
 def show_live_activity_sidebar(container=None):
     """Live Activity counters in the sidebar — visible on every page.

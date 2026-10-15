@@ -188,36 +188,3 @@ def _render_step(platform_key: str, num: int, step: CredStep,
             # déborder du cadre — 8 des 16 captures CSV font plus de 1250 px de large,
             # et celles-ci sont du même ordre.
             render_bounded_image(path, caption)
-
-
-def _render_fields_table(guide: PlatformCred) -> None:
-    """Ce qu'il y a à coller, et OÙ — plus un tableau d'exemples factices.
-
-    Signalé le 2026-09-04 : « intégrer la section *saisir tes identifiants* à la
-    place de l'exemple factice, car confusion et surcharge ; mettre l'exemple en
-    italique ». Le tableau présentait l'exemple dans une colonne aussi large et
-    aussi nette que le nom du champ, sur une page dont le seul geste est de coller
-    une valeur — un artiste qui copie la ligne d'exemple fait exactement ce que la
-    mise en page lui montre.
-
-    Trois changements, tous dans ce sens : la phrase d'entête nomme l'encadré du
-    formulaire au lieu de dire « ci-dessous » (le guide est SOUS le formulaire) ;
-    l'exemple passe en italique, en légende, précédé de `ex.` et suivi de « ne le
-    copie pas » ; le tableau disparaît au profit d'une liste, qui tient sur un
-    téléphone là où un `st.dataframe` à quatre colonnes défile latéralement.
-    """
-    # Ne nomme plus l'encadré ni sa position : le guide est la colonne d'à côté DE
-    # cet encadré depuis le 2026-09-04, donc la phrase décrivait à quelqu'un
-    # l'endroit où il se trouve déjà. Elle dit ce qu'elle a à dire — quoi coller —
-    # et reste vraie dans le PDF, qui n'a ni « en haut » ni « à côté ».
-    st.markdown(t("credentials.guide.paste_header", "**Les valeurs à coller :**"))
-    for i, f in enumerate(guide.fields, 1):
-        lock = " 🔒" if f.secret else ""
-        label = t(f"credentials.guide.{guide.key}.field_{i}", f.label)
-        st.markdown(f"- **{label}**{lock}")
-        note = t(f"credentials.guide.{guide.key}.note_{i}", f.note) if f.note else ""
-        if note:
-            st.caption(f"　{note}")
-        st.caption("　" + t("credentials.guide.example_inline",
-                           "*ex. {example}* — exemple de forme, ne le copie pas")
-                   .format(example=f.example))

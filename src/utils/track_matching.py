@@ -315,13 +315,3 @@ def rebuild_release_reference(db, artist_id: int) -> int:
     )
     logger.info("track_release_reference rebuilt for artist %s: %d rows", artist_id, len(data))
     return len(data)
-
-
-def get_release_dates(db, artist_id: int) -> dict[str, object]:
-    """Return {match_key: release_date} for an artist from the reference table."""
-    rows = db.fetch_query(
-        "SELECT match_key, release_date FROM track_release_reference "
-        "WHERE artist_id = %s AND release_date IS NOT NULL",
-        (artist_id,),
-    )
-    return {k: rd for k, rd in rows} if rows else {}

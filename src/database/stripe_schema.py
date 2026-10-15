@@ -49,7 +49,7 @@ STRIPE_SCHEMA = {
 }
 
 # Plan feature sets — used by auth.py for feature gating
-# Keys must match page route keys defined in app.py show_navigation_menu()
+# Keys must match page route keys defined in src/dashboard/routes.py (ROUTES)
 # Tiering (validated 2026-06-09 — 2 tiers only, basic merged into premium):
 #   free    = full multi-platform analytics + CSV export + Data Wrapped + mapping
 #   premium = everything ('*'): + Road to Algo (ML), revenue_forecast, meta_creatives…

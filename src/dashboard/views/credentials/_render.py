@@ -269,23 +269,6 @@ def render_save_verdict(next_platform: tuple | None,
               "minutes — la collecte de cette nuit tranchera de toute façon."))
 
 
-def _declared_from_rows(existing: dict) -> set:
-    """{platform: row} → the logical platforms carrying a non-empty identity."""
-    import json
-
-    from src.utils.tenant_identity import declared_identities
-
-    extra_by_platform = {}
-    for platform, row in (existing or {}).items():
-        extra = (row or {}).get("extra_config") or {}
-        if isinstance(extra, str):
-            try:
-                extra = json.loads(extra)
-            except ValueError:
-                extra = {}
-        extra_by_platform[platform] = extra if isinstance(extra, dict) else {}
-    return declared_identities(extra_by_platform)
-
 
 # `_render_global_kpi` lived here until 2026-08-22 and was replaced by
 # `src/dashboard/utils/status_matrix.render_status_matrix`. Two reasons, both

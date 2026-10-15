@@ -65,17 +65,6 @@ class ConfigLoader:
         return self._config
 
     # Helpers pour accès rapide
-    def get_database_config(self) -> Dict[str, Any]:
-        if not self._config: self.load()
-        return self._config.get('database', {})
-
-    def get_spotify_config(self) -> Dict[str, Any]:
-        if not self._config: self.load()
-        return self._config.get('spotify', {})
-
-    def get_meta_ads_config(self) -> Dict[str, Any]:
-        if not self._config: self.load()
-        return self._config.get('meta_ads', {})
 
 # Instance globale
 config_loader = ConfigLoader()

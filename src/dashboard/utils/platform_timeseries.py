@@ -755,29 +755,6 @@ def apple_lifetime_shazams(db, artist_id):
                        "SELECT gold_apple_lifetime(%s, 'shazam_count')::bigint", "shazams")
 
 
-def apple_snapshot_count(db, artist_id) -> int:
-    """Combien de relevés Apple existent — pour DIRE pourquoi la tuile est vide.
-
-    Un relevé = un couple (jour de dépôt, période couverte). Deux exports annuels
-    déposés le même jour font bien deux relevés.
-
-    ⚠️ Un COMPTE de relevés, donc zéro est une réponse valide — « aucun import » est
-    un fait, et c'est même celui que cette fonction sert à dire. Mais zéro sur une
-    lecture ÉCHOUÉE dirait « aucun import » alors qu'on ne sait pas, et la page
-    conseillerait à l'artiste d'importer un fichier qu'il a peut-être déjà déposé.
-    L'exception rend donc `None`, le compte réel rend un nombre.
-    """
-    if db is None or artist_id is None:
-        return None
-    try:
-        row = _q(db,
-            "SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_date, period_start, "
-            "period_end FROM apple_songs_performance WHERE artist_id = %s) r",
-            (artist_id,))
-    except Exception:      # noqa: BLE001
-        return None
-    return int(row[0][0] or 0) if row else 0
-
 
 def apple_yearly_series(db, artist_id) -> list:
     """[(1ᵉʳ janvier, écoutes)] — les relevés Apple qui tiennent dans UNE année civile.

@@ -36,9 +36,3 @@ SCHEMA = {
         ON algo_lifecycle_benchmark (dataset_version, algorithm, age_week_bin_order);
     """,
 }
-
-
-def create_benchmark_tables(db) -> None:
-    """Create the lifecycle benchmark table(s)."""
-    for ddl in SCHEMA.values():
-        db.execute_query(ddl)

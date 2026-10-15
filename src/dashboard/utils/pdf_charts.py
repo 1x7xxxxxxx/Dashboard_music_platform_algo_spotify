@@ -712,21 +712,6 @@ def apple_daily_growth(rows) -> str | None:
     return _fig_to_uri(fig)
 
 
-def sc_playback_evolution(rows) -> str | None:
-    """rows: [(date, playback_total)] — cumulative plays over time."""
-    rows = [(d, int(v or 0)) for d, v in (rows or []) if v is not None]
-    if len(rows) < 2:
-        return None
-    xs = [r[0] for r in rows]
-    fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    ax.plot(xs, [r[1] for r in rows], color="#FF7700", linewidth=2)
-    ax.fill_between(xs, [r[1] for r in rows], color="#FF7700", alpha=0.12)
-    _style(ax)
-    ax.set_title(_t("pdf.chart.soundcloud_plays_evolution", "SoundCloud — évolution des écoutes"),
-                 color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    fig.autofmt_xdate(rotation=30)
-    return _fig_to_uri(fig)
-
 
 def apple_timeline(rows) -> str | None:
     """rows: [(date, plays_cumul, shazams_cumul)] — deux cumuls de même nature, empilés.
@@ -790,31 +775,6 @@ def sc_multiaxis(rows) -> str | None:
     fig.autofmt_xdate(rotation=30)
     return _fig_to_uri(fig)
 
-
-def base100_lines(series, title) -> str | None:
-    """series: {label: [(date, value)]} — each rebased to 100 at its first point."""
-    fig, ax = plt.subplots(figsize=(8.6, 3.0))
-    colors = list(DISTINCT[:4])
-    plotted = False
-    for i, (label, pts) in enumerate(series.items()):
-        pts = [(d, float(v)) for d, v in pts if v is not None]
-        pts = [p for p in pts if p[1] > 0] or pts
-        if len(pts) < 2 or not pts[0][1]:
-            continue
-        base = pts[0][1]
-        ax.plot([p[0] for p in pts], [p[1] / base * 100 for p in pts],
-                linewidth=2, label=label, color=colors[i % len(colors)])
-        plotted = True
-    if not plotted:
-        plt.close(fig)
-        return None
-    _style(ax)
-    ax.axhline(100, color="#cccccc", lw=0.8, ls=":")
-    ax.set_title(title, color=_DARK, fontsize=11, fontweight="bold", loc="left")
-    ax.set_ylabel("Base 100", color="#666", fontsize=8)
-    ax.legend(fontsize=8, frameon=False)
-    fig.autofmt_xdate(rotation=30)
-    return _fig_to_uri(fig)
 
 
 def ig_engagement(months) -> str | None:

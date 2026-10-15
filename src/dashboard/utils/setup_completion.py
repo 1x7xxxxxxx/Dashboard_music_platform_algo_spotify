@@ -330,14 +330,3 @@ def read_setup_state(db, artist_id: int, user_id: Optional[int] = None,
         has_pdf=bool(has_pdf), has_runs=bool(has_runs),
         spotify_csv=bool(has_s4a), plan=plan, show_on_login=show,
     )
-
-
-def set_show_on_login(db, user_id: int, value: bool) -> bool:
-    """Persist the artist's answer. Returns whether it was written."""
-    if db is None or user_id is None:
-        return False
-    db.fetch_query(
-        "UPDATE saas_users SET show_setup_on_login = %s WHERE id = %s RETURNING id",
-        (bool(value), user_id),
-    )
-    return True

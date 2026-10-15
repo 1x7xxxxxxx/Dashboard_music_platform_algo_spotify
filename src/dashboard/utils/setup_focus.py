@@ -56,16 +56,3 @@ def progress(focus: list[str] | None, connected: set[str]) -> tuple[int, int]:
     """
     focus = focus or []
     return sum(1 for k in focus if k in connected), len(focus)
-
-
-def get_focus() -> list[str]:
-    import streamlit as st
-
-    value = st.session_state.get(FOCUS_KEY) or []
-    return [k for k in value if isinstance(k, str)]
-
-
-def clear_focus() -> None:
-    import streamlit as st
-
-    st.session_state.pop(FOCUS_KEY, None)

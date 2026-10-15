@@ -264,11 +264,6 @@ def sensitivity_verdict(probs_pct, label: str) -> str:
 
 
 # ── Calibration badge ─────────────────────────────────────────────────────────
-def render_calibration_badge(algo: str, raw) -> None:
-    note = calibration_note_text(algo, raw)
-    if note:
-        st.caption(t("ml_widgets.calibration", "🎯 Calibration : {note}").format(note=note))
-
 
 # ── Feature decision tables ───────────────────────────────────────────────────
 # ONE table per (algo, registry), never one figure per feature. Until 2026-09-26 each
@@ -388,30 +383,6 @@ def render_feature_gauges(algo: str, feats: dict) -> None:
 
 
 # ── Volume forecast: floor reframing + hungry-model badge ─────────────────────
-def render_floor_forecast(label: str, forecast, *, algo: str = "DW") -> None:
-    """Render a *_streams_forecast_7d value as a conservative FLOOR, not a point
-    estimate. Single-sourced wording (algo_knowledge) so every surface agrees."""
-    if forecast is None:
-        return
-    try:
-        val = int(forecast)
-    except (TypeError, ValueError):
-        return
-    st.caption(t("ml_widgets.floor_forecast",
-                 "🛡️ {label} : **≥ ~{val:,} streams 7j** (plancher garanti). {disclaimer}"
-                 ).format(label=label, val=val,
-                          disclaimer=t("algo.disclaimer.floor", ak.FORECAST_FLOOR_DISCLAIMER)))
-
-
-def floor_forecast_text(forecast) -> str | None:
-    """Plain-text floor phrasing for tables/tooltips. None if no forecast."""
-    if forecast is None:
-        return None
-    try:
-        return t("ml_widgets.floor_text", "≥ ~{val:,} (plancher)").format(val=int(forecast))
-    except (TypeError, ValueError):
-        return None
-
 
 def render_regressor_badge(algo: str) -> None:
     """'Hungry / conservative model' badge for the volume regressor."""

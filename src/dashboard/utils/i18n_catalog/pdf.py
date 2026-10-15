@@ -58,7 +58,6 @@ EN = {
     "pdf.note.ml_truncated": "(Limited to the first 5 songs of the report.)",
 
     # ── KPI labels ──
-    "pdf.kpi.total_all_platforms": "Total all platforms",
     "pdf.kpi.subscribers": "Subscribers",
     "pdf.kpi.total_views_channel": "Total views (channel)",
     "pdf.kpi.ig_subscribers": "@{username} — Subscribers",
@@ -207,7 +206,6 @@ EN = {
     "pdf.chart.revenue_imusician": "iMusician revenue & projection",
     "pdf.chart.j28_trajectory": "D+28 trajectory — cumulative streams since release",
     "pdf.chart.apple_daily_growth": "Apple Music — daily growth",
-    "pdf.chart.soundcloud_plays_evolution": "SoundCloud — plays evolution",
     "pdf.chart.apple_plays_shazams": "Apple Music — plays & shazams (cumulative)",
     "pdf.chart.soundcloud_plays_engagement": "SoundCloud — plays & engagement",
     "pdf.chart.instagram_monthly_engagement": "Instagram — monthly engagement",

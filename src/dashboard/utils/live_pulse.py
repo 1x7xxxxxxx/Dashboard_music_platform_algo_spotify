@@ -96,28 +96,3 @@ def get_live_pulse(db, ttl_minutes: int = 5) -> tuple[int, int]:
     cutoff = cutoff.replace(
         second=(cutoff.second // _PULSE_TTL_S) * _PULSE_TTL_S, microsecond=0)
     return _pulse_counts(db, cutoff)
-
-
-@st.cache_data(ttl=600)
-def get_registered_count_public() -> int:
-    """Cached count of registered artists for the public landing widget.
-
-    Cached 10 min to absorb anonymous traffic bursts (SEO/social links).
-    No PII — count only.
-
-    **Compte des gens, pas des machines.** Ce nombre s'affiche sur la page
-    d'inscription, sous « {n} artistes utilisent streaMLytics » : un canari de
-    surveillance compté là est un chiffre faux montré à un visiteur qui n'a aucun
-    moyen de le savoir.
-    """
-    from src.dashboard.utils import get_db_connection
-    db = get_db_connection()
-    if db is None:
-        return 0
-    try:
-        rows = db.fetch_query(
-            f"SELECT COUNT(*) FROM saas_artists WHERE {_HUMAN_TENANTS}"
-        )
-        return int(rows[0][0]) if rows else 0
-    finally:
-        db.close()

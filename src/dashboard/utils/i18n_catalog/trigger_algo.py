@@ -525,10 +525,6 @@ EN = {
     "algo.calib.RADIO.80": "Reliable: score ≈ reality (observed success ~90%, n=168).",
 
     # Forecast-floor disclaimer — slug: algo.disclaimer.floor.
-    "algo.disclaimer.floor": (
-        "Estimate = **guaranteed floor** (worst-case). The model underestimates hits: "
-        "the real potential is often much higher if it catches fire."
-    ),
     # ── 🎯 Où en sont mes titres (l'écran d'accueil, 2026-09-22) ─────────────
     "trigger_algo.tab_catalogue": "🎯 Where my tracks stand",
     "trigger_algo.tab_reglages": "🧪 Your best Meta settings",

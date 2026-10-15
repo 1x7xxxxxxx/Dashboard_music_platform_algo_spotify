@@ -163,25 +163,6 @@ def get_campaigns_list(db):
     return df['campaign_name'].tolist() if not df.empty else []
 
 
-def get_global_stats(start_date, end_date, db):
-    """Récupère les statistiques de TOUTES les campagnes sur la période.
-
-    `db` may be passed in to reuse the caller's connection (rule #9 — one
-    connection per view); when None, opens and closes its own.
-    """
-    artist_id = _resolve_artist_id()
-    # `v_hypeddit_daily` (migration 106) porte le grain (locataire, campagne, jour).
-    # La table brute peut porter deux lignes pour le même jour — un ré-import — et
-    # la vue les additionne une fois pour toutes. Le PDF la lisait déjà ; cette page,
-    # non : deux surfaces répondaient au même « combien de visites » par deux chemins.
-    query = """
-        SELECT campaign_name, day AS date, visits, clicks
-        FROM v_hypeddit_daily
-        WHERE day >= %s AND day <= %s AND artist_id = %s
-        ORDER BY day
-    """
-    return db.fetch_df(query, (start_date, end_date, artist_id))
-
 
 _MAX_RINGS = 12  # two rows of six rings (R245); the caption names what is left out
 _RINGS_PER_ROW = 6

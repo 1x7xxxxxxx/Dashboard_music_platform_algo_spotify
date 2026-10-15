@@ -22,8 +22,3 @@ SCHEMA = {
         )
     """,
 }
-
-
-def create_saves_history_tables(db) -> None:
-    for _table_name, ddl in SCHEMA.items():
-        db.execute_query(ddl)

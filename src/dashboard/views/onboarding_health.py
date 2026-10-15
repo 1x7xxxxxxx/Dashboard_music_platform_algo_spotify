@@ -10,7 +10,6 @@ provide the IDENTITY and is data actually LANDING? Turns the silent per-tenant g
 week exposed (connected-but-0-rows, account-not-shared, empty channel) into a status + the
 exact next action. Admin sees every active artist; an artist sees their own row.
 """
-import pandas as pd
 import streamlit as st
 
 from src.dashboard.utils.onboarding_journey import journey_line, read_journeys
@@ -22,14 +21,6 @@ from src.utils.artist_readiness import NO_DATA, artist_readiness, readiness_many
 from src.dashboard.utils.guide_assets import credentials_guide_pdf
 from src.dashboard.utils.i18n import t
 
-
-def _matrix_df(matrix: list) -> pd.DataFrame:
-    return pd.DataFrame([{
-        "Plateforme": m["label"],
-        "Statut": f"{m['icon']} {m['status_label']}",
-        "Dernière donnée": str(m["last_dt"])[:16] if m["last_dt"] else "—",
-        "Action": m["next_action"],
-    } for m in matrix])
 
 
 def show():
@@ -268,29 +259,3 @@ def _render_remaining_steps(db) -> None:
         hint = STEP_HINTS.get(step.key)
         if hint is not None:
             st.caption(hint())
-
-
-def _render_next_step_mapping() -> None:
-    """CONSERVÉE mais plus appelée — voir `_render_remaining_steps`.
-
-    Le geste d'APRÈS, nommé là où l'on constate que le reste est fait.
-
-    Demandé le 2026-09-06 : « je sais pas trop où mettre l'action de valider le
-    mapping automatique une fois qu'on a terminé avec les credentials ».
-
-    Un RENVOI, et pas une seconde copie de l'action. Le mapping garde son onglet — il
-    porte un tableau, des suggestions et un backlog qui ne tiennent pas dans un
-    encadré — et rendre son bouton ici en ferait deux surfaces pour un même geste,
-    donc deux états, ce que ce dépôt a déjà payé (`two-widgets-for-one-gesture`).
-    """
-    st.subheader(t("onboarding_health.next_title", "🔗 Et ensuite : relier tes titres"))
-    st.caption(t(
-        "onboarding_health.next_body",
-        "Une fois tes sources connectées, il reste à dire quelle campagne Meta "
-        "correspond à quel titre. L'application propose des associations "
-        "automatiques : il n'y a qu'à les valider."))
-    if st.button(t("onboarding_health.next_cta",
-                   "🔗 Ouvrir le mapping cross-plateforme →"),
-                 key="_health_goto_mapping"):
-        from src.dashboard.utils.navigation import goto
-        goto("meta_mapping")

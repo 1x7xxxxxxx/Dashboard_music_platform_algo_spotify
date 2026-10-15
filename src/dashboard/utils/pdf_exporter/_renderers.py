@@ -103,22 +103,6 @@ def _fmt_count(value) -> str:
     return "—" if value is None else f"{value:,}"
 
 
-def _render_streams(streams):
-    items = [
-        ("Spotify S4A", streams['s4a']),
-        ("YouTube",      streams['youtube']),
-        ("SoundCloud",   streams['soundcloud']),
-        ("Apple Music",  streams['apple']),
-    ]
-    total_card = _kpi_card(
-        _fmt_count(streams["total"]),
-        _t("pdf.kpi.total_all_platforms", "Total toutes plateformes"),
-        card_style="border-color:#1DB954; background:#f0faf3;",
-        val_style="font-size:22pt;",
-    )
-    cards = "".join(_kpi_card(_fmt_count(v), lbl) for lbl, v in items)
-    return _kpi_grid(total_card + cards)
-
 
 def _render_roi(roi, from_date, to_date):
     # `or 0` ABSORBAIT L'INCONNU, et le rendait en verdict.
