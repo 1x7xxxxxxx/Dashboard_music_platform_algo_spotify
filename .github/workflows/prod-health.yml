@@ -31,6 +31,11 @@ on:
         type: boolean
         default: false
 
+# R623 : le jeton par défaut ne lit que le code. Un job qui lit les runs d'Actions
+# le déclare lui-même (`actions: read`), à côté de la raison.
+permissions:
+  contents: read
+
 jobs:
   prod-health:
     runs-on: ubuntu-latest

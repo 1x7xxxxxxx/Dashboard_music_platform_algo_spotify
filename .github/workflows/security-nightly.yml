@@ -27,6 +27,11 @@ on:
     - cron: "0 3 * * *"   # 03:00 UTC daily
   workflow_dispatch:
 
+# R623 : le jeton par défaut ne lit que le code. Un job qui lit les runs d'Actions
+# le déclare lui-même (`actions: read`), à côté de la raison.
+permissions:
+  contents: read
+
 jobs:
   pip-audit:
     runs-on: ubuntu-latest
@@ -238,6 +243,10 @@ jobs:
   # Le dépôt n'a jamais eu de `--cov-fail-under` : rien ne gatait, rien ne gate.
   full-suite-random-order:
     runs-on: ubuntu-latest
+    # R623 : sa suite lit les runs d'Actions (test_the_monitor_itself_still_runs).
+    permissions:
+      actions: read
+      contents: read
     continue-on-error: true   # observational — never fail the workflow
     outputs:
       outcome: ${{ steps.suite.outcome }}   # needs.<job>.result ment sous continue-on-error

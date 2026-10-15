@@ -70,6 +70,11 @@ concurrency:
 # peuvent donc pas se courir après — ce qui est arrivé QUATRE fois en local le
 # 2026-09-15 quand `--dist loadgroup` a remplacé `--dist loadfile`.
 
+# R623 : le jeton par défaut ne lit que le code. Un job qui lit les runs d'Actions
+# le déclare lui-même (`actions: read`), à côté de la raison.
+permissions:
+  contents: read
+
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
   gates:
@@ -294,6 +299,10 @@ jobs:
   suite:
     name: Suite ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
+    # R623 : sa suite lit les runs d'Actions (test_the_monitor_itself_still_runs).
+    permissions:
+      actions: read
+      contents: read
 
     strategy:
       # Un shard rouge ne doit pas annuler les cinq autres : on veut le rapport
