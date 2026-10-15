@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R606 — REA — livrable architecture : `studies/2026-10-15-rea-architecture.md` (REA contre nous… (livrée 2026-10-15)
+
+- [x] **R606 — REA — livrable architecture : `studies/2026-10-15-rea-architecture.md` (REA contre nous, axe par axe, chaque différence mieux optimisée chez eux → une ligne R616–R622), note R605 complétée d'une colonne Rnnn, PDF du Bureau mis à jour et relu page par page** (P3) ✅ (2026-10-15, 690144b0)
+  Mesuré par : chaque point des deux tableaux porte un Rnnn ouvert (compte = compte) ; PDF relu en PNG
+  Livré 690144b0, CI verte (run 38773735503) : étude d'architecture 13 axes (7 → R616–R622, A13 → R614), exigence agentique machine→baseline, note R605 avec colonne Ligne, PDF 16 diapos relu
+  Commits : 690144b0 R606 : livrable architecture REA contre la nôtre (13 axes, 7 mieux opt
+
 ## ✅ R605 — Étude REA (morluto/rea) : répliquer ? sinon que prendre de leur config ; note d’étude d… (livrée 2026-10-15)
 
 - [x] **R605 — Étude REA (morluto/rea) : répliquer ? sinon que prendre de leur config ; note d’étude datée dans studies/ + présentation PDF sur le Bureau** (P4) ✅ (2026-10-15, cca372a3, 5a7b2c06)
