@@ -132,7 +132,9 @@ def algo_overlays(est: dict, path: list[dict], last_age: int, order: tuple) -> l
     for algo in order:
         for key, age in OVERLAY_AGES.items():
             cell = (ests.get(algo.lower()) or {}).get(key) or {}
-            if cell.get("refused") or "p50" not in cell or age <= last_age or age not in base:
+            # R601 — a measured zero adds nothing to the path: no « if it triggers » mark.
+            if (cell.get("refused") or cell.get("zero") or "p50" not in cell
+                    or age <= last_age or age not in base):
                 continue
             out.append({"algo": algo, "age_key": key, "age": age, "n": cell.get("n"),
                         "y": base[age] + cell["p50"], "y_lo": base[age] + cell["p25"],

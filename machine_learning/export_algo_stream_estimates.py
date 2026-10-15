@@ -16,6 +16,14 @@ cumul and never this song's future. « Triggered » is the training label (`TARG
 DW>137, RR>130, Radio>639 streams over 28 days) — the definition the sibling script
 `export_lifecycle_benchmark.py` settled on after `> 0` crushed the quartiles with near-zero
 songs (code-critic, R247). A cell with fewer than `MIN_N` songs is written as refused.
+
+R601 (owner, 2026-10-15 : « Release Radar ne retombe pas après le 1er mois ») — conditioning
+on « triggered at that age » made an age where NO song triggers look like an age with too
+few songs: Release Radar at 6 months and 1 year came out `refused`, the curve stopped at
+J+28 and the fall was never drawn. Measured on data_anon.csv: of the 244 rows older than
+90 days, none has a single Release Radar stream — the playlist is weekly and ends. When
+the triggered cell is short but the WHOLE age bucket has `MIN_N` songs, all at zero, the
+cell is a measured zero (`zero: True`), not a refusal.
 """
 from __future__ import annotations
 
@@ -59,7 +67,13 @@ def estimates(d: pd.DataFrame) -> dict:
             part = trig[(trig["DaysSinceRelease"] >= lo) & (trig["DaysSinceRelease"] <= hi)][col]
             n = int(part.notna().sum())
             if n < MIN_N:
-                out[algo][age] = {"n": n, "refused": True}
+                every = pd.to_numeric(d[(d["DaysSinceRelease"] >= lo)
+                                        & (d["DaysSinceRelease"] <= hi)][col], errors="coerce")
+                every = every.dropna()
+                out[algo][age] = ({"p25": 0.0, "p50": 0.0, "p75": 0.0, "n": int(len(every)),
+                                   "zero": True}
+                                  if len(every) >= MIN_N and (every == 0).all()
+                                  else {"n": n, "refused": True})
                 continue
             q = part.quantile([0.25, 0.5, 0.75]).round(0)
             out[algo][age] = {"p25": float(q[0.25]), "p50": float(q[0.5]),

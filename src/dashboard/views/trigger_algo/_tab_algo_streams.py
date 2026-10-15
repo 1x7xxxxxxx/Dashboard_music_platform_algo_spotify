@@ -117,6 +117,15 @@ def cohort_traces(fig, ages: dict, colour: str, *, row: int, col: int, first: bo
         hovertemplate=t("trigger_algo.est_hover",
                         "%{x} jours : %{y:,.0f} streams sur 28 j (médiane)<extra></extra>")),
         row=row, col=col)
+    # R601 — a measured zero is the playlist going out, said where the line lands on it.
+    for x, c in kept:
+        if c.get("zero"):
+            fig.add_annotation(
+                x=x, y=0, row=row, col=col, yanchor="bottom", showarrow=False,
+                font=dict(size=9, color=colour),
+                text="<br>".join(textwrap.wrap(t(
+                    "trigger_algo.est_zero", "0 : la playlist s'éteint ({n} titres)").format(
+                    n=c["n"]), 14)))
 
 
 def reading_trace(fig, readings: pd.DataFrame | None, algo: str, *, song: str, symbol: str,

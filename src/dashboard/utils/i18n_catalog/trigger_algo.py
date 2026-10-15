@@ -3,6 +3,7 @@
 EN = {
     # router.py — page-level
     "trigger_algo.est_band": "P25–P75 band = half of the triggered songs",
+    "trigger_algo.est_zero": "0: the playlist dies out ({n} titles)",
     "trigger_algo.est_refused": "not enough songs ({n})",
     "trigger_algo.est_pred": "Dotted = median of the triggered songs (P50)",
     "trigger_algo.est_hover": "%{x} days: %{y:,.0f} streams over 28 d (median)<extra></extra>",
