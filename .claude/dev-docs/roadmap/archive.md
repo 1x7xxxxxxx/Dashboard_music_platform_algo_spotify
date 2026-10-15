@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R607 — REA·1 — actions GitHub épinglées par SHA + garde : MESURER les `uses:@tag` (37 contre 2… (livrée 2026-10-15)
+
+- [x] **R607 — REA·1 — actions GitHub épinglées par SHA + garde : MESURER les `uses:@tag` (37 contre 2 SHA) et le bruit de Dependabot `github-actions` sur 30 j → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure — **DÉCIDÉ OUI 2026-10-15** : mesuré 37 `uses:` dont 2 par SHA ; `gitleaks/gitleaks-action@v2` (tierce, tag mobile) reçoit `GITHUB_TOKEN` (security-nightly.yml:213) ⇒ critère tenu ; bruit Dependabot actions = 1 PR/30 j (#179). Défaut vivant trouvé : `check_action_drift.py` déclare les 2 épinglages SHA existants « 🚫 INTROUVABLE » chaque nuit (fausse alerte). code-critic BUILD-MODIFIED : tout épingler (pas de liste blanche « first-party »), outil de dérive lisant la version du commentaire ET vérifiant commentaire↔SHA (« COMMENTAIRE MENTEUR »), garde en lecture ligne à ligne couvrant `.github/actions/*/action.yml` ; `permissions:` de security-nightly = ligne séparée** (P2) ✅ (2026-10-15, 3d34b162, 690144b0)
+  Mesuré par : oui si ≥1 action tierce non épinglée voit un secret ; garde : 0 `uses:@v` hors action locale
+  Livré 3d34b162, CI verte (run 38782732361). 37 uses: épinglés par SHA aux versions en service (SHA vérifiés contre leur tag), check_action_drift.py lit la version du commentaire et dénonce un COMMENTAIRE MENTEUR (il déclarait chaque nuit les 2 SHA existants INTROUVABLE, -23434 majeures), garde tests/test_github_actions_are_pinned_by_sha.py muté dans les deux sens. Reste humain : upload-artifact 3 majeures de retard (v4→v7). permissions: → R623.
+  Commits : 3d34b162 R607 : actions GitHub épinglées par SHA (# vX.Y.Z), outil de dérive qu · 690144b0 R606 : livrable architecture REA contre la nôtre (13 axes, 7 mieux opt
+
 ## ✅ R606 — REA — livrable architecture : `studies/2026-10-15-rea-architecture.md` (REA contre nous… (livrée 2026-10-15)
 
 - [x] **R606 — REA — livrable architecture : `studies/2026-10-15-rea-architecture.md` (REA contre nous, axe par axe, chaque différence mieux optimisée chez eux → une ligne R616–R622), note R605 complétée d'une colonne Rnnn, PDF du Bureau mis à jour et relu page par page** (P3) ✅ (2026-10-15, 690144b0)
