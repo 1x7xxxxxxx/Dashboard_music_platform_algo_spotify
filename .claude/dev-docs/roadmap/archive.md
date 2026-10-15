@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R574 — Légendes TOUJOURS sur le graphique, à la position la moins couvrante (coins + milieux),… (livrée 2026-10-15)
+
+- [x] **R574 — Légendes TOUJOURS sur le graphique, à la position la moins couvrante (coins + milieux), jamais dessous (commentaire Trésorerie du 2026-10-15) ; livrable `revue/legendes.md` : par figure, position retenue + nombre de points couverts** (P3) ✅ (2026-10-15, e7c95073)
+  Mesuré par : test pur : aucune figure ne place sa légende sous le tracé ; inventaire écrit
+  Livré e7c95073, CI verte (run 38712019311), déployé en prod (dashboard sain). Légende toujours SUR le tracé : coins puis milieux des bords, la place qui cache le moins de points ; inventaire revue/legendes.md (position + points cachés par figure).
+  Commits : e7c95073 R574 : légende toujours SUR le graphique, à la place qui cache le moin
+
 ## ✅ R573 — `tools/notify_schema_drift.py` plante sur l’hôte du VPS (`ModuleNotFoundError: dotenv`… (livrée 2026-10-15)
 
 - [x] **R573 — `tools/notify_schema_drift.py` plante sur l’hôte du VPS (`ModuleNotFoundError: dotenv` levé À L’APPEL de `load_project_env()`, pas à l’import — le repli `except ImportError` ne le voit pas) : les mails schema-drift et infra-health partaient pas avant R572 ; à corriger AVANT de remettre `OPS_MAIL_PAUSED = False`** (P2) ✅ (2026-10-15, 30e417fc)
