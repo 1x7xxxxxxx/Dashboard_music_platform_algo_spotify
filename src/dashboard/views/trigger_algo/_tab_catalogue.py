@@ -79,14 +79,15 @@ def _show_tab_catalogue(db, artist_id) -> list[str]:
     newest_first = last_releases(df, n=len(df))
     if not newest_first:
         return []
-    left, right = st.columns(2)
-    ref = left.selectbox(t("trigger_algo.cat.reference", "🎵 Sortie de référence"),
-                         newest_first, index=0, key=f"cat_ref_{artist_id}")
+    # R599 (owner, 2026-10-15) — the two filters one ABOVE the other, as the Meta bar's
+    # campaign and « comparer à »: side by side, they read as two unrelated choices.
+    ref = st.selectbox(t("trigger_algo.cat.reference", "🎵 Sortie de référence"),
+                       newest_first, index=0, key=f"cat_ref_{artist_id}")
     options = comparison_options(newest_first, ref)
-    cmp_ = right.selectbox(t("trigger_algo.cat.comparison", "🎵 Comparée à"), options,
-                           index=1 if len(options) > 1 else 0, key=f"cat_cmp_{artist_id}",
-                           format_func=lambda o: o or t("trigger_algo.cat.no_comparison",
-                                                        "— aucune —"))
+    cmp_ = st.selectbox(t("trigger_algo.cat.comparison", "🎵 Comparée à"), options,
+                        index=1 if len(options) > 1 else 0, key=f"cat_cmp_{artist_id}",
+                        format_func=lambda o: o or t("trigger_algo.cat.no_comparison",
+                                                     "— aucune —"))
     choix = [ref] + ([cmp_] if cmp_ else [])
     feats_of = {r["song"]: _feats_json(r.get("features_json")) for r in lignes.to_dict("records")}
     levers = {s_: track_levers(feats_of.get(s_, {})) for s_ in choix}

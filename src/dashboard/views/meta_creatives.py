@@ -516,13 +516,13 @@ def _render_creative_timeline(db, artist_id: int, selected_campaign: str,
 
     # R557 (fiche 37) — two creatives side by side, each with its spend, its mean CPR and
     # the streams it gained: « laquelle a mieux marché » is read across, not remembered.
-    pick, other = st.columns(2)
+    # R599 — the reference ABOVE « comparer avec », as every pair of filters in the app.
     choices = names['ad_name'].tolist()
-    creative = pick.selectbox(t("meta_creatives.creative", "Créative"), choices,
-                              key="tl_creative")
+    creative = st.selectbox(t("meta_creatives.creative", "Créative"), choices,
+                            key="tl_creative")
     none = t("meta_creatives.compare_none", "— aucune —")
-    second = other.selectbox(t("meta_creatives.compare_with", "Comparer avec"),
-                             [none, *[c for c in choices if c != creative]], key="tl_creative_b")
+    second = st.selectbox(t("meta_creatives.compare_with", "Comparer avec"),
+                          [none, *[c for c in choices if c != creative]], key="tl_creative_b")
     from src.dashboard.utils.campaign_compare import creative_gains
     gains = creative_gains(db, artist_id, acct, acct_params)
     if second == none:
