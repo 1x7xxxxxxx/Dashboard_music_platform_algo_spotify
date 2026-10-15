@@ -11,6 +11,32 @@ si le total passe sous son plancher.
 
 ---
 
+## 🚫 R612 — CI planifiée par le diff : décidée NON (close 2026-10-15)
+
+- [x] **R612 — REA·6 — CI planifiée par le diff.** (P4) ✅ (2026-10-15, décidée NON — p50 3,7 min contre un seuil de 15)
+
+  **Critère écrit avant la mesure :** oui si la CI de main dépasse 15 min en médiane.
+  **Mesure :** 29 runs verts de `ci.yml` sur main (`gh run list --workflow ci.yml
+  --branch main --status success`) : min 2,9 · p50 3,7 · p90 4,0 · max 6,9 min. Les
+  6 shards parallèles tiennent déjà la durée ; planifier par le diff ajouterait un
+  sélecteur dont l'erreur (un test non atteint) coûte plus que 3 min.
+  **Réouverture :** p50 > 15 min sur 30 runs de main.
+
+## 🚫 R611 — Mutation ciblée : décidée NON (close 2026-10-15)
+
+- [x] **R611 — REA·5 — mutation ciblée (Stryker `mutationRanges`).** (P4) ✅ (2026-10-15, décidée NON — 7 gardes sur 435 sans rouge vu, 1,6 %)
+
+  **Critère écrit avant la mesure :** oui si plus de 20 % des gardes n'ont jamais rougi.
+  **Mesure :** champ `seen_red:` de `.claude/dev-docs/error-classes.md`, 435 signatures :
+  413 `self-proving`, 14 datées, 7 `n-a`, 1 gabarit du schéma, **0 `never`**. Même en
+  comptant les `n-a` comme jamais vues rouges : 7/435 = 1,6 %. Les gardes neufs sont
+  déjà mutés chaque nuit (`tools/dev/nightly_guard_mutation.py`, artefact
+  `guard-red-log`) et à la main (`tools/dev/mutate_guards.py`, règle 15ter).
+  **Limite :** `self-proving` est déclaré par l'auteur de la classe ; la nuit le
+  vérifie sur les gardes neufs, pas rétroactivement sur les 413.
+  **Réouverture :** plus de 20 % de `never`/`n-a`, ou un garde `self-proving` trouvé
+  vert sur son défaut.
+
 ## 🚫 R610 — Coût de CLAUDE.md : décidée NON (close 2026-10-15)
 
 - [x] **R610 — REA·4 — coût de CLAUDE.md (7 640 mots contre 1 455 chez REA).** (P3) ✅ (2026-10-15, décidée NON — aucune section inutilisée en 30 j)
