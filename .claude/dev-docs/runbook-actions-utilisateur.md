@@ -2219,3 +2219,22 @@ le canal qu'il nomme — sinon il renvoie vers un bouton qui n'existe pas.
 
 `gh api repos/1x7xxxxxxx/Dashboard_music_platform_algo_spotify/private-vulnerability-reporting`
 rend `{"enabled":true}`, et l'onglet Security du dépôt montre « Report a vulnerability ».
+
+
+## 43. R627 — Une ligne de légende sous la figure d'accueil ?
+
+La figure d'évolution reporte le dernier relevé YouTube / SoundCloud entre deux
+collectes (61 % des jours YouTube) : un palier n'y est pas une mesure du jour. Le PDF
+le dit déjà en note ; l'écran ne le dit pas, parce que l'accueil est gelé (R425) et
+que seule ta décision peut le changer.
+
+### Étapes
+
+1. Répondre dans la séance : « R627 oui » ou « R627 non ».
+2. Oui : la ligne reçoit `<!-- home: oui -->`, la photo de l'accueil est ré-approuvée
+   dans le même commit. Non : R627 close avec ta réponse.
+
+### Vérification
+
+Oui : `tests/test_home_is_frozen.py` vert sur la nouvelle photo, et la légende visible
+sous la figure en mode cumulé. Non : R627 dans `archive.md`.
