@@ -21,3 +21,7 @@ Une intégration retenue devient une ligne Rnnn ; tant qu'elle n'en a pas, elle 
   données partiel. Fonde le refus du « 0 silencieux ».
 - Khorikov, *Unit Testing*, p.152 — les tests sur la sortie sont les plus maintenables.
   Fonde le choix des propriétés Hypothesis (R499, R504, R505) sur des fonctions pures.
+
+## Suite
+
+- 2026-10-15 : `.claude/dev-docs/studies/2026-10-15-rea.md` — la même grille (intégrer / plus tard / rien) appliquée à la configuration d'un dépôt externe, morluto/rea (R605).
