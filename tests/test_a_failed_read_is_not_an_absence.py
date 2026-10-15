@@ -162,7 +162,7 @@ def test_the_door_of_every_platform_survives_a_read_failure() -> None:
     streaming passent. Un `except` qui y rend un nombre affirme une mesure pour
     TOUTES les surfaces d'un coup, et c'est ce qui s'est produit.
     """
-    door = _ROOT / "src" / "dashboard" / "utils" / "platform_timeseries.py"
+    door = _ROOT / "src" / "utils" / "platform_timeseries.py"
     bad = [f"{fn}:{line} rend {value!r}" for fn, line, value in
            numeric_fallbacks(door.read_text(encoding="utf-8"), readers_only=False)]
     assert not bad, (

@@ -1,7 +1,7 @@
 """Guard: un compteur cumulatif ne se trace pas comme une quantité du jour.
 
 Type: Utility
-Uses: src.dashboard.utils.platform_timeseries, sqlite3
+Uses: src.utils.platform_timeseries, sqlite3
 Triggers: pytest
 Persists in: nothing
 
@@ -38,7 +38,7 @@ import sqlite3
 
 import pytest
 
-from src.dashboard.utils import platform_timeseries as pts
+from src.utils import platform_timeseries as pts
 
 
 class _SqliteDB:

@@ -64,7 +64,7 @@ _PY_ROOTS = ("src",)
 # Les PORTES : les modules dont le travail EST de lire les faits et d'en faire une
 # règle. Une tranche qui les atteint s'arrête là — elles ont leur propre tableau.
 _DOOR_MODULES = {
-    "src.dashboard.utils.platform_timeseries",
+    "src.utils.platform_timeseries",
     "src.dashboard.utils.kpi_helpers",
 }
 
@@ -96,7 +96,7 @@ _AGG_RE = re.compile(r"\b(SUM|AVG|MIN|MAX|COUNT)\s*\(", re.I)
 # regarde pas. Une règle recopiée diverge : `tests/test_the_gold_coverage_only_
 # improves.py` compare ces deux déclarations et rougit si elles s'écartent.
 _RATCHET_SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
-_RATCHET_DOORS = ("src/dashboard/utils/platform_timeseries.py",)
+_RATCHET_DOORS = ("src/utils/platform_timeseries.py",)
 _RATCHET_FACTS = frozenset({
     "s4a_song_timeline", "s4a_audience", "s4a_songs_global",
     "youtube_video_stats", "youtube_channel_history",

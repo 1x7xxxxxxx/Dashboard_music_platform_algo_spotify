@@ -121,7 +121,7 @@ def test_the_first_bucket_counts_the_growth_observed_inside_it(step) -> None:
     """
     import datetime as dt
 
-    from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS
+    from src.utils.platform_timeseries import PLATFORM_LABELS
 
     d0 = dt.date(2026, 1, 7)                              # a Wednesday, mid-month
     levels = [(d0 + dt.timedelta(days=i), 1000 + 100 * i) for i in range(28)]
@@ -147,7 +147,7 @@ def test_the_period_mode_totals_what_the_lifetime_total_says(db, step) -> None:
     qu'entre deux jours consécutifs, donc la somme est volontairement inférieure — la
     note « écoutes non traçables » l'annonce. C'est une exemption, pas un oubli.
     """
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         PLATFORM_LABELS, cumulative_by_platform, daily_streams_by_platform,
         platform_totals,
     )
@@ -243,7 +243,7 @@ def test_the_cumulative_curve_never_exceeds_the_lifetime_total(db, step) -> None
     absence de garde laisserait passer une sur-déclaration — par exemple un report en
     avant qui additionnerait au lieu de reporter.
     """
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         PLATFORM_LABELS, cumulative_by_platform, daily_streams_by_platform,
         platform_totals,
     )

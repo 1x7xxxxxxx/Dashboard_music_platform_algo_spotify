@@ -746,7 +746,7 @@ def _collect_youtube_history(db, artist_id):
     if artist_id is None:
         return []
     try:
-        from src.dashboard.utils.platform_timeseries import youtube_cumulative_views
+        from src.utils.platform_timeseries import youtube_cumulative_views
 
         subs_rows = db.fetch_query(
             "SELECT date(collected_at), MAX(subscriber_count) "

@@ -165,4 +165,4 @@ TO_CONFORM: dict[str, Metric] = {
 # series, not yet a KPI) is Python, not SQL (ADR-019) : it lives in these modules, and a
 # view that is neither registered nor declared here is refused by
 # tests/test_every_object_has_a_layer.py.
-SILVER_MODULES: tuple[str, ...] = ("src/dashboard/utils/platform_timeseries.py",)
+SILVER_MODULES: tuple[str, ...] = ("src/utils/platform_timeseries.py",)

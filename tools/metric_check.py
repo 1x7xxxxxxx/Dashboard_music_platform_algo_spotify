@@ -2,7 +2,7 @@
 """Valider les nombres que le produit CALCULE, à la main.
 
 Type: Utility
-Uses: src.utils.metric_bounds, src.dashboard.utils.platform_timeseries
+Uses: src.utils.metric_bounds, src.utils.platform_timeseries
 Triggers: `make metric-check`
 Persists in: nothing
 
@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.dashboard.utils.platform_timeseries import (  # noqa: E402
+from src.utils.platform_timeseries import (  # noqa: E402
     daily_streams_by_platform, platform_totals,
 )
 from src.database.postgres_handler import PostgresHandler  # noqa: E402

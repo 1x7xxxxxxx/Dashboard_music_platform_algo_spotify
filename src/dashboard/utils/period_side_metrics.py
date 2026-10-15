@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 
-from src.dashboard.utils.platform_timeseries import _q
+from src.utils.platform_timeseries import _q
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 from src.dashboard.utils.platform_share import platform_share_figure
-from src.dashboard.utils.platform_timeseries import combined_total
+from src.utils.platform_timeseries import combined_total
 
 _FULL = {"spotify": 1000, "youtube": 900, "apple": 800, "soundcloud": 700}
 
@@ -26,7 +26,7 @@ def _render(totals: dict, side: dict, ig: int):
     at = AppTest.from_string(
         f"import sys; sys.path.insert(0, {root!r})\n"
         "from src.dashboard.views.home_tiles import render_tiles\n"
-        "from src.dashboard.utils.platform_timeseries import combined_total\n"
+        "from src.utils.platform_timeseries import combined_total\n"
         f"render_tiles({totals!r}, combined_total({totals!r}), {ig}, side={side!r})\n")
     at.run(timeout=90)
     assert not at.exception, f"render raised: {at.exception}"

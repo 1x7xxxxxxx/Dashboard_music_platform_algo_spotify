@@ -50,7 +50,7 @@ def test_the_detector_sees_the_defect_it_is_written_for() -> None:
     catalogue = (
         "## anchored-one\n"
         "- root_cause: `src/a.py:12` did it\n"
-        "- signature: `sed -n 412p src/dashboard/utils/platform_timeseries.py:412`\n"
+        "- signature: `sed -n 412p src/utils/platform_timeseries.py:412`\n"
         "\n## property-one\n"
         "- root_cause: see `src/b.py:40`\n"
         "- signature: `python3 -m pytest tests/test_x.py -q`\n"

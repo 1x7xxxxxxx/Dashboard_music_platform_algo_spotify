@@ -163,7 +163,7 @@ def test_the_dead_no_op_is_gone() -> None:
     écrit le contraire du code d'à côté.
     """
     import src.dashboard.utils.platform_chart_notes as notes
-    import src.dashboard.utils.platform_timeseries as pts
+    import src.utils.platform_timeseries as pts
 
     assert not hasattr(pts, "MISSING_HISTORY"), (
         "`MISSING_HISTORY` est revenue : un dict vide dont une fonction fait le "

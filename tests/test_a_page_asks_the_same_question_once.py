@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: pytest, streamlit.testing.v1.AppTest, live Postgres
-Depends on: src/dashboard/views/home.py, src/dashboard/utils/platform_timeseries.py
+Depends on: src/dashboard/views/home.py, src/utils/platform_timeseries.py
 Persists in: nothing
 
 Ce qui a été mesuré (2026-09-10)

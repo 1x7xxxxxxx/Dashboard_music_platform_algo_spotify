@@ -109,7 +109,7 @@ def run(db) -> tuple[list[str], int]:
     qui lit la base restait de l'autre côté, et c'est elle qui portait la question
     « sur quels locataires ? ».
     """
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         daily_streams_by_platform, platform_totals,
     )
 

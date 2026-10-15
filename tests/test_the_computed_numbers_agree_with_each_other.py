@@ -57,7 +57,7 @@ def test_nothing_measured_raises_nothing() -> None:
 
 def test_every_charted_platform_declares_its_nature() -> None:
     """Une plateforme sans nature déclarée serait contrôlée par défaut, donc mal."""
-    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+    from src.utils.platform_timeseries import daily_streams_by_platform
     import inspect
     src = inspect.getsource(daily_streams_by_platform)
     for key in ("spotify", "youtube", "soundcloud"):

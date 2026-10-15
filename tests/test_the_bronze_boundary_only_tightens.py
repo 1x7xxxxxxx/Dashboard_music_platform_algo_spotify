@@ -103,7 +103,7 @@ _SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
 # `platform_timeseries` a pour travail de lire le bronze et d'en faire la règle
 # (ADR-022), et `i18n_catalog/` ne contient que des chaînes traduites — un nom de
 # table y apparaît dans une phrase, jamais dans une requête.
-_NOT_A_SURFACE = ("src/dashboard/utils/platform_timeseries.py",
+_NOT_A_SURFACE = ("src/utils/platform_timeseries.py",
                   # LA MÊME PORTE, DÉCOUPÉE EN DEUX le 2026-09-13 : le cliquet des
                   # 1 200 lignes a fait sortir `period_side_metrics` de son fichier.
                   # L'exemption suit le RÔLE (ADR-022 — lire le bronze et en faire la

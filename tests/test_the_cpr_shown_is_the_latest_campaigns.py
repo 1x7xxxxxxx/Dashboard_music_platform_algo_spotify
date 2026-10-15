@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: pytest, ast
-Depends on: src/dashboard/utils/platform_timeseries.py
+Depends on: src/utils/platform_timeseries.py
 Persists in: nothing
 
 Pourquoi ce garde existe

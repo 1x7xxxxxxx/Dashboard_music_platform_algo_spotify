@@ -64,7 +64,7 @@ from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
     t_coarsened, t_too_coarse, t_too_thin,
 )
 from src.dashboard.utils.platform_chart_labels import annotate_series
-from src.dashboard.utils.platform_timeseries import (
+from src.utils.platform_timeseries import (
     PLATFORM_LABELS,
     STEP_ONLY,
 )

@@ -105,7 +105,7 @@ pytestmark = pytest.mark.skipif(
 
 def _tenant_with_history() -> int:
     from src.dashboard.utils import get_db_connection
-    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+    from src.utils.platform_timeseries import daily_streams_by_platform
 
     db = get_db_connection()
     try:
@@ -245,7 +245,7 @@ def test_a_platform_tile_never_shows_a_zero_it_did_not_measure() -> None:
     est lue en premier et sans contexte.
     """
     from src.dashboard.utils import get_db_connection
-    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.utils.platform_timeseries import platform_totals
 
     db = get_db_connection()
     if db is None:
@@ -299,7 +299,7 @@ def test_the_measured_days_helper_separates_the_two_absences() -> None:
     tout simplement pas la data ». Un « 0 » affirme qu'il ne s'est rien passé ; « — »
     dit qu'on n'a pas regardé.
     """
-    from src.dashboard.utils.platform_timeseries import measured_days
+    from src.utils.platform_timeseries import measured_days
     import datetime as d
 
     series = {"youtube": [(d.date(2026, 1, 1), 5)]}
@@ -311,7 +311,7 @@ def test_the_measured_days_helper_separates_the_two_absences() -> None:
 
 def test_the_followers_delta_needs_two_readings() -> None:
     """Un écart a besoin de deux points ; « +0 » sur un seul relevé serait inventé."""
-    from src.dashboard.utils.platform_timeseries import followers_change
+    from src.utils.platform_timeseries import followers_change
 
     class _DB:
         def __init__(self, rows): self.rows = rows

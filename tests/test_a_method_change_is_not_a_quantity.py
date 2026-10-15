@@ -46,7 +46,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dashboard.utils.platform_timeseries import (
+from src.utils.platform_timeseries import (
     _DISCONTINUITY_MIN_POINTS, _DISCONTINUITY_RATIO, level_discontinuities,
 )
 
@@ -128,10 +128,10 @@ def test_the_levels_are_rebased_at_the_source():
     niveau final **inchangé** (118 336), fenêtre enjambante **18 558 → 120**,
     fenêtre sans rupture **intacte** (75 → 75).
     """
-    from src.dashboard.utils.platform_timeseries import cumulative_by_platform
+    from src.utils.platform_timeseries import cumulative_by_platform
 
     src = (Path(__file__).resolve().parents[1]
-           / "src/dashboard/utils/platform_timeseries.py").read_text(encoding="utf-8")
+           / "src/utils/platform_timeseries.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     # ⚠️ LES TROIS LECTURES, PAS UNE. Le PDF et la vue YouTube n'appellent pas
     # `cumulative_by_platform` — ils lisent `youtube_cumulative_views` directement.
@@ -152,7 +152,7 @@ def test_the_levels_are_rebased_at_the_source():
 
 def test_the_rebase_preserves_the_lifetime_level():
     """Le niveau FINAL ne bouge pas d'une vue — seuls les antérieurs sont relevés."""
-    from src.dashboard.utils.platform_timeseries import level_discontinuities
+    from src.utils.platform_timeseries import level_discontinuities
 
     rows = _series(daily=1, n=70, jump=18_438, at=40)
     breaks = level_discontinuities(rows)

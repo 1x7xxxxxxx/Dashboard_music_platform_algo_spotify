@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: platform_timeseries, series_cache (no database — a fake handle)
-Depends on: src/dashboard/utils/series_cache.py, src/dashboard/utils/platform_timeseries.py
+Depends on: src/dashboard/utils/series_cache.py, src/utils/platform_timeseries.py
 Persists in: nothing
 
 Why this exists
@@ -59,7 +59,7 @@ def wired():
     A cache left installed leaks into every later test in the process, and an
     entry left behind makes the next test's call count wrong.
     """
-    from src.dashboard.utils import platform_timeseries as pt
+    from src.utils import platform_timeseries as pt
     from src.dashboard.utils import series_cache
 
     series_cache.clear()

@@ -55,7 +55,7 @@ from src.dashboard.utils.filters import (
     latest_release_date,
     smart_period_filter,
 )
-from src.dashboard.utils import platform_timeseries as pts
+from src.utils import platform_timeseries as pts
 from src.dashboard.utils.platform_colors import PALETTE_LIGHT
 
 # La couleur MESURÉE de YouTube — pas `#FF0000`, que le balayage du 2026-09-08 a

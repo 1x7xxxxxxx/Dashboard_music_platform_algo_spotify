@@ -15,7 +15,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from src.dashboard.utils.platform_chart import _aggregate, _bucket_days, _bucket_key
-from src.dashboard.utils.platform_timeseries import non_overlapping_cover
+from src.utils.platform_timeseries import non_overlapping_cover
 from src.transformers.distrokid_parser import CONFLICT_KEYS, DistroKidParser
 from src.utils.track_matching import track_title_matches
 

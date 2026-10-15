@@ -1,7 +1,7 @@
 """Guard: un export Apple dit quelle période il couvre, et on ne l'additionne pas mal.
 
 Type: Utility
-Uses: src.dashboard.utils.platform_timeseries, src.dashboard.views.upload_csv
+Uses: src.utils.platform_timeseries, src.dashboard.views.upload_csv
 Triggers: pytest
 Persists in: nothing
 
@@ -31,7 +31,7 @@ import pathlib
 
 import pytest
 
-from src.dashboard.utils import platform_timeseries as pts
+from src.utils import platform_timeseries as pts
 
 # DEUX FICHIERS, DEUX QUESTIONS — et les confondre a cassé deux tests voisins.
 #
@@ -71,7 +71,7 @@ class _DB:
             if self.readings:
                 widest = max(self.readings, key=lambda r: (r[1] - r[0], r[2]))
                 cover = sum(p for _s, _e, p in
-                            __import__("src.dashboard.utils.platform_timeseries",
+                            __import__("src.utils.platform_timeseries",
                                        fromlist=["x"]).non_overlapping_cover(
                                            self.readings))
                 return [(max(widest[2], cover),)]

@@ -296,7 +296,7 @@ def _no_series_cache_between_tests():
         if _CACHE_MOD not in sys.modules:
             return                     # rien d'importé ⇒ rien de caché ⇒ rien à faire
         try:
-            from src.dashboard.utils import platform_timeseries as pt
+            from src.utils import platform_timeseries as pt
             from src.dashboard.utils.series_cache import clear
             clear()
             pt.set_fetch(None)

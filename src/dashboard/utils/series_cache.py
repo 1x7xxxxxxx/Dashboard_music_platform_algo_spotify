@@ -75,7 +75,7 @@ def _fetch(db, sql: str, params):
 
 def install() -> None:
     """Branche le cache sur le module de séries. Idempotent."""
-    from src.dashboard.utils import platform_timeseries as pt
+    from src.utils import platform_timeseries as pt
     if pt._FETCH is _fetch:
         return
     pt.set_fetch(_fetch)

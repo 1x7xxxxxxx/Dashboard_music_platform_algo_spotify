@@ -41,7 +41,7 @@ def db():
 
 
 def _tenant_with_data(db) -> int:
-    from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    from src.utils.platform_timeseries import combined_total, platform_totals
     from tests.conftest import pre_session_active_tenants
     for aid in pre_session_active_tenants(db):
         if combined_total(platform_totals(db, int(aid))) > 0:
@@ -85,7 +85,7 @@ def test_no_surface_reads_the_channel_counter_as_streams(db) -> None:
     import ast
     import pathlib
 
-    from src.dashboard.utils import platform_timeseries as pts
+    from src.utils import platform_timeseries as pts
     # `_SQL_LIFETIME_*` lit désormais la couche or (`v_platform_totals`, ADR-019), qui
     # porte la règle « somme des compteurs PAR VIDÉO ». La série quotidienne, elle,
     # lit toujours la table directement.
@@ -267,7 +267,7 @@ def test_a_bounded_period_is_never_larger_than_the_lifetime(db) -> None:
     qu'on additionne deux formes — un cumul et des quantités du jour, ou deux relevés
     qui se recouvrent.
     """
-    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.utils.platform_timeseries import platform_totals
 
     aid = _tenant_with_data(db)
     life = platform_totals(db, aid)
@@ -283,7 +283,7 @@ def test_a_bounded_period_is_never_larger_than_the_lifetime(db) -> None:
 
 def test_an_unmeasured_platform_is_none_not_zero(db) -> None:
     """« Rien mesuré » et « zéro écoute » ne doivent pas se ressembler."""
-    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.utils.platform_timeseries import platform_totals
 
     aid = _tenant_with_data(db)
     far = platform_totals(db, aid, dt.date(1990, 1, 1), dt.date(1990, 12, 31))

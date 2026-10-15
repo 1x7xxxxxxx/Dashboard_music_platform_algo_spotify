@@ -50,7 +50,7 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     # celui qu'on a prouvé ~10× faux le 2026-09-08. `platform_totals` porte les deux
     # régimes et refuse d'additionner deux formes — c'est la même fonction que l'accueil,
     # pour que les deux surfaces cessent de se contredire.
-    from src.dashboard.utils.platform_timeseries import combined_total, platform_totals
+    from src.utils.platform_timeseries import combined_total, platform_totals
     _totals = platform_totals(db, artist_id, from_date, to_date)
     s4a   = _totals.get('spotify')
     yt    = _totals.get('youtube')
@@ -125,7 +125,7 @@ def collect_report_data(db, artist_id, from_date, to_date, songs=None,
     _explain_tracks = _sel or ([_focus_song] if _focus_song else [])
     ml_explain = _collect_ml_explain(db, artist_id, _explain_tracks)
     from src.dashboard.utils import pdf_charts
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         apple_yearly_series, cumulative_by_platform, daily_streams_by_platform,
     )
     streams_dict = {'s4a': s4a, 'youtube': yt, 'soundcloud': sc, 'apple': apple}

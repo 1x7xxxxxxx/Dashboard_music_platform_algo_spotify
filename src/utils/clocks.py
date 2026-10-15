@@ -2,7 +2,7 @@
 
 Type: Utility
 Uses: nothing (pures constantes + fonctions)
-Triggers: src/dashboard/utils/platform_timeseries.py, les vues de période
+Triggers: src/utils/platform_timeseries.py, les vues de période
 Persists in: nothing
 
 La cause, et pourquoi elle est restée ouverte le plus longtemps

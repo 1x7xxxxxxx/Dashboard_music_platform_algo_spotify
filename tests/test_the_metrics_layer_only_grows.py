@@ -67,7 +67,7 @@ _SURFACES = ("src/dashboard/views", "src/dashboard/utils", "src/api/routers")
 # lire les faits et d'en faire la règle. L'exempter n'est pas une faveur, c'est la
 # définition — et si un jour elle affiche quelque chose, c'est elle qu'il faut couper
 # en deux, pas cette liste qu'il faut allonger.
-_DOORS = ("src/dashboard/utils/platform_timeseries.py",)
+_DOORS = ("src/utils/platform_timeseries.py",)
 
 # La couche or : les vues SQL, et les fonctions qui sont la porte unique d'une règle.
 _GOLD_VIEWS = frozenset({

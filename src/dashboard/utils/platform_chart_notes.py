@@ -2,7 +2,7 @@
 
 Type: Sub
 Uses: streamlit, i18n, platform_timeseries
-Depends on: src/dashboard/utils/platform_timeseries.py
+Depends on: src/utils/platform_timeseries.py
 Persists in: nothing — rendu seulement
 
 Pourquoi un module séparé
@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.dashboard.utils.platform_timeseries import PLATFORM_LABELS
+from src.utils.platform_timeseries import PLATFORM_LABELS
 from src.dashboard.utils.date_format import format_date
 
 

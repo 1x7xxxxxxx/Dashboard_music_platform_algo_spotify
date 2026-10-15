@@ -19,7 +19,7 @@ Code-critic (BUILD-MODIFIED, 2026-09-28):
   `triage.likely_twins`, and the (page, sources) group reviewed below with its verdict;
 - silver is claimed only where it is PROVEN: the slicer's hops never pass through
   `platform_timeseries` (measured: 0), but its SOURCES name the silver functions a figure
-  reads (`src.dashboard.utils.platform_timeseries.<fn>`) — that name is the proof.
+  reads (`src.utils.platform_timeseries.<fn>`) — that name is the proof.
 """
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def shared_source_groups(inventory: list[dict]) -> list[frozenset]:
     return [frozenset(v) for v in groups.values() if len(v) > 1]
 
 
-SILVER_PREFIX = "src.dashboard.utils.platform_timeseries."
+SILVER_PREFIX = "src.utils.platform_timeseries."
 
 
 def layer_label(layer: str, grafana: bool = False, sources: list[str] | tuple = (),

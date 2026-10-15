@@ -31,7 +31,7 @@ bronze:
 silver:
   nom: Argent — séries conformées
   perimetre: une ligne par jour et par titre, ligne « Total » retirée, cumul gardé cumul ; aujourd'hui les v_*_daily et platform_timeseries
-  fichiers: [src/dashboard/utils/platform_timeseries.py, docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md]
+  fichiers: [src/utils/platform_timeseries.py, docs/adr/ADR-019-bronze-silver-gold-as-a-boundary-not-a-storage.md]
   gardes: [tests/test_the_gold_layer_defines_every_platform.py]
   mesures: []
 

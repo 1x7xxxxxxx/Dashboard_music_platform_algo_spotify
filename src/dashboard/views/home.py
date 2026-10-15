@@ -37,7 +37,7 @@ def _section_streams(db, artist_id):
     la version empilée, où le filtre était à un écran de la figure qu'il commande.
     """
     from src.dashboard.utils import date_range
-    from src.dashboard.utils.platform_timeseries import daily_streams_by_platform
+    from src.utils.platform_timeseries import daily_streams_by_platform
 
     st.subheader(t("home.streams_header", "🎧 Tes chiffres"))
 
@@ -57,7 +57,7 @@ def _section_streams(db, artist_id):
     series = daily_streams_by_platform(db, artist_id)
     # Apple n'a pas de série quotidienne : ses relevés annuels sont ajoutés tels quels
     # et ne deviennent traçables qu'au pas annuel (`STEP_ONLY`).
-    from src.dashboard.utils.platform_timeseries import apple_yearly_series
+    from src.utils.platform_timeseries import apple_yearly_series
     _apple = apple_yearly_series(db, artist_id)
     if _apple:
         series['apple'] = _apple
@@ -75,7 +75,7 @@ def _section_streams(db, artist_id):
     # sur une période bornée — et refuse d'additionner deux formes. Le grand total vert
     # additionnait ici le compteur de CHAÎNE YouTube, celui qu'on a prouvé ~10× faux le
     # 2026-09-08 : trois pages du même produit donnaient trois totaux différents.
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         combined_total, cumulative_by_platform, platform_totals,
     )
     totals = platform_totals(db, artist_id, since, until)
@@ -256,7 +256,7 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # plateforme, pas à en cacher. Les cases ne proposent que ce que la période
     # contient — cocher une source qui n'a rien à dire ne montrerait rien et se
     # lirait comme une panne.
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         PLATFORM_LABELS, STEP_ONLY, measured_days,
     )
 
@@ -415,7 +415,7 @@ def _render_trend(db, series, since, until, range_key, artist_id,
     # DIFFÉRENCES n'additionne que les journées consécutives — mesuré le 2026-09-11
     # sur l'artiste 1 : 21 pour YouTube au lieu de 118 219, 8 pour SoundCloud au lieu
     # de 23 486.
-    from src.dashboard.utils.platform_timeseries import (cumulative_by_platform,
+    from src.utils.platform_timeseries import (cumulative_by_platform,
                                                           discarded_deltas)
     cumulative = cumulative_by_platform(db, artist_id)
     # Ce que la conversion cumul → quotidien jette. La figure décide si la phrase

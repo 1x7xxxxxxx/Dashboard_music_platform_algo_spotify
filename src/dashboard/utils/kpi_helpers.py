@@ -539,7 +539,7 @@ def get_total_plays_apple(_db, artist_id):
     lecteurs (accueil, Data Wrapped, export PDF) passent par ici.
     """
     if artist_id is not None:
-        from src.dashboard.utils.platform_timeseries import apple_lifetime_plays
+        from src.utils.platform_timeseries import apple_lifetime_plays
         return apple_lifetime_plays(_db, artist_id)
     try:
         # Vue flotte (admin) : pas de locataire, donc pas de notion de « son » cumul.

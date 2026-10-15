@@ -195,7 +195,7 @@ def test_python_reads_the_sql_rule_instead_of_repeating_it() -> None:
     import ast
     import inspect
 
-    from src.dashboard.utils import platform_timeseries as pts
+    from src.utils import platform_timeseries as pts
 
     fn = ast.parse(inspect.getsource(pts.apple_lifetime_plays).lstrip()).body[0]
     doc = ast.get_docstring(fn, clean=False)
@@ -286,7 +286,7 @@ def test_python_reads_the_levels_instead_of_rebuilding_them() -> None:
     import ast
     import inspect
 
-    from src.dashboard.utils import platform_timeseries as pts
+    from src.utils import platform_timeseries as pts
 
     fn = ast.parse(inspect.getsource(pts.cumulative_by_platform).lstrip()).body[0]
     doc = ast.get_docstring(fn, clean=False)

@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: psycopg2, une base vivante
-Depends on: src/dashboard/utils/platform_timeseries.py, la vue v_platform_totals
+Depends on: src/utils/platform_timeseries.py, la vue v_platform_totals
 Persists in: rien
 
 Pourquoi ce garde existe
@@ -95,7 +95,7 @@ def test_the_youtube_curve_ends_on_the_gold_total(db) -> None:
     sur une régression qui ne touche que les petits catalogues — et c'est le cas d'un
     report en avant, qui ne se voit que lorsque la collecte est trouée.
     """
-    from src.dashboard.utils.platform_timeseries import youtube_cumulative_views
+    from src.utils.platform_timeseries import youtube_cumulative_views
 
     tenants = _tenants_with_youtube(db)
     if not tenants:
@@ -130,7 +130,7 @@ def test_the_curve_never_goes_down(db) -> None:
     jour-là : les jours de collecte partielle creusent des trous, et la courbe montre
     une chute de vues que personne n'a subie.
     """
-    from src.dashboard.utils.platform_timeseries import youtube_cumulative_views
+    from src.utils.platform_timeseries import youtube_cumulative_views
 
     tenants = _tenants_with_youtube(db)
     if not tenants:
@@ -387,7 +387,7 @@ def test_a_bounded_total_on_a_counter_is_a_difference_of_levels(db) -> None:
     Ce test compare les deux lectures pour chaque locataire : le total borné doit
     valoir la différence des niveaux de la courbe, pas la somme des écarts.
     """
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         cumulative_by_platform, daily_streams_by_platform, platform_totals,
     )
 
@@ -425,7 +425,7 @@ def test_a_bounded_total_still_says_None_when_nothing_was_measured(db) -> None:
     """
     import datetime as _dt
 
-    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.utils.platform_timeseries import platform_totals
 
     aid = _tenants_with_youtube(db)[0] if _tenants_with_youtube(db) else None
     if aid is None:
@@ -450,7 +450,7 @@ def test_the_merged_query_says_exactly_what_the_single_ones_say(db) -> None:
     forme de défaut la plus chère de ce dépôt : une lecture qui échoue déguisée en
     « rien à lire ». Une comparaison suffit à la voir ; rien d'autre ne la voyait.
     """
-    from src.dashboard.utils.platform_timeseries import (
+    from src.utils.platform_timeseries import (
         cumulative_by_platform, soundcloud_cumulative_plays, youtube_cumulative_views,
     )
 

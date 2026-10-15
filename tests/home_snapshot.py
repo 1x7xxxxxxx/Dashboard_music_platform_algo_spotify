@@ -55,11 +55,11 @@ TOGGLED_OFF = {"full_not_cumulative": "full"}
 # Every function through which Home reads data. Patched where it is DEFINED: Home and
 # its helpers import them inside functions, so the patch is seen at call time.
 REPLAYED = (
-    ("src.dashboard.utils.platform_timeseries", "daily_streams_by_platform"),
-    ("src.dashboard.utils.platform_timeseries", "apple_yearly_series"),
-    ("src.dashboard.utils.platform_timeseries", "platform_totals"),
-    ("src.dashboard.utils.platform_timeseries", "cumulative_by_platform"),
-    ("src.dashboard.utils.platform_timeseries", "discarded_deltas"),
+    ("src.utils.platform_timeseries", "daily_streams_by_platform"),
+    ("src.utils.platform_timeseries", "apple_yearly_series"),
+    ("src.utils.platform_timeseries", "platform_totals"),
+    ("src.utils.platform_timeseries", "cumulative_by_platform"),
+    ("src.utils.platform_timeseries", "discarded_deltas"),
     ("src.dashboard.utils.period_side_metrics", "period_side_metrics"),
     ("src.dashboard.utils.setup_completion", "read_setup_state"),
     ("src.dashboard.auth", "get_artist_plan"),

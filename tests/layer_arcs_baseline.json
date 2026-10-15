@@ -1,4 +1,3 @@
 {
-  "src/utils/metric_bounds.py::src.dashboard.utils.platform_timeseries": "local",
   "src/utils/platform_probes.py::src.dashboard.views.credentials._registry": "local"
 }

@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: pytest, live Postgres
-Depends on: src/dashboard/utils/platform_timeseries.py, src/dashboard/views/home.py
+Depends on: src/utils/platform_timeseries.py, src/dashboard/views/home.py
 Persists in: nothing
 
 Ce qui est demandé (2026-09-13)

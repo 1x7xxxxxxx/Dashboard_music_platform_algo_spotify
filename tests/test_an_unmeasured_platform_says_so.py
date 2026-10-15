@@ -2,7 +2,7 @@
 
 Type: Test
 Uses: psycopg2, a live Postgres
-Depends on: les vues or, src/dashboard/utils/platform_timeseries.py
+Depends on: les vues or, src/utils/platform_timeseries.py
 Persists in: nothing
 
 Why this exists
@@ -139,7 +139,7 @@ def test_the_python_door_says_none_for_every_platform_it_serves() -> None:
     est la phrase exécutable de cette ADR.
     """
     sys.path.insert(0, str(_ROOT))
-    from src.dashboard.utils.platform_timeseries import platform_totals
+    from src.utils.platform_timeseries import platform_totals
 
     # ⚠️ LA CONNEXION VIENT DE `_CONN`, jamais de constantes.
     #

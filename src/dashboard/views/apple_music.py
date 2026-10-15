@@ -86,7 +86,7 @@ def show():
             # R484 (owner W7 II : « total streams cumulés intégré au graphique top 10 ; total
             # Shazam intégré au graphique Shazam ; retirer la barre de séparation ») — the
             # two tiles and both separators are gone; the totals are the chart titles.
-            from src.dashboard.utils.platform_timeseries import (
+            from src.utils.platform_timeseries import (
                 apple_lifetime_plays, apple_lifetime_shazams,
             )
             # Les DEUX métriques suivent la même règle à trois branches, et cette
