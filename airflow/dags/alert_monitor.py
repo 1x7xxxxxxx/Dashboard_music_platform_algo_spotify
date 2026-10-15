@@ -991,7 +991,7 @@ def check_onboarding_readiness(**context):
                     result = _p(platform)
                     if result is not None:
                         try:
-                            from src.dashboard.utils.status_matrix import save_probe
+                            from src.utils.probe_store import save_probe
                             save_probe(db, _aid, platform, result[0], result[1])
                         except Exception as e:  # noqa: BLE001 — memory is a bonus
                             logger.warning("could not remember probe %s/%s: %s",

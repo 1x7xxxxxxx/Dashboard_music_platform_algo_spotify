@@ -1,7 +1,7 @@
 """The setup matrix: three boxes per platform, one renderer, four surfaces.
 
 Type: Utility
-Uses: artist_readiness, platform_probes, tenant_platform_probe
+Uses: artist_readiness, platform_probes, src.utils.probe_store, tenant_platform_probe
 Triggers: credentials page, onboarding wizard, home banner, 🚦 Santé onboarding
 Persists in: tenant_platform_probe (only when someone presses "Vérifier maintenant")
 
@@ -40,6 +40,7 @@ import streamlit as st
 
 from src.dashboard.utils.i18n import t
 from src.utils.diagnosis_text import as_markdown
+from src.utils.probe_store import save_probe
 
 logger = logging.getLogger(__name__)
 
@@ -133,19 +134,6 @@ def read_failed_probes_many(db, artist_ids) -> dict:
     for aid, platform, reason, probed_at in rows:
         out.setdefault(int(aid), {})[platform] = (False, reason, probed_at)
     return out
-
-
-def save_probe(db, artist_id: int, platform: str, ok: bool, reason: str,
-               category: str | None = None) -> None:
-    """Remember one verdict. Overwrites — we want the latest, not a history."""
-    db.execute_query(
-        "INSERT INTO tenant_platform_probe "
-        "  (artist_id, platform, ok, reason, category, probed_at) "
-        "VALUES (%s, %s, %s, %s, %s, now()) "
-        "ON CONFLICT (artist_id, platform) DO UPDATE SET "
-        "  ok = EXCLUDED.ok, reason = EXCLUDED.reason, "
-        "  category = EXCLUDED.category, probed_at = EXCLUDED.probed_at",
-        (artist_id, platform, bool(ok), (reason or "")[:500], category))
 
 
 def run_probes_now(db, artist_id: int, platforms) -> int:
