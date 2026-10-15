@@ -11,7 +11,7 @@ from src.dashboard.utils import full_funnel
 
 ROOT = Path(__file__).resolve().parent.parent
 
-_FULL = {"spend": 100.0, "impressions": 20_000, "link_clicks": 400, "arrivals": 200,
+_FULL = {"spend": 100.0, "impressions": 20_000, "reach": 9_000, "link_clicks": 400, "arrivals": 200,
          "store_clicks": 100, "streams": 500}
 
 
@@ -19,7 +19,7 @@ def _by_key(drawn):
     return {s["key"]: s for s in drawn}
 
 
-def test_seven_steps_end_on_streams_times_the_measured_rate():
+def test_eight_steps_end_on_streams_times_the_measured_rate():
     drawn = full_funnel.steps(_FULL, 0.004)
     assert [s["key"] for s in drawn] == [k for k, _, _ in full_funnel.STEPS]
     assert _by_key(drawn)["revenue"]["value"] == 2.0
@@ -41,18 +41,34 @@ def test_under_two_steps_there_is_no_figure():
 
 
 def test_the_funnel_is_a_funnel_wide_to_narrow():
-    """R575 — a real funnel shape: the nested counts top to bottom, never widening;
-    budget above and streams/revenue below as annotations, not funnel steps."""
+    """R589 — ONE funnel, every step in order: the budget is the top case, then
+    impressions, reach, clicks, visits, smart-link clicks, streams, revenue."""
     fig = full_funnel.figure(full_funnel.steps(_FULL, 0.004))
-    assert fig.data[0].type == "funnel"
-    assert len(fig.data) == 1
-    labels = list(fig.data[0].y)
-    assert labels[0] == full_funnel._label("impressions")
-    assert labels[-1] == full_funnel._label("store_clicks")
+    assert fig.data[0].type == "funnel" and len(fig.data) == 1
+    assert list(fig.data[0].y) == [full_funnel._label(k) for k in (
+        "budget", "impressions", "reach", "link_clicks", "arrivals", "store_clicks",
+        "streams", "revenue")]
     w = list(fig.data[0].x)
-    assert all(a >= b for a, b in zip(w, w[1:]))
-    notes = " ".join(a.text for a in fig.layout.annotations)
-    assert full_funnel._label("budget") in notes and full_funnel._label("revenue") in notes
+    assert w[0] == 100 and all(a >= b for a, b in zip(w, w[1:])), w
+    assert not fig.layout.annotations, "no step left outside the funnel"
+    assert fig.data[0].textfont.size >= 15 and fig.layout.yaxis.tickfont.size >= 14
+
+
+def test_an_unmeasured_reach_keeps_the_clicks_share_of_impressions():
+    drawn = _by_key(full_funnel.steps({**_FULL, "reach": 0}, None))
+    assert "reach" not in drawn and "2,0 %" in drawn["link_clicks"]["text"]
+
+
+def test_each_campaign_name_is_boxed_behind_its_colour():
+    from src.dashboard.utils.campaign_pair import PAIR_COLORS
+    from src.dashboard.views.meta_x_spotify import campaign_badge
+    for i in (0, 1):
+        b = campaign_badge("<Été> 2026", i)
+        assert f"border:2px solid {PAIR_COLORS[i]}" in b and f"background:{PAIR_COLORS[i]}" in b
+        assert "&lt;Été&gt; 2026" in b
+    pair = _defs("src/dashboard/views/meta_x_spotify.py")["_render_pair"]
+    assert "campaign_badge" in {ast.unparse(n.func) for n in ast.walk(pair)
+                                if isinstance(n, ast.Call)}
 
 
 def test_widths_never_widen_and_keep_a_small_step_visible():

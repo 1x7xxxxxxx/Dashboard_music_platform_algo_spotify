@@ -574,6 +574,7 @@ def funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song=None
     """
     meta = _df(db, f"""
         SELECT COALESCE(SUM(impressions), 0) AS impressions,
+               COALESCE(SUM(reach), 0)       AS reach,
                COALESCE(SUM(link_clicks), 0) AS link_clicks,
                COALESCE(SUM(lp_views), 0)    AS lp_views,
                COALESCE(SUM(custom_conversions), 0) AS capi,
@@ -588,7 +589,8 @@ def funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song=None
     """, (artist_id, campaign, d0, d1))
     m = meta.iloc[0] if not meta.empty else {}
     h = hyp.iloc[0] if not hyp.empty else {}
-    out = {k: int(m.get(k, 0) or 0) for k in ("impressions", "link_clicks", "lp_views", "capi")}
+    out = {k: int(m.get(k, 0) or 0) for k in ("impressions", "reach", "link_clicks", "lp_views",
+                                                  "capi")}
     out["spend"] = float(m["spend"]) if len(m) and pd.notna(m["spend"]) else None
     out["visits"], out["store_clicks"] = int(h.get("visits", 0) or 0), int(h.get("clicks", 0) or 0)
     out["arrivals"] = max(out["capi"], out["visits"], out["lp_views"])
@@ -673,6 +675,19 @@ def _funnel_note(db, artist_id, m: dict, rate, d0, d1, s4a_song) -> str:
     return note + campaign_treasury(db, artist_id, d0, d1, m["spend"])
 
 
+def campaign_badge(campaign: str, i: int) -> str:
+    """R589 — a campaign's name in a box, behind the small square of its colour (campaign
+    1 / campaign 2 — the same two colours as every paired chart). Pure."""
+    import html
+
+    from src.dashboard.utils.campaign_pair import PAIR_COLORS
+    c = PAIR_COLORS[i % 2]
+    return (f"<div style='display:inline-flex;align-items:center;gap:8px;padding:6px 12px;"
+            f"border:2px solid {c};border-radius:8px;font-weight:600;font-size:1.05rem'>"
+            f"<span style='width:14px;height:14px;background:{c};border-radius:3px;"
+            f"display:inline-block'></span>{html.escape(str(campaign))}</div>")
+
+
 def _render_pair(db, artist_id, bar) -> None:
     """Two campaigns, two funnels on one row, each on its own dates (fiches 23, 26)."""
     from src.dashboard.utils.full_funnel import indicators
@@ -680,7 +695,7 @@ def _render_pair(db, artist_id, bar) -> None:
     st.subheader(t("meta_x_spotify.pair_header", "⚖️ Deux campagnes, deux entonnoirs"))
     for i, (col, campaign) in enumerate(zip(st.columns(2), (bar.campaign, bar.second))):
         with col:
-            st.markdown(f"**{campaign}**")
+            st.markdown(campaign_badge(campaign, i), unsafe_allow_html=True)
             span = _df(db, "SELECT MIN(day) AS d0, MAX(day) AS d1 FROM v_meta_campaign_daily "
                            f"WHERE artist_id = %s{acct} AND campaign_name = %s AND spend > 0",
                        (artist_id, *acct_p, campaign))

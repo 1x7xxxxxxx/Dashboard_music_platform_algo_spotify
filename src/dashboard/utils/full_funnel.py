@@ -35,6 +35,7 @@ from src.dashboard.utils.platform_colors import platform_color
 STEPS = (
     ("budget", "eur", False),
     ("impressions", "count", False),
+    ("reach", "count", True),
     ("link_clicks", "count", True),
     ("arrivals", "count", True),
     ("store_clicks", "count", True),
@@ -43,6 +44,7 @@ STEPS = (
 )
 _META_STEPS = ("impressions", "link_clicks")   # the steps Meta's breakdowns describe
 _INK = {"budget": "#FF6D00", "impressions": platform_color("meta"),
+        "reach": platform_color("meta"),
         "link_clicks": platform_color("meta"), "arrivals": "#7C4DFF",
         "store_clicks": "#7C4DFF", "streams": platform_color("spotify"), "revenue": "#2E7D32"}
 
@@ -51,9 +53,10 @@ def _label(key: str) -> str:
     return {
         "budget": t("full_funnel.budget", "Budget dépensé"),
         "impressions": t("full_funnel.impressions", "Impressions"),
+        "reach": t("full_funnel.reach", "Couverture (personnes touchées)"),
         "link_clicks": t("full_funnel.link_clicks", "Clics sur la pub"),
         "arrivals": t("full_funnel.arrivals", "Visites du smart link"),
-        "store_clicks": t("full_funnel.store_clicks", "Clics vers les plateformes"),
+        "store_clicks": t("full_funnel.store_clicks", "Clics du smart link"),
         "streams": t("full_funnel.streams", "Écoutes gagnées"),
         "revenue": t("full_funnel.revenue", "Revenus de ces écoutes"),
     }[key]
@@ -80,7 +83,8 @@ def steps(m: dict, eur_per_stream: float | None, best: dict | None = None) -> li
     for key, unit, nested in STEPS:
         v = vals.get(key)
         if v is None or v <= 0:
-            prev = None if nested or key == "impressions" else prev
+            # An unmeasured reach (old exports) does not break impressions → clicks.
+            prev = prev if key == "reach" else None if nested or key == "impressions" else prev
             continue
         parts = [_n(v, 2) + " €" if unit == "eur" else _n(v)]
         if nested and prev:
@@ -91,11 +95,13 @@ def steps(m: dict, eur_per_stream: float | None, best: dict | None = None) -> li
         elif unit == "count" and spend:
             parts.append(t("full_funnel.unit", "{c} € l'unité").format(c=_n(spend / v, 3)))
         if key == "streams" and vals.get("store_clicks"):
-            parts.append(t("full_funnel.per_click", "{r} écoutes par clic plateforme").format(
+            parts.append(t("full_funnel.per_click", "{r} écoutes par clic smart link").format(
                 r=_n(v / vals["store_clicks"], 1)))
         if key == "revenue" and spend:
             parts.append(t("full_funnel.recovered", "{p} % du budget récupéré").format(
                 p=_n(100 * v / spend, 1)))
+        if key == "reach":
+            parts.append(t("full_funnel.reach_days", "somme des jours"))
         if key in _META_STEPS and (best or {}).get(key):
             parts.append(best[key])
         out.append({"key": key, "label": _label(key), "value": float(v),
@@ -116,10 +122,6 @@ def indicators(m: dict) -> list[tuple[str, str]]:
             ("CPR", per(spend, capi))]
 
 
-# The counts that narrow, in a funnel's shape; euros and streams around it (R575).
-_NARROWING = ("impressions", "link_clicks", "arrivals", "store_clicks")
-
-
 def widths(values: list[float]) -> list[float]:
     """Funnel widths, wide to narrow: log-scaled so 40 clicks under 100 000 impressions
     stay visible, and never wider than the step above (a funnel narrows). Pure."""
@@ -131,35 +133,30 @@ def widths(values: list[float]) -> list[float]:
     return out
 
 
-def figure(drawn: list[dict], height: int = 420) -> go.Figure | None:
-    """A real funnel, top to bottom (R575 — owner, 2026-10-15: « une vraie forme
-    d'entonnoir, du haut vers le bas, du plus large au plus étroit »). None under 2 steps.
+def figure(drawn: list[dict], height: int = 460) -> go.Figure | None:
+    """One funnel, every step in order, top to bottom (R589 — owner, 2026-10-15: « le
+    budget en tête comme une case, puis impressions, couverture, clics, visites, clics
+    smart link, écoutes, revenus »). None under 2 steps.
 
-    Only the NESTED counts form the funnel; the budget stands above it and the streams
-    and revenue they bought below it — euros and repeat listens are not a narrowing of
-    the clicks (the render once read « 191 % »). Widths are log-scaled; the number
-    written on each step is its real value."""
-    by_key = {s["key"]: s for s in drawn}
-    cone = [by_key[k] for k in _NARROWING if k in by_key]
-    if len(cone) < 2:
+    The budget is the widest case — every step below is bought with it. Counts are
+    log-scaled and never wider than the step above; streams and revenue sit in the same
+    column, narrower still: their text says why they are not a % of the clicks (the
+    render once read « 191 % »). The number written on each step is its real value."""
+    if len(drawn) < 2:
         return None
+    counts = [s for s in drawn if s["key"] not in ("budget", "revenue")]
+    w = dict(zip([s["key"] for s in counts], widths([s["value"] for s in counts])))
+    xs: list[float] = []
+    for s in drawn:   # counts sit under the budget case (92 %), revenue under the streams
+        x = 100.0 if s["key"] == "budget" else 0.92 * w.get(s["key"], xs[-1] if xs else 100)
+        xs.append(max(8.0, min(x, xs[-1])) if xs else x)
     fig = go.Figure(go.Funnel(
-        y=[s["label"] for s in cone], x=widths([s["value"] for s in cone]),
-        text=[s["text"] for s in cone], textinfo="text", textposition="inside",
-        marker_color=[_INK[s["key"]] for s in cone], connector={"line": {"width": 0}, "fillcolor": "rgba(0,0,0,0.06)"},
-        hoverinfo="text", hovertext=[f"{s['label']} : {s['text']}" for s in cone]))
-    above = by_key.get("budget")
-    below = [by_key[k] for k in ("streams", "revenue") if k in by_key]
-    if above:
-        fig.add_annotation(text=f"💶 <b>{above['label']}</b> : {above['text']}",
-                           xref="paper", yref="paper", x=0.5, y=1.0, yanchor="bottom",
-                           showarrow=False)
-    for i, s in enumerate(below):
-        fig.add_annotation(text=f"{'🎧' if s['key'] == 'streams' else '💰'} "
-                                f"<b>{s['label']}</b> : {s['text']}",
-                           xref="paper", yref="paper", x=0.5, y=-0.02 - 0.09 * i,
-                           yanchor="top", showarrow=False)
-    fig.update_layout(height=height, showlegend=False,
-                      margin=dict(l=10, r=10, t=40, b=20 + 34 * len(below)),
-                      yaxis=dict(automargin=True))
+        y=[s["label"] for s in drawn], x=xs,
+        text=[s["text"] for s in drawn], textinfo="text", textposition="inside",
+        textfont={"size": 15}, insidetextanchor="middle",
+        marker_color=[_INK[s["key"]] for s in drawn],
+        connector={"line": {"width": 0}, "fillcolor": "rgba(0,0,0,0.06)"},
+        hoverinfo="text", hovertext=[f"{s['label']} : {s['text']}" for s in drawn]))
+    fig.update_layout(height=height, showlegend=False, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(automargin=True, tickfont={"size": 14}))
     return fig
