@@ -110,3 +110,20 @@ def test_the_script_answers_fast_and_in_two_lines(tmp_path) -> None:
                        capture_output=True, text=True, timeout=10)
     assert r.returncode == 0 and len(r.stdout.splitlines()) == 2, r.stdout + r.stderr
     assert time.monotonic() - t < 2.0
+
+
+def test_the_open_roadmap_tasks_sit_beside_the_unpushed_commits(sl) -> None:
+    """R604 (owner, 2026-10-15) — « combien il nous reste de tâches dans la roadmap, juste à
+    côté des non commités / poussés »; absent when the roadmap cannot be read."""
+    line2 = sl.render(_PAYLOAD, _state(sl, open_tasks=7))[1]
+    assert "2 non poussé(s) · 7 tâche(s) roadmap" in line2
+    assert "roadmap" not in sl.render(_PAYLOAD, _state(sl))[1]
+
+
+def test_the_count_is_the_night_status_count(sl) -> None:
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("nr", root / "tools/dev/night_run.py")
+    nr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nr)
+    assert sl._open_tasks(root) == len(nr._open_tasks())
+    assert sl._open_tasks(root / "nowhere") is None

@@ -9,7 +9,8 @@ Persists in: ~/.cache/streamlytics-ci-<sha>.json (the CI of HEAD, refreshed ≤ 
 
 Two lines:
   1. model · context % · estimated cost · duration · lines +/− (from stdin)
-  2. tests (via _verdict) · CI of HEAD · uncommitted files · unpushed commits · night unit
+  2. tests (via _verdict) · CI of HEAD · uncommitted files · unpushed commits · open
+     roadmap tasks (R604 — the same count as `make night-status`) · night unit
 
 Never a synchronous network call: the CI is read from a cache that a DETACHED
 `gh run list --commit <full sha>` refreshes. An unknown CI shows « ? », never ✅ — a
@@ -22,6 +23,7 @@ rex: []
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -45,6 +47,7 @@ class State:
     dirty: int = 0
     ahead: int | None = None       # None: no upstream
     night: str | None = None
+    open_tasks: int | None = None  # None: roadmap unreadable
 
 
 def _duration(ms: float) -> str:
@@ -79,6 +82,8 @@ def render(payload: dict, state: State) -> list[str]:
     parts = [f"tests {_tests(state.tests)}", f"CI {_ci(state.ci)} {state.sha[:8]}".rstrip(),
              f"{state.dirty} non commité(s)",
              f"{state.ahead} non poussé(s)" if state.ahead is not None else "pas d'amont"]
+    if state.open_tasks is not None:
+        parts.append(f"{state.open_tasks} tâche(s) roadmap")
     if state.night:
         parts.append(f"nuit {state.night}")
     return [line1, " · ".join(parts)]
@@ -127,12 +132,25 @@ def _night(root: Path) -> str | None:
     return last.get("task") if last.get("kind") == "start" else None
 
 
+def _open_tasks(root: Path) -> int | None:
+    """R604 — the open rows of BOTH index tables, counted by `night_run._open_tasks`: the
+    statusline and `make night-status` cannot disagree on a total (one definition)."""
+    path = root / "tools" / "dev" / "night_run.py"
+    spec = importlib.util.spec_from_file_location("night_run_sl", path)
+    if spec is None or not path.exists():
+        return None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return len(mod._open_tasks())
+
+
 def collect(root: Path) -> State:
     sha = (_git(root, "rev-parse", "HEAD") or [""])[0]
     ahead = _git(root, "rev-list", "--count", "@{u}..HEAD")
     return State(tests=verdict(root), ci=_ci_state(root, sha) if sha else None, sha=sha,
                  dirty=len(_git(root, "status", "--porcelain")),
-                 ahead=int(ahead[0]) if ahead else None, night=_night(root))
+                 ahead=int(ahead[0]) if ahead else None, night=_night(root),
+                 open_tasks=_open_tasks(root))
 
 
 def main() -> int:
