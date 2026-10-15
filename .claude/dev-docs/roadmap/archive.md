@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R573 — `tools/notify_schema_drift.py` plante sur l’hôte du VPS (`ModuleNotFoundError: dotenv`… (livrée 2026-10-15)
+
+- [x] **R573 — `tools/notify_schema_drift.py` plante sur l’hôte du VPS (`ModuleNotFoundError: dotenv` levé À L’APPEL de `load_project_env()`, pas à l’import — le repli `except ImportError` ne le voit pas) : les mails schema-drift et infra-health partaient pas avant R572 ; à corriger AVANT de remettre `OPS_MAIL_PAUSED = False`** (P2) ✅ (2026-10-15, 30e417fc)
+  Mesuré par : `python3 tools/notify_schema_drift.py --subject t </dev/null` sur l’hôte prod ne lève plus
+  Livré 30e417fc, CI verte (run 38703824060) ; sur l'hôte prod le script ne plante plus et atteint la pause R572 (rc 0) ; test rouge sur le défaut puis vert
+  Commits : 30e417fc R573 : notify_schema_drift survit à un python sans python-dotenv (hôte
+
 ## ✅ R572 — Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2… (livrée 2026-10-15)
 
 - [x] **R572 — Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2026-10-15) — un seul interrupteur `src/utils/ops_mail_pause.py` lu par `send_alert`, `deliver_or_raise`, `dag_failure_callback`, `mail_red_verdict.send` et `notify_schema_drift` ; les mails artistes (`send_email`) et la demande de suppression de compte continuent** (P3) ✅ (2026-10-15, f6613d07)
