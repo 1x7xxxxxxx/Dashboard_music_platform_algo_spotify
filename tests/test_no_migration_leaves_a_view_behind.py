@@ -44,6 +44,8 @@ _MIGRATIONS = ROOT / "migrations"
 _RETIREES: dict[str, str] = {
     # R567 : l'engagement publicitaire a quitté la vue croisée ; plus aucun lecteur
     "v_meta_engagement_daily": "151_retire_v_meta_engagement_daily.sql",
+    # R597 : le panneau « Optimisation de l'ad set » supprimé était son dernier lecteur
+    "v_meta_adset_daily": "152_retire_v_meta_adset_daily.sql",
 }
 
 
