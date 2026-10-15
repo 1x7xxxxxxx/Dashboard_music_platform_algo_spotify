@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R572 | Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2026-10-15) — un seul interrupteur `src/utils/ops_mail_pause.py` lu par `send_alert`, `deliver_or_raise`, `dag_failure_callback`, `mail_red_verdict.send` et `notify_schema_drift` ; les mails artistes (`send_email`) et la demande de suppression de compte continuent <!-- scope: src/utils/ops_mail_pause.py src/utils/email_alerts.py src/dashboard/views/account.py tools/dev/mail_red_verdict.py tools/notify_schema_drift.py tests/ --> | P3 | test : en pause, aucun SMTP ouvert pour une alerte ops, un mail artiste part |
+| R572 | Mails ops au propriétaire en pause tant que l’app n’a pas d’artiste actif (demande du 2026-10-15) — un seul interrupteur `src/utils/ops_mail_pause.py` lu par `send_alert`, `deliver_or_raise`, `dag_failure_callback`, `mail_red_verdict.send` et `notify_schema_drift` ; les mails artistes (`send_email`) et la demande de suppression de compte continuent <!-- critic: non — interrupteur réversible d’une ligne, gardé par test muté --> <!-- scope: src/utils/ops_mail_pause.py src/utils/email_alerts.py src/dashboard/views/account.py tools/dev/mail_red_verdict.py tools/notify_schema_drift.py tests/ --> | P3 | test : en pause, aucun SMTP ouvert pour une alerte ops, un mail artiste part |
 
 ---
 
