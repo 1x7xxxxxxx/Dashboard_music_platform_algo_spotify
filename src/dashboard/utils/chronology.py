@@ -37,7 +37,8 @@ _BUDGET_INK = "#FF6D00"
 _CLICK_INK = "#1baf7a"
 
 # Shown on arrival; the rest is one legend click away (the owner's « afficher ou non »).
-_SHOWN = frozenset({"listeners", "streams", "saves", "playlist_adds", "followers_level",
+# R567 (owner, 2026-10-15): streams / day (7-day mean) start hidden — listeners carry it.
+_SHOWN = frozenset({"listeners", "saves", "playlist_adds", "followers_level",
                     "budget"})
 
 _AUDIENCE_SQL = (
@@ -93,7 +94,7 @@ def series(frames: dict) -> dict[str, tuple[str, pd.Series]]:
     if not spend.empty:
         out["clicks"] = (t("chronology.clicks", "Clics sortants / jour"), clicks)
         out["budget"] = (t("chronology.budget", "Budget Meta (€ / jour)"), spend)
-        out["cpr"] = (t("chronology.cpr", "CPR (€ / clic sortant)"),
+        out["cpr"] = (t("chronology.cpr", "CPR = coût par résultat (€ / clic sortant)"),
                       per_series(spend, clicks))
     return out
 

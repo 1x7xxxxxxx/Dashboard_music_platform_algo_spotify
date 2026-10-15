@@ -49,7 +49,8 @@ def test_the_home_module_no_longer_calls_the_four_blocks() -> None:
 
 def test_each_shed_block_is_called_by_its_destination() -> None:
     assert "render_source_freshness" in _calls(_VIEWS / "onboarding_health.py")
-    assert "render_meta_advice" in _calls(_VIEWS / "meta_ads_overview.py")
+    # R567: what the ads learned is now written on the funnel steps of the cross view
+    assert "best_by_step" in _calls(_VIEWS / "meta_x_spotify.py")
     assert "get_dag_list" in _calls(_VIEWS / "airflow_kpi.py")
     from src.dashboard.utils.nav_sections import NAV_SECTIONS
 

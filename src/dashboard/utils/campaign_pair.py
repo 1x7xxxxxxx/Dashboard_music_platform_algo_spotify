@@ -9,8 +9,9 @@ Persists in: nothing (widget state only)
 The owner's request (screen review, 2026-10-04): pick TWO campaigns and read them at a
 comparable scale on « Performance Globale », and get a second campaign filter on « Visuels
 de campagne » and « Qui a vu tes pubs ». One selector, not three copies: the three pages
-call `second_campaign`, and its default is « none », so a page with one campaign chosen
-renders exactly as before.
+call `second_campaign`. Its default is the campaign launched just BEFORE the first one
+(R567, owner 2026-10-15: « campagne 1 = dernière sortie, campagne 2 = avant-dernière ») —
+« none » stays offered to read one campaign alone.
 
 The comparable scale is CHOSEN, and said here so it can be contradicted:
   * totals (spend, clicks) are put on ONE clock — day 0 is each campaign's first euro
@@ -41,8 +42,18 @@ def pair_options(options: list, first: str | None) -> list:
     return [None] + [c for c in options if c and c != first]
 
 
+def default_second(options: list, first: str) -> int:
+    """Index in `pair_options` of the campaign that ran just before `first` (R567).
+
+    `options` is ordered newest first, so it is the next one after `first`; when `first`
+    is the oldest, the newest other one. Never « none » while another campaign exists."""
+    offered = pair_options(options, first)
+    later = [c for c in options[options.index(first) + 1:] if c] if first in options else []
+    return offered.index(later[0]) if later else 1
+
+
 def second_campaign(options: list, first: str | None, key: str) -> str | None:
-    """The shared « compare with » selector. None (the default) leaves the page unchanged.
+    """The shared « compare with » selector — the previous campaign by default (R567).
 
     Shown only once ONE campaign is chosen: comparing « all campaigns » with one of them
     has no meaning. The pick is re-checked against `options` (rule #8 — it is a value
@@ -54,6 +65,7 @@ def second_campaign(options: list, first: str | None, key: str) -> str | None:
         return None
     pick = st.selectbox(
         t("campaign_pair.second", "Comparer avec une 2ᵉ campagne"), offered, key=key,
+        index=default_second(options, first),
         format_func=lambda c: t("campaign_pair.none", "— aucune —") if c is None else c)
     return pick if pick in offered[1:] else None
 
@@ -136,29 +148,45 @@ def _day0_titles() -> list[str]:
             t("campaign_pair.day0.cpc_cum", "CPC cumulé (€)")]
 
 
-def render_day0(curves: pd.DataFrame, first: str, second: str) -> None:
-    """Three frames, one unit each — the two campaigns as two lines on the day-0 clock."""
-    from plotly.subplots import make_subplots
+_DAY0_DASH = ("solid", "dash", "dot")   # spend, clicks, CPC — the measure is the line style
 
+
+def normalised(curves: pd.DataFrame) -> pd.DataFrame:
+    """`curves` plus `<col>_pct`: each campaign's running value in % of ITS last one. Pure.
+
+    R567 — one axis for three units (€, clicks, € per click): the visual ratchet refuses a
+    second axis, and two campaigns of 30 € and 750 € only compare as shapes anyway."""
+    out = curves.copy()
+    for col in _DAY0_COLS:
+        last = out.groupby("campaign")[col].transform(
+            lambda v: v.dropna().iloc[-1] if v.notna().any() else float("nan"))
+        out[f"{col}_pct"] = (pd.to_numeric(out[col], errors="coerce") / last * 100
+                             ).where(last > 0)
+    return out
+
+
+def render_day0(curves: pd.DataFrame, first: str, second: str) -> None:
+    """ONE frame (R567): both campaigns, three measures each, in % of their final value;
+    the colour is the campaign, the line style the measure, the hover the real value."""
     if curves.empty or curves["campaign"].nunique() < 2:
         st.caption(t("campaign_pair.day0_missing",
                      "Une des deux campagnes n'a aucun jour de dépense : rien à aligner."))
         return
-    titles = _day0_titles()
-    fig = make_subplots(rows=1, cols=3, horizontal_spacing=0.08, subplot_titles=titles)
-    for i, (col, lab) in enumerate(zip(_DAY0_COLS, titles), start=1):
+    curves = normalised(curves)
+    fig = go.Figure()
+    for col, lab, dash in zip(_DAY0_COLS, _day0_titles(), _DAY0_DASH):
         for name, color in zip((first, second), PAIR_COLORS):
             s = curves[curves["campaign"] == name]
             fig.add_trace(go.Scatter(
-                x=s["offset"], y=s[col], mode="lines", name=name, legendgroup=name,
-                showlegend=i == 1, line={"color": color, "width": 2}, connectgaps=False,
-                hovertemplate=f"J+%{{x}}<br>{lab} : %{{y}}<extra>{name[:30]}</extra>"),
-                row=1, col=i)
-        fig.update_xaxes(title_text=t("campaign_pair.day0_axis", "Jours depuis J0"),
-                         rangemode="tozero", row=1, col=i)
-    # automargin alone left the first frame's tick labels clipped at l=10 (seen on the PNG).
-    fig.update_layout(height=360, margin={"l": 50, "r": 10, "t": 60, "b": 20})
-    fig.update_yaxes(automargin=True)
+                x=s["offset"], y=s[f"{col}_pct"], customdata=s[col], mode="lines",
+                name=f"{lab} · {name[:24]}", line={"color": color, "width": 2, "dash": dash},
+                connectgaps=False,
+                hovertemplate=f"J+%{{x}}<br>{lab} : %{{customdata:,.2f}}<extra>{name[:30]}</extra>"))
+    fig.update_layout(
+        height=380, margin={"l": 50, "r": 10, "t": 30, "b": 20},
+        xaxis={"title": t("campaign_pair.day0_axis", "Jours depuis J0"), "rangemode": "tozero"},
+        yaxis={"title": t("campaign_pair.day0_pct", "% de la valeur finale"),
+               "ticksuffix": " %", "rangemode": "tozero"})
     charts.plotly_chart(fig, width="stretch")
 
 

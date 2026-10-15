@@ -135,15 +135,19 @@ def test_no_second_selector_without_one_first_campaign(monkeypatch) -> None:
     assert cp.second_campaign(["A"], "A", key="k") is None   # nothing else to compare with
 
 
-def test_the_default_is_none_so_the_page_is_unchanged(monkeypatch) -> None:
+def test_the_default_is_the_campaign_launched_just_before(monkeypatch) -> None:
+    """R567: newest first, so campaign 2 = the one after campaign 1 in the list."""
     seen = {}
 
-    def _first_option(_label, options, **kw):
+    def _default(_label, options, **kw):
         seen.update(options=options, **kw)
-        return options[0]
-    monkeypatch.setattr(cp.st, "selectbox", _first_option)
-    assert cp.second_campaign(["A", "B"], "A", key="k") is None
-    assert seen["options"][0] is None and seen["key"] == "k"
+        return options[kw["index"]]
+    monkeypatch.setattr(cp.st, "selectbox", _default)
+    assert cp.second_campaign(["C", "B", "A"], "C", key="k") == "B"
+    assert cp.second_campaign(["C", "B", "A"], "B", key="k") == "A"
+    assert cp.second_campaign(["C", "B", "A"], "A", key="k") == "C", (
+        "the oldest campaign has no predecessor: compare it with the newest other one")
+    assert seen["options"][0] is None and seen["key"] == "k", "« none » stays offered"
 
 
 def test_a_pick_outside_the_list_is_refused(monkeypatch) -> None:
@@ -151,6 +155,17 @@ def test_a_pick_outside_the_list_is_refused(monkeypatch) -> None:
     assert cp.second_campaign(["A", "B"], "A", key="k") is None
     monkeypatch.setattr(cp.st, "selectbox", lambda *_a, **_k: "B")
     assert cp.second_campaign(["A", "B"], "A", key="k") == "B"
+
+
+def test_each_cumulative_ends_at_100_percent_of_its_own_campaign() -> None:
+    """R567 — 30 € and 750 € campaigns compare as shapes on one % axis."""
+    got = cp.normalised(cp.day0_cumulative(_daily([
+        ("A", D(2024, 1, 1), 10, 1), ("A", D(2024, 1, 2), 30, 3),
+        ("B", D(2024, 3, 1), 500, 5), ("B", D(2024, 3, 2), 250, 5)]), "A", "B"))
+    last = got.groupby("campaign").tail(1).set_index("campaign")
+    assert last["spend_cum_pct"].tolist() == [100.0, 100.0]
+    first = got.groupby("campaign").head(1).set_index("campaign")["spend_cum_pct"]
+    assert first["A"] == 25.0 and round(first["B"], 1) == 66.7
 
 
 def test_a_creative_of_both_campaigns_is_grey() -> None:
@@ -256,8 +271,9 @@ def test_the_overview_draws_two_campaigns_on_the_day0_clock() -> None:
     day0 = [s for s in _specs(at)
             if "J0" in str(((s.get("layout") or {}).get("xaxis") or {}).get("title", ""))]
     assert day0, "two campaigns chosen and no figure on the day-0 clock"
-    names = {tr["name"] for tr in day0[0]["data"]}
-    assert len(names) == 2, names
+    colours = {tr["line"]["color"] for tr in day0[0]["data"]}
+    assert len(colours) == 2, f"one colour per campaign (R567), got {colours}"
+    assert len(day0) == 1, "R567: the three cumulative frames share ONE normalised axis"
     for tr in day0[0]["data"]:
         assert tr["x"][0] == 0 and all(x >= 0 for x in tr["x"]), "a series is not on its day 0"
 

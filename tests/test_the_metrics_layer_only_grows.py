@@ -74,7 +74,7 @@ _GOLD_VIEWS = frozenset({
     "v_platform_totals", "v_artist_monthly_revenue", "v_meta_spend_totals",
     "v_platform_levels", "v_s4a_song_daily", "v_meta_daily",
     "v_meta_creative_daily", "v_instagram_media_monthly", "v_hypeddit_daily",
-    "v_soundcloud_track_latest", "v_meta_engagement_daily", "v_meta_ad_daily",
+    "v_soundcloud_track_latest", "v_meta_ad_daily",
 })
 
 # Les tables de FAIT, par plateforme. Une surface qui les agrège elle-même recopie

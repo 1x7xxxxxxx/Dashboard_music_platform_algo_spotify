@@ -334,7 +334,9 @@ _FLOOR: dict[str, int] = {
     # break-even figure absorbed them; owner Y1 « tout l'argent sur la vue revenue »).
     # 2026-10-13 (R560) : 127 → 121 — the lifecycle tab and the four estimate tiles are
     # gone (fiches 129, 48, 49 : one figure, forecast dotted beside the title's readings).
-    "tiles.total": 121,
+    # 2026-10-15 (R567) : 121 → 118 — the Meta engagement tiles and the summary table are
+    # gone (owner: « camemberts + coûts », the funnel carries what the ads learned).
+    "tiles.total": 118,
     "pdf.total": 29,
     "gold-objects.total": 15,
     "ratchets.total": 18,

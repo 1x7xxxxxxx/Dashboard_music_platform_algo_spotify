@@ -1,0 +1,11 @@
+-- 151 — retire v_meta_engagement_daily (R567).
+--
+-- Owner, 2026-10-15: the cross view stops showing ad engagement (saves, shares,
+-- interactions) — « on doit comprendre par le graphique seul », and those three tiles
+-- plus the 28-day table were prose in numbers. The view's only reader was
+-- `meta_ads_overview._engagement_query`, removed with them. A gold view nothing reads
+-- is frozen work (`make gold-coverage`, « Objets or non lus »).
+--
+-- A view holds no data: `meta_insights_engagement` keeps every row, and migration 140
+-- recreates the view verbatim if a surface ever needs it again.
+DROP VIEW IF EXISTS v_meta_engagement_daily;

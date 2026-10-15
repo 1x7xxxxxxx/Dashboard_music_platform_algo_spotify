@@ -77,9 +77,6 @@ _DYNAMIC_PREFIXES = (
     "home.dag.", "meta_ads_overview.gloss.", "meta_breakdowns.dim.",
     "meta_breakdowns.family.", "meta_breakdowns.grain.", "meta_cpr_optimizer.rec.",
     "meta_creatives.metric.", "nav.item.", "nav.section.",
-    # `t("meta_x_spotify.eng_" + col)` — one key per engagement measure, enumerated by
-    # `meta_x_spotify._ENGAGEMENT` (R213 lot d); the table falls back to its FR label.
-    "meta_x_spotify.eng_",
     # `t(f"data_wrapped.tile.{field}")` — one key per Wrapped tile, enumerated by
     # `data_wrapped._YEAR_TILES` (R214).
     "data_wrapped.tile.",

@@ -353,6 +353,11 @@ _CREATE_RE = re.compile(
     r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?"
     r"(TABLE|VIEW|FUNCTION)\s+(?:IF\s+NOT\s+EXISTS\s+)?"
     r"(?:public\.)?([a-zA-Z_][a-zA-Z0-9_]*)", re.I)
+# A later `DROP VIEW` retires a gold object: it no longer exists, so it cannot be an
+# orphan either (R567 retired `v_meta_engagement_daily` this way).
+_DROP_RE = re.compile(
+    r"\bDROP\s+(?:MATERIALIZED\s+)?(VIEW|FUNCTION)\s+(?:IF\s+EXISTS\s+)?"
+    r"(?:public\.)?([a-zA-Z_][a-zA-Z0-9_]*)", re.I)
 _FROM_RE = re.compile(r"\b(?:FROM|JOIN)\s+(?:public\.)?([a-zA-Z_][a-zA-Z0-9_]*)", re.I)
 _CTE_RE = re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s+AS\s*\(", re.I)
 
@@ -388,6 +393,11 @@ def scan_sql() -> tuple[dict[str, GoldObject], set[str]]:
         for stmt in _sql_statements(text):
             m = _CREATE_RE.search(stmt)
             if not m:
+                code = "\n".join(ln for ln in stmt.splitlines()
+                                  if not ln.lstrip().startswith("--"))
+                d = _DROP_RE.match(code.strip())
+                if d:
+                    bodies.pop(d.group(2), None)
                 continue
             kind, name = m.group(1).upper(), m.group(2)
             known.add(name)

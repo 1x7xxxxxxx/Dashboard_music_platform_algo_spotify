@@ -46,6 +46,17 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/utils/campaign_compare.py::render#1",
+               "src/dashboard/utils/campaign_compare.py::_render_tracks#1",
+               "src/dashboard/utils/campaign_compare.py::_render_creatives#1"}):
+        ("faux doublon — trois Pareto de trois questions : € / écoute gagnée par campagne, "
+         "écoutes gagnées / clic par titre, € / écoute gagnée par créa seule ; un seul "
+         "constructeur (pareto_figure), pas une seule mesure (R567, 2026-10-15).", frozenset()),
+    frozenset({"src/dashboard/views/meta_ads_overview.py::_render_global_perf#1",
+               "src/dashboard/views/meta_ads_overview.py::_render_global_perf#2"}):
+        ("faux doublon — les camemberts disent les VOLUMES par campagne (parts), les barres "
+         "les COÛTS unitaires CPM/CPC/CPR : deux unités, deux questions (R567, 2026-10-15).",
+         frozenset()),
     frozenset({"src/dashboard/views/meta_x_spotify.py::_render_funnel#1",
                "src/dashboard/views/meta_x_spotify.py::_render_pair#1"}):
         ("faux doublon — jamais affichés ensemble : une campagne dans la barre dessine "

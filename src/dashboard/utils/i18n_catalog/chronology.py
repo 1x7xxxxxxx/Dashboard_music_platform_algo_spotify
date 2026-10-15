@@ -5,7 +5,7 @@ EN = {
     "chronology.shazam": "Shazams / day",
     "chronology.clicks": "Outbound clicks / day",
     "chronology.budget": "Meta budget (€ / day)",
-    "chronology.cpr": "CPR (€ / outbound click)",
+    "chronology.cpr": "CPR = cost per result (€ / outbound click)",
     "chronology.axis_left": "Per day (7-day mean)",
     "chronology.axis_right": "€",
 }

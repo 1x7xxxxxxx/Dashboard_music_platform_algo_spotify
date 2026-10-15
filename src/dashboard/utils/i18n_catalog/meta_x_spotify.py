@@ -24,17 +24,16 @@ EN = {
 
     # The cross-platform tiles — the two middle ones existed nowhere before
     "meta_x_spotify.tile_spend": "💸 Spend",
-    "meta_x_spotify.tile_streams": "🎵 Streams over the window",
+    "meta_x_spotify.tile_streams_days": "🎵 Streams over the {n} days",
     "meta_x_spotify.tile_cost_per_stream": "🎯 Cost per stream",
+    "meta_x_spotify.tile_cpr": "🎯 Average CPR",
+    "meta_x_spotify.tile_cpr_help": "Spend ÷ results (outbound clicks) over the period.",
     "meta_x_spotify.tile_cps_help": "Spend ÷ streams on the **days the campaign paid** — "
                                     "not on the displayed window: dividing 31 days of "
                                     "spend by two years of listening would give a price "
                                     "that describes nothing. Not to be confused with "
                                     "Meta's CPR, which is the price of a RESULT (a click, "
                                     "a landing-page view) and never of a listen.",
-    "meta_x_spotify.tile_conversion": "🔁 Streams per result",
-    "meta_x_spotify.tile_conv_help": "Streams ÷ results, over the paid days. How many "
-                                     "listens for one billed click.",
     "meta_x_spotify.insta_line": "📸 **Instagram**: {f} follower(s) ({d} over the "
                                  "window) — of the **whole account**, not of this "
                                  "campaign: everything you post feeds it. Context, not "
@@ -93,14 +92,6 @@ EN = {
     "meta_x_spotify.abs_apple_none": "🎎 **Apple Music / Shazam** — no Apple reading for this track (or no confirmed Apple link in **🔗 Cross-platform mapping**).",
     "meta_x_spotify.abs_apple_late": "🎎 **Apple Music / Shazam** — this track's Apple readings start on **{d}**, after this window.",
     "meta_x_spotify.abs_apple_sparse": "🎎 **Apple Music / Shazam** — readings exist over this window, but more than a day apart: a gap between two readings is not a daily quantity. Import the Apple export every campaign day for it to be drawn here.",
-    "meta_x_spotify.eng_header": "| Engagement (artist) | {n} days before, per day | During, per day | Change |",
-    "meta_x_spotify.eng_title": "**📣 Beyond streams — what the campaign moved**",
-    "meta_x_spotify.eng_caption": "« — » = not measured over the period (at least {n} days recorded before the campaign). Before / during comparison: a rise that would have happened without the ad is counted too.",
-    "meta_x_spotify.eng_listeners": "Listeners / day",
-    "meta_x_spotify.eng_saves": "Saves / day",
-    "meta_x_spotify.eng_playlist_adds": "Playlist adds / day",
-    "meta_x_spotify.eng_followers_level": "Spotify followers gained / day",
-    "meta_x_spotify.eng_ig_followers": "Instagram followers gained / day",
     "meta_x_spotify.funnel_treasury": "💶 Over this campaign's months ({a} → {b}): **{rev}** of net revenue (all tracks, paid with a delay), **{tot}** of spend in total, of which **{sp}** for this campaign over the window.",
     "meta_x_spotify.shazam_lag_thin": "🎎 Shazam → streams: not enough days measured together ({n} needed). Export « yesterday » from Apple Music for Artists every day of the campaign.",
     "meta_x_spotify.shazam_lag": "🎎 Shazam → streams: a day's Shazams best match the streams **{lag} day(s) later** (correlation {c}, over {n} days). A correlation is not a cause: a release or a playlist lifts both.",

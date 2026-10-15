@@ -87,21 +87,8 @@ INVARIANTS: tuple[Invariant, ...] = (
             "à vie d'un ancien collecteur, et la page affichait le double. La vue or "
             "les écarte — cet invariant est ce qui le prouve chaque nuit.",
     ),
-    Invariant(
-        name="meta_engagement_view_vs_day_table",
-        left_sql="SELECT artist_id, SUM(saves) + SUM(shares) + SUM(page_interactions) "
-                 "FROM v_meta_engagement_daily GROUP BY 1",
-        right_sql="SELECT artist_id, SUM(saves) + SUM(shares) + SUM(page_interactions) "
-                  "FROM meta_insights_engagement_day GROUP BY 1",
-        left_label="v_meta_engagement_daily",
-        right_label="meta_insights_engagement_day",
-        why="Le défaut du 2026-09-26, jumeau de celui de 109 : l'engagement n'avait "
-            "pas de vue or, et `meta_insights_engagement` porte 21 lignes de cumul à "
-            "vie à côté de ses jours. Les tuiles affichaient 1 094 saves pour 547 et "
-            "957 320 interactions pour 478 968 — le double exact. La vue écarte les "
-            "cumuls par la règle de la jumelle ; cet invariant prouve qu'elle n'en "
-            "garde aucun et ne perd aucun jour.",
-    ),
+    # `meta_engagement_view_vs_day_table` retired with its view (R567, migration 151):
+    # no surface shows ad engagement any more, so there is nothing left to double.
     Invariant(
         name="meta_ad_settings_view_loses_and_adds_nothing",
         left_sql="SELECT artist_id, SUM(spend) FROM v_meta_ad_daily GROUP BY 1",

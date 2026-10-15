@@ -45,50 +45,6 @@ def streams_gained(daily: pd.DataFrame, d0, d1) -> dict | None:
             'baseline_per_day': per_day, 'baseline_days': len(before), 'days': days}
 
 
-# R213 (lot d) — engagement during the campaign against the days before it. FLOWS are
-# counted per day (a mean); LEVELS (followers) are a stock, so what compares is their GAIN
-# per day. `v_s4a_audience_daily` is artist-level, daily since 2024-01-01 (migration 117).
-ENGAGEMENT = (
-    ("listeners",       "Auditeurs / jour",          "flow"),
-    ("saves",           "Sauvegardes / jour",        "flow"),
-    ("playlist_adds",   "Ajouts en playlist / jour", "flow"),
-    ("followers_level", "Abonnés Spotify gagnés / jour", "level"),
-    ("ig_followers",    "Abonnés Instagram gagnés / jour", "level"),
-)
-
-
-def per_day(serie: pd.Series, kind: str) -> float | None:
-    """Mean of a flow, or the gain per day of a level — None when unmeasured. Pure."""
-    s = pd.to_numeric(serie, errors='coerce').dropna()
-    if kind == "flow":
-        return float(s.mean()) if len(s) else None
-    return float((s.iloc[-1] - s.iloc[0]) / (len(s) - 1)) if len(s) >= 2 else None
-
-
-def engagement_lift(df: pd.DataFrame, d0, d1) -> list[dict]:
-    """One row per engagement measure: before / during per day and the change. Pure.
-
-    A measure enters only with `BASELINE_MIN_DAYS` measured days before d0 and at least
-    one during; otherwise it is absent — the table says « non mesuré », never 0."""
-    out = []
-    if df is None or df.empty:
-        return out
-    d = df.copy()
-    d['date'] = pd.to_datetime(d['date']).dt.date
-    # SORTED: a level's gain is last − first IN TIME; the test caught it read in row order.
-    d = d.sort_values('date')
-    before, during = d[d['date'] < d0], d[(d['date'] >= d0) & (d['date'] <= d1)]
-    for col, label, kind in ENGAGEMENT:
-        if col not in d.columns:
-            continue
-        n_before = pd.to_numeric(before[col], errors='coerce').notna().sum()
-        b = per_day(before[col], kind) if n_before >= BASELINE_MIN_DAYS else None
-        w = per_day(during[col], kind)
-        change = (100 * (w - b) / abs(b)) if (b not in (None, 0) and w is not None) else None
-        out.append({'col': col, 'label': label, 'before': b, 'during': w, 'change': change})
-    return out
-
-
 # ── Shazam → streams, with its delay (R235, 2026-09-27) ─────────────────────────────
 MIN_PAIRED_DAYS = 14
 MAX_LAG_DAYS = 7

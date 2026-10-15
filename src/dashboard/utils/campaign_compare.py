@@ -4,7 +4,9 @@ Type: Feature
 Uses: pandas, streamlit, src.dashboard.utils.campaign_funnel (streams_gained, best_lag)
 Depends on: v_meta_campaign_daily, v_meta_ad_daily, v_s4a_song_daily, v_hypeddit_daily,
             campaign_track_mapping, track_platform_link
-Triggers: views/meta_x_spotify.py (tab « 🏁 Comparer mes campagnes »)
+Triggers: views/meta_ads_overview.py (« 🏁 Comparer mes campagnes »)
+
+R567 (2026-10-15): the three tables became Pareto bars — best on the left, details on hover.
 Persists in: nothing
 
 R234 (2026-09-27), the owner's funnel questions answered ACROSS campaigns:
@@ -27,8 +29,10 @@ import datetime as _dt
 import pandas as pd
 import streamlit as st
 
+from src.dashboard.utils import charts
 from src.dashboard.utils.campaign_funnel import BASELINE_DAYS, best_lag, streams_gained
 from src.dashboard.utils.i18n import t
+from src.dashboard.utils.semantic_colors import ATTENTION, BON
 
 _FAMILY = {
     "OUTCOME_ENGAGEMENT": "engagement", "POST_ENGAGEMENT": "engagement",
@@ -224,6 +228,43 @@ def _lag_text(lag) -> str:
     return t("campaign_compare.lag_days", "{n} j").format(n=lag["lag"])
 
 
+_BEST, _REST, _OVERLAP = BON, "#9E9E9E", ATTENTION
+
+
+def pareto_figure(df: pd.DataFrame, label: str, value: str, *, best_low: bool, axis: str,
+                  hover: list[str]):
+    """R567 — one Pareto bar per row, the best on the LEFT; unmeasured rows left out. Pure.
+
+    `best_low` = a cost (lowest first); otherwise a yield (highest first). The best bar is
+    green, a campaign overlapping another one orange: its gain is shared, not its own."""
+    import plotly.graph_objects as go
+
+    keep = df.assign(_hover=list(hover)).dropna(subset=[value])
+    keep = keep.sort_values(value, ascending=best_low, kind="stable")
+    names = keep[label].astype(str).tolist()
+    overlap = keep["overlap"].tolist() if "overlap" in keep else [False] * len(keep)
+    colours = [_OVERLAP if o else (_BEST if i == 0 else _REST)
+               for i, o in enumerate(overlap)]
+    fig = go.Figure(go.Bar(x=names, y=keep[value].tolist(), marker_color=colours,
+                           customdata=keep["_hover"].tolist(), showlegend=False,
+                           hovertemplate="<b>%{x}</b><br>%{y:,.3f}<br>%{customdata}"
+                                         "<extra></extra>"))
+    fig.update_layout(height=340, margin={"t": 20, "b": 10},
+                      xaxis={"categoryorder": "array", "categoryarray": names},
+                      yaxis={"title": axis})
+    return fig
+
+
+def _campaign_hover(df: pd.DataFrame) -> list[str]:
+    return [f"{t('campaign_compare.c_track', 'Titre lié')} : {r.get('song') or '—'}<br>"
+            f"{t('campaign_compare.c_spend', 'Dépense (€)')} : {_fmt(r['spend'], 2)}<br>"
+            f"{t('campaign_compare.c_gained', 'Écoutes gagnées')} : {_fmt(r['gained'])}<br>"
+            f"{t('campaign_compare.c_lag', 'Délai pub → écoute')} : {_lag_text(r.get('lag'))}"
+            + ("<br>⚠️ " + t("campaign_compare.c_overlap", "Chevauche une autre")
+               if r.get("overlap") else "")
+            for r in df.to_dict("records")]
+
+
 def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
     """The tab body: the ranking, the cohort sentence, the tracks, the biases."""
     data = load(db, artist_id, acct, acct_p)
@@ -235,19 +276,10 @@ def render(db, artist_id: int, acct: str, acct_p: tuple) -> None:
                   "**Quelle campagne a acheté l'écoute la moins chère ?** — écoutes du "
                   "titre lié pendant la campagne, au-dessus de son niveau des {n} jours "
                   "d'avant.").format(n=BASELINE_DAYS))
-    ranked = df.sort_values("cost_per_gained", na_position="last")
-    st.dataframe(pd.DataFrame({
-        t("campaign_compare.c_campaign", "Campagne"): ranked["campaign_name"],
-        t("campaign_compare.c_track", "Titre lié"): ranked["song"].fillna("—"),
-        t("campaign_compare.c_family", "Objectif"): ranked["family"],
-        t("campaign_compare.c_spend", "Dépense (€)"): ranked["spend"].map(lambda v: _fmt(v, 2)),
-        t("campaign_compare.c_gained", "Écoutes gagnées"): ranked["gained"].map(_fmt),
-        t("campaign_compare.c_cost", "€ / écoute gagnée"):
-            ranked["cost_per_gained"].map(lambda v: _fmt(v, 3)),
-        t("campaign_compare.c_lag", "Délai pub → écoute"): ranked["lag"].map(_lag_text),
-        t("campaign_compare.c_overlap", "Chevauche une autre"):
-            ranked["overlap"].map(lambda b: "⚠️" if b else ""),
-    }), hide_index=True, width="stretch")
+    charts.plotly_chart(pareto_figure(
+        df, "campaign_name", "cost_per_gained", best_low=True,
+        axis=t("campaign_compare.c_cost", "€ / écoute gagnée"),
+        hover=_campaign_hover(df)), pareto=False, width="stretch")
     st.markdown(cohort_sentence(df))
     st.caption(t("campaign_compare.biases",
                  "Deux limites, écrites pour ne pas les oublier. ⚠️ = une autre campagne a "
@@ -274,13 +306,13 @@ def _render_tracks(df: pd.DataFrame, store: pd.DataFrame) -> None:
                      "Aucun lien Hypeddit rattaché à un titre Spotify : rattache-les dans "
                      "**🔗 Mapping cross-plateforme**."))
         return
-    st.dataframe(pd.DataFrame({
-        t("campaign_compare.c_track", "Titre lié"): tracks["song"],
-        t("campaign_compare.c_clicks", "Clics plateformes"): tracks["store_clicks"].map(_fmt),
-        t("campaign_compare.c_gained", "Écoutes gagnées"): tracks["gained"].map(_fmt),
-        t("campaign_compare.c_per_click", "Écoutes gagnées / clic"):
-            tracks["per_click"].map(lambda v: _fmt(v, 2)),
-    }), hide_index=True, width="stretch")
+    charts.plotly_chart(pareto_figure(
+        tracks, "song", "per_click", best_low=False,
+        axis=t("campaign_compare.c_per_click", "Écoutes gagnées / clic"),
+        hover=[f"{t('campaign_compare.c_clicks', 'Clics plateformes')} : {_fmt(c)}<br>"
+               f"{t('campaign_compare.c_gained', 'Écoutes gagnées')} : {_fmt(g)}"
+               for c, g in zip(tracks["store_clicks"], tracks["gained"])]),
+        pareto=False, width="stretch")
 
 
 def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
@@ -291,16 +323,12 @@ def _render_creatives(df: pd.DataFrame, creatives: pd.DataFrame) -> None:
                   "tourné SEULE dans sa campagne : ses écoutes gagnées sont alors les "
                   "siennes, sans répartition supposée."))
     if not alone.empty:
-        st.dataframe(pd.DataFrame({
-            t("campaign_compare.c_crea", "Créa"): alone["creative_name"],
-            t("campaign_compare.c_campaign", "Campagne"): alone["campaign_name"],
-            t("campaign_compare.c_spend", "Dépense (€)"): alone["spend"].map(lambda v: _fmt(v, 2)),
-            t("campaign_compare.c_gained", "Écoutes gagnées"): alone["gained"].map(_fmt),
-            t("campaign_compare.c_cost", "€ / écoute gagnée"):
-                alone["cost_per_gained"].map(lambda v: _fmt(v, 3)),
-            t("campaign_compare.c_overlap", "Chevauche une autre"):
-                alone["overlap"].map(lambda b: "⚠️" if b else ""),
-        }), hide_index=True, width="stretch")
+        charts.plotly_chart(pareto_figure(
+            alone.assign(label=alone["creative_name"].astype(str).str[:24] + " · "
+                         + alone["campaign_name"].astype(str).str[:24]),
+            "label", "cost_per_gained", best_low=True,
+            axis=t("campaign_compare.c_cost", "€ / écoute gagnée"),
+            hover=_campaign_hover(alone)), pareto=False, width="stretch")
     st.caption(t("campaign_compare.crea_split",
                  "{n} campagne(s) ont fait tourner plusieurs créas ensemble : leurs écoutes "
                  "ne se séparent pas par créa. Pour mesurer une créa, lance-la seule dans sa "

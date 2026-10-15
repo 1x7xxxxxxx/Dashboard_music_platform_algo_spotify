@@ -46,11 +46,11 @@ REVIEWED: dict[tuple[str, str], str] = {
         "total over every DAG; the chart facets runs per DAG and per day",
     ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_spend"):
         "absolute €; the chart is indexed (base 100) and shows no absolute value",
-    ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_streams"):
+    ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_streams_days"):
         "absolute streams; the chart is indexed (base 100)",
     ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_cost_per_stream"):
         "a ratio the chart does not draw",
-    ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_conversion"):
+    ("src/dashboard/views/meta_x_spotify.py", "meta_x_spotify.tile_cpr"):
         "a ratio the chart does not draw",
     ("src/dashboard/views/revenue_forecast.py", "ARPU"):
         "ARPU per user; the chart is MRR per plan",

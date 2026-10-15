@@ -5,7 +5,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.dashboard.utils import view_session, charts
-from src.dashboard.utils.platform_colors import platform_color
 from src.dashboard.utils.filters import account_clause
 from src.dashboard.utils.i18n import t
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
@@ -117,7 +116,7 @@ def _render_chrono(db, artist_id, bar: MetaFilters) -> None:
     _render_effect_duration(db, artist_id)
     st.markdown("---")
     render_release_cohort(db, " AND artist_id = %s", (artist_id,), overlays=True,
-                          key="cross_release_pick")
+                          key="cross_release_pick", log_days=True)
 
 
 def _render_timeline(db, artist_id, bar: MetaFilters) -> None:
@@ -141,13 +140,6 @@ def _render_timeline(db, artist_id, bar: MetaFilters) -> None:
         st.info(t("meta_ads_overview.no_time_data", "Pas de données temporelles."))
         return
     charts.plotly_chart(fig, width="stretch")
-    st.caption(t("meta_ads_overview.timeline_caption",
-                 "Clique une série dans la légende pour l'afficher ou la masquer. L'aire "
-                 "orange est le budget Meta dépensé chaque jour (axe € à droite) : là où elle "
-                 "est, la pub tournait. Un **clic sortant** est un clic sur un bouton de ton "
-                 "smart link Hypeddit vers une plateforme d'écoute — c'est le « résultat » "
-                 "que Meta compte, et le **CPR** est le budget divisé par ces clics. Les flux "
-                 "Spotify sont des moyennes sur 7 jours ; un jour non importé reste un trou."))
 
 
 def _render_effect_duration(db, artist_id) -> None:
@@ -385,56 +377,64 @@ _PERF_PANNEAUX = [
 ]
 
 
-def _render_global_perf(df_perf: pd.DataFrame) -> None:
-    """La performance globale, CAMPAGNE PAR CAMPAGNE — six cadres, une unité chacun.
-
-    ⚠️ Remplace six `st.metric` qui affichaient la SOMME de la sélection. Demande
-    du propriétaire le 2026-09-21 : « peut-on visualiser les datas de perf
-    globales quand on compare 2 tracks avec des graphiques plutôt que des champs
-    de valeur ? ».
-
-    Il a raison au-delà de la forme : additionner deux campagnes pour en tirer un
-    CPM unique répond à une question que personne ne pose. On sélectionne deux
-    titres pour les COMPARER ; la somme efface exactement ce qu'on cherchait. Une
-    seule campagne sélectionnée rend un cadre à une barre, qui porte sa valeur
-    écrite — l'information est la même que celle de l'ancienne jauge.
-
-    Six cadres et non six séries : des euros, des impressions, des clics et trois
-    coûts n'ont ni la même unité ni le même ordre de grandeur. Le cliquet d'axes
-    secondaires de ce dépôt (`_MAX_SECONDARY_AXES = 0`) dit la même chose.
-    """
+def _perf_pies(d: pd.DataFrame, court: list[str]) -> go.Figure:
+    """Three pies — spend, impressions, link clicks — one slice per campaign (R567)."""
     from plotly.subplots import make_subplots
 
+    from src.dashboard.utils.platform_colors import DISTINCT
+    vols = _PERF_PANNEAUX[:3]
+    fig = make_subplots(rows=1, cols=3, specs=[[{"type": "domain"}] * 3],
+                        subplot_titles=[t(f"meta_ads_overview.perf.{i}", lab)
+                                        for i, (lab, _f, _fmt) in enumerate(vols)])
+    colors = [DISTINCT[i % len(DISTINCT)] for i in range(len(court))]
+    for i, (lab, calc, _fmt) in enumerate(vols):
+        fig.add_trace(go.Pie(
+            labels=court, values=[float(calc(r)) for _, r in d.iterrows()], hole=0.35,
+            sort=False, marker={"colors": colors}, textinfo="value",
+            texttemplate="%{value:,.0f}", hovertemplate=f"%{{label}}<br>{lab} : "
+            "%{value:,.0f} (%{percent})<extra></extra>", showlegend=i == 0), 1, i + 1)
+    fig.update_layout(height=360, margin={'l': 10, 'r': 10, 't': 60, 'b': 20})
+    return fig
+
+
+def _perf_costs(d: pd.DataFrame, court: list[str]) -> go.Figure:
+    """CPM, CPC, CPR per campaign — grouped bars, cheapest CPR on the left (R567)."""
+    costs = _PERF_PANNEAUX[3:]
+    vals = {lab: [float(calc(r)) for _, r in d.iterrows()] for lab, calc, _f in costs}
+    order = sorted(range(len(court)), key=lambda i: (pd.isna(vals[costs[2][0]][i]),
+                                                     vals[costs[2][0]][i]))
+    fig = go.Figure()
+    for j, (lab, _calc, fmt) in enumerate(costs):
+        ys = [vals[lab][i] for i in order]
+        fig.add_trace(go.Bar(
+            x=[court[i] for i in order], y=ys,
+            name=t(f"meta_ads_overview.perf.{j + 3}", lab), marker_color=_COST_INK[j],
+            text=[fmt.format(v).replace(",", " ") if pd.notna(v) else "—" for v in ys],
+            textposition="outside", cliponaxis=False))
+    fig.update_layout(barmode="group", height=360, yaxis_title="€",
+                      margin={'l': 10, 'r': 10, 't': 30, 'b': 20})
+    return fig
+
+
+_COST_INK = ("#9E9E9E", "#616161", "#212121")   # CPM, CPC, CPR — one grey ramp, one unit
+
+
+def _render_global_perf(df_perf: pd.DataFrame) -> None:
+    """La performance globale, CAMPAGNE PAR CAMPAGNE (R567 : camemberts, plus de barres).
+
+    Owner, 2026-10-15: « les barres → des camemberts par campagne ». The three VOLUMES
+    (€, impressions, clicks) are shares of a whole: one pie each, a slice per campaign,
+    the real value written on it. The three COSTS are not shares — a pie of CPMs means
+    nothing — so they stay bars, cheapest campaign on the left (Pareto).
+    """
     d = df_perf.dropna(subset=['campaign_name']).copy()
     if d.empty:
         return
-    d = d.sort_values('spend', ascending=True)          # plus gros budget EN HAUT
-    noms = d['campaign_name'].tolist()
-    # R209 — a cut label is a CATEGORY here: two names sharing 33 characters would
-    # be one row (class a-truncated-label-that-merges-two-categories).
+    d = d.sort_values('spend', ascending=False)
     from src.dashboard.utils.labels import unique_short_labels
-    court = unique_short_labels(noms, 34)
-
-    fig = make_subplots(
-        rows=2, cols=3, shared_yaxes=True,
-        horizontal_spacing=0.06, vertical_spacing=0.18,
-        subplot_titles=[t(f"meta_ads_overview.perf.{i}", lab)
-                        for i, (lab, _f, _fmt) in enumerate(_PERF_PANNEAUX)])
-    for i, (lab, calc, fmt) in enumerate(_PERF_PANNEAUX):
-        vals = [float(calc(r)) for _, r in d.iterrows()]
-        fig.add_trace(go.Bar(
-            x=vals, y=court, orientation='h', showlegend=False,
-            marker={'color': platform_color("meta") if i < 3 else "#7f7f7f"},
-            text=[fmt.format(v).replace(",", " ") if pd.notna(v) else "—" for v in vals],
-            textposition='outside', cliponaxis=False,
-            customdata=noms,
-            hovertemplate=f"%{{customdata}}<br>{lab} : %{{text}}<extra></extra>",
-        ), row=i // 3 + 1, col=i % 3 + 1)
-        fig.update_xaxes(showticklabels=False, row=i // 3 + 1, col=i % 3 + 1)
-    fig.update_layout(height=max(360, 46 * len(noms) + 220), bargap=0.3,
-                      margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
-    fig.update_yaxes(automargin=True)
-    charts.plotly_chart(fig, width="stretch")
+    court = unique_short_labels(d['campaign_name'].tolist(), 34)
+    charts.plotly_chart(_perf_pies(d, court), width="stretch")
+    charts.plotly_chart(_perf_costs(d, court), width="stretch")
 
     if not (d['custom_conversions'] > 0).any():
         st.caption(t("meta_ads_overview.capi_required",
@@ -446,27 +446,9 @@ def _render_global_perf(df_perf: pd.DataFrame) -> None:
         st.caption(disclosure_caption())
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# UNE LIGNE PAR CAMPAGNE, des deux côtés d'une jointure — 2026-09-26.
-# ═══════════════════════════════════════════════════════════════════════════
-# L'engagement se lisait en brut dans `meta_insights_engagement`, une ligne par
-# campagne ET PAR JOUR, plus 21 lignes de cumul à vie. Trois défauts, une cause :
-#
-#   * fusionné sur `campaign_name` avec un cadre d'une ligne par campagne, il
-#     changeait 21 campagnes en 252 lignes ; « les 12 plus dépensières »
-#     dessinaient 12 copies de la même campagne (12 × 755,52 €) ;
-#   * les tuiles Saves / Shares / Interactions sommaient cumuls ET jours : le
-#     double exact (1 094 saves pour 547) ;
-#   * le tableau récapitulatif le joignait jour × jour sous `SUM(p.spend)` :
-#     24 176,64 € pour une campagne de 755,52 € (× 32).
-#
-# La vue or `v_meta_engagement_daily` (migration 138) écarte les cumuls ; les
-# requêtes ci-dessous REGROUPENT par campagne AVANT toute jointure. Classe :
-# `a-join-that-multiplies-the-grain`. Garde :
-# `tests/test_a_join_never_multiplies_the_grain.py`.
-_ENG_COLS = ("page_interactions", "post_reactions", "comments", "saves", "shares")
-
-
+# One row per campaign from the gold view, aggregated BEFORE anything joins it (class
+# `a-join-that-multiplies-the-grain`, 2026-09-26). R567: the engagement tiles and the
+# summary table that joined a second frame left the page — only this query remains.
 def _perf_query(campaign_in: str) -> str:
     """Performance per campaign, from the gold view: one row per campaign_name."""
     return (
@@ -477,46 +459,6 @@ def _perf_query(campaign_in: str) -> str:
         f"FROM v_meta_campaign_daily WHERE artist_id = %s{campaign_in} "
         "GROUP BY campaign_name ORDER BY SUM(spend) DESC"
     )
-
-
-def _engagement_query(campaign_in: str) -> str:
-    """Engagement per campaign, from the gold view: one row per campaign_name."""
-    sums = ", ".join(f"SUM({c}) AS {c}" for c in _ENG_COLS)
-    return (f"SELECT campaign_name, {sums} FROM v_meta_engagement_daily "
-            f"WHERE artist_id = %s{campaign_in} GROUP BY campaign_name")
-
-
-def _summary_query(campaign_in: str) -> str:
-    """The summary table: both sides aggregated per campaign, THEN joined 1:1.
-
-    Takes the (artist_id, *account, *campaigns) parameters twice, once per side.
-    """
-    # ⚠️ %% in the CTR alias: psycopg2 reads a lone % as a placeholder.
-    return (
-        'SELECT p.campaign_name, p.spend AS "Dépenses",'
-        ' p.custom_conversions AS "Clics Hypeddit",'
-        ' p.lp_views AS "Vues LP", p.link_clicks AS "Clics pub",'
-        ' CASE WHEN p.custom_conversions > 0'
-        '      THEN p.spend / p.custom_conversions END AS "CPR (€/clic sortant)",'
-        ' p.impressions AS "Impressions",'
-        ' CASE WHEN p.impressions > 0'
-        '      THEN p.spend / p.impressions * 1000 END AS "CPM",'
-        ' CASE WHEN p.impressions > 0'
-        '      THEN p.link_clicks::numeric / p.impressions * 100 END AS "CTR (%%)",'
-        ' e.saves AS "Saves", e.shares AS "Shares",'
-        ' e.page_interactions AS "Interactions",'
-        ' p.collected_at AS "Mise à jour"'
-        " FROM (SELECT campaign_name, SUM(spend) AS spend,"
-        "              SUM(custom_conversions) AS custom_conversions,"
-        "              SUM(lp_views) AS lp_views, SUM(link_clicks) AS link_clicks,"
-        "              SUM(impressions) AS impressions, MAX(collected_at) AS collected_at"
-        "         FROM v_meta_campaign_daily"
-        f"       WHERE artist_id = %s{campaign_in} GROUP BY campaign_name) p"
-        f" LEFT JOIN ({_engagement_query(campaign_in)}) e"
-        "        ON e.campaign_name = p.campaign_name"
-        " ORDER BY p.spend DESC"
-    )
-
 
 
 def _render_pair_day0(db, artist_id: int, account, first: str, second: str) -> None:
@@ -559,15 +501,8 @@ def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
     _render_scope_notice(db, artist_id)
     _campaign_in, scope_params, selected_campaigns = _campaign_scope(bar)
     params = (artist_id, *scope_params)
-    window = bar.window
-
-    # R373 (2026-10-05, V6) — « ce que ta publicité a appris » : même fenêtre que la
-    # page, et toute la publicité de l'artiste — le conseil parle de ses campagnes.
-    from src.dashboard.utils.period_side_metrics import period_side_metrics
-    from src.dashboard.views.home_meta_advice import render_meta_advice
-    _bornes = (None, None) if window.is_all_history else (window.start, window.end)
-    render_meta_advice(period_side_metrics(db, artist_id, *_bornes))
-
+    # R567 — « ce que ta publicité a appris » left as a block: its cheapest age / country /
+    # placement is written on the funnel step Meta measured it at (`best_by_step`).
     # ⚠️ Les totaux de cette page se calculent EN PANDAS (`df_perf['spend'].sum()`).
     # Aucun garde SQL ne peut les voir : il n'y a pas de `SUM(` dans la requête. La
     # tuile « Dépenses » affichait donc 6 165,65 € pour l'artiste 1 là où la couche
@@ -577,8 +512,6 @@ def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
     # La vue les écarte ET rend une ligne par campagne, ce que le tableau des taux
     # plus bas supposait déjà : il affichait 252 lignes pour 21 campagnes.
     df_perf = db.fetch_df(_perf_query(_campaign_in), params)
-
-    df_eng = db.fetch_df(_engagement_query(_campaign_in), params)
 
     if not df_perf.empty:
         # Nettoyage
@@ -596,28 +529,4 @@ def _render_campaign_totals(db, artist_id, bar: MetaFilters) -> None:
         if len(selected_campaigns) == 2:
             _render_pair_day0(db, artist_id, bar.account, *selected_campaigns)
 
-        # Engagement
-        if not df_eng.empty:
-            for c in ['saves', 'shares', 'page_interactions']: df_eng[c] = pd.to_numeric(df_eng[c], errors='coerce').fillna(0)
-            st.markdown(t("meta_ads_overview.engagement", "##### ❤️ Engagement"))
-            e1, e2, e3 = st.columns(3)
-            e1.metric("💾 Saves", f"{df_eng['saves'].sum():,.0f}")
-            e2.metric("🔄 Shares", f"{df_eng['shares'].sum():,.0f}")
-            e3.metric(t("meta_ads_overview.total_interactions", "⚡ Interactions Totales"), f"{df_eng['page_interactions'].sum():,.0f}")
-
-    with secondary_analyses(t("meta_ads_overview.summary_table",
-                              "🗃️ Tableau récapitulatif — le détail chiffré")):
-
-        df_full = db.fetch_df(_summary_query(_campaign_in), params + params)
-
-        if not df_full.empty:
-            st.dataframe(
-                df_full.style.format({
-                    "Dépenses": "{:,.2f} €", "CPR": "{:,.2f} €", "CPM": "{:,.2f} €",
-                    "CTR (%)": "{:,.2f}",
-                    "Saves": "{:,.0f}", "Shares": "{:,.0f}", "Interactions": "{:,.0f}",
-                    "Clics Hypeddit": "{:,.0f}", "Clics pub": "{:,.0f}",
-                }, na_rep="—"),
-                width="stretch",
-            )
     st.markdown("---")

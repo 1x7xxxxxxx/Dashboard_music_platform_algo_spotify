@@ -1,7 +1,7 @@
 """A join never multiplies the grain of the side it enriches.
 
 Type: Sub
-Uses: the live schema (v_meta_campaign_daily, v_meta_engagement_daily, v_meta_ad_daily,
+Uses: the live schema (v_meta_campaign_daily, v_meta_ad_daily,
       meta_insights_*), src/dashboard read as AST
 Depends on: tests/db_gate.py (the live half skips without Postgres), migration 138
 Persists in: nothing — the synthetic tenants and their rows are deleted on exit
@@ -124,8 +124,6 @@ def _surfaces(db, tenant: int) -> dict:
     df_perf = db.fetch_df(mao._perf_query(""), (tenant,))
     return {
         "chart": df_perf,   # R299: the six-frame figure draws df_perf itself
-        "engagement": db.fetch_df(mao._engagement_query(""), (tenant,)),
-        "summary": db.fetch_df(mao._summary_query(""), (tenant, tenant)),
         "axes": {axe: db.fetch_query(sql, (tenant,)) for axe, sql in _Q_AXE.items()},
     }
 
@@ -142,24 +140,11 @@ def test_every_meta_surface_keeps_one_row_per_campaign_and_the_gold_total() -> N
         _seed_ad(db, owner, sandbox, ad_id, camp_id)
         s = _surfaces(db, owner)
 
-        chart, eng, summary = s["chart"], s["engagement"], s["summary"]
+        chart = s["chart"]
         assert len(chart) == 2 and chart["campaign_name"].is_unique, (
             f"the chart frame has {len(chart)} rows for 2 campaigns:\n{chart}")
         assert float(chart["spend"].sum()) == 70, (
             f"chart spend {chart['spend'].sum()} != gold 70 (130 = the lifetime row counted)")
-
-        assert len(eng) == 2 and eng["campaign_name"].is_unique, (
-            f"the engagement frame has {len(eng)} rows for 2 campaigns — a merge on "
-            f"campaign_name would multiply the chart by as much:\n{eng}")
-        assert float(eng["saves"].sum()) == 8, (
-            f"Saves tile {eng['saves'].sum()} != 8 (14 = the lifetime row counted)")
-
-        assert len(summary) == 2 and summary["campaign_name"].is_unique, summary
-        assert float(summary["Dépenses"].sum()) == 70, (
-            f"summary-table spend {summary['Dépenses'].sum()} != gold 70 — a day x day "
-            "join multiplies every campaign by its number of engagement rows")
-        saves = dict(zip(summary["campaign_name"], summary["Saves"]))
-        assert float(saves["c1"]) == 6, f"summary Saves for c1: {saves['c1']} != 1+2+3"
 
         for axe, rows in s["axes"].items():
             total = sum(float(r[2] or 0) for r in rows)
@@ -200,7 +185,7 @@ def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() 
             pytest.skip("no Meta spend on this database — nothing to reconcile")
         wrong = []
         for tenant, total in gold.items():
-            got = db.fetch_df(mao._summary_query(""), (tenant, tenant))["Dépenses"].sum()
+            got = db.fetch_df(mao._perf_query(""), (tenant,))["spend"].sum()
             if abs(float(got) - float(total)) > 1e-6:
                 wrong.append(f"tenant {tenant}: summary {float(got):.2f} != gold {float(total):.2f}")
         for tenant, total in own.items():

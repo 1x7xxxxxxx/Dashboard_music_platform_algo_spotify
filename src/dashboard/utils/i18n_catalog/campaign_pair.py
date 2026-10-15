@@ -8,4 +8,5 @@ EN = {
     "campaign_pair.day0.clicks_cum": "Cumulative link clicks",
     "campaign_pair.day0.cpc_cum": "Cumulative CPC (€)",
     "campaign_pair.day0_axis": "Days since day 0",
+    "campaign_pair.day0_pct": "% of the final value",
 }

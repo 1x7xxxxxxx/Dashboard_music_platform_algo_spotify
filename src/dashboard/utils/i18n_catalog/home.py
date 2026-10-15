@@ -230,4 +230,8 @@ EN = {
     "home.box_waste": "Paid above the cheapest cost",
     "home.box_waste_sub": "{axe} \u2014 cheapest: {meilleur}",
     "home.axes_detail": "Detail per axis ({n})",
+    "home.best_on_step": "🏆 best {axe}: {v} · {c} €",
+    "home.axe_short_age": "age",
+    "home.axe_short_pays": "country",
+    "home.axe_short_placement": "placement",
 }

@@ -130,9 +130,6 @@ REGISTRY: dict[str, Metric] = {
     "v_meta_creative_daily": Metric(
         "creative_funnel", "Par créative : impressions, clics lien, clics sortants (mesurés ou non), dépense.",
         "v_meta_creative_daily.total_link_clicks/total_outbound", "jour × créative", FLUX, "période choisie"),
-    "v_meta_engagement_daily": Metric(
-        "ad_engagement", "Interactions sur les publicités (réactions, sauvegardes, partages).",
-        "v_meta_engagement_daily", "jour × campagne", FLUX, "période choisie"),
     "v_meta_active_budget": Metric(
         "active_budget", "Budget quotidien des campagnes actives.",
         "v_meta_active_budget.daily_budget", "campagne", NIVEAU, "maintenant"),

@@ -81,11 +81,11 @@ from src.dashboard.utils.i18n import t
 from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
-    BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury, engagement_lift,
+    BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury,
     shazam_stream_lag, streams_gained,
 )
 from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
-from src.dashboard.utils.ratios import per_series
+from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.date_format import format_date
 
 # L'encre du TROISIÈME axe — le coût par écoute, qui n'appartient à aucune
@@ -263,7 +263,7 @@ def _day_of(df: pd.DataFrame, column: str):
 
 # ── Les chiffres qui TRAVERSENT les deux plateformes ───────────────────────────
 def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
-    """Dépense · streams · € par stream · streams par résultat · abonnés Instagram.
+    """Dépense · streams · € par stream · CPR moyen · abonnés Instagram.
 
     Les deux du milieu n'existaient nulle part dans le produit. Le CPR que Meta
     rend est le prix d'un RÉSULTAT (un clic, une vue de page) ; il ne dit pas ce
@@ -305,8 +305,9 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(t("meta_x_spotify.tile_spend", "💸 Dépense"),
               eur(spend, 2))
-    c2.metric(t("meta_x_spotify.tile_streams", "🎵 Streams sur la période"),
-              num(streams, 0) if streams else "—")
+    days = (d1 - d0).days + 1
+    c2.metric(t("meta_x_spotify.tile_streams_days", "🎵 Streams sur les {n} jours").format(
+              n=days), num(streams, 0) if streams else "—")
     # ⚠️ Un dénominateur nul rend « — », jamais 0 ni l'infini : « 0 € le stream »
     # se lirait comme une acquisition gratuite, ce qui est l'inverse du fait.
     c3.metric(t("meta_x_spotify.tile_cost_per_stream", "🎯 Coût par stream"),
@@ -318,12 +319,12 @@ def _render_tiles(db, artist_id, master: pd.DataFrame, d0, d1) -> None:
                      "rien. À ne pas confondre avec le CPR de Meta, qui est le "
                      "prix d'un RÉSULTAT (clic, vue de page) et jamais celui d'une "
                      "écoute."))
-    c4.metric(t("meta_x_spotify.tile_conversion", "🔁 Streams par résultat"),
-              num(streams_paid / results, 2)
-              if results and streams_paid else "—",
-              help=t("meta_x_spotify.tile_conv_help",
-                     "Écoutes ÷ résultats, sur les jours payés. Combien d'écoutes "
-                     "pour un clic facturé."))
+    # R567 — « streams par résultat » read as a cost; the owner asked for the CPR itself.
+    cpr = per(spend, results)
+    c4.metric(t("meta_x_spotify.tile_cpr", "🎯 CPR moyen"),
+              eur(cpr, 3) if cpr is not None else "—",
+              help=t("meta_x_spotify.tile_cpr_help",
+                     "Dépense ÷ résultats (clics sortants) sur la période."))
 
     # INSTAGRAM EN CHIFFRE, PAS EN COURBE — et c'est une décision, pas un repli.
     # Le compteur porte les abonnés du COMPTE ENTIER : posé sur l'axe d'UNE
@@ -368,39 +369,6 @@ def _render_shazam_lag(master: pd.DataFrame) -> None:
                  "corrélation n'est pas une cause : une sortie ou une playlist fait monter "
                  "les deux.").format(lag=got["lag"], c=f"{got['corr']:.2f}".replace(".", ","),
                                      n=got["days"]))
-
-
-def _render_engagement(db, artist_id, d0, d1) -> None:
-    """R213 (lot d) — did the campaign move anything beyond streams? A TEXT table: the
-    file is at its figure ceiling, and five numbers against five numbers read better in
-    a table than in five more lines on the index chart."""
-    df = _df(db, """
-        SELECT COALESCE(a.day, i.day) AS date, a.listeners, a.saves, a.playlist_adds,
-               a.followers_level, i.followers AS ig_followers
-          FROM (SELECT * FROM v_s4a_audience_daily WHERE artist_id = %s
-                   AND day BETWEEN %s AND %s) a
-          FULL JOIN (SELECT * FROM v_instagram_followers_daily WHERE artist_id = %s
-                   AND day BETWEEN %s AND %s) i ON i.day = a.day
-    """, (artist_id, d0 - _dt.timedelta(days=BASELINE_DAYS), d1,
-          artist_id, d0 - _dt.timedelta(days=BASELINE_DAYS), d1))
-    rows = engagement_lift(df, d0, d1)
-    if not rows:
-        return
-    fmt = lambda v: "—" if v is None else num(v, 1)  # noqa: E731
-    lines = [t("meta_x_spotify.eng_header",
-               "| Engagement (artiste) | {n} jours avant, par jour | Pendant, par jour | "
-               "Variation |").format(n=BASELINE_DAYS), "|---|---|---|---|"]
-    for r in rows:
-        chg = "—" if r['change'] is None else f"{r['change']:+.0f} %"
-        lines.append(f"| {t('meta_x_spotify.eng_' + r['col'], r['label'])} | "
-                     f"{fmt(r['before'])} | {fmt(r['during'])} | {chg} |")
-    st.markdown(t("meta_x_spotify.eng_title",
-                  "**📣 Au-delà des écoutes — ce que la campagne a fait bouger**"))
-    st.markdown("\n".join(lines))
-    st.caption(t("meta_x_spotify.eng_caption",
-                 "« — » = non mesuré sur la période (au moins {n} jours relevés avant la "
-                 "campagne). Comparaison avant / pendant : une hausse qui aurait eu lieu "
-                 "sans la pub y est comptée aussi.").format(n=BASELINE_MIN_DAYS))
 
 
 # ── Ce qui n'a pas pu être tracé, et POURQUOI ──────────────────────────────────
@@ -576,7 +544,6 @@ def _show_body(db, artist_id, bar, funnel: bool = True) -> None:
     # campagnes » to « Performance des campagnes » (ADR-032).
     # R555 — the index-100 journey (fiche 43) merged into the Chronologie's figure.
     _render_shazam_lag(master)
-    _render_engagement(db, artist_id, d0, d1)
     _render_absences(absences, d0, d1)
     if funnel:
         _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
@@ -647,12 +614,16 @@ def funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song=None
     return out
 
 
-def _funnel_figure(db, artist_id, m: dict, height: int = 460):
-    """The seven steps of `m`, revenue priced at the artist's measured €/stream."""
+def _funnel_figure(db, artist_id, m: dict, d0, d1, height: int = 460):
+    """The seven steps of `m`, revenue priced at the artist's measured €/stream, the
+    cheapest age / country / placement of [d0, d1] on the Meta steps (R567)."""
     from src.dashboard.utils import full_funnel
     from src.dashboard.utils.artist_cashflow import stream_rate
+    from src.dashboard.utils.period_side_metrics import period_side_metrics
+    from src.dashboard.views.home_meta_advice import best_by_step
     rate = (stream_rate(db, artist_id) or {}).get("eur_par_stream")
-    return full_funnel.figure(full_funnel.steps(m, rate), height=height), rate
+    best = best_by_step(period_side_metrics(db, artist_id, d0, d1))
+    return full_funnel.figure(full_funnel.steps(m, rate, best), height=height), rate
 
 
 def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
@@ -666,7 +637,7 @@ def _render_funnel(db, artist_id, acct, acct_p, campaign, d0, d1,
     st.subheader(t("meta_x_spotify.funnel_header",
                    "🔽 Du budget aux revenus — le parcours complet"))
     m = funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1, s4a_song)
-    fig, rate = _funnel_figure(db, artist_id, m)
+    fig, rate = _funnel_figure(db, artist_id, m, d0, d1)
     if fig is None:
         st.info(t("meta_x_spotify.funnel_thin",
                   "Pas assez d'étapes mesurées pour dessiner un parcours."))
@@ -724,7 +695,7 @@ def _render_pair(db, artist_id, bar) -> None:
             d0, d1 = span.iloc[0]["d0"], span.iloc[0]["d1"]
             m = funnel_measures(db, artist_id, acct, acct_p, campaign, d0, d1,
                                 _resolve_track(db, artist_id, campaign)[1])
-            fig, _ = _funnel_figure(db, artist_id, m, height=400)
+            fig, _ = _funnel_figure(db, artist_id, m, d0, d1, height=400)
             if fig is not None:
                 charts.plotly_chart(fig, width="stretch", key=f"pair_funnel_{i}")
             st.caption(f"{format_date(d0)} → {format_date(d1)} · " + " · ".join(

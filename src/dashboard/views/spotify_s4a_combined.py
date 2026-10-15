@@ -354,8 +354,28 @@ def moving_songs(spans: pd.DataFrame, recent: pd.DataFrame) -> pd.DataFrame:
     return kept if not kept.empty else spans
 
 
+def log_day_range(meta: pd.DataFrame, horizon: int) -> list[float]:
+    """R567 — log10 x range centred on the Meta spend window (day 1 = release day). Pure.
+
+    Owner, 2026-10-15: « échelle log centrée sur la fenêtre de dépense Meta ». Without
+    spend, the whole horizon; with it, half a decade either side of the paid days."""
+    import math
+
+    if meta is None or meta.empty:
+        return [0.0, math.log10(max(horizon, 2))]
+    lo, hi = float(meta["day_index"].min()), float(meta["day_index"].max())
+    return [max(0.0, math.log10(max(lo, 1)) - 0.5),
+            min(math.log10(max(horizon, 2)), math.log10(max(hi, 1)) + 0.5)]
+
+
+def _log_day_axis(fig, meta: pd.DataFrame, horizon: int) -> None:
+    fig.update_xaxes(type="log", range=log_day_range(meta, horizon),
+                     title_text=t("spotify_s4a_combined.days_since_release_log",
+                                  "Jours depuis la sortie (J1 = sortie, échelle log)"))
+
+
 def render_release_cohort(db, frag: str, params: tuple, *, overlays: bool,
-                          key: str) -> None:
+                          key: str, log_days: bool = False) -> None:
     """Les sorties recalées sur J+0, comparées à fenêtre ÉGALE.
 
     R476 (owner W6 : « mes sorties à âge égal : nickel » ; « le graphique … dépenses Meta
@@ -426,6 +446,9 @@ def render_release_cohort(db, frag: str, params: tuple, *, overlays: bool,
         shazam = shazam.iloc[0:0]
     if not worth_a_panel(meta, "spend"):
         meta = meta.iloc[0:0]
+    if log_days:
+        cohort, meta, shazam = (f.assign(day_index=f["day_index"] + 1)
+                                for f in (cohort, meta, shazam))
     rows = 1 + (not shazam.empty)
     from plotly.subplots import make_subplots
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.06,
@@ -461,6 +484,8 @@ def render_release_cohort(db, frag: str, params: tuple, *, overlays: bool,
                                       "Shazams (par relevé)"), row=2, col=1)
     fig.update_xaxes(title_text=t("spotify_s4a_combined.days_since_release",
                                   "Jours depuis la sortie"), row=rows, col=1)
+    if log_days:
+        _log_day_axis(fig, meta, horizon)
     fig.update_layout(
         # Seule sur sa rangée depuis R195 (le verdict Meta est parti vers « Impact de mes
         # campagnes ») ; `_ROW_HEIGHT` reste sa hauteur.

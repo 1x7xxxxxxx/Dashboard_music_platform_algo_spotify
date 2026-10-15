@@ -5,9 +5,7 @@ EN = {
     "campaign_compare.head": "**Which campaign bought the cheapest stream?** — streams of "
                              "the linked track during the campaign, above its level over "
                              "the {n} days before.",
-    "campaign_compare.c_campaign": "Campaign",
     "campaign_compare.c_track": "Linked track",
-    "campaign_compare.c_family": "Objective",
     "campaign_compare.c_spend": "Spend (€)",
     "campaign_compare.c_gained": "Streams gained",
     "campaign_compare.c_cost": "€ / stream gained",
@@ -37,7 +35,6 @@ EN = {
     "campaign_compare.crea_head": "**Which creative brought streams?** — measured when the "
                                   "creative ran ALONE in its campaign: its streams gained "
                                   "are then its own, with no assumed split.",
-    "campaign_compare.c_crea": "Creative",
     "campaign_compare.crea_split": "{n} campaign(s) ran several creatives together: their "
                                    "streams cannot be separated by creative. To measure a "
                                    "creative, run it alone in its campaign, or give it its "

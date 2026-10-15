@@ -38,6 +38,7 @@ STEPS = (
     ("streams", "count", False),
     ("revenue", "eur", False),
 )
+_META_STEPS = ("impressions", "link_clicks")   # the steps Meta's breakdowns describe
 _INK = {"budget": "#FF6D00", "impressions": platform_color("meta"),
         "link_clicks": platform_color("meta"), "arrivals": "#7C4DFF",
         "store_clicks": "#7C4DFF", "streams": platform_color("spotify"), "revenue": "#2E7D32"}
@@ -59,11 +60,13 @@ def _n(v: float, digits: int = 0) -> str:
     return f"{v:,.{digits}f}".replace(",", " ").replace(".", ",")
 
 
-def steps(m: dict, eur_per_stream: float | None) -> list[dict]:
+def steps(m: dict, eur_per_stream: float | None, best: dict | None = None) -> list[dict]:
     """The drawn steps, in order: {key, label, value, text}. Pure.
 
     `m` holds spend, impressions, link_clicks, arrivals, store_clicks, streams (gained);
-    any may be None. Revenue exists only with streams AND a measured €/stream."""
+    any may be None. Revenue exists only with streams AND a measured €/stream. `best`
+    ({step: label}, R567) writes the cheapest age / country / placement on the step
+    Meta measured it at — never on a step Meta does not see."""
     vals = dict(m)
     vals["budget"] = m.get("spend")
     streams = m.get("streams")
@@ -90,6 +93,8 @@ def steps(m: dict, eur_per_stream: float | None) -> list[dict]:
         if key == "revenue" and spend:
             parts.append(t("full_funnel.recovered", "{p} % du budget récupéré").format(
                 p=_n(100 * v / spend, 1)))
+        if key in _META_STEPS and (best or {}).get(key):
+            parts.append(best[key])
         out.append({"key": key, "label": _label(key), "value": float(v),
                     "text": " · ".join(parts)})
         prev = v if unit == "count" else None

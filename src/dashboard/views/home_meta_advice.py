@@ -170,6 +170,28 @@ def _axes_de(side: dict):
     return classer_axes(axes)
 
 
+# R567 — the axis Meta measured each lesson on, i.e. the funnel step it belongs to:
+# who SAW the ad (age, country) → impressions; where it was CLICKED → link clicks.
+_STEP_OF_AXIS = {"age": "impressions", "pays": "impressions", "placement": "link_clicks"}
+_AXE_COURT = {"age": lambda: t("home.axe_short_age", "âge"),
+              "pays": lambda: t("home.axe_short_pays", "pays"),
+              "placement": lambda: t("home.axe_short_placement", "placement")}
+
+
+def best_by_step(side: dict) -> dict[str, str]:
+    """{funnel step: « 🏆 meilleur âge : 25-34 · 0,081 € »} — the cheapest reliable value
+    of each axis (R567: the advice block left, its lesson now sits on the funnel step)."""
+    out: dict[str, list[str]] = {}
+    for e in _axes_de(side):
+        step = _STEP_OF_AXIS.get(e.dimension)
+        if step:
+            out.setdefault(step, []).append(t(
+                "home.best_on_step", "🏆 meilleur {axe} : {v} · {c} €").format(
+                    axe=_AXE_COURT[e.dimension](), v=_lisible(e.meilleur),
+                    c=f"{e.cpr_min:.3f}".replace(".", ",")))
+    return {k: " · ".join(v) for k, v in out.items()}
+
+
 def _lisible(valeur: str) -> str:
     """Un nom d'emplacement sans la répétition de sa plateforme.
 

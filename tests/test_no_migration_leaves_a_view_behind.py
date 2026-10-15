@@ -38,10 +38,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 _MIGRATIONS = ROOT / "migrations"
 
-#: Les vues créées puis DÉLIBÉRÉMENT retirées par une migration ultérieure. Vide
-#: aujourd'hui ; une entrée ici doit nommer la migration qui l'a retirée, sinon elle
-#: devient l'échappatoire par laquelle ce garde cesse de garder.
-_RETIREES: dict[str, str] = {}
+#: Les vues créées puis DÉLIBÉRÉMENT retirées par une migration ultérieure. Une entrée
+#: ici doit nommer la migration qui l'a retirée, sinon elle devient l'échappatoire par
+#: laquelle ce garde cesse de garder.
+_RETIREES: dict[str, str] = {
+    # R567 : l'engagement publicitaire a quitté la vue croisée ; plus aucun lecteur
+    "v_meta_engagement_daily": "151_retire_v_meta_engagement_daily.sql",
+}
 
 
 def _vues_declarees() -> set[str]:

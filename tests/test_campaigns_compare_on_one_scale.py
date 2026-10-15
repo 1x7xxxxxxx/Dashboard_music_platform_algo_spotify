@@ -100,3 +100,26 @@ def test_a_creative_alone_in_its_campaign_gets_its_streams_and_a_shared_one_does
     alone, split = cc.creative_streams(df, creatives)
     assert list(alone["creative_name"]) == ["solo"] and alone.iloc[0]["gained"] == 500
     assert split == 1
+
+
+# ── R567: the three tables became Pareto bars ─────────────────────────────────
+def test_a_cost_pareto_puts_the_cheapest_left_and_drops_the_unmeasured() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"campaign_name": ["dear", "cheap", "none", "mid"],
+                       "cost_per_gained": [0.9, 0.1, None, 0.5],
+                       "overlap": [False, False, False, True]})
+    fig = cc.pareto_figure(df, "campaign_name", "cost_per_gained", best_low=True,
+                           axis="€", hover=["h"] * 4)
+    bar = fig.data[0]
+    assert list(bar.x) == ["cheap", "mid", "dear"], "cheapest first, unmeasured left out"
+    assert bar.marker.color[0] == cc._BEST and bar.marker.color[1] == cc._OVERLAP
+    assert list(fig.layout.xaxis.categoryarray) == ["cheap", "mid", "dear"]
+
+
+def test_a_yield_pareto_puts_the_highest_left() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"song": ["a", "b"], "per_click": [1.0, 3.0]})
+    fig = cc.pareto_figure(df, "song", "per_click", best_low=False, axis="x", hover=["", ""])
+    assert list(fig.data[0].x) == ["b", "a"]

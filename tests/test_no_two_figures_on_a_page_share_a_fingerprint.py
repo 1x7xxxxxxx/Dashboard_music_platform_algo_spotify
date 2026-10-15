@@ -33,7 +33,12 @@ sys.path.insert(0, str(ROOT / "tools" / "dev" / "charts_dossier"))
 from inventory import measure_of, sites  # noqa: E402
 
 # (key, key) → why these two figures may share a fingerprint.
-DECLARED_TWINS: dict[tuple[str, str], str] = {}
+DECLARED_TWINS: dict[tuple[str, str], str] = {
+    ("src/dashboard/utils/campaign_compare.py::_render_creatives#1",
+     "src/dashboard/utils/campaign_compare.py::_render_tracks#1"):
+        "one constructor (pareto_figure) called for three different measures: "
+        "EUR/stream gained per campaign, streams/click per track, EUR/stream per lone "
+        "creative (R567)",}
 
 
 def _twins(entries) -> list[list[str]]:

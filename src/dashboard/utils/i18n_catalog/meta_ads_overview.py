@@ -56,10 +56,7 @@ EN = {
     "meta_ads_overview.perf.3": "CPM (€)",
     "meta_ads_overview.perf.4": "CPC (€)",
     "meta_ads_overview.perf.5": "CPR (€)",
-    "meta_ads_overview.engagement": "##### ❤️ Engagement",
-    "meta_ads_overview.total_interactions": "⚡ Total Interactions",
     "meta_ads_overview.no_time_data": "No time-series data.",
-    "meta_ads_overview.summary_table": "🗃️ Summary Table",
     # La figure fusionnée et la comparaison lisible (2026-09-21).
     # R146 — la série nomme le clic sortant.
     # R301 — the curve around each wave (R282 B).
@@ -71,13 +68,6 @@ EN = {
         "divided by the cumulative clicks."),
     # R555 — the one chronology and the effect of each campaign.
     "meta_ads_overview.timeline_header": "📈 Everything on one clock — ads, streams, audience",
-    "meta_ads_overview.timeline_caption": (
-        "Click a series in the legend to show or hide it. The orange area is the Meta budget "
-        "spent each day (€ axis on the right): where it is, the ads were running. An "
-        "**outbound click** is a click on a button of your Hypeddit smart link towards a "
-        "streaming platform — the « result » Meta counts — and the **CPR** is the budget "
-        "divided by those clicks. Spotify flows are 7-day means; a day not imported stays a "
-        "gap."),
     "meta_ads_overview.effect_header": "⏱️ How long the effect of each campaign lasts",
     "meta_ads_overview.effect_caption": (
         "One curve per campaign, set on its first euro (day 0). 100 = the average Spotify "

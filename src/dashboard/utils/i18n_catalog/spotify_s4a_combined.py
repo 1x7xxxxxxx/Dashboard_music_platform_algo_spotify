@@ -27,6 +27,7 @@ EN = {
                                         "mapping**.",
     "spotify_s4a_combined.goto_mapping": "🔗 Link my tracks",
     "spotify_s4a_combined.days_since_release": "Days since release",
+    "spotify_s4a_combined.days_since_release_log": "Days since release (D1 = release, log scale)",
     "spotify_s4a_combined.cumulative_streams": "Cumulative streams",
 
     # §2 — audience
