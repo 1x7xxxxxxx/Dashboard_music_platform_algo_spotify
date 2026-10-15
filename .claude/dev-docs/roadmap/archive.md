@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R622 — REA·A7 — catalogue des messages d'erreur visibles (leur `user-visible-errors.csv`) : ME… (livrée 2026-10-16)
+
+- [x] **R622 — REA·A7 — catalogue des messages d'erreur visibles (leur `user-visible-errors.csv`) : MESURER les messages visibles qui nomment un détail interne (DAG, table, variable) → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure** (P3) ✅ (2026-10-16, 262a9d1f, 690144b0)
+  Mesuré par : oui si ≥1 message nomme la plomberie ; catalogue généré + garde
+  Livré 262a9d1f, CI verte (run 38817968950). Mesure : 7 clés EN et 3 textes FR reformulés en termes d'artiste ; 19 affichages d'exception mis sous cliquet (tests/exception_display_baseline.json, ne fait que rétrécir) ; bannières Fernet réservées à l'admin ; mutations rouges puis restaurées.
+  Commits : 262a9d1f R622 : l'artiste ne lit plus notre plomberie, ni en anglais ni en fran · 690144b0 R606 : livrable architecture REA contre la nôtre (13 axes, 7 mieux opt
+
+## ✅ R621 — REA·A6 — versionnage, CHANGELOG, compatibilité d'API : MESURER les consommateurs extern… (livrée 2026-10-16)
+
+- [x] **R621 — REA·A6 — versionnage, CHANGELOG, compatibilité d'API : MESURER les consommateurs externes de l'API et l'écart `pyproject 0.1.0` ≠ API `1.0.0` → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure** (P4) ✅ (2026-10-16, 69272e9f)
+  Mesuré par : oui si ≥1 consommateur externe ; sinon une seule version vraie + condition d'attente
+  Livré 69272e9f, CI verte (run 38817968950). Mesure : 0 consommateur externe de l'API sur 30 j de journaux prod ⇒ une seule version vraie (0.1.0, src.api.__version__, rapportée par l'app), ni CHANGELOG ni /v1. Garde tests/test_one_version.py. Réouverture : (a) un credential d'API détenu par un non-admin, ou (b) un 2xx sur une route authentifiée depuis une IP hors 172.18.0.0/16.
+  Commits : 69272e9f R621 : une seule version d'API, et l'application la rapporte
+
 ## ✅ R619 — REA·A4 — configuration validée par un schéma au démarrage : MESURER les clés de `config… (livrée 2026-10-16)
 
 - [x] **R619 — REA·A4 — configuration validée par un schéma au démarrage : MESURER les clés de `config.yaml`/`.env` lues sans validation et les incidents passés dus à une clé absente → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure **DÉCIDÉ OUI 2026-10-15** : ≥74 clés lues, 2 incidents (2026-06-19 Benken, env non câblé au service ; 2026-08-20 SMTP absent du scheduler une semaine). Critic BUILD-MODIFIED : schéma limité aux clés `required_in_prod` ou typées (le reste = ensemble « connues, non validées », sans défaut) ; services dérivés du scan, pas déclarés ; constantes `NAME = "KEY"` résolues, lecture non littérale = liste motivée ; source alternative `config.yaml` (FERNET) et contrôle de `app.py:65` retiré dans le même changement ; Airflow : contrôle au démarrage hors du parseur (avertir seulement au parse)** (P3) ✅ (2026-10-16, 6d7f30ac, 82d4a12e)
