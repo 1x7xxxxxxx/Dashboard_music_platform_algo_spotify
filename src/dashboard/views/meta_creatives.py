@@ -29,16 +29,16 @@ _Q_AXE = {
     "cta": """
         SELECT call_to_action AS valeur, COUNT(DISTINCT ad_id) AS ads,
                SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions
+               SUM(impressions) AS impressions, campaign_name
           FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1
+         WHERE artist_id = %s GROUP BY 1, campaign_name
     """,
     "objectif": """
         SELECT objective AS valeur, COUNT(DISTINCT ad_id) AS ads,
                SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions
+               SUM(impressions) AS impressions, campaign_name
           FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1
+         WHERE artist_id = %s GROUP BY 1, campaign_name
     """,
 }
 
@@ -638,76 +638,74 @@ def _render_one_creative(db, artist_id: int, creative: str, selected_campaign: s
 
 def _render_best_settings(db, artist_id: int, bar, df: pd.DataFrame) -> None:
     """R557 (owner Y2, fiches 36, 38, 53) — every setting the artist can change, one CPR panel
-    each, the one to keep in green. Replaces the spend × CPR cloud and the settings tab of
-    the algo page: the same question was answered three times, by eye each time.
+    each. Replaces the spend × CPR cloud and the settings tab of the algo page: the same
+    question was answered three times, by eye each time.
+
+    R597 (owner, 2026-10-15) — the colours are the campaigns, named in the legend: the two
+    of the filter bar, or the two most recently launched when it says « Toutes ». The ad
+    set's optimisation panel left (owner: « supprime-le »).
 
     The creative and hook panels follow the bar's period; country, placement, platform and
     age come from Meta's breakdowns, which have no date (said in the caption)."""
     from src.dashboard.utils import best_settings
-    from src.dashboard.views.meta_breakdowns import _breakdown_frame, _panel
+    from src.dashboard.utils.campaign_pair import PAIR_COLORS
 
-    acct, acct_params = bar.acct()
-    entity = ("campaign_name", bar.campaign) if bar.campaign else (None, None)
-    bd = _breakdown_frame(db, artist_id, "performance", "campaign", *entity, acct, acct_params)
-    # psycopg2 returns SUM() as Decimal (object dtype): `_panel` keeps only numeric columns
-    # when it folds placements into platforms, and would drop the spend.
-    for col in ("spend", "results"):
-        if col in bd:
-            bd[col] = pd.to_numeric(bd[col], errors="coerce")
-    hooks = _par_hook(df)
-    panels = [(t("meta_creatives.bs_creative", "Créative"),
-               best_settings.rank(by_creative(df), "creative_name", "total_spend",
-                                  "total_results")),
-              (t("meta_creatives.bs_hook", "Accroche"),
-               best_settings.rank(hooks, "hook", "total_spend", "total_results"))]
-    for panel, label in (("country", t("meta_creatives.bs_country", "Pays")),
-                         ("placement", t("meta_creatives.bs_placement", "Placement")),
-                         ("platform", t("meta_creatives.bs_platform", "Plateforme")),
-                         ("age", t("meta_creatives.bs_age", "Âge"))):
-        part = _panel(bd, panel) if not bd.empty else bd
-        panels.append((label, best_settings.rank(part, "dim_label")))
-    panels += _ad_setting_panels(db, artist_id, bar)
-    fig = best_settings.figure(panels)
+    compared = list(bar.scope or bar.campaigns[:2])
+    fig = best_settings.figure(_settings_panels(db, artist_id, bar, df, compared),
+                               colours=dict(zip(compared, PAIR_COLORS)))
     if fig is None:
         st.info(t("meta_creatives.bs_empty", "Pas encore assez de dépense mesurée pour "
                   "comparer tes réglages."))
         return
     charts.plotly_chart(fig, width="stretch")
-    # R568 — the verdict lines went (the green bar on top says it); the caption stays as the
-    # chart's key: what green and ⚠️ mean, and which panels carry no date.
+    # R568 — the verdict lines went (the ★ says it); the caption stays as the chart's key.
     st.caption(best_settings.caption())
 
 
-def _ad_setting_panels(db, artist_id: int, bar) -> list[tuple[str, pd.DataFrame]]:
-    """The settings chosen per ad or ad set: CTA, campaign objective, optimisation goal.
+def _settings_panels(db, artist_id: int, bar, df: pd.DataFrame,
+                     compared: list[str]) -> list[tuple[str, pd.DataFrame]]:
+    """Every panel, ranked once per compared campaign (`best_settings.rank_by`)."""
+    from src.dashboard.utils.best_settings import rank_by
+    from src.dashboard.views.meta_breakdowns import _breakdown_frame, _panel
 
-    R568 — the optimisation goal had its own Pareto on the overview (R557); it is the
-    AD SET's `optimization_goal`, not the campaign's `objective`, so it joins the panels
-    here rather than leaving with that chart. It follows the bar's account and period."""
-    from src.dashboard.utils import best_settings
-    out = [(label, best_settings.rank(
-        db.fetch_df(_Q_AXE[axe], (artist_id,)), "valeur", "depense", "clics"))
-        for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
-                           ("objectif", t("meta_creatives.bs_objective",
-                                          "Objectif (€/clic)")))]
+    d = df[df["campaign_name"].isin(compared)]
+    hooks = pd.concat([_par_hook(g).assign(campaign_name=k)
+                       for k, g in d.groupby("campaign_name", sort=False)] or [pd.DataFrame()])
+    panels = [(t("meta_creatives.bs_creative", "Créative"),
+               rank_by(d, "creative_name", "campaign_name", "total_spend", "total_results")),
+              (t("meta_creatives.bs_hook", "Accroche"),
+               rank_by(hooks, "hook", "campaign_name", "total_spend", "total_results"))]
     acct, acct_params = bar.acct()
-    win, win_params = bar.window.sql_between("day") if bar.window else ("", ())
-    goal = db.fetch_df(_Q_GOAL.format(acct=acct, win=win),
-                       (t("meta_creatives.goal_unknown", "objectif inconnu"), artist_id,
-                        *acct_params, *win_params))
-    out.append((t("meta_creatives.bs_goal", "Optimisation de l'ad set (€/clic sortant)"),
-                best_settings.rank(goal, "valeur", "depense", "clics")))
+    frames = []
+    for c in compared:
+        bd = _breakdown_frame(db, artist_id, "performance", "campaign", "campaign_name", c,
+                              acct, acct_params)
+        # psycopg2 returns SUM() as Decimal (object dtype): `_panel` keeps only numeric
+        # columns when it folds placements into platforms, and would drop the spend.
+        for col in ("spend", "results"):
+            if col in bd:
+                bd[col] = pd.to_numeric(bd[col], errors="coerce")
+        frames.append((c, bd))
+    for panel, label in (("country", t("meta_creatives.bs_country", "Pays")),
+                         ("placement", t("meta_creatives.bs_placement", "Placement")),
+                         ("platform", t("meta_creatives.bs_platform", "Plateforme")),
+                         ("age", t("meta_creatives.bs_age", "Âge"))):
+        parts = [_panel(bd, panel).assign(campaign_name=c) for c, bd in frames if not bd.empty]
+        panels.append((label, rank_by(pd.concat(parts) if parts else pd.DataFrame(),
+                                      "dim_label", "campaign_name")))
+    return panels + _ad_setting_panels(db, artist_id, compared)
+
+
+def _ad_setting_panels(db, artist_id: int, compared: list[str]) -> list[tuple[str, pd.DataFrame]]:
+    """The settings chosen per ad: CTA and campaign objective, per compared campaign."""
+    from src.dashboard.utils.best_settings import rank_by
+    out = []
+    for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
+                       ("objectif", t("meta_creatives.bs_objective", "Objectif (€/clic)"))):
+        f = db.fetch_df(_Q_AXE[axe], (artist_id,))
+        f = f[f["campaign_name"].isin(compared)] if not f.empty else f
+        out.append((label, rank_by(f, "valeur", "campaign_name", "depense", "clics")))
     return out
-
-
-# R568 — `v_meta_adset_daily` (migration 108) names the tenant on the whole chain.
-_Q_GOAL = """
-    SELECT COALESCE(optimization_goal, %s) AS valeur, SUM(spend) AS depense,
-           SUM(conversions) AS clics
-      FROM v_meta_adset_daily
-     WHERE artist_id = %s{acct}{win}
-     GROUP BY 1
-"""
 
 
 # R568 — the ad set each creative ran in. Only the raw catalogue names it:

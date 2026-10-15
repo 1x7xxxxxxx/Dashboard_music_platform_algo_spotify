@@ -83,3 +83,21 @@ def test_each_panel_puts_the_value_to_keep_on_top():
         assert axis.autorange == "reversed"
         assert list(axis.categoryarray)[0] == "A", list(axis.categoryarray or [])
         assert axis.categoryorder == "array"
+
+
+def test_the_colours_are_the_campaigns_named_in_the_legend():
+    """R597 (owner, 2026-10-15) — « les couleurs = les campagnes, avec leur légende »: one
+    trace per campaign in every panel, its colour the campaign's, in the legend once."""
+    f = pd.DataFrame([("A", 100, 50, "C1"), ("B", 100, 25, "C1"),
+                      ("A", 100, 20, "C2"), ("B", 100, 40, "C2")],
+                     columns=["v", "spend", "results", "camp"])
+    r = best_settings.rank_by(f, "v", "camp")
+    colours = {"C1": "#0000ff", "C2": "#ffcc00"}
+    fig = best_settings.figure([("x", r), ("y", r)], colours=colours)
+    assert [(tr.name, tr.marker.color) for tr in fig.data] == [
+        ("C1", "#0000ff"), ("C2", "#ffcc00")] * 2
+    assert [tr.showlegend for tr in fig.data] == [True, True, False, False]
+    assert fig.layout.showlegend is True
+    # Each campaign's own best wears the ★: A for C1, B for C2.
+    stars = {tr.name: [y for y, txt in zip(tr.y, tr.text) if "★" in txt] for tr in fig.data}
+    assert stars == {"C1": ["A"], "C2": ["B"]}

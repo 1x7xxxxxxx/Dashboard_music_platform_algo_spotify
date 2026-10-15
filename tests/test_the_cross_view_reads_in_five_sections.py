@@ -83,17 +83,16 @@ def test_the_breakdowns_draw_no_map() -> None:
         assert "choropleth" not in _called(_function(VIEWS / "meta_breakdowns.py", fn)), fn
 
 
-def test_the_settings_section_reads_the_optimisation_goal() -> None:
-    """Fiche 30's question stays answered — once (R568): the separate goal Pareto of the
-    cross view left, and the best-settings tool prices the AD SET's optimisation goal —
-    not only the campaign's `objective`, which is another setting."""
+def test_the_settings_section_has_no_optimisation_panel() -> None:
+    """R568 removed the separate goal Pareto of the cross view; R597 (owner, 2026-10-15)
+    removed the « Optimisation de l'ad set » panel of the best-settings tool too. Button and
+    objective stay, read per campaign."""
     tree = ast.parse((VIEWS / "meta_ads_overview.py").read_text(encoding="utf-8"))
     assert "_render_goal_pareto" not in {n.name for n in tree.body
                                          if isinstance(n, ast.FunctionDef)}
-    tool = _function(VIEWS / "meta_creatives.py", "_render_best_settings")
-    assert "_ad_setting_panels" in _called(tool)
+    import src.dashboard.views.meta_creatives as mc
+    assert not hasattr(mc, "_Q_GOAL")
     panels = _function(VIEWS / "meta_creatives.py", "_ad_setting_panels")
-    assert {"_Q_AXE", "_Q_GOAL"} <= {n.id for n in ast.walk(panels) if isinstance(n, ast.Name)}
-    from src.dashboard.views.meta_creatives import _Q_AXE, _Q_GOAL
-    assert "objective" in _Q_AXE["objectif"]
-    assert "optimization_goal" in _Q_GOAL and "v_meta_adset_daily" in _Q_GOAL
+    assert "_Q_AXE" in {n.id for n in ast.walk(panels) if isinstance(n, ast.Name)}
+    assert "objective" in mc._Q_AXE["objectif"]
+    assert all("campaign_name" in q for q in mc._Q_AXE.values())

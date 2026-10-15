@@ -65,5 +65,4 @@ EN = {
     "meta_creatives.pareto_cpr_scale": "CPR (€)",
     "meta_creatives.pareto_campaigns": "Campaigns",
     "meta_creatives.pareto_empty": "No campaign chosen.",
-    "meta_creatives.bs_goal": "Ad set optimisation (€/outbound click)",
 }
