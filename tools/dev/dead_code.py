@@ -5,7 +5,7 @@ Type: Utility
 Uses: vulture (dev extra, pinned exactly), git ls-files, ast
 Triggers: tests/test_dead_code_only_shrinks.py (the ratchet) ; by hand —
           `python3 tools/dev/dead_code.py [--json] [--without-tests]`
-Persists in: nothing (stdout) — the baseline is tests/dead_code_baseline.json
+Persists in: nothing (stdout) — the baseline is tests/dead_code_baseline.json (BASELINE)
 
 Why this exists — measured 2026-10-15 (R609)
 --------------------------------------------
@@ -14,18 +14,24 @@ are mostly noise: a FastAPI route, a pydantic validator or a view's `show()` is 
 a framework, never by name. Filtered mechanically, the funnel was
 
     198 raw → 76 unused variables (parameters, locals: out of scope)
-            → 87 functions whose name appears in another tracked file (a test, a tool,
-               a string route in routes.py, a DAG)
+            → 81 functions whose name appears in tracked code (a test, a tool, a string
+               route in routes.py, a DAG)
             → 9 behind a FRAMEWORK decorator (routes, exception handler, middleware,
                validators)
-            → 26 functions named nowhere — dead. The hand count said 25: it had let
-               `iso2_to_iso3` through for its `@lru_cache`, which calls nothing.
+            → 32 functions named nowhere — dead. The hand count said 25: it had let
+               a geo helper through for its `@lru_cache`, which calls nothing, and
+               counted 6 functions as alive that only comments or docstrings named.
+
+A mention is read STRUCTURALLY in Python files: identifiers and the words of string
+literals (a route named in a string is a caller), never comments or docstrings. The
+first version counted words and was green on its own defect: this docstring named the
+dead function, and that one mention made it alive.
 
 What this tool does NOT see (guard_scope)
 -----------------------------------------
 * A function called ONLY by tests is "named elsewhere" and passes as alive — dead in
-  production, invisible here. `--without-tests` measures that bucket: 56 live instead
-  of 26 on 2026-10-15, so 30 functions only tests call. Reported, not ratcheted
+  production, invisible here. `--without-tests` measures that bucket: 74 live
+  instead of 32 on 2026-10-15, so 42 functions only tests call. Reported, not ratcheted
   (removing those means removing their tests: a decision per site).
 * Dispatch by a computed name (`getattr(mod, f"render_{x}")`) — none targets a function
   in src/ on 2026-10-15; the views are imported by module STRING, which the mention
@@ -37,14 +43,17 @@ from __future__ import annotations
 import argparse
 import ast
 import collections
+import io
 import json
 import re
 import subprocess
 import sys
+import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+BASELINE = ROOT / "tests" / "dead_code_baseline.json"
 TARGETS = ("src", "airflow/dags")
 MIN_CONFIDENCE = 60
 KINDS = {"function", "method", "property", "class"}
@@ -94,6 +103,39 @@ def decorators(source: str, name: str) -> list[str]:
     return found
 
 
+def _docstring_starts(tree: ast.AST) -> set[tuple[int, int]]:
+    starts = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) \
+                and node.body and isinstance(node.body[0], ast.Expr) \
+                and isinstance(node.body[0].value, ast.Constant) \
+                and isinstance(node.body[0].value.value, str):
+            starts.add((node.body[0].value.lineno, node.body[0].value.col_offset))
+    return starts
+
+
+def words(path: str, text: str) -> list[str]:
+    """The words of `text` that can be a caller. Non-Python files: every word. Python:
+    NAME tokens and the words inside non-docstring STRING tokens; comments drop out."""
+    if not path.endswith(".py"):
+        return _WORD.findall(text)
+    try:
+        docs = _docstring_starts(ast.parse(text))
+        out = []
+        for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+            if tok.type == tokenize.NAME:
+                out.append(tok.string)
+            elif tok.type == tokenize.STRING and tok.start not in docs:
+                out += _WORD.findall(tok.string)
+        return out
+    except (SyntaxError, tokenize.TokenError):
+        return _WORD.findall(text)  # unparsable: over-count (alive), never hide a caller
+
+
+def load_baseline() -> set[str]:
+    return set(json.loads(BASELINE.read_text(encoding="utf-8")))
+
+
 def classify(cands: list[Candidate], corpus: dict[str, str],
              ) -> tuple[collections.Counter, list[Candidate]]:
     """The funnel. `corpus` is {path: text} of every file a caller could live in,
@@ -101,7 +143,7 @@ def classify(cands: list[Candidate], corpus: dict[str, str],
     funnel: collections.Counter = collections.Counter(raw=len(cands))
     # One tokenisation of the corpus: an identifier's `\b…\b` matches are exactly its
     # occurrences as a `\w+` token. A regex per candidate cost 25 s; this costs 1.
-    mentions = collections.Counter(w for text in corpus.values() for w in _WORD.findall(text))
+    mentions = collections.Counter(w for path, text in corpus.items() for w in words(path, text))
     live = []
     for c in cands:
         if c.kind not in KINDS:

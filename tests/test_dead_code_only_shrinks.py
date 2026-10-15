@@ -15,12 +15,10 @@ a call by a computed name, unused variables and imports.
 from __future__ import annotations
 
 import importlib.util
-import json
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "tests" / "dead_code_baseline.json"
 sys.path.insert(0, str(ROOT / "tools" / "dev"))
 import dead_code  # noqa: E402
 
@@ -33,7 +31,7 @@ def test_vulture_is_installed_never_skipped() -> None:
 def test_the_dead_functions_are_exactly_the_baseline() -> None:
     _, live = dead_code.dead_keys()
     now = {c.key for c in live}
-    known = set(json.loads(BASELINE.read_text(encoding="utf-8")))
+    known = dead_code.load_baseline()
     new, gone = sorted(now - known), sorted(known - now)
     assert not new, ("functions nothing names — delete them, or name their caller:\n  "
                      + "\n  ".join(new))
@@ -77,3 +75,13 @@ def test_the_funnel_drops_a_named_caller_and_keeps_an_orphan() -> None:
 
 def test_a_mention_in_prose_does_not_make_a_function_alive() -> None:
     assert not any(s.endswith(".md") for s in dead_code.CORPUS_SUFFIXES)
+
+
+def test_a_comment_or_a_docstring_is_not_a_caller() -> None:
+    """The tool's first version was green on its own defect: its docstring named a dead
+    function, and that word made it alive."""
+    src = '"""Module doc: prose_only is cited here."""\n# and prose_only here\n' \
+          'def prose_only():\n    """prose_only, in its own docstring."""\n'
+    out = "src/p.py:3: unused function 'prose_only' (60% confidence)"
+    _, live = dead_code.classify(dead_code.parse(out), {"src/p.py": src})
+    assert [c.name for c in live] == ["prose_only"]
