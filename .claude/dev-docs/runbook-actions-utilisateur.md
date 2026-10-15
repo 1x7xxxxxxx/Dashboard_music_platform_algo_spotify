@@ -2271,3 +2271,31 @@ curl -fsS https://app.streamlytics.fr/ -o /dev/null && echo dashboard-ok
 ```
 Les deux premières commandes rendent `rc=0` **sans aucune ligne** au-dessus (une ligne
 nomme une clé absente — jamais sa valeur). Puis le dire dans la séance : R628 close.
+
+## 45. R624 — Choisir la licence du dépôt public
+
+Le dépôt GitHub est **public et sans LICENSE**. Par défaut, cela veut dire « tous droits
+réservés », mais personne ne peut savoir ce qu'il a le droit d'en faire. Le dépôt
+contient :
+
+- 2 jeux de modèles entraînés (`machine_learning/models/`) ;
+- 3 PDF d'analyse ;
+- l'avatar de la marque ;
+- 5 captures Spotify Wrapped. Ce sont des images de Spotify, pas les nôtres.
+
+Aucune donnée d'artiste n'est dans le dépôt.
+
+### Étapes
+
+1. Choisis une option et dis-la dans la séance :
+   - **(a) licence propriétaire** « tous droits réservés ». C'est l'option recommandée : la marque et les modèles sont l'actif d'un service payant.
+   - **(b) licence ouverte** pour le code seul (MIT ou Apache-2.0). Les modèles, la marque et les captures en sont exclus.
+   - **(c) dépôt privé**, dans *Settings → General → Danger Zone → Change visibility*. Actions reste gratuit jusqu'à 2 000 minutes par mois.
+2. Pour (a) ou (b), je rédige `LICENSE` et le test qui vérifie qu'il est présent, puis je les commite.
+
+### Vérification
+
+```bash
+gh repo view --json visibility,licenseInfo
+```
+Pour (a) ou (b), `licenseInfo` ne vaut plus `null`. Pour (c), `visibility` vaut `PRIVATE`.
