@@ -46,6 +46,15 @@ from typing import Callable, Optional
 # Production is Cloudflare → Caddy → app, so the last TWO hops are ours.
 TRUSTED_PROXY_HOPS = int(os.getenv("TRUSTED_PROXY_HOPS", "2"))
 
+# The four budget WINDOWS live here, below both the dashboard and the API, because the
+# nightly purge (`src/utils/rate_limit_maintenance.py`) must compare all four with its
+# own margin — read from `src.dashboard`/`src.api`, it was an upward arc (R626).
+# The dashboard throttle and the API security module import them from here.
+REGISTER_WINDOW_SECS = int(os.getenv("DASHBOARD_REGISTER_WINDOW_SECS", "600"))
+TOTP_WINDOW_SECS = int(os.getenv("DASHBOARD_TOTP_WINDOW_SECS", "900"))
+LOGIN_WINDOW_SECS = int(os.getenv("DASHBOARD_LOGIN_WINDOW_SECS", "900"))
+AUTH_RATE_LIMIT_WINDOW_SECS = int(os.getenv("API_AUTH_RATE_LIMIT_WINDOW_SECS", "300"))
+
 _logger = logging.getLogger(__name__)
 
 _MAX_TRACKED_CLIENTS = 10_000  # memory bound — full reset beyond this

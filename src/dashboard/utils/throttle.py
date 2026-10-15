@@ -29,6 +29,9 @@ import os
 from typing import Optional
 
 from src.utils.request_throttle import (
+    LOGIN_WINDOW_SECS,
+    REGISTER_WINDOW_SECS,
+    TOTP_WINDOW_SECS,
     SlidingWindowLimiter,
     client_ip_from_headers,
     shared_hit_store,
@@ -38,17 +41,14 @@ from src.utils.request_throttle import (
 # "a script probes 24 bits of promo code": at 8 per 10 min, exhausting `token_hex(3)`
 # takes ~40 years from one host.
 REGISTER_MAX = int(os.getenv("DASHBOARD_REGISTER_MAX", "8"))
-REGISTER_WINDOW_SECS = int(os.getenv("DASHBOARD_REGISTER_WINDOW_SECS", "600"))
 
 # TOTP code submits per IP. A 6-digit code with valid_window=1 spans 3 codes out of
 # 10^6; at 10 tries per 15 min the expected time to hit one is measured in centuries.
 TOTP_MAX = int(os.getenv("DASHBOARD_TOTP_MAX", "10"))
-TOTP_WINDOW_SECS = int(os.getenv("DASHBOARD_TOTP_WINDOW_SECS", "900"))
 
 # Password submits per IP — a backstop *in front of* the per-account DB lockout, which
 # an attacker spraying one password across many accounts never triggers.
 LOGIN_MAX = int(os.getenv("DASHBOARD_LOGIN_MAX", "30"))
-LOGIN_WINDOW_SECS = int(os.getenv("DASHBOARD_LOGIN_WINDOW_SECS", "900"))
 
 # Les trois seaux PARTAGENT leur compteur entre instances (Postgres, table
 # `rate_limit_hits`). Ce ne sont pas des seaux de confort : chacun est la seule

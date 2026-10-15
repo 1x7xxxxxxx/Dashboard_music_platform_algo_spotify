@@ -61,6 +61,9 @@ INTENDED_ABSENT = {
 # the api, never on a path an api request takes.
 NOT_ON_AN_API_PATH = {"AIRFLOW_UI_URL", "APP_BASE_URL", "FERNET_KEY", "META_BUSINESS_ID",
                       "SESSION_IDLE_TIMEOUT_MINUTES"}
+# Read by `src/utils/request_throttle.py`, where the four budget windows live so the
+# nightly purge can compare them (R626) — the dashboard never builds the API limiter.
+NOT_ON_A_DASHBOARD_PATH = {"API_AUTH_RATE_LIMIT_WINDOW_SECS"}
 
 
 def _module_file(name: str) -> Path | None:
@@ -110,6 +113,8 @@ def test_every_env_read_is_wired_or_decided(service: str) -> None:
     allowed = _declared(service) | set(INTENDED_ABSENT)
     if service == "api":
         allowed |= NOT_ON_AN_API_PATH
+    if service == "dashboard":
+        allowed |= NOT_ON_A_DASHBOARD_PATH
     missing: dict[str, str] = {}
     for f in sorted(_closure(SERVICES[service])):
         for k in _env_keys_read(f) - allowed:

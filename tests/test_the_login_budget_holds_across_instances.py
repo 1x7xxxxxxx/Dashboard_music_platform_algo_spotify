@@ -241,11 +241,11 @@ def test_the_purge_refuses_when_a_window_would_outlive_its_margin(monkeypatch) -
     budget repart à zéro chaque nuit, et rien ne le dit. Le seul endroit où les deux
     chiffres se rencontrent est ici.
     """
-    from src.dashboard.utils import throttle
     from src.utils import rate_limit_maintenance as rlm
+    from src.utils import request_throttle
 
     # Une fenêtre de deux jours contre une purge à un jour.
-    monkeypatch.setattr(throttle, "LOGIN_WINDOW_SECS", 2 * 86_400)
+    monkeypatch.setattr(request_throttle, "LOGIN_WINDOW_SECS", 2 * 86_400)
     with pytest.raises(ValueError, match="tronquerait une fenêtre VIVANTE"):
         rlm.purge_rate_limit_hits()
 

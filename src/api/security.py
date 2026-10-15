@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 # imports the same two names (src/dashboard/utils/throttle.py). Re-exported here so
 # `security.SlidingWindowLimiter` / `security.TRUSTED_PROXY_HOPS` keep working.
 from src.utils.request_throttle import (  # noqa: F401 — re-exported
+    AUTH_RATE_LIMIT_WINDOW_SECS,
     TRUSTED_PROXY_HOPS,
     SlidingWindowLimiter,
     client_ip_from_headers,
@@ -37,7 +38,6 @@ RATE_LIMIT_MAX = int(os.getenv("API_RATE_LIMIT_MAX", "120"))
 RATE_LIMIT_WINDOW_SECS = int(os.getenv("API_RATE_LIMIT_WINDOW_SECS", "60"))
 # Stricter budget for the credential endpoint (brute-force target).
 AUTH_RATE_LIMIT_MAX = int(os.getenv("API_AUTH_RATE_LIMIT_MAX", "10"))
-AUTH_RATE_LIMIT_WINDOW_SECS = int(os.getenv("API_AUTH_RATE_LIMIT_WINDOW_SECS", "300"))
 
 _AUTH_PATH = "/auth/token"
 # `/metrics` rejoint `/health` le 2026-09-16 : Prometheus scrute toutes les 15 s,

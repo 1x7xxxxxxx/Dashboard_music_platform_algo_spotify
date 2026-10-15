@@ -1,7 +1,7 @@
 """Entretien de la table des compteurs de limitation.
 
 Type: Utility
-Uses: src.database.postgres_handler, src.dashboard.utils.throttle, src.api.security
+Uses: src.database.postgres_handler, src.utils.request_throttle
 Triggers: la tâche `purge_rate_limit_hits` d'`alert_monitor` (quotidienne)
 Persists in: rate_limit_hits (suppression seulement)
 
@@ -29,14 +29,13 @@ PURGE_AFTER_SECS = 86_400
 
 def longest_window_secs() -> tuple[int, dict[str, int]]:
     """La plus longue fenêtre de limitation du produit, et le détail par seau."""
-    from src.api import security
-    from src.dashboard.utils import throttle
+    from src.utils import request_throttle as rt
 
     windows = {
-        "register": int(throttle.REGISTER_WINDOW_SECS),
-        "totp": int(throttle.TOTP_WINDOW_SECS),
-        "login": int(throttle.LOGIN_WINDOW_SECS),
-        "api/auth": int(security.AUTH_RATE_LIMIT_WINDOW_SECS),
+        "register": int(rt.REGISTER_WINDOW_SECS),
+        "totp": int(rt.TOTP_WINDOW_SECS),
+        "login": int(rt.LOGIN_WINDOW_SECS),
+        "api/auth": int(rt.AUTH_RATE_LIMIT_WINDOW_SECS),
     }
     return max(windows.values()), windows
 
