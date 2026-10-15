@@ -410,7 +410,7 @@ def values_figure(tracks: list[str], levers_by_track: dict, weights: dict | None
                       **({"annotation_text": t("trigger_algo.rel.full_mark", "100 % = déclenche"),
                           "annotation_position": "top", "annotation_font_size": 11}
                          if r == 1 else {}))
-        y0, y1 = fig.layout[f"yaxis{'' if r == 1 else r}"].domain
+        y0, y1 = fig.get_subplot(r, 1).yaxis.domain
         fig.add_annotation(x=0.0, y=(y0 + y1) / 2, xref="paper", yref="paper",
                            xanchor="left", yanchor="middle", align="left", showarrow=False,
                            text=_playlist_box(algo, weights, {s_: (feats or {}).get(s_)
