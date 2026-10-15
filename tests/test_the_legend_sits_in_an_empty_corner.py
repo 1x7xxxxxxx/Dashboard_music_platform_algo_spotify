@@ -1,4 +1,4 @@
-"""R565 — the door puts a legend where no data is: an empty corner, else below the plot.
+"""R565/R574 — the door puts a legend ON the plot where it hides the fewest points, never below.
 
 Type: Test
 Uses: src.dashboard.utils.charts (apply_defaults, legend_position), utils.legend_place
@@ -13,7 +13,7 @@ from __future__ import annotations
 import plotly.graph_objects as go
 
 from src.dashboard.utils import charts
-from src.dashboard.utils.legend_place import empty_corner, paper_points
+from src.dashboard.utils.legend_place import least_covered, paper_points
 
 
 def _corner(fig) -> tuple:
@@ -48,18 +48,30 @@ def test_stacked_bars_are_as_tall_as_their_sum() -> None:
     assert top_of_c == 0.5  # 5 of a 10-high stack; side by side it would read 5 of 5
 
 
-def test_a_full_plot_puts_the_legend_below_and_makes_room() -> None:
+def test_a_full_plot_keeps_the_legend_on_the_plot_where_it_hides_least() -> None:
+    # R574 (owner, 2026-10-15): « sur le graphique, à l'endroit le moins gênant », never below
     fig = go.Figure([go.Scatter(x=[0, 1, 0, 1], y=[0, 0, 1, 1], name="a", mode="markers"),
                      go.Scatter(x=[0, 1], y=[1, 0], name="b")])
     out = charts.apply_defaults(fig)
-    assert (out.layout.legend.orientation, out.layout.legend.yref) == ("h", "container")
-    assert out.layout.margin.b > 80
+    assert out.layout.legend.yref != "container" and out.layout.legend.y >= 0
+    assert out.layout.margin.b is None
+    # the X crosses every corner; the middle of the top edge is the emptiest place
+    assert least_covered(fig, 2) == ("top center", 0)
+
+
+def test_the_least_covered_place_wins_over_the_first_corner() -> None:
+    # dense along the top, a single stray point bottom right: bottom left is best
+    xs = [i / 20 for i in range(21)]
+    fig = go.Figure([go.Scatter(x=xs, y=[1] * 21, name="a", mode="markers"),
+                     go.Scatter(x=[1, 0.5], y=[0, 0], name="b", mode="markers")])
+    place, n = least_covered(fig, 2)
+    assert place == "bottom left" and n == 0
 
 
 def test_a_hidden_trace_does_not_block_a_corner() -> None:
     fig = go.Figure([go.Scatter(y=[10, 5, 1], name="a"),
                      go.Scatter(y=[0, 5, 10], name="b", visible="legendonly")])
-    assert empty_corner(fig, 2) == "top right"
+    assert least_covered(fig, 2) == ("top right", 0)
 
 
 def test_a_log_axis_is_read_in_its_own_scale() -> None:
@@ -85,13 +97,14 @@ def test_the_inventory_reads_the_place_the_door_chose() -> None:
     up = charts.apply_defaults(go.Figure([go.Scatter(y=[1, 5, 10], name="a"),
                                           go.Scatter(y=[0, 4, 9], name="b")]))
     assert legends.legend_of(up.to_plotly_json()) == {"entries": ["a", "b"],
-                                                      "place": "haut gauche"}
+                                                      "place": "haut gauche", "covered": 0}
     full = charts.apply_defaults(go.Figure([
         go.Scatter(x=[0, 1, 0, 1], y=[0, 0, 1, 1], name="a", mode="markers"),
         go.Scatter(x=[0, 1], y=[1, 0], name="b")]))
-    assert legends.legend_of(full.to_plotly_json())["place"] == "dessous"
+    assert legends.legend_of(full.to_plotly_json())["place"] == "haut centre"
     alone = go.Figure([go.Scatter(y=[1, 2], name="a")])
-    assert legends.legend_of(alone.to_plotly_json()) == {"entries": [], "place": "—"}
+    assert legends.legend_of(alone.to_plotly_json()) == {"entries": [], "place": "—",
+                                                         "covered": 0}
 
 
 def test_a_bar_over_dates_keeps_its_dates_spread() -> None:

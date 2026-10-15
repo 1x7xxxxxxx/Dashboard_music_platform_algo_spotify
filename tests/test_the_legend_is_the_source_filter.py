@@ -113,21 +113,19 @@ def test_one_click_hides_the_whole_platform(figure, mode) -> None:
 def test_the_legend_never_returns_to_the_title_margin(figure, mode) -> None:
     """Le défaut du 2026-09-08 : une légende AU-DESSUS du cadre recouvre le titre.
 
-    R565 (2026-10-15) : la porte la pose dans un coin VIDE du tracé (y et x dans [0, 1],
-    papier), ou SOUS le tracé (repère du conteneur, ancrée en bas) quand tous les coins
-    portent des données — jamais au-dessus du cadre.
+    R565/R574 (2026-10-15) : la porte la pose SUR le tracé, à la place qui cache le moins
+    de points (coins, puis milieux des bords) — jamais au-dessus du cadre, jamais dessous.
     """
     fig = figure(mode)
     lg = fig.layout.legend
     assert fig.layout.showlegend is True
-    if lg.yref == "container":
-        assert (lg.y, lg.yanchor) == (0, "bottom"), (
-            f"legend.y={lg.y}, yanchor={lg.yanchor} — sous le tracé, elle s'ancre en bas")
-        return
-    assert lg.y in (0, 1) and lg.yanchor == ("top" if lg.y == 1 else "bottom"), (
+    assert lg.yref != "container", "R574 : la légende reste sur le graphique, jamais dessous"
+    anchor = {1: "top", 0: "bottom", 0.5: "middle"}
+    assert lg.y in anchor and lg.yanchor == anchor[lg.y], (
         f"legend.y={lg.y}, yanchor={lg.yanchor} — la légende déborde dans la zone du "
-        "titre, qu'elle recouvre. Elle reste DANS le cadre, dans un coin.")
-    assert lg.x in (0, 1) and lg.xanchor == ("right" if lg.x == 1 else "left"), (
+        "titre, qu'elle recouvre. Elle reste DANS le cadre.")
+    side = {1: "right", 0: "left", 0.5: "center"}
+    assert lg.x in side and lg.xanchor == side[lg.x], (
         f"legend.x={lg.x}, xanchor={lg.xanchor} — la légende sort du cadre")
 
 

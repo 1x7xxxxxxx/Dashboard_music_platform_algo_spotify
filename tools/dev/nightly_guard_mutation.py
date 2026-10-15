@@ -101,7 +101,7 @@ SEEN_RED: dict[str, str] = {
     "tests/test_the_legend_sits_in_an_empty_corner.py":
         "2026-10-15 — R565 : `empty_corner` rend toujours le 1ᵉʳ coin → rouge ; empilement "
         "ignoré → rouge ; log lu linéaire → rouge ; trace masquée comptée → rouge ; ordre "
-        "Pareto ignoré → rouge ; repli dessous remplacé par le coin fixe → rouge ; zéro des "
+        "Pareto ignoré → rouge ; R574 : premier coin au lieu du moins couvert → rouge ; zéro des "
         "barres ajouté à l'axe des dates → rouge ; négatifs empilés sur les positifs → rouge ; plage de dates ignorée → rouge",
     "tests/test_youtube_analytics_figures.py":
         "2026-10-12 — R539 : `watch_time_figure` sans `reindex` (le jour absent recollé, "

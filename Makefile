@@ -554,7 +554,7 @@ charts-dossier: ## R203 — PDF de revue de TOUS les graphiques (app + PDF artis
 	@.venv/bin/python tools/dev/charts_dossier/numbers_check.py "$(OUT)"
 	@.venv/bin/python tools/dev/charts_dossier/main.py "$(OUT)" $(PROM)
 
-legend-inventory: ## R565 — chaque légende de l'app et le coin choisi par la porte → revue/legendes.md (rendu sur l'instantané local de la prod)
+legend-inventory: ## R565/R574 — chaque légende, sa place SUR le graphique et les points qu'elle cache → revue/legendes.md (rendu sur l'instantané local de la prod)
 	@.venv/bin/python -c "import kaleido" 2>/dev/null || { echo "❌ kaleido absent. Run: uv sync --frozen --extra dev"; exit 1; }
 	@docker exec postgres_spotify_airflow psql -U postgres -tAc "select 1 from pg_database where datname='spotify_etl_review'" 2>/dev/null | grep -q 1 || { echo "❌ instantané absent. Run: make charts-dossier OUT=revue (il dit comment le créer)"; exit 1; }
 	@.venv/bin/python tools/dev/charts_dossier/capture.py revue

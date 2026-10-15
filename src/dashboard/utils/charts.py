@@ -139,36 +139,28 @@ def _legend_would_show(fig) -> int:
 
 
 # R536 (owner, 2026-10-12) put every legend top right, on the plot. R565 (owner,
-# 2026-10-15) : « mal placées partout — un placement optimal calculé ». ONE place still
+# 2026-10-15) : « mal placées partout — un placement optimal calculé ». R574 (same day):
+# « sur le graphique, à l'endroit le moins gênant », never below it. ONE place still
 # decides, here and nowhere else (`tests/test_one_legend_position.py` refuses a position
-# written in a view): the first EMPTY corner of the plot, top right first
-# (`legend_place.empty_corner`), else a horizontal row below the plot. Inside the plot it
-# never climbs into the margin where the title and the toolbar live (R189, R476); a faint
-# background keeps it readable over a gridline in both themes.
+# written in a view): the place of the plot hiding the fewest points
+# (`legend_place.least_covered`), corners first. Inside the plot it never climbs into the
+# margin where the title and the toolbar live (R189, R476); a faint background keeps it
+# readable over a gridline in both themes.
 LEGEND_POSITION = dict(orientation="v", yanchor="top", y=1, xanchor="right", x=1,
                        bgcolor="rgba(127,127,127,0.12)")
-LEGEND_BELOW = dict(orientation="h", yref="container", yanchor="bottom", y=0,
-                    xanchor="left", x=0, bgcolor="rgba(0,0,0,0)")
-_BELOW_ROOM = 40  # px added to the bottom margin for the row
+_ANCHOR = {"top": 1, "bottom": 0, "middle": 0.5, "right": 1, "left": 0, "center": 0.5}
 
 
 def legend_position(fig) -> dict:
-    """Where the door puts this figure's legend (R565). Pure."""
-    from src.dashboard.utils.legend_place import empty_corner
-    corner = empty_corner(fig, _legend_would_show(fig))
-    if corner is None:
-        return LEGEND_BELOW
-    vert, horiz = corner.split()
-    return {**LEGEND_POSITION, "yanchor": vert, "y": 1 if vert == "top" else 0,
-            "xanchor": horiz, "x": 1 if horiz == "right" else 0}
+    """Where the door puts this figure's legend (R565, R574). Pure."""
+    from src.dashboard.utils.legend_place import least_covered
+    vert, horiz = least_covered(fig, _legend_would_show(fig))[0].split()
+    return {**LEGEND_POSITION, "yanchor": vert, "y": _ANCHOR[vert],
+            "xanchor": horiz, "x": _ANCHOR[horiz]}
 
 
 def _place_legend(fig) -> None:
-    pos = legend_position(fig)
-    fig.update_layout(legend=pos)
-    if pos is LEGEND_BELOW:
-        bottom = fig.layout.margin.b
-        fig.update_layout(margin_b=(80 if bottom is None else bottom) + _BELOW_ROOM)
+    fig.update_layout(legend=legend_position(fig))
 
 
 def apply_defaults(fig, *, pareto: bool | None = None):

@@ -1,4 +1,4 @@
-"""Where a legend can sit without hiding data: the emptiest corner of the plot (R565).
+"""Where a legend can sit hiding the least data: the least covered place of the plot (R565, R574).
 
 Type: Utility
 Uses: plotly figure objects (read only), pandas (date parsing)
@@ -8,9 +8,9 @@ Persists in: nothing
 Owner, 2026-10-15: « les légendes sont mal placées partout — un placement optimal
 calculé ». R536 had put every legend top-right, on the plot; a rising line or a Pareto's
 first bar lives exactly there. This module projects every visible point of every
-cartesian trace into the plot's unit square and answers which corner is EMPTY — or None,
-and the door then puts the legend below the plot. It returns a corner NAME, never a
-position: placing the legend stays the door's job (`tests/test_one_legend_position.py`).
+cartesian trace into the plot's unit square and answers which place hides the FEWEST
+points (R574: never below the plot — the owner wants it on the chart). It returns a place
+NAME, never a position: placing the legend stays the door's job (`tests/test_one_legend_position.py`).
 """
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ import math
 import pandas as pd
 
 CORNERS = ("top right", "top left", "bottom right", "bottom left")
+# R574: when every corner holds data, the edges' middles before giving up on emptiness
+PLACES = CORNERS + ("top center", "bottom center", "middle right", "middle left")
 _CARTESIAN = {"scatter", "scattergl", "bar"}
 _STEPS = 12  # points sampled per line segment / bar body
 
@@ -168,21 +170,26 @@ def paper_points(fig) -> list[tuple[float, float]]:
     return out
 
 
-def box(corner: str, entries: int) -> tuple[float, float, float, float]:
-    """(x0, x1, y0, y1) the legend covers in that corner, growing with its entries."""
+def box(place: str, entries: int) -> tuple[float, float, float, float]:
+    """(x0, x1, y0, y1) the legend covers at that place, growing with its entries."""
     w, h = 0.32, min(0.6, 0.08 * entries + 0.06)
-    x0, x1 = (1 - w, 1.0) if corner.endswith("right") else (0.0, w)
-    y0, y1 = (1 - h, 1.0) if corner.startswith("top") else (0.0, h)
-    return x0, x1, y0, y1
+    vert, horiz = place.split()
+    x0 = {"right": 1 - w, "left": 0.0, "center": 0.5 - w / 2}[horiz]
+    y0 = {"top": 1 - h, "bottom": 0.0, "middle": 0.5 - h / 2}[vert]
+    return x0, x0 + w, y0, y0 + h
 
 
-def empty_corner(fig, entries: int) -> str | None:
-    """The first corner (top right first) no data point falls in, or None. Pure."""
+def covered(pts: list[tuple[float, float]], place: str, entries: int) -> int:
+    """How many data points the legend would hide at that place. Pure."""
+    x0, x1, y0, y1 = box(place, entries)
+    return sum(1 for x, y in pts if x0 <= x <= x1 and y0 <= y <= y1)
+
+
+def least_covered(fig, entries: int) -> tuple[str, int]:
+    """The place on the plot hiding the fewest points, and that count (R574). Pure.
+
+    Owner, 2026-10-15: the legend sits ON the chart, « à l'endroit le moins gênant » —
+    never below it. Ties go to the earlier place in `PLACES` (corners first)."""
     pts = paper_points(fig)
-    if not pts and any(tr.type not in _CARTESIAN for tr in fig.data):
-        return "top right"
-    for corner in CORNERS:
-        x0, x1, y0, y1 = box(corner, entries)
-        if not any(x0 <= x <= x1 and y0 <= y <= y1 for x, y in pts):
-            return corner
-    return None
+    best = min(PLACES, key=lambda p: (covered(pts, p, entries), PLACES.index(p)))
+    return best, covered(pts, best, entries)

@@ -1,7 +1,7 @@
 """One legend PLACER for the whole app: the door (R536, computed corner since R565).
 
 Type: Test
-Uses: src.dashboard.utils.charts (apply_defaults, legend_position, LEGEND_BELOW)
+Uses: src.dashboard.utils.charts (apply_defaults, legend_position)
 
 Owner, 2026-10-12: « les légendes en haut à droite, sur le graphique, cohérent dans toute
 l'app ». On that day 31 local `legend=dict(...)` placements put it below, above, centred,
