@@ -20,29 +20,6 @@ from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
 from src.dashboard.auth import is_admin
 
-# R557 — the two settings the ad set holds and the breakdowns do not: button and objective.
-# Moved from the algo page's settings tab. `v_meta_ad_daily` carries no conversions, so these
-# are priced per AD click (said in the caption). Two literals, not one template:
-# `tools/dev/gold_coverage.py` reads the view name from each query's text.
-# Classe : `a-join-that-multiplies-the-grain` (the view names its tenant, migration 138).
-_Q_AXE = {
-    "cta": """
-        SELECT call_to_action AS valeur, COUNT(DISTINCT ad_id) AS ads,
-               SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions, campaign_name
-          FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1, campaign_name
-    """,
-    "objectif": """
-        SELECT objective AS valeur, COUNT(DISTINCT ad_id) AS ads,
-               SUM(spend) AS depense, SUM(clicks) AS clics,
-               SUM(impressions) AS impressions, campaign_name
-          FROM v_meta_ad_daily
-         WHERE artist_id = %s GROUP BY 1, campaign_name
-    """,
-}
-
-
 # Each metric gets its own Y-axis (scales differ wildly: € vs thousands of impressions).
 # (label, column, weekly-resample aggregation, colour, visible-by-default, derived)
 # Non-default metrics start as 'legendonly' → the chart opens readable; click the
@@ -636,78 +613,6 @@ def _render_one_creative(db, artist_id: int, creative: str, selected_campaign: s
         ).format(n=partial_weeks))
 
 
-def _render_best_settings(db, artist_id: int, bar, df: pd.DataFrame) -> None:
-    """R557 (owner Y2, fiches 36, 38, 53) — every setting the artist can change, one CPR panel
-    each. Replaces the spend × CPR cloud and the settings tab of the algo page: the same
-    question was answered three times, by eye each time.
-
-    R597 (owner, 2026-10-15) — the colours are the campaigns, named in the legend: the two
-    of the filter bar, or the two most recently launched when it says « Toutes ». The ad
-    set's optimisation panel left (owner: « supprime-le »).
-
-    The creative and hook panels follow the bar's period; country, placement, platform and
-    age come from Meta's breakdowns, which have no date (said in the caption)."""
-    from src.dashboard.utils import best_settings
-    from src.dashboard.utils.campaign_pair import PAIR_COLORS
-
-    compared = list(bar.scope or bar.campaigns[:2])
-    fig = best_settings.figure(_settings_panels(db, artist_id, bar, df, compared),
-                               colours=dict(zip(compared, PAIR_COLORS)))
-    if fig is None:
-        st.info(t("meta_creatives.bs_empty", "Pas encore assez de dépense mesurée pour "
-                  "comparer tes réglages."))
-        return
-    charts.plotly_chart(fig, width="stretch")
-    # R568 — the verdict lines went (the ★ says it); the caption stays as the chart's key.
-    st.caption(best_settings.caption())
-
-
-def _settings_panels(db, artist_id: int, bar, df: pd.DataFrame,
-                     compared: list[str]) -> list[tuple[str, pd.DataFrame]]:
-    """Every panel, ranked once per compared campaign (`best_settings.rank_by`)."""
-    from src.dashboard.utils.best_settings import rank_by
-    from src.dashboard.views.meta_breakdowns import _breakdown_frame, _panel
-
-    d = df[df["campaign_name"].isin(compared)]
-    hooks = pd.concat([_par_hook(g).assign(campaign_name=k)
-                       for k, g in d.groupby("campaign_name", sort=False)] or [pd.DataFrame()])
-    panels = [(t("meta_creatives.bs_creative", "Créative"),
-               rank_by(d, "creative_name", "campaign_name", "total_spend", "total_results")),
-              (t("meta_creatives.bs_hook", "Accroche"),
-               rank_by(hooks, "hook", "campaign_name", "total_spend", "total_results"))]
-    acct, acct_params = bar.acct()
-    frames = []
-    for c in compared:
-        bd = _breakdown_frame(db, artist_id, "performance", "campaign", "campaign_name", c,
-                              acct, acct_params)
-        # psycopg2 returns SUM() as Decimal (object dtype): `_panel` keeps only numeric
-        # columns when it folds placements into platforms, and would drop the spend.
-        for col in ("spend", "results"):
-            if col in bd:
-                bd[col] = pd.to_numeric(bd[col], errors="coerce")
-        frames.append((c, bd))
-    for panel, label in (("country", t("meta_creatives.bs_country", "Pays")),
-                         ("placement", t("meta_creatives.bs_placement", "Placement")),
-                         ("platform", t("meta_creatives.bs_platform", "Plateforme")),
-                         ("age", t("meta_creatives.bs_age", "Âge"))):
-        parts = [_panel(bd, panel).assign(campaign_name=c) for c, bd in frames if not bd.empty]
-        panels.append((label, rank_by(pd.concat(parts) if parts else pd.DataFrame(),
-                                      "dim_label", "campaign_name")))
-    return panels + _ad_setting_panels(db, artist_id, compared)
-
-
-def _ad_setting_panels(db, artist_id: int, compared: list[str]) -> list[tuple[str, pd.DataFrame]]:
-    """The settings chosen per ad: CTA and campaign objective, per compared campaign."""
-    from src.dashboard.utils.best_settings import rank_by
-    out = []
-    for axe, label in (("cta", t("meta_creatives.bs_cta", "Bouton d'action (€/clic)")),
-                       ("objectif", t("meta_creatives.bs_objective", "Objectif (€/clic)"))):
-        f = db.fetch_df(_Q_AXE[axe], (artist_id,))
-        f = f[f["campaign_name"].isin(compared)] if not f.empty else f
-        out.append((label, rank_by(f, "valeur", "campaign_name", "depense", "clics")))
-    return out
-
-
 # R568 — the ad set each creative ran in. Only the raw catalogue names it:
 # `v_meta_creative_daily` stops at the campaign. The tenant is named at every join.
 _QUERY_ADSETS = """
@@ -867,7 +772,7 @@ def _render_body(db, artist_id, bar) -> None:
     #
     # R568 — the banner, the exact table and « Une audience saturée ? » left; the spend
     # Pareto came out of its fold. On screen, in order: the ranking, the spend Pareto,
-    # the best settings, the timeline of one creative — four figures.
+    # the timeline of one creative — three figures (R598 moved the best settings).
     st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
     _render_ranking(df, pair)
 
@@ -875,10 +780,7 @@ def _render_body(db, artist_id, bar) -> None:
     st.subheader(t("meta_creatives.section_pareto", "💶 Où est passé l'argent"))
     _render_spend_pareto(db, artist_id, bar, df)
 
-    st.markdown("---")
-    st.subheader(t("meta_creatives.section_best", "🧪 Tes meilleurs réglages"))
-    _render_best_settings(db, artist_id, bar, df)
-    # R569 — the hooks fold left: the « Accroche » panel above draws hook × CPR, and its
-    # hover carries the spend each hook was judged on (« Sans hook » included).
+    # R598 (owner, 2026-10-15) — « Tes meilleurs réglages » left for the algo page
+    # (`trigger_algo/_settings.py`), with the pooled photo of the settings to keep.
 
     _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params, bar.window)

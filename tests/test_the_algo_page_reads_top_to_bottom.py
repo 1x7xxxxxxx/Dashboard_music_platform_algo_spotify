@@ -76,7 +76,9 @@ def test_no_table_is_read_on_the_algo_page(page) -> None:
 # R570 (2026-10-15): the markdown badges left with the per-playlist sections — the pill
 # is now the playlist's name drawn beside its gauges (`_release_targets._playlist_box`).
 # the Groover rate table put back → RED. (The settings chart moved to the cross view,
-# R557 — its guard is tests/test_the_best_settings_tool_ranks_every_setting.py.)
+# R557, and back here as its own section, R598 — its guards are
+# tests/test_the_best_settings_tool_ranks_every_setting.py and
+# tests/test_the_best_settings_live_on_the_algo_page.py.)
 
 def test_each_playlist_is_a_readable_pill(page) -> None:
     pills = [a.get("text", "") for chart in page.get("plotly_chart")

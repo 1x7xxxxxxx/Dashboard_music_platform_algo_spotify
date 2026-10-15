@@ -119,7 +119,7 @@ def _cleanup(db, tenants: list[int], ad_id: str, camp_id: str) -> None:
 def _surfaces(db, tenant: int) -> dict:
     """Every Meta surface of this class, through its OWN query and frame builder."""
     from src.dashboard.views import meta_ads_overview as mao
-    from src.dashboard.views.meta_creatives import _Q_AXE
+    from src.dashboard.utils.best_settings_data import _Q_AXE
 
     df_perf = db.fetch_df(mao._perf_query(""), (tenant,))
     return {
@@ -176,7 +176,7 @@ def _spend_snapshot(db) -> tuple[dict, dict]:
 @requires_live_db()
 def test_on_real_tenants_the_summary_and_the_axes_total_the_tenants_own_spend() -> None:
     from src.dashboard.views import meta_ads_overview as mao
-    from src.dashboard.views.meta_creatives import _Q_AXE
+    from src.dashboard.utils.best_settings_data import _Q_AXE
 
     db = _db()
     try:

@@ -3,7 +3,7 @@
 R570 (owner, 2026-10-15) : the releases picked in the catalogue drive the whole page —
 R579: a reference and a comparison filter, newest and second-newest by default. R587: one
 part, « Où en sont mes titres » — the « Une fois déclenché » entry is its own page. The title selectbox, the period filter, the per-track coach, the budget/ROI
-part and the CPR cards are gone.
+part and the CPR cards are gone. R598: the best Meta settings are its second part.
 """
 import streamlit as st
 
@@ -11,6 +11,7 @@ from src.dashboard.utils import view_session
 from src.dashboard.utils.i18n import t
 
 from ._forecast import show_forecast
+from ._settings import show_settings
 from ._sections import arrival_section, guide_sections_md, is_alias_arrival, section_label
 from ._tab_algo_streams import release_date
 from ._tab_catalogue import _show_tab_catalogue
@@ -89,6 +90,9 @@ def show():
         choix = _show_tab_catalogue(db, artist_id)
         # R584 — both titles on ONE forecast; R583 moved the estimates beside the gauges.
         show_forecast(db, artist_id, [(s_, release_date(db, artist_id, s_)) for s_ in choix])
+        # R598 — the best Meta settings of the campaigns run for these releases.
+        _section("reglages")
+        show_settings(db, artist_id, choix)
     # R587 (owner, 2026-10-15) : the « une fois déclenché » entry left for its own page.
     _entry_button()
 

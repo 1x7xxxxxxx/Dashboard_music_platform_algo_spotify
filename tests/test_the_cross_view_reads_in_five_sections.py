@@ -91,8 +91,9 @@ def test_the_settings_section_has_no_optimisation_panel() -> None:
     assert "_render_goal_pareto" not in {n.name for n in tree.body
                                          if isinstance(n, ast.FunctionDef)}
     import src.dashboard.views.meta_creatives as mc
+    import src.dashboard.utils.best_settings_data as bsd
     assert not hasattr(mc, "_Q_GOAL")
-    panels = _function(VIEWS / "meta_creatives.py", "_ad_setting_panels")
-    assert "_Q_AXE" in {n.id for n in ast.walk(panels) if isinstance(n, ast.Name)}
-    assert "objective" in mc._Q_AXE["objectif"]
-    assert all("campaign_name" in q for q in mc._Q_AXE.values())
+    # R598 — the panels moved to the algo page; their queries live with them.
+    assert set(bsd._Q_AXE) == {"cta", "objectif"}
+    assert "objective" in bsd._Q_AXE["objectif"]
+    assert all("campaign_name" in q for q in bsd._Q_AXE.values())

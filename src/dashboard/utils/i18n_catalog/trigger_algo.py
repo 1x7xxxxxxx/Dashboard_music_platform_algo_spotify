@@ -53,6 +53,9 @@ EN = {
         "not reliable). **Trust the %, not the € volume forecasts.**"
     ),
     "trigger_algo.guide_sections_head": "**🗂️ The parts of the page**",
+    "trigger_algo.guide_section_reglages": (
+        "the campaigns mapped to these tracks, setting by setting, and the photo of the "
+        "values to keep for the next one."),
     "trigger_algo.guide_section_catalogue": (
         "your two latest releases: their progress toward each playlist, what triggers it, "
         "what a trigger brings and the forecast of their streams."),
@@ -529,6 +532,12 @@ EN = {
     ),
     # ── 🎯 Où en sont mes titres (l'écran d'accueil, 2026-09-22) ─────────────
     "trigger_algo.tab_catalogue": "🎯 Where my tracks stand",
+    "trigger_algo.tab_reglages": "🧪 Your best Meta settings",
+    "trigger_algo.settings_scope": "{n} campaign(s) mapped to these tracks, {m} not mapped.",
+    "trigger_algo.settings_none": ("No Meta campaign mapped to these tracks — map them in "
+                                   "**🔗 Cross-platform mapping**."),
+    "trigger_algo.settings_photo": ("**📸 The photo of your optimal settings** — all these "
+                                    "campaigns together, the value to keep for each setting"),
     "trigger_algo.cat.admin": "Pick an artist to see their catalogue.",
     "trigger_algo.cat.unreadable": (
         "Catalogue unreadable right now — that is not the same as « no track »."),

@@ -88,7 +88,8 @@ _PITCH: tuple[tuple[str | None, str, str], ...] = (
     # ── Ce que l'abonnement ouvre en plus ────────────────────────────────────
     ("trigger_algo", "pitch.trigger",
      "🚀 **Savoir si un titre va déclencher Discover Weekly** — avant de dépenser "
-     "en promo"),
+     "en promo — et **la photo de tes réglages Meta optimaux** : chaque paramètre de "
+     "campagne et sa meilleure valeur"),
     ("revenue_forecast", "pitch.money",
      "💰 **Quand tu rentreras dans tes frais, et ce qu'un déclenchement te rapporterait** — "
      "la projection de ton point mort et la valeur d'un algo, en euros mesurés"),

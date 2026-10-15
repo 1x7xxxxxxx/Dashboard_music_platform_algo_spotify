@@ -36,7 +36,8 @@ EN = {
     "pitch.preview": ("🔓 **A preview of Road to Algo** on your latest release — the actions "
                       "to take and the budget to trigger the algorithms"),
     "pitch.trigger": ("🚀 **Know whether a track will trigger Discover Weekly** "
-                      "— before spending on promo"),
+                      "— before spending on promo — and **the photo of your optimal Meta "
+                      "settings**: every campaign setting and its best value"),
     "pitch.money": ("💰 **When you will break even, and what a trigger would bring you** — "
                     "the projection of your break-even and the value of an algorithm, "
                     "in measured euros"),

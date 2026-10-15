@@ -43,7 +43,6 @@ EN = {
     "meta_creatives.metric.cpr": "CPR (€)",
     "meta_creatives.unit_cpr": "Cost per result (€)",
     "meta_creatives.pair_caption": "Blue: « {a} » · orange: « {b} » · grey: a creative of both campaigns.",
-    'meta_creatives.section_best': '🧪 Your best settings',
     'meta_creatives.bs_creative': 'Creative',
     'meta_creatives.bs_hook': 'Hook',
     'meta_creatives.bs_country': 'Country',

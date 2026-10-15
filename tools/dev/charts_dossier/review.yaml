@@ -360,7 +360,7 @@ src/dashboard/views/meta_creatives.py::_render_one_creative#1:
   owner: "Tout regrouper sur un même graphique au lieu de quatre ; vérifier les chiffres."
   cause: graphique-vide-ou-axe-casse
   note: "Le panneau « Taux (%) » est vide ; CPR tracé à zéro sur l'échelle en euros. Trois panneaux pour ce qu'en dit un."
-src/dashboard/views/meta_creatives.py::_render_best_settings#1:
+src/dashboard/views/trigger_algo/_settings.py::show_settings#1:
   mq: M3
   q: "Quel réglage garder sur ma prochaine campagne ?"
   decision: "Savoir quelle créa, accroche, pays, placement, âge, bouton et objectif garder : le vert est le moins cher par clic sortant."

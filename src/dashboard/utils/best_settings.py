@@ -3,7 +3,7 @@
 Type: Utility
 Uses: pandas, plotly, src.dashboard.utils.meta_confidence, src.dashboard.utils.ratios,
       src.dashboard.utils.semantic_colors, src.dashboard.utils.i18n
-Triggers: views/meta_creatives.py (`_render_best_settings`)
+Triggers: views/trigger_algo/_settings.py (`show_settings`, R598)
 Persists in: nothing
 
 Owner's Y2 of 2026-10-13, fiches 36, 38 and 53: « un outil des meilleurs paramètres —
@@ -179,3 +179,31 @@ def caption() -> str:
         "intérêt. Bouton et objectif : au clic sur la pub (Meta n'y rattache pas les clics "
         "sortants).").format(
         dep=int(MIN_DEPENSE), res=MIN_RESULTS)
+
+
+def _named(value: str) -> str:
+    """A missing value (« ? », R598) is named, not shown as a question mark."""
+    return t("best_settings.unset", "non renseigné") if value in ("?", "", None) else value
+
+
+def photo_figure(photo: pd.DataFrame) -> go.Figure | None:
+    """The pooled photo (R598): one bar per setting — its best value's CPR, named on it,
+    and how much dearer the value to avoid is. A setting without a verdict stays, grey and
+    empty, saying so: an absent row would read as « nothing to change »."""
+    if photo is None or photo.empty:
+        return None
+    known = photo["cpr"].notna()
+    labels = [f"{r.parametre} : {r.meilleure}" for r in photo.itertuples()]
+    text = [(t("best_settings.photo_text", "{cpr:.2f} € · {f}× moins cher que « {e} »").format(
+                cpr=r.cpr, f=r.facteur, e=_named(r.eviter)) if r.facteur else f"{r.cpr:.2f} €")
+            if k else "" for r, k in zip(photo.itertuples(), known)]
+    fig = go.Figure(go.Bar(
+        x=photo["cpr"].fillna(0.0), y=labels, orientation="h", text=text,
+        textposition="outside", cliponaxis=False,
+        marker_color=[BON if k else NEUTRE for k in known],
+        hovertemplate="%{y}<br>%{text}<extra></extra>"))
+    fig.update_yaxes(autorange="reversed", automargin=True)
+    fig.update_xaxes(title=t("best_settings.photo_axis", "Coût par clic de la valeur à garder (€)"),
+                     range=[0, float(photo["cpr"].max() or 1) * 2.2])
+    fig.update_layout(height=80 + 38 * len(photo), showlegend=False, margin={"t": 20})
+    return fig

@@ -21,6 +21,11 @@ PAGE_SECTIONS = (
      "tes deux dernières sorties : leur avancement vers chaque playlist, ce qui la déclenche, "
      "ce qu'un déclenchement rapporte et la prévision de leurs écoutes."),
     # R587 — « Une fois déclenché » left for « 🎯 Saisie streams algorithmiques ».
+    # R598 (owner, 2026-10-15) — the best Meta settings came back from the cross view.
+    ("reglages", "trigger_algo.tab_reglages", "🧪 Tes meilleurs réglages Meta",
+     "trigger_algo.guide_section_reglages",
+     "les campagnes rattachées à ces titres, réglage par réglage, et la photo des valeurs "
+     "à garder pour la prochaine."),
 )
 
 # R553 (ADR-033) : `revenue_forecast` is no longer one — it is an alias of the Trésorerie.
@@ -28,7 +33,7 @@ PAGE_SECTIONS = (
 # section (the Trésorerie covers it); their keys stay routed — mails and PDFs link to
 # them — and open the page with NO section (None): the key's presence is the arrival.
 ALIAS_SECTION: dict[str, str | None] = {
-    "meta_campaign_settings": None,
+    "meta_campaign_settings": "reglages",  # R598 — the settings are back, as a section
     "meta_cpr_optimizer": None,  # R477 (W14)
 }
 

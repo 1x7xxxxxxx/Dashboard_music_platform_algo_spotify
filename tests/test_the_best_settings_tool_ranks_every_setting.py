@@ -57,8 +57,11 @@ def _defs(rel: str) -> set[str]:
 
 def test_the_three_old_answers_are_gone_and_the_tool_is_wired():
     cr = _defs("src/dashboard/views/meta_creatives.py")
-    assert {"_render_best_settings", "_render_spend_pareto", "_Q_AXE"} <= cr
+    assert "_render_spend_pareto" in cr
     assert not {"_render_scatter", "_render_activity", "_render_funnel"} & cr
+    # R598 (owner, 2026-10-15) moved the tool to the algo page: it is read there only.
+    assert not {"_render_best_settings", "_settings_panels", "_Q_AXE"} & cr
+    assert "_Q_AXE" in _defs("src/dashboard/utils/best_settings_data.py")
     # R570 (2026-10-15) deleted `trigger_algo/_tab_reglages.py`, the third old answer.
     assert not (ROOT / "src/dashboard/views/trigger_algo/_tab_reglages.py").exists()
 
@@ -68,7 +71,7 @@ def test_the_body_calls_the_tool():
     body = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
                 and n.name == "_render_body")
     calls = {ast.unparse(c.func) for c in ast.walk(body) if isinstance(c, ast.Call)}
-    assert {"_render_best_settings", "_render_spend_pareto"} <= calls, calls
+    assert "_render_spend_pareto" in calls and "_render_best_settings" not in calls, calls
 
 
 def test_each_panel_puts_the_value_to_keep_on_top():
