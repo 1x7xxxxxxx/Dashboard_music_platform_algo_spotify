@@ -1,7 +1,7 @@
 """trigger_algo — « Tes meilleurs réglages Meta » for the releases being judged (R598).
 
 Type: Sub
-Uses: src.dashboard.utils.best_settings, src.dashboard.utils.best_settings_data,
+Uses: src.dashboard.utils.best_settings, src.dashboard.views.trigger_algo._settings_data,
       src.dashboard.utils.campaign_compare (campaign_songs)
 Depends on: campaign_track_mapping, track_platform_link, the Meta views
 Persists in: nothing
@@ -13,7 +13,8 @@ drawn below it, pools every mapped campaign into one best value per setting.
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.utils import best_settings, best_settings_data, charts
+from src.dashboard.utils import best_settings, charts
+from src.dashboard.views.trigger_algo import _settings_data as best_settings_data
 from src.dashboard.utils.campaign_pair import PAIR_COLORS
 from src.dashboard.utils.i18n import t
 

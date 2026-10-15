@@ -198,7 +198,7 @@ def photo_figure(photo: pd.DataFrame) -> go.Figure | None:
                 cpr=r.cpr, f=r.facteur, e=_named(r.eviter)) if r.facteur else f"{r.cpr:.2f} €")
             if k else "" for r, k in zip(photo.itertuples(), known)]
     fig = go.Figure(go.Bar(
-        x=photo["cpr"].fillna(0.0), y=labels, orientation="h", text=text,
+        x=pd.to_numeric(photo["cpr"], errors="coerce").fillna(0.0), y=labels, orientation="h", text=text,
         textposition="outside", cliponaxis=False,
         marker_color=[BON if k else NEUTRE for k in known],
         hovertemplate="%{y}<br>%{text}<extra></extra>"))

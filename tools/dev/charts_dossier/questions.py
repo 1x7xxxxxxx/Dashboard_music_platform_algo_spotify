@@ -46,6 +46,12 @@ ROLE_LABEL = {"plateforme": "Plateforme (organique)", "archi": "DevOps / robuste
 _CR = "src/dashboard/views/meta_creatives.py::"
 _CAT = "src/dashboard/views/trigger_algo/_tab_catalogue.py::_show_tab_catalogue#"
 SHARED_REVIEWED: dict[frozenset, tuple[str, frozenset]] = {
+    frozenset({"src/dashboard/views/trigger_algo/_settings.py::show_settings#1",
+               "src/dashboard/views/trigger_algo/_settings.py::show_settings#2"}):
+        ("faux doublon — la grille compare les DEUX dernières campagnes valeur par valeur, "
+         "la photo réunit TOUTES les campagnes rattachées et ne garde que la meilleure "
+         "valeur de chaque réglage : deux périmètres, deux questions (R598, 2026-10-15).",
+         frozenset()),
     frozenset({"src/dashboard/utils/campaign_compare.py::_render_creative_funnel#1",
                "src/dashboard/utils/campaign_compare.py::_render_tracks#1"}):
         ("faux doublon — les barres disent, par titre, les écoutes gagnées par clic "

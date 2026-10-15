@@ -91,7 +91,7 @@ def test_the_settings_section_has_no_optimisation_panel() -> None:
     assert "_render_goal_pareto" not in {n.name for n in tree.body
                                          if isinstance(n, ast.FunctionDef)}
     import src.dashboard.views.meta_creatives as mc
-    import src.dashboard.utils.best_settings_data as bsd
+    import src.dashboard.views.trigger_algo._settings_data as bsd
     assert not hasattr(mc, "_Q_GOAL")
     # R598 — the panels moved to the algo page; their queries live with them.
     assert set(bsd._Q_AXE) == {"cta", "objectif"}

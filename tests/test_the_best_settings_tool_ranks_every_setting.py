@@ -61,7 +61,7 @@ def test_the_three_old_answers_are_gone_and_the_tool_is_wired():
     assert not {"_render_scatter", "_render_activity", "_render_funnel"} & cr
     # R598 (owner, 2026-10-15) moved the tool to the algo page: it is read there only.
     assert not {"_render_best_settings", "_settings_panels", "_Q_AXE"} & cr
-    assert "_Q_AXE" in _defs("src/dashboard/utils/best_settings_data.py")
+    assert "_Q_AXE" in _defs("src/dashboard/views/trigger_algo/_settings_data.py")
     # R570 (2026-10-15) deleted `trigger_algo/_tab_reglages.py`, the third old answer.
     assert not (ROOT / "src/dashboard/views/trigger_algo/_tab_reglages.py").exists()
 

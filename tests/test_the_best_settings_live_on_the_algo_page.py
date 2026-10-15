@@ -1,7 +1,7 @@
 """R598 — « Tes meilleurs réglages » live on the algo page, with the pooled photo.
 
 Type: Hook
-Depends on: src/dashboard/utils/best_settings_data.py, src/dashboard/utils/best_settings.py,
+Depends on: src/dashboard/views/trigger_algo/_settings_data.py, src/dashboard/utils/best_settings.py,
             src/dashboard/views/trigger_algo/{_settings,_sections,router}.py,
             src/dashboard/utils/plan_pitch.py
 
@@ -17,7 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.dashboard.utils import best_settings, best_settings_data
+from src.dashboard.utils import best_settings
+from src.dashboard.views.trigger_algo import _settings_data as best_settings_data
 from src.dashboard.views.trigger_algo._settings import linked_campaigns
 
 ROOT = Path(__file__).resolve().parents[1]
