@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R616 — REA·A1 — frontières entre couches imposées (leur `module-boundaries.mjs`) : MESURER ave… (livrée 2026-10-15)
+
+- [x] **R616 — REA·A1 — frontières entre couches imposées (leur `module-boundaries.mjs`) : MESURER avec import-linter en rapport les arcs montants (`src/utils/platform_probes.py`→dashboard, `src/api/deps.py`→dashboard…) → décider oui/non sur le long terme (critère ci-contre, écrit AVANT la mesure) → si oui, design revu par code-critic AVANT le code ; si non, clore avec la mesure **DÉCIDÉ OUI 2026-10-15** : 8 arcs montants (7 `src/utils`→dashboard dont 6 locaux, `src/api/deps.py:9`→`src.dashboard.utils` au niveau module), aucun justifié ; 3 DAGs hors périmètre. Critic BUILD-MODIFIED : AST sur `git ls-files`, `from src import dashboard` résolu, `from pkg import x` résolu au sous-module, niveau module/local dans la VALEUR du baseline (un local qui devient module rougit), jamais de scan de chaînes ; déplacements = ligne séparée** (P3) ✅ (2026-10-15, 481014c0, 690144b0)
+  Mesuré par : oui si ≥2 arcs non justifiés ; cliquet qui ne peut que descendre
+  Livré 481014c0 : tools/dev/layer_arcs.py + cliquet tests/test_layer_arcs_only_shrink.py, 8 arcs montants gelés (1 module, 7 locaux), muté rouge 5 fois. CI verte (run 38800953487). Retrait des arcs : R626.
+  Commits : 481014c0 R616 : cliquet des arcs montants entre couches de src/ — 8 aujourd'hui · 690144b0 R606 : livrable architecture REA contre la nôtre (13 axes, 7 mieux opt
+
 ## ✅ R623 — `permissions:` de `security-nightly.yml` — séparé de R607 par code-critic : seul `publi… (livrée 2026-10-15)
 
 - [x] **R623 — `permissions:` de `security-nightly.yml` — séparé de R607 par code-critic : seul `public-surface-sweep` déclare ses permissions, les autres jobs reçoivent le jeton par défaut. MESURER sur un vrai run de nuit ce que gitleaks-action écrit (commentaire, SARIF) → décider `contents: read` au niveau du fichier + exceptions par job → design revu par code-critic. **DÉCIDÉ OUI 2026-10-15** : jeton par défaut du dépôt = `read`, 3 dernières nuits vertes ; gitleaks n'écrit rien sur `schedule`. Critic BUILD-MODIFIED : `contents: read` en tête de ci.yml, prod-health.yml, security-nightly.yml ; `actions: read` par job là où la suite lit les runs ; garde yaml (formes scalaires, liste d'écriture par (fichier, scope), entrée périmée rouge)** (P2) ✅ (2026-10-15, 82da045a)
