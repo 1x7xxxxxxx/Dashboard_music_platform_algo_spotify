@@ -484,7 +484,10 @@ def _with_spotify_days(db, artist_id: int, daily: pd.DataFrame) -> pd.DataFrame:
             "SELECT song, day, streams FROM v_s4a_song_daily WHERE artist_id = %s "
             "AND song = ANY(%s) AND day >= %s AND song NOT ILIKE '%%1x7xxxxxxx%%'",
             (artist_id, sorted(songs["song"].unique()), start))
-        streams = songs.merge(per_song, on="song")[["campaign_name", "day", "streams"]]
+        # Two campaigns may share a song, and a song has many days: the grain is
+        # (campaign, day) by construction — declared, so a duplicate row would still raise below.
+        streams = songs.merge(per_song, on="song", validate="many_to_many")[
+            ["campaign_name", "day", "streams"]]
     for f in (aud, streams):
         f["day"] = pd.to_datetime(f["day"])
     out = daily.merge(aud, on="day", how="left", validate="many_to_one")

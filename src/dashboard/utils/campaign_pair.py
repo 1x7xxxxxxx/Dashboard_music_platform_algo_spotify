@@ -160,7 +160,7 @@ def _day0_titles() -> list[str]:
     return [t("campaign_pair.day0.spend_cum", "Dépense cumulée (€)"),
             t("campaign_pair.day0.clicks_cum", "Clics lien cumulés"),
             t("campaign_pair.day0.cpc_cum", "CPC cumulé (€)"),
-            t("campaign_pair.day0.cpr_cum", "CPR cumulé (€)"),
+            t("campaign_pair.day0.cpr_cum", "CPR cumulé (€ par clic sortant)"),
             t("campaign_pair.day0.listeners_cum", "Auditeurs cumulés (somme des jours, artiste)"),
             t("campaign_pair.day0.streams_cum", "Écoutes cumulées du titre")]
 
