@@ -62,6 +62,7 @@ EN = {
     "meta_creatives.tl_context": "{campaign} ({goal})",
     "meta_creatives.section_pareto": "💶 Where the money went",
     "meta_creatives.pareto_x": "Spend (€)",
+    "meta_creatives.pareto_cpr_scale": "CPR (€)",
     "meta_creatives.pareto_campaigns": "Campaigns",
     "meta_creatives.pareto_empty": "No campaign chosen.",
     "meta_creatives.bs_goal": "Ad set optimisation (€/outbound click)",

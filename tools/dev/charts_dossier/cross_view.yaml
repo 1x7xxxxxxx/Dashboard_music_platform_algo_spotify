@@ -38,7 +38,7 @@ src/dashboard/utils/campaign_compare.py::_render_creative_funnel#1:
 src/dashboard/views/meta_creatives.py::_render_ranking#1:
   draws: [créative · clics sortants, créative · CTR, créative · CPM, créative · CPC]
 src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
-  draws: [campagne › ad set › pub · dépense]
+  draws: [campagne › ad set › pub · dépense, campagne › ad set › pub · CPR (couleur)]
 src/dashboard/views/meta_creatives.py::_render_best_settings#1:
   draws: [créative · CPR, accroche · CPR, pays · CPR, placement · CPR, plateforme · CPR,
           âge · CPR, bouton d'action · CPR, objectif de campagne · CPR,

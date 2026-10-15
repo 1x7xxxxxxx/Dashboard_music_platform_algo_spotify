@@ -381,7 +381,7 @@ src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
   c: 4
   p: 4
   v: garder
-  note: "R557 (fiche 41) : Pareto dépense par créa (barres) et CPR (ligne) ; remplace la carte de chaleur créa × semaine."
+  note: "R596 : Pareto dépense par créa, chaque barre colorée par son CPR (vert = bon marché, rouge = cher), CPR écrit sur la barre ; R557 (fiche 41) remplaçait la carte de chaleur créa × semaine."
 src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
   mq: M5
   q: "Où se perdent les gens entre le budget et les revenus (budget → impressions → clics → smart link → plateformes → écoutes → revenus) ?"

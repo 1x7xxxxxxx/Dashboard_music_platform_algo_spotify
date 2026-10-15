@@ -738,32 +738,50 @@ def _pareto_frame(df: pd.DataFrame, adsets: pd.DataFrame) -> pd.DataFrame:
 
 
 def _pareto_figure(d: pd.DataFrame) -> go.Figure:
-    """Horizontal Pareto: most spent on top, one colour (one legend entry) per campaign."""
-    from src.dashboard.utils.platform_colors import DISTINCT
-    colour = {c: DISTINCT[i % len(DISTINCT)]
-              for i, c in enumerate(dict.fromkeys(d['campaign_name']))}
+    """Horizontal Pareto: most spent on top, each bar COLOURED by its CPR (R596).
+
+    Owner, 2026-10-15: « dépense ET CPR d'un coup d'œil » — the length is the money, the
+    colour is what it cost per result (green = cheap, red = dear), the CPR still written
+    on the bar. A bar with no CPR (no conversion goal) is grey, in its own trace."""
     up = d.iloc[::-1]
+    cpr = pd.to_numeric(up['cpr'], errors='coerce')
+    text = [f"{num(s, 0)} € · CPR {num(c, 3) + ' €' if pd.notna(c) else '—'}"
+            for s, c in zip(up['total_spend'], cpr)]
     fig = go.Figure()
-    # One trace per bar, least spent first: a category axis draws its first category at
-    # the BOTTOM, so the trace order IS the drawn order. `autorange="reversed"` plus one
-    # trace per campaign drew right, but the legend placer read another order and set the
-    # legend on the longest bar (R568, PNG read).
-    for camp, label, spend, cpr in zip(up['campaign_name'], up['label'],
-                                       up['total_spend'], up['cpr']):
+    known = cpr.notna().to_numpy()
+    if known.any():
         fig.add_trace(go.Bar(
-            x=[spend], y=[label], orientation='h', name=camp, legendgroup=camp,
-            showlegend=False, marker={'color': colour[camp]},
-            text=[f"{num(spend, 0)} € · CPR {num(cpr, 3) + ' €' if pd.notna(cpr) else '—'}"],
+            x=up['total_spend'][known], y=up['label'][known], orientation='h',
+            showlegend=False, text=[x for x, k in zip(text, known) if k],
             textposition='auto', cliponaxis=False,
+            # One dear outlier would wash every other bar green: the scale stops at the 9th
+            # decile, the bar past it simply reads as the reddest.
+            marker={'color': cpr[known], 'colorscale': 'RdYlGn_r', 'showscale': True,
+                    'cmin': 0, 'cmax': float(cpr[known].quantile(0.9)) or None,
+                    'colorbar': {'title': {'text': t("meta_creatives.pareto_cpr_scale",
+                                                     "CPR (€)")}, 'thickness': 12,
+                                 'x': 1.0, 'xanchor': 'left', 'xpad': 150}},
+            hovertemplate="%{y}<br>%{x:,.2f} € · CPR %{marker.color:,.3f} €<extra></extra>"))
+    if (~known).any():
+        fig.add_trace(go.Bar(
+            x=up['total_spend'][~known], y=up['label'][~known], orientation='h',
+            showlegend=False, text=[x for x, k in zip(text, known) if not k],
+            textposition='auto', cliponaxis=False, marker={'color': '#9E9E9E'},
             hovertemplate="%{y}<br>%{x:,.2f} €<extra></extra>"))
-    for tr in {tr.name: tr for tr in reversed(fig.data)}.values():
-        tr.showlegend = True  # the most spent bar of each campaign carries its entry
-    fig.update_yaxes(categoryorder="array", categoryarray=up['label'].tolist(),
-                     automargin=True)
+    # The full « campagne › ad set › pub » stays the category (unique) and the hover; the
+    # tick keeps its two ends, so a long ad set name no longer squeezes the bars away.
+    labels = up['label'].tolist()
+    fig.update_yaxes(categoryorder="array", categoryarray=labels, automargin=True,
+                     tickvals=labels, ticktext=[_short(x) for x in labels])
     fig.update_xaxes(title_text=t("meta_creatives.pareto_x", "Dépense (€)"), rangemode="tozero")
-    fig.update_layout(height=max(320, 30 * len(d) + 120), legend={'traceorder': 'reversed'},
-                      margin={'l': 10, 'r': 40, 't': 30, 'b': 40})
+    fig.update_layout(height=max(320, 30 * len(d) + 120), barmode='overlay',
+                      margin={'l': 10, 'r': 200, 't': 30, 'b': 40})
     return fig
+
+
+def _short(label: str, keep: int = 28) -> str:
+    """Both ends of a long label: the campaign it starts with, the ad it ends with."""
+    return label if len(label) <= 2 * keep + 1 else f"{label[:keep]}…{label[-keep:]}"
 
 
 def _render_spend_pareto(db, artist_id: int, bar, df: pd.DataFrame) -> None:
