@@ -18,6 +18,23 @@ si le total passe sous son plancher.
   Livré 82da045a : contents: read en tête de ci.yml, prod-health.yml, security-nightly.yml ; actions: read sur suite et full-suite-random-order ; garde yaml muté rouge 3 fois. CI 38792616208 verte, nuit dispatchée 38792620608 13/13 jobs verts (étapes comprises), prod-health 38792626594 verte.
   Commits : 82da045a R623 : chaque workflow porte sa borne de jeton — contents: read en têt
 
+## 🚫 R615 — REA sur un concurrent : décidée NON (close 2026-10-15)
+
+- [x] **R615 — REA·9 — utiliser REA sur un concurrent (Chartmetric, Songstats, Soundcharts).** (P4) ✅ (2026-10-15, décidée NON — CGU interdisent chez l'un, aucune question produit nommée)
+
+  **Critère écrit avant la mesure :** oui seulement si les CGU le permettent ET une
+  question produit est nommée.
+  **Mesure (CGU lues le 2026-10-15) :** Chartmetric (§12, « Last updated 2026 »)
+  interdit en toutes lettres « develop a competing product or reverse engineer
+  functionality » ; Soundcharts (Art. 5, 26 juin 2026) n'a pas de clause de
+  rétro-ingénierie mais interdit d'« exploit or communicate to third parties any
+  information » et tout usage commercial sans accord écrit — ambigu ; Songstats : page
+  rendue côté client, texte non obtenu — inconnu. `product-backlog.md` ne nomme aucune
+  question produit à laquelle l'analyse d'un concurrent répondrait.
+  **Les deux conditions échouent** : la première chez Chartmetric, la seconde partout.
+  **Réouverture :** une question produit nommée dans `product-backlog.md` ET un
+  concurrent dont les CGU, lues en entier, ne l'interdisent pas.
+
 ## 🚫 R613 — Tests à côté du code : décidée NON (close 2026-10-15)
 
 - [x] **R613 — REA·7 — tests à côté du code plutôt que sous `tests/`.** (P4) ✅ (2026-10-15, décidée NON — gain plafond 11 % contre un seuil de 20 %)
