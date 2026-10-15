@@ -11,6 +11,69 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R604 — Statusline — le nombre de tâches de roadmap encore ouvertes (les deux tables, le même c… (livrée 2026-10-15)
+
+- [x] **R604 — Statusline — le nombre de tâches de roadmap encore ouvertes (les deux tables, le même compte que `make night-status`), à côté de « non commité(s) · non poussé(s) »** (P4) ✅ (2026-10-15, fae3d387)
+  Mesuré par : test : « N tâche(s) roadmap » rendu, compte = night_run._open_tasks
+  Livré fae3d387 — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : fae3d387 R604 : Statusline — « N tâche(s) roadmap » à côté des non commités / n
+
+## ✅ R603 — Couleurs — une couleur par type de donnée dans toute l'app (campagne 1/2 bleu/jaune, cr… (livrée 2026-10-15)
+
+- [x] **R603 — Couleurs — une couleur par type de donnée dans toute l'app (campagne 1/2 bleu/jaune, créas, titres, playlists, mesures) ; registre unique + livrable `revue/couleurs.md` ; la prévision suit le registre** (P3) ✅ (2026-10-15, 56094651)
+  Mesuré par : test : aucune vue ne choisit une couleur hors registre pour un type déclaré
+  Livré 56094651 — registre TYPE_COLOURS, cliquet hex 171/30 fichiers, gardes mutés deux fois — CI verte (run 38760487575), déployée en prod 2026-10-15 (health 200)
+  Commits : 56094651 R603 : registre TYPE_COLOURS dans platform_colors (campagnes bleu/jaun
+
+## ✅ R602 — Prédiction algos — graphique des valeurs : nom des playlists à GAUCHE dans la même past… (livrée 2026-10-15)
+
+- [x] **R602 — Prédiction algos — graphique des valeurs : nom des playlists à GAUCHE dans la même pastille « déclenché par » que les jauges ; la verticale pointillée de droite nommée « 100 % = déclenche »** (P3) ✅ (2026-10-15, c47940eb, 3d775a4d)
+  Mesuré par : test : pastilles à gauche, annotation sur la verticale
+  Livré 3d775a4d + c47940eb — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : c47940eb R602 : le domaine de chaque rangée lu par fig.get_subplot — l'axe cons · 3d775a4d R600 + R602 : Prédiction algos — « déclenché par — poids principaux de
+
+## ✅ R601 — Prédiction algos — Release Radar : la courbe de cohorte ne retombe pas après le 1er moi… (livrée 2026-10-15)
+
+- [x] **R601 — Prédiction algos — Release Radar : la courbe de cohorte ne retombe pas après le 1er mois comme DW et Radio — cause à lire dans les données puis correctif** (P3) ✅ (2026-10-15, bf71c916)
+  Mesuré par : test qui rougit sur la cause trouvée
+  Livré bf71c916 — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : bf71c916 R601 : Prédiction algos — Release Radar retombe à 0 après le 1er mois 
+
+## ✅ R600 — Prédiction algos — « poids valeur » renommé « poids principaux des modèles de machine l… (livrée 2026-10-15)
+
+- [x] **R600 — Prédiction algos — « poids valeur » renommé « poids principaux des modèles de machine learning » ; pastilles bleu/jaune/rouge alignées sur leur rangée de jauges** (P3) ✅ (2026-10-15, 3d775a4d)
+  Mesuré par : test : centre vertical de chaque pastille = centre de sa rangée
+  Livré 3d775a4d — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : 3d775a4d R600 + R602 : Prédiction algos — « déclenché par — poids principaux de
+
+## ✅ R599 — Filtres — sortie de référence et « comparer à » l'un AU-DESSUS de l'autre (cohérence de… (livrée 2026-10-15)
+
+- [x] **R599 — Filtres — sortie de référence et « comparer à » l'un AU-DESSUS de l'autre (cohérence de tous les filtres de l'app)** (P3) ✅ (2026-10-15, 69f54203)
+  Mesuré par : test : les deux sélecteurs hors colonnes, référence d'abord
+  Livré 69f54203 — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : 69f54203 R599 : Filtres — sortie de référence et « comparée à » l'une AU-DESSUS
+
+## ✅ R598 — Meilleurs réglages déplacés dans Prédiction algos, avec la « photo » des réglages Meta… (livrée 2026-10-15)
+
+- [x] **R598 — Meilleurs réglages déplacés dans Prédiction algos, avec la « photo » des réglages Meta optimaux : chaque paramètre modifiable d'une campagne et sa meilleure valeur ; offre décrite sur Facturation & abonnement** (P3) ✅ (2026-10-15, 5a4ab72d, 7503cbb9)
+  Mesuré par : test : la page Prédiction rend les réglages, la vue croisée non, l'offre les cite
+  Livré 7503cbb9 + 5a4ab72d (données dans le paquet de la page, « non renseigné ») — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : 5a4ab72d R598 : données des réglages descendues dans le paquet de la page (view · 7503cbb9 R598 : Meilleurs réglages déplacés dans Prédiction algos (section Régl
+
+## ✅ R597 — Meilleurs réglages — couleurs = campagnes avec leur légende, filtre deux campagnes à co… (livrée 2026-10-15)
+
+- [x] **R597 — Meilleurs réglages — couleurs = campagnes avec leur légende, filtre deux campagnes à comparer ; panneau « optimisation de l'ad set » supprimé** (P3) ✅ (2026-10-15, 6bd6cb44, 240bf9b2, 9cef597b)
+  Mesuré par : test : légende des campagnes, plus de panneau d'optimisation
+  Livré 9cef597b, 240bf9b2, 6bd6cb44 — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : 6bd6cb44 R597 : v_meta_adset_daily déclarée retirée par la migration 152 dans l · 240bf9b2 R597 : v_meta_adset_daily retirée (migration 152) — le panneau « Optim · 9cef597b R597 : Meilleurs réglages — une couleur par campagne, nommée en légend
+
+## ✅ R592 — Glossaire — vue « 📖 Glossaire » dans Compte, juste après Mon compte : schéma du fonctio… (livrée 2026-10-15)
+
+- [x] **R592 — Glossaire — vue « 📖 Glossaire » dans Compte, juste après Mon compte : schéma du fonctionnement de l'app + toutes les définitions techniques ; livrable `revue/glossaire-inventaire.md` : chaque définition trouvée dans les vues, et la preuve qu'aucune vue ne garde de prose explicative** (P3) ✅ (2026-10-15, 97ec5f96, c384f0ed)
+  Mesuré par : test : vue routée après Mon compte, chaque terme de l'inventaire défini, garde « pas de prose de définition dans les vues »
+  Livré c384f0ed + 97ec5f96 (gratuit, hors PDF, ordre ALGO_ORDER) — CI verte (run 38758374431), déployée en prod 2026-10-15 (health 200)
+  Commits : 97ec5f96 R592 : Glossaire ouvert à tous (ALWAYS_ACCESSIBLE), hors PDF, nommé da · c384f0ed R592 : vue 📖 Glossaire dans Compte après Mon compte — schéma du foncti
+
 ## ✅ R596 — Vue croisée — « où est passé l'argent » : dépense ET CPR d'un coup d'œil (barres de dép… (livrée 2026-10-15)
 
 - [x] **R596 — Vue croisée — « où est passé l'argent » : dépense ET CPR d'un coup d'œil (barres de dépense colorées par CPR, CPR écrit)** (P3) ✅ (2026-10-15, c9f38f48)
