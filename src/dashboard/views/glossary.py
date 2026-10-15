@@ -39,7 +39,7 @@ def flow_dot() -> str:
 def show() -> None:
     st.title(t("glossary.title", "📖 Glossaire"))
     st.subheader(t("glossary.flow_title", "Comment marche l'app"))
-    st.graphviz_chart(flow_dot(), use_container_width=True)
+    st.graphviz_chart(flow_dot(), width="stretch")
     st.subheader(t("glossary.terms_title", "Les mots de l'app"))
     for label, keys in glossary.by_group():
         with st.expander(label, expanded=False):

@@ -165,6 +165,8 @@ ALWAYS_ACCESSIBLE = {
     # `test_the_plan_pitch_matches_the_gate.py:151` exigerait en plus
     # qu'elle figure dans l'argumentaire d'abonnement, ce qu'elle n'est pas.
     'service',
+    # `glossary` (R592) : définir un mot ne se vend pas — la page explique l'app à tous.
+    'glossary',
     'account', 'billing', 'process_guide', 'onboarding', 'onboarding_health',
 }
 

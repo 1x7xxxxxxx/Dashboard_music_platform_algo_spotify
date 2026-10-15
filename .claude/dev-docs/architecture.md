@@ -341,6 +341,7 @@ After a 429 DAG failure : wait **minimum 30 minutes** before manual retrigger. T
 | `sacem.py` | 🎼 SACEM — SECTION de `imusician` depuis R461 (`?page=sacem` est un alias) : brut → retenues → net, virements, relevé | sacem_statement | all |
 | `data_wrapped.py` | 🎁 Data Wrapped — saisie des métriques S4A annuelles et courbes d'évolution — **hors navigation** : absente de `NAV_SECTIONS`, atteinte par sa seule route (`app.py:590`) | artist_wrapped | all |
 | `account.py` | 👤 Mon compte — mot de passe, consentements, export de données | saas_users, saas_artists | all |
+| `glossary.py` | 📖 Glossaire — schéma du fonctionnement de l'app + définition de chaque mot technique (R592) | none (`utils/glossary.py`) | all |
 | `referral.py` | 🎁 Parrainage — page côté artiste | referral_codes, referral_events | all |
 | `service.py` | 🎯 Faire piloter mes campagnes — la prestation HUMAINE, trois options en colonnes, prix en bas (Enns p. 29). Chaque livrable déclare son agent : 🙋 l'exploitant / ⚙️ l'outil. Gratuite d'accès — faire payer le droit de lire une offre n'aurait pas de sens ; la grille de prix, elle, reste masquée tant que les trois ne sont pas posés | `app_settings` (3 prix + lien de rendez-vous), aucune donnée d'artiste | all |
 | `upgrade.py` | Paywall de comparaison des plans — **hors navigation**, affichée quand une fonctionnalité verrouillée est cliquée | PLAN_FEATURES, PLAN_RANK | all |

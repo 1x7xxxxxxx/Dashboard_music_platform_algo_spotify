@@ -58,6 +58,8 @@ _PDF_MAP = {
     "soundcloud":           "soundcloud_detail",
     "hypeddit":             "hypeddit",
     "trigger_algo":         "songs",
+    # R592 — the glossary defines words; a report has no use for it.
+    "glossary":             None,
     "meta_ads_overview":    "meta",
     "imusician":            "roi",
     # R405 (2026-10-05): `meta_campaign_settings` and `revenue_forecast` left the menu —

@@ -17,6 +17,7 @@ what the inventory looks for in the views' text (case-insensitive regexes).
 from __future__ import annotations
 
 from src.dashboard.utils.i18n import t
+from src.utils.algo_order import ALGO_ORDER
 
 GROUPS = (
     ("algo", "🎚️ Algorithmes Spotify"),
@@ -26,16 +27,21 @@ GROUPS = (
     ("data", "🗄️ Données"),
 )
 
-TERMS: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
-    ("dw", "algo", "Discover Weekly (DW)",
+# The three algorithms, read in the one order (src.utils.algo_order.ALGO_ORDER).
+_ALGOS = {
+    "DW": ("dw", "algo", "Discover Weekly (DW)",
      "Playlist personnelle hebdomadaire envoyée à des auditeurs qui ne te connaissent pas "
      "encore : la découverte pure, la porte la plus dure à ouvrir.", (r"discover weekly",)),
-    ("radio", "algo", "Radio",
+    "RADIO": ("radio", "algo", "Radio",
      "Flux algorithmique sans fin qui enchaîne des titres similaires : le signe que Spotify "
      "te juge fiable pour nourrir ses recommandations.", (r"\bradio\b",)),
-    ("rr", "algo", "Release Radar (RR)",
+    "RR": ("rr", "algo", "Release Radar (RR)",
      "Playlist hebdomadaire poussée à tes abonnés à chaque sortie, pendant environ quatre "
      "semaines.", (r"release radar",)),
+}
+
+TERMS: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = tuple(
+    _ALGOS[a] for a in ALGO_ORDER) + (
     ("trigger", "algo", "Déclenchement",
      "Le moment où une playlist algorithmique se met à pousser un titre : ses écoutes "
      "dépassent le seuil qu'elle produit d'elle-même.", (r"d[ée]clench",)),
