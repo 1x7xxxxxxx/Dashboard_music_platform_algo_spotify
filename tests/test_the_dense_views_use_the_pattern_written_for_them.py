@@ -27,9 +27,10 @@ VIEWS = REPO / "src/dashboard/views"
 # sections, every element of which they NAMED as visible (gauges, SHAP bars, estimates,
 # forecast) — ≈6 figures for two releases. Its two `secondary_analyses` sites lived in
 # `_tab_titre.py` and `_tab_reglages.py`, both deleted with the sections they collapsed.
+# R569 (2026-10-15) retired `meta_creatives` the same way: the hooks fold — its only
+# `secondary_analyses` site — and the CPR/spend frames left as duplicates; 4 figures remain.
 _DENSE = {
     "data_wrapped": "9 figures",
-    "meta_creatives": "8 figures",
     "meta_ads_overview": "8 figures",
     "revenue_forecast": "6 figures",
 }

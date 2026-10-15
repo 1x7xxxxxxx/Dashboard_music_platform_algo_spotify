@@ -117,15 +117,6 @@ src/dashboard/views/meta_creatives.py::_render_ranking#1:
   - qui: moi
     texte: Streams par créa si non redondant, décision écrite
     rid: R246
-src/dashboard/views/meta_creatives.py::_render_hooks#1:
-  valide: false
-  actions:
-  - qui: moi
-    texte: Retirer les notes /5 du dossier
-    rid: R240
-  - qui: moi
-    texte: Juger le doublon avec 29, décision écrite ou retrait
-    rid: R246
 src/dashboard/views/meta_creatives.py::_render_one_creative#1:
   valide: false
   actions:

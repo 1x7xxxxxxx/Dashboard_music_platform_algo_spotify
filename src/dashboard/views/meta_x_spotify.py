@@ -78,7 +78,6 @@ import streamlit as st
 from src.dashboard.utils import charts
 from src.dashboard.utils.formats import eur, num
 from src.dashboard.utils.i18n import t
-from plotly.subplots import make_subplots
 
 from src.dashboard.utils.campaign_funnel import (
     BASELINE_DAYS, BASELINE_MIN_DAYS, MIN_PAIRED_DAYS, campaign_treasury,
@@ -88,10 +87,6 @@ from src.dashboard.utils.platform_colors import PALETTE_DARK, PALETTE_LIGHT
 from src.dashboard.utils.ratios import per, per_series
 from src.dashboard.utils.date_format import format_date
 
-# L'encre du TROISIÈME axe — le coût par écoute, qui n'appartient à aucune
-# plateforme. Elle n'est utilisée par aucune série de l'axe principal : c'est ce
-# qui permet de voir, sans lire la légende, quelle marque se lit à droite.
-_CROSS_INK = "#6d4c41"
 
 def _palette() -> dict:
     """La palette du thème du VISITEUR, avec un repli clair — jamais une exception.
@@ -786,33 +781,28 @@ def render_countries(db, artist_id, acct, acct_p) -> None:
     meta["cpr"] = per_series(meta["spend"], meta["results"])
     # R558 (fiche 45, owner 2026-10-13 : « me placer par Pareto en fonction de l'euro par
     # écoute, comme ça ce serait le premier facteur à focus ») — the 15 most spent
-    # countries, CHEAPEST STREAM FIRST; the CPR rides along as a line. A country under the
+    # countries, CHEAPEST STREAM FIRST. A country under the
     # spend floor keeps its place in the order but is drawn grey: its ratio proves nothing.
+    # R569 — the CPR line left for the hover: « Tes meilleurs réglages » (Créas) draws
+    # country × CPR; drawn here too, one datum had two charts.
     meta = countries_order(meta)
     sur = meta["spend"] >= _PLANCHER
     pal = _palette()
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Bar(
+    fig = go.Figure(go.Bar(
         x=[p if ok else f"{p} ⚠️" for p, ok in zip(meta["pays"], sur)],
         y=meta["cout_par_ecoute"], name=t("meta_x_spotify.c_cost", "€ par écoute"),
         marker_color=[pal["meta"] if ok else "#bdbdbd" for ok in sur],
-        customdata=meta[["spend", "streams"]].values,
+        customdata=meta[["spend", "streams", "cpr"]].values,
         hovertemplate=t("meta_x_spotify.c_hover",
                         "%{x}<br>%{y:.4f} € par écoute<br>%{customdata[0]:,.0f} € dépensés"
-                        " · %{customdata[1]:,.0f} écoutes<extra></extra>")),
-        secondary_y=False)
-    fig.add_trace(go.Scatter(
-        x=[p if ok else f"{p} ⚠️" for p, ok in zip(meta["pays"], sur)], y=meta["cpr"],
-        mode="lines+markers", name=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
-        line=dict(color=_CROSS_INK, width=2), connectgaps=False), secondary_y=True)
+                        " · %{customdata[1]:,.0f} écoutes")
+        + t("meta_x_spotify.c_hover_cpr",
+            "<br>CPR (€/clic sortant) : %{customdata[2]:.3f} €<extra></extra>")))
     # R568 : the banner and the caption are gone — the axis names the stream source
     # (the distributor: S4A has no country split) and grey bars carry the spend floor.
     fig.update_yaxes(title_text=t("meta_x_spotify.c_cost_src",
                                   "€ par écoute (écoutes iMusician, toutes plateformes)"),
-                     rangemode="tozero", secondary_y=False)
-    fig.update_yaxes(title_text=t("meta_x_spotify.c_cpr", "CPR (€/clic sortant)"),
-                     showgrid=False, rangemode="tozero", title_font=dict(color=_CROSS_INK),
-                     tickfont=dict(color=_CROSS_INK), secondary_y=True)
+                     rangemode="tozero")
     fig.update_layout(height=480, hovermode="x unified", margin=dict(b=110))
     fig.update_xaxes(tickangle=-35)
     charts.plotly_chart(fig, width="stretch")

@@ -18,7 +18,6 @@ from src.dashboard.utils.campaign_pair import pair_colors
 from src.dashboard.utils.creative_decisions import _a_couper, by_creative, render_creative_gain  # noqa: F401 — R233: moved out, still importable from here
 from src.dashboard.utils.proxy_disclosure import disclosure_caption
 from src.dashboard.utils.meta_confidence import K_DEFAUT, confidence_factor
-from src.dashboard.utils.ui import secondary_analyses
 from src.dashboard.auth import is_admin
 
 # R557 — the two settings the ad set holds and the breakdowns do not: button and objective.
@@ -304,8 +303,8 @@ def _le_plus_sur(d: pd.DataFrame, col_cpr: str = 'cpr') -> pd.Series | None:
 # `plus_bas_est_mieux` n'est vrai que pour un COÛT : c'est ce qui décide du sens
 # du tri et de la couleur du meilleur.
 _RANG_PANNEAUX = [
-    ("CPR (€)",       'cpr',           "{:.3f}", "#ff6b35", True),
-    ("Dépense (€)",   'total_spend',   "{:.0f}", "#7f7f7f", False),
+    # R569 — CPR and spend left: « Tes meilleurs réglages » draws creative × CPR and the
+    # spend Pareto creative × spend. One datum, one chart.
     ("Résultats",     'total_results', "{:.0f}", "#2ca02c", False),
     ("CTR (%)",       'avg_ctr',       "{:.2f}", "#e6b800", False),
     # R299 — CPM and CPC came from « Efficacité par créative », a second chart of the same
@@ -317,7 +316,7 @@ _RANG_MAX = 15
 
 
 def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
-    """Le classement des créatives — SIX cadres (quatre, plus CPM et CPC depuis R299), un par unité, noms en Y.
+    """Le classement des créatives — QUATRE cadres (résultats, CTR, CPM, CPC — R569), un par unité, noms en Y.
 
     ⚠️ Remplace un `st.dataframe` de huit colonnes, à la demande du propriétaire
     le 2026-09-21 : « montre-moi le classement par comparaison graphique plutôt
@@ -342,7 +341,7 @@ def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
         return
     d = d.nlargest(_RANG_MAX, 'total_spend')
     # R243 (fiche 29) : trié par l'étape choisie, le MEILLEUR EN HAUT (Plotly empile du bas).
-    tri = st.segmented_control(t("meta_creatives.rank_sort", "Trier par"), [c[1] for c in _RANG_PANNEAUX], format_func=dict((c[1], c[0]) for c in _RANG_PANNEAUX).get, default='cpr', key="rank_sort") or 'cpr'
+    tri = st.segmented_control(t("meta_creatives.rank_sort", "Trier par"), [c[1] for c in _RANG_PANNEAUX], format_func=dict((c[1], c[0]) for c in _RANG_PANNEAUX).get, default='total_results', key="rank_sort") or 'total_results'
     d = d.sort_values(tri, ascending=not dict((c[1], c[4]) for c in _RANG_PANNEAUX)[tri], na_position='first')
     noms = d['creative_name'].tolist()
 
@@ -370,51 +369,6 @@ def _render_ranking(df: pd.DataFrame, pair: tuple | None = None) -> None:
         st.caption(t("meta_creatives.pair_caption",
                      "Bleu : « {a} » · orange : « {b} » · gris : une créative des deux "
                      "campagnes.").format(a=pair[0], b=pair[1]))
-
-
-def _render_hooks(df: pd.DataFrame) -> None:
-    """Quel hook convertit — et sur combien d'argent il a été jugé.
-
-    DEUX cadres, et le second n'est pas décoratif : il porte la dépense qui
-    soutient chaque coût. Sans lui, « Sans hook » gagnerait à l'œil (0,104 €)
-    alors qu'il a été jugé sur 69 € contre 846 € pour « Hook 1 ».
-    """
-    from plotly.subplots import make_subplots
-
-    depense_totale = float(_numerise(df)['total_spend'].sum())
-    hooks = _par_hook(df)
-    if hooks.empty or len(hooks) < 2:
-        st.info(t(
-            "meta_creatives.hooks_absent",
-            "Tes titres de créatives ne nomment pas (encore) de hook. Nomme-les "
-            "« Hook 1 — … », « Hook 2 — … », « Sans hook — … » : cette figure "
-            "comparera alors le coût par résultat de chaque accroche."))
-        return
-    h = hooks.sort_values('cpr', ascending=False, na_position='first')
-    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.06,
-                        subplot_titles=[t("meta_creatives.hook_cpr", "Coût par résultat (€)"),
-                                        t("meta_creatives.hook_spend", "Dépense jugée (€)")])
-    fig.add_trace(go.Bar(x=h['cpr'], y=h['hook'], orientation='h',
-                         marker={'color': "#ff6b35"}, showlegend=False,
-                         text=[f"{v:.3f}" if pd.notna(v) else "—" for v in h['cpr']],
-                         textposition='outside', cliponaxis=False), row=1, col=1)
-    fig.add_trace(go.Bar(x=h['total_spend'], y=h['hook'], orientation='h',
-                         marker={'color': "#7f7f7f"}, showlegend=False,
-                         text=[f"{v:.0f} €" for v in h['total_spend']],
-                         textposition='outside', cliponaxis=False), row=1, col=2)
-    fig.update_xaxes(showticklabels=False)
-    fig.update_layout(height=max(260, 46 * len(h) + 120),
-                      margin={'l': 10, 'r': 40, 't': 60, 'b': 20})
-    fig.update_yaxes(automargin=True)
-    # R557 — folded under the best-settings tool, whose « Accroche » panel gives the verdict;
-    # this figure keeps the spend each hook was judged on.
-    # R568 — the caption went; the share of spend the names do not label stays said, in
-    # the fold's title (see `_HOOK_NONE`: an unlabelled half of the money is never hidden).
-    part = (float(hooks['total_spend'].sum()) / depense_totale * 100) if depense_totale else 0.0
-    with secondary_analyses(t("meta_creatives.hooks_expander",
-                              "🎣 Le détail des accroches — {part:.0f} % de la dépense porte "
-                              "un hook nommé").format(part=part)):
-        charts.plotly_chart(fig, width="stretch")
 
 
 # The timeline of ONE creative: counts only. CTR and CPR are not fetched — they are
@@ -896,7 +850,7 @@ def _render_body(db, artist_id, bar) -> None:
     #
     # R568 — the banner, the exact table and « Une audience saturée ? » left; the spend
     # Pareto came out of its fold. On screen, in order: the ranking, the spend Pareto,
-    # the best settings (hooks folded), the timeline of one creative — four figures.
+    # the best settings, the timeline of one creative — four figures.
     st.subheader(t("meta_creatives.section_ranking", "🏁 Le classement de tes créatives"))
     _render_ranking(df, pair)
 
@@ -907,6 +861,7 @@ def _render_body(db, artist_id, bar) -> None:
     st.markdown("---")
     st.subheader(t("meta_creatives.section_best", "🧪 Tes meilleurs réglages"))
     _render_best_settings(db, artist_id, bar, df)
-    _render_hooks(df)
+    # R569 — the hooks fold left: the « Accroche » panel above draws hook × CPR, and its
+    # hover carries the spend each hook was judged on (« Sans hook » included).
 
     _tab_creative_timeline(selected_campaign, _acct_ma, _acct_params, bar.window)

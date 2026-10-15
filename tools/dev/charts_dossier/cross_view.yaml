@@ -1,0 +1,68 @@
+# R569 — what each figure of the cross view draws, as (dimension · metric) pairs.
+# Read by tools/dev/charts_dossier/cross_view.py; the walk from the five sections makes this
+# list exhaustive (a new figure fails until declared) and never stale (a removed one fails
+# until its entry goes). A pair named twice is a duplicate unless one site renders
+# `instead_of` the other. Owner, 2026-10-15: « une donnée = un graphique ».
+
+# ── 📈 Chronologie ──────────────────────────────────────────────────────────────
+src/dashboard/views/meta_ads_overview.py::_render_timeline#1:
+  draws: [jour · écoutes / jour, jour · auditeurs / jour, jour · shazams / jour,
+          jour · clics sortants / jour, jour · budget Meta / jour, jour · CPR]
+src/dashboard/views/meta_ads_overview.py::_render_effect_duration#1:
+  draws: [jours depuis le 1er euro · indice d'écoutes (100 = 28 j avant)]
+src/dashboard/views/spotify_s4a_combined.py::render_release_cohort#1:
+  draws: [âge de la sortie · écoutes cumulées]
+
+# ── 🛤️ Entonnoir ────────────────────────────────────────────────────────────────
+src/dashboard/views/meta_x_spotify.py::_render_funnel#1:
+  draws: [étape de l'entonnoir · volume]
+src/dashboard/views/meta_x_spotify.py::_render_pair#1:
+  draws: [étape de l'entonnoir · volume]
+  instead_of: src/dashboard/views/meta_x_spotify.py::_render_funnel#1   # two campaigns chosen
+src/dashboard/views/meta_ads_overview.py::_render_global_perf#1:
+  draws: [campagne · dépense, campagne · impressions, campagne · clics lien]
+src/dashboard/views/meta_ads_overview.py::_render_global_perf#2:
+  draws: [campagne · CPM, campagne · CPC, campagne · CPR]
+src/dashboard/utils/campaign_pair.py::render_day0#1:
+  draws: [jours depuis J0 · dépense cumulée, jours depuis J0 · clics cumulés,
+          jours depuis J0 · CPC cumulé]
+src/dashboard/utils/campaign_compare.py::render#1:
+  draws: [campagne · € par écoute gagnée]
+src/dashboard/utils/campaign_compare.py::_render_tracks#1:
+  draws: [titre · écoutes gagnées par clic]
+src/dashboard/utils/campaign_compare.py::_render_creatives#1:
+  draws: [créa seule dans sa campagne · € par écoute gagnée]
+
+# ── 🎨 Créas & réglages ─────────────────────────────────────────────────────────
+src/dashboard/views/meta_creatives.py::_render_ranking#1:
+  draws: [créative · clics sortants, créative · CTR, créative · CPM, créative · CPC]
+src/dashboard/views/meta_creatives.py::_render_spend_pareto#1:
+  draws: [créative · adset · campagne · dépense]
+src/dashboard/views/meta_creatives.py::_render_best_settings#1:
+  draws: [créative · CPR, accroche · CPR, pays · CPR, placement · CPR, plateforme · CPR,
+          âge · CPR, bouton d'action · CPR, objectif de campagne · CPR,
+          optimisation de l'ad set · CPR]
+src/dashboard/views/meta_creatives.py::_render_one_creative#1:
+  draws: [jour d'une créative choisie · dépense, jour d'une créative choisie · CPR,
+          jour d'une créative choisie · volumes, jour d'une créative choisie · CTR]
+
+# ── 🌍 Audiences ────────────────────────────────────────────────────────────────
+src/dashboard/views/meta_breakdowns.py::_render_performance#1:
+  # drawn only for an ad set or a creative picked — best_settings covers the campaign grain
+  draws: [pays de l'entité choisie · dépense et CPR, placement de l'entité choisie · dépense et CPR,
+          plateforme de l'entité choisie · dépense et CPR, âge de l'entité choisie · dépense et CPR]
+src/dashboard/views/meta_breakdowns.py::_render_engagement#1:
+  draws: [pays · interactions d'engagement, placement · interactions d'engagement,
+          plateforme · interactions d'engagement, âge · interactions d'engagement]
+src/dashboard/utils/campaign_pair.py::render_share_pair#1:
+  draws: [ventilation · part de chaque campagne (deux campagnes)]
+src/dashboard/views/meta_x_spotify.py::render_countries#1:
+  draws: [pays · € par écoute (iMusician)]
+
+# ── 📸 Instagram ────────────────────────────────────────────────────────────────
+src/dashboard/views/instagram.py::_render_community#1:
+  draws: [jour · abonnés gagnés]
+src/dashboard/views/instagram.py::render#1:
+  draws: [mois · publications, mois · engagement par publication]
+src/dashboard/views/instagram.py::render#2:
+  draws: [publication · engagement]

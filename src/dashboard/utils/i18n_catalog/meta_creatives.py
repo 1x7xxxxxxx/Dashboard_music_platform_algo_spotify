@@ -7,15 +7,7 @@ EN = {
     "meta_creatives.gain_help": "The track's streams during the campaign above its level of the 28 days before. Cost per stream gained: {c}.",
     "meta_creatives.section_ranking": "🏁 Your creatives, ranked",
     "meta_creatives.no_ranking": "No creative with any spend.",
-    "meta_creatives.hook_cpr": "Cost per result (€)",
-    "meta_creatives.hook_spend": "Spend it was judged on (€)",
-    "meta_creatives.hooks_absent": (
-        "Your creative titles do not name a hook (yet). Name them \"Hook 1 — …\", "
-        "\"Hook 2 — …\", \"Sans hook — …\": this chart will then compare the "
-        "cost per result of each opening."),
     "meta_creatives.rank_sort": "Sort by",
-    "meta_creatives.rank.cpr": "CPR (€)",
-    "meta_creatives.rank.total_spend": "Spend (€)",
     "meta_creatives.rank.total_results": "Outbound clicks",
     "meta_creatives.rank.avg_ctr": "CTR (%)",
     "meta_creatives.rank.cpm": "CPM (€)",
@@ -61,7 +53,6 @@ EN = {
     'meta_creatives.bs_cta': 'Call-to-action button (€/click)',
     'meta_creatives.bs_objective': 'Objective (€/click)',
     'meta_creatives.bs_empty': 'Not enough measured spend yet to compare your settings.',
-    'meta_creatives.hooks_expander': '🎣 Hooks in detail — {part:.0f} % of the spend carries a named hook',
     'meta_creatives.compare_with': 'Compare with',
     'meta_creatives.compare_none': '— none —',
     'meta_creatives.tl_totals': '**Total spend** {spend} € · **Average CPR** {cpr}',

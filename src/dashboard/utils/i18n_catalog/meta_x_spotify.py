@@ -85,6 +85,6 @@ EN = {
     "meta_x_spotify.pair_header": "⚖️ Two campaigns, two funnels",
     "meta_x_spotify.pair_none": "No spend recorded.",
     "meta_x_spotify.pair_caption": "Each campaign over its own dates, from the first to the last euro spent. CPM = cost of 1,000 impressions, CPC = cost of one click on the ad, CPR = cost of one outbound click to the platforms.",
-    "meta_x_spotify.c_cpr": "CPR (€/outbound click)",
-    "meta_x_spotify.c_hover": "%{x}<br>%{y:.4f} € per listen<br>%{customdata[0]:,.0f} € spent · %{customdata[1]:,.0f} listens<extra></extra>",
+    "meta_x_spotify.c_hover": "%{x}<br>%{y:.4f} € per listen<br>%{customdata[0]:,.0f} € spent · %{customdata[1]:,.0f} listens",
+    "meta_x_spotify.c_hover_cpr": "<br>CPR (€/outbound click): %{customdata[2]:.3f} €<extra></extra>",
 }

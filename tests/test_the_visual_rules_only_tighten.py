@@ -133,7 +133,7 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
     # entre deux totaux reste interdit, et le plafond global reste à 0.
     #
     #   meta_ads_overview  dépense (€) + clics (unités) ← gauche · CPR (€/résultat) → droite
-    #   meta_x_spotify     dépense (€) + écoutes        ← gauche · € par écoute     → droite
+    #   meta_x_spotify     (retiré R569 — le CPR est passé au survol)
     #
     # Dans les deux cas l'axe de droite est TEINTÉ de la couleur de sa seule
     # série : sans ça, deux échelles se lisent comme une, et c'est là que naît le
@@ -143,10 +143,8 @@ _DECLARED_AXES: dict[str, tuple[int, str]] = {
     # right axis, in EUROS (budget area + CPR) against the daily VOLUMES on the left —
     # the volume/spend pair already admitted below, axis tinted in the budget's ink.
     "chronology.py": (1, "volumes par jour (écoutes, auditeurs, clics, Shazams) vs budget Meta € / jour et CPR — la paire volume/dépense, axe teinté"),
-    "meta_x_spotify.py": (
-        3, "dépense (€) + écoutes (volumes) vs € par écoute (un PRIX) — deux "
-           "natures ; c'est le croisement qui a révélé 0,002 €/écoute en Colombie "
-           "contre 0,181 € au Brésil"),
+    # meta_x_spotify.py — its CPR axis left for the hover (R569, 2026-10-15, 3 → 0):
+    # the country chart draws € per listen alone, the CPR rides in the tooltip.
     # R290 (owner, fiche 10, 2026-09-28 : « fusionne tout sur un même graphique ») — the
     # AUDIENCE counter (plays, left) vs the ENGAGEMENT counters (likes, reposts, comments,
     # right): two natures, and a 50× magnitude gap that flattened three curves on one axis.

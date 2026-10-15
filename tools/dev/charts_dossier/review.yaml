@@ -346,19 +346,6 @@ src/dashboard/views/meta_creatives.py::_render_ranking#1:
   owner: "Très bien ; vérifier les chiffres ; ranger par Pareto selon le funnel (dépense, CTR, CPR, résultat) avec les streams si pas redondant ; quelle décision propre ?"
   cause: ctr-echelle
   note: "CTR à 233 %, 387 %, 1 111 % — un taux de clic ne dépasse pas 100 %. Probable pourcentage multiplié deux fois. Le classement CPR, lui, est lisible. À vérifier (P2)."
-src/dashboard/views/meta_creatives.py::_render_hooks#1:
-  mq: M2
-  q: "Les créas avec « hook » coûtent-elles moins cher que sans ?"
-  decision: "Savoir si une accroche (hook) fait baisser le coût, pour décider comment monter tes prochaines vidéos."
-  decision_en: "Know whether a hook lowers cost, to decide how to cut your next videos."
-  role: meta
-  d: 4
-  c: 4
-  p: 4
-  v: garder
-  owner_v: a-trancher
-  owner: "Pas mal ; notes /5 incomprises ; redondant avec 29 ?"
-  note: "Sans hook 0,104 € < Hook 1 0,113 € < Hook 2 0,127 € — mais sur 69 € de dépense « sans hook » : à marquer comme fragile."
 src/dashboard/views/meta_creatives.py::_render_one_creative#1:
   mq: M2
   q: "Une créa donne-t-elle des revenus dans le temps ?"
