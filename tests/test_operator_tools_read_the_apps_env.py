@@ -64,8 +64,8 @@ _NO_ENV = {"tools/dev/check_manifest_consistency.py", "tools/dev/graphify_render
            # Reads git history (gitleaks) and asks the PROVIDERS; the app's environment is
            # exactly what it must NOT read — it tests the OLD values, not the live ones.
            "tools/dev/prove_old_secrets_dead.py",
-           # Reads the git TREE (vulture + tracked files), no setting, no service (R609).
-           "tools/dev/dead_code.py"}
+           # Read the git TREE (vulture / ast over tracked files), no setting, no service (R609, R616).
+           "tools/dev/dead_code.py", "tools/dev/layer_arcs.py"}
 
 
 def _documented_tools() -> list[str]:
