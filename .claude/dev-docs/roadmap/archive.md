@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R627 — Accueil : UNE ligne de légende « niveau du dernier relevé reporté » sous la figure d'év… (livrée 2026-10-16)
+
+- [x] **R627 — Accueil : UNE ligne de légende « niveau du dernier relevé reporté » sous la figure d'évolution (le dernier site de R614 ; la fonction pure `carried_level_note` et sa note PDF sont livrées). **DÉCIDÉ OUI 2026-10-16 par le propriétaire**. L'accueil est gelé (R425) : la photo `tests/fixtures/home_snapshot.json` change, ce qui exige `` sur cette ligne code-critic BUILD-MODIFIED : un drapeau `carried_caption` explicite (pas `notes=True`, qui ramènerait le glossaire), liste = `order` filtré par `served` comme le PDF** (P3) ✅ (2026-10-16, 96ca2080, 5aa2e7d3, b13dcf6a, 3e112ce9)
+  Mesuré par : `tests/test_home_names_a_carried_plateau.py` + photo d'accueil
+  Livré : légende « palier reporté » sous la figure d'accueil (drapeau carried_caption, home: oui), photo d'accueil régénérée (seule la légende s'ajoute), test muté rouge 2 fois ; CI verte run 38868824531
+  Commits : 96ca2080 Roadmap : runbook §43 (R627) et §45 (R624) barrés — décisions prises l · 5aa2e7d3 R627 : une ligne sous la figure d'accueil — un palier de compteur est  · b13dcf6a R614 : les figures qui mêlent mesuré et estimé le disent · 3e112ce9 Roadmap : R627 inscrite (🙋) — légende « niveau reporté » sous la figur
+
+## ✅ R624 — Aucune LICENCE sur un dépôt PUBLIC — **DÉCIDÉ (a) 2026-10-16 par le propriétaire : LICE… (livrée 2026-10-16)
+
+- [x] **R624 — Aucune LICENCE sur un dépôt PUBLIC — **DÉCIDÉ (a) 2026-10-16 par le propriétaire : LICENSE propriétaire « tous droits réservés »** : 2 080 fichiers suivis dont 2 jeux de modèles entraînés (`machine_learning/models/v2_noscaler`, `v3`, `.ubj`), 3 PDF d'analyse ML, l'avatar de marque (`assets/brand/`), 5 captures Spotify Wrapped (`docs/spotify_wrapped/`, contenu tiers), aucune donnée locataire. Trois issues : (a) LICENSE propriétaire « tous droits réservés » (recommandé : la marque et les modèles sont l'actif d'un SaaS payant), (b) licence ouverte (le code seul ; modèles et marque à exclure), (c) dépôt privé (Actions : 2 000 min/mois gratuites, le cliquet R608 SECURITY.md devient sans objet). Ton geste : choisir a/b/c ; je rédige ensuite le fichier et sa garde. Avant : (relevé par code-critic sur R608) : par défaut « tous droits réservés », chaque copie publique est non licenciée. MESURER ce que le dépôt contient qui ne doit pas être réutilisé (modèles, données anonymisées, marque) → décider : licence propriétaire explicite, licence ouverte, ou dépôt privé → design revu par code-critic — BUILD-MODIFIED : pas d'année que git ne prouve pas, exclusion des contenus tiers (captures Wrapped, marques, `archive/…/frontend-slides/LICENSE`, dépendances), contact par issue GitHub, pyproject déjà « Proprietary » inchangé, garde structurelle** (P3) ✅ (2026-10-16, 96ca2080, db7059a7, 93ce804a, c09f0005)
+  Mesuré par : `tests/test_the_repo_carries_its_licence.py`
+  Livré db7059a7 : LICENSE tous droits réservés (option a du propriétaire), lien README, garde mutée rouge 2 fois ; CI verte run 38868824531
+  Commits : 96ca2080 Roadmap : runbook §43 (R627) et §45 (R624) barrés — décisions prises l · db7059a7 R624 : LICENSE « tous droits réservés » + lien README + garde · 93ce804a Roadmap : R624 mesurée et passée en 🙋 — choix de licence (a/b/c) au pr · c09f0005 Roadmap : R608 décidée OUI et passée en attente (activer le signalemen
+
 ## ✅ R630 — 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes pré… (livrée 2026-10-16)
 
 - [x] **R630 — 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes présentes dans init_db.sql/migrations) — mesurés par R620 : ils tirent la couche database à 50,4 % (86,1 % sans eux), et le cliquet de code mort (baseline []) ne les voyait pas. Archiver les 16 + un garde qui refuse un module de src/ que rien n'atteint (atteignabilité, pas forme d'import ; lire le texte d'un fichier n'est pas l'importer)** (P4) ✅ (2026-10-16, a876cf57)
