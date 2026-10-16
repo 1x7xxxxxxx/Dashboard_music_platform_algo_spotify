@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R636 — Config Claude Code du parc : portail roadmap (hook + test), `make requirements-report`… (livrée 2026-10-17)
+
+- [x] **R636 — Config Claude Code du parc : portail roadmap (hook + test), `make requirements-report` → `REQUIREMENTS-COVERAGE.md` à la racine, `arch_benchmark.py` étendu, plancher de config** (P2) ✅ (2026-10-17, a77a6209)
+  Mesuré par : `pytest tests/test_an_action_is_on_the_roadmap_before_it_runs.py tests/test_claude_config_floor.py` vert ; `make requirements-report` rc 0
+  sans push (choix du propriétaire) ; vérifié en local : 25 tests portail+plancher verts, make requirements-report CHECK=1 rc 0, pre-commit vert
+  Commits : a77a6209 R636 : portail roadmap aussi sur Bash, REQUIREMENTS-COVERAGE.md à la r
+
 ## ✅ R635 — Chemins après la migration ext4 du 2026-10-16 (6 projets du parc déplacés de `/mnt/c/Us… (livrée 2026-10-16)
 
 - [x] **R635 — Chemins après la migration ext4 du 2026-10-16 (6 projets du parc déplacés de `/mnt/c/Users/timot/Desktop` vers `~/projects`, tracé dans la baseline NEXT §6) : 3 références de streamlytics à réécrire — `CLAUDE.md` (marqueur measured-rules), `runbook-actions-utilisateur.md` (3), `.claude/agents/sibling-sweeper.md` (1).** (P4) ✅ (2026-10-16, 699ba7a1)
