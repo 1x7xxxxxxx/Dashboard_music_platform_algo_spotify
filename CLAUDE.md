@@ -184,7 +184,7 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 > Règles 12-13 (2026-07-28) : une flèche, un déclencheur vérifiable, le verbe littéral
 > `Spawn`, un contrat de sortie — le seul mécanisme mesuré qui produise des invocations (§7).
 
-<!-- measured-rules:begin v2 — genere par /mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/tools/dev/install_measured_rules.py (le BASELINE, pas ce depot) -->
+<!-- measured-rules:begin v2 — genere par /home/timothe/projects/claude_code_deployment_baseline/tools/dev/install_measured_rules.py (le BASELINE, pas ce depot) -->
 
 14. **Une classe de défaut identifiée → `Spawn sibling-sweeper` AVANT d'écrire le
     fix.** Il renvoie la liste exhaustive des sites frères en `fichier:ligne`, en

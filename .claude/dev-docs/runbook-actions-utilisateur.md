@@ -1846,16 +1846,16 @@ réglages interdisent à Claude de lire (après une fuite de clés Stripe dans u
 ### Les étapes
 
 1. **1x7** — taper SEULE dans l'invite de Claude Code (le `!` l'exécute avec tes droits) :
-   `! grep '^SMTP_PASSWORD=' ~/streamlytics/.env | sed 's/^SMTP_PASSWORD=/GMAIL_APP_PASSWORD_1X7=/' >> /mnt/c/Users/timot/Desktop/n8n/.env`
+   `! grep '^SMTP_PASSWORD=' ~/streamlytics/.env | sed 's/^SMTP_PASSWORD=/GMAIL_APP_PASSWORD_1X7=/' >> /home/timothe/projects/n8n/.env`
 2. **nineka50130 puis 127bpmin** — connecté à chaque compte : myaccount.google.com/apppasswords
    (activer d'abord la validation en 2 étapes si l'option manque) → nom « n8n » → Créer →
    copier les 16 lettres. **Ne pas les coller dans le fil.**
-3. Ouvrir le fichier : `! code /mnt/c/Users/timot/Desktop/n8n/.env` et ajouter, sans espaces :
+3. Ouvrir le fichier : `! code /home/timothe/projects/n8n/.env` et ajouter, sans espaces :
    `GMAIL_APP_PASSWORD_NINEKA=…` et `GMAIL_APP_PASSWORD_127BPMIN=…`.
 
 ### La preuve
 
-`! /mnt/c/Users/timot/Desktop/n8n/scripts/check-rag-mail-accounts.sh` → quatre lignes ✓.
+`! /home/timothe/projects/n8n/scripts/check-rag-mail-accounts.sh` → quatre lignes ✓.
 Tant qu'un compte est ignoré, le relevé du dimanche t'envoie un avertissement par mail.
 
 ## 26. ~~R176 — Retirer `AIRFLOW__CORE__DAGS_FOLDER` mort~~ · ✅ FAIT le 2026-09-25 — les deux `.env` vérifiés à `0` ; détail dans `.claude/dev-docs/roadmap/archive.md`

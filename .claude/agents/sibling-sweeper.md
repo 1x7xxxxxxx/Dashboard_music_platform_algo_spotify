@@ -32,7 +32,7 @@ C'est l'étape que le cycle de vie d'une classe d'erreur désigne comme
    programme lit** — un chemin de ce dépôt, un nom de variable d'environnement, un
    fichier produit ici, une URL, un identifiant de compte : les lecteurs HORS du dépôt.
    Je ne le dérive NI du prompt NI de mémoire : je lance
-   `python3 /mnt/c/Users/timot/Desktop/claude_code_deployment_baseline/tools/dev/sweep_fleet.py '<regex>'`,
+   `python3 /home/timothe/projects/claude_code_deployment_baseline/tools/dev/sweep_fleet.py '<regex>'`,
    qui balaie les racines de `fleet.json`, le baseline, `crontab -l` et
    `~/.claude/settings*.json` — configuration et scripts qui s'exécutent, jamais la doc
    ni les rapports — et je trie ses touches (une ligne commentée n'est pas un site). Je
