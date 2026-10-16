@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R628 — Environnement de PROD conforme au schéma R619 AVANT tout déploiement du dashboard : `se… (livrée 2026-10-16)
+
+- [x] **R628 — Environnement de PROD conforme au schéma R619 AVANT tout déploiement du dashboard : `serve.py` refuse désormais de démarrer en production si une clé requise manque, et la prod n'a pas `ALERT_EMAIL` (dashboard) ni `STREAMLYTICS_ENV`, `API_STRICT_BOOT`, `FERNET_KEY`, `APP_BASE_URL` (api) — mesuré le 2026-10-15, noms seuls. ⚠️ Tant qu'elle est ouverte : **aucun `deploy.sh dashboard`**** (P1) ✅ (2026-10-16, 1746aa94, 6d7f30ac)
+  Mesuré par : ajouter les clés dans `/opt/streamlytics/docker-compose.yml`, puis `python -m src.utils.env_schema <service>` rend 0 sans ligne dans chaque conteneur (runbook §44)
+  prod : ALERT_EMAIL (dashboard) + STREAMLYTICS_ENV (api) au compose, env_schema rc=0 dans les deux conteneurs, app/api 200, prod à 88eb1f13 (R627 y est)
+  Commits : 1746aa94 R628 : runbook §44 barré — environnement de prod conforme au schéma R6 · 6d7f30ac Roadmap : R628 inscrite (🙋, P1) — environnement de prod conforme à R61
+
+## ✅ R608 — REA·2 — SECURITY.md — **DÉCIDÉ OUI 2026-10-15** : dépôt PUBLIC, aucune voie de signalem… (livrée 2026-10-16)
+
+- [x] **R608 — REA·2 — SECURITY.md — **DÉCIDÉ OUI 2026-10-15** : dépôt PUBLIC, aucune voie de signalement de vulnérabilité (seul contact : l'adresse RGPD de la page confidentialité), signalement privé GitHub (PVR) `{"enabled":false}`. code-critic BUILD-MODIFIED : le fichier ne part JAMAIS avant le canal (sinon le lecteur tombe sur un bouton absent et ouvre une issue publique) ; aucune adresse e-mail dans le fichier ; pas de sonde nocturne (le `GITHUB_TOKEN` ne lit pas ce réglage). Canal ACTIVÉ le 2026-10-16 (`{"enabled":true}`, sur autorisation du propriétaire)** (P3) ✅ (2026-10-16, 38c663ed, c09f0005)
+  Mesuré par : `tests/test_the_security_policy_names_its_channel.py`
+  SECURITY.md + garde (signalement privé GitHub activé, {enabled:true}), CI verte run 38872198071
+  Commits : 38c663ed R608 : SECURITY.md — signalement privé GitHub, aucune adresse e-mail · c09f0005 Roadmap : R608 décidée OUI et passée en attente (activer le signalemen
+
 ## ✅ R627 — Accueil : UNE ligne de légende « niveau du dernier relevé reporté » sous la figure d'év… (livrée 2026-10-16)
 
 - [x] **R627 — Accueil : UNE ligne de légende « niveau du dernier relevé reporté » sous la figure d'évolution (le dernier site de R614 ; la fonction pure `carried_level_note` et sa note PDF sont livrées). **DÉCIDÉ OUI 2026-10-16 par le propriétaire**. L'accueil est gelé (R425) : la photo `tests/fixtures/home_snapshot.json` change, ce qui exige `` sur cette ligne code-critic BUILD-MODIFIED : un drapeau `carried_caption` explicite (pas `notes=True`, qui ramènerait le glossaire), liste = `order` filtré par `served` comme le PDF** (P3) ✅ (2026-10-16, 96ca2080, 5aa2e7d3, b13dcf6a, 3e112ce9)
