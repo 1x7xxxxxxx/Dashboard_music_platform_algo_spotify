@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R630 — 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes pré… (livrée 2026-10-16)
+
+- [x] **R630 — 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes présentes dans init_db.sql/migrations) — mesurés par R620 : ils tirent la couche database à 50,4 % (86,1 % sans eux), et le cliquet de code mort (baseline []) ne les voyait pas. Archiver les 16 + un garde qui refuse un module de src/ que rien n'atteint (atteignabilité, pas forme d'import ; lire le texte d'un fichier n'est pas l'importer)** (P4) ✅ (2026-10-16, a876cf57)
+  Mesuré par : modules de src/ que rien n'atteint : 16 → 0
+  Livré a876cf57 : 16 *_schema.py archivés (database 50,4 % → ~86 % mesuré sans eux), garde tools/dev/unreached_modules.py + tests/test_every_src_module_is_reached.py muté dans les deux sens ; test Apple repointé sur la migration 095 ; skill db-schema corrigé (DDL en SQL). test-changed 9962 verts, CI verte (run 38829435115).
+  Commits : a876cf57 R630 : 16 modules DDL que rien n'importait archivés + garde d'atteigna
+
 ## 🚫 R620 — Seuils de couverture par couche : plancher refusé, défaut réel → R630 (close 2026-10-16)
 
 - [x] **R620 — REA·A5 — niveaux de tests + seuils de couverture par couche.** (P4) ✅ (2026-10-16, plancher NON — le critère a déclenché sur du code mort ; code-critic DO-NOT-BUILD sur le plancher, BUILD-MODIFIED sur l'archivage → R630)
