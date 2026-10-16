@@ -2221,7 +2221,7 @@ le canal qu'il nomme — sinon il renvoie vers un bouton qui n'existe pas.
 rend `{"enabled":true}`, et l'onglet Security du dépôt montre « Report a vulnerability ».
 
 
-## 43. R627 — Une ligne de légende sous la figure d'accueil ?
+## 43. ~~R627 — Une ligne de légende sous la figure d'accueil ?~~ · ✅ FAIT le 2026-10-16 — « oui », livré par R627
 
 La figure d'évolution reporte le dernier relevé YouTube / SoundCloud entre deux
 collectes (61 % des jours YouTube) : un palier n'y est pas une mesure du jour. Le PDF
@@ -2272,7 +2272,7 @@ curl -fsS https://app.streamlytics.fr/ -o /dev/null && echo dashboard-ok
 Les deux premières commandes rendent `rc=0` **sans aucune ligne** au-dessus (une ligne
 nomme une clé absente — jamais sa valeur). Puis le dire dans la séance : R628 close.
 
-## 45. R624 — Choisir la licence du dépôt public
+## 45. ~~R624 — Choisir la licence du dépôt public~~ · ✅ FAIT le 2026-10-16 — option (a) « tous droits réservés », LICENSE livré par R624
 
 Le dépôt GitHub est **public et sans LICENSE**. Par défaut, cela veut dire « tous droits
 réservés », mais personne ne peut savoir ce qu'il a le droit d'en faire. Le dépôt
