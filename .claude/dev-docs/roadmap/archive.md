@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R635 — Chemins après la migration ext4 du 2026-10-16 (6 projets du parc déplacés de `/mnt/c/Us… (livrée 2026-10-16)
+
+- [x] **R635 — Chemins après la migration ext4 du 2026-10-16 (6 projets du parc déplacés de `/mnt/c/Users/timot/Desktop` vers `~/projects`, tracé dans la baseline NEXT §6) : 3 références de streamlytics à réécrire — `CLAUDE.md` (marqueur measured-rules), `runbook-actions-utilisateur.md` (3), `.claude/agents/sibling-sweeper.md` (1).** (P4) ✅ (2026-10-16, 699ba7a1)
+  Mesuré par : `grep -rcE 'Desktop/(n8n\
+  Livré 699ba7a1, CI verte (run 38940148404) — 0 référence aux anciens chemins Desktop/<projet du parc> dans CLAUDE.md et .claude/ ; migration tracée dans la baseline (NEXT §6, journal 2026-10-16)
+  Commits : 699ba7a1 R635 : chemins du parc vers /home/timothe/projects (CLAUDE.md, runbook
+
 ## ✅ R634 — Nightly `guard-mutation` du 2026-10-16 (run 38867983146) : 3 gardes neufs verts sur tou… (livrée 2026-10-16)
 
 - [x] **R634 — Nightly `guard-mutation` du 2026-10-16 (run 38867983146) : 3 gardes neufs verts sur toutes les mutations génériques — `test_an_estimate_says_it_is_one` (R614), `test_the_best_settings_live_on_the_algo_page` (R598), `test_the_spend_pareto_is_coloured_by_cpr` (R596). Muter chacun À LA MAIN sur le défaut qu'il nomme ; s'il mord, l'inscrire dans `SEEN_RED` avec la mutation ; sinon durcir le garde. code-critic : non — protocole R563** (P4) ✅ (2026-10-16, 148d5894)
