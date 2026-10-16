@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R634 — Nightly `guard-mutation` du 2026-10-16 (run 38867983146) : 3 gardes neufs verts sur tou… (livrée 2026-10-16)
+
+- [x] **R634 — Nightly `guard-mutation` du 2026-10-16 (run 38867983146) : 3 gardes neufs verts sur toutes les mutations génériques — `test_an_estimate_says_it_is_one` (R614), `test_the_best_settings_live_on_the_algo_page` (R598), `test_the_spend_pareto_is_coloured_by_cpr` (R596). Muter chacun À LA MAIN sur le défaut qu'il nomme ; s'il mord, l'inscrire dans `SEEN_RED` avec la mutation ; sinon durcir le garde. code-critic : non — protocole R563** (P4) ✅ (2026-10-16, 148d5894)
+  Mesuré par : `nightly_guard_mutation.verdict` ne nomme plus ces 3 gardes ; mutations rouges écrites dans `SEEN_RED`
+  Livré 148d5894, CI verte (run 38897878790). 9 mutations à la main, toutes rouges : 5 sur l'estimation (R614), 2 sur la photo/ordre (R598), 2 sur la couleur Pareto (R596) ; inscrites dans SEEN_RED. Aucun garde à durcir.
+  Commits : 148d5894 R634 : les 3 gardes du nightly guard-mutation mordent — 9 mutations à 
+
 ## ✅ R633 — `guard_destructive` : 6 entrées de table MORTES depuis le passage au « geste = commande… (livrée 2026-10-16)
 
 - [x] **R633 — `guard_destructive` : 6 entrées de table MORTES depuis le passage au « geste = commande du segment » (2026-09-16) — `DROP TABLE/DATABASE/SCHEMA` (bloc), `DELETE FROM`, `init_db.sql`, `--build` (avertissement) ne sont jamais la commande, toujours un argument : `psql -c 'DROP TABLE users'` passe. Trouvé par la sonde `drop-table` d'`audit_fleet`. Recâbler (SQL : sur un client SQL du pipeline ou heredoc vers lui ; argument : jeton d'une commande non-prose) + garde : chaque entrée a un exemple qui la déclenche. code-critic : non — les entrées vivantes gardent leur matcher, les mortes sont recâblées** (P2) ✅ (2026-10-16, 974ec6c5)
