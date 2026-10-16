@@ -114,12 +114,15 @@ def test_the_permission_deny_list_does_not_shrink():
 
 
 def test_bypass_permissions_stays_off():
-    f = CLAUDE / "settings.local.json"
-    if not f.exists():
-        return
-    mode = (json.loads(f.read_text(encoding="utf-8")).get("permissions") or {}).get("defaultMode")
-    assert mode != "bypassPermissions", (
-        "defaultMode is back to bypassPermissions — every deny rule becomes decorative")
+    # Both files: msdr carried bypassPermissions in settings.json for months while this
+    # test read settings.local.json only (2026-10-16).
+    for name in ("settings.json", "settings.local.json"):
+        f = CLAUDE / name
+        if not f.exists():
+            continue
+        mode = (json.loads(f.read_text(encoding="utf-8")).get("permissions") or {}).get("defaultMode")
+        assert mode != "bypassPermissions", (
+            f"defaultMode is back to bypassPermissions in {name} — every deny rule becomes decorative")
 
 
 def test_the_dangerous_command_gates_still_block():

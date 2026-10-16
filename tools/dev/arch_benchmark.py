@@ -37,6 +37,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 ARCH = ROOT / ".claude" / "dev-docs" / "architecture"
+COVERAGE = ROOT / "REQUIREMENTS-COVERAGE.md"
 STATUTS = ("conforme", "partiel", "absent", "non-mesure")
 # R356 — how a requirement is held, and whether its machinery travels to another project.
 METHODES = ("hook", "commit", "ci", "nuit", "regle-agent", "playbook", "humain", "demande")
@@ -57,6 +58,25 @@ def load() -> tuple[dict, list[dict]]:
     with open(ARCH / "requirements.yaml", encoding="utf-8") as fh:
         reqs = yaml.safe_load(fh) or []
     return domains, reqs
+
+
+def load_exempt() -> dict:
+    """Domains exempted from carrying a requirement, each with its written reason. The
+    generic preset keeps these in governance.toml; streamlytics has none, so a file beside
+    the catalogue. Ported from the baseline preset 2026-10-16, coverage part only."""
+    f = ARCH / "exempt_domains.yaml"
+    if not f.is_file():
+        return {}
+    with open(f, encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def domains_without_requirement(domains: dict, reqs: list[dict], exempt: dict) -> list[str]:
+    """Domains of the map that carry no requirement AND no written exemption. Pure.
+    The exemptions are DATA (`exempt_domains.yaml` beside the catalogue, name → reason — absent = none),
+    never a list frozen in a test: a copied list is meaningless in another repo."""
+    carried = {r.get("domaine") for r in reqs}
+    return [k for k in domains if k not in carried and not (exempt or {}).get(k)]
 
 
 def _tracked() -> set[str]:
@@ -501,17 +521,85 @@ def render(domains: dict, reqs: list[dict], proofs: dict[str, str] | None) -> st
     return "\n".join(lines)
 
 
+def render_coverage(domains: dict, reqs: list[dict], exempt: dict) -> str:
+    """The exhaustiveness deliverable: every domain of the map, what covers it, and the holes.
+    Pure on the catalogue — the replayed truth lives in benchmark.md."""
+    by_dom = collections.defaultdict(list)
+    for r in reqs:
+        by_dom[r.get("domaine")].append(r)
+    orphans = domains_without_requirement(domains, reqs, exempt)
+    holes = [r["id"] for r in reqs if not ((r.get("preuve") or {}).get("pytest")
+                                            or (r.get("preuve") or {}).get("cmd"))]
+    declared = collections.Counter(r.get("statut") for r in reqs)
+    lines = ["# Couverture des exigences",
+             "",
+             "> **Généré** par `make requirements-report` (`tools/dev/arch_benchmark.py --coverage`)",
+             "> depuis `.claude/dev-docs/architecture/domains.yaml`, `requirements.yaml` et `exempt_domains.yaml`.",
+             "> Ne pas éditer : corriger le catalogue, puis régénérer. Les preuves REJOUÉES sont dans",
+             "> `make arch-benchmark` (benchmark.md) — ce fichier dit ce qui est couvert, pas ce qui est vert.",
+             "",
+             f"**{len(domains)} domaine(s)** · **{len(reqs)} exigence(s)** · "
+             f"exemptés : {sum(1 for k in domains if (exempt or {}).get(k) and k not in by_dom)} · "
+             f"**orphelins : {len(orphans)}** · sans preuve rejouable : {len(holes)} · "
+             + " · ".join(f"{k} : {declared.get(k, 0)}" for k in STATUTS),
+             ""]
+    if not domains:
+        lines += ["⚠️ Aucun domaine cartographié : la couverture n'est pas mesurable. Remplir "
+                  "`.claude/dev-docs/architecture/domains.yaml` (workflow architecture-requirements).", ""]
+    lines += ["| domaine | couverture | exigences (statut déclaré · preuve citée) |", "|---|---|---|"]
+    for key, d in domains.items():
+        rs = by_dom.get(key, [])
+        if rs:
+            cov = f"✅ {len(rs)}"
+            detail = "<br>".join(
+                f"{r['id']} {r.get('statut', '?')} · `{(r.get('preuve') or {}).get('pytest') or (r.get('preuve') or {}).get('cmd') or 'aucune'}`"
+                for r in rs)
+        elif (exempt or {}).get(key):
+            cov, detail = "➖ exempté", str(exempt[key])
+        else:
+            cov, detail = "❌ orphelin", "ni exigence ni exemption écrite"
+        lines.append(f"| {(d or {}).get('nom', key)} (`{key}`) | {cov} | {detail} |")
+    lines.append("")
+    if orphans:
+        lines += ["## Domaines orphelins", "", *[f"- `{o}`" for o in orphans], ""]
+    if holes:
+        lines += ["## Exigences sans preuve rejouable", "", *[f"- {h}" for h in holes], ""]
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def coverage(check: bool) -> int:
+    domains, reqs = load()
+    domains = domains or {}
+    exempt = load_exempt()
+    text = render_coverage(domains, reqs, exempt)
+    if check:
+        cur = COVERAGE.read_text(encoding="utf-8") if COVERAGE.is_file() else ""
+        if cur != text:
+            print(f"❌ {COVERAGE.name} périmé ou absent — lancer `make requirements-report`", file=sys.stderr)
+            return 1
+        print(f"{COVERAGE.name} à jour")
+        return 0
+    COVERAGE.write_text(text, encoding="utf-8")
+    orphans = domains_without_requirement(domains, reqs, exempt)
+    print(f"écrit : {COVERAGE} — {len(domains)} domaine(s), {len(reqs)} exigence(s), {len(orphans)} orphelin(s)")
+    return 1 if orphans else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-run", action="store_true")
     ap.add_argument("--json", action="store_true",
                     help="also write benchmark.json (proof states, activity) for the harness page")
+    ap.add_argument("--coverage", action="store_true", help="write REQUIREMENTS-COVERAGE.md at the root")
+    ap.add_argument("--check", action="store_true", help="with --coverage: exit 1 if the file is stale")
     args = ap.parse_args()
     domains, reqs = load()
     errs = structure_errors(domains, reqs) + component_errors(harness_components(), reqs)
     if errs:
         print("❌ catalogue invalide :\n  " + "\n  ".join(errs), file=sys.stderr)
         return 1
+    if args.coverage:
+        return coverage(args.check)
     proofs = None if args.no_run else replay(reqs)
     (ARCH / "benchmark.md").write_text(render(domains, reqs, proofs).rstrip("\n") + "\n", encoding="utf-8")
     if args.json:

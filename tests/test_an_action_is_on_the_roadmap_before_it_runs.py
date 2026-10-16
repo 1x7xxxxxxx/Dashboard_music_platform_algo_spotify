@@ -117,12 +117,28 @@ def test_the_edit_hook_blocks_through_its_real_entry_point(tmp_path: Path) -> No
     assert run.returncode == 2 and "R196" in run.stderr, (run.returncode, run.stderr)
 
 
+def test_a_bash_write_meets_the_same_gate(tmp_path: Path) -> None:
+    """`cat > src/x.py <<'EOF'` slipped past the Edit|Write gate in the first live session of
+    the baseline smoke (2026-10-16). A `>` inside the heredoc body is not a target; a read is."""
+    assert hook.bash_targets("cat > src/x.py <<'EOF'\nprint('a > b')\nEOF") == ["src/x.py"]
+    assert hook.bash_targets('python3 -c "print(1 > 2)" > /dev/null') == []
+    repo = _repo(tmp_path / "d")
+    for cmd, rc in ((f"cat > {repo}/src/x.py <<'EOF'\nx = 1\nEOF", 2), ("ls src/ | wc -l", 0)):
+        event = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": str(repo)}
+        run = subprocess.run([sys.executable, str(_ROOT / ".claude/hooks/require_roadmap_entry.py")],
+                             input=json.dumps(event), capture_output=True, text=True)
+        assert run.returncode == rc, (cmd, run.returncode, run.stderr)
+
+
 def test_the_gates_are_wired() -> None:
     """A gate nothing calls is a note. The hook, the commit-msg stage and the CI step."""
     settings = json.loads((_ROOT / ".claude/settings.json").read_text(encoding="utf-8"))
     pre = [h["command"] for m in settings["hooks"]["PreToolUse"]
            if "Edit" in (m.get("matcher") or "") for h in m["hooks"]]
     assert any("require_roadmap_entry.py" in c for c in pre), "PreToolUse Edit hook not wired"
+    bash = [h["command"] for m in settings["hooks"]["PreToolUse"]
+            if "Bash" in (m.get("matcher") or "").split("|") for h in m["hooks"]]
+    assert any("require_roadmap_entry.py" in c for c in bash), "a shell redirection escapes the gate"
     cfg = yaml.safe_load((_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
     assert "commit-msg" in cfg.get("default_install_hook_types", []), (
         "`pre-commit install` would not install the commit-msg hook")

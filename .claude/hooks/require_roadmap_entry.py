@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse (Edit|Write|MultiEdit|NotebookEdit): no product-code edit while no action is open.
+"""PreToolUse (Edit|Write|MultiEdit|NotebookEdit|Bash): no product-code edit while no action is open.
 
 Type: Hook
 Uses: tools/dev/require_roadmap_id.py (open_ids, next_id, is_product)
@@ -19,8 +19,10 @@ This one fires on the gesture itself — editing product code — which cannot b
 Limits, said rather than hidden:
   * it checks that SOME action is open, not that this edit belongs to it — with several open
     rows (the common case in a long session) any edit passes; the commit half binds the id;
-  * an edit made through Bash (`sed -i`, a script) never reaches this hook; the commit half
-    and the CI catch it later.
+  * a Bash command is judged by the files it writes with `>`, `>>`, `>|` or `tee` (heredoc
+    bodies excluded) — added 2026-10-16 from the governance preset, measured there on 49 216
+    Bash commands: 0 parse failure, ~980 writing `tests/` or `src/` by redirection. `sed -i`,
+    `cp`, `mv` and a script that writes are still unseen; the commit half and the CI catch them.
 
 The checklist read is the one of the EDITED FILE's repository (`git rev-parse` from its
 directory), so an engineering-loop worktree is judged by its own copy (code-critic).
@@ -33,6 +35,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -59,6 +63,12 @@ def _repo_root(path: Path) -> Path | None:
     out = subprocess.run(["git", "-C", str(d), "rev-parse", "--show-toplevel"],
                          capture_output=True, text=True)
     return Path(out.stdout.strip()) if out.returncode == 0 and out.stdout.strip() else None
+
+
+
+
+
+
 
 
 def refusal(target: str, cwd: str) -> str | None:
@@ -91,19 +101,58 @@ def refusal(target: str, cwd: str) -> str | None:
             f"   3. recommence la modification, puis commite le code avec « {nid} : … ».")
 
 
+_HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
+
+
+def bash_targets(command: str) -> list[str]:
+    """Files a Bash command writes by `>`, `>>`, `>|` or `tee` — heredoc bodies excluded."""
+    kept, end = [], None
+    for line in command.splitlines():
+        if end is not None:
+            if line.strip() == end:
+                end = None
+            continue
+        kept.append(line)
+        m = _HEREDOC.search(line)
+        if m:
+            end = m.group(2)
+    lex = shlex.shlex("\n".join(kept), posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    try:
+        tokens = list(lex)
+    except ValueError:
+        return []
+    out, tee = [], False
+    for i, tok in enumerate(tokens):
+        if tok in (">", ">>", ">|") and i + 1 < len(tokens):
+            out.append(tokens[i + 1])
+        elif tok == "tee":
+            tee = True
+        elif tee and set(tok) <= set("|&;<>()"):
+            tee = False
+        elif tee and not tok.startswith("-"):
+            out.append(tok)
+    # `$VAR/x` is unknowable before the shell expands it: not judged (fail open).
+    return [os.path.expanduser(t) for t in out
+            if not t.startswith(("&", "/dev/")) and not t.isdigit() and "$" not in t]
+
+
 def main() -> int:
     try:
         event = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return 0
     tool_input = event.get("tool_input") or {}
-    target = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not target:
-        return 0
-    message = refusal(target, event.get("cwd") or os.getcwd())
-    if message:
-        print(message, file=sys.stderr)
-        return 2
+    cwd = event.get("cwd") or os.getcwd()
+    if event.get("tool_name") == "Bash":
+        targets = bash_targets(tool_input.get("command") or "")
+    else:
+        targets = [tool_input.get("file_path") or tool_input.get("notebook_path") or ""]
+    for target in filter(None, targets):
+        message = refusal(target, cwd)
+        if message:
+            print(message, file=sys.stderr)
+            return 2
     return 0
 
 
