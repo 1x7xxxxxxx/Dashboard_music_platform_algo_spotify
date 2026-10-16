@@ -992,10 +992,10 @@ def check_command(cmd: str) -> tuple[str, str] | None:
         if re.search(pattern, cmd, re.IGNORECASE):
             return ("block", message)
     for pattern, message in _BLOCK_PATTERNS:
-        if _is_the_command_of_a_segment(cmd, pattern):
+        if _gesture_fires(cmd, pattern):
             return ("block", message)
     for pattern, message in _WARN_PATTERNS:
-        if _is_the_command_of_a_segment(cmd, pattern):
+        if _gesture_fires(cmd, pattern):
             return ("warn", message)
     return None
 
@@ -1066,6 +1066,105 @@ def _is_the_command_of_a_segment(command: str, pattern: str) -> bool:
         tete = [a.lower() for a in argv[i:i + len(besoin)]]
         if tete == besoin:
             return True
+    return False
+
+
+# ── R633 : une entrée qui n'est jamais la COMMANDE de son segment ───────────────
+#
+# Le passage au « geste = commande du segment » (2026-09-16) a eu raison pour `git
+# reset --hard` et tort pour six entrées de ces tables, qui ne sont JAMAIS une
+# commande : `DROP TABLE` est l'argument de `psql`, `--build` celui de `docker
+# compose`. Elles ne pouvaient plus se déclencher — `psql -c '<sql destructif>'`
+# passait — et se lisaient comme une couverture qui n'existait plus. Trouvé le
+# 2026-10-16 par la sonde `drop-table` d'audit_fleet (baseline).
+#
+# Une question structurelle par forme :
+#   - SQL (et le schéma d'installation) : le pipeline atteint-il un CLIENT SQL ? Un
+#     `git commit -m '…'` ou un `grep` n'en atteint aucun ; `echo … | psql`,
+#     `make psql Q=…`, `docker exec … psql -c …` et un heredoc donné à `psql` oui.
+#   - argument : est-ce un jeton d'une commande qui n'est pas de la prose ?
+# Garde : tests/test_every_guard_entry_can_fire.py — chaque entrée a un exemple qui
+# la déclenche, et une entrée neuve sans exemple fait échouer le test.
+_CLIENT_BOUND = frozenset({"DROP TABLE", "DROP DATABASE", "DROP SCHEMA", "DELETE FROM", "init_db.sql"})
+_ARGUMENT_GESTURES = frozenset({"--build"})
+_SQL_CLIENTS = frozenset({"psql", "prod-psql", "mysql", "mariadb", "sqlite3"})
+_PROSE_HEADS = frozenset({"echo", "printf", "git", "grep", "rg", "cat", "sed", "awk",
+                          "head", "tail", "less", "gh", "python", "python3"})
+
+
+def _gesture_fires(command: str, pattern: str) -> bool:
+    if pattern in _CLIENT_BOUND:
+        return _reaches_a_sql_client(command, pattern)
+    if pattern in _ARGUMENT_GESTURES:
+        return _is_an_argument_of_a_command(command, pattern)
+    return _is_the_command_of_a_segment(command, pattern)
+
+
+def _pipelines(command: str) -> list[list[list[str]]]:
+    """Pipelines (`&&`, `||`, `;`, newline) of stages (`|`), each an argv.
+
+    Tokenised with quotes kept whole: a `;` inside `psql -c 'BEGIN; …;'` does not
+    cut the SQL away from its client.
+    """
+    out: list[list[list[str]]] = []
+    for line in _sans_heredocs(command).split("\n"):
+        try:
+            lex = shlex.shlex(line, posix=True, punctuation_chars="|&;")
+            lex.whitespace_split = True
+            toks = list(lex)
+        except ValueError:
+            toks = line.split()
+        pipeline: list[list[str]] = [[]]
+        for tok in toks:
+            if tok in ("&&", "||", ";", ";;"):
+                out.append(pipeline)
+                pipeline = [[]]
+            elif tok == "|":
+                pipeline.append([])
+            else:
+                pipeline[-1].append(tok)
+        out.append(pipeline)
+    return [p for p in out if any(p)]
+
+
+def _is_a_sql_client(argv: list[str]) -> bool:
+    return any(a.rsplit("/", 1)[-1].lower() in _SQL_CLIENTS for a in argv)
+
+
+def _reaches_a_sql_client(command: str, pattern: str) -> bool:
+    rx = re.compile(r"(?<![\w-])" + r"\s+".join(map(re.escape, pattern.split())) + r"(?![\w-])",
+                    re.IGNORECASE)
+    # A heredoc given to a SQL client: its body IS the SQL that runs.
+    lines, i = command.split("\n"), 0
+    while i < len(lines):
+        m = re.search(r"<<-?\s*[\"']?([A-Za-z_][A-Za-z0-9_]*)[\"']?", lines[i])
+        opener, i = lines[i], i + 1
+        if not m:
+            continue
+        body = []
+        while i < len(lines) and lines[i].strip() != m.group(1):
+            body.append(lines[i])
+            i += 1
+        i += 1
+        if _is_a_sql_client(opener.split()) and rx.search("\n".join(body)):
+            return True
+    for pipeline in _pipelines(command):
+        if any(_is_a_sql_client(stage) for stage in pipeline) \
+                and rx.search(" ".join(a for stage in pipeline for a in stage)):
+            return True
+    return False
+
+
+def _is_an_argument_of_a_command(command: str, pattern: str) -> bool:
+    for pipeline in _pipelines(command):
+        for argv in pipeline:
+            i = 0
+            while i < len(argv) and (argv[i].lower() in _PREFIXES_A_SAUTER or "=" in argv[i]):
+                i += 1
+            if i >= len(argv) or argv[i].rsplit("/", 1)[-1].lower() in _PROSE_HEADS:
+                continue
+            if any(a == pattern or a.startswith(pattern + "=") for a in argv[i + 1:]):
+                return True
     return False
 
 
