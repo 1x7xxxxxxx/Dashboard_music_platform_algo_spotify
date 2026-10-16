@@ -51,3 +51,8 @@ cd Dashboard_music_platform_algo_spotify
 
 # Créez le fichier .env à partir du modèle
 cp .env.example .env
+```
+
+## 📄 Licence
+
+Tous droits réservés — voir [LICENSE](LICENSE). Le code est visible, aucune réutilisation n'est accordée.

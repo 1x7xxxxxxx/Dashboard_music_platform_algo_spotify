@@ -1,0 +1,25 @@
+Copyright (c) Timothé Baudry. All rights reserved.
+
+This repository (streaMLytics) is published for viewing only. No licence is granted.
+
+Without prior written permission from the copyright holder, you may not use, copy,
+modify, merge, publish, distribute, sublicense, sell, or host any part of it,
+including its source code, trained machine-learning models, model outputs, data
+files, documentation, analysis reports, and brand assets (name, logo, avatar).
+Using any of it to train or evaluate a machine-learning model is likewise not
+permitted.
+
+The only rights you have are those GitHub's Terms of Service grant to every user
+of a public repository: to view it and to fork it on GitHub.
+
+Third-party material is NOT covered by this notice and stays under its own terms:
+- the dependencies this project installs, each under its own licence;
+- files that carry their own licence, such as
+  archive/claude-config/skills/frontend-slides/LICENSE;
+- screenshots of third-party services (for example docs/spotify_wrapped/), and the
+  names and trademarks of Spotify, Apple, Meta, YouTube, SoundCloud and other
+  platforms, which belong to their respective owners.
+
+To ask for permission, open an issue on the GitHub repository.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
