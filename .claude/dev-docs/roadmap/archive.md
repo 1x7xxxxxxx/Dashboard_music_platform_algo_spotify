@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R633 — `guard_destructive` : 6 entrées de table MORTES depuis le passage au « geste = commande… (livrée 2026-10-16)
+
+- [x] **R633 — `guard_destructive` : 6 entrées de table MORTES depuis le passage au « geste = commande du segment » (2026-09-16) — `DROP TABLE/DATABASE/SCHEMA` (bloc), `DELETE FROM`, `init_db.sql`, `--build` (avertissement) ne sont jamais la commande, toujours un argument : `psql -c 'DROP TABLE users'` passe. Trouvé par la sonde `drop-table` d'`audit_fleet`. Recâbler (SQL : sur un client SQL du pipeline ou heredoc vers lui ; argument : jeton d'une commande non-prose) + garde : chaque entrée a un exemple qui la déclenche. code-critic : non — les entrées vivantes gardent leur matcher, les mortes sont recâblées** (P2) ✅ (2026-10-16, 974ec6c5)
+  Mesuré par : `tests/test_every_guard_entry_can_fire.py`
+  Livré 974ec6c5, CI verte (run 38895551223). Les 6 entrées mortes se déclenchent : SQL si le pipeline atteint un client SQL (heredoc compris), argument si jeton d'une commande non-prose. Garde tests/test_every_guard_entry_can_fire.py, 2 mutations vues rouges (12 et 3). Même correctif porté dans le payload extended de la baseline (6f7385a).
+  Commits : 974ec6c5 R633 : guard_destructive — les 6 entrées mortes se déclenchent à nouve
+
 ## ✅ R632 — Skill continuous-learning : clé invocation: hors spécification — ABANDONNÉE, prémisse fausse (2026-10-16)
 
 - [x] **R632 — Skill `continuous-learning` : clé `invocation:` hors spécification, que rien ne lit → déplacée dans le corps (axe A d'`audit_fleet`, −1). ABANDONNÉE 2026-10-16, aucun commit ne la livre.**
