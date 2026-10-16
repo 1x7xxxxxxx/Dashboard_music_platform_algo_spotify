@@ -325,6 +325,8 @@ par les règles 12, 13, 14, 17, 18, 19 et la boucle d'ingénierie (`code-critic`
 - **PostToolUse** → `check_python_syntax.py` — ruff (E9 bloque) ; avertit si une suite complète tourne.
 - **Stop** → `session_summary.py` (git diff, Docker health, symptômes → `make defect-log`) ; `require_verdict_after_edit.py`
   (R549 — code modifié après le départ de la dernière suite ⇒ fin de tour bloquée UNE fois ; un `.md` seul non).
+  `roadmap_empty_beep.py` (baseline `governance`, 2026-10-16) — un bip quand la roadmap passe à 0 tâche,
+  jamais entre 01:00 et 09:20 ; `ROADMAP_BEEP=0` le coupe.
 - **statusLine** → `.claude/scripts/statusline.py` (R550) — HUD : tests, CI du HEAD (« ? » si non lue).
 → Full specification: `.claude/hooks/hook.md`
 

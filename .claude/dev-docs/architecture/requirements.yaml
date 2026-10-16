@@ -1002,3 +1002,14 @@
   composants: [.claude/hooks/require_verdict_after_edit.py]
   preuve: {pytest: tests/test_the_stop_gate_wants_a_verdict_after_the_last_edit.py::test_a_suite_started_before_the_edit_is_stale_even_with_a_fresh_log}
   mutation: "prendre le départ de la suite dans le mtime du journal au lieu de .pytest-last.started"
+- id: REQ-HARN-29
+  domaine: claude-wsl
+  enonce: Un carillon doux, à volume croissant, signale la roadmap passée à 0 tâche — jamais entre 01:00 et 09:20, une seule fois par transition
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/roadmap_empty_beep.py]
+  preuve: {pytest: tests/test_the_roadmap_beep_is_quiet_at_night.py::test_the_chime_waits_for_morning_and_rings_once}
+  mutation: "QUIET_UNTIL = time(9, 0) — le carillon sonnerait à 09:00"

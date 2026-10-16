@@ -230,6 +230,14 @@
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/require_verdict_after_edit.py"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_empty_beep.py"
+          }
+        ]
       }
     ],
     "SubagentStop": [
