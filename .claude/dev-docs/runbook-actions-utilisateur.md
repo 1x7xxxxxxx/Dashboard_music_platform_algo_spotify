@@ -2239,7 +2239,7 @@ que seule ta décision peut le changer.
 Oui : `tests/test_home_is_frozen.py` vert sur la nouvelle photo, et la légende visible
 sous la figure en mode cumulé. Non : R627 dans `archive.md`.
 
-## 44. R628 — Compléter l'environnement de production (avant tout déploiement du dashboard)
+## 44. ~~R628 — Compléter l'environnement de production (avant tout déploiement du dashboard)~~ · ✅ FAIT le 2026-10-16 — `ALERT_EMAIL` (dashboard) et `STREAMLYTICS_ENV` (api) ajoutés au compose, `env_schema` rc=0 dans les deux conteneurs, app et api 200
 
 Depuis R619, le dashboard **refuse de démarrer en production** si une clé que son code
 lit est absente ou mal typée. La production n'a pas `ALERT_EMAIL` côté dashboard, et
