@@ -28,10 +28,14 @@ from __future__ import annotations
 import ast
 import datetime as dt
 import pathlib
+import re
 
 import pytest
 
 from src.utils import platform_timeseries as pts
+
+_re_index = re.compile(
+    r"CREATE\s+UNIQUE\s+INDEX[^;]*?\bON\s+apple_songs_performance\s*\([^)]*\)[^;]*;", re.S)
 
 # DEUX FICHIERS, DEUX QUESTIONS — et les confondre a cassé deux tests voisins.
 #
@@ -304,8 +308,13 @@ def test_the_conflict_target_can_actually_be_matched_by_postgres() -> None:
     installation neuve obtient — et le compare aux colonnes que la page d'import
     envoie. Deux listes qui doivent coïncider, dans deux fichiers.
     """
-    schema = pathlib.Path("src/database/apple_music_csv_schema.py").read_text(
-        encoding="utf-8")
+    # La contrainte VIVANTE est celle de la dernière migration qui pose l'index unique
+    # de la table. Le garde lisait jusqu'à R630 (2026-10-16) un module de DDL Python que
+    # rien n'importait — et `init_db.sql` porte encore l'ancienne clé, que 093 retire.
+    migrations = sorted(pathlib.Path("migrations").glob("*.sql"))
+    schema = next(
+        m.group(0) for p in reversed(migrations)
+        for m in [_re_index.search(p.read_text(encoding="utf-8"))] if m)
     tree = ast.parse(_REGISTRY.read_text(encoding="utf-8"))
     apple_cfg = None
     for node in ast.walk(tree):
@@ -325,7 +334,7 @@ def test_the_conflict_target_can_actually_be_matched_by_postgres() -> None:
     # La contrainte du schéma, réduite à ses colonnes. Un `COALESCE` y rendrait la
     # cible inappariable — c'est exactement le défaut.
     import re as _re
-    m = _re.search(r"UNIQUE(?:\s+NULLS\s+NOT\s+DISTINCT)?\s*\(([^)]*)\)", schema)
+    m = _re.search(r"\(([^)]*)\)", schema)
     assert m, "aucune contrainte d'unicité dans le schéma Apple"
     declared = [c.strip() for c in m.group(1).split(",")]
     assert all("(" not in c for c in declared), (

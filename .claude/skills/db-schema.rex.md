@@ -97,7 +97,7 @@ Injected when prompt contains: "schema", "upsert", "postgres", "table", "migrati
 - **Type**: Core
 - **Depends on**: `src/database/postgres_handler.py`
 - **Persists in**: PostgreSQL `spotify_etl`
-- **Triggers**: `init_db.sql` (bootstrap) or `scripts/migrate_*.py` (existing DB)
+- **Triggers**: `init_db.sql` (bootstrap) or `migrations/*.sql` via `make migrate` (existing DB)
 
 ---
 
@@ -120,34 +120,31 @@ Injected when prompt contains: "schema", "upsert", "postgres", "table", "migrati
 
 ---
 
-## Schema File Pattern
+## Where a table is declared
 
-Reference: `src/database/youtube_schema.py`
+A table is declared in SQL, never in a Python module:
 
-```python
-"""
-Type: Sub
-Depends on: postgres_handler.PostgresHandler
-Persists in: PostgreSQL spotify_etl
-"""
+1. `migrations/NNN_<what>.sql` — idempotent (`CREATE TABLE IF NOT EXISTS`,
+   `ADD COLUMN IF NOT EXISTS`), applied by `make migrate`;
+2. the same `CREATE TABLE` in `init_db.sql`, so a fresh install gets it.
 
-SCHEMA = {
-    "my_table": """
-        CREATE TABLE IF NOT EXISTS my_table (
-            id              SERIAL PRIMARY KEY,
-            artist_id       INTEGER NOT NULL REFERENCES saas_artists(id),
-            some_key        VARCHAR(255) NOT NULL,
-            some_value      DECIMAL(10,2),
-            collected_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (artist_id, some_key)       -- must match conflict_columns
-        )
-    """,
-}
-
-def create_my_tables(db) -> None:
-    for table_name, ddl in SCHEMA.items():
-        db.execute_query(ddl)
+```sql
+CREATE TABLE IF NOT EXISTS my_table (
+    id              SERIAL PRIMARY KEY,
+    artist_id       INTEGER NOT NULL REFERENCES saas_artists(id),
+    some_key        VARCHAR(255) NOT NULL,
+    some_value      DECIMAL(10,2),
+    collected_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (artist_id, some_key)       -- must match conflict_columns
+);
 ```
+
+⚠️ No `src/database/<x>_schema.py` dict of DDL. Sixteen such modules existed until
+R630 (2026-10-16): imported by nothing, they drifted from the migrations (the apple
+unique key differed from `init_db.sql`) and pulled the database layer's coverage to
+50 %. Guard: `python3 tools/dev/unreached_modules.py` (via
+`tests/test_every_src_module_is_reached.py`). `ml_schema.py` and `stripe_schema.py`
+stay because live code imports them.
 
 ---
 
@@ -165,8 +162,8 @@ def create_my_tables(db) -> None:
 | Scenario | Mechanism |
 |---|---|
 | Fresh install (new Docker container) | `init_db.sql` — runs once at container startup |
-| Existing database (add column, new table) | `scripts/migrate_*.py` — idempotent `ALTER TABLE IF NOT EXISTS` |
-| New table in existing DB | Add `CREATE TABLE IF NOT EXISTS` to `init_db.sql` AND write a migration script |
+| Existing database (add column, new table) | `migrations/NNN_*.sql` — idempotent, applied by `make migrate` |
+| New table in existing DB | Add `CREATE TABLE IF NOT EXISTS` to `init_db.sql` AND write a migration |
 
 ---
 
@@ -183,10 +180,8 @@ def create_my_tables(db) -> None:
 
 ## Watch-outs
 
-- `hypeddit_schema.py` contains a `DROP TABLE` statement — never re-run on a live DB
 - `meta_insights` UNIQUE is `(ad_id, date)` without `artist_id` — known P2 bug, collision risk
 - `apple_songs_history` has no `artist_id` — data is shared across artists (P2 bug)
-- `meta_campaigns` schema in DB has only 5 columns vs 11 in `meta_ads_schema.py` — P1 bug, needs migration
 
 ---
 
@@ -194,4 +189,4 @@ def create_my_tables(db) -> None:
 
 1. **Language**: English in all DDL comments, Python comments, variable names
 2. **Neutrality**: Document schema constraints factually — describe what the constraint enforces
-3. **Classification**: Add docstring with Type/Depends on/Persists in at top of every new schema file
+3. **Classification**: a migration opens with a comment saying why it exists and what it changes

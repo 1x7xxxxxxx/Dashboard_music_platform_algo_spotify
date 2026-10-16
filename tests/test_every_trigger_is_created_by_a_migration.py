@@ -1,7 +1,7 @@
 """Every trigger on the database is created by init_db.sql or a migration (R396).
 
 Measured 2026-10-05: `trg_calculate_hypeddit_metrics` existed on prod and local, and
-only `src/database/hypeddit_schema.py` (run under __main__, imported by nothing) created
+only `archive/src/database/hypeddit_schema.py` (run under __main__, imported by nothing) created
 it. A base rebuilt from migrations/ had no trigger, so `ctr` stayed NULL in the CSV
 export. `make schema-check-local` sees it since R368, but CI does not run that target.
 """

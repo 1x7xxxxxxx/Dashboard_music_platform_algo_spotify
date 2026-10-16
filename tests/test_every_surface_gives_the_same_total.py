@@ -125,8 +125,9 @@ def test_no_surface_reads_the_channel_counter_as_streams(db) -> None:
 
 # Les fichiers qui DÉCLARENT la colonne plutôt que de la lire. Exclure le DDL n'est pas
 # une exemption de confort : une table doit bien porter la colonne pour que la page
-# puisse l'afficher sous son nom.
-_DDL_FILES = frozenset({"src/database/youtube_schema.py"})
+# puisse l'afficher sous son nom. Vide depuis R630 (2026-10-16) : le seul, un module de
+# DDL Python que rien n'importait, est archivé — la DDL vit en SQL, hors de ce balayage.
+_DDL_FILES: frozenset[str] = frozenset()
 
 
 def _channel_counter_reads() -> tuple[list[str], list[str]]:

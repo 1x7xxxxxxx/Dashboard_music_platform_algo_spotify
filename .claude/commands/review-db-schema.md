@@ -12,10 +12,9 @@ You are a database architecture reviewer for this project. Perform a complete co
 
 ## Steps
 
-1. **Read all schema files** in `src/database/` (`*_schema.py`) and `init_db.sql`.
+1. **Read the schema sources**: `init_db.sql` and `migrations/*.sql` (the DDL lives only there since R630).
 
-2. **For each schema file**, verify:
-   - The `SCHEMA` dict and `create_*_tables()` function follow the pattern in `src/database/youtube_schema.py`.
+2. **For each table**, verify:
    - Every table defined has a proper `UNIQUE` constraint to support idempotent upserts.
    - The `conflict_columns` used in `upsert_many()` calls elsewhere in the codebase match those constraints exactly.
    - `collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP` is present for audit traceability.

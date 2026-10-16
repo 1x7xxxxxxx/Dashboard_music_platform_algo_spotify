@@ -38,7 +38,7 @@ _ARBRES = ("src", "airflow", "tools")
 # dans la liste de R140 §16.10 : elle a été trouvée par l'entonnoir de ce garde, qui a
 # ramené 8 candidats, en a écarté 7 (des lignes existent, donc un écrivain sous une
 # autre forme) et a confirmé celle-ci. Elle n'existe QUE comme schéma
-# (`src/database/youtube_schema.py:133`) : la table est créée, jamais alimentée.
+# (`archive/src/database/youtube_schema.py:133`) : la table est créée, jamais alimentée.
 _RETIREES = {"apple_daily_plays", "apple_listeners", "youtube_playlists",
              "youtube_comments"}
 

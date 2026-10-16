@@ -15,7 +15,7 @@ saw it happen.
 
 It was fixed **in production and nowhere else.** On 2026-09-11 the repository's
 own DDL still declared the broken form in four places (`init_db.sql:704,734`,
-`src/database/youtube_schema.py:18,60`). `init_db.sql` is mounted at
+`archive/src/database/youtube_schema.py:18,60`). `init_db.sql` is mounted at
 `docker-entrypoint-initdb.d`, so every fresh database — CI, a new dev machine, a
 rebuild after a disaster — was **born with the bug** and stayed that way until
 someone happened to run `make migrate`. A fix that lives only in a migration is
