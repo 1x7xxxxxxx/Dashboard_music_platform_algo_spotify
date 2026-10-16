@@ -30,7 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R630 | 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes présentes dans init_db.sql/migrations) — mesurés par R620 : ils tirent la couche database à 50,4 % (86,1 % sans eux), et le cliquet de code mort (baseline []) ne les voyait pas. Archiver les 16 + un garde qui refuse un module de src/ que rien n'atteint (atteignabilité, pas forme d'import ; lire le texte d'un fichier n'est pas l'importer) <!-- critic: requis — fait 2026-10-16, (A) BUILD-MODIFIED --> <!-- scope: src/database/, archive/, tests/, tools/dev/, .claude/dev-docs/, docs/, .test_durations --> | P4 | modules de src/ que rien n'atteint : 16 → 0 |
+| R630 | 16 modules `src/database/*_schema.py` importés par RIEN (DDL en dict, tables toutes présentes dans init_db.sql/migrations) — mesurés par R620 : ils tirent la couche database à 50,4 % (86,1 % sans eux), et le cliquet de code mort (baseline []) ne les voyait pas. Archiver les 16 + un garde qui refuse un module de src/ que rien n'atteint (atteignabilité, pas forme d'import ; lire le texte d'un fichier n'est pas l'importer) <!-- critic: requis — fait 2026-10-16, (A) BUILD-MODIFIED --> <!-- scope: src/database/, archive/, tests/, tools/dev/, .claude/dev-docs/, .claude/skills/, .claude/commands/, docs/, .test_durations, src/api/routers/youtube.py, src/dashboard/utils/csv_exporter.py, init_db.sql, migrations/ --> | P4 | modules de src/ que rien n'atteint : 16 → 0 |
 
 ---
 
