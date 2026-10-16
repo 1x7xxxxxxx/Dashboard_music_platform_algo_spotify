@@ -463,6 +463,9 @@ def _render_trend(db, series, since, until, range_key, artist_id,
         # R427 — « quand je décoche le cumulé, je n'ai pas les data pour SoundCloud et
         # YouTube » (2026-10-06): they were there, flattened at zero under Spotify.
         log_periodic=True,
+        # R627 — the one line the owner kept under the figure (2026-10-16): a
+        # counter's plateau is its last reading carried forward, not a day's measure.
+        carried_caption=True,
         cumulative=cumulative, discarded=_discarded,
         # `recap=True` ET NON UNE COLONNE : sans conteneur, les indicateurs
         # tombent là où la figure les rend — juste sous elle, dans l'ordre de

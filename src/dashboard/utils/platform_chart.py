@@ -58,7 +58,7 @@ from src.dashboard.utils.platform_absence import (          # noqa: F401
     _unmeasured_hover, known, unmeasured_spans,
 )
 from src.dashboard.utils.platform_chart_notes import (      # noqa: F401
-    counter_arrivals, first_plotted, mark_counter_arrivals,
+    carried_level_note, counter_arrivals, first_plotted, mark_counter_arrivals,
     _STEP_UNITS, _render_notes, _render_recap,
     render_collection_start_note, render_counter_history_note,
     t_coarsened, t_too_coarse, t_too_thin,
@@ -607,7 +607,8 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                           recap=None, recap_extra=None,
                           recap_metrics=None,
                           key: str = "platform_chart",
-                          notes: bool = True, log_periodic: bool = False) -> bool:
+                          notes: bool = True, log_periodic: bool = False,
+                          carried_caption: bool = False) -> bool:
     """Empile une aire par plateforme. Rend False si rien n'est traçable.
 
     L'appelant décide quoi dire quand c'est False — cette fonction n'écrit ni
@@ -616,6 +617,9 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
 
     `notes=False` (R421, l'Accueil) : aucun texte sous la figure — ni le glossaire,
     ni les notes (la phrase de décision n'existe plus depuis R491). Les boîtes du récapitulatif restent.
+
+    `carried_caption=True` (R627, l'Accueil) : la SEULE exception à `notes=False` — une
+    ligne qui dit qu'un palier de compteur est le dernier relevé reporté, pas une mesure.
 
     `log_periodic=True` (R427, l'Accueil) : en mode non cumulé, l'axe Y est
     logarithmique — YouTube et SoundCloud (≈ 30/mois) ne sont plus collés au zéro
@@ -1096,6 +1100,12 @@ def render_platform_chart(series: dict, *, title: str = "", days=_DEFAULT_DAYS,
                       step, extra=recap_extra,
                       metrics=_derive_metrics(recap_metrics, aligned, aligned_raw,
                                               span, mode, step))
+    if carried_caption:
+        # R627 — the list is `order` filtered by `served`, as the PDF does: a counter
+        # dropped from `order` (no band in the window) is not named.
+        _carried = carried_level_note([k for k in order if k in served], PLATFORM_LABELS)
+        if _carried:
+            st.caption(_carried)
     if not notes:
         return True
     _render_notes(thin, coarse, step, coarsened=coarsened, mode=mode,

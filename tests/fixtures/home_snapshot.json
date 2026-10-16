@@ -212,6 +212,12 @@
            ]
           },
           "type": "plotly_chart"
+         },
+         {
+          "body": "🎬 YouTube : entre deux relevés, la courbe garde le niveau du dernier relevé reporté — un palier n'est pas une mesure du jour.",
+          "elementType": "CAPTION",
+          "type": "caption",
+          "wrap": true
          }
         ],
         "type": "column",
@@ -681,6 +687,12 @@
            ]
           },
           "type": "plotly_chart"
+         },
+         {
+          "body": "🎬 YouTube · ☁️ SoundCloud : entre deux relevés, la courbe garde le niveau du dernier relevé reporté — un palier n'est pas une mesure du jour.",
+          "elementType": "CAPTION",
+          "type": "caption",
+          "wrap": true
          }
         ],
         "type": "column",
@@ -1308,6 +1320,12 @@
            ]
           },
           "type": "plotly_chart"
+         },
+         {
+          "body": "🎬 YouTube · ☁️ SoundCloud : entre deux relevés, la courbe garde le niveau du dernier relevé reporté — un palier n'est pas une mesure du jour.",
+          "elementType": "CAPTION",
+          "type": "caption",
+          "wrap": true
          }
         ],
         "type": "column",
