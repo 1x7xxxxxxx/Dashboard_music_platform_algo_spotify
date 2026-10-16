@@ -2203,7 +2203,7 @@ tâche `collect_youtube_analytics` saute l'artiste (`skipped`, jamais `failed`).
 **Vérification** : le lendemain (ou après un déclenchement du DAG `youtube_daily`),
 `make prod-psql Q="SELECT count(*) FROM youtube_analytics_channel_daily WHERE artist_id = N"` > 0.
 
-## 42. R608 — Activer le signalement privé de vulnérabilités (GitHub)
+## 42. ~~R608 — Activer le signalement privé de vulnérabilités (GitHub)~~ · ✅ FAIT le 2026-10-16 — `{"enabled":true}`, SECURITY.md commité par R608
 
 Le dépôt est public et n'offre aucune voie privée pour signaler une faille : un
 chercheur n'a que l'issue publique. `SECURITY.md` est prêt mais ne part pas avant
