@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R631 — CLAUDE.md sous 400 lignes (688 → <400) : les blocs de mesures datées DÉPLACÉS vers un d… (livrée 2026-10-16)
+
+- [x] **R631 — CLAUDE.md sous 400 lignes (688 → <400) : les blocs de mesures datées DÉPLACÉS vers un dev-doc dédié (claude-md-measures), chaque règle et son numéro restent ; cliquet de taille. Origine : audit_fleet baseline 2026-10-16, axe F −3 pts. Critic : non — déplacement de prose, aucune logique** (P4) ✅ (2026-10-16, c628a571)
+  Mesuré par : `wc -l CLAUDE.md` < 400 + tests lisant CLAUDE.md verts
+  Livré c628a571, CI verte (run 38885205942) — CLAUDE.md 688→394 lignes, mesures déplacées vers claude-md-measures.md, cliquet BUDGET=400 ; audit_fleet contexte 4→6
+  Commits : c628a571 R631 : CLAUDE.md 688 → 394 lignes — mesures datées DÉPLACÉES vers clau
+
 ## ✅ R628 — Environnement de PROD conforme au schéma R619 AVANT tout déploiement du dashboard : `se… (livrée 2026-10-16)
 
 - [x] **R628 — Environnement de PROD conforme au schéma R619 AVANT tout déploiement du dashboard : `serve.py` refuse désormais de démarrer en production si une clé requise manque, et la prod n'a pas `ALERT_EMAIL` (dashboard) ni `STREAMLYTICS_ENV`, `API_STRICT_BOOT`, `FERNET_KEY`, `APP_BASE_URL` (api) — mesuré le 2026-10-15, noms seuls. ⚠️ Tant qu'elle est ouverte : **aucun `deploy.sh dashboard`**** (P1) ✅ (2026-10-16, 1746aa94, 6d7f30ac)
