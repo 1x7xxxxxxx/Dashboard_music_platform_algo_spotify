@@ -396,6 +396,17 @@ SEEN_RED: dict[str, str] = {
     "tests/test_roadmap_close_speaks_in_few_lines.py":
         "2026-10-14 — R563 : run_readers writes the pytest output on green → 1 rouge ; hides "
         "it on red → 1 rouge ; an unconditional `print` added after the closure → 1 rouge",
+    "tests/test_an_estimate_says_it_is_one.py":
+        "2026-10-16 — R634 : `full_funnel` derived parts of an estimated step left unmarked "
+        "→ 1 rouge ; estimated label without « ≈ » → 1 rouge ; `_projection_key` not called "
+        "(dotted line with no legend entry) → 1 rouge ; forecast revenue without « ≈ » → 1 "
+        "rouge ; `carried_level_note` names no platform → 1 rouge",
+    "tests/test_the_best_settings_live_on_the_algo_page.py":
+        "2026-10-16 — R634 : `best_settings.rank` CPR = mean of per-row CPRs instead of "
+        "Σspend/Σresults → 1 rouge ; `linked_campaigns` oldest first → 1 rouge",
+    "tests/test_the_spend_pareto_is_coloured_by_cpr.py":
+        "2026-10-16 — R634 : `_pareto_figure` bars one flat colour instead of the CPR → 1 "
+        "rouge ; the no-CPR bar no longer grey → 1 rouge",
 }
 
 
