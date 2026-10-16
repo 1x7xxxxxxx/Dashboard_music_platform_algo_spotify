@@ -11,6 +11,15 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R632 — Skill continuous-learning : clé invocation: hors spécification — ABANDONNÉE, prémisse fausse (2026-10-16)
+
+- [x] **R632 — Skill `continuous-learning` : clé `invocation:` hors spécification, que rien ne lit → déplacée dans le corps (axe A d'`audit_fleet`, −1). ABANDONNÉE 2026-10-16, aucun commit ne la livre.**
+  Mesuré par : `audit_fleet.py --project` : `non_spec_keys` vide (jamais atteint, prémisse fausse)
+  Prémisse fausse : la clé `invocation:` EST lue, par `tools/dev/arch_benchmark.py::manual_invocation` (R413), que `tests/test_every_command_and_skill_has_a_trigger.py` utilise. La déplacer dans le corps a rendu ce test rouge (`make test-changed` : 1 failed, 3080 passed) ; l'édition a été annulée avant tout commit.
+  Cause réelle : un défaut de la grille de notation de la baseline — `audit_fleet.py` ne cherchait les lecteurs d'une clé que sous `.claude/hooks` et `.claude/scripts`. Corrigé et poussé dans claude_code_deployment_baseline (scan de `tools/` aussi, mutation vue rouge). Score streamlytics 84,2 → 94,2 sans aucun changement dans streamlytics.
+  Leçon : avant de déclarer une clé « lue par rien », grepper le dépôt ENTIER, pas les 5 premières lignes d'un grep (`head -5` a caché le lecteur).
+  Commits : aucun (abandon)
+
 ## ✅ R631 — CLAUDE.md sous 400 lignes (688 → <400) : les blocs de mesures datées DÉPLACÉS vers un d… (livrée 2026-10-16)
 
 - [x] **R631 — CLAUDE.md sous 400 lignes (688 → <400) : les blocs de mesures datées DÉPLACÉS vers un dev-doc dédié (claude-md-measures), chaque règle et son numéro restent ; cliquet de taille. Origine : audit_fleet baseline 2026-10-16, axe F −3 pts. Critic : non — déplacement de prose, aucune logique** (P4) ✅ (2026-10-16, c628a571)
