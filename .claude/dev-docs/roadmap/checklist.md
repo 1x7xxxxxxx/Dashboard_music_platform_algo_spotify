@@ -30,6 +30,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R608 | REA·2 — SECURITY.md — **DÉCIDÉ OUI 2026-10-15** : dépôt PUBLIC, aucune voie de signalement de vulnérabilité (seul contact : l'adresse RGPD de la page confidentialité), signalement privé GitHub (PVR) `{"enabled":false}`. code-critic BUILD-MODIFIED : le fichier ne part JAMAIS avant le canal (sinon le lecteur tombe sur un bouton absent et ouvre une issue publique) ; aucune adresse e-mail dans le fichier ; pas de sonde nocturne (le `GITHUB_TOKEN` ne lit pas ce réglage). Canal ACTIVÉ le 2026-10-16 (`{"enabled":true}`, sur autorisation du propriétaire) <!-- critic: requis --> <!-- scope: SECURITY.md, tests/, .claude/dev-docs/ --> | P3 | `tests/test_the_security_policy_names_its_channel.py` |
 
 ---
 
@@ -75,5 +76,4 @@ débloquent, chacune avec la commande qui prouve que c'est fait. `tests/test_roa
 
 | id | tâche | prio | le geste qu'elle attend |
 |----|-------|------|--------------------------|
-| R608 | REA·2 — SECURITY.md — **DÉCIDÉ OUI 2026-10-15** : dépôt PUBLIC, aucune voie de signalement de vulnérabilité (seul contact : l'adresse RGPD de la page confidentialité), signalement privé GitHub (PVR) `{"enabled":false}`. code-critic BUILD-MODIFIED : le fichier ne part JAMAIS avant le canal (sinon le lecteur tombe sur un bouton absent et ouvre une issue publique) ; aucune adresse e-mail dans le fichier ; pas de sonde nocturne (le `GITHUB_TOKEN` ne lit pas ce réglage). Fichier prêt, commité dès que le canal répond `true` <!-- critic: fait --> <!-- scope: SECURITY.md, tests/, .claude/dev-docs/ --> | P3 | **activer le signalement privé** : `gh api -X PUT repos/1x7xxxxxxx/Dashboard_music_platform_algo_spotify/private-vulnerability-reporting` (ou Settings → Security → Private vulnerability reporting → Enable) — runbook §42 |
 | R628 | Environnement de PROD conforme au schéma R619 AVANT tout déploiement du dashboard : `serve.py` refuse désormais de démarrer en production si une clé requise manque, et la prod n'a pas `ALERT_EMAIL` (dashboard) ni `STREAMLYTICS_ENV`, `API_STRICT_BOOT`, `FERNET_KEY`, `APP_BASE_URL` (api) — mesuré le 2026-10-15, noms seuls. ⚠️ Tant qu'elle est ouverte : **aucun `deploy.sh dashboard`** <!-- critic: non — geste d'exploitation, aucun code --> <!-- scope: .claude/dev-docs/ --> | P1 | ajouter les clés dans `/opt/streamlytics/docker-compose.yml`, puis `python -m src.utils.env_schema <service>` rend 0 sans ligne dans chaque conteneur (runbook §44) |
