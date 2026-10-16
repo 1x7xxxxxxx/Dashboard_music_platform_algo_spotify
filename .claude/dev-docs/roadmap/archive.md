@@ -11,6 +11,25 @@ si le total passe sous son plancher.
 
 ---
 
+## 🚫 R620 — Seuils de couverture par couche : plancher refusé, défaut réel → R630 (close 2026-10-16)
+
+- [x] **R620 — REA·A5 — niveaux de tests + seuils de couverture par couche.** (P4) ✅ (2026-10-16, plancher NON — le critère a déclenché sur du code mort ; code-critic DO-NOT-BUILD sur le plancher, BUILD-MODIFIED sur l'archivage → R630)
+
+  **Critère écrit avant la mesure :** oui si une couche est sous 60 % ; plancher par couche.
+  **Mesure (2026-10-16, suite entière `--cov=src`, base locale) :** api 92,4 · collectors
+  73,3 · dashboard 79,1 · **database 50,4** · models 100 · transformers 88,0 · utils 78,8.
+  **Pourquoi le critère qui tire ne décide pas un plancher :** les 50,4 % viennent de 16
+  modules `src/database/*_schema.py` à 0 % qu'aucun module n'importe (236 lignes) ; sans
+  eux database = 286/332 = **86,1 %**, et la couche vivante la plus basse est collectors
+  (73,3 %), 13 points au-dessus du seuil. Un plancher posé maintenant encoderait le code
+  mort (48 %) et ne pourrait plus jamais tirer après archivage ; la nuit tourne en ordre
+  aléatoire et ~160 tests skippent sans Postgres, ce qui fait bouger un % de petite couche
+  de plusieurs points.
+  **Suite :** R630 archive les 16 modules et ajoute le garde d'atteignabilité qui manquait
+  au cliquet de code mort (baseline `[]`, aveugle aux modules entiers).
+  **Réouverture :** une couche VIVANTE mesurée sous 60 % sur deux nuits ; le plancher se
+  pose alors APRÈS R630, dans `tests/`, nocturne et non bloquant.
+
 ## ✅ R629 — Un journal CI qui dit « envoyé » quand le mail est en PAUSE (R572) : run nightly-recap… (livrée 2026-10-16)
 
 - [x] **R629 — Un journal CI qui dit « envoyé » quand le mail est en PAUSE (R572) : run nightly-recap 38732548355 du 2026-10-15 imprime « ⏸️ not mailed » PUIS « ✅ recap sent ». `mail_red_verdict.send()` ne rend rien, ses 3 appelants (`github_nightly_recap`, `ci_break_mail`, `nightly_verdict`) annoncent le succès sans condition. Fix : `send()` rend `bool`, chaque appelant n'imprime ✅ que sur `True` + test** (P3) ✅ (2026-10-16, 4592ae72)
