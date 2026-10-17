@@ -11,6 +11,12 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R639 — La suite bornée dans le temps aussi : `timeout $(TEST_TIMEOUT)` (1800 s, 5× les 372 s m… (livrée 2026-10-17)
+
+- [x] **R639 — La suite bornée dans le temps aussi : `timeout $(TEST_TIMEOUT)` (1800 s, 5× les 372 s mesurées) et `--collect` dans `SUITE_SCOPE` — un scope tué ne laisse plus d'unité en échec (baseline T29/T50)** (P1) ✅ (2026-10-17, 4b80a0ca, f98beb84)
+  Mesuré par : `tests/test_the_suite_runs_in_a_capped_scope.py`
+  Commits : 4b80a0ca R639 : le test du plafond ne laisse plus d'unité en échec (--collect) · f98beb84 R639 : la suite bornée dans le temps (timeout $(TEST_TIMEOUT) = 1800 s
+
 ## ✅ R638 — `test_the_age_survives_a_container_timezone_that_differs` rouge 2 fois sous `test-chang… (livrée 2026-10-17)
 
 - [x] **R638 — `test_the_age_survives_a_container_timezone_that_differs` rouge 2 fois sous `test-changed` (vert seul) : le voisin `test_a_known_fresh_source_reads_as_fresh` pose une ligne YouTube entre ses deux lectures (573 h → 0) — ne comparer que les sources dont `last_dt` n'a pas bougé** (P1) ✅ (2026-10-17, 3be60eb0)
