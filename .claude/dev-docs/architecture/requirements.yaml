@@ -1013,3 +1013,14 @@
   composants: [.claude/hooks/roadmap_empty_beep.py]
   preuve: {pytest: tests/test_the_roadmap_beep_is_quiet_at_night.py::test_the_chime_waits_for_morning_and_rings_once}
   mutation: "QUIET_UNTIL = time(9, 0) — le carillon sonnerait à 09:00"
+- id: REQ-HARN-30
+  domaine: claude-wsl
+  enonce: Une tâche de roadmap fermée est commitée avec les seuls fichiers de la séance ; l'index à 0 avec des commits en avance pousse, un push à la fois, sans relancer un HEAD refusé
+  sources: [{doc: CLAUDE.md}]
+  priorite: P3
+  statut: conforme
+  methode: hook
+  portee: generique
+  composants: [.claude/hooks/roadmap_autocommit.py]
+  preuve: {pytest: tests/test_the_roadmap_autocommit_pushes_at_zero.py::test_the_push_waits_for_an_empty_index_and_never_retries_a_refused_head}
+  mutation: "retirer `head != refused` de decide_push — un pre-push rouge de 7 min relancé à chaque tour"

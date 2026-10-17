@@ -39,7 +39,14 @@ import os
 import re
 import subprocess
 import sys
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
+
+# R365 (streamlytics): a hook leaves one trace line per run when the repo has _hook_trace.py; elsewhere a no-op.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+_trace = getattr(import_module("_hook_trace") if find_spec("_hook_trace") else None, "trace", lambda _path: None)
+_trace(__file__)
 
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
