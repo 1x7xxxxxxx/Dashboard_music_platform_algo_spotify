@@ -18,14 +18,17 @@ puis dès qu'on a 0 tâche en roadmap on pousse de façon automatique ».
 - Stop: an id that left the checklist since the last turn is a closed task → commit the files
   this session touched (tracked, plus untracked created since start), message « T20 fermée ».
   Commit hooks run: a refused commit is reported, never forced (no --no-verify).
-- Stop: the « Tâches ouvertes » table going from n > 0 to 0 with commits ahead → `git push`
-  detached (a pre-push gate may take 16 min), result shown at the next turn. Rows waiting on a
-  human do not count: they would hold the push for days.
+- Stop: the « Tâches ouvertes » table at 0 with commits ahead → `git push` detached (a pre-push
+  gate may take 16 min), result shown at the next turn. Rows waiting on a human do not count:
+  they would hold the push for days. Not only on the n > 0 → 0 transition (T25): a commit made
+  once the index is already empty (a ROADMAP entry, a drift report) would otherwise stay ↑1.
+  One push at a time; a HEAD whose push was refused is not retried (a red 16-min gate would
+  rerun every turn); behind origin (↓n) it is reported, not attempted.
 
 ROADMAP_AUTOCOMMIT=0 / ROADMAP_AUTOPUSH=0 turn each off. Never fails a turn.
 
 guard_scope: the closed-id diff, the session snapshot filter, the index-only count, the push
-transition. NOT covered: two sessions closing tasks in the same repo at once (the second
+decision and its three guards. NOT covered: two sessions closing tasks in the same repo at once (the second
 commit takes what the first left).
 """
 from __future__ import annotations
@@ -90,8 +93,11 @@ def touched(start: dict[str, str], now: dict[str, str]) -> list[str]:
     return sorted(p for p, h in now.items() if start.get(p) != h)
 
 
-def decide_push(last_index: int | None, now_index: int, ahead: int) -> bool:
-    return last_index is not None and last_index > 0 and now_index == 0 and ahead > 0
+def decide_push(last_index: int | None, now_index: int, ahead: int, behind: int = 0,
+                pending: bool = False, head: str = "", refused: str | None = None) -> bool:
+    """Index at 0, commits ahead, nothing to pull, no push in flight, HEAD not already refused."""
+    return (last_index is not None and now_index == 0 and ahead > 0 and behind == 0
+            and not pending and head != refused)
 
 
 def load(root: Path) -> dict:
@@ -117,6 +123,7 @@ def push_report(root: Path, state: dict) -> str | None:
     state["push_pending"] = False
     if m.group(1) == "0":
         return "🚀 roadmap à 0 : push automatique réussi"
+    state["refused_head"] = state.get("push_head")
     return f"⚠️ push automatique refusé (rc={m.group(1)}) — voir {PUSH_LOG}"
 
 
@@ -163,11 +170,16 @@ def on_stop(root: Path, session: str) -> list[str]:
                 err = (r.stderr or r.stdout).strip().splitlines()
                 msgs.append(f"⚠️ commit automatique refusé pour {', '.join(closed)} : {err[-1] if err else r.returncode}")
     if os.environ.get("ROADMAP_AUTOPUSH") != "0":
-        r = git(root, "rev-list", "--count", "@{u}..HEAD")
-        ahead = int(r.stdout.strip()) if r.returncode == 0 else 0
-        if decide_push(state.get("index"), len(idx), ahead):
+        r = git(root, "rev-list", "--left-right", "--count", "HEAD...@{u}")
+        ahead, behind = map(int, r.stdout.split()) if r.returncode == 0 else (0, 0)
+        head = git(root, "rev-parse", "HEAD").stdout.strip()
+        if behind and ahead and not idx and state.get("behind_head") != head:
+            state["behind_head"] = head
+            msgs.append(f"⚠️ index à 0 mais ↓{behind} : pull avant le push automatique ({ahead} commit(s))")
+        if decide_push(state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
+                       head, state.get("refused_head")):
             start_push(root)
-            state["push_pending"] = True
+            state.update(push_pending=True, push_head=head)
             msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
     state.update(open=sorted(ids), index=len(idx))
     save(root, state)
