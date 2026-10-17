@@ -50,6 +50,8 @@ def test_the_scope_caps_memory_and_lowers_priority() -> None:
     body = scope.group(1)
     assert "MemoryMax=" in body and "MemoryHigh=" in body
     assert "nice -n" in body, "without nice, a loaded CPU starves VS Code's heartbeats"
+    assert "timeout $(TEST_TIMEOUT)" in body, "R639: a hung suite holds the heavy lock forever"
+    assert "--collect" in body, "R639: a killed scope must not leave a failed unit"
 
 
 @pytest.mark.skipif(shutil.which("systemd-run") is None, reason="no systemd-run")

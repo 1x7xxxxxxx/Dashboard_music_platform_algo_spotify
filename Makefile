@@ -160,11 +160,15 @@ HEAVY_WAIT ?= 900
 # a container) it degrades to `nice` alone. Guard: tests/test_the_suite_runs_in_a_capped_scope.py
 SUITE_MEM_HIGH ?= 4G
 SUITE_MEM_MAX ?= 5G
+# R639 (baseline T29, 2026-10-17): bounded in TIME too — a hung suite held the heavy lock and
+# the cgroup forever. 1800 s is 5× the 372 s measured (test-suite-timing.json). `--collect`: a
+# scope the kernel killed leaves no failed unit (six had left the user manager `degraded`).
+TEST_TIMEOUT ?= 1800
 # R508: the fallback SAYS so on stderr — under WSL `systemd-run` fails (« Failed to connect
 # to bus ») and the cap silently vanished, while this comment promised it.
 SUITE_SCOPE = $(shell if systemd-run --user --scope -q true >/dev/null 2>&1; then \
-  echo systemd-run --user --scope -q -p MemoryHigh=$(SUITE_MEM_HIGH) -p MemoryMax=$(SUITE_MEM_MAX) -p MemorySwapMax=1G --; \
-  else echo "⚠️  plafond mémoire INACTIF (systemd-run indisponible) — la suite tourne sous nice seul" >&2; fi) nice -n 10
+  echo systemd-run --user --scope --collect -q -p MemoryHigh=$(SUITE_MEM_HIGH) -p MemoryMax=$(SUITE_MEM_MAX) -p MemorySwapMax=1G --; \
+  else echo "⚠️  plafond mémoire INACTIF (systemd-run indisponible) — la suite tourne sous nice seul" >&2; fi) nice -n 10 timeout $(TEST_TIMEOUT)
 # R330 (2026-09-29): WSL froze mid-suite and kept no kernel log across the restart — the
 # cause could only be inferred. Every target holding the lock also samples memory into
 # ~/.cache/mem-trace.log (fsync'd, survives a restart) until its shell exits. `9>&-`: the
