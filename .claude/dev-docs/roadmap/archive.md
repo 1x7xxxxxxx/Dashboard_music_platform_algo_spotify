@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R640 — Ouvrir une séance allume `postgres_spotify_airflow` (SessionStart, `docker start` détac… (livrée 2026-10-17)
+
+- [x] **R640 — Ouvrir une séance allume `postgres_spotify_airflow` (SessionStart, `docker start` détaché, jamais airflow) ; l'extinction est celle de `fleet_guard.py` de la baseline, 2 h après la dernière séance — il n'est plus `always_on` (propriétaire 2026-10-17 « on en a besoin uniquement quand on ouvre le projet »)** (P1) ✅ (2026-10-17, 365d289a)
+  Mesuré par : `tests/test_session_start_wakes_the_database.py`
+  SessionStart allume postgres (docker start détaché) ; fleet_guard de la baseline l'éteint 2 h après la dernière séance (T55)
+  Commits : 365d289a R640 : ouvrir une séance allume la base (docker start détaché), fleet_
+
 ## ✅ R639 — La suite bornée dans le temps aussi : `timeout $(TEST_TIMEOUT)` (1800 s, 5× les 372 s m… (livrée 2026-10-17)
 
 - [x] **R639 — La suite bornée dans le temps aussi : `timeout $(TEST_TIMEOUT)` (1800 s, 5× les 372 s mesurées) et `--collect` dans `SUITE_SCOPE` — un scope tué ne laisse plus d'unité en échec (baseline T29/T50)** (P1) ✅ (2026-10-17, 4b80a0ca, f98beb84)
