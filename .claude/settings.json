@@ -132,6 +132,16 @@
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/session_start.py"
           }
         ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_autocommit.py start",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -236,6 +246,15 @@
           {
             "type": "command",
             "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_empty_beep.py"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_autocommit.py",
+            "timeout": 120
           }
         ]
       }
