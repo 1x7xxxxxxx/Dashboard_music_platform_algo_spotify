@@ -115,22 +115,27 @@ class TestAgainstPostgres:
             monkeypatch.setitem(os.environ, "TZ", "UTC")
             if hasattr(time, "tzset"):
                 time.tzset()
-            utc_ages = {r["source"]: r["age_h"] for r in check_freshness(db)}
+            utc = {r["source"]: r for r in check_freshness(db)}
 
             monkeypatch.setitem(os.environ, "TZ", "Pacific/Kiritimati")  # UTC+14
             if hasattr(time, "tzset"):
                 time.tzset()
-            far_ages = {r["source"]: r["age_h"] for r in check_freshness(db)}
+            far = {r["source"]: r for r in check_freshness(db)}
         finally:
             monkeypatch.delitem(os.environ, "TZ", raising=False)
             if hasattr(time, "tzset"):
                 time.tzset()
             db.close()
 
+        # R638: a row written between the two reads (the sibling test below, on another
+        # xdist worker, inserts a fresh YouTube row) moves the age 573 h → 0 without any
+        # clock involved. Only a source whose newest row is the SAME in both reads says
+        # something about the clock.
         drifted = {
-            s: (utc_ages[s], far_ages[s]) for s in utc_ages
-            if utc_ages[s] is not None and far_ages[s] is not None
-            and abs(utc_ages[s] - far_ages[s]) > 0.2
+            s: (utc[s]["age_h"], far[s]["age_h"]) for s in utc
+            if s in far and utc[s]["last_dt"] == far[s]["last_dt"]
+            and utc[s]["age_h"] is not None and far[s]["age_h"] is not None
+            and abs(utc[s]["age_h"] - far[s]["age_h"]) > 0.2
         }
         assert not drifted, (
             f"the reported age moved with the container's timezone: {drifted}. "
