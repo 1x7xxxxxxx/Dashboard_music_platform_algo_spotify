@@ -30,8 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R637 | Hook `roadmap_autocommit.py` (baseline T21/T25/T27) : trace R365 + exigence REQ-HARN-30 et son test — code-critic : non (hook copié de la baseline, testé là-bas) <!-- scope: .claude/hooks/, .claude/dev-docs/, tests/, REQUIREMENTS-COVERAGE.md --> | P2 | `make test-changed` vert, `git push` ↑0 |
-| R638 | `test_the_age_survives_a_container_timezone_that_differs` rouge 2 fois sous `test-changed` (vert seul) : le voisin `test_a_known_fresh_source_reads_as_fresh` pose une ligne YouTube entre ses deux lectures (573 h → 0) — ne comparer que les sources dont `last_dt` n'a pas bougé <!-- critic: non — test seul, cause prouvée par le message d'échec --> <!-- scope: tests/, .claude/dev-docs/ --> | P1 | le test vert sous `make test-changed` ; une ligne posée entre les lectures ne le rougit plus |
 
 ---
 
@@ -39,7 +37,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R637, R638 -->
+<!-- reprise: open= -->
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).

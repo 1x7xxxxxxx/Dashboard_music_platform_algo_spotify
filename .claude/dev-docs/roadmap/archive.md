@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R638 — `test_the_age_survives_a_container_timezone_that_differs` rouge 2 fois sous `test-chang… (livrée 2026-10-17)
+
+- [x] **R638 — `test_the_age_survives_a_container_timezone_that_differs` rouge 2 fois sous `test-changed` (vert seul) : le voisin `test_a_known_fresh_source_reads_as_fresh` pose une ligne YouTube entre ses deux lectures (573 h → 0) — ne comparer que les sources dont `last_dt` n'a pas bougé** (P1) ✅ (2026-10-17, 3be60eb0)
+  Mesuré par : le test vert sous `make test-changed` ; une ligne posée entre les lectures ne le rougit plus
+  course entre deux lectures (voisin qui pose une ligne YouTube), pas un fuseau : comparaison limitée aux sources à last_dt stable ; CI verte 3be60eb0
+  Commits : 3be60eb0 R638 : le test d'horloge ne compare que les sources dont la dernière l
+
+## ✅ R637 — Hook `roadmap_autocommit.py` (baseline T21/T25/T27) : trace R365 + exigence REQ-HARN-30… (livrée 2026-10-17)
+
+- [x] **R637 — Hook `roadmap_autocommit.py` (baseline T21/T25/T27) : trace R365 + exigence REQ-HARN-30 et son test — code-critic : non (hook copié de la baseline, testé là-bas)** (P2) ✅ (2026-10-17, 8445ad9e)
+  Mesuré par : `make test-changed` vert, `git push` ↑0
+  hook roadmap_autocommit (baseline T21/T25/T27) tracé R365, REQ-HARN-30 et son test ; poussé, CI verte 3be60eb0
+  Commits : 8445ad9e R637 : roadmap_autocommit trace sa course (R365), exigence REQ-HARN-30
+
 ## ✅ R636 — Config Claude Code du parc : portail roadmap (hook + test), `make requirements-report`… (livrée 2026-10-17)
 
 - [x] **R636 — Config Claude Code du parc : portail roadmap (hook + test), `make requirements-report` → `REQUIREMENTS-COVERAGE.md` à la racine, `arch_benchmark.py` étendu, plancher de config** (P2) ✅ (2026-10-17, a77a6209)
