@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R641 — `.claude/agents/sibling-sweeper.md` appelle `sweep_fleet.py` par `~/.fleet-master` (le… (livrée 2026-10-17)
+
+- [x] **R641 — `.claude/agents/sibling-sweeper.md` appelle `sweep_fleet.py` par `~/.fleet-master` (le lien du master, baseline T57) au lieu du dossier `claude_code_deployment_baseline` — le master va être renommé `fleet-master` (propriétaire 2026-10-17)** (P1) ✅ (2026-10-17, 1b424d6f)
+  Mesuré par : `python3 ~/.fleet-master/tools/dev/fleet_apply.py plan --project streamlytics` sans master-path
+  sibling-sweeper cite ~/.fleet-master (T57 du master) ; test-changed 3119 passed, CI 39052761081 verte
+  Commits : 1b424d6f R641 : sibling-sweeper appelle sweep_fleet.py par ~/.fleet-master (bas
+
 ## ✅ R640 — Ouvrir une séance allume `postgres_spotify_airflow` (SessionStart, `docker start` détac… (livrée 2026-10-17)
 
 - [x] **R640 — Ouvrir une séance allume `postgres_spotify_airflow` (SessionStart, `docker start` détaché, jamais airflow) ; l'extinction est celle de `fleet_guard.py` de la baseline, 2 h après la dernière séance — il n'est plus `always_on` (propriétaire 2026-10-17 « on en a besoin uniquement quand on ouvre le projet »)** (P1) ✅ (2026-10-17, 365d289a)
