@@ -61,7 +61,8 @@ def test_the_cap_kills_inside_the_scope() -> None:
     if probe.returncode != 0:
         pytest.skip("no systemd user manager (CI, container)")
     hog = "b = bytearray(300 * 1024 * 1024); b[::4096] = b'x' * len(b[::4096])"
-    r = subprocess.run(["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=64M",
+    # R639: `--collect`, or the scope this kills stays failed and the manager reads `degraded`.
+    r = subprocess.run(["systemd-run", "--user", "--scope", "--collect", "-q", "-p", "MemoryMax=64M",
                         "-p", "MemorySwapMax=0", "--", "python3", "-c", hog],
                        capture_output=True, timeout=60)
     assert r.returncode != 0, "a 300 Mo allocation survived a 64 Mo cap"
