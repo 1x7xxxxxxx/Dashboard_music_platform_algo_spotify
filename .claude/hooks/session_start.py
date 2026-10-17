@@ -134,9 +134,28 @@ def defect_banner(repo_root: Path) -> str | None:
         return f"🩺 Journal des défauts illisible ({type(exc).__name__}) — `make defect-log`"
 
 
+# R640: the database is needed only while a session is open here. Starting a session wakes it
+# (detached, so the session never waits on docker); the baseline's fleet_guard.py stops it 2 h
+# after the last session. Never airflow: `make up` stays the way to ask for it.
+DATABASE = "postgres_spotify_airflow"
+
+
+def wake_database(popen=None) -> bool:
+    import shutil
+    import subprocess
+    docker = shutil.which("docker")
+    if docker is None:
+        return False
+    (popen or subprocess.Popen)([docker, "start", DATABASE], stdin=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+    return True
+
+
 def main():
     repo_root = find_repo_root()
     _write_session_marker(repo_root)
+    wake_database()
     latest = repo_root / ".claude" / "sessions" / "latest.md"
 
     brick_banner = _brick_banner(repo_root)
