@@ -59,6 +59,7 @@ const IMPACT = {
     guard_plan:  { type: 'string', description: 'the durable guard: a signature for error-classes.md and/or a test, plus the MUTATION that must make it go red' },
     decides_irreversible: { type: 'boolean', description: 'true if it touches a tenant boundary, a gate threshold, a KPI definition (gold view), money, credentials or a deployed schema' },
     confidence:  { type: 'string', enum: ['measured', 'read', 'inferred'] },
+    repro_command: { type: 'string', description: 'the shell command that reproduced the symptom — exit != 0 while the defect lives. It becomes the roadmap row\'s measure.' },
   },
 }
 
@@ -101,9 +102,26 @@ const COMPLETENESS = {
   properties: {
     open_classes:       { type: 'array', items: { type: 'string' } },
     proposed_detectors: { type: 'array', items: { type: 'object', required: ['detector', 'covers'],
-                          properties: { detector: { type: 'string' }, covers: { type: 'string' } } } },
+                          properties: { detector: { type: 'string' }, covers: { type: 'string' },
+                            measured_by: { type: 'string', description: 'the command that will show the detector working — the roadmap row\'s measure' } } } },
     what_was_not_swept: { type: 'string', description: 'the honest gap: a tree, a direction, or a claim left unverified. Never "nothing".' },
   },
+}
+
+// ─── WHAT A REPO DECLARES (baseline T110). Called with an array, the loop keeps the paths it was
+// written with. Called with an OBJECT, a repo whose docs live elsewhere — or that has no
+// code-critic agent — says so instead of the loop failing on a path it does not have:
+//   Workflow({name: 'engineering-loop', args: {findings: [...], roadmap: 'docs/roadmap/checklist.md',
+//             prefix: 'T', critic_agent: null, batch: 'python3 -m pytest -q', close: 'roadmap.py close Tnn'}})
+// `critic_agent` is passed as agentType ONLY when set: the Critic prompt carries the whole grid
+// on its own, so a repo without .claude/agents/code-critic.md passes null and still gets the audit.
+const OPTS = (args && typeof args === 'object' && !Array.isArray(args)) ? args : {}
+const DOCS = {
+  method:    OPTS.method    || '.claude/skills/impact-analysis/SKILL.md',
+  catalogue: OPTS.catalogue || '.claude/dev-docs/error-classes.md',
+  roadmap:   OPTS.roadmap   || '.claude/dev-docs/roadmap/*.md',
+  prefix:    OPTS.prefix    || 'R',
+  critic:    OPTS.critic_agent === undefined ? 'code-critic' : OPTS.critic_agent,
 }
 
 const RULES = `
@@ -115,7 +133,8 @@ BINDING CONTEXT (this repo's governance — violating any of these makes your ou
   found a month later).
 - An AST/structural check proves an edge is DRAWN, not that it BINDS (A24). Execution is the proof.
 - You may NOT write to the ROADMAP and you may NOT commit. Return findings only.
-- Read .claude/skills/impact-analysis/SKILL.md and .claude/dev-docs/error-classes.md before concluding.
+- Read ${DOCS.method} and ${DOCS.catalogue} before concluding. If one is ABSENT from this repo,
+  say so in your output and apply the method written in this prompt — never invent its content.
 `.trim()
 
 // ─── Phase 1+2+3 pipeline. No barrier between them: finding B is being critiqued while finding C is
@@ -123,7 +142,7 @@ BINDING CONTEXT (this repo's governance — violating any of these makes your ou
 // would idle every fast finding behind the slowest sweep, for nothing — no stage needs cross-item
 // context. (Phase 4 does, and it is the one place this script blocks.)
 
-const findings = Array.isArray(args) ? args : (args ? [args] : [])
+const findings = Array.isArray(args) ? args : Array.isArray(OPTS.findings) ? OPTS.findings : (args && !OPTS.findings ? [args] : [])
 if (!findings.length) {
   log('no findings passed — call with args: ["symptom 1", "symptom 2", …]')
   return { error: 'no findings', manifest: [] }
@@ -142,7 +161,7 @@ on this finding:
 
   ${typeof finding === 'string' ? finding : JSON.stringify(finding)}
 
-Follow .claude/skills/impact-analysis/SKILL.md steps 1-3 EXACTLY, in order:
+Follow ${DOCS.method} steps 1-3 EXACTLY, in order:
 
  1. REPRODUCE / CONFIRM. Get the real symptom: a traceback, a failing test, or a measured number.
     Never work from a guess. If the finding does not reproduce, set is_real=false and give the
@@ -214,7 +233,7 @@ Return exactly one verdict:
   DO-NOT-BUILD ..... do not write this. Your reason becomes a ROADMAP brick, so make it stand alone.
 
 Be cold. You are not here to approve. Praise is not an output of this phase.`,
-      { label: `critic:${String(i + 1).padStart(2, '0')}`, phase: 'Critic', agentType: 'code-critic', schema: VERDICT }
+      { label: `critic:${String(i + 1).padStart(2, '0')}`, phase: 'Critic', schema: VERDICT, ...(DOCS.critic ? { agentType: DOCS.critic } : {}) }
     )
     return { impact, verdict, patch: null }
   },
@@ -243,7 +262,7 @@ ${mods.length ? `  REQUIRED MODIFICATIONS — these are NOT optional, the verdic
 
 Do all four, in order:
  1. Apply the fix — every sibling marked same_bug too, not just the first instance.
- 2. Add the DURABLE GUARD: a signature in .claude/dev-docs/error-classes.md (a shell command,
+ 2. Add the DURABLE GUARD: a signature in ${DOCS.catalogue} (a shell command,
     exit != 0 = hit) and/or a test. A NEW class needs an admission ticket — \`admitted:\` with
     recurrence:<d1>,<d2> | sites:<N>=2+ | p1:<prod impact> — else write the TEST and no class
     (CI: audit_runner.py --admission). Follow the existing entry format exactly: status / kind /
@@ -262,7 +281,7 @@ Do all four, in order:
     main repo cannot see your files, and this diff is the ONLY way your work survives. A patch you
     applied but did not return is a phase that reports success and delivers nothing.
 
-DO NOT: git add, git commit, git push, or edit .claude/dev-docs/roadmap/*.md. The main context records
+DO NOT: git add, git commit, git push, or edit ${DOCS.roadmap}. The main context records
 the ROADMAP with the measuring command's output (binding rule 4) and owns the deploy order.`,
       { label: `fix:${String(i + 1).padStart(2, '0')}`, phase: 'Fix', schema: PATCH, isolation: 'worktree' }
     )
@@ -314,7 +333,7 @@ ${JSON.stringify(done.map(r => ({
 Answer three questions, and answer the third one honestly:
 
  1. WHICH CLASS REMAINS OPEN? For each fix, is the class closed or only this instance? Cross-check
-    against .claude/dev-docs/error-classes.md — an existing class that gained an instance should be
+    against ${DOCS.catalogue} — an existing class that gained an instance should be
     EXTENDED, not duplicated as a new one.
  2. WHICH SINGLE DETECTOR WOULD COVER THE LOT? Prefer a detector over an agent, always: a signature
     in error-classes.md runs free on every change forever; an agent is a file someone must remember
@@ -326,6 +345,19 @@ Answer three questions, and answer the third one honestly:
     (.claude/workflows/ for the REX validator; python/ only for the orphan detector).`,
   { label: 'completeness', phase: 'Improve', schema: COMPLETENESS }
 )
+
+// ─── Ready roadmap rows (baseline T110). Binding rule 1 wants a row BEFORE any action, with the
+// command that will prove it: a detector or a refusal left as prose is a row nobody writes. The
+// id stays `<prefix>nnn` — numbering is the main context's, it alone sees the live roadmap.
+const cell = v => String(v || '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
+const row = (task, measure, defect) =>
+  `| ${DOCS.prefix}nnn | ${cell(task)}${defect ? ' <!-- défaut -->' : ''} | P2 | ${measure ? '`' + cell(measure) + '`' : 'à mesurer — aucune commande rendue'} |`
+const rowFor = r => {
+  const t = (r.impact && r.impact.title) || 'finding'
+  if (r.verdict && r.verdict.verdict === 'DO-NOT-BUILD')
+    return row(`Refusé (DO-NOT-BUILD) : ${t} — ${r.verdict.reason}`, r.impact && r.impact.repro_command, false)
+  return row(t, (r.patch && r.patch.guard) || (r.impact && r.impact.repro_command), true)
+}
 
 // ─── The deploy manifest. NOT a deploy — the main context does that, in the playbook's order:
 // ROADMAP first (each item with the command that measured it and its output), then the single
@@ -357,13 +389,17 @@ return {
     roadmap_action: r.verdict && r.verdict.verdict === 'DO-NOT-BUILD'
       ? 'brick: record the refusal AND its reason'
       : 'checked-off item: record the fix WITH the command that proves it and that command output',
+    roadmap_row: rowFor(r),
   })),
   completeness: improve,
+  detector_rows: ((improve && improve.proposed_detectors) || [])
+    .map(d => row(`Détecteur : ${d.detector} — couvre ${d.covers}`, d.measured_by, false)),
   deploy_order: [
+    '0. `git apply --check` EACH diff on the main tree before anything else — it may have moved during the run; a refused diff is a finding still OPEN, never a dropped one',
     '1. ROADMAP first — every item above, each with the command that measured it and its OUTPUT (rule 4)',
-    '2. then the deferred batch, ONCE: make test-changed · python3 .claude/scripts/audit_runner.py --deterministic --coverage · python3 .claude/scripts/validate_rex.py · make roadmap-discipline',
-    '3. then commit the approved fixes citing their open Rnnn, push origin main, wait on THAT commit\'s CI run, deploy (make deploy) if product code changed',
-    '4. close each row: make roadmap-close ID=Rnnn NOTE="…" (the archive entry carries the commits and the measure)',
+    `2. then the deferred batch, ONCE: ${OPTS.batch || 'make test-changed · python3 .claude/scripts/audit_runner.py --deterministic --coverage · python3 .claude/scripts/validate_rex.py · make roadmap-discipline'}`,
+    `3. then commit the approved fixes citing their open ${DOCS.prefix}nnn, push origin main, wait on THAT commit\'s CI run, deploy (make deploy) if product code changed`,
+    `4. close each row: ${OPTS.close || 'make roadmap-close ID=Rnnn NOTE="…"'} (the archive entry carries the commits and the measure)`,
     '⚠️ never edit a tracked file while the suite runs — such a run is contaminated, not green',
   ],
 }

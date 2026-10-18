@@ -39,13 +39,13 @@ const src = fs.readFileSync(process.argv[1], 'utf8').replace(/^export const meta
 const calls = [];
 const agent = async (prompt, opts) => {
   const label = opts.label, phase = opts.phase;
-  calls.push({ label, phase, isolation: opts.isolation || null, prompt });
+  calls.push({ label, phase, isolation: opts.isolation || null, agentType: opts.agentType || null, prompt });
   const n = label.split(':')[1];
   if (phase === 'Impact') return {
     title: `defect ${n}`, root_cause: `file.py:${n}`, is_real: true, error_class: '',
     siblings: [{ path: `s${n}.py`, same_bug: true, why: 'same call' }],
     fix_scope: 'file.py', guard_plan: 'a test + its mutation',
-    decides_irreversible: false, confidence: 'read' };
+    decides_irreversible: false, confidence: 'read', repro_command: `python3 repro_${n}.py` };
   if (phase === 'Critic') return n === '01'
     ? { verdict: 'BUILD', reason: 'sound as designed' }
     : { verdict: 'DO-NOT-BUILD', reason: 'refused: hides a tenant coupling' };
@@ -53,7 +53,8 @@ const agent = async (prompt, opts) => {
     applied: true, files_touched: [`fixed_${n}.py`], diff: `diff --git a/fixed_${n}.py`,
     guard: `tests/test_${n}.py`, mutation_result: 'AssertionError fired', mutation_verified: true };
   if (phase === 'Improve') return {
-    open_classes: [], proposed_detectors: [], what_was_not_swept: 'the stub swept nothing' };
+    open_classes: [], what_was_not_swept: 'the stub swept nothing',
+    proposed_detectors: [{ detector: 'one grep', covers: 'both | defects', measured_by: 'make detect' }] };
   throw new Error(`unexpected phase ${phase}`);
 };
 const pipeline = async (items, ...stages) => Promise.all(items.map(async (it, i) => {
@@ -69,16 +70,30 @@ body(agent, pipeline, parallel, log, phase, args, {total: null}, async () => nul
 """
 
 
-@pytest.fixture(scope="module")
-def run() -> dict:
+def _exercise(args) -> dict:
     if not shutil.which("node"):
         pytest.skip("node absent — the loop cannot be exercised here")
-    r = subprocess.run(["node", "-e", _HARNESS, str(_SCRIPT), json.dumps(_FINDINGS)],
+    r = subprocess.run(["node", "-e", _HARNESS, str(_SCRIPT), json.dumps(args)],
                        capture_output=True, text=True, timeout=60)
     out = json.loads(r.stdout or "{}")
     assert "error" not in out, f"the script crashed under the harness: {out.get('error')}\n{r.stderr}"
     assert out.get("result"), f"the script returned nothing: stdout={r.stdout!r} stderr={r.stderr!r}"
     return out
+
+
+@pytest.fixture(scope="module")
+def run() -> dict:
+    return _exercise(_FINDINGS)
+
+
+# baseline T110 — a repo whose docs live elsewhere, with no code-critic agent, declares it.
+_DECLARED = {"findings": _FINDINGS, "roadmap": "docs/roadmap/checklist.md", "prefix": "T",
+             "method": "docs/METHOD.md", "critic_agent": None, "batch": "python3 -m pytest -q"}
+
+
+@pytest.fixture(scope="module")
+def declared() -> dict:
+    return _exercise(_DECLARED)
 
 
 def _entry(manifest: list, title: str) -> dict:
@@ -125,3 +140,35 @@ def test_the_fix_runs_isolated_and_the_script_neither_commits_nor_writes_the_roa
     commit_step = next(i for i, s in enumerate(order) if "commit the approved fixes" in s)
     assert roadmap_step < commit_step, order
     assert run["result"]["completeness"]["what_was_not_swept"], "the Improve answer is missing"
+
+
+def test_an_array_call_keeps_the_critic_agent_and_this_repo_s_paths(run) -> None:
+    critics = [c for c in run["calls"] if c["phase"] == "Critic"]
+    assert critics and all(c["agentType"] == "code-critic" for c in critics), critics
+    assert ".claude/skills/impact-analysis/SKILL.md" in run["calls"][0]["prompt"]
+
+
+def test_a_repo_declares_its_docs_and_goes_without_a_critic_agent(declared) -> None:
+    """Mutation (2026-10-18): `...(DOCS.critic ? …)` → `agentType: 'code-critic'` → red here."""
+    calls = declared["calls"]
+    assert declared["result"]["summary"]["in_manifest"] == 2
+    assert [c["agentType"] for c in calls if c["phase"] == "Critic"] == [None, None]
+    assert "docs/METHOD.md" in calls[0]["prompt"] and "impact-analysis/SKILL.md" not in calls[0]["prompt"]
+    fix = next(c for c in calls if c["phase"] == "Fix")
+    assert "or edit docs/roadmap/checklist.md" in fix["prompt"]
+    assert any("python3 -m pytest -q" in s for s in declared["result"]["deploy_order"])
+
+
+def test_every_entry_and_detector_carries_a_ready_roadmap_row(declared) -> None:
+    m = declared["result"]["manifest"]
+    built, refused = _entry(m, "defect 01"), _entry(m, "defect 02")
+    assert built["roadmap_row"] == "| Tnnn | defect 01 <!-- défaut --> | P2 | `tests/test_01.py` |"
+    assert refused["roadmap_row"].startswith("| Tnnn | Refusé (DO-NOT-BUILD) : defect 02 — refused")
+    assert refused["roadmap_row"].endswith("| P2 | `python3 repro_02.py` |"), refused["roadmap_row"]
+    assert declared["result"]["detector_rows"] == [
+        "| Tnnn | Détecteur : one grep — couvre both \\| defects | P2 | `make detect` |"]
+
+
+def test_the_deploy_starts_by_checking_each_diff_applies(run) -> None:
+    first = run["result"]["deploy_order"][0]
+    assert first.startswith("0. `git apply --check` EACH diff") and "still OPEN" in first, first
