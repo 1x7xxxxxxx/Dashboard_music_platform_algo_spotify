@@ -15,6 +15,7 @@ puis dès qu'on a 0 tâche en roadmap on pousse de façon automatique ».
 
 - `start` (SessionStart): records what is ALREADY dirty or untracked, so another session's
   leftovers are never swept into this session's commit.
+- Stop: the `reprise:` anchor is rewritten from the index first (T34), so it never lies.
 - Stop: an id that left the checklist since the last turn is a closed task → commit the files
   this session touched (tracked, plus untracked created since start), message « T20 fermée ».
   Commit hooks run: a refused commit is reported, never forced (no --no-verify).
@@ -24,6 +25,10 @@ puis dès qu'on a 0 tâche en roadmap on pousse de façon automatique ».
   once the index is already empty (a ROADMAP entry, a drift report) would otherwise stay ↑1.
   One push at a time; a HEAD whose push was refused is not retried (a red 16-min gate would
   rerun every turn); behind origin (↓n) it is reported, not attempted.
+
+- Stop (T82): a task closed while its CI was not read yet (`ci-pending.json` beside the
+  checklist) has it read by `roadmap.py ci` at most every 5 min: green, forgotten; red, the task
+  is back in the index and said. Without it no task closed in a repo with CI before a manual push.
 
 ROADMAP_AUTOCOMMIT=0 / ROADMAP_AUTOPUSH=0 turn each off. Never fails a turn.
 
@@ -39,6 +44,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
@@ -50,6 +56,9 @@ _trace(__file__)
 
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
+APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
+ROADMAP_TOOL = "tools/governance/roadmap.py"
+CI_EVERY_S = 300
 
 
 def git(root: Path, *args: str, timeout: int = 120) -> subprocess.CompletedProcess:
@@ -80,6 +89,17 @@ def index_ids(text: str, title: str, prefix: str) -> set[str]:
     lines = text.splitlines()[start + 1:]
     end = next((i for i, ln in enumerate(lines) if ln.startswith("## ")), len(lines))
     return all_ids("\n".join(lines[:end]), prefix)
+
+
+_ANCHOR = re.compile(r"<!--\s*reprise:\s*open=([^>]*?)\s*-->")
+
+
+def sync_anchor(text: str, prefix: str) -> str:
+    """T34: the `<!-- reprise: open=… -->` anchor rewritten from the index rows (both tables),
+    as `roadmap.py sync` does. A row added by hand left it stale until the next close. A
+    checklist without the anchor is left as it is."""
+    ids = list(dict.fromkeys(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M)))
+    return _ANCHOR.sub(f"<!-- reprise: open={', '.join(ids)} -->", text, count=1)
 
 
 def dirty(root: Path) -> dict[str, str]:
@@ -137,9 +157,28 @@ def push_report(root: Path, state: dict) -> str | None:
 def start_push(root: Path) -> None:
     log = root / PUSH_LOG
     log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = f'cd "{root}" && {{ date -Is; git push; echo "rc=$?"; }} > "{log}" 2>&1'
+    # The fleet master pushed → the fleet is reconciled right after (T66): a validated change
+    # reaches every `managed` repo without a second gesture. Elsewhere the file is absent.
+    cmd = (f'cd "{root}" && {{ date -Is; git push; rc=$?; echo "rc=$rc"; }} > "{log}" 2>&1; '
+           f'[ "$rc" = 0 ] && [ -f {APPLY} ] && python3 {APPLY} apply --push >> "{log}" 2>&1')
     subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def ci_report(root: Path, checklist: Path, state: dict, now: float) -> str | None:
+    """The CIs of the tasks closed in wait (T82), read at most every CI_EVERY_S."""
+    if not (checklist.parent / "ci-pending.json").is_file() or not (root / ROADMAP_TOOL).is_file():
+        return None
+    if now - state.get("ci_at", 0) < CI_EVERY_S:
+        return None
+    state["ci_at"] = now
+    try:
+        r = subprocess.run([sys.executable, str(root / ROADMAP_TOOL), "ci"], cwd=str(root),
+                           capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    said = " · ".join(ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("✅", "❌")))
+    return said or None
 
 
 def on_start(root: Path, session: str) -> None:
@@ -155,9 +194,15 @@ def on_stop(root: Path, session: str) -> list[str]:
     if not path.is_file():
         return []
     text = path.read_text(encoding="utf-8")
+    if (synced := sync_anchor(text, prefix)) != text:
+        path.write_text(synced, encoding="utf-8")
+        text = synced
     state, msgs = load(root), []
     if report := push_report(root, state):
         msgs.append(report)
+    if report := ci_report(root, path, state, time.time()):
+        msgs.append(report)
+        text = path.read_text(encoding="utf-8")  # a red CI put its task back in the index
     if state.get("session") != session:  # SessionStart missed: snapshot now, act from next turn
         state.update(session=session, start=dirty(root))
     ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)

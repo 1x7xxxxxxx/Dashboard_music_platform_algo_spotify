@@ -502,6 +502,20 @@ def _copie_imbriquee(dirpath: str, d: str) -> bool:
     return (Path(dirpath).name, d) in NESTED_COPIES
 
 
+def _ignores(root: Path) -> set[str]:
+    """Les dossiers que git ignore, en chemins absolus — un seul appel, sans descendre dedans.
+
+    Un test qu'aucun commit ne porte n'est pas un test du dépôt : la CI ne le voit pas.
+    Mesuré sur assistant_perso le 2026-10-18 (baseline T96) : `vendor/hermes-agent`, ignoré
+    mais absent de PRUNE, a fait choisir 157 tests à un diff de deux hooks — 337 rouges, et
+    un push refusé pour un code que personne n'avait touché. Hors dépôt git : rien."""
+    r = subprocess.run(["git", "ls-files", "-o", "-i", "--exclude-standard", "--directory"],
+                       cwd=root, capture_output=True, text=True)
+    if r.returncode != 0:
+        return set()
+    return {str(root / d.rstrip("/")) for d in r.stdout.splitlines() if d.endswith("/")}
+
+
 def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     """Les `.py` du dépôt, en ÉLAGUANT pendant la descente.
 
@@ -520,6 +534,7 @@ def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     """
     import os
     autorises = {str(r) for r in (roots or []) if str(r) != str(root)}
+    ignores = _ignores(root)
     out: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         gardes = []
@@ -527,6 +542,9 @@ def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
             if d in PRUNE or _copie_imbriquee(dirpath, d):
                 continue
             chemin = str(Path(dirpath) / d)
+            if chemin in ignores and not any(
+                    a == chemin or a.startswith(chemin + os.sep) for a in autorises):
+                continue
             if d.startswith(".") and not any(
                     a == chemin or a.startswith(chemin + os.sep) for a in autorises):
                 continue
