@@ -31,6 +31,16 @@ WHAT IT CAPTURES, and why each was a hole:
      observations + diff, i.e. from what SUCCEEDED. Now a failed command leaves a row, and the REX
      draft has raw material.
 
+  3. **SubagentStop → the agent's journal** (T93 of the baseline, 2026-10-18, owner: « après
+     chaque utilisation on saisit un journal pour tracer les actions, les problèmes rencontrés, le
+     rex de configuration du harnais »). The payload carries `agent_transcript_path`; the row now
+     says what the agent DID (`actions`: each tool and its target, `tools`: counts), what went
+     WRONG (`problems`: each tool_result flagged `is_error`, with a `harness` category — permission,
+     hook, budget, timeout, not-found, read-before-edit, other), what it RETURNED (`outcome`: the
+     handback, truncated) and how long it took. The REX itself is not written here (records,
+     never reasons): the baseline's `tools/dev/agent_rex.py` reads these rows across the fleet and
+     turns a problem that recurs into a harness-configuration REX.
+
 Always exits 0. A sensor that can break a session is a sensor people delete.
 
 ---
@@ -44,6 +54,7 @@ rex:
 """
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -55,6 +66,20 @@ _trace(__file__)
 
 _MAX_ENTRIES = 2000        # hard cap; oldest dropped. An unbounded log is a log nobody opens.
 _CMD_CHARS = 160
+_MAX_ACTIONS = 40          # a journal row stays one line a human reads
+_TARGET_CHARS = 80
+_OUTCOME_CHARS = 400
+_TRANSCRIPT_MAX_BYTES = 20_000_000
+
+# The harness category of a failed tool call: what in the Claude Code configuration it points at.
+_HARNESS = (
+    ("permission", re.compile(r"permission|not allowed|denied|requires approval|auto mode", re.I)),
+    ("hook", re.compile(r"hook|blocked by|PreToolUse", re.I)),
+    ("budget", re.compile(r"budget|quota|rate limit|usage limit", re.I)),
+    ("timeout", re.compile(r"timed? ?out|timeout", re.I)),
+    ("read-before-edit", re.compile(r"has not been read|read it first|must read", re.I)),
+    ("not-found", re.compile(r"no such file|not found|does not exist|command not found", re.I)),
+)
 
 
 def find_repo_root() -> Path:
@@ -80,6 +105,78 @@ def _append(repo_root: Path, entry: dict) -> None:
         pass                # never block on a sensor failure
 
 
+def _target(inp: dict) -> str:
+    v = (inp.get("command") or inp.get("file_path") or inp.get("pattern") or inp.get("path")
+         or inp.get("url") or inp.get("query") or inp.get("description") or "")
+    return " ".join(str(v).split())[:_TARGET_CHARS]
+
+
+def _text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+    return json.dumps(content, ensure_ascii=False) if content is not None else ""
+
+
+def harness_category(error: str) -> str:
+    for name, rx in _HARNESS:
+        if rx.search(error):
+            return name
+    return "other"
+
+
+def journal(transcript: str) -> dict:
+    """What the agent did, from its own transcript: actions, problems, outcome, duration.
+    Empty when the transcript cannot be read — the row still says which agent ran."""
+    try:
+        path = Path(transcript)
+        if not transcript or path.stat().st_size > _TRANSCRIPT_MAX_BYTES:
+            return {}
+        rows = [json.loads(x) for x in path.read_text(encoding="utf-8", errors="replace").splitlines() if x.strip()]
+    except (OSError, ValueError):
+        return {}
+    uses: dict = {}
+    actions: list = []
+    tools: dict = {}
+    problems: list = []
+    outcome = handback = ""
+    stamps = [r.get("timestamp") for r in rows if isinstance(r, dict) and r.get("timestamp")]
+    for r in rows:
+        msg = r.get("message") if isinstance(r, dict) else None
+        content = msg.get("content") if isinstance(msg, dict) else None
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use":
+                name, inp = b.get("name", "?"), b.get("input") or {}
+                if name == "SubagentHandback":
+                    handback = _text(inp.get("message"))
+                    continue
+                uses[b.get("id")] = (name, _target(inp))
+                tools[name] = tools.get(name, 0) + 1
+                if len(actions) < _MAX_ACTIONS:
+                    actions.append(f"{name}: {_target(inp)}" if _target(inp) else name)
+            elif b.get("type") == "tool_result" and b.get("is_error"):
+                name, target = uses.get(b.get("tool_use_id"), ("?", ""))
+                err = " ".join(_text(b.get("content")).split())[:_CMD_CHARS]
+                problems.append({"tool": name, "target": target, "error": err,
+                                 "harness": harness_category(err)})
+            elif b.get("type") == "text" and r.get("type") == "assistant":
+                outcome = b.get("text", "") or outcome   # the last text, when no handback
+    out = {"tools": tools, "actions": actions, "problems": problems,
+           "outcome": " ".join((handback or outcome).split())[:_OUTCOME_CHARS]}
+    try:
+        from datetime import datetime
+        t0, t1 = (datetime.fromisoformat(s.replace("Z", "+00:00")) for s in (stamps[0], stamps[-1]))
+        out["duration_s"] = round((t1 - t0).total_seconds())
+    except (IndexError, ValueError, TypeError):
+        pass
+    return out
+
+
 def main() -> None:
     try:
         data = json.load(sys.stdin)
@@ -94,6 +191,7 @@ def main() -> None:
         # which can be thousands of tokens and would blow the cap.
         entry["agent"] = data.get("agent_type") or "(unknown)"
         entry["agent_id"] = (data.get("agent_id") or "")[:12]
+        entry.update(journal(data.get("agent_transcript_path") or ""))
     elif event in ("PostToolUseFailure", "PostToolUse"):
         # PostToolUse is accepted so this hook still records if the event is ever re-pointed; it
         # only writes on an ACTUAL failure, so a success does not create noise.
