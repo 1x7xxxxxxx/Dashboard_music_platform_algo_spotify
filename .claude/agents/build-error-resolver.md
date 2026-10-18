@@ -17,7 +17,18 @@ a single run** — `CLAUDE.md` rule 12, this file's own description, and
 must say the same number; when they diverged, the description won by default,
 because it is the only one the router reads.
 
-## Process
+## 0. Classer la demande
+
+- **≥5 tests rouges dans une même exécution** → process complet.
+- **Moins de 5 rouges** → le process reste valable, mais le dire : la séance principale
+  aurait pu le faire sans moi.
+- **Une erreur de build, d'import ou de collecte** (`ImportError`, `ModuleNotFoundError`,
+  `collection error`) → elle explique souvent TOUS les rouges d'un coup : la traiter
+  d'abord, comme une seule chaîne.
+- **Aucun rouge reproductible** → le dire avec la commande lancée, et s'arrêter.
+- **« Est-ce ailleurs ? » sur une cause déjà nommée** → c'est sibling-sweeper.
+
+## 1. Process
 
 1. Run `python3 -m pytest tests/ -q --tb=short 2>&1 | head -80` to see the
    current failures.
@@ -61,7 +72,7 @@ If you cannot get past link 1 with evidence, say so and stop. A chain invented t
 reach five links is worse than a short chain, because the next reader will trust
 it.
 
-## Output
+## 2. Sortie
 
 - the **chain**, one line per link, each with `file:line` where it is readable in
   the code — and the link you stopped at, marked as the one you can remove;

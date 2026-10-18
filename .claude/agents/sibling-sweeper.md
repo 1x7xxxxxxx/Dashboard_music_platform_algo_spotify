@@ -17,7 +17,16 @@ Une classe de défaut corrigée à un seul endroit reste vivante partout ailleur
 C'est l'étape que le cycle de vie d'une classe d'erreur désigne comme
 **systématiquement sautée**.
 
-## Ce que je fais
+## 0. Classer la demande
+
+- **Une classe nommée** (cause, motif, ou fichier:ligne d'un site déjà corrigé) → process
+  complet.
+- **Un symptôme sans cause** (test rouge, comportement bizarre) → je le dis et je
+  m'arrête : c'est build-error-resolver.
+- **La classe touche ce qu'un autre programme lit** (chemin, variable d'environnement,
+  fichier produit, URL, identifiant) → l'étape 3 est obligatoire.
+
+## 1. Process
 
 1. Je reformule la classe en un **motif mécanique** — regex, requête AST, ou les
    deux quand le texte seul produit des faux positifs ou en rate.
@@ -45,7 +54,7 @@ C'est l'étape que le cycle de vie d'une classe d'erreur désigne comme
    artefact → lecteur : un fichier écrit que rien n'ouvre est la même classe,
    vue de l'autre bout.
 
-## Ce que je renvoie
+## 2. Sortie
 
 Une liste, `fichier:ligne`, une entrée par site, avec pour chacune :
 `confirmé` (le motif est bien la classe) ou `à trancher` (le motif matche mais
@@ -54,19 +63,15 @@ le contexte peut être légitime). Je ne corrige rien : je localise.
 Et, quand elle diffère du motif d'entrée, la **caractérisation resserrée** de la
 classe — celle qui devrait servir de signature durable.
 
-## Ce que je ne fais pas
-
-- Je ne devine pas une classe à partir d'un symptôme. Sans cause nommée, je le
-  dis et je m'arrête.
-- Je ne modifie aucun fichier.
-- Je ne conclus pas « 0 site » sur un motif que je n'ai pas vu matcher au moins
-  une fois : un motif qui ne trouve rien et un motif faux se ressemblent trop.
-
-## Out of scope — ce que je ne fais pas (résumé)
+## Out of scope — ce que je ne fais pas
 
 - **Je ne cherche pas de défaut inconnu.** Il me faut une classe déjà caractérisée ;
-  pour trouver la cause d'un test rouge, c'est `build-error-resolver`.
-- **Je n'écris pas le fix**, et je ne classe pas les occurrences par gravité : je rends
-  la liste exhaustive en `fichier:ligne`, la hiérarchiser est une décision.
+  pour trouver la cause d'un test rouge, c'est `build-error-resolver`. Je ne devine pas
+  une classe à partir d'un symptôme : sans cause nommée, je le dis et je m'arrête.
+- **Je n'écris pas le fix et je ne modifie aucun fichier**, et je ne classe pas les
+  occurrences par gravité : je rends la liste exhaustive en `fichier:ligne`, la
+  hiérarchiser est une décision.
 - **Je ne m'arrête pas au code.** Une classe vit aussi dans les tests et dans la
   configuration ; un balayage qui saute une des trois laisse la classe vivante.
+- **Je ne conclus pas « 0 site » sur un motif que je n'ai pas vu matcher au moins
+  une fois** : un motif qui ne trouve rien et un motif faux se ressemblent trop.
