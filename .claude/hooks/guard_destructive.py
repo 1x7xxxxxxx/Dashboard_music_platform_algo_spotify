@@ -3762,12 +3762,35 @@ def _first_words(argv: list[str], pattern: str) -> bool:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def _judge_write(data: dict) -> None:
+    """L'outil Write REMPLACE le fichier entier : c'est `> f`, jugé par le même `_protected`
+    (T176 — le garde ne voyait que Bash, un Write sur `~/.bashrc` passait). Edit et MultiEdit
+    changent une partie du fichier, comme `sed -i s///` : non jugés (trou déclaré)."""
+    path = data.get("tool_input", {}).get("file_path", "")
+    try:
+        hit = bool(path) and _protected(_canon(path, data.get("cwd")), False)
+    except Exception:  # noqa: BLE001 — fermé, comme pour Bash (T125)
+        hit = True
+    if hit:
+        print(
+            f"🚫 BLOCKED — Destructive write detected:\n"
+            f"   File    : {path[:120]}\n"
+            f"   Reason  : Write remplace ce fichier protégé en entier (maison, ~/.ssh, chemin système).\n"
+            f"   Action  : Explain the intent and request explicit user confirmation before retrying.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    sys.exit(0)
+
+
 def main() -> None:
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError:
         sys.exit(0)
 
+    if data.get("tool_name") == "Write":
+        _judge_write(data)
     if data.get("tool_name") != "Bash":
         sys.exit(0)
 
