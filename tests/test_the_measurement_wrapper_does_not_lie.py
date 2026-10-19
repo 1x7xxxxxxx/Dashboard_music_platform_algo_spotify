@@ -36,7 +36,11 @@ _CONFIG = Path.home() / ".config/rtk/config.toml"
 # `make`, `git stash`, `gh` ajoutés le 2026-09-25 : trois mensonges de plus en une séance —
 # `make test-changed` tronqué (« 281 lines truncated », verdict perdu), `git stash show`
 # → « Empty stash » sur un stash de 5 fichiers, `gh run list` sans le statut du run.
-_MUST_BE_EXCLUDED = {"grep", "diff", "ps", "make", "git stash", "gh"}
+# T127 de la baseline (2026-10-19), mesurés brut contre `rtk <filtre>` : `du -a | wc -l` 41 au
+# lieu de 501, `curl -sI | wc -l` 6 au lieu de 7, `ruff check` « F821 (1) » pour 61 erreurs,
+# `mypy` une erreur pour 62, `pip list | wc -l` 8 au lieu de 276, `rsync --stats` 1 ligne sur 17.
+_MUST_BE_EXCLUDED = {"grep", "diff", "git diff", "ps", "make", "git stash", "gh", "wc", "find",
+                     "du", "curl", "ruff", "mypy", "pip", "pip3", "uv pip", "rsync"}
 
 
 def _config() -> dict:
