@@ -368,14 +368,15 @@ Avant d'agir sur un chemin lu dans `GRAPH_REPORT.md`, vérifier qu'il existe : `
 update` ajoute et ne retire pas — le graphe oriente, il ne prouve pas. Vue visuelle :
 `graphify-out/graph.html` (autonome, `make graph-html`). Tailles et résidu mesurés : §10.
 
-<!-- baseline-pointer v5 — source unique : tools/dev/claude-md-pointer.md du baseline.
+<!-- baseline-pointer v6 — source unique : tools/dev/claude-md-pointer.md du baseline.
      Ne pas éditer ici : éditer la source et relancer install_conformance_ratchet.py --write.
      Tout ce qui est entre ce marqueur et son marqueur de fin est REMPLACÉ à chaque
-     déploiement. Le reste de ce CLAUDE.md n'est jamais touché. -->
+     déploiement. Le reste de ce CLAUDE.md n'est jamais touché. Les `args` sont rendus
+     avec les valeurs de CE dépôt (governance.toml, section [loop]). -->
 
 ## Règle contraignante — la boucle d'ingénierie
 
-**≥2 trouvailles dans une même session → `RUN Workflow({name: "engineering-loop", args: [une chaîne par trouvaille]})`**, pas quatre lancements séparés.
+**≥2 trouvailles dans une même séance → `RUN Workflow({name: "engineering-loop", args: {findings: [une chaîne par trouvaille], roadmap: ".claude/dev-docs/roadmap/checklist.md", prefix: "R", method: ".claude/skills/impact-analysis/SKILL.md", catalogue: ".claude/dev-docs/error-classes.md", critic_agent: "code-critic"}})`**, pas une correction à la main trouvaille par trouvaille.
 
 `.claude/workflows/engineering-loop.js` enchaîne quatre phases : **Impact** (un agent par
 trouvaille — cause racine lue dans le code, puis balayage des frères sur tout le dépôt)
