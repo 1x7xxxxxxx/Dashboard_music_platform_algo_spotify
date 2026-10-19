@@ -1,5 +1,6 @@
 ---
 description: Exigences de tout rapport ou PDF produit dans ce dépôt (norme RQ du parc)
+paths: ["**/*report*", "**/*rapport*", "**/*pdf*", "**/*livrable*", "**/reports/**"]
 rex: []
 ---
 

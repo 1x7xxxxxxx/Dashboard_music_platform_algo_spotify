@@ -806,7 +806,7 @@
   statut: conforme
   methode: hook
   portee: generique
-  composants: [.claude/rules/python.md, .claude/rules/makefile-fail-fast.md, .claude/skills/dashboard-view/SKILL.md, .claude/skills/airflow-dag/SKILL.md, .claude/skills/db-schema/SKILL.md, .claude/skills/audit-collectors/SKILL.md, .claude/skills/impact-analysis/SKILL.md, .claude/skills/response-protocol/SKILL.md]
+  composants: [.claude/rules/python.md, .claude/rules/makefile-fail-fast.md, .claude/rules/report-quality.md, .claude/skills/dashboard-view/SKILL.md, .claude/skills/airflow-dag/SKILL.md, .claude/skills/db-schema/SKILL.md, .claude/skills/audit-collectors/SKILL.md, .claude/skills/impact-analysis/SKILL.md, .claude/skills/response-protocol/SKILL.md]
   preuve: {pytest: tests/test_a_skill_loads_when_its_subject_is_touched.py::test_a_rule_is_scoped_with_the_key_claude_code_reads}
   mutation: "remettre `globs:` dans python.md ; retirer `keywords:` de dashboard-view"
   # R473 (2026-10-08), remesuré par usage_report sur les 4 séances postérieures au

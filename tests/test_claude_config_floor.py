@@ -299,6 +299,9 @@ _RULE_START = re.compile(r"^\d+(?:bis|ter)?\.\s+\*\*")
 _RULE_END = re.compile(r"^(?:\d+(?:bis|ter)?\.\s+\*\*|#|>)")
 # `subagent_type: 'x'` / `agentType: "x"` in a workflow script.
 _WORKFLOW_AGENT = re.compile(r"""\b(?:subagent_type|agentType)\s*:\s*['"`]([a-z0-9-]+)['"`]""")
+# The engineering loop's critic is a DEFAULT, passed as agentType only when set (baseline T110):
+# `critic: OPTS.critic_agent === undefined ? 'code-critic' : …` still spawns it (baseline T149).
+_WORKFLOW_DEFAULT_AGENT = re.compile(r"""_agent\s*===\s*undefined\s*\?\s*['"`]([a-z0-9-]+)['"`]""")
 
 
 def _claude_md_rule_blocks(text: str) -> list[str]:
@@ -335,6 +338,7 @@ def _workflow_spawned() -> set[str]:
             if line.lstrip().startswith(("//", "*", "/*")):
                 continue                        # a comment NAMES an agent, it does not spawn it
             names.update(_WORKFLOW_AGENT.findall(line))
+            names.update(_WORKFLOW_DEFAULT_AGENT.findall(line))
     return names
 
 
