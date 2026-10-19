@@ -8,6 +8,9 @@ Measured 2026-10-16: CLAUDE.md had grown to 688 lines, most of them dated measur
 written as the evidence of a rule. The baseline fleet audit (`audit_fleet.py`) charges a
 CLAUDE.md over 400 lines, and every line is paid in context on every turn. R631 MOVED the
 measurements verbatim to `claude-md-measures.md` and left a `§n` pointer in their place.
+Baseline T142 (2026-10-19) retired that 400 (no source; CLAUDE.md is read from the prompt cache)
+and kept 500, the one sourced ceiling (Definitive Guide p.30): the budget follows it. The pointer
+check stays — dated measures still belong in the measures doc, not in a rule.
 
 guard_scope: the line count of CLAUDE.md, and a `§n` / `§nbis` pointer in CLAUDE.md that
 names no `## §n` heading of the measures doc. NOT covered: a pointer to a section that
@@ -24,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLAUDE_MD = ROOT / "CLAUDE.md"
 MEASURES = ROOT / ".claude" / "dev-docs" / "claude-md-measures.md"
-BUDGET = 400
+BUDGET = 500  # the sourced ceiling; audit_fleet charges > 500 (baseline T142)
 _POINTER = re.compile(r"§(\d+(?:bis|ter)?)\b")
 _HEADING = re.compile(r"^## §(\d+(?:bis|ter)?) ", re.M)
 
@@ -35,7 +38,7 @@ def _dangling(claude_md: str, measures: str) -> set[str]:
 
 def test_claude_md_is_under_its_budget() -> None:
     n = len(CLAUDE_MD.read_text(encoding="utf-8").splitlines())
-    assert n < BUDGET, (f"CLAUDE.md has {n} lines (budget {BUDGET}) — move dated measurements "
+    assert n <= BUDGET, (f"CLAUDE.md has {n} lines (budget {BUDGET}) — move dated measurements "
                         f"to {MEASURES.relative_to(ROOT)} and leave a §n pointer")
 
 
