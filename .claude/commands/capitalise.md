@@ -8,7 +8,7 @@ rex:
     severity: warn
   - date: 2026-09-18
     issue: "A presence assertion (`assert \"X\" in source`) is satisfied by the PROSE of the file it inspects — the inverse of guard-matches-its-own-comment. Hit 6 times in one session, five of them against code written that same day, including a P1 tz guard green on 4 docstring mentions."
-    fix: "New class guard-satisfied-by-its-own-comment (P2) + tests/code_text.py, which strips comments and docstrings IN PLACE so token adjacency survives, and .claude/scripts/audit_presence_assertions.py (110 candidates, 11 proven, now 0)."
+    fix: "New class guard-satisfied-by-its-own-comment (P2) + tests/code_text.py, which strips comments and docstrings IN PLACE so token adjacency survives, and `audit_presence_assertions.py` of the source project (110 candidates, 11 proven, now 0)."
     ref: "91c6d29, 50b501c"
     severity: crit
 

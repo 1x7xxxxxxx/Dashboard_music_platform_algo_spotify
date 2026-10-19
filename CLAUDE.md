@@ -175,16 +175,19 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 10. **Makefile fail-fast**: any target invoking a runtime dependency (Docker, the venv interpreter, the live Postgres, `uv`, `streamlit`) must declare a prerequisite that fails fast with an actionable message — the `dashboard: check-env` precedent. File-only targets (`clean`, `help`, `graph-html`) are exempt. A runtime target with no precondition is a P3 bug: it must name the fix command, never crash mid-execution. Error class: `make-fail-late` (`.claude/dev-docs/error-classes.md`); full spec `.claude/rules/makefile-fail-fast.md`.
 11. **Bug → whole-repo impact analysis**: the moment a bug, divergence, regression, drift, or 500/crash is identified, load `.claude/skills/impact-analysis/SKILL.md` and follow it **before** writing the fix. A defect is an instance of a *class* — sweep the whole repo for sibling occurrences (the proven `/kpis` → `/youtube` drift lesson), root-cause by reading the code (not guessing), and ship fix **+ a durable guard** (error-class signature / test / hook) so the class can't recur. ⚠️ The skill itself is NOT injected (no `keywords:` — it said so until 2026-09-25, falsely): what `inject_context.py` injects on ≥2 bug-keywords is `bug-resolution.md`, whose step 2 is `Spawn sibling-sweeper`, and a commit that writes a class or a `(récidive)` line without a real sweeper call in the project's transcripts is blocked by `.claude/hooks/require_sweep_before_catalogue.py`. If prod-affecting, finish with `make sync-check`. The sequenced version of this rule is `.claude/workflows/bug-resolution.md`, injected on the same keywords — **run it, do not wait to be asked.**
 
-12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.** Il renvoie la chaîne
-    causale jusqu'à une cause **qu'on peut retirer**, ses sites, et le fix minimal. Seuil = `failures >= 5`
-    de `session_summary.py` : le changer, c'est éditer ensemble la règle, l'agent et le hook.
+12. **≥5 tests rouges dans une même exécution → `Spawn build-error-resolver`.** Il renvoie **la cause
+    racine unique**, le fichier et la ligne où elle se lit, **la chaîne qui y mène** — le symptôme, puis
+    chaque « pourquoi » jusqu'à une cause qu'on peut supprimer — et la liste **de tous les sites** qu'elle
+    touche, y compris ceux qu'aucun test n'exerce ; il ne réécrit aucun code non lié (contrat v3 du
+    baseline : la vraie cause nommée passe de 43 % à 77 %). Seuil = `failures >= 5` de
+    `session_summary.py` (le baseline v3 dit ≥1) : le changer, c'est éditer ensemble la règle, l'agent et le hook.
 
 13. **Un endpoint HTTP, une route d'authentification ou une lecture de secret ajoutée ou modifiée → `Spawn security-specialist`.** Il renvoie des constats CRITICAL/HIGH/MEDIUM avec fichier et ligne.
 
 > Règles 12-13 (2026-07-28) : une flèche, un déclencheur vérifiable, le verbe littéral
 > `Spawn`, un contrat de sortie — le seul mécanisme mesuré qui produise des invocations (§7).
 
-<!-- measured-rules:begin v2 — genere par /home/timothe/projects/claude_code_deployment_baseline/tools/dev/install_measured_rules.py (le BASELINE, pas ce depot) -->
+<!-- measured-rules:begin v3 — tools/dev/install_measured_rules.py (le baseline ; règle « cause » portée par la 12, hors bloc) -->
 
 14. **Une classe de défaut identifiée → `Spawn sibling-sweeper` AVANT d'écrire le
     fix.** Il renvoie la liste exhaustive des sites frères en `fichier:ligne`, en
@@ -283,7 +286,7 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
 
 > Règles 18-19 (2026-08-21) : ces agents n'étaient nommés que dans un tableau (§7bis).
 
-<!-- measured-rules:end v2 -->
+<!-- measured-rules:end v3 -->
 ### Skills (`.claude/skills/<nom>/SKILL.md`) — load on demand via Skill tool only
 
 Each skill is a **directory** (`.claude/skills/impact-analysis/SKILL.md`), never a flat `<nom>.md`.

@@ -185,26 +185,76 @@ def _git(root: Path, *args: str) -> str | None:
     return r.stdout
 
 
-def _unpushed_base(root: Path) -> str:
-    """Where the unpushed work starts: merge-base with the upstream, else HEAD.
+def push_remote(root: Path) -> str | None:
+    """The remote a push goes to, in git's order: branch.<b>.pushRemote, remote.pushDefault,
+    branch.<b>.remote, the only remote, else `origin`. None: no remote at all.
+    Same table as the master's tools/dev/git_upstream.py (this file travels alone to the fleet;
+    test_git_upstream.py runs both copies against the same configurations)."""
+    global _DERNIERE_PANNE_GIT
+    panne = _DERNIERE_PANNE_GIT
+    try:   # an unset key (`config --get` rc 1) or a detached HEAD is a state, not a git failure
+        remotes = (_git(root, "remote") or "").split()
+        if not remotes:
+            return None
+        branch = (_git(root, "symbolic-ref", "--short", "-q", "HEAD") or "").strip()
+        keys = ([f"branch.{branch}.pushRemote"] if branch else []) + ["remote.pushDefault"] + \
+            ([f"branch.{branch}.remote"] if branch else [])
+        for key in keys:
+            v = (_git(root, "config", "--get", key) or "").strip()
+            if v in remotes:
+                return v
+        return remotes[0] if len(remotes) == 1 else "origin"
+    finally:
+        _DERNIERE_PANNE_GIT = panne
+
+
+def _unpushed_base(root: Path) -> str | None:
+    """Where the unpushed work starts: merge-base with the upstream; without one, the common
+    ancestor of what the push remote already holds; no remote at all, HEAD; else None.
 
     R464 — against `HEAD` alone, `make test-changed` run AFTER a commit saw an empty diff,
     selected nothing, stamped the tree green, and the pre-push gate let an untested commit
     go (2026-10-08: a catalogue commit, CI red). Diffing from the upstream covers the
     working tree AND every commit not yet pushed; it can only widen the selection.
+
+    A branch WITHOUT upstream fell back to that same bare HEAD (measured 2026-10-18: `dev`, no
+    upstream, 1 commit ahead → `[]`, the gate let it through). With a remote, the base is the
+    boundary of `rev-list HEAD --not --remotes=<remote>`; when it cannot be found, None — the
+    whole suite. Never bare HEAD while a remote exists.
     """
     global _DERNIERE_PANNE_GIT
     panne = _DERNIERE_PANNE_GIT
     out = _git(root, "merge-base", "HEAD", "@{upstream}")
     _DERNIERE_PANNE_GIT = panne   # no upstream is a normal state, not a git failure
-    return out.strip() if out and out.strip() else "HEAD"
+    if out and out.strip():
+        return out.strip()
+    remote = push_remote(root)
+    if remote is None:
+        return "HEAD"   # nothing is ever pushed from here: the working tree is the diff
+    out = _git(root, "rev-list", "--boundary", "HEAD", "--not", f"--remotes={remote}")
+    if out is None:
+        return None
+    lines = out.split()
+    if not lines:
+        return "HEAD"   # HEAD already on the remote: only the working tree is new
+    bounds = [ln[1:] for ln in lines if ln.startswith("-")]
+    base = bounds[0] if len(bounds) == 1 else (
+        (_git(root, "merge-base", "--octopus", *bounds) or "").strip() if bounds else "")
+    if not base:
+        _DERNIERE_PANNE_GIT = (f"pas d'amont, et aucune base commune avec le remote `{remote}` : "
+                               "les commits non poussés ne se lisent pas")
+        return None
+    return base
 
 
 def changed_files(root: Path, base: str | None) -> list[str] | None:
     """Fichiers modifiés, ou None si on ne peut pas savoir (→ suite entière)."""
     if _git(root, "rev-parse", "--git-dir") is None:
         return None
-    args = ["diff", "--name-only", base or _unpushed_base(root)]
+    base = base or _unpushed_base(root)
+    if base is None:
+        return None
+    args = ["diff", "--name-only", base]
     out = _git(root, *args)
     if out is None:
         return None
@@ -485,9 +535,12 @@ def _NOM_IMPORTABLE(mod: str) -> bool:
     return bool(parts) and all(p.isidentifier() for p in parts)
 
 
+# `vendor/`: a third party's code, its tests needing its own deps (O11, 2026-10-17:
+# assistant_perso's test-changed was red only through vendor/hermes-agent — `openai`,
+# `prompt_toolkit` absent from the venv). No fleet repo tests a vendor/ of its own.
 PRUNE = {".git", ".venv", "venv", "env", "node_modules", "__pycache__",
          "build", "dist", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-         "site-packages", ".tox", "htmlcov", ".idea", ".vscode"}
+         "site-packages", ".tox", "htmlcov", ".idea", ".vscode", "vendor"}
 
 # (parent, child) directories that hold a git-ignored FULL copy of the repo: Claude Code
 # agent worktrees live under `.claude/worktrees/<name>/`, ignored only by the local
@@ -1164,7 +1217,7 @@ def _chemins(root: Path, tests: list[str], known: dict[str, Path]) -> list[str]:
     `as_paths` reconstruit un chemin en remplaçant les points par des slashs.
     C'était juste tant que tout module vivait sous la racine du dépôt ; ça cesse
     de l'être dès qu'une racine d'imports est déclarée — `check_prod_sync` sous
-    `.claude/hooks/` deviendrait `check_prod_sync.py` à la racine, un chemin que pytest ne trouve
+    `.claude/hooks/` deviendrait `sensor.py` à la racine, un chemin que pytest ne trouve
     pas. On rend donc le chemin que le parcours a réellement vu.
     """
     out = []
@@ -1280,21 +1333,21 @@ def self_test() -> int:
         (cl_root / ".claude" / "hooks").mkdir(parents=True)
         (cl_root / ".claude" / "curator").mkdir(parents=True)
         (cl_root / "tests").mkdir()
-        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
+        (cl_root / ".claude" / "hooks" / "sensor.py").write_text("X = 1\n")
         (cl_root / ".claude" / "curator" / "usage.json").write_text("{}\n")
         (cl_root / "tests" / "test_hook.py").write_text(
             "import subprocess, sys\n"
             "def test_h():\n"
-            "    subprocess.run([sys.executable, '.claude/hooks/check_prod_sync.py'], check=True)\n")
+            "    subprocess.run([sys.executable, '.claude/hooks/sensor.py'], check=True)\n")
         (cl_root / "tests" / "test_neutre.py").write_text("def test_n(): assert True\n")
         subprocess.run(["git", "init", "-q", str(cl_root)], check=True)
         subprocess.run(["git", "-C", str(cl_root), "add", "-A", "-f"], check=True)
         subprocess.run(["git", "-C", str(cl_root), "-c", "user.email=t@t",
                         "-c", "user.name=t", "commit", "-qm", "base"], check=True)
 
-        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 2\n")
+        (cl_root / ".claude" / "hooks" / "sensor.py").write_text("X = 2\n")
         s_hook = select(cl_root)
-        (cl_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
+        (cl_root / ".claude" / "hooks" / "sensor.py").write_text("X = 1\n")
         (cl_root / ".claude" / "curator" / "usage.json").write_text('{"n": 1}\n')
         s_etat = select(cl_root)
         cas_claude = [
@@ -1319,11 +1372,11 @@ def self_test() -> int:
         dc_root = Path(tempfile.mkdtemp(prefix="select-tests-declare-"))
         (dc_root / ".claude" / "hooks").mkdir(parents=True)
         (dc_root / "tests").mkdir()
-        (dc_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 1\n")
+        (dc_root / ".claude" / "hooks" / "sensor.py").write_text("X = 1\n")
         (dc_root / "conftest.py").write_text(
             "import sys\nsys.path.insert(0, '.claude/hooks')\n")
         (dc_root / "tests" / "test_imp.py").write_text(
-            "import check_prod_sync\ndef test_i(): assert check_prod_sync.X\n")
+            "import sensor\ndef test_i(): assert sensor.X\n")
         (dc_root / "tests" / "test_syspath.py").write_text(
             "import sys\nsys.path.insert(0, 'ailleurs')\ndef test_s(): assert True\n")
         (dc_root / "tests" / "test_neutre.py").write_text("def test_n(): assert True\n")
@@ -1331,7 +1384,7 @@ def self_test() -> int:
         subprocess.run(["git", "-C", str(dc_root), "add", "-A", "-f"], check=True)
         subprocess.run(["git", "-C", str(dc_root), "-c", "user.email=t@t",
                         "-c", "user.name=t", "commit", "-qm", "base"], check=True)
-        (dc_root / ".claude" / "hooks" / "check_prod_sync.py").write_text("X = 2\n")
+        (dc_root / ".claude" / "hooks" / "sensor.py").write_text("X = 2\n")
         s_decl = select(dc_root)
         cas_decl = [
             ("VERT   racine déclarée : le test qui IMPORTE le hook est atteint par le graphe",
