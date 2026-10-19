@@ -30,8 +30,22 @@ turn blocks it ONCE per row and session — the model develops it now, or moves 
 attente de toi » when it needs a gesture of the owner. Rows of the waiting table never block.
 ROADMAP_AUTODEV=0 silences it.
 
+T158 (2026-10-19): « session finished » was decided on a subset of what session_closable.checks()
+measures — a repo at 0 row, dirty and 1 commit ahead, ended its turn without a word. Once the
+« 📋 Tâches ouvertes » table is at 0, the six proofs of session_closable (the master's, through
+~/.fleet-master/tools/hud — a local tools/hud first) are read and commit, push, gate and mailbox
+block, ONCE per state: commit/push keyed on HEAD (not on a count that moves every turn) and only
+when seen red on TWO consecutive Stops — roadmap_autocommit runs beside this hook and commits /
+launches the push on the very turn the index reaches 0; gate keyed on (HEAD, rc); mailbox on the
+set of message ids. A push is never prescribed by hand (rule 5): without upstream the owner is
+asked; with one the automatic push is said pending or refused. `tasks` never blocks (a running
+background task is not the model's to finish) and nothing blocks while `stop_hook_active`. No
+session_closable, or one that raises or exceeds CLOSABLE_S → the behaviour before T158.
+ROADMAP_CLOSABLE=0 silences it.
+
 guard_scope: both index tables of the checklist (open and waiting-on-a-human — both are open
-tasks), the window, the transition. NOT covered: a muted Windows sound output.
+tasks), the window, the transition, the closable blocks and their keys. NOT covered: a muted
+Windows sound output.
 """
 from __future__ import annotations
 
@@ -40,11 +54,12 @@ import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from datetime import datetime, time
 from importlib import import_module
-from importlib.util import find_spec
+from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from pathlib import Path
 
 # R365 (streamlytics): a hook leaves one trace line per run when the repo has _hook_trace.py; elsewhere a no-op.
@@ -142,6 +157,99 @@ def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict
     return reason, {sid: sorted(done | set(new))}
 
 
+CLOSABLE_S = 20  # the budget of session_closable.checks(): beyond, the hook behaves as before T158
+BLOCKING = ("commit", "push", "gate", "mailbox")  # never `tasks`, never `roadmap` (todo_gate's)
+AUTOCOMMIT_STATE = Path(".claude/sessions/roadmap-autocommit.json")
+AUTOPUSH_LOG = ".claude/sessions/roadmap-autopush.log"
+
+
+def _expired(_sig, _frame):
+    raise TimeoutError("session_closable")
+
+
+def closable(root: Path, hook: dict) -> tuple[list[tuple[str, bool, str]], object] | None:
+    """(session_closable.checks(), its module) — None when absent, broken or too slow: the import
+    brings the master's hud and fleet_mailbox into another repo's process, so import AND call are
+    one guarded block."""
+    if os.environ.get("ROADMAP_CLOSABLE") == "0":
+        return None
+    tool = next((d / "session_closable.py" for d in (root / "tools/hud", Path.home() / ".fleet-master/tools/hud")
+                 if (d / "session_closable.py").is_file()), None)
+    if tool is None:
+        return None
+    alarm = hasattr(signal, "SIGALRM")
+    old = signal.signal(signal.SIGALRM, _expired) if alarm else None
+    try:
+        if alarm:
+            signal.alarm(CLOSABLE_S)
+        spec = spec_from_file_location("session_closable", tool)
+        mod = module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        tr = hook.get("transcript_path")
+        res = [(str(n), bool(o), str(w)) for n, o, w in mod.checks(root, Path(tr) if tr else None)]
+        return res, mod
+    except Exception:  # noqa: BLE001 — a broken detector never blocks nor fakes a red
+        return None
+    finally:
+        if alarm:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
+
+
+def _box_ids(root: Path) -> str:
+    """The ids of this repo's box (unread and taken), for the mailbox key: a set, not a count."""
+    mb = sys.modules.get("fleet_mailbox")
+    box = getattr(mb, "BOX", Path.home() / ".claude/fleet-mailbox") / root.name
+    return ",".join(sorted(f.stem for f in [*box.glob("*.json"), *box.glob("read/*.json")])) if box.is_dir() else ""
+
+
+def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head: str, ac: dict | None,
+                  memo: dict) -> tuple[str | None, dict]:
+    """(block reason or None, this session's memo {seen, said}). `ac` is roadmap_autocommit's state
+    (None: unreadable this turn — being written beside us — so push and gate wait a turn)."""
+    seen_before, said = set(memo.get("seen", [])), set(memo.get("said", []))
+    reds = {n: w for n, ok, w in res if not ok and n in BLOCKING}
+    ac_ = ac or {}
+    autopush = os.environ.get("ROADMAP_AUTOPUSH") != "0"
+    pending = bool(ac_.get("push_pending"))
+    refused = ac_.get("refused_head")
+    msgs, seen = [], set()
+
+    def ask(key: str, text: str, twice: bool) -> None:
+        seen.add(key)
+        if key not in said and (not twice or key in seen_before):
+            said.add(key)
+            msgs.append(text)
+
+    if "commit" in reds:
+        ask(f"commit@{head}", f"Commit : {reds['commit']} alors que l'index est à 0 — `git status`, puis "
+            "commite ce qui est à toi (ou ignore-le dans .gitignore) ; ce que tu n'as pas écrit, dis-le.", True)
+    if "push" in reds and ac is not None and not pending:
+        if reds["push"] == "pas d'amont":
+            ask(f"push@{head}", "Push : pas d'amont — demande au propriétaire avant tout `push -u` (règle 5) ; "
+                "ne le fais pas toi-même.", True)
+        elif not autopush:
+            ask(f"push@{head}", f"Push : {reds['push']} et push automatique coupé (ROADMAP_AUTOPUSH=0) — "
+                "dis-le au propriétaire (règle 5), ne pousse pas à la main.", True)
+        elif ac_.get("behind_head") == head:
+            ask(f"push@{head}", f"Push : {reds['push']} mais la branche est en retard sur l'amont — "
+                "`git pull --rebase`, le push automatique repart au tour suivant.", True)
+        # else: roadmap_autocommit pushes this HEAD (index at 0), or the gate below says its refusal
+    if "gate" in reds and ac is not None and not pending and not (autopush and refused and refused != head):
+        rc = reds["gate"].rsplit("rc=", 1)[-1]
+        ask(f"gate@{head}@{rc}", f"Porte : {reds['gate']} — push automatique refusé, voir `tail {AUTOPUSH_LOG}`. "
+            "Corrige, puis relance la porte (le master : `python3 tools/dev/blast_radius.py --run`) et "
+            f"`echo rc=0 >> {AUTOPUSH_LOG}` : le push automatique repart (et repasse la porte).", False)
+    if "mailbox" in reds:
+        ask(f"mailbox@{_box_ids(root)}", f"Boîte aux lettres : {reds['mailbox']} — "
+            f"`python3 ~/.fleet-master/tools/hud/fleet_mailbox.py state {root.name} {root}`, puis une ligne "
+            "de roadmap par message (msg:<id>).", False)
+    if not msgs or hook.get("stop_hook_active"):  # a prolonged turn records what it saw, says nothing
+        return None, {"seen": sorted(seen), "said": sorted(memo.get("said", []))}
+    memo = {"seen": sorted(seen), "said": sorted(said)}
+    return "Séance pas encore fermable (session_closable) : " + " · ".join(msgs), memo
+
+
 def decide(last: int | None, now_open: int, now: datetime) -> tuple[bool, int | None]:
     """(beep?, count to record). None recorded = keep the previous one (pending)."""
     if last is None:
@@ -196,14 +304,28 @@ def main() -> int:
     reason, asked = gate(list(box.get("untracked") or []), hook, saved.get("asked") or {})
     text = path.read_text(encoding="utf-8")
     now_open = open_count(text, prefix) + int(box.get("pending") or 0)
+    ids = todo_ids(text, prefix)
     if not reason:
-        reason, todo = todo_gate(todo_ids(text, prefix), hook, saved.get("todo") or {})
+        reason, todo = todo_gate(ids, hook, saved.get("todo") or {})
     else:
         todo = saved.get("todo") or {}
+    memos = saved.get("closable") or {}
+    sid = str(hook.get("session_id") or "?")
+    if not reason and not ids and (got := closable(root, hook)):
+        head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
+                              text=True).stdout.strip()
+        try:
+            ac = json.loads((root / AUTOCOMMIT_STATE).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            ac = {}
+        except (OSError, ValueError):
+            ac = None
+        reason, memo = closable_gate(got[0], hook, root, head, ac, memos.get(sid) or {})
+        memos = {sid: memo}
     ring, record = decide(saved.get("last_open"), now_open, datetime.now())
     record = saved.get("last_open") if record is None else record
     state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text(json.dumps({"last_open": record, "asked": asked, "todo": todo}), encoding="utf-8")
+    state.write_text(json.dumps({"last_open": record, "asked": asked, "todo": todo, "closable": memos}), encoding="utf-8")
     if ring and os.environ.get("ROADMAP_BEEP") != "0":
         beep()
     if reason:

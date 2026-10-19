@@ -24,21 +24,40 @@ puis dès qu'on a 0 tâche en roadmap on pousse de façon automatique ».
   they would hold the push for days. Not only on the n > 0 → 0 transition (T25): a commit made
   once the index is already empty (a ROADMAP entry, a drift report) would otherwise stay ↑1.
   One push at a time; a HEAD whose push was refused is not retried (a red 16-min gate would
-  rerun every turn); behind origin (↓n) it is reported, not attempted.
+  rerun every turn); behind origin (↓n) it is reported, not attempted. A branch WITHOUT
+  upstream but with a remote is counted against that remote and SAID once per HEAD (« pas
+  d'amont », the `push -u` to make): creating a remote branch is not done for the owner.
+
+- Stop + SessionStart (T159), the fleet master only (tools/dev/fleet_apply.py present): a HEAD
+  equal to its upstream that no apply has stamped (state/fleet-history.jsonl, `source: apply`)
+  launches `fleet_apply.py apply --push` detached — a MANUAL `git push` never did. At most once
+  per HEAD (`launched_head`, written before the spawn), never while a push is pending, never
+  while an apply holds state/fleet-apply.lock, never from a linked worktree. A failed apply is
+  retried only by the cron or the next HEAD. ROADMAP_AUTOAPPLY=0 turns it off.
 
 - Stop (T82): a task closed while its CI was not read yet (`ci-pending.json` beside the
   checklist) has it read by `roadmap.py ci` at most every 5 min: green, forgotten; red, the task
   is back in the index and said. Without it no task closed in a repo with CI before a manual push.
 
+- T158 (2026-10-19): `.claude/worktrees/` (the harness' agent worktrees) is never swept in: it was
+  in no ignore list, a new worktree came out of `git status` as `?? .claude/worktrees/wf_x/` and
+  `git add -A` staged it as a gitlink — 4 automatic commits of the master carried 9 of them and a
+  9 759-line .diff. Submodules are read with `--ignore-submodules=all`, as session_closable does.
+- T158: a HEAD whose push was refused is said once per (HEAD, rc), and retried when the LAST rc of
+  the log is 0 again. Its producer is the hand: the gate rerun after the fix, then
+  `echo rc=0 >> .claude/sessions/roadmap-autopush.log` (the beep says so). The retried push goes
+  through the pre-push gate again — a wrong `rc=0` costs a gate run, never an ungated push.
+
 ROADMAP_AUTOCOMMIT=0 / ROADMAP_AUTOPUSH=0 turn each off. Never fails a turn.
 
 guard_scope: the closed-id diff, the session snapshot filter, the index-only count, the push
-decision and its three guards. NOT covered: two sessions closing tasks in the same repo at once (the second
+decision and its three guards, the « pas d'amont » notice and its remote resolution. NOT covered: two sessions closing tasks in the same repo at once (the second
 commit takes what the first left).
 """
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import json
 import os
 import re
@@ -56,7 +75,11 @@ _trace(__file__)
 
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
+NEVER_SWEPT = (".claude/sessions/", ".claude/worktrees/")  # this hook's state; the agents' worktrees (T158)
 APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
+APPLY_HISTORY = "state/fleet-history.jsonl"  # fleet_apply's readings; `source: apply` rows carry the HEAD (T159)
+APPLY_LOCK = "state/fleet-apply.lock"
+APPLY_LOG = Path(".claude/sessions/fleet-apply.log")
 ROADMAP_TOOL = "tools/governance/roadmap.py"
 CI_EVERY_S = 300
 
@@ -103,12 +126,13 @@ def sync_anchor(text: str, prefix: str) -> str:
 
 
 def dirty(root: Path) -> dict[str, str]:
-    """path → content hash of every modified or untracked (not ignored) file."""
-    out = git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
+    """path → content hash of every modified or untracked (not ignored) file. A submodule or a
+    nested repo is never one: committed, it is a gitlink (T158)."""
+    out = git(root, "status", "--porcelain", "-z", "--untracked-files=all", "--ignore-submodules=all").stdout
     paths = [e[3:] for e in out.split("\0") if len(e) > 3]
     result = {}
     for p in paths:
-        if p.startswith(".claude/sessions/"):  # this hook's own state, even where not gitignored
+        if p.startswith(NEVER_SWEPT):  # even where not gitignored
             continue
         f = root / p
         result[p] = hashlib.sha1(f.read_bytes()).hexdigest() if f.is_file() else ""
@@ -118,6 +142,30 @@ def dirty(root: Path) -> dict[str, str]:
 def touched(start: dict[str, str], now: dict[str, str]) -> list[str]:
     """What this session changed: dirty now and not dirty at start, or dirty at start but changed since."""
     return sorted(p for p, h in now.items() if start.get(p) != h)
+
+
+def push_remote(root: Path) -> str | None:
+    """The remote a push goes to, in git's order: branch.<b>.pushRemote, remote.pushDefault,
+    branch.<b>.remote, the only remote, else `origin`. None: no remote at all. Same table as the
+    master's tools/dev/git_upstream.py — a hook cannot import it; test_git_upstream.py runs both."""
+    remotes = git(root, "remote").stdout.split()
+    if not remotes:
+        return None
+    branch = git(root, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip()
+    keys = ([f"branch.{branch}.pushRemote"] if branch else []) + ["remote.pushDefault"] + \
+        ([f"branch.{branch}.remote"] if branch else [])
+    for key in keys:
+        v = git(root, "config", "--get", key).stdout.strip()
+        if v in remotes:
+            return v
+    return remotes[0] if len(remotes) == 1 else "origin"
+
+
+def ahead_of_remote(root: Path, remote: str) -> int | None:
+    """Commits of HEAD the remote holds under no branch — what `push -u <remote> HEAD` would
+    carry. None when unreadable: never folded into 0, the fault this replaces."""
+    r = git(root, "rev-list", "--count", "HEAD", "--not", f"--remotes={remote}")
+    return int(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
 
 
 def decide_push(last_index: int | None, now_index: int, ahead: int, behind: int = 0,
@@ -139,6 +187,13 @@ def save(root: Path, state: dict) -> None:
     (root / STATE).write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
 
 
+def last_rc(root: Path) -> str | None:
+    """The LAST `rc=` of the push log — a gate rerun by hand appends `rc=0` after a refusal."""
+    log = root / PUSH_LOG
+    rcs = re.findall(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M) if log.is_file() else []
+    return rcs[-1] if rcs else None
+
+
 def push_report(root: Path, state: dict) -> str | None:
     """The finished detached push, reported once."""
     log = root / PUSH_LOG
@@ -151,7 +206,25 @@ def push_report(root: Path, state: dict) -> str | None:
     if m.group(1) == "0":
         return "🚀 roadmap à 0 : push automatique réussi"
     state["refused_head"] = state.get("push_head")
+    state["refused_said"] = f"{state.get('push_head')}:{m.group(1)}"
     return f"⚠️ push automatique refusé (rc={m.group(1)}) — voir {PUSH_LOG}"
+
+
+def refused_notice(root: Path, state: dict, head: str) -> str | None:
+    """T158: while HEAD is the refused one, the refusal is said once per (HEAD, rc) — never by
+    rerunning the 16-min gate. The last rc back at 0 (written by hand after the gate passed)
+    lifts the refusal: decide_push retries, and the push passes the gate again."""
+    if state.get("push_pending") or not head or state.get("refused_head") != head:
+        return None
+    rc = last_rc(root)
+    if rc == "0":
+        state["refused_head"] = None
+        return None
+    if rc is None or state.get("refused_said") == f"{head}:{rc}":
+        return None
+    state["refused_said"] = f"{head}:{rc}"
+    return (f"⚠️ push refusé par le gate (rc={rc}) sur {head[:7]} — corrige puis relance : un commit le "
+            f"retente, ou la porte repassée puis `echo rc=0 >> {PUSH_LOG}`")
 
 
 def start_push(root: Path) -> None:
@@ -163,6 +236,66 @@ def start_push(root: Path) -> None:
            f'[ "$rc" = 0 ] && [ -f {APPLY} ] && python3 {APPLY} apply --push >> "{log}" 2>&1')
     subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def last_applied_head(root: Path) -> str | None:
+    """The master HEAD of the last `source: apply` row — the tail only, the file grows daily."""
+    try:
+        with (root / APPLY_HISTORY).open("rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 256_000))
+            tail = f.read().decode("utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(tail):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("source") == "apply":
+            return row.get("head")
+    return None
+
+
+def apply_running(root: Path) -> bool:
+    lock = root / APPLY_LOCK
+    if not lock.is_file():
+        return False
+    with lock.open("a") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(fh, fcntl.LOCK_UN)
+    return False
+
+
+def start_apply(root: Path) -> None:
+    log = root / APPLY_LOG
+    log.parent.mkdir(parents=True, exist_ok=True)
+    cmd = f'cd "{root}" && {{ date -Is; python3 {APPLY} apply --push; echo "rc=$?"; }} > "{log}" 2>&1'
+    subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def maybe_apply(root: Path, state: dict) -> str | None:
+    """T159: the master at its upstream, on a HEAD no apply has seen → apply, once per HEAD."""
+    if not (root / APPLY).is_file() or "0" in (os.environ.get("ROADMAP_AUTOAPPLY"), os.environ.get("ROADMAP_AUTOPUSH")):
+        return None
+    if git(root, "rev-parse", "--git-dir").stdout.strip() != git(root, "rev-parse", "--git-common-dir").stdout.strip():
+        return None  # a linked worktree: its HEAD is not the master's
+    head = git(root, "rev-parse", "HEAD").stdout.strip()
+    up = git(root, "rev-parse", "@{u}")
+    if not head or up.returncode or up.stdout.strip() != head:
+        return None
+    if state.get("push_pending") or state.get("launched_head") == head:
+        return None  # a push in flight runs its own apply; this HEAD was launched already
+    if last_applied_head(root) == head or apply_running(root):
+        return None
+    state["launched_head"] = head  # before the spawn: two Stops never launch twice
+    save(root, state)
+    start_apply(root)
+    return f"⏳ HEAD {head[:7]} jamais appliqué au parc : fleet_apply.py apply --push lancé ({APPLY_LOG})"
 
 
 def ci_report(root: Path, checklist: Path, state: dict, now: float) -> str | None:
@@ -187,6 +320,7 @@ def on_start(root: Path, session: str) -> None:
         return
     state.update(session=session, start=dirty(root))
     save(root, state)
+    maybe_apply(root, state)
 
 
 def on_stop(root: Path, session: str) -> list[str]:
@@ -223,16 +357,33 @@ def on_stop(root: Path, session: str) -> list[str]:
                 msgs.append(f"⚠️ commit automatique refusé pour {', '.join(closed)} : {err[-1] if err else r.returncode}")
     if os.environ.get("ROADMAP_AUTOPUSH") != "0":
         r = git(root, "rev-list", "--left-right", "--count", "HEAD...@{u}")
-        ahead, behind = map(int, r.stdout.split()) if r.returncode == 0 else (0, 0)
+        upstream = r.returncode == 0
+        remote = None if upstream else push_remote(root)
         head = git(root, "rev-parse", "HEAD").stdout.strip()
-        if behind and ahead and not idx and state.get("behind_head") != head:
-            state["behind_head"] = head
-            msgs.append(f"⚠️ index à 0 mais ↓{behind} : pull avant le push automatique ({ahead} commit(s))")
-        if decide_push(state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
-                       head, state.get("refused_head")):
-            start_push(root)
-            state.update(push_pending=True, push_head=head)
-            msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
+        if upstream:
+            ahead, behind = map(int, r.stdout.split())
+            if note := refused_notice(root, state, head):
+                msgs.append(note)
+            if behind and ahead and not idx and state.get("behind_head") != head:
+                state["behind_head"] = head
+                msgs.append(f"⚠️ index à 0 mais ↓{behind} : pull avant le push automatique ({ahead} commit(s))")
+            if decide_push(state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
+                           head, state.get("refused_head")):
+                start_push(root)
+                state.update(push_pending=True, push_head=head, launched_head=head)
+                msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
+        elif remote:
+            # rc 128 is « no upstream », not « nothing to push » (read as 0 ahead until 2026-10-18:
+            # the push never fired and nothing was said). Creating a remote branch is a new
+            # outward gesture (rule 5): it is SAID once per HEAD, never done.
+            n = ahead_of_remote(root, remote)
+            if (decide_push(state.get("index"), len(idx), 1 if n is None else n)
+                    and state.get("no_upstream_head") != head):
+                state["no_upstream_head"] = head
+                msgs.append(f"⚠️ index à 0 mais pas d'amont : {'?' if n is None else n} commit(s) non "
+                            f"poussé(s) — `git push -u {remote} HEAD` à faire à la main")
+    if report := maybe_apply(root, state):
+        msgs.append(report)
     state.update(open=sorted(ids), index=len(idx))
     save(root, state)
     return msgs

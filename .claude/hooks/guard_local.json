@@ -1,0 +1,7 @@
+{
+ "prod_hosts": [
+  "167.233.92.1",
+  "streamlytics.fr"
+ ],
+ "_comment": "T150a : les hôtes de prod de la lignée 732748a2, portés par fleet_apply"
+}
