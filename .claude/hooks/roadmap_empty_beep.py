@@ -5,7 +5,7 @@ rex: []
 ---
 
 Type: Hook
-Uses: governance.toml ([roadmap] dir, id_prefix) or streamlytics' .claude/dev-docs/roadmap/
+Uses: governance.toml ([roadmap] dir, id_prefix, index_title, waiting_title) or streamlytics' .claude/dev-docs/roadmap/
 Persists in: .claude/sessions/roadmap-empty-beep.json (the last count seen)
 Triggers: powershell.exe MediaPlayer, a soft chime at rising volume (WSL), afplay (macOS), BEL otherwise
 
@@ -76,19 +76,64 @@ def allowed(now: datetime) -> bool:
     return not (QUIET_FROM <= now.time() < QUIET_UNTIL)
 
 
+OPEN_TITLE = "## 📋 Tâches ouvertes"
+WAITING_TITLE = "## 🙋 En attente de toi"
+
+
 def checklist(root: Path) -> tuple[Path, str]:
-    rdir, prefix = ".claude/dev-docs/roadmap", "R"
+    return titles(root)[:2]
+
+
+def titles(root: Path) -> tuple[Path, str, str, str]:
+    """(checklist, id prefix, index title, waiting title) from governance.toml, else the defaults."""
+    rdir, prefix, index, waiting = ".claude/dev-docs/roadmap", "R", OPEN_TITLE, WAITING_TITLE
     toml = root / "governance.toml"
     if toml.is_file():
         import tomllib
         cfg = tomllib.loads(toml.read_text(encoding="utf-8")).get("roadmap", {})
         rdir, prefix = cfg.get("dir", "docs/roadmap"), cfg.get("id_prefix", "R")
-    return root / rdir / "checklist.md", prefix
+        index, waiting = cfg.get("index_title", index), cfg.get("waiting_title", waiting)
+    return root / rdir / "checklist.md", prefix, index, waiting
 
 
-def open_count(text: str, prefix: str = "R") -> int:
-    """Distinct ids in the index rows, as roadmap.py index_ids counts them."""
-    return len(set(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M)))
+# --- the 🙋 reader: ONE definition, copied verbatim into every executable that reads the table
+# (session_brief.py ×2, roadmap_empty_beep.py ×2, objectives.py), since a hook deployed to the fleet
+# cannot import this module. tools/dev/test_waiting_rows_parity.py holds the copies to the same
+# text and the same ids. Prefix-free: dofus numbers its 🙋 rows H1, H2 under id_prefix "R", and
+# the prefix-bound reader counted 0 there (2026-10-20).
+WAITING_ID = re.compile(r"^[A-Z][A-Za-z]*-?\d{1,5}$")
+_SEP_ROW = re.compile(r"^\|[\s:|-]*-[\s:|-]*$")
+
+
+def waiting_rows(text: str, title: str) -> tuple[list[str], int] | None:
+    """(ids, unreadable rows) of the table under `title`, whatever the ids' prefix; None when the
+    heading is absent. A first cell that is no id is counted, never returned (private text)."""
+    lines = text.splitlines()
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(title)), None)
+    if start is None:
+        return None
+    rest = lines[start + 1:]
+    end = next((i for i, ln in enumerate(rest) if ln.startswith("## ")), len(rest))
+    rows = [ln.strip() for ln in rest[:end] if ln.strip().startswith("|")]
+    ids: list[str] = []
+    bad = 0
+    for i, ln in enumerate(rows):
+        if _SEP_ROW.match(ln) or (i + 1 < len(rows) and _SEP_ROW.match(rows[i + 1])):
+            continue  # the separator, and the header above it
+        cell = ln.strip("|").split("|")[0].strip()
+        if not WAITING_ID.match(cell):
+            bad += 1
+        elif cell not in ids:
+            ids.append(cell)
+    return ids, bad
+# --- end of the copied 🙋 reader
+
+
+def open_count(text: str, prefix: str = "R", waiting: str = WAITING_TITLE) -> int:
+    """Distinct ids in the index rows, as roadmap.py index_ids counts them, plus the 🙋 rows
+    whatever their prefix: dofus' H1, H2 are open tasks too."""
+    ids = set(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M))
+    return len(ids | set((waiting_rows(text, waiting) or ([], 0))[0]))
 
 
 MAILBOX = Path.home() / ".fleet-master/tools/hud/fleet_mailbox.py"
@@ -129,18 +174,25 @@ def gate(untracked: list[str], hook: dict, asked: dict) -> tuple[str | None, dic
     return reason, {sid: sorted(done | set(new))}
 
 
-OPEN_TITLE = "## 📋 Tâches ouvertes"
+def todo_title(text: str, index: str = OPEN_TITLE, waiting: str = WAITING_TITLE) -> str:
+    """The repo's own index title (governance.toml index_title), once its checklist keeps a 🙋 table
+    beside it; OPEN_TITLE until then. optimisation_pc indexes under « ## Actif » and still keeps its
+    owner gestures there (achats, déplacement WSL, 2026-10-20): reading « ## Actif » before they move
+    to a 🙋 section would order the session to develop purchases."""
+    return index if waiting_rows(text, waiting) is not None else OPEN_TITLE
 
 
-def todo_ids(text: str, prefix: str = "R") -> list[str]:
-    """The ids of the « 📋 Tâches ouvertes » table only — not those waiting on the owner."""
-    i = text.find(OPEN_TITLE)
+def todo_ids(text: str, prefix: str = "R", title: str = OPEN_TITLE, waiting: str = WAITING_TITLE) -> list[str]:
+    """The ids of the open table only — never one of the 🙋 table, whatever the titles."""
+    i = text.find(title)
     if i < 0:
         return []
-    body = text[i + len(OPEN_TITLE):]
+    body = text[i + len(title):]
     j = body.find("\n## ")
     body = body if j < 0 else body[:j]
-    return list(dict.fromkeys(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", body, re.M)))
+    mine = set((waiting_rows(text, waiting) or ([], 0))[0])
+    ids = re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", body, re.M)
+    return [i for i in dict.fromkeys(ids) if i not in mine]
 
 
 def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict]:
@@ -292,7 +344,7 @@ def main() -> int:
         hook = {}
     out = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     root = Path(out.stdout.strip()) if out.returncode == 0 else Path.cwd()
-    path, prefix = checklist(root)
+    path, prefix, index, waiting = titles(root)
     if not path.is_file():
         return 0
     state = root / STATE
@@ -303,8 +355,8 @@ def main() -> int:
     box = mailbox_state(root)
     reason, asked = gate(list(box.get("untracked") or []), hook, saved.get("asked") or {})
     text = path.read_text(encoding="utf-8")
-    now_open = open_count(text, prefix) + int(box.get("pending") or 0)
-    ids = todo_ids(text, prefix)
+    now_open = open_count(text, prefix, waiting) + int(box.get("pending") or 0)
+    ids = todo_ids(text, prefix, todo_title(text, index, waiting), waiting)
     if not reason:
         reason, todo = todo_gate(ids, hook, saved.get("todo") or {})
     else:
