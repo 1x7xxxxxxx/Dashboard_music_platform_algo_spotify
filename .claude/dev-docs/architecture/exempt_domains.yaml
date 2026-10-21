@@ -1,0 +1,5 @@
+# Domaines de domains.yaml exemptés de porter une exigence — nom → raison écrite.
+# Lu par tools/dev/arch_benchmark.py (load_exempt) ; un domaine sans exigence ni ligne ici
+# est un ORPHELIN dans REQUIREMENTS-COVERAGE.md (make requirements-report sort à 1).
+# Une exemption se retire dès que le domaine a un fichier dans le dépôt à garder.
+rag-knowledge: "rien du domaine n'est dans ce dépôt : le corpus, l'ingestion et la recherche hybride vivent dans le projet knowledge-rag (hors dépôt, ses propres tests), le domaine ne cite aucun fichier, et l'assistant in-app qui le consommerait n'existe pas encore — aucune propriété d'ici ne peut être prouvée par un test d'ici (R642)"

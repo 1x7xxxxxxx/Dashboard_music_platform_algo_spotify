@@ -31,9 +31,11 @@ def test_every_domain_of_the_map_carries_at_least_one_requirement_or_says_why():
     domains, reqs = bench.load()
     covered = {r["domaine"] for r in reqs}
     empty = sorted(set(domains) - covered)
-    # Declared on purpose: these domains are product or workstation scope, their items live
-    # in notes-triage.yaml as roadmap actions, not as architecture properties.
-    assert set(empty) <= {"ml", "product-offer", "rag-knowledge", "pc-perf"}, empty
+    # R642 (2026-10-21): the four domains once allowed here by name now carry a requirement
+    # or a written exemption; the allowance is the exemption file, reason required.
+    exempt = bench.load_exempt()
+    assert all(str(exempt.get(k) or "").strip() for k in empty), (
+        f"domaine(s) sans exigence ni exemption écrite : {[k for k in empty if not exempt.get(k)]}")
 
 
 def test_the_detector_sees_each_defect_it_is_written_for():

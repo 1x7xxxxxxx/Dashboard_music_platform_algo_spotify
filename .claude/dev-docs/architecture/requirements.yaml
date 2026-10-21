@@ -649,6 +649,32 @@
   ecart: "R269 : 5 groupes / 11 sites mesurés le 2026-09-27, 4 factorisés ; reste la paire de rappels d'échec DAG (R265 les factorise avec les dix autres). graphify : 2 fichiers fantômes retirés, `make graph-update` élague"
   mutation: "recoller une copie d'un lecteur de kpi_helpers, ou retirer l'effacement des littéraux du détecteur"
 
+# ── Domaines sans exigence jusqu'au 2026-10-21 (R642, baseline T217) ─────────────
+- id: REQ-ML-01
+  domaine: ml
+  enonce: Une explication SHAP d'un titre est calculée par XGBoost (src.utils.shap_explain.explain), jamais par shap.TreeExplainer, et ses contributions plus la valeur de base égalent la marge du modèle à 1e-4 près, sur le classifieur et le régresseur DW
+  sources: [{adr: docs/adr/ADR-025-the-product-is-spotify-meta-and-ml-not-every-platform.md}, {doc: .claude/dev-docs/roadmap/archive.md}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_a_shap_explanation_never_goes_through_shaps_loader.py::test_the_explanation_adds_up_to_the_model_margin}
+  mutation: "dans src/utils/shap_explain.py, rendre base_values à 0 → la somme ne rejoint plus la marge du booster"
+- id: REQ-OFFER-01
+  domaine: product-offer
+  enonce: Le palier (free/premium) qu'annonce l'argumentaire de prix est LU dans le verrou des pages (page_is_locked), jamais écrit à la main — revenue_forecast payant, export_pdf gratuit (ADR-029), billing toujours accessible
+  sources: [{adr: docs/adr/ADR-029-your-data-is-free-predictions-are-paid.md}]
+  priorite: P2
+  statut: conforme
+  preuve: {pytest: tests/test_the_plan_pitch_matches_the_gate.py::test_the_tier_is_read_from_the_gate}
+  mutation: "dans src/dashboard/utils/plan_pitch.py, faire rendre « free » en dur à tier_of → revenue_forecast vendu comme gratuit"
+- id: REQ-PC-01
+  domaine: pc-perf
+  enonce: Une cible lourde (make test, test-changed, test-fast) tient le verrou mémoire et démarre le traceur mem_trace.py, dont les lignes déjà échantillonnées survivent à un kill -9 — le prochain gel de WSL laisse une trace lisible
+  sources: [{doc: .claude/dev-docs/roadmap/archive.md}]
+  priorite: P3
+  statut: conforme
+  preuve: {pytest: tests/test_memory_is_traced_during_heavy_targets.py::test_lines_survive_a_hard_kill_of_the_tracer}
+  mutation: "dans tools/dev/mem_trace.py, bufferiser les lignes jusqu'à « fin » → un kill -9 ne laisse rien sur disque (R330)"
+
 # ── Harnais Claude Code (R356) ─────────────────────────────────────────────────
 # Une exigence par point de la note du propriétaire du 2026-10-04 sur la configuration du
 # harnais. `composants:` nomme les fichiers (ou `Makefile:<cible>`) qu'elle couvre :

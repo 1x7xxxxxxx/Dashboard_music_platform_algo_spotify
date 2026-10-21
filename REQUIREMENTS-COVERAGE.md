@@ -5,7 +5,7 @@
 > Ne pas éditer : corriger le catalogue, puis régénérer. Les preuves REJOUÉES sont dans
 > `make arch-benchmark` (benchmark.md) — ce fichier dit ce qui est couvert, pas ce qui est vert.
 
-**26 domaine(s)** · **96 exigence(s)** · exemptés : 0 · **orphelins : 4** · sans preuve rejouable : 2 · conforme : 86 · partiel : 8 · absent : 2 · non-mesure : 0
+**26 domaine(s)** · **99 exigence(s)** · exemptés : 1 · **orphelins : 0** · sans preuve rejouable : 2 · conforme : 89 · partiel : 8 · absent : 2 · non-mesure : 0
 
 | domaine | couverture | exigences (statut déclaré · preuve citée) |
 |---|---|---|
@@ -31,17 +31,10 @@
 | Gouvernance de la roadmap (`roadmap-gov`) | ✅ 5 | REQ-ROAD-01 conforme · `tests/test_an_action_is_on_the_roadmap_before_it_runs.py::test_the_detector_sees_the_defect_it_is_written_for`<br>REQ-ROAD-02 conforme · `tests/test_every_dossier_action_is_in_the_roadmap.py::test_every_dossier_action_names_a_real_roadmap_row`<br>REQ-ROAD-03 conforme · `tests/test_a_delivery_closes_on_a_green_ci.py::test_a_red_or_running_ci_refuses_the_closure`<br>REQ-ROAD-04 conforme · `tests/test_a_commit_stays_in_its_rows_scope.py::test_a_file_outside_the_declared_scope_is_refused`<br>REQ-HARN-26 conforme · `tests/test_a_governance_commit_runs_its_readers.py::test_the_hook_and_the_closure_both_run_the_gate` |
 | Classes d'erreur et registre applicatif (`error-classes`) | ✅ 6 | REQ-ERR-01 conforme · `tests/test_every_error_class_is_complete.py::test_a_class_says_how_it_is_detected`<br>REQ-ERR-02 conforme · `tests/test_an_api_or_dag_failure_is_a_registered_defect.py::test_an_unhandled_api_exception_is_registered_and_stays_a_bare_500`<br>REQ-ERR-03 conforme · `tests/test_an_error_class_is_generic_tracked_and_exported.py::test_a_new_class_names_its_closest_sibling_and_why`<br>REQ-ERR-04 conforme · `tests/test_an_error_class_is_generic_tracked_and_exported.py::test_main_fails_the_run_when_the_sweep_is_over_budget`<br>REQ-HARN-19 conforme · `tests/test_new_guards_are_mutated_every_night.py::test_a_red_mutation_is_written_dated_with_its_mutation_and_a_green_one_is_not`<br>REQ-HARN-20 conforme · `tests/test_the_guard_axis_is_measured_without_immortal_time.py::test_a_class_that_never_had_a_guard_contributes_only_to_the_bare_arm` |
 | Infrastructure et observabilité (`infra-observability`) | ✅ 2 | REQ-OBS-01 conforme · `tests/test_a_mute_defect_gauge_does_not_read_as_zero.py::test_the_base_size_and_its_largest_tables_are_exposed`<br>REQ-OBS-02 conforme · `tests/test_grafana_and_admin_do_not_say_the_same_thing.py` |
-| Machine learning — déclenchement des algorithmes (`ml`) | ❌ orphelin | ni exigence ni exemption écrite |
-| Offre, plans et parcours commercial (`product-offer`) | ❌ orphelin | ni exigence ni exemption écrite |
-| Base de connaissance et RAG (`rag-knowledge`) | ❌ orphelin | ni exigence ni exemption écrite |
-| Poste de développement (`pc-perf`) | ❌ orphelin | ni exigence ni exemption écrite |
-
-## Domaines orphelins
-
-- `ml`
-- `product-offer`
-- `rag-knowledge`
-- `pc-perf`
+| Machine learning — déclenchement des algorithmes (`ml`) | ✅ 1 | REQ-ML-01 conforme · `tests/test_a_shap_explanation_never_goes_through_shaps_loader.py::test_the_explanation_adds_up_to_the_model_margin` |
+| Offre, plans et parcours commercial (`product-offer`) | ✅ 1 | REQ-OFFER-01 conforme · `tests/test_the_plan_pitch_matches_the_gate.py::test_the_tier_is_read_from_the_gate` |
+| Base de connaissance et RAG (`rag-knowledge`) | ➖ exempté | rien du domaine n'est dans ce dépôt : le corpus, l'ingestion et la recherche hybride vivent dans le projet knowledge-rag (hors dépôt, ses propres tests), le domaine ne cite aucun fichier, et l'assistant in-app qui le consommerait n'existe pas encore — aucune propriété d'ici ne peut être prouvée par un test d'ici (R642) |
+| Poste de développement (`pc-perf`) | ✅ 1 | REQ-PC-01 conforme · `tests/test_memory_is_traced_during_heavy_targets.py::test_lines_survive_a_hard_kill_of_the_tracer` |
 
 ## Exigences sans preuve rejouable
 

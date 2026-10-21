@@ -185,6 +185,6 @@ rag-knowledge:
 pc-perf:
   nom: Poste de développement
   perimetre: WSL (mémoire, ext4), conteneurs locaux concurrents (n8n, knowledge-rag), VS Code Remote-WSL, alias de lancement
-  fichiers: [tools/dev/pytest_workers.py]
-  gardes: []
+  fichiers: [tools/dev/pytest_workers.py, tools/dev/mem_trace.py]
+  gardes: [tests/test_memory_is_traced_during_heavy_targets.py]
   mesures: []
