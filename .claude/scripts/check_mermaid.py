@@ -88,6 +88,11 @@ def main() -> int:
         return 0
 
     bad, errors = [], []
+    # R643 — mmdc is a `#!/usr/bin/env node` script. Found through the nvm fallback (cron,
+    # a non-login `make test`: nvm's bin is not on PATH), it used to be launched without its
+    # interpreter, and every block « failed » with `env: 'node': No such file or directory`.
+    # Its own directory holds the node it was installed with: put it first.
+    env = {**os.environ, "PATH": os.pathsep.join([os.path.dirname(exe), os.environ.get("PATH", "")])}
     with tempfile.TemporaryDirectory() as tmp:
         for path, idx, src in blocks:
             f = pathlib.Path(tmp) / f"b{idx}.mmd"
@@ -96,7 +101,7 @@ def main() -> int:
             # nightly passes `{"args": ["--no-sandbox"]}` there, never on a workstation.
             extra = ["-p", os.environ["MMDC_PUPPETEER_CONFIG"]] if os.environ.get("MMDC_PUPPETEER_CONFIG") else []
             r = subprocess.run([exe, "-i", str(f), "-o", str(f.with_suffix(".svg")), *extra],
-                               capture_output=True, text=True, timeout=120)
+                               capture_output=True, text=True, timeout=120, env=env)
             if r.returncode != 0:
                 errors.append(r.stderr or r.stdout or "")
                 err = (r.stderr or r.stdout or "").strip().splitlines()

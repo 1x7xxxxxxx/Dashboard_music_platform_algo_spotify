@@ -13,6 +13,7 @@ Mutation record (2026-09-29): seen red with an invalid ```mermaid``` block added
 copy of the dev-docs (the check's own `_ROOTS` pointed at it).
 """
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -38,3 +39,16 @@ def test_the_detector_sees_the_defect_it_is_written_for(tmp_path, monkeypatch) -
     # R495 — `== 1`, not `!= 0`: exit 2 is « mmdc could not run », a crash, and must not
     # pass as the detector having SEEN the malformed block.
     assert cm.main() == 1
+
+
+def test_the_nvm_fallback_runs_without_node_on_path(monkeypatch) -> None:
+    """R643 — `make test` outside a login shell (fleet-verify, cron): nvm's bin is not on
+    PATH, `_mmdc()` finds mmdc by its nvm glob, and the run used to exit 2 on
+    `env: 'node': No such file or directory` — a launch crash on 3 valid diagrams."""
+    exe = cm._mmdc()
+    keep = [d for d in os.environ.get("PATH", "").split(os.pathsep)
+            if d and not (Path(d) / "node").exists() and not (Path(d) / "mmdc").exists()]
+    monkeypatch.setenv("PATH", os.pathsep.join(keep))
+    if cm._mmdc() is None:
+        pytest.skip(f"mmdc at {exe} is only reachable through PATH — no fallback to exercise")
+    assert cm.main() == 0, "mmdc found by the nvm fallback could not run without node on PATH"

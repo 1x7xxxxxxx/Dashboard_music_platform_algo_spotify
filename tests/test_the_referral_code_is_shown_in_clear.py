@@ -2,7 +2,8 @@
 
 Type: Guard
 Uses: src.dashboard.views.referral, src.dashboard.views.register
-Depends on: live Postgres for the referral render (skipped without)
+Depends on: live Postgres for the referral render (skipped without); the signup field
+            runs without it (R643 — `project_db` stubbed to None, no submit)
 Persists in: referral_codes (the artist's code, created once if absent)
 
 V88 (owner's screen review, 2026-10-05): the code sat folded in an expander — one had
@@ -24,8 +25,13 @@ import sys
 sys.path.insert(0, {root!r})
 import streamlit as st
 st.query_params["ref"] = "a3f8c1"
-from src.dashboard.views.register import show
-show()
+import contextlib
+import src.dashboard.views.register as register
+# R643 — the form needs no row: only the Google-return branch reads the DB before it, and
+# `project_db()` halts the whole page on an unreachable base. A None handle is the branch
+# a missing base would take without the halt — the field is then rendered as in prod.
+register.project_db = lambda: contextlib.nullcontext(None)
+register.show()
 """
 
 
