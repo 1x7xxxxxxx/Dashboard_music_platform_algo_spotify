@@ -26,6 +26,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "dev" / "architecture_dossier"))
+sys.path.append(str(HERE.parent))   # tools/dev — validation_pdf (R646)
 
 VERDICTS = {"garder": "Garder", "corriger": "Corriger", "fusionner": "Fusionner",
             "retirer": "Retirer", "a-trancher": "À trancher", "valider": "Validé"}
@@ -474,14 +475,18 @@ def decisions_html(review: dict, no_of: dict, place_of: dict, out: Path) -> str:
             blocks.append("<h2>Proposition écartée — la réclamer ?</h2><ul class='dec'>" + "".join(
                 f"<li>{esc(_first_sentence(p['title'], 90))} — dis « garder » pour l'intégrer.</li>"
                 for p in refused) + "</ul>")
+    if by.get("revalider"):
+        blocks.append(f"<h2>À valider — {len(by['revalider'])}</h2><p class='dec'>Mes corrections "
+                      f"sont faites ; dis « valider » ou corrige : fiches {n(by['revalider'])}.</p>")
+    # R646 (baseline REQ-GOV-23): what waits on the owner first, marked — validation_pdf.publish
+    # refuses a PDF whose first <h2> is not. Mine comes after, unmarked.
+    if blocks:
+        blocks[0] = blocks[0].replace("<h2>", f"<h2 {OWNER_FIRST}='1'>", 1)
     todo = [(t, by.get(key, [])) for key, t in (("corriger", "à corriger"), ("fusionner", "à fusionner"),
                                                   ("retirer", "à retirer")) if by.get(key)]
     if todo:
         blocks.append("<h2>Encore à faire de mon côté</h2><ul class='dec'>" + "".join(
             f"<li>{len(ks)} {t} : fiches {n(ks)}</li>" for t, ks in todo) + "</ul>")
-    if by.get("revalider"):
-        blocks.append(f"<h2>À valider — {len(by['revalider'])}</h2><p class='dec'>Mes corrections "
-                      f"sont faites ; dis « valider » ou corrige : fiches {n(by['revalider'])}.</p>")
     return "".join(blocks) + ("<p class='site'>Le détail de chaque fiche suit ; synthèse, guide des "
                               "retours, traçabilité et propositions sont en annexe, à la fin.</p>")
 
@@ -674,7 +679,27 @@ table.trace { table-layout: fixed; width: 100%; } table.trace td { word-wrap: br
     from weasyprint import HTML
     dest = out / "dossier-graphiques.pdf"
     HTML(string=doc, base_url=str(out)).write_pdf(dest)
+    line = publish_for_validation(dest, doc, out)
+    if line:
+        print(line)
     return dest
+
+
+OWNER_FIRST = "data-owner-first"
+
+
+def publish_for_validation(dest: Path, doc: str, out: Path, desktop: Path | None = None,
+                           state: Path | None = None) -> str:
+    """R646 (baseline REQ-PARC-133): a dossier that waits on the owner — its first <h2> is one of
+    his decisions — also comes out as A_VALIDER_dossier-graphiques_revNN_<date>.pdf, in `out` and
+    on the Desktop. The revision follows review.yaml (the grades he validates), never a re-capture.
+    "" when nothing waits on him: no copy is written."""
+    import validation_pdf as vp
+    if vp.owner_first_error(doc):
+        return ""
+    kw = {k: v for k, v in (("desktop", desktop), ("state", state)) if v is not None}
+    return vp.publish(dest.read_bytes(), out, "dossier-graphiques",
+                      (HERE / "review.yaml").read_text(encoding="utf-8"), html=doc, **kw)
 
 
 def main(argv: list[str]) -> int:
