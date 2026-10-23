@@ -1,0 +1,7 @@
+# Owner needs streaMLytics serves (R645, baseline REQ-PARC-120). Proposal — the owner validates or amends.
+- id: B1
+  titre: Artists trust the figures they read (streams, ads, forecasts) enough to decide on them
+- id: B2
+  titre: An artist's data stays theirs — no tenant reads another's
+- id: B3
+  titre: Know that what the docs and the requirements claim is true (every claim has a command)

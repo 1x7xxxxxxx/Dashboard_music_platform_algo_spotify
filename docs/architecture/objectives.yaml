@@ -1,0 +1,34 @@
+# streaMLytics' objectives (R645, relay of baseline REQ-PARC-120 / T287). PROPOSAL: the owner validates
+# or amends — nothing here is validated yet. Master format: id, titre, priorite, besoins
+# (docs/architecture/besoins.yaml), kpi {indicateur, cible, cmd}. cible: `= n`, `<= n`, `>= n` on the
+# last number of the output, or `rc = 0`. cmd runs from the repo root. Drawn from CLAUDE.md's own
+# mission (multi-tenant analytics SaaS ; P1 security > P2 data integrity, rules 4, 6, 7) — the
+# master judges its stack risks against these (tools/dev/stack_risk.py).
+
+- id: O1
+  titre: An artist never sees another artist's rows
+  priorite: P1
+  besoins: [B2]
+  kpi: {indicateur: "tenant-isolation guards (gold views, tenant flag, tenant-scoped actions)", cible: "rc = 0", cmd: ".venv/bin/python -m pytest -q -p no:cacheprovider tests/test_a_gold_view_is_blind_to_another_tenants_rows.py tests/test_a_tenant_flag_is_applied_everywhere.py tests/test_a_tenant_scoped_action_names_its_tenant.py"}
+  mots: [tenant, locataire, artist_id, view_session, isolation, rls, multi-tenant]
+
+- id: O2
+  titre: The figures an artist reads are right — no silent loss at collection, no S4A total row
+  priorite: P2
+  besoins: [B1]
+  kpi: {indicateur: "collector raise + total-row filter guards", cible: "rc = 0", cmd: ".venv/bin/python -m pytest -q -p no:cacheprovider tests/test_collectors_errors.py tests/test_the_collector_audit_sees_a_silent_return.py tests/test_the_total_row_is_always_filtered_out.py"}
+  mots: [collector, collecteur, dag, s4a, gold, bronze, kpi, chiffre, données, data]
+
+- id: O3
+  titre: Every requirement has its probe
+  priorite: P2
+  besoins: [B3]
+  kpi: {indicateur: "orphan domains of REQUIREMENTS-COVERAGE.md (arch_benchmark --coverage --check)", cible: "rc = 0", cmd: ".venv/bin/python tools/dev/arch_benchmark.py --coverage --check"}
+  mots: [exigence, requirement, req-, preuve, probe, sonde, benchmark, roadmap, garde, guard]
+
+- id: O4
+  titre: Nothing ships on a red suite
+  priorite: P2
+  besoins: [B1, B3]
+  kpi: {indicateur: "FAILED/ERROR lines of the last suite (.pytest-last.log)", cible: "= 0", cmd: "grep -cE '^(FAILED|ERROR) ' .pytest-last.log"}
+  mots: [test, suite, ci, pytest, make test, rouge, red, push, deploy]
