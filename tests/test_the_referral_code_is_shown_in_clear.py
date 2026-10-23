@@ -30,8 +30,13 @@ import src.dashboard.views.register as register
 # R643 — the form needs no row: only the Google-return branch reads the DB before it, and
 # `project_db()` halts the whole page on an unreachable base. A None handle is the branch
 # a missing base would take without the halt — the field is then rendered as in prod.
+# Taken back in a `finally`: AppTest shares `sys.modules` with the test process.
+_original = register.project_db
 register.project_db = lambda: contextlib.nullcontext(None)
-register.show()
+try:
+    register.show()
+finally:
+    register.project_db = _original
 """
 
 
