@@ -31,6 +31,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
 | R642 | Les 4 domaines orphelins de `REQUIREMENTS-COVERAGE.md` (`ml`, `product-offer`, `pc-perf` : une exigence chacun, prouvée par un test existant ; `rag-knowledge` : exemption écrite, rien du domaine n'est dans le dépôt) — baseline T217 <!-- critic: non — catalogue de données, preuves = tests existants rejoués --> <!-- scope: .claude/dev-docs/architecture/, REQUIREMENTS-COVERAGE.md, tests/test_every_requirement_has_a_probe.py --> | P3 | `make requirements-report` → orphelins : 0 (exit 0) |
+| R643 | `make test` rouge hors terminal interactif (fleet-verify baseline T364, 2026-10-23 : 2 échecs) — `check_mermaid` trouve mmdc par le repli nvm mais le lance sans `node` dans le PATH (exit 2 « renderer unavailable ») ; `test_the_signup_field_is_optional_and_prefilled_from_the_link` dépend de la base vivante sans la déclarer (`project_db()` arrête la page) <!-- critic: non — deux défauts d'environnement de test, cause mesurée, aucun code produit --> <!-- scope: .claude/scripts/check_mermaid.py, tests/test_every_mermaid_block_renders.py, tests/test_the_referral_code_is_shown_in_clear.py --> | P3 | `env PATH=/usr/bin:/bin .venv/bin/python -m pytest tests/test_every_mermaid_block_renders.py tests/test_the_referral_code_is_shown_in_clear.py` vert, base arrêtée ; puis `make test` vert |
 
 ---
 
@@ -38,7 +39,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R642 -->
+<!-- reprise: open=R642, R643 -->
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
