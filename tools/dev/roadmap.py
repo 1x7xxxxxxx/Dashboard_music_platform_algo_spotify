@@ -281,6 +281,23 @@ def _close_notes(tid: str, commit: str) -> int:
     return n
 
 
+def write_health() -> bool:
+    """R644 (baseline REQ-PARC-138): regenerate docs/ROADMAP-HEALTH.md — a child process, so a
+    failure warns and the close stands. Unlike R279's discipline report, this one is ASKED for
+    at every close by the owner's review (« Master puis parc », 2026-10-22). True when written."""
+    import subprocess
+    try:
+        r = subprocess.run([sys.executable, str(Path(__file__).with_name("roadmap_health.py"))],
+                           capture_output=True, text=True, timeout=120,
+                           env={**os.environ, "ROADMAP_ROOT": str(ROOT)})
+    except subprocess.TimeoutExpired:
+        print("⚠️  santé : roadmap_health.py > 120 s — le prochain close le refera")
+        return False
+    if r.returncode != 0:
+        print(f"⚠️  santé non régénérée : {(r.stderr or r.stdout).strip()[-300:]}")
+    return r.returncode == 0
+
+
 def cmd_close(args) -> int:
     """Retire la ligne d'index, ÉCRIT l'entrée d'archive si elle manque, recale l'ancre."""
     tid = args.id.upper()
@@ -349,6 +366,8 @@ def cmd_close(args) -> int:
     notes = _close_notes(tid, sha or "?")
     if notes:
         extra.append(f"{notes} note(s) du propriétaire « livré »")
+    if write_health():
+        extra.append("docs/ROADMAP-HEALTH.md régénéré")
     # R279 (owner decision 2026-09-28): the discipline report is generated ON DEMAND
     # (`make roadmap-discipline WRITE=1`), no longer rewritten by every closure — it put
     # a generated file in every closing commit. The nightly still measures it live.
