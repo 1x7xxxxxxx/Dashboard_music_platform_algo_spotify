@@ -64,6 +64,7 @@ def test_the_code_is_visible_without_opening_anything() -> None:
     assert shown.index(code) > shown.index(link), "the code is not under the link"
 
 
+@pytest.mark.skipif(not db_ready(), reason="renders the signup page against the live DB")
 def test_the_signup_field_is_optional_and_prefilled_from_the_link() -> None:
     from streamlit.testing.v1 import AppTest
 
