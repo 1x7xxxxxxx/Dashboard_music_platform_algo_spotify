@@ -9,6 +9,7 @@
   titre: An artist never sees another artist's rows
   priorite: P1
   besoins: [B2]
+  mesure: "3 gardes d'isolation des locataires verts (rc = 0)"
   kpi: {indicateur: "tenant-isolation guards (gold views, tenant flag, tenant-scoped actions)", cible: "rc = 0", cmd: ".venv/bin/python -m pytest -q -p no:cacheprovider tests/test_a_gold_view_is_blind_to_another_tenants_rows.py tests/test_a_tenant_flag_is_applied_everywhere.py tests/test_a_tenant_scoped_action_names_its_tenant.py"}
   mots: [tenant, locataire, artist_id, view_session, isolation, rls, multi-tenant]
 
@@ -16,6 +17,7 @@
   titre: The figures an artist reads are right — no silent loss at collection, no S4A total row
   priorite: P2
   besoins: [B1]
+  mesure: "gardes collecteur-lève et ligne Total filtrée verts (rc = 0)"
   kpi: {indicateur: "collector raise + total-row filter guards", cible: "rc = 0", cmd: ".venv/bin/python -m pytest -q -p no:cacheprovider tests/test_collectors_errors.py tests/test_the_collector_audit_sees_a_silent_return.py tests/test_the_total_row_is_always_filtered_out.py"}
   mots: [collector, collecteur, dag, s4a, gold, bronze, kpi, chiffre, données, data]
 
@@ -23,6 +25,7 @@
   titre: Every requirement has its probe
   priorite: P2
   besoins: [B3]
+  mesure: "0 domaine orphelin (arch_benchmark --coverage --check)"
   kpi: {indicateur: "orphan domains of REQUIREMENTS-COVERAGE.md (arch_benchmark --coverage --check)", cible: "rc = 0", cmd: ".venv/bin/python tools/dev/arch_benchmark.py --coverage --check"}
   mots: [exigence, requirement, req-, preuve, probe, sonde, benchmark, roadmap, garde, guard]
 
@@ -30,5 +33,6 @@
   titre: Nothing ships on a red suite
   priorite: P2
   besoins: [B1, B3]
+  mesure: "0 ligne FAILED ou ERROR dans .pytest-last.log"
   kpi: {indicateur: "FAILED/ERROR lines of the last suite (.pytest-last.log)", cible: "= 0", cmd: "grep -cE '^(FAILED|ERROR) ' .pytest-last.log"}
   mots: [test, suite, ci, pytest, make test, rouge, red, push, deploy]
