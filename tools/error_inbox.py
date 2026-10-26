@@ -274,6 +274,8 @@ def main() -> int:
                     help="ferme l'entrée dont l'empreinte commence par FP")
     ap.add_argument("--note", default="", help="pourquoi elle est fermée")
     ap.add_argument("--all", action="store_true", help="inclure les fermées")
+    ap.add_argument("--write", action="store_true",
+                    help="the default (writes the document) — named for the fleet replay")
     ap.add_argument("--check", action="store_true",
                     help="n'écrit rien : dit si le document décrit encore la base. "
                          "0 = à jour · 1 = périmé · 2 = LA BASE EST INJOIGNABLE, "

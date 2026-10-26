@@ -134,6 +134,7 @@ def render_md(h: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true", help="exit 1 when an open row is `échec`")
+    ap.add_argument("--write", action="store_true", help="the default (writes the document) — named for the fleet replay")
     args = ap.parse_args(argv)
     h = collect()
     if args.check:
