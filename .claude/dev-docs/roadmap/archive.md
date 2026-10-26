@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R665 — `docs/CADRAGE.md` : blocs `cadrage:auto` en retard sur HEAD (streamlit 1.66.1, compte d… (livrée 2026-10-26)
+
+- [x] **R665 — `docs/CADRAGE.md` : blocs `cadrage:auto` en retard sur HEAD (streamlit 1.66.1, compte de fichiers, « Mesuré par » en code) — msg:1793022477299952351-1338763 — régénérer par `project_brief.py --write`** (P4) ✅ (2026-10-26, 2b91c44f)
+  Mesuré par : `project_brief.py --write` puis `git diff --quiet docs/CADRAGE.md` → rc 0
+  Livré 2b91c44f, CI verte (run 40372846455) : project_brief --write puis git diff --quiet docs/CADRAGE.md → rc 0 ; --check → cadrage complet. msg:1793022477299952351-1338763 traité
+  Commits : 2b91c44f R665 : blocs cadrage:auto régénérés par project_brief --write — stream
+
+## ✅ R666 — `make canon-pg` fuit son conteneur `canon_pg` quand une étape échoue avant le `docker r… (livrée 2026-10-26)
+
+- [x] **R666 — `make canon-pg` fuit son conteneur `canon_pg` quand une étape échoue avant le `docker rm` (aucun trap ; vu Up 5 h le 2026-10-26) — msg:1793022481948697044-1344787 — une seule shell avec `trap 'docker rm -f canon_pg' EXIT`** (P3) ✅ (2026-10-26, defec518)
+  Mesuré par : `make canon-pg` interrompu, puis `docker ps -a --filter name=canon_pg -q` vide
+  Livré defec518, CI verte (run 40372846455) : canon-pg en une seule shell sous trap EXIT ; mesuré timeout -s TERM 6 make canon-pg → ancienne recette laisse canon_pg, nouvelle non ; run complet rc 0, 2 261 lignes d'empreinte ; garde tests/test_canon_pg_never_leaks_its_container.py rouge sur l'ancienne recette. msg:1793022481948697044-1344787 traité
+  Commits : defec518 R666 : make canon-pg tourne dans une seule shell sous un trap EXIT qui
+
 ## ✅ R649 — Norme RQ des rapports, partie constructible (code-critic 2026-10-26 : BUILD-MODIFIED) —… (livrée 2026-10-26)
 
 - [x] **R649 — Norme RQ des rapports, partie constructible (code-critic 2026-10-26 : BUILD-MODIFIED) — (A) `guide_pdf` : rendu dans un fichier temporaire → `report_quality.py --kind guide --strict` → seulement alors déplacement + `.guide_fingerprint` ; précondition make qui nomme le correctif si le vérificateur ou `pdftotext` manque ; `test_the_shipped_guide_is_the_current_guide.py` score aussi les PDF commités ; RQ-8 de la version EN (26 % > 25 %) corrigé en coupant du remplissage, pas en ajoutant des chiffres. (C) `charts_dossier` : page de tête qui énonce les décisions de `triage.py`/`actions.yaml` (chiffres lus dans capture.json, jamais tapés), gate en fin de `main.py` (couvre aussi `--rebuild`), pas de test CI (PDF hors dépôt, données d'artiste). Le dossier d'architecture et `pdf_exporter` → R661 ; **C reporté à R661 (3)** : la gate stricte refuserait le dossier actuel (5/8, RQ-3/4/7), le restructurer est un choix du propriétaire — msg:1792366598159790086-2236949** (P3) ✅ (2026-10-26, a06da01c, 99983d70, 93fd6575)
