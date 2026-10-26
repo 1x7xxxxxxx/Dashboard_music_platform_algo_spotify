@@ -284,6 +284,12 @@ Full specification: `.claude/skills/response-protocol/SKILL.md` (load only for `
     `tests/test_every_note_is_on_the_roadmap.py` (toute note du propriétaire encore à faire
     nomme une ligne réelle). Mesure : `make arch-benchmark`.
 
+23. **Un design de correctif à juger HORS de la boucle d'ingénierie — une trouvaille seule qui touche
+    un garde, un installeur ou une frontière irréversible, ou un refactor de plus de 3 fichiers →
+    `Spawn code-critic` sur le DESIGN, avant la première ligne.** Il rend `BUILD`, `BUILD-MODIFIED`
+    ou `DO-NOT-BUILD`, avec la raison ; dans la boucle, c'est elle qui le lance (phase Critic).
+    Source : `agent-triggers` du master (T148) — R651.
+
 > Règles 18-19 (2026-08-21) : ces agents n'étaient nommés que dans un tableau (§7bis).
 
 <!-- measured-rules:end v3 -->
