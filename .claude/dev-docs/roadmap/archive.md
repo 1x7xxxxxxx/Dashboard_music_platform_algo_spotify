@@ -11,6 +11,42 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R646 — `dossier-graphiques.pdf` (tools/dev/charts_dossier) qui attend la validation du proprié… (livrée 2026-10-26)
+
+- [x] **R646 — `dossier-graphiques.pdf` (tools/dev/charts_dossier) qui attend la validation du propriétaire sort en double : `A_VALIDER_dossier-graphiques_revNN_<date>.pdf` dans son dossier et sur le Bureau, révision montée sur changement de `review.yaml` seulement, ancienne copie retirée (baseline REQ-PARC-133, port de `validation_pdf.py`) — msg:1792675860315071148-1574841** (P3) ✅ (2026-10-26, d4aba6e8)
+  Mesuré par : `tests/test_a_pdf_to_validate_comes_out_twice.py`
+  CI=success sur d4aba6e8 ; le rouge lu est le nightly sécurité (rouge depuis le 2026-10-20, antérieur, sans lien avec le PDF)
+  Commits : d4aba6e8 R646 : le dossier graphiques qui attend le propriétaire sort en double
+
+## ✅ R645 — `docs/architecture/objectives.yaml` + `besoins.yaml` en PROPOSITION (baseline REQ-PARC-… (livrée 2026-10-26)
+
+- [x] **R645 — `docs/architecture/objectives.yaml` + `besoins.yaml` en PROPOSITION (baseline REQ-PARC-120 : le master juge ses risques de stack contre eux) — objectifs tirés de la mission du dépôt, chaque KPI une commande qui tourne — msg:1792674348906297996-1448324** (P3) ✅ (2026-10-26, 3d0f76fa)
+  Mesuré par : chaque `kpi.cmd` de `docs/architecture/objectives.yaml` lancée depuis la racine, valeur rapportée
+  livré, CI verte du lot poussé (d4aba6e8) ; objectives.yaml reste une PROPOSITION à valider par le propriétaire
+  Commits : 3d0f76fa R645 : docs/architecture/objectives.yaml + besoins.yaml en PROPOSITION
+
+## ✅ R644 — `docs/ROADMAP-HEALTH.md` à la racine, régénéré à chaque `make roadmap-close` (baseline… (livrée 2026-10-26)
+
+- [x] **R644 — `docs/ROADMAP-HEALTH.md` à la racine, régénéré à chaque `make roadmap-close` (baseline REQ-PARC-138, modèle `roadmap_health.py` du master adapté : pas de registre de preuves ni d'`est:` ici — état par ligne : mesure exécutable, âge ; réel des clôtures lu dans git) — msg:1792695495940723591-3392217** (P3) ✅ (2026-10-26, 12705f84)
+  Mesuré par : `tests/test_the_roadmap_health_is_written_at_each_close.py` ; `test -f docs/ROADMAP-HEALTH.md`
+  livré, CI verte du lot poussé (d4aba6e8) ; objectives.yaml reste une PROPOSITION à valider par le propriétaire
+  Commits : 12705f84 R644 : docs/ROADMAP-HEALTH.md régénéré à chaque clôture — un état par 
+
+## ✅ R647 — Sans suite : `.mcp.json` ne nomme plus l'ancien chemin — msg:1792244526840599406-2977251… (close 2026-10-26)
+
+- [x] **R647 — Sans suite : `.mcp.json` ne nomme plus l'ancien chemin — msg:1792244526840599406-2977251** (P4) ✅ (2026-10-26, sans suite)
+  Mesuré par : `grep -n "/home/timothe/streamlytics/" .mcp.json` vide, mesuré le 2026-10-26 : déjà corrigé (migration ext4, R635)
+
+## ✅ R648 — Sans suite : dérives de payload session_start.py, roadmap_empty_beep.py, select_tests.py, … (close 2026-10-26)
+
+- [x] **R648 — Sans suite : dérives de payload session_start.py, roadmap_empty_beep.py, select_tests.py, check_mermaid.py — msg:1792301821799929240-4104177, msg:1792672621652191236-1207955, msg:1792759021888333152-1832757** (P4) ✅ (2026-10-26, sans suite)
+  Mesuré par : `fleet_apply.py plan` du 2026-10-26 : seul `hooks/session_start.py` reste, en « (informatif) ✎ hook adapté ici » — adaptation voulue (réveil de la base, R640) ; remonter au master est un travail de baseline
+
+## ✅ R654 — Sans suite : STACK.md et preset-refresh posés par 60fc648d — msg:1792597073440388511-12287… (close 2026-10-26)
+
+- [x] **R654 — Sans suite : STACK.md et preset-refresh posés par 60fc648d — msg:1792597073440388511-1228798, msg:1792584104870484698-643965** (P4) ✅ (2026-10-26, sans suite)
+  Mesuré par : `fleet_apply.py plan` du 2026-10-26 ne liste plus ni « stack-md » ni « preset-refresh »
+
 ## ✅ R641 — `.claude/agents/sibling-sweeper.md` appelle `sweep_fleet.py` par `~/.fleet-master` (le… (livrée 2026-10-17)
 
 - [x] **R641 — `.claude/agents/sibling-sweeper.md` appelle `sweep_fleet.py` par `~/.fleet-master` (le lien du master, baseline T57) au lieu du dossier `claude_code_deployment_baseline` — le master va être renommé `fleet-master` (propriétaire 2026-10-17)** (P1) ✅ (2026-10-17, 1b424d6f)
