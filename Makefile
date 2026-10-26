@@ -384,9 +384,9 @@ check-guide-deps: ## (internal) fail fast if WeasyPrint is unavailable, rule #10
 	  echo "   does NOT install (.github/workflows/ci.yml: 'dashboard-only, not CI')."; \
 	  echo "   Run: make sync"; exit 1; }
 	@# R649 — `make guide` scores each PDF before shipping it; both tools must be here.
-	@test -f "$${REPORT_QUALITY:-$$HOME/.fleet-master/tools/dev/report_quality.py}" || { \
+	@test -f "$$HOME/.fleet-master/tools/dev/report_quality.py" || { \
 	  echo "❌ report_quality.py absent (fleet preset report-quality)."; \
-	  echo "   Run: install the fleet master at ~/.fleet-master, or set REPORT_QUALITY=<path>"; exit 1; }
+	  echo "   Run: install the fleet master at ~/.fleet-master"; exit 1; }
 	@command -v pdftotext >/dev/null || { \
 	  echo "❌ pdftotext absent — the norm checker reads the PDF through it."; \
 	  echo "   Run: sudo apt install poppler-utils"; exit 1; }

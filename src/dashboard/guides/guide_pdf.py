@@ -546,10 +546,10 @@ def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
     return target
 
 
-# R649 — the report norm's checker (fleet preset report-quality). Overridable because it
-# lives outside the repo; `make guide` fails on its precondition when it is absent.
-REPORT_QUALITY = Path(os.environ.get(
-    "REPORT_QUALITY", Path.home() / ".fleet-master" / "tools" / "dev" / "report_quality.py"))
+# R649 — the report norm's checker (fleet preset report-quality). It lives outside the repo;
+# `make guide` fails on its precondition when it is absent. Not read from the environment: an
+# env var reaching a guide module would make `source_fingerprint()` depend on the host.
+REPORT_QUALITY = Path.home() / ".fleet-master" / "tools" / "dev" / "report_quality.py"
 
 
 def check_guide_quality(pdf: Path) -> None:
