@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R664 — Journal des défauts : 13 ouverts (6 test_red, 7 traceback) et 15 billets `recurrence:`… (livrée 2026-10-26)
+
+- [x] **R664 — Journal des défauts : 13 ouverts (6 test_red, 7 traceback) et 15 billets `recurrence:` à confirmer, annoncés à chaque démarrage de séance — trier chacun (fermer avec sa cause, ou ouvrir sa ligne) (trouvé à la reprise du 2026-10-26)** (P3) ✅ (2026-10-26, bedb6b54, 6740cc89)
+  Mesuré par : `make defect-log` → 0 défaut ouvert non trié
+  Livré bedb6b54 : 15 billets recurrence: répondus (11 same-cause, 4 distinct), test du parrainage sauté sans base (db_ready). Les 3 tracebacks restants triés et clos le 2026-10-26 (dead_code lancé sans vulture, _verdict non reproductible, OperationalError = Postgres arrêté pendant R663). Mesure : make defect-log → 0 open, recurrence (aucun).
+  Commits : bedb6b54 R664 : journal des défauts trié — 15 billets recurrence: répondus (11  · 6740cc89 Roadmap : R661 R662 en attente du propriétaire (runbook §46 norme RQ d
+
+## ✅ R663 — L'ancien chemin du dépôt (`/home/timothe/streamlytics`, déménagé vers `~/projects/` ~20… (livrée 2026-10-26)
+
+- [x] **R663 — L'ancien chemin du dépôt (`/home/timothe/streamlytics`, déménagé vers `~/projects/` ~2026-10-20) vit encore : 20 replis `** () ✅ (2026-10-26, 03beab00, 6740cc89)
+  Mesuré par : echo /home/timothe/streamlytics` dans `.claude/settings.json` (un hook lancé hors dépôt vise un chemin mort), et des conteneurs compose (projet `dashboard_music_platform_algo_spotify`) peuvent monter l'ancien chemin — postgres l'a fait (Docker y a créé un dossier vide, recréé le 2026-10-26) ; les shebangs de `.venv`/`.audit-venv` sont réparés (R660). Ajouter un garde qui lit les deux surfaces (trouvé pendant R660) <!-- critic: non — remplacement de chemin + garde ciblé --> <!-- scope: .claude/settings.json, tests/, docker-compose.yml -->
+  Livré 03beab00 : 20 replis de settings.json → LAUDE_PROJECT_DIR, 2 conteneurs arrêtés qui montaient l'ancien chemin supprimés, garde tests/test_no_surface_names_the_old_repo_path.py muté rouge. Mesure 2026-10-26 : grep settings.json → 0, montages docker sur l'ancien chemin → 0. Reste hors ligne : le dossier vide /home/timothe/streamlytics (suppression récursive refusée par guard_destructive, laissée au propriétaire).
+  Commits : 03beab00 R663 : les 20 replis des hooks visent $CLAUDE_PROJECT_DIR au lieu de l · 6740cc89 Roadmap : R661 R662 en attente du propriétaire (runbook §46 norme RQ d
+
 ## ✅ R659 — Nightly sécurité rouge depuis le 2026-10-20 : pip-audit trouve 108 vulnérabilités dans… (livrée 2026-10-26)
 
 - [x] **R659 — Nightly sécurité rouge depuis le 2026-10-20 : pip-audit trouve 108 vulnérabilités dans 9 paquets (aiohttp 3.14.3, pillow 12.3.0, …) — monter les versions corrigées dans `pyproject.toml`/`uv.lock`, ou exempter avec la raison (trouvé à la reprise du 2026-10-26, pas un message du parc) — **livré** (streamlit 1.66.1 dans les deux images + planchers aiohttp/brotli/certifi/opentelemetry-api/pillow 13 ; audit frais : 59 avis tous acceptés, image API 0) ; reste : push, CI verte, `gh workflow run security-nightly.yml` vert, fermer** (P1) ✅ (2026-10-26, 26cb4afe, a3f5f915)
