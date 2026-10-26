@@ -2300,7 +2300,7 @@ gh repo view --json visibility,licenseInfo
 ```
 Pour (a) ou (b), `licenseInfo` ne vaut plus `null`. Pour (c), `visibility` vaut `PRIVATE`.
 
-## 46. R661 — Norme RQ : le dossier d'architecture et le PDF artiste · P3
+## 46. R661 — Norme RQ : le dossier d'architecture, le PDF artiste et le dossier des graphiques · P3
 
 Le vérificateur de la norme (`~/.fleet-master/tools/dev/report_quality.py`) note le dossier
 d'architecture 2/8 comme rapport de décision : il ne demande aucune décision — tout ce qu'il
@@ -2312,6 +2312,9 @@ pour satisfaire des mots-clés (avis du code-critic, 2026-10-26).
 1. Dossier d'architecture : répondre **exempter** (document de référence, RQ-1 à RQ-4 sans objet,
    écrit dans `tools/dev/architecture_dossier/README.md`) ou **feuille de décision**.
 2. PDF artiste (`pdf_exporter`) : répondre **oui** (il passe la norme) ou **non**.
+3. Dossier des graphiques : noté 5/8 (`report_quality.py revue/dossier-graphiques.pdf --strict`, 2026-10-26) —
+   17 356 mots pour 2 500 permis, ni arbre des causes ni palliatif. Répondre **scinder** (feuille de
+   décision courte + annexe séparée, la gate stricte ne porte que sur la feuille) ou **exempter** (revue).
 
 ### Vérification
 

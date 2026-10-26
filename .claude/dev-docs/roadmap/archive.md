@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R643 — `make test` rouge hors terminal interactif (fleet-verify baseline T364, 2026-10-23 : 2… (livrée 2026-10-26)
+
+- [x] **R643 — `make test` rouge hors terminal interactif (fleet-verify baseline T364, 2026-10-23 : 2 échecs) — `check_mermaid` trouve mmdc par le repli nvm mais le lance sans `node` dans le PATH (exit 2 « renderer unavailable ») ; `test_the_signup_field_is_optional_and_prefilled_from_the_link` dépend de la base vivante sans la déclarer (`project_db()` arrête la page) — msg:1792189738671553422-1559504, msg:1792681020848237514-1667173, msg:1792672621652191236-1207955 (suite rouge) — **livré bdf84e96 + ea333d16** ; reste : la mesure (PATH minimal, `docker stop postgres_spotify_airflow`, les deux tests, puis `docker start`), un `make test` complet, puis `git stash show` et abandon de `stash@{0}` (test-suite-timing.json, ère R652) et `stash@{1}` (ère R403) s'ils ne portent rien d'autre** (P3) ✅ (2026-10-26, 3b4ee514, ea333d16, bdf84e96)
+  Mesuré par : `env PATH=/usr/bin:/bin .venv/bin/python -m pytest tests/test_every_mermaid_block_renders.py tests/test_the_referral_code_is_shown_in_clear.py` vert, base arrêtée ; puis `make test` vert
+  Livré bdf84e96 + ea333d16 (2026-10-23). Mesure 2026-10-26 : PATH=/usr/bin:/bin, postgres_spotify_airflow arrêté → test_every_mermaid_block_renders + test_the_referral_code_is_shown_in_clear : 3 passed, 2 skipped (exit 0) ; make test complet du 2026-10-26 : 13 105 passed, 0 failed (test-suite-timing.json, commité pour la porte R444). stash@{0} (timing seul) abandonné ; stash d'ère R403 GARDÉ : il porte du code trigger_algo (_tab_reglages/_tab_budget_roi/_tab_titre) dont les fichiers n'existent plus — supplanté, mais pas « rien d'autre », donc hors de la condition d'abandon.
+  Commits : 3b4ee514 R643 : test-suite-timing.json réécrit par la suite du 2026-10-26 (13 1 · ea333d16 R643 : la doublure de project_db est rendue dans un finally (AppTest p · bdf84e96 R643 : make test vert hors shell de login — check_mermaid lance mmdc (
+
 ## ✅ R642 — Les 4 domaines orphelins de `REQUIREMENTS-COVERAGE.md` (`ml`, `product-offer`, `pc-perf… (livrée 2026-10-26)
 
 - [x] **R642 — Les 4 domaines orphelins de `REQUIREMENTS-COVERAGE.md` (`ml`, `product-offer`, `pc-perf` : une exigence chacun, prouvée par un test existant ; `rag-knowledge` : exemption écrite, rien du domaine n'est dans le dépôt) — baseline T217 — msg:1792186131629305594-522497, msg:1792239848166396738-2859448 — **livré 2ecf73d4 (2026-10-21)** ; reste : rejouer `make requirements-report` (orphelins 0) puis fermer. REQ-ORCH-03 / REQ-RUN-04 restent « absent », différés par ADR-030 sous R284 — hors de cette ligne** (P3) ✅ (2026-10-26, 2ecf73d4)
