@@ -779,8 +779,10 @@ chart-budget: ## Charts in the viewer's eye span per view (report-only; Few, IDD
 
 ##@ Audits & cohérence
 check-pipaudit: ## (internal) fail fast with the install command, rule #10
-	@command -v pip-audit >/dev/null 2>&1 || test -x $(AUDIT_VENV)/bin/pip-audit || { \
-	  echo "❌ pip-audit absent. Run: python3 -m venv $(AUDIT_VENV) && $(AUDIT_VENV)/bin/pip install pip-audit"; \
+	@# R660: `test -x` passed on a venv whose shebang named the repo's OLD path — the
+	@# binary existed and could not start. Execute it, never only stat it.
+	@$(PIP_AUDIT) --version >/dev/null 2>&1 || { \
+	  echo "❌ pip-audit absent or cannot start. Run: rm -rf $(AUDIT_VENV) && python3 -m venv $(AUDIT_VENV) && $(AUDIT_VENV)/bin/pip install pip-audit"; \
 	  exit 1; }
 
 audit-deps: check-pipaudit ## Known CVEs in the RESOLVED lock, same gate as the nightly (R341)
@@ -790,6 +792,10 @@ audit-deps: check-pipaudit ## Known CVEs in the RESOLVED lock, same gate as the 
 	@# accepted advisories named in security/pip-audit-accepted.txt.
 	@command -v uv >/dev/null 2>&1 || { echo "❌ uv absent. Run: pip install uv"; exit 1; }
 	@uv export --frozen --no-dev --no-hashes -q -o .audited-requirements.txt
+	@# R660: `|| true` stays (pip-audit exits 1 on any advisory, the gate judges them), so the
+	@# previous report is removed first — a producer that cannot start leaves NO report, and
+	@# the gate refuses a missing one instead of re-reading the 2026-10-04 file.
+	@rm -f .pip-audit.json
 	@$(PIP_AUDIT) -r .audited-requirements.txt --format json -o .pip-audit.json || true
 	@python3 tools/dev/pip_audit_gate.py .pip-audit.json
 

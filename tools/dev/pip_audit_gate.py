@@ -35,7 +35,12 @@ def main() -> int:
     if len(sys.argv) != 2:
         print("usage: pip_audit_gate.py <pip-audit.json>", file=sys.stderr)
         return 2
-    report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    path = Path(sys.argv[1])
+    if not path.is_file() or not path.stat().st_size:
+        # R660: a producer that never started writes nothing — that is a failure, not a pass.
+        print(f"❌ no pip-audit report at {path} — the audit did not run", file=sys.stderr)
+        return 2
+    report = json.loads(path.read_text(encoding="utf-8"))
     new = unaccepted(report, accepted_ids(ACCEPTED.read_text(encoding="utf-8")))
     if new:
         print(f"❌ {len(new)} advisory(ies) not accepted in {ACCEPTED.relative_to(ROOT)}:")
