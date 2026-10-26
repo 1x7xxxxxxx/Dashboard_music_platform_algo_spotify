@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R662 — Mails ops non triés depuis le 2026-10-16 (journal vieux de 10 j) : le connecteur Gmail… (livrée 2026-10-26)
+
+- [x] **R662 — Mails ops non triés depuis le 2026-10-16 (journal vieux de 10 j) : le connecteur Gmail demande une ré-authentification** (P3) ✅ (2026-10-26, 80bcf50d, 6740cc89)
+  Mesuré par : `/mcp` → Gmail → se reconnecter ; ensuite le tri `from:noreply@streamlytics.fr after:2026/10/16` se fait en séance — runbook § 47
+  Livré 80bcf50d, CI verte (run 40384518007) : la boîte est muette par décision — pause R572 (src/utils/ops_mail_pause.py, OPS_MAIL_PAUSED = True) depuis le 2026-10-15, aucun mail ops n'est parti ; les signaux qu'ils auraient portés sont triés depuis gh run list : pip-audit rouge 8 nuits (corrigé par R659), PR Dependabot #183 ouverte, récap vert chaque jour. Gmail toujours à ré-authentifier (/mcp) pour le jour où la pause sera levée
+  Commits : 80bcf50d R662 : journal des mails ops trié jusqu'au 2026-10-26 depuis les runs  · 6740cc89 Roadmap : R661 R662 en attente du propriétaire (runbook §46 norme RQ d
+
 ## ✅ R665 — `docs/CADRAGE.md` : blocs `cadrage:auto` en retard sur HEAD (streamlit 1.66.1, compte d… (livrée 2026-10-26)
 
 - [x] **R665 — `docs/CADRAGE.md` : blocs `cadrage:auto` en retard sur HEAD (streamlit 1.66.1, compte de fichiers, « Mesuré par » en code) — msg:1793022477299952351-1338763 — régénérer par `project_brief.py --write`** (P4) ✅ (2026-10-26, 2b91c44f)

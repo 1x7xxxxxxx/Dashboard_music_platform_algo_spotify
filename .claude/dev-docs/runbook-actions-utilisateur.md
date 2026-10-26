@@ -2320,7 +2320,7 @@ pour satisfaire des mots-clés (avis du code-critic, 2026-10-26).
 
 La réponse est écrite dans la ligne R661 ; la tâche qui l'applique est inscrite dans l'index.
 
-## 47. R662 — Reconnecter Gmail pour le tri des mails ops · P3
+## 47. ~~R662 — Reconnecter Gmail pour le tri des mails ops~~ · ✅ FAIT le 2026-10-26 — trié depuis les runs GitHub (pause R572 : aucun mail ops envoyé) ; la reconnexion Gmail ne sert qu'à la levée de la pause
 
 ### Étapes
 
