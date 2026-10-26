@@ -129,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/session_start.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/session_start.py"
           }
         ]
       },
@@ -138,7 +138,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_autocommit.py start",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/roadmap_autocommit.py start",
             "timeout": 15
           }
         ]
@@ -149,7 +149,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/inject_context.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/inject_context.py"
           }
         ]
       }
@@ -160,15 +160,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/guard_destructive.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/guard_destructive.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/pre_commit_scan.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/pre_commit_scan.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/require_sweep_before_catalogue.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/require_sweep_before_catalogue.py"
           }
         ]
       },
@@ -186,7 +186,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/require_roadmap_entry.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/require_roadmap_entry.py"
           }
         ]
       },
@@ -195,7 +195,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/guard_destructive.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/guard_destructive.py"
           }
         ]
       }
@@ -206,19 +206,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/check_python_syntax.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/check_python_syntax.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/lint_dashboard_view.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/lint_dashboard_view.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/check_prod_sync.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/check_prod_sync.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/check_error_class_evidence.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/check_error_class_evidence.py"
           }
         ]
       }
@@ -228,7 +228,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/pre_compact.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/pre_compact.py"
           }
         ]
       }
@@ -238,15 +238,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/suggest_sweep.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/suggest_sweep.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/session_summary.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/session_summary.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/require_verdict_after_edit.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/require_verdict_after_edit.py"
           }
         ]
       },
@@ -254,7 +254,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_empty_beep.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/roadmap_empty_beep.py"
           }
         ]
       },
@@ -262,7 +262,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/roadmap_autocommit.py",
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/roadmap_autocommit.py",
             "timeout": 120
           }
         ]
@@ -273,7 +273,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/sensor.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/sensor.py"
           }
         ]
       }
@@ -283,7 +283,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo /home/timothe/streamlytics)\"/.claude/hooks/sensor.py"
+            "command": "python3 \"$(git -C \"$(pwd)\" rev-parse --show-toplevel 2>/dev/null || echo $CLAUDE_PROJECT_DIR)\"/.claude/hooks/sensor.py"
           }
         ]
       }
