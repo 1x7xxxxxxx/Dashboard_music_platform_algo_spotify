@@ -62,7 +62,7 @@ stripe>=15.6.1,<16
 psycopg2-binary==2.9.13
 
 # --- Shared with the dashboard layer (see header) ---
-streamlit==1.63.0
+streamlit==1.66.1
 
 # --- Utilities ---
 python-dateutil>=2.8.2
