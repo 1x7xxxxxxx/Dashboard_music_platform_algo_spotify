@@ -124,6 +124,21 @@ const DOCS = {
   critic:    OPTS.critic_agent === undefined ? 'code-critic' : OPTS.critic_agent,
 }
 
+// T240 (baseline, 2026-10-21): an agent type the SESSION does not have — `.claude/agents/code-critic.md`
+// written mid-session is only loaded by the next one — makes agent() throw, and the pipeline turns
+// the throw into a null: three findings, zero verdicts, an empty manifest. The grid is in the
+// prompt, so the generic critic is the fallback, said aloud — never the end of the finding.
+const criticAgent = async (prompt, opts) => {
+  if (!DOCS.critic) return agent(prompt, opts)
+  try {
+    return await agent(prompt, { ...opts, agentType: DOCS.critic })
+  } catch (e) {
+    if (!/agent type .* not found/i.test(String(e && e.message || e))) throw e
+    log(`⚠️ ${opts.label}: agent type '${DOCS.critic}' absent from this session — generic critic, same grid`)
+    return agent(prompt, opts)
+  }
+}
+
 const RULES = `
 BINDING CONTEXT (this repo's governance — violating any of these makes your output unusable):
 - MEASURE, THEN ANNOUNCE. Never state a number you have not just computed. A green test is not a
@@ -199,7 +214,7 @@ Do NOT write any code. This phase produces a fiche, nothing else.`,
       log(`  ${String(i + 1).padStart(2, '0')} refuted in impact — skipping critic and fix`)
       return { impact, verdict: { verdict: 'DO-NOT-BUILD', reason: `Refuted during impact analysis: ${impact.refutation || 'no evidence found'}` }, patch: null }
     }
-    const verdict = await agent(
+    const verdict = await criticAgent(
       `${RULES}
 
 You are code-critic running STEP 6 of the engineering loop: a COLD AUDIT of a proposed fix DESIGN,
@@ -233,7 +248,7 @@ Return exactly one verdict:
   DO-NOT-BUILD ..... do not write this. Your reason becomes a ROADMAP brick, so make it stand alone.
 
 Be cold. You are not here to approve. Praise is not an output of this phase.`,
-      { label: `critic:${String(i + 1).padStart(2, '0')}`, phase: 'Critic', schema: VERDICT, ...(DOCS.critic ? { agentType: DOCS.critic } : {}) }
+      { label: `critic:${String(i + 1).padStart(2, '0')}`, phase: 'Critic', schema: VERDICT }
     )
     return { impact, verdict, patch: null }
   },
@@ -304,6 +319,17 @@ if (dropped.length) {
 }
 
 const done = results.filter(Boolean)
+// T240: a population of 0 is a failed run, not a manifest. The completeness critic has nothing to
+// read; asking it anyway buys a confident answer about nothing, and `dropped_still_open` alone
+// reads as a count, not as « the run produced nothing ».
+if (!done.length) {
+  return {
+    error: `every finding was dropped (${findings.length}/${findings.length}) — the run produced no result; all still open`,
+    dropped: dropped.map(f => (typeof f === 'string' ? f : JSON.stringify(f))),
+    summary: { findings: findings.length, in_manifest: 0, dropped_still_open: dropped.length },
+    manifest: [],
+  }
+}
 const built = done.filter(r => r.patch && r.patch.applied)
 const refused = done.filter(r => r.verdict && r.verdict.verdict === 'DO-NOT-BUILD')
 const unverified = built.filter(r => r.patch.mutation_verified === false)
