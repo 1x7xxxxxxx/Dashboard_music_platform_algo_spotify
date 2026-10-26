@@ -887,13 +887,16 @@ schema-check-shared: canon-pg ## (internal) local vs canonical on tables BOTH ca
 canon-pg: ## (internal) build the throwaway canonical database and fingerprint it
 	@command -v docker >/dev/null 2>&1 || { echo "❌ docker required for the throwaway canonical DB."; exit 1; }
 	@echo "▶ provisioning throwaway canonical Postgres from init_db.sql + migrations…"
-	@docker rm -f canon_pg >/dev/null 2>&1 || true
-	@docker run -d --name canon_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl postgres:17 >/dev/null
-	@for i in $$(seq 1 30); do docker exec canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2
-	@docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1
-	@for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done
-	@docker exec -i canon_pg psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_canon.tsv 2>/dev/null
-	@docker rm -f canon_pg >/dev/null 2>&1
+	@# R666 — ONE shell, so the trap removes the container on every exit: a failed step or an
+	@# interrupt left `canon_pg` running for hours when each line was its own shell.
+	@set -e; \
+	trap 'docker rm -f canon_pg >/dev/null 2>&1' EXIT; trap 'exit 130' INT TERM HUP; \
+	docker rm -f canon_pg >/dev/null 2>&1 || true; \
+	docker run -d --name canon_pg -e POSTGRES_PASSWORD=x -e POSTGRES_DB=spotify_etl postgres:17 >/dev/null; \
+	for i in $$(seq 1 30); do docker exec canon_pg pg_isready -U postgres -d spotify_etl >/dev/null 2>&1 && break; sleep 1; done; sleep 2; \
+	docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < init_db.sql >/dev/null 2>&1; \
+	for f in $$(ls migrations/*.sql | sort); do docker exec -i canon_pg psql -U postgres -d spotify_etl -v ON_ERROR_STOP=0 -q < "$$f" >/dev/null 2>&1; done; \
+	docker exec -i canon_pg psql -U postgres -d spotify_etl -tA < tools/dev/schema_fingerprint.sql > /tmp/_canon.tsv 2>/dev/null
 
 env-parity:  ## Are the central-app credentials present in the containers that read them?
 	@# Presence only — never a value. Runs against whatever containers are up locally;
