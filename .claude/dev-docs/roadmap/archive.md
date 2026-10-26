@@ -11,6 +11,33 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R658 — Worktree `.claude/worktrees/agent-a24d97358c459449d` (1 commit R529, 2 semaines) intégré… (livrée 2026-10-26)
+
+- [x] **R658 — Worktree `.claude/worktrees/agent-a24d97358c459449d` (1 commit R529, 2 semaines) intégré ou retiré (DK-22) — msg:1792966291758427107-3260555** (P4) ✅ (2026-10-26, ménage git sans commit)
+  Mesuré par : `git worktree list` → 1 ligne (relu le 2026-10-26 : seul `main` reste)
+  Ménage git hors arbre suivi : aucun commit ne le livre, l'entrée est écrite à la main.
+
+## ✅ R656 — `bug_intake.py` (scripts/ du payload) copié du payload extended du master — msg:1792595… (livrée 2026-10-26)
+
+- [x] **R656 — `bug_intake.py` (scripts/ du payload) copié du payload extended du master — msg:1792595063876789191-1091029** (P4) ✅ (2026-10-26, e0e7f9a0, a9256b51)
+  Mesuré par : `verify_loop_wiring.py` le dit OK
+  Livré a9256b51 + e0e7f9a0 (bug_intake.py + /bug-report), CI verte sur add7a4bd (run 40325886622)
+  Commits : e0e7f9a0 R656 : /bug-report (payload du master, T111) — le déclencheur de bug_i · a9256b51 R656 : .claude/scripts/bug_intake.py copié du payload du master (T111)
+
+## ✅ R655 — `.claude/workflows/engineering-loop.js` repris du master (repli critic générique, popul… (livrée 2026-10-26)
+
+- [x] **R655 — `.claude/workflows/engineering-loop.js` repris du master (repli critic générique, population vide → error) — msg:1792584431920361777-652719** (P4) ✅ (2026-10-26, 4c4f5d5f)
+  Mesuré par : `tests/test_the_engineering_loop_returns_a_manifest.py` vert
+  Livré : engineering-loop.js repris du master, CI verte sur add7a4bd (run 40325886622)
+  Commits : 4c4f5d5f R655 : engineering-loop.js repris du master (T240) — un critic absent 
+
+## ✅ R651 — règle `agent-triggers` (rules/agent-triggers.md à écrire) : règles des agents non liés,… (livrée 2026-10-26)
+
+- [x] **R651 — règle `agent-triggers` (rules/agent-triggers.md à écrire) : règles des agents non liés, au format des gardes du dépôt (`paths:`, `composants:`) — msg:1792584104870484698-643965, msg:1792952645167978110-3858378** (P4) ✅ (2026-10-26, 548e9963)
+  Mesuré par : `fleet_apply.py plan` sans « agent-triggers » ; `make config-check`
+  Livré 548e9963 (règle 23 de CLAUDE.md, Spawn code-critic sur un design hors boucle), CI verte sur add7a4bd (run 40325886622)
+  Commits : 548e9963 R651 : règle 23 de CLAUDE.md — Spawn code-critic sur un design jugé ho
+
 ## ✅ R646 — `dossier-graphiques.pdf` (tools/dev/charts_dossier) qui attend la validation du proprié… (livrée 2026-10-26)
 
 - [x] **R646 — `dossier-graphiques.pdf` (tools/dev/charts_dossier) qui attend la validation du propriétaire sort en double : `A_VALIDER_dossier-graphiques_revNN_<date>.pdf` dans son dossier et sur le Bureau, révision montée sur changement de `review.yaml` seulement, ancienne copie retirée (baseline REQ-PARC-133, port de `validation_pdf.py`) — msg:1792675860315071148-1574841** (P3) ✅ (2026-10-26, d4aba6e8)
