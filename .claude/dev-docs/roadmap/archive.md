@@ -37,6 +37,11 @@ si le total passe sous son plancher.
 - [x] **R647 — Sans suite : `.mcp.json` ne nomme plus l'ancien chemin — msg:1792244526840599406-2977251** (P4) ✅ (2026-10-26, sans suite)
   Mesuré par : `grep -n "/home/timothe/streamlytics/" .mcp.json` vide, mesuré le 2026-10-26 : déjà corrigé (migration ext4, R635)
 
+## ✅ R652 — Sans suite : pre-commit « hors sonde (apply: hand) » — msg:1792603074532039276-1715… (close 2026-10-26)
+
+- [x] **R652 — Sans suite : pre-commit « hors sonde (apply: hand) » — msg:1792603074532039276-1715516, msg:1792952645167978110-3858378** (P4) ✅ (2026-10-26, sans suite)
+  Mesuré par : une fausse clé `ghp_` indexée, `/usr/bin/python3 -m pre_commit run gitleaks-staged` → rc=1 et `run detect-secrets` → rc=1 (2026-10-26, fichier retiré ensuite) : le dépôt refuse déjà un secret. `pre_commit_check` du master rend « hors sonde » pour TOUT dépôt `apply: hand`, quel que soit le câblage : l'écart ne se ferme pas d'ici, c'est un travail de baseline
+
 ## ✅ R648 — Sans suite : dérives de payload session_start.py, roadmap_empty_beep.py, select_tests.py, … (close 2026-10-26)
 
 - [x] **R648 — Sans suite : dérives de payload session_start.py, roadmap_empty_beep.py, select_tests.py, check_mermaid.py — msg:1792301821799929240-4104177, msg:1792672621652191236-1207955, msg:1792759021888333152-1832757** (P4) ✅ (2026-10-26, sans suite)
