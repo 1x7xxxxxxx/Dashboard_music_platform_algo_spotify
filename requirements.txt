@@ -14,7 +14,7 @@ spotipy==2.26.0
 google-api-python-client==2.200.0
 
 # --- Dashboard (Local only - Docker les installera mais ne s'en servira pas) ---
-streamlit==1.63.0
+streamlit==1.66.1
 # st.login() (Google sign-in) — streamlit does not pull it in. See pyproject.toml.
 authlib>=1.3.2
 plotly==5.24.1
@@ -35,6 +35,11 @@ PyJWT>=2.15.0
 urllib3>=2.8.0  # transitive (requests); floor so the pip-built images get the fix too (R341)
 werkzeug>=3.1.9  # transitive (Flask/Airflow); CVE-2026-102598 (R419)
 multidict>=6.9.1  # transitive (aiohttp); CVE-2026-104874 (R419)
+aiohttp>=3.14.4  # transitive; R659 (pip-audit 2026-10-26)
+brotli>=1.2.1  # transitive; R659
+certifi>=2026.10.19  # transitive (requests); R659
+opentelemetry-api>=1.45.1  # transitive; R659
+pillow>=13.0.0  # transitive (streamlit >= 1.66.1); R659
 passlib[bcrypt]>=1.7.4
 # Pin bcrypt<4.1: bcrypt 4.1+ rejects passwords >72 bytes with ValueError,
 # breaking passlib 1.7.4's detect_wrap_bug probe (passlib initializes its
