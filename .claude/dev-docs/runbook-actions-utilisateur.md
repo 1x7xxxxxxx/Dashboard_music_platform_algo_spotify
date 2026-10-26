@@ -2299,3 +2299,31 @@ Aucune donnée d'artiste n'est dans le dépôt.
 gh repo view --json visibility,licenseInfo
 ```
 Pour (a) ou (b), `licenseInfo` ne vaut plus `null`. Pour (c), `visibility` vaut `PRIVATE`.
+
+## 46. R661 — Norme RQ : le dossier d'architecture et le PDF artiste · P3
+
+Le vérificateur de la norme (`~/.fleet-master/tools/dev/report_quality.py`) note le dossier
+d'architecture 2/8 comme rapport de décision : il ne demande aucune décision — tout ce qu'il
+contient est déjà tranché. Lui écrire une feuille de décision reviendrait à inventer un problème
+pour satisfaire des mots-clés (avis du code-critic, 2026-10-26).
+
+### Étapes
+
+1. Dossier d'architecture : répondre **exempter** (document de référence, RQ-1 à RQ-4 sans objet,
+   écrit dans `tools/dev/architecture_dossier/README.md`) ou **feuille de décision**.
+2. PDF artiste (`pdf_exporter`) : répondre **oui** (il passe la norme) ou **non**.
+
+### Vérification
+
+La réponse est écrite dans la ligne R661 ; la tâche qui l'applique est inscrite dans l'index.
+
+## 47. R662 — Reconnecter Gmail pour le tri des mails ops · P3
+
+### Étapes
+
+1. Dans Claude Code : `/mcp` → `claude.ai Gmail` → se reconnecter.
+
+### Vérification
+
+En séance, la recherche `from:noreply@streamlytics.fr after:2026/10/16` rend des fils au lieu
+d'une erreur d'authentification ; le tri entre dans `.claude/dev-docs/ops-mail-journal.md`.
