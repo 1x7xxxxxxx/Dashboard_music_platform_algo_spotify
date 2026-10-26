@@ -11,6 +11,27 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R659 — Nightly sécurité rouge depuis le 2026-10-20 : pip-audit trouve 108 vulnérabilités dans… (livrée 2026-10-26)
+
+- [x] **R659 — Nightly sécurité rouge depuis le 2026-10-20 : pip-audit trouve 108 vulnérabilités dans 9 paquets (aiohttp 3.14.3, pillow 12.3.0, …) — monter les versions corrigées dans `pyproject.toml`/`uv.lock`, ou exempter avec la raison (trouvé à la reprise du 2026-10-26, pas un message du parc) — **livré** (streamlit 1.66.1 dans les deux images + planchers aiohttp/brotli/certifi/opentelemetry-api/pillow 13 ; audit frais : 59 avis tous acceptés, image API 0) ; reste : push, CI verte, `gh workflow run security-nightly.yml` vert, fermer** (P1) ✅ (2026-10-26, 26cb4afe, a3f5f915)
+  Mesuré par : `gh workflow run security-nightly.yml` vert ; `uv run pip-audit` sans vulnérabilité non exemptée
+  Livré a3f5f915 + 26cb4afe (streamlit 1.66.1 dans les deux images + planchers transitifs) ; CI verte et security-nightly vert sur 26cb4afe (run 40335660481)
+  Commits : 26cb4afe R659 : l'image de l'API épingle aussi streamlit 1.66.1 — les deux imag · a3f5f915 R659 : streamlit 1.66.1 + planchers transitifs (aiohttp, brotli, certi
+
+## ✅ R650 — CI : plus aucun `schedule:` (push main + workflow_dispatch), `concurrency` cancel-in-pr… (livrée 2026-10-26)
+
+- [x] **R650 — CI : plus aucun `schedule:` (push main + workflow_dispatch), `concurrency` cancel-in-progress partout, cible ≤ 3 000 min/mois — msg:1792495808013381085-952657, msg:1792583306139973910-590241, msg:1792618505835322997-3590496 — **livré 602c8554 (2026-10-26, décisions du propriétaire : prod-health seul en cron, push main filtré par paths)** ; reste : CI verte du push qui le porte, puis fermer** (P3) ✅ (2026-10-26, 602c8554)
+  Mesuré par : `.venv/bin/python -m pytest -q tests/test_main_is_judged_every_night_without_a_push.py` sort à 0 — seul `prod-health.yml` garde un `schedule:` (décision du propriétaire, 2026-10-26)
+  Livré 602c8554 (prod-health seul en cron, push main filtré par paths), CI verte sur 26cb4afe
+  Commits : 602c8554 R650 : CI sans cron — seul prod-health garde un schedule (décision du 
+
+## ✅ R660 — `make audit-deps` vert sur un rapport du 2026-10-04 : `.audit-venv` porte encore le she… (livrée 2026-10-26)
+
+- [x] **R660 — `make audit-deps` vert sur un rapport du 2026-10-04 : `.audit-venv` porte encore le shebang d'avant le déménagement du dépôt (`/home/timothe/streamlytics`), `pip-audit` ne démarre pas, `** () ✅ (2026-10-26, b8f75ddd)
+  Mesuré par : true` l'avale et `pip_audit_gate.py` relit l'ancien `.pip-audit.json` (trouvé pendant R659, 2026-10-26) — **livré** (rapport supprimé avant pip-audit, gate refuse absent/vide, check-pipaudit exécute ; .audit-venv et .venv reconstruits ; garde muté 3× rouge) ; reste : fermer après le push <!-- critic: non — supprimer le rapport avant de le produire, et refuser un rapport absent ; garde ciblé --> <!-- scope: Makefile, tools/dev/pip_audit_gate.py, tests/ -->
+  Livré b8f75ddd, CI verte sur 26cb4afe ; rapport supprimé avant pip-audit, gate refuse absent/vide, check-pipaudit exécute ; garde muté 3× rouge
+  Commits : b8f75ddd R660 : audit-deps ne relit plus un rapport périmé — rapport supprimé a
+
 ## ✅ R658 — Worktree `.claude/worktrees/agent-a24d97358c459449d` (1 commit R529, 2 semaines) intégré… (livrée 2026-10-26)
 
 - [x] **R658 — Worktree `.claude/worktrees/agent-a24d97358c459449d` (1 commit R529, 2 semaines) intégré ou retiré (DK-22) — msg:1792966291758427107-3260555** (P4) ✅ (2026-10-26, ménage git sans commit)
