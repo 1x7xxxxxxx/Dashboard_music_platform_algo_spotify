@@ -287,3 +287,22 @@ def test_every_offered_language_has_its_guide_in_the_image():
         f"seulement {len(_LANGS)} langue(s) lue(s) — si l'extraction est cassee, le "
         "test ci-dessus ne garde rien."
     )
+
+
+# R649 — `make guide` refuses a PDF the report norm rejects; this scores the COMMITTED
+# ones, so a PDF committed by another path than `make guide` is caught too. The checker
+# lives in the fleet master and reads through pdftotext: absent (CI), the test skips.
+@pytest.mark.parametrize("lang", ["fr", "en"])
+def test_the_shipped_guide_passes_the_report_norm(lang):
+    import shutil
+    import subprocess
+    import sys
+
+    from src.dashboard.guides.guide_pdf import REPORT_QUALITY, output_pdf_path
+
+    if not REPORT_QUALITY.is_file() or shutil.which("pdftotext") is None:
+        pytest.skip("report_quality.py or pdftotext absent — the norm cannot be scored here")
+    pdf = output_pdf_path(lang)
+    r = subprocess.run([sys.executable, str(REPORT_QUALITY), str(pdf), "--kind", "guide",
+                        "--strict"], capture_output=True, text=True)
+    assert r.returncode == 0, f"{pdf.name} fails the report norm:\n{r.stdout}{r.stderr}\nRemedy: `make guide`"

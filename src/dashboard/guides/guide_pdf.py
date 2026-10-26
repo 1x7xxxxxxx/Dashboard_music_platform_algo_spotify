@@ -147,8 +147,7 @@ _UI = {
         'doc_intro': ("Ce guide couvre les deux sources de données : "
                       "<strong>(1) les connecteurs API</strong>, à renseigner dans la page "
                       "« Credentials API », et <strong>(2) l'import des fichiers CSV</strong>, "
-                      "via la page « Ajouter mes chiffres ». Le sommaire ci-dessous liste "
-                      "les plateformes couvertes."),
+                      "via la page « Ajouter mes chiffres »."),
         'goals_h': "À la fin de ce guide, vous aurez :",
         'goals': ("vos comptes connectés, et de la donnée qui arrive chaque nuit sans "
                   "que vous ayez à y revenir ;",
@@ -169,8 +168,7 @@ _UI = {
         'doc_intro': ("This guide covers both data sources: "
                       "<strong>(1) the API connectors</strong>, to fill in on the "
                       "« API Credentials » page, and <strong>(2) CSV file import</strong>, "
-                      "via the « Add my numbers » page. The outline below lists the "
-                      "platforms covered."),
+                      "via the « Add my numbers » page."),
         'goals_h': "By the end of this guide you will have:",
         'goals': ("your accounts connected, and data arriving every night without you "
                   "coming back to it;",
@@ -548,9 +546,44 @@ def build_guide_pdf(lang: str = "fr", out: Path | None = None) -> Path:
     return target
 
 
+# R649 — the report norm's checker (fleet preset report-quality). Overridable because it
+# lives outside the repo; `make guide` fails on its precondition when it is absent.
+REPORT_QUALITY = Path(os.environ.get(
+    "REPORT_QUALITY", Path.home() / ".fleet-master" / "tools" / "dev" / "report_quality.py"))
+
+
+def check_guide_quality(pdf: Path) -> None:
+    """Refuse a guide the RQ checker does not score clean (`--kind guide --strict`)."""
+    import subprocess
+    import sys
+    r = subprocess.run([sys.executable, str(REPORT_QUALITY), str(pdf), "--kind", "guide",
+                        "--strict"], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise SystemExit(f"❌ {pdf.name} fails the report norm — not shipped:\n"
+                         f"{r.stdout}{r.stderr}")
+
+
+def build_checked_guides() -> list[Path]:
+    """Render every PDF into a temp dir, score each, and only then replace the shipped ones.
+
+    A guide that fails leaves the shipped PDFs, the pages and the fingerprint untouched:
+    the fingerprint certifies only what passed the norm.
+    """
+    import shutil
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        staged = {lang: build_guide_pdf(lang, Path(tmp) / output_pdf_path(lang).name)
+                  for lang in ("fr", "en")}
+        for pdf in staged.values():
+            check_guide_quality(pdf)
+        return [Path(shutil.move(str(pdf), output_pdf_path(lang)))
+                for lang, pdf in staged.items()]
+
+
 if __name__ == "__main__":
+    for _pdf in build_checked_guides():
+        print(f"Guide PDF written to {_pdf}")
     for _lang in ("fr", "en"):
-        print(f"Guide PDF  ({_lang}) written to {build_guide_pdf(_lang)}")
         print(f"Guide page ({_lang}) written to {build_guide_html_page(_lang)}")
     # Written in the same breath as the PDFs, never separately: a fingerprint updated
     # on its own would certify an artefact nobody rebuilt.
