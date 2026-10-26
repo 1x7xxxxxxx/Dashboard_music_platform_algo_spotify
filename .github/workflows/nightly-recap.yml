@@ -8,10 +8,18 @@
 # (03:00). Guard: tests/test_the_github_recap_reaches_the_read_inbox.py.
 name: Nightly recap
 
+# R650 (2026-10-26) — no cron: the recap follows each CI run of main (`workflow_run`, so the
+# CI verdict it reports is FINISHED, not « in progress » as a bare `push` trigger would read it).
 on:
-  schedule:
-    - cron: "47 6 * * *"   # 06:47 UTC daily
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: nightly-recap
+  cancel-in-progress: true
 
 permissions:
   contents: read

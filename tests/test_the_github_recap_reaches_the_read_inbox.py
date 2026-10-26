@@ -79,7 +79,8 @@ def test_the_workflow_runs_every_night_and_mails_the_read_inbox() -> None:
     wf = yaml.safe_load((_ROOT / ".github" / "workflows" / "nightly-recap.yml").read_text(
         encoding="utf-8"))
     triggers = wf.get("on") or wf.get(True)
-    assert any(c["cron"].split()[2:] == ["*", "*", "*"] for c in triggers["schedule"])
+    # R650: no cron — the recap follows each FINISHED CI run of main
+    assert triggers["workflow_run"]["workflows"] == ["CI"] and triggers["workflow_run"]["branches"] == ["main"]
     step = next(s for s in wf["jobs"]["recap"]["steps"]
                 if "github_nightly_recap.py" in s.get("run", ""))
     assert "PROD_HEALTH_MAIL_TO" in step["env"], "the address the CI break mails reach"

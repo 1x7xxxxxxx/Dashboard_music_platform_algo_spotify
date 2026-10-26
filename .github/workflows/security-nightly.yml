@@ -22,10 +22,21 @@ name: Security — Nightly audit
 # error-class-audit stays heuristic/non-blocking (known FPs, e.g. cosmetic
 # datetime.now() allowed by .claude/rules/python.md).
 
+# R650 (2026-10-26) — no cron: it runs on a push to main that changes what it audits — the
+# resolved dependencies or a workflow (owner decision; ~39 job-min a run ruled out every push).
 on:
-  schedule:
-    - cron: "0 3 * * *"   # 03:00 UTC daily
+  push:
+    branches: [main]
+    paths:
+      - uv.lock
+      - requirements.txt
+      - pyproject.toml
+      - .github/workflows/**
   workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 # R623 : le jeton par défaut ne lit que le code. Un job qui lit les runs d'Actions
 # le déclare lui-même (`actions: read`), à côté de la raison.

@@ -1,4 +1,4 @@
-"""R448 — main is judged every night, so drift without a push still turns it red.
+"""R448 → R650 — main was judged every night; since R650 only prod-health keeps a cron.
 
 Type: Sub
 Uses: .github/workflows/ci.yml, tools/dev/ci_break_mail.py
@@ -23,18 +23,37 @@ cbm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(cbm)
 
 
-def test_ci_runs_on_a_nightly_schedule() -> None:
+def test_only_prod_health_keeps_a_schedule() -> None:
+    """R650 (2026-10-26, owner decision): no cron but the production health check — CI, the
+    recap, the security audit and the mutation run follow main's pushes instead."""
+    scheduled = set()
+    for wf in (_ROOT / ".github/workflows").glob("*.y*ml"):
+        doc = yaml.safe_load(wf.read_text(encoding="utf-8"))
+        triggers = doc.get("on", doc.get(True)) or {}
+        if isinstance(triggers, dict) and triggers.get("schedule"):
+            scheduled.add(wf.name)
+    assert scheduled == {"prod-health.yml"}
+
+
+def test_ci_runs_on_main_pushes_and_by_hand() -> None:
     wf = _wf()
-    triggers = wf.get("on", wf.get(True))          # PyYAML reads the bare key `on` as True
-    crons = [c["cron"] for c in triggers.get("schedule") or []]
-    assert len(crons) == 1 and len(crons[0].split()) == 5 and crons[0].split()[2:] == ["*", "*", "*"]
+    triggers = wf.get("on", wf.get(True))
+    assert "main" in triggers["push"]["branches"] and "workflow_dispatch" in triggers
 
 
-def test_a_nightly_red_mails_and_the_commit_judge_stays_out() -> None:
+def test_a_red_main_mails_and_the_commit_judge_runs_on_every_event() -> None:
     jobs = _wf()["jobs"]
-    assert "'schedule'" in str(jobs["notify"]["if"]) and "'push'" in str(jobs["notify"]["if"])
-    # a schedule has no pushed range: judging HEAD~1 would re-judge yesterday's commit
-    assert str(jobs["roadmap"]["if"]).replace(" ", "") == "${{github.event_name!='schedule'}}"
+    assert "'push'" in str(jobs["notify"]["if"]) and "'schedule'" not in str(jobs["notify"]["if"])
+    assert "if" not in jobs["roadmap"], "every remaining event carries a range to judge"
+
+
+def test_the_heavy_audits_run_only_when_what_they_audit_changes() -> None:
+    for name, must in (("security-nightly.yml", "uv.lock"),
+                       ("mutation-weekly.yml", "src/transformers/**")):
+        doc = yaml.safe_load((_ROOT / ".github/workflows" / name).read_text(encoding="utf-8"))
+        triggers = doc.get("on", doc.get(True))
+        assert must in triggers["push"]["paths"], name
+        assert doc["concurrency"]["cancel-in-progress"] is True, name
 
 
 def test_the_previous_verdict_counts_nightly_runs(monkeypatch) -> None:

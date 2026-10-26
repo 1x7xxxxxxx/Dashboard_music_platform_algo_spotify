@@ -8,10 +8,20 @@ name: Mutation — weekly (parsers)
 # Keep-or-retire criterion, fixed before the first run: ≥1 survivor that is a real test
 # gap within the first month. Met on the trial run (2026-10-11, sacem_parser: 22 → 8).
 
+# R650 (2026-10-26) — no cron: it runs on a push to main that changes the parsers it mutates
+# (owner decision; 120 min a run ruled out every push).
 on:
-  schedule:
-    - cron: "0 4 * * 0"   # Sunday 04:00 UTC — one hour after security-nightly
+  push:
+    branches: [main]
+    paths:
+      - src/transformers/**
+      - tools/dev/mutate_parsers.py
+      - .github/workflows/mutation-weekly.yml
   workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
