@@ -39,6 +39,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.utils.env_files import load_project_env  # noqa: E402
 
+STATEFUL = "machine: renders app_error_log of the live local Postgres — a replay elsewhere reads another base"
+
 # ⚠️ Lancé d'un shell nu, cet outil lirait un environnement DIFFÉRENT de celui du
 # dashboard et des DAG — donc une autre base — et rapporterait sur une configuration
 # que personne n'exécute. Trouvé le 2026-09-17 par

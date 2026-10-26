@@ -36,6 +36,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+STATEFUL = "clock: the header dates the render and the ages are counted from now"
+
 ROOT = Path(os.environ.get("ROADMAP_ROOT") or Path(__file__).resolve().parents[2])
 CHECKLIST = ROOT / ".claude" / "dev-docs" / "roadmap" / "checklist.md"
 ARCHIVE = ROOT / ".claude" / "dev-docs" / "roadmap" / "archive.md"

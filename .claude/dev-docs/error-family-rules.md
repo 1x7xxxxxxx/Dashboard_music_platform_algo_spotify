@@ -1,7 +1,7 @@
 # The 18 rules — one per error family
 
 Type: Doc (hand-written; the rules are judgement, the counts come from `make error-families`)
-Uses: `.claude/dev-docs/error-class-families.md` (generated — membership and counts)
+Uses: `.claude/dev-docs/error-class-families.md` (a generated file: membership and counts)
 Persists in: this file
 
 418 classes in eight weeks, 91 % never recur. Counts below are DECLARED memberships (`- family:` on every entry, R180, 2026-09-26) — the earlier regex guess had put 42 in `le-locataire` and 89 in `un-garde-qui-ne-garde-pas`; 213 classes matched two or more families and the first hit won in silence. The class is an INCIDENT; the family is the
