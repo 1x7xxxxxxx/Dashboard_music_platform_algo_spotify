@@ -205,7 +205,8 @@ def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict
     reason = ("Roadmap : " + ", ".join(new) + " ouverte(s) dans « 📋 Tâches ouvertes ». Développe-les "
               "maintenant, jusqu'à la fermeture (roadmap.py close) — sans attendre qu'on te le demande. "
               "Une ligne qui exige un geste du propriétaire (achat, choix, mot de passe, BIOS) passe "
-              "dans « 🙋 En attente de toi » : dis-le-lui en une ligne.")
+              "dans « 🙋 En attente de toi » : dis-le-lui en une ligne. Une ligne qui attend une date ou "
+              "un tiers y ouvre son geste par « ⏳ <condition> : ».")
     return reason, {sid: sorted(done | set(new))}
 
 
@@ -374,7 +375,7 @@ def main() -> int:
             ac = None
         reason, memo = closable_gate(got[0], hook, root, head, ac, memos.get(sid) or {})
         memos = {sid: memo}
-    ring, record = decide(saved.get("last_open"), now_open, datetime.now())
+    ring, record = decide(saved.get("last_open"), now_open, datetime.now().astimezone())  # local wall time: the quiet window
     record = saved.get("last_open") if record is None else record
     state.parent.mkdir(parents=True, exist_ok=True)
     state.write_text(json.dumps({"last_open": record, "asked": asked, "todo": todo, "closable": memos}), encoding="utf-8")

@@ -75,7 +75,11 @@ _trace(__file__)
 
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
+STALE_PUSH_S = 2 * 3600  # T282: the gate takes ~16 min; a log frozen this long has no live push
 NEVER_SWEPT = (".claude/sessions/", ".claude/worktrees/")  # this hook's state; the agents' worktrees (T158)
+# tools/governance's run-time files (config.RUNTIME_FILES), under a roadmap.dir that varies per repo:
+# matched by NAME, even where .gitignore is not repaired yet (a swept ci-pending.json is committed)
+NEVER_SWEPT_NAMES = ("ci-pending.json",)
 APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
 APPLY_HISTORY = "state/fleet-history.jsonl"  # fleet_apply's readings; `source: apply` rows carry the HEAD (T159)
 APPLY_LOCK = "state/fleet-apply.lock"
@@ -132,7 +136,7 @@ def dirty(root: Path) -> dict[str, str]:
     paths = [e[3:] for e in out.split("\0") if len(e) > 3]
     result = {}
     for p in paths:
-        if p.startswith(NEVER_SWEPT):  # even where not gitignored
+        if p.startswith(NEVER_SWEPT) or p.rsplit("/", 1)[-1] in NEVER_SWEPT_NAMES:  # even where not gitignored
             continue
         f = root / p
         result[p] = hashlib.sha1(f.read_bytes()).hexdigest() if f.is_file() else ""
@@ -194,6 +198,14 @@ def last_rc(root: Path) -> str | None:
     return rcs[-1] if rcs else None
 
 
+def push_dead(state: dict, log: Path, now: float | None = None) -> bool:
+    """The detached push is gone: its pid no longer runs, or — no pid kept — its log froze > 2 h."""
+    pid = state.get("push_pid")
+    if pid:
+        return not Path(f"/proc/{pid}").exists()
+    return (now or time.time()) - log.stat().st_mtime > STALE_PUSH_S
+
+
 def push_report(root: Path, state: dict) -> str | None:
     """The finished detached push, reported once."""
     log = root / PUSH_LOG
@@ -201,7 +213,12 @@ def push_report(root: Path, state: dict) -> str | None:
         return None
     m = re.search(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M)
     if not m:
-        return None
+        # T282: a push killed before its `rc=` (WSL stopped mid-gate) held `push_pending` for good and
+        # every later push with it, silently. Dead → said once and released, its HEAD NOT refused.
+        if not push_dead(state, log):
+            return None
+        state["push_pending"] = False
+        return f"⚠️ push automatique mort sans verdict ({PUSH_LOG}) — relancé au prochain tour"
     state["push_pending"] = False
     if m.group(1) == "0":
         return "🚀 roadmap à 0 : push automatique réussi"
@@ -227,15 +244,20 @@ def refused_notice(root: Path, state: dict, head: str) -> str | None:
             f"retente, ou la porte repassée puis `echo rc=0 >> {PUSH_LOG}`")
 
 
-def start_push(root: Path) -> None:
+def start_push(root: Path) -> int:
     log = root / PUSH_LOG
     log.parent.mkdir(parents=True, exist_ok=True)
     # The fleet master pushed → the fleet is reconciled right after (T66): a validated change
     # reaches every `managed` repo without a second gesture. Elsewhere the file is absent.
-    cmd = (f'cd "{root}" && {{ date -Is; git push; rc=$?; echo "rc=$rc"; }} > "{log}" 2>&1; '
-           f'[ "$rc" = 0 ] && [ -f {APPLY} ] && python3 {APPLY} apply --push >> "{log}" 2>&1')
-    subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    # T247: the push's own time, as a `source: push` row — the A25 delay starts there, not at the
+    # apply (which may wait on the lock) nor at the commit (which may wait days for its push).
+    row = (f'printf \'{{"source": "push", "head": "%s", "at": "%s", "how": "auto"}}\\n\' '
+           f'"$h" "$(date +%Y-%m-%dT%H:%M:%S%z)" >> {APPLY_HISTORY}')
+    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); git push; rc=$?; echo "rc=$rc"; }} > "{log}" 2>&1; '
+           f'[ "$rc" = 0 ] && [ -f {APPLY} ] && {{ mkdir -p {Path(APPLY_HISTORY).parent}; {row}; '
+           f'python3 {APPLY} apply --push >> "{log}" 2>&1; }}')
+    return subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL, start_new_session=True).pid
 
 
 def last_applied_head(root: Path) -> str | None:
@@ -278,6 +300,16 @@ def start_apply(root: Path) -> None:
                      stderr=subprocess.DEVNULL, start_new_session=True)
 
 
+def push_seen(root: Path, head: str) -> None:
+    """T247: a push this hook did not make (by hand) — its time is unknown, the first Stop that sees
+    HEAD at its upstream writes it: `how: vu`, a LOWER bound of the push → conformity delay."""
+    path = root / APPLY_HISTORY
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"source": "push", "head": head, "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                            "how": "vu"}) + "\n")
+
+
 def maybe_apply(root: Path, state: dict) -> str | None:
     """T159: the master at its upstream, on a HEAD no apply has seen → apply, once per HEAD."""
     if not (root / APPLY).is_file() or "0" in (os.environ.get("ROADMAP_AUTOAPPLY"), os.environ.get("ROADMAP_AUTOPUSH")):
@@ -288,6 +320,10 @@ def maybe_apply(root: Path, state: dict) -> str | None:
     up = git(root, "rev-parse", "@{u}")
     if not head or up.returncode or up.stdout.strip() != head:
         return None
+    if not state.get("push_pending") and state.get("push_seen_head") != head:
+        state["push_seen_head"] = head  # once per HEAD; an auto push already wrote its exact row
+        push_seen(root, head)
+        save(root, state)
     if state.get("push_pending") or state.get("launched_head") == head:
         return None  # a push in flight runs its own apply; this HEAD was launched already
     if last_applied_head(root) == head or apply_running(root):
@@ -369,8 +405,7 @@ def on_stop(root: Path, session: str) -> list[str]:
                 msgs.append(f"⚠️ index à 0 mais ↓{behind} : pull avant le push automatique ({ahead} commit(s))")
             if decide_push(state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
                            head, state.get("refused_head")):
-                start_push(root)
-                state.update(push_pending=True, push_head=head, launched_head=head)
+                state.update(push_pending=True, push_head=head, launched_head=head, push_pid=start_push(root))
                 msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
         elif remote:
             # rc 128 is « no upstream », not « nothing to push » (read as 0 ahead until 2026-10-18:
