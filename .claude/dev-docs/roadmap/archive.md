@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R657 — generated-freshness : en-têtes rejouables de `error-family-rules.md`, `error-inbox.md`,… (livrée 2026-10-26)
+
+- [x] **R657 — generated-freshness : en-têtes rejouables de `error-family-rules.md`, `error-inbox.md`, `schema-drift-2026-06-13.md`, `REQUIREMENTS-COVERAGE.md`, `ROADMAP-HEALTH.md` (commandes qui tournent hors du vrai HOME) — msg:1792725969026398388-2318692, msg:1792952645167978110-3858378 — **livré 472323d4 + 0dbe364c** (STATEFUL + `--write` acceptés) ; reste : fermer avec le résidu écrit — `error-inbox.md` ne se rejoue pas hors machine (copie du lecteur sans config gitignorée, limite du maître, kind `machine`) ; REQUIREMENTS-COVERAGE relève de R642** (P4) ✅ (2026-10-26, 93fd6575, b219cc61, 1b657c44, e183e5c6, d56295bf, 0dbe364c, 472323d4)
+  Mesuré par : `fleet_apply.py plan` sans « generated-freshness »
+  Livré 472323d4 + 0dbe364c : generated-freshness ne garde que deux fichiers, tous deux des limites de la copie du lecteur (fleet_apply.py _fresh_history_copy ne copie que les fichiers suivis) : error-inbox.md (config/config.yaml gitignoré absent) et REQUIREMENTS-COVERAGE.md (.venv absent → précondition, exit 1 voulu ; ici → 0 orphelin). Résidu = travail de la baseline, pas de ce dépôt
+  Commits : 93fd6575 Roadmap : R643 fermée ; R649 portée élargie (Makefile, docs/guides/),  · b219cc61 Roadmap : R642 fermée — make requirements-report rejoué : 0 orphelin s · 1b657c44 Roadmap : R663 et R664 fermées — ancien chemin absent de settings.json · e183e5c6 Roadmap : R650, R659 et R660 fermées — CI verte et security-nightly ve · d56295bf R657 : docs/ROADMAP-HEALTH.md régénéré par la clôture de R651/R655/R65 · 0dbe364c R657 : --write accepté (le défaut, nommé pour le rejeu de la flotte) p · 472323d4 R657 : generated-freshness — STATEFUL déclaré pour error_inbox (base l
+
+## ✅ R653 — `docs/CADRAGE.md` : remplir les 7 parties « à compléter » avec ce que le dépôt sait — m… (livrée 2026-10-26)
+
+- [x] **R653 — `docs/CADRAGE.md` : remplir les 7 parties « à compléter » avec ce que le dépôt sait — msg:1792935864452958142-51378, msg:1792935997053644629-683774, msg:1792952645167978110-3858378 — Besoin à écrire depuis ADR-025 (chiffres éparpillés S4A/Meta/Instagram/Hypeddit/Shazam), ADR-028 (critère = activation, `src/utils/activation.py`, R149) et `runbook-artist-test-session.md` ; puis tableau des risques, ATAM, Méthode ; et `mesure:` manquant sur O1–O4 de `docs/architecture/objectives.yaml` (lu par project_brief.py) ; P4 : seulement après R659** (P4) ✅ (2026-10-26, dfcb0f79)
+  Mesuré par : `grep -c "à compléter" docs/CADRAGE.md` → 0
+  Livré dfcb0f79, CI verte (run 40365279568) : project_brief --check → cadrage complet ; Besoin, 6 risques cotés avec sonde, ATAM 4 attributs, Méthode, mesure: sur O1–O4. Le seul « à compléter » restant est dans le commentaire d'en-tête (ligne 5, consigne générée), pas une partie à remplir
+  Commits : dfcb0f79 R653 : CADRAGE rempli — besoin (ADR-025, ADR-028, runbook artiste), 6 
+
 ## ✅ R643 — `make test` rouge hors terminal interactif (fleet-verify baseline T364, 2026-10-23 : 2… (livrée 2026-10-26)
 
 - [x] **R643 — `make test` rouge hors terminal interactif (fleet-verify baseline T364, 2026-10-23 : 2 échecs) — `check_mermaid` trouve mmdc par le repli nvm mais le lance sans `node` dans le PATH (exit 2 « renderer unavailable ») ; `test_the_signup_field_is_optional_and_prefilled_from_the_link` dépend de la base vivante sans la déclarer (`project_db()` arrête la page) — msg:1792189738671553422-1559504, msg:1792681020848237514-1667173, msg:1792672621652191236-1207955 (suite rouge) — **livré bdf84e96 + ea333d16** ; reste : la mesure (PATH minimal, `docker stop postgres_spotify_airflow`, les deux tests, puis `docker start`), un `make test` complet, puis `git stash show` et abandon de `stash@{0}` (test-suite-timing.json, ère R652) et `stash@{1}` (ère R403) s'ils ne portent rien d'autre** (P3) ✅ (2026-10-26, 3b4ee514, ea333d16, bdf84e96)
