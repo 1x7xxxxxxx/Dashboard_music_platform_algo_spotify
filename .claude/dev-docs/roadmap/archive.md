@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R642 — Les 4 domaines orphelins de `REQUIREMENTS-COVERAGE.md` (`ml`, `product-offer`, `pc-perf… (livrée 2026-10-26)
+
+- [x] **R642 — Les 4 domaines orphelins de `REQUIREMENTS-COVERAGE.md` (`ml`, `product-offer`, `pc-perf` : une exigence chacun, prouvée par un test existant ; `rag-knowledge` : exemption écrite, rien du domaine n'est dans le dépôt) — baseline T217 — msg:1792186131629305594-522497, msg:1792239848166396738-2859448 — **livré 2ecf73d4 (2026-10-21)** ; reste : rejouer `make requirements-report` (orphelins 0) puis fermer. REQ-ORCH-03 / REQ-RUN-04 restent « absent », différés par ADR-030 sous R284 — hors de cette ligne** (P3) ✅ (2026-10-26, 2ecf73d4)
+  Mesuré par : `make requirements-report` → orphelins : 0 (exit 0)
+  Livré 2ecf73d4 (2026-10-21). Rejoué le 2026-10-26 : make requirements-report → 26 domaines, 99 exigences, 0 orphelin (exit 0). REQ-ORCH-03 / REQ-RUN-04 restent « absent », différés par ADR-030 sous R284.
+  Commits : 2ecf73d4 R642 : 0 domaine orphelin — REQ-ML-01, REQ-OFFER-01, REQ-PC-01 sur des
+
 ## ✅ R664 — Journal des défauts : 13 ouverts (6 test_red, 7 traceback) et 15 billets `recurrence:`… (livrée 2026-10-26)
 
 - [x] **R664 — Journal des défauts : 13 ouverts (6 test_red, 7 traceback) et 15 billets `recurrence:` à confirmer, annoncés à chaque démarrage de séance — trier chacun (fermer avec sa cause, ou ouvrir sa ligne) (trouvé à la reprise du 2026-10-26)** (P3) ✅ (2026-10-26, bedb6b54, 6740cc89)
