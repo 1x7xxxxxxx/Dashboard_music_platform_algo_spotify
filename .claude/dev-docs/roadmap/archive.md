@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R649 — Norme RQ des rapports, partie constructible (code-critic 2026-10-26 : BUILD-MODIFIED) —… (livrée 2026-10-26)
+
+- [x] **R649 — Norme RQ des rapports, partie constructible (code-critic 2026-10-26 : BUILD-MODIFIED) — (A) `guide_pdf` : rendu dans un fichier temporaire → `report_quality.py --kind guide --strict` → seulement alors déplacement + `.guide_fingerprint` ; précondition make qui nomme le correctif si le vérificateur ou `pdftotext` manque ; `test_the_shipped_guide_is_the_current_guide.py` score aussi les PDF commités ; RQ-8 de la version EN (26 % > 25 %) corrigé en coupant du remplissage, pas en ajoutant des chiffres. (C) `charts_dossier` : page de tête qui énonce les décisions de `triage.py`/`actions.yaml` (chiffres lus dans capture.json, jamais tapés), gate en fin de `main.py` (couvre aussi `--rebuild`), pas de test CI (PDF hors dépôt, données d'artiste). Le dossier d'architecture et `pdf_exporter` → R661 ; **C reporté à R661 (3)** : la gate stricte refuserait le dossier actuel (5/8, RQ-3/4/7), le restructurer est un choix du propriétaire — msg:1792366598159790086-2236949** (P3) ✅ (2026-10-26, a06da01c, 99983d70, 93fd6575)
+  Mesuré par : `report_quality.py --strict` → 0 sur les 2 guides (`--kind guide`) et le dossier des graphiques ; `make guide` sort ≠ 0 sur un guide qui échoue
+  Livré 99983d70 + a06da01c, CI verte (run 40365279568) : partie A — guide_pdf rendu en temporaire, noté report_quality --kind guide --strict avant livraison, précondition make (vérificateur + pdftotext), test des PDF commités, chemin du vérificateur hors environnement ; partie C reportée à R661 (3) — dossier des graphiques 5/8 en --strict
+  Commits : a06da01c R649 : le chemin du vérificateur n'est plus lu dans l'environnement —  · 99983d70 R649 : guide_pdf — rendu en temporaire, noté report_quality --kind gui · 93fd6575 Roadmap : R643 fermée ; R649 portée élargie (Makefile, docs/guides/), 
+
 ## ✅ R657 — generated-freshness : en-têtes rejouables de `error-family-rules.md`, `error-inbox.md`,… (livrée 2026-10-26)
 
 - [x] **R657 — generated-freshness : en-têtes rejouables de `error-family-rules.md`, `error-inbox.md`, `schema-drift-2026-06-13.md`, `REQUIREMENTS-COVERAGE.md`, `ROADMAP-HEALTH.md` (commandes qui tournent hors du vrai HOME) — msg:1792725969026398388-2318692, msg:1792952645167978110-3858378 — **livré 472323d4 + 0dbe364c** (STATEFUL + `--write` acceptés) ; reste : fermer avec le résidu écrit — `error-inbox.md` ne se rejoue pas hors machine (copie du lecteur sans config gitignorée, limite du maître, kind `machine`) ; REQUIREMENTS-COVERAGE relève de R642** (P4) ✅ (2026-10-26, 93fd6575, b219cc61, 1b657c44, e183e5c6, d56295bf, 0dbe364c, 472323d4)
