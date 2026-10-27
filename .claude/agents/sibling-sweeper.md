@@ -2,7 +2,7 @@
 name: sibling-sweeper
 description: "Balaie tout le dépôt pour trouver les autres occurrences d'une classe de défaut déjà identifiée. Utiliser dès qu'un défaut a une cause nommable et avant d'écrire le fix — sur les formulations « est-ce ailleurs ? », « balaye », « autres occurrences », « même classe », « sweep ». N'est PAS un chasseur de bugs inconnus : il lui faut une classe déjà caractérisée ; pour trouver la cause d'un test rouge, c'est build-error-resolver. Suppose qu'on lui donne le motif ou la description de la classe, et un arbre lisible."
 tools: ["Read", "Grep", "Glob", "Bash"]
-model: sonnet
+model: haiku
 rex:
   - date: 2026-09-25
     issue: "Balayage d'un chemin de dépôt déplacé cantonné par le prompt à n8n, knowledge-rag et streamlytics : 1 site trouvé, fleet.json du baseline raté — trouvé ensuite par le contrôle écrit après."
