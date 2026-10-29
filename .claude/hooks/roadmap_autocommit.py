@@ -76,10 +76,30 @@ _trace(__file__)
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
 STALE_PUSH_S = 2 * 3600  # T282: the gate takes ~16 min; a log frozen this long has no live push
-NEVER_SWEPT = (".claude/sessions/", ".claude/worktrees/")  # this hook's state; the agents' worktrees (T158)
+
+
+def _owner():
+    """THIS repo's tools/governance/config.py (the one owner of the run-time files), or None where it has none."""
+    from importlib.util import module_from_spec, spec_from_file_location
+    path = Path(__file__).resolve().parents[2] / "tools/governance/config.py"
+    try:
+        spec = spec_from_file_location("roadmap_autocommit_gov_config", path)
+        mod = module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:  # absent or broken: the fallbacks below carry the same values, the hook must not stop
+        return None
+
+
+_GOV = _owner()
 # tools/governance's run-time files (config.RUNTIME_FILES), under a roadmap.dir that varies per repo:
 # matched by NAME, even where .gitignore is not repaired yet (a swept ci-pending.json is committed)
-NEVER_SWEPT_NAMES = ("ci-pending.json",)
+NEVER_SWEPT_NAMES = tuple(getattr(_GOV, "RUNTIME_FILES", ("ci-pending.json",)))
+# …and the root run-time directories (config.ROOT_RUNTIME_DIRS: state/kpi.json…), matched by PREFIX for the
+# same reason. The fallback is the owner's value where a repo ships this hook without tools/governance;
+# test_governance_state_is_never_committable pins both to config.
+NEVER_SWEPT = (".claude/sessions/", ".claude/worktrees/",  # this hook's state; the agents' worktrees (T158)
+               *getattr(_GOV, "ROOT_RUNTIME_DIRS", ("state/",)))
 APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
 APPLY_HISTORY = "state/fleet-history.jsonl"  # fleet_apply's readings; `source: apply` rows carry the HEAD (T159)
 APPLY_LOCK = "state/fleet-apply.lock"
