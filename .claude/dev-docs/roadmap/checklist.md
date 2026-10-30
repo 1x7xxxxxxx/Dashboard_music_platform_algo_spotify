@@ -30,6 +30,15 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R667 | Porte `pre-push · make test-changed` rouge (rc 2) — la remettre au vert (msg:1793100990137522617-102415, baseline T422) <!-- critic: non — courrier du parc --> <!-- scope: src/, tests/ --> | P3 | `make test-changed` rc 0 |
+| R668 | `until grep` arrêté 4× à son timeout — relever `timeout` ou passer en arrière-plan (msg:1793126735513042270-3596465, baseline T448) <!-- critic: non — courrier du parc --> <!-- scope: .claude/, tools/ --> | P4 | grep des boucles `until grep` du dépôt |
+| R669 | Dérive du payload : `agents/security-specialist.md` modifié localement — remonter ou restaurer (msg:1793194621560453383-2015195) <!-- critic: non — courrier du parc --> <!-- scope: .claude/agents/security-specialist.md --> | P4 | diff contre le payload du master |
+| R670 | `.claude/worktrees/` ignoré par le seul `.git/info/exclude` — l'ajouter au `.gitignore` versionné (msg:1793217123200359952-3985507, REQ-PARC-70) <!-- critic: non — courrier du parc --> <!-- scope: .gitignore --> | P4 | `git clone -q . /tmp/c && git -C /tmp/c check-ignore -q .claude/worktrees/x` |
+| R671 | Écart parc `worktrees-ignored` (msg:1793221027882779609-73243) — même geste que R670 <!-- critic: non — courrier du parc --> <!-- scope: .gitignore --> | P4 | idem R670 |
+| R672 | `make test` rouge : `test_the_premium_end_date_is_shown.py::test_every_premium_case_gets_a_sentence` (msg:1793275395943807096-1081785) <!-- critic: non — courrier du parc --> <!-- scope: src/, tests/test_the_premium_end_date_is_shown.py --> | P2 | le test vert |
+| R673 | Écart parc `preset-refresh` : `roadmap_autocommit.py` périmé (msg:1793275707120877158-1812767) <!-- critic: non — courrier du parc --> <!-- scope: .claude/hooks/roadmap_autocommit.py --> | P4 | diff contre le preset du master |
+| R674 | Dérive : dernier `make test` rouge + code commité après lui — relancer (msg:1793281023947324301-3600075) <!-- critic: non — courrier du parc --> <!-- scope: src/, tests/ --> | P2 | `.pytest-last.log` vert |
+| R675 | Écart parc `preset-refresh` : `roadmap_empty_beep.py` périmé (msg:1793315769798026546-3557067) <!-- critic: non — courrier du parc --> <!-- scope: .claude/hooks/roadmap_empty_beep.py --> | P4 | diff contre le preset du master |
 
 ---
 
@@ -37,7 +46,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R661 -->
+<!-- reprise: open=R661,R667,R668,R669,R670,R671,R672,R673,R674,R675 -->
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
