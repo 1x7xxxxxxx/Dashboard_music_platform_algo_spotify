@@ -13,6 +13,34 @@ si le total passe sous son plancher.
 
 ## ✅ R662 — Mails ops non triés depuis le 2026-10-16 (journal vieux de 10 j) : le connecteur Gmail… (livrée 2026-10-26)
 
+- [x] **R667 — Porte `pre-push · make test-changed` rouge (rc 2) — la remettre au vert (msg:1793100990137522617-102415, baseline T422)** (P3) ✅ (2026-10-30)
+  Mesuré par : `make test-changed` rc 0
+  Livré par R672 (ebdac49c, non poussé — clé SSH absente) : make test-changed a sélectionné la suite entière, verte — 13119 passed, 0 failed (2026-10-30) ; le seul rouge était le test-bombe de R672.
+
+- [x] **R674 — Dérive : dernier `make test` rouge + code commité après lui — relancer (msg:1793281023947324301-3600075)** (P2) ✅ (2026-10-30)
+  Mesuré par : `.pytest-last.log` vert
+  Le dernier make test rouge était R672 ; suite complète relancée après le dernier commit de code : 13119 passed, 112 skipped (2026-10-30).
+
+- [x] **R673 — Écart parc `preset-refresh` : `roadmap_autocommit.py` périmé (msg:1793275707120877158-1812767)** (P4) ✅ (2026-10-30)
+  Mesuré par : diff contre le preset du master
+  Déjà livré par 3aea4bc7 (baseline T516) : diff nul contre presets/governance/hooks/roadmap_autocommit.py (2026-10-30).
+
+- [x] **R670 — `.claude/worktrees/` ignoré par le seul `.git/info/exclude` — l'ajouter au `.gitignore` versionné (msg:1793217123200359952-3985507, REQ-PARC-70)** (P4) ✅ (2026-10-30)
+  Mesuré par : `git clone -q . /tmp/c && git -C /tmp/c check-ignore -q .claude/worktrees/x`
+  Déjà livré par f28f81be : `git clone -q . /tmp/c && git -C /tmp/c check-ignore -q .claude/worktrees/x` → rc 0 (2026-10-30).
+
+- [x] **R671 — Écart parc `worktrees-ignored` (msg:1793221027882779609-73243) — même geste que R670** (P4) ✅ (2026-10-30)
+  Mesuré par : idem R670
+  Même geste que R670 (f28f81be) ; sonde REQ-PARC-70 verte dans un clone de HEAD (2026-10-30).
+
+- [x] **R669 — Dérive du payload : `agents/security-specialist.md` modifié localement — remonter ou restaurer (msg:1793194621560453383-2015195)** (P4) ✅ (2026-10-30)
+  Mesuré par : diff contre le payload du master
+  sans suite : la seule différence avec le payload est `model: opus`, décidé par la baseline T441 (cc4f286c) — c'est setup-payload-*.tar.gz.b64 de la baseline qui est périmé (`model: sonnet`) ; à remonter côté baseline, rien à restaurer ici.
+
+- [x] **R668 — `until grep` arrêté 4× à son timeout — relever `timeout` ou passer en arrière-plan (msg:1793126735513042270-3596465, baseline T448)** (P4) ✅ (2026-10-30)
+  Mesuré par : grep des boucles `until grep` du dépôt
+  sans suite : aucun `until grep` versionné dans le dépôt (git grep, 2026-10-30) — les timeouts venaient d'attentes ad hoc en séance ; elles passent par run_in_background (fait ce jour pour la suite complète).
+
 - [x] **R662 — Mails ops non triés depuis le 2026-10-16 (journal vieux de 10 j) : le connecteur Gmail demande une ré-authentification** (P3) ✅ (2026-10-26, 80bcf50d, 6740cc89)
   Mesuré par : `/mcp` → Gmail → se reconnecter ; ensuite le tri `from:noreply@streamlytics.fr after:2026/10/16` se fait en séance — runbook § 47
   Livré 80bcf50d, CI verte (run 40384518007) : la boîte est muette par décision — pause R572 (src/utils/ops_mail_pause.py, OPS_MAIL_PAUSED = True) depuis le 2026-10-15, aucun mail ops n'est parti ; les signaux qu'ils auraient portés sont triés depuis gh run list : pip-audit rouge 8 nuits (corrigé par R659), PR Dependabot #183 ouverte, récap vert chaque jour. Gmail toujours à ré-authentifier (/mcp) pour le jour où la pause sera levée
