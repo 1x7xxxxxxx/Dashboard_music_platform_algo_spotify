@@ -206,7 +206,9 @@ def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict
               "maintenant, jusqu'à la fermeture (roadmap.py close) — sans attendre qu'on te le demande. "
               "Une ligne qui exige un geste du propriétaire (achat, choix, mot de passe, BIOS) passe "
               "dans « 🙋 En attente de toi » : dis-le-lui en une ligne. Une ligne qui attend une date ou "
-              "un tiers y ouvre son geste par « ⏳ <condition> : ».")
+              "un tiers y ouvre son geste par « ⏳ <condition> : ». Ajoutes-y ce qui bloque, "
+              "`<!-- problème: … -->`, et ton avis au propriétaire, `<!-- reco: Reprendre|Répondre|Archiver|"
+              "Attendre — pourquoi -->` (ni « > » ni « | » dedans) : sa fiche d'arbitrage les affiche (T532).")
     return reason, {sid: sorted(done | set(new))}
 
 
