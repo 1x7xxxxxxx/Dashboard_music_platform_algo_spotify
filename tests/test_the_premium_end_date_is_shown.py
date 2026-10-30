@@ -88,8 +88,17 @@ def test_the_open_case_names_its_source():
     assert premium_horizon_from_row(_row(), NOW) == (None, None)
 
 
-def test_every_premium_case_gets_a_sentence():
+class _Frozen(datetime):
+    """`plan_from_row` reads the wall clock; pin it to NOW (R672 — SOON expired on 2026-10-29)."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return NOW if tz else NOW.replace(tzinfo=None)
+
+
+def test_every_premium_case_gets_a_sentence(monkeypatch):
     """« une phrase de fin de plan dans 100 % des cas premium » — the whole product."""
+    monkeypatch.setattr("src.utils.plan_resolver.datetime", _Frozen)
     promos = [(None, None), ("premium", None), ("premium", SOON),
               ("premium", NOW - timedelta(days=1))]
     seen = 0
