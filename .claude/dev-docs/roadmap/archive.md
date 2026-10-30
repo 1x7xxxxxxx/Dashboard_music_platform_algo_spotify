@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R675 — Écart parc `preset-refresh` : `roadmap_empty_beep.py` périmé (msg:1793315769798026546-3… (livrée 2026-10-30)
+
+- [x] **R675 — Écart parc `preset-refresh` : `roadmap_empty_beep.py` périmé (msg:1793315769798026546-3557067)** (P4) ✅ (2026-10-30, 70578e7d)
+  Mesuré par : diff contre le preset du master
+  Livré (voir commit de livraison) ; suite complète 13119 passed ; CI verte sur f51e017b (2026-10-30).
+  Commits : 70578e7d R675 : roadmap_empty_beep.py remis au preset governance de la baseline
+
+## ✅ R672 — `make test` rouge : `test_the_premium_end_date_is_shown.py::test_every_premium_case_get… (livrée 2026-10-30)
+
+- [x] **R672 — `make test` rouge : `test_the_premium_end_date_is_shown.py::test_every_premium_case_gets_a_sentence` (msg:1793275395943807096-1081785)** (P2) ✅ (2026-10-30, ebdac49c)
+  Mesuré par : le test vert
+  Livré (voir commit de livraison) ; suite complète 13119 passed ; CI verte sur f51e017b (2026-10-30).
+  Commits : ebdac49c R672 : test_every_premium_case_gets_a_sentence figeait NOW au 2026-10-
+
 ## ✅ R662 — Mails ops non triés depuis le 2026-10-16 (journal vieux de 10 j) : le connecteur Gmail… (livrée 2026-10-26)
 
 - [x] **R667 — Porte `pre-push · make test-changed` rouge (rc 2) — la remettre au vert (msg:1793100990137522617-102415, baseline T422)** (P3) ✅ (2026-10-30)
