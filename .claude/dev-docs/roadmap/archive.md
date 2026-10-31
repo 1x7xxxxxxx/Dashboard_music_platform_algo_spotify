@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R676 — Courrier du parc msg:1793383346274139296-3083423 (REQ-PARC-159) : porter la garde REX a… (livrée 2026-10-31)
+
+- [x] **R676 — Courrier du parc msg:1793383346274139296-3083423 (REQ-PARC-159) : porter la garde REX au close de `tools/dev/roadmap.py` — une ligne `` ne ferme que sur une entrée de `error-classes.md` qui cite son id (commitée par la livraison), `rex: <classe existante>` ou `rex: aucun — <raison ≥ 10 car.>` ; `require_rex` + `def rex_missing` repris du master** (P3) ✅ (2026-10-31, 9927da87)
+  Mesuré par : `tests/test_roadmap_close_requires_a_rex.py` : refus sans REX, puis fermeture par chacune des trois voies
+  Livré et poussé, CI verte sur 9927da87 (CI + Nightly recap) ; test-changed 9131 passed. Courrier msg:1793383346274139296-3083423 traité ; la sonde du master (rex.py --check) n'a pas été lancée d'ici — les deux noms qu'elle lit sont gardés par test_the_probe_finds_rex_missing_defined_and_require_rex_called_by_close.
+  Commits : 9927da87 R676 : garde REX au close (REQ-PARC-159, msg:1793383346274139296-30834
+
+## ✅ R677 — Arbre sale mesuré par le master : `.claude/dev-docs/test-suite-timing.json` réécrit par… (livrée 2026-10-31)
+
+- [x] **R677 — Arbre sale mesuré par le master : `.claude/dev-docs/test-suite-timing.json` réécrit par la suite du 2026-10-31 (12 374 passés, 0 échec, 251 s, 5 workers) — le commiter pour que l'arbre poussé égale l'arbre mesuré** (P4) ✅ (2026-10-31, 15a86f12)
+  Mesuré par : `git status --short` vide après le commit
+  Livré et poussé, CI verte sur 9927da87 ; test-changed 9131 passed. Courrier msg:1793383346274139296-3083423 traité ; la sonde du master (rex.py --check) n'a pas été lancée d'ici — les deux noms qu'elle lit sont gardés par test_the_probe_finds_rex_missing_defined_and_require_rex_called_by_close.
+  Commits : 15a86f12 R677 : test-suite-timing.json réécrit par la suite du 2026-10-31 (12 3
+
 ## ✅ R675 — Écart parc `preset-refresh` : `roadmap_empty_beep.py` périmé (msg:1793315769798026546-3… (livrée 2026-10-30)
 
 - [x] **R675 — Écart parc `preset-refresh` : `roadmap_empty_beep.py` périmé (msg:1793315769798026546-3557067)** (P4) ✅ (2026-10-30, 70578e7d)
