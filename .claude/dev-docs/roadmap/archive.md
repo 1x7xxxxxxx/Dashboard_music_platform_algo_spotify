@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R684 — Deux détecteurs lisent l'absence de mails ops comme une panne alors que le propriétaire… (livrée 2026-11-01)
+
+- [x] **R684 — Deux détecteurs lisent l'absence de mails ops comme une panne alors que le propriétaire les a mis en pause (`OPS_MAIL_PAUSED = True`, R572) : `session_start.mail_banner` crie « No 📋 Récap de la nuit logged for 17 days … the recap itself stopped » à chaque séance (le récap tourne vert et écrit « not mailed — paused ») et `night_run.py` « journal vieux de N j » ; consulter `paused_reason()` (chargé par chemin) dans les deux lecteurs + tests, garde muté (balayage : 2 sites vivants, 1 test qui épingle le défaut)** (P3) ✅ (2026-11-01, 10557639)
+  Mesuré par : `.venv/bin/python -m pytest tests/test_every_session_starts_by_reading_the_ops_mails.py tests/test_a_red_main_is_seen_by_the_night_check.py`
+  Livré 10557639, CI verte (run 41253026726) ; les deux lecteurs du journal des mails ops lisent la pause R572 ; trois mutations vues rouges ; make test-changed 9 089 passés
+  Commits : 10557639 R684 : les deux lecteurs du journal des mails ops lisent la pause R572
+
 ## ✅ R683 — `tools/dev/suite_timing.py` écrit `failed: 0` sur une suite ROUGE : sa regex attend `N… (livrée 2026-11-01)
 
 - [x] **R683 — `tools/dev/suite_timing.py` écrit `failed: 0` sur une suite ROUGE : sa regex attend `N passed, M failed` alors que pytest écrit `M failed, N passed` (mesuré : `.pytest-last.log` « 1 failed, 12388 passed » → JSON `failed: 0`) ; le test du parseur nourrit l'ordre fictif, d'où son vert. Parser chaque compteur indépendamment de l'ordre + test sur une ligne réelle** (P3) ✅ (2026-11-01, bb55eec3)

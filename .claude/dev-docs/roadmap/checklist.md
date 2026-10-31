@@ -30,7 +30,6 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
-| R684 | Deux détecteurs lisent l'absence de mails ops comme une panne alors que le propriétaire les a mis en pause (`OPS_MAIL_PAUSED = True`, R572) : `session_start.mail_banner` crie « No 📋 Récap de la nuit logged for 17 days … the recap itself stopped » à chaque séance (le récap tourne vert et écrit « not mailed — paused ») et `night_run.py` « journal vieux de N j » ; consulter `paused_reason()` (chargé par chemin) dans les deux lecteurs + tests, garde muté (balayage : 2 sites vivants, 1 test qui épingle le défaut) <!-- critic: oui — détecteur lu comme verdict --> <!-- scope: .claude/hooks/session_start.py, tools/dev/night_run.py, tests/, .claude/dev-docs/ops-mail-journal.md --> | P3 | `.venv/bin/python -m pytest tests/test_every_session_starts_by_reading_the_ops_mails.py tests/test_a_red_main_is_seen_by_the_night_check.py` |
 
 ---
 
@@ -38,7 +37,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R684, R661 -->
+<!-- reprise: open=R661 -->
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
