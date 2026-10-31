@@ -11,6 +11,26 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R683 — `tools/dev/suite_timing.py` écrit `failed: 0` sur une suite ROUGE : sa regex attend `N… (livrée 2026-11-01)
+
+- [x] **R683 — `tools/dev/suite_timing.py` écrit `failed: 0` sur une suite ROUGE : sa regex attend `N passed, M failed` alors que pytest écrit `M failed, N passed` (mesuré : `.pytest-last.log` « 1 failed, 12388 passed » → JSON `failed: 0`) ; le test du parseur nourrit l'ordre fictif, d'où son vert. Parser chaque compteur indépendamment de l'ordre + test sur une ligne réelle** (P3) ✅ (2026-11-01, bb55eec3)
+  Mesuré par : `.venv/bin/python -m pytest tests/test_a_delivery_closes_on_a_green_ci.py`
+  CI verte sur 83489feb ; R682 : arbre mesuré commité après la suite verte du 2026-11-01 (13 133 passés, 0 échec, 484 s) ; R683 : parseur indépendant de l'ordre, garde vu rouge sur l'ancien code et sur la mutation errors retiré, 1 site vivant au balayage
+  Commits : bb55eec3 R683 : suite_timing lit chaque compteur pytest indépendamment de l'ord
+
+## ✅ R682 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la s… (livrée 2026-11-01)
+
+- [x] **R682 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la suite rouge — le récrire par une suite verte et commiter l'arbre mesuré** (P4) ✅ (2026-11-01, 83489feb)
+  Mesuré par : `git status` propre
+  CI verte sur 83489feb ; R682 : arbre mesuré commité après la suite verte du 2026-11-01 (13 133 passés, 0 échec, 484 s) ; R683 : parseur indépendant de l'ordre, garde vu rouge sur l'ancien code et sur la mutation errors retiré, 1 site vivant au balayage
+  Commits : 83489feb R682 : test-suite-timing.json réécrit par la suite verte du 2026-11-01
+
+## ✅ R681 — Suite rouge ×1 (besoin mesuré par le master) : 5433 refusé en cours de suite (clos 2026-11-01)
+
+- [x] **R681 — Suite rouge ×1 (besoin mesuré par le master) : `test_a_failing_row_leaves_none_of_its_batch_behind` en `Connection refused` 5433 — 2ᵉ fois le 2026-10-31 (R679)** (P3) ✅ (2026-11-01, sans commit de livraison : aucun code en cause)
+  Mesuré par : `.pytest-last.log`
+  Rouge d'environnement, comme R679 : le conteneur `postgres_spotify_airflow` a été arrêté de l'extérieur puis relancé (StartedAt 2026-10-31 23:44 locale, restarts=0, oom=false) ; la suite rouge comptait 856 skips (base absente pendant l'essentiel du run). Test seul : 6/6. Relancée base joignable (`make test`, 2026-11-01) : 13 133 passés, 0 échec, 112 skips, 484 s ; CI verte sur 83489feb. Effet de bord trouvé : `suite_timing.py` avait écrit `failed: 0` sur cette suite rouge → R683.
+
 ## ✅ R680 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la d… (livrée 2026-10-31)
 
 - [x] **R680 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la dernière suite — commiter l'arbre mesuré** (P4) ✅ (2026-10-31, a177a3b9)
