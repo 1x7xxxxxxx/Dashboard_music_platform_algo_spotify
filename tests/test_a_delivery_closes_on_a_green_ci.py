@@ -64,8 +64,14 @@ def test_claude_md_stays_under_its_budget_not_vacuous():
 
 
 def test_the_suite_time_is_read_from_the_run_not_written_by_hand():
-    log = "noise\n12 passed in 3.2s\n...\n10931 passed, 2 failed, 89 skipped in 372.40s (0:06:12)\n"
-    assert suite_timing.parse(log) == {"passed": 10931, "failed": 2, "seconds": 372}
+    # R683 — pytest prints `failed` BEFORE `passed`; the old fixture used the reverse,
+    # fictitious order, so the parser wrote `failed: 0` on every red suite.
+    log = ("noise\n12 passed in 3.2s\n...\n= 1 failed, 12388 passed, 856 skipped, "
+           "15 warnings in 225.47s (0:03:45) =\n")
+    assert suite_timing.parse(log) == {"passed": 12388, "failed": 1, "seconds": 225}
+    errors = "3 errors, 2 failed, 10 passed in 2.0s\n"
+    assert suite_timing.parse(errors) == {"passed": 10, "failed": 5, "seconds": 2}
+    assert suite_timing.parse("4 failed in 1.0s\n") == {"passed": 0, "failed": 4, "seconds": 1}
     assert suite_timing.parse("no summary") is None
     with open(ROOT / "Makefile", encoding="utf-8") as fh:
         help_line = next(ln for ln in fh if ln.startswith("test:"))

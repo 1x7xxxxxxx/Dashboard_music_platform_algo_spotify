@@ -20,17 +20,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / ".claude" / "dev-docs" / "test-suite-timing.json"
-_SUMMARY = re.compile(r"(\d+) passed(?:, (\d+) failed)?.*? in ([\d.]+)s")
+# A pytest summary line ends in « in <seconds>s » and lists its counters in pytest's own
+# order (failed, passed, skipped, …, errors) — R683: a regex that fixed `passed` before
+# `failed` read `failed: 0` on every red suite. Each counter is read on its own.
+_SUMMARY = re.compile(r"\b\d+ (?:failed|passed|errors?)\b.*? in ([\d.]+)s")
+_COUNT = re.compile(r"(\d+) (failed|passed|errors?)\b")
 
 
 def parse(log: str) -> dict | None:
-    """The last pytest summary line of a log → {passed, failed, seconds}. Pure."""
+    """The last pytest summary line of a log → {passed, failed, seconds}. Pure.
+
+    `failed` counts errors too: both make the suite red.
+    """
     found = None
     for line in log.splitlines():
         m = _SUMMARY.search(line)
-        if m:
-            found = {"passed": int(m.group(1)), "failed": int(m.group(2) or 0),
-                     "seconds": round(float(m.group(3)))}
+        if not m:
+            continue
+        counts = {"passed": 0, "failed": 0}
+        for n, kind in _COUNT.findall(line):
+            counts["passed" if kind == "passed" else "failed"] += int(n)
+        found = {**counts, "seconds": round(float(m.group(1)))}
     return found
 
 
