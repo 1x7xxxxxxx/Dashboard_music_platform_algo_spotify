@@ -564,6 +564,25 @@ _SEEN = re.compile(r"^(?:\d{4}-\d{2}-\d{2}|self-proving \()")
 _NEVER = re.compile(r"^(never|n-a)\b\W*(.*)$", re.S)
 
 
+_COUNTER = _REPO / "tools" / "dev" / "error_class_health.py"
+
+
+def _load_counter():
+    """The hole COUNTER `tools/dev/error_class_health.py`, loaded by PATH (T219 du parc, R678).
+
+    Imported by NAME after `sys.path.insert(tools/dev)`, a homonym wins whenever it is
+    already in `sys.modules` or first on the path: the fleet payload ships
+    a same-named document GENERATOR (another module) beside
+    this file, and in 9 repos of 13 the gate answered « illisible (cannot import name
+    '_blocks') » (2026-10-21). A path cannot be shadowed.
+    """
+    import importlib.util as _ilu  # noqa: PLC0415
+    spec = _ilu.spec_from_file_location("error_class_health_counter", _COUNTER)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def proof_gaps(h: dict, exists=lambda p: (_REPO / p).exists()) -> list[str]:
     """What a NEW class must prove, independently of any ceiling (R185, 2026-09-26). Pure
     but for `exists`.
@@ -578,11 +597,7 @@ def proof_gaps(h: dict, exists=lambda p: (_REPO / p).exists()) -> list[str]:
     admitted since 2026-09-19, the ticket counts sites AT admission and the sweep the sites
     still LIVE after the fix (4/1, 6/0, 4/1): the two numbers are different moments.
     """
-    sys.path.insert(0, str(_REPO / "tools" / "dev"))
-    try:
-        from error_class_health import _swept_sites  # noqa: PLC0415 — ONE definition of a sweep
-    finally:
-        sys.path.pop(0)
+    _swept_sites = _load_counter()._swept_sites  # ONE definition of a sweep — by PATH (R678)
     gaps = []
     if _swept_sites(h.get("siblings") or "") is None:
         gaps.append("no whole-repo sweep with a readable verdict — `siblings: swept:<date> — … "
@@ -664,18 +679,21 @@ def _sweep_verdict(headers: list[dict]) -> int:
     ces deux noms exactement. Y remettre une classe reste possible ; c'est une décision
     qui s'écrit, et le compteur `sites_unknown` la rendra visible de toute façon.
     """
-    import sys as _sys
-    _sys.path.insert(0, str(_REPO / "tools" / "dev"))
+    # By PATH, not by name (T219 du parc, R678) : voir `_load_counter`.
+    if not _COUNTER.is_file():
+        print("▶ sweep-verdict: compteur `tools/dev/error_class_health.py` absent de ce dépôt — "
+              "la porte ne juge rien sans lui (elle importe ses prédicats ; "
+              "son homonyme livré par le parc à côté de ce script est le générateur du document, un autre module).")
+        return 1
     try:
-        from error_class_health import (  # noqa: PLC0415
-            _blocks, _field, _swept_by_rerunning_the_guard, _swept_sites)
-    except ImportError as exc:      # pragma: no cover - le générateur doit être là
+        _mod = _load_counter()
+        _blocks, _field = _mod._blocks, _mod._field
+        _swept_by_rerunning_the_guard, _swept_sites = _mod._swept_by_rerunning_the_guard, _mod._swept_sites
+    except (ImportError, AttributeError, SyntaxError) as exc:      # pragma: no cover
         print(f"▶ sweep-verdict: `tools/dev/error_class_health.py` illisible ({exc}).\n"
               "   La porte IMPORTE ses prédicats du compteur, à dessein : les recopier "
               "produirait deux définitions de la même grandeur.")
         return 1
-    finally:
-        _sys.path.pop(0)
 
     # ⚠️ Le champ `siblings` est lu par `_blocks`/`_field` du GÉNÉRATEUR, pas par
     # `parse_all_headers` de ce fichier — qui ne l'extrait pas. Première écriture de
