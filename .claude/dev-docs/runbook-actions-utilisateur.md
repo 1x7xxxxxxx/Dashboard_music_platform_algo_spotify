@@ -2330,3 +2330,23 @@ La réponse est écrite dans la ligne R661 ; la tâche qui l'applique est inscri
 
 En séance, la recherche `from:noreply@streamlytics.fr after:2026/10/16` rend des fils au lieu
 d'une erreur d'authentification ; le tri entre dans `.claude/dev-docs/ops-mail-journal.md`.
+
+## 48. R686 — À la reprise des mails ops : corriger les nuits de pause inscrites comme livrées · P2
+
+Pendant la pause R572, l'alerte du soir était retenue mais inscrite `delivered = TRUE` dans
+`monitoring_run` (corrigé pour l'avenir par R685). Ces lignes servent de point de comparaison au
+filtre de répétition : laissées telles quelles, la première alerte après la reprise peut être
+raccourcie en « inchangé depuis le mail du X » pour un mail que personne n'a reçu.
+
+### Étapes
+
+1. Le jour où tu passes `OPS_MAIL_PAUSED = False` (src/utils/ops_mail_pause.py), avant le déploiement :
+   faire une sauvegarde de la base de prod (`make backup` côté VPS, ou la sauvegarde nocturne du jour).
+2. Sur le VPS, dans le conteneur postgres de prod, `psql -U postgres -d spotify_etl` puis :
+   `UPDATE monitoring_run SET delivered = FALSE, delivery_expected = FALSE, delivery_error = 'withheld: R572 pause (corrigé R686)' WHERE run_at >= '2026-10-15' AND delivered AND delivery_error IS NULL;`
+   (les nuits postérieures au déploiement de R685 sont déjà écrites ainsi et ne sont pas touchées).
+
+### Vérification
+
+`make prod-psql Q="SELECT count(*) FROM monitoring_run WHERE run_at >= '2026-10-15' AND run_at < '<date de reprise>' AND delivered"`
+rend 0.
