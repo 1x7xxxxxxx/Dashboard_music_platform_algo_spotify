@@ -126,6 +126,51 @@ def delivery_commits(tid: str) -> list[str]:
     return out
 
 
+# R676 (REQ-PARC-159, master T552) — the REX guard, ported verbatim from the master's
+# `tools/governance/proof.py::rex_missing`. A `<!-- défaut -->` row closes only on a REX.
+REX_CATALOGUE = ".claude/dev-docs/error-classes.md"
+DEFECT = re.compile(r"(?<!`)<!--\s*défaut\s*-->(?!`)")
+REX_NOTE = re.compile(r"\brex:\s*(aucun\b\s*[—–-]\s*(?P<why>.{10,})|(?P<cls>[A-Za-z0-9][\w-]*))",
+                      re.IGNORECASE)
+
+
+def rex_missing(tid: str, row: str, note: str, catalogue: Path, rel: str,
+                files: set[str] | list[str]) -> list[str]:
+    """A `<!-- défaut -->` row closes on one of three: an entry of `catalogue` (repo path `rel`) that cites `tid`,
+    the catalogue being delivered by the row's own commits; `rex: <id>` in the note, an EXISTING `## <id>` heading
+    (a recurrence of a filed class); `rex: aucun — <reason>` (≥ 10 characters). Any other row: []. Pure but the read."""
+    if not DEFECT.search(row):
+        return []
+    m = REX_NOTE.search(note or "")
+    text = catalogue.read_text(encoding="utf-8") if catalogue.is_file() else ""
+    if m and m.group("why"):
+        return []
+    if m and m.group("cls"):
+        if re.search(rf"^## {re.escape(m.group('cls'))}\b", text, re.M):
+            return []
+        return [f"`rex: {m.group('cls')}` : aucune entrée `## {m.group('cls')}` dans {rel}"]
+    if rel in set(files) and re.search(rf"\b{re.escape(tid)}\b", text):
+        return []
+    return [f"ligne `défaut` sans REX — une entrée de {rel} qui cite {tid}, commitée par la livraison ; "
+            f"ou `--note \"… rex: <classe existante>\"` (récidive) ; ou `--note \"… rex: aucun — <raison>\"`"]
+
+
+def delivered_files(commits: list[str]) -> set[str]:
+    """Every path touched by the delivering commits (`<sha> <sujet>` as from delivery_commits)."""
+    import subprocess
+    files: set[str] = set()
+    for c in commits:
+        files.update(subprocess.run(["git", "-C", str(ROOT), "diff-tree", "--root", "--no-commit-id",
+                                     "--name-only", "-r", c.split()[0]],
+                                    capture_output=True, text=True).stdout.split())
+    return files
+
+
+def require_rex(tid: str, row: str, note: str, commits: list[str]) -> list[str]:
+    """The close-time gate: `rex_missing` on the repo's catalogue and the delivery's files."""
+    return rex_missing(tid, row, note, ROOT / REX_CATALOGUE, REX_CATALOGUE, delivered_files(commits))
+
+
 def archive_block(row: str, commits: list[str], note: str, today: str) -> str:
     """L'entrée d'archive d'une ligne d'index. Forme lue par la conservation : `- [x] **Rnnn`."""
     cells = [c.strip() for c in row.strip().strip("|").split("|")]
@@ -322,6 +367,10 @@ def cmd_close(args) -> int:
         return 1
     if verdict == "inconnu":
         print(f"⚠️  {tid} : CI du commit de livraison non lue (gh absent ou aucun run).")
+    found = require_rex(tid, rows[0], getattr(args, "note", "") or "", commits_now)
+    if found:
+        print(f"❌ {tid} :", *found, file=sys.stderr)
+        return 1
 
     archive = ARCHIVE.read_text(encoding="utf-8")
     # ⚠️ LA verification qui manquait a la prose. Le test de conservation ne reconnait
