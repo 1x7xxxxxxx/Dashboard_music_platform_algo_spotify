@@ -11,6 +11,24 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R680 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la d… (livrée 2026-10-31)
+
+- [x] **R680 — Arbre sale ×1 (besoin mesuré par le master) : `test-suite-timing.json` réécrit par la dernière suite — commiter l'arbre mesuré** (P4) ✅ (2026-10-31, a177a3b9)
+  Mesuré par : `git status` propre
+  test-suite-timing.json commité (a177a3b9) après la suite verte du 2026-10-31 ; workflow CI vert sur a177a3b9, seul Nightly recap encore en cours (FORCE_CI)
+  Commits : a177a3b9 R680 : test-suite-timing.json réécrit par la suite du 2026-10-31 (13 1
+
+## ✅ R678 — Courrier du parc msg:1793471803914610114-1615975 (baseline T582) : `audit_runner.py` im… (livrée 2026-10-31)
+
+- [x] **R679 — Suite rouge ×1 (besoin mesuré par le master) : `test_a_failing_row_leaves_none_of_its_batch_behind` en échec de connexion 5433** (P3) ✅ (2026-10-31, sans commit de livraison : aucun code en cause)
+  Mesuré par : `.pytest-last.log`
+  Rouge d'environnement : Postgres 5433 tombé PENDANT la suite précédente (le `skipif` est évalué à la collecte, base joignable ; la connexion a été refusée à l'exécution). Relancée base joignable (`make test`, 2026-10-31) : 13 133 passés, 0 échec, 112 skips (860 avant) ; CI verte sur a177a3b9.
+
+- [x] **R678 — Courrier du parc msg:1793471803914610114-1615975 (baseline T582) : `audit_runner.py` importe `error_class_health` PAR NOM après `sys.path.insert(tools/dev)` — l'homonyme `error_class_health.py` que le payload livre à côté du script peut l'emporter (« cannot import name '_blocks' ») ; reprendre les deux blocs du payload (chargement PAR CHEMIN, rc 1 si absent)** (P3) ✅ (2026-10-31, 388dab88)
+  Mesuré par : `python3 .claude/scripts/audit_runner.py --all`
+  audit_runner charge le compteur PAR CHEMIN (388dab88) ; garde rouge sur l'ancien code, vert après ; --sweep-verdict 434 balayages et --admission verts ; réponse [fait] postée au baseline (class_proofs non livré ici, écart signalé)
+  Commits : 388dab88 R678 : audit_runner charge le compteur tools/dev/error_class_health.py
+
 ## ✅ R676 — Courrier du parc msg:1793383346274139296-3083423 (REQ-PARC-159) : porter la garde REX a… (livrée 2026-10-31)
 
 - [x] **R676 — Courrier du parc msg:1793383346274139296-3083423 (REQ-PARC-159) : porter la garde REX au close de `tools/dev/roadmap.py` — une ligne `` ne ferme que sur une entrée de `error-classes.md` qui cite son id (commitée par la livraison), `rex: <classe existante>` ou `rex: aucun — <raison ≥ 10 car.>` ; `require_rex` + `def rex_missing` repris du master** (P3) ✅ (2026-10-31, 9927da87)
