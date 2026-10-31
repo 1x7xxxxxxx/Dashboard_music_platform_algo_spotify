@@ -301,6 +301,37 @@ def open_questions(entries: list[dict], archived: frozenset[str] = frozenset()) 
 MAIL_JOURNAL = REPO / ".claude" / "dev-docs" / "ops-mail-journal.md"
 
 
+def ops_mail_paused(repo_root: Path) -> "str | None":
+    """R684 — `paused_reason()` of <repo>/src/utils/ops_mail_pause.py, loaded BY PATH.
+    Missing or unloadable ⇒ None: the call to action stays. Twin of
+    .claude/hooks/session_start.py `ops_mail_paused`, held equal by a parity test."""
+    import importlib.util
+    path = repo_root / "src" / "utils" / "ops_mail_pause.py"
+    try:
+        spec = importlib.util.spec_from_file_location("_ops_mail_pause", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.paused_reason()
+    except (OSError, AttributeError, SyntaxError, ImportError):
+        return None
+
+
+def mail_line(age: "int | None", paused: "str | None") -> "str | None":
+    """The ▶ MAILS line of night-status, or None when the journal is fresh. Pure.
+
+    R684 — the journal also holds mails the pause does not stop (account deletion, artist
+    mails), so a stale journal still asks for a sort; while paused it says that no recap
+    is expected, instead of letting its absence read as a dead sender."""
+    if age is not None and age < 1:
+        return None
+    line = (f"📬 journal {'absent' if age is None else f'vieux de {age} j'} — chercher "
+            "`from:noreply@streamlytics.fr` depuis la dernière ligne et trier dans "
+            ".claude/dev-docs/ops-mail-journal.md")
+    if paused:
+        line += " (mails ops en pause, R572 : pas de récap attendu)"
+    return line
+
+
 def mail_journal_age_days(text: str, today: str) -> "int | None":
     """Days since the newest `| YYYY-MM-DD` row of the ops mail journal, or None. Pure."""
     dates = re.findall(r"^\| (\d{4}-\d{2}-\d{2})", text, re.M)
@@ -458,10 +489,9 @@ def cmd_status(_args) -> int:
                                     _now()[:10])
     except OSError:
         age = None
-    if age is None or age >= 1:
-        print(f"\n▶ MAILS     📬 journal {'absent' if age is None else f'vieux de {age} j'} — "
-              "chercher `from:noreply@streamlytics.fr` depuis la dernière ligne et trier "
-              f"dans {MAIL_JOURNAL.relative_to(REPO)}")
+    line = mail_line(age, ops_mail_paused(REPO))
+    if line:
+        print(f"\n▶ MAILS     {line}")
     line = nightly_line(_nightly_verdict())
     if line:
         print(f"\n▶ NIGHTLY   {line}")

@@ -87,7 +87,23 @@ def _date(iso: str):
     return date.fromisoformat(iso)
 
 
-def mail_banner(journal_text: str, today: str | None = None) -> str:
+def ops_mail_paused(repo_root: Path) -> str | None:
+    """R684 — `paused_reason()` of <repo>/src/utils/ops_mail_pause.py, loaded BY PATH (a hook
+    does not import the app package). Missing or unloadable ⇒ None: the alarm stays.
+    Twin of tools/dev/night_run.py `ops_mail_paused`, held equal by a parity test."""
+    import importlib.util
+    path = repo_root / "src" / "utils" / "ops_mail_pause.py"
+    try:
+        spec = importlib.util.spec_from_file_location("_ops_mail_pause", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.paused_reason()
+    except (OSError, AttributeError, SyntaxError, ImportError):
+        return None
+
+
+def mail_banner(journal_text: str, today: str | None = None,
+                paused: str | None = None) -> str:
     """The instruction that opens every session: read and sort the streaMLytics mails
     received since the journal's newest row. Pure.
 
@@ -101,7 +117,11 @@ def mail_banner(journal_text: str, today: str | None = None) -> str:
     gap = ""
     if recaps and today:
         days = (_date(today) - _date(max(recaps))).days
-        if days >= 2:
+        if days >= 2 and paused:
+            # R684 — the recap is not mailed while paused: its absence proves nothing.
+            gap = (f" ⏸️ {paused}: a missing recap is expected, "
+                   "not a fault. Workflow health: `gh run list --workflow nightly-recap.yml`.")
+        elif days >= 2:
             gap = (f" ⚠️ No « 📋 Récap de la nuit » logged for {days} days: if none is in the "
                    "inbox either, the recap itself stopped — `gh run list --workflow "
                    "nightly-recap.yml`.")
@@ -170,7 +190,7 @@ def main():
     if journal.is_file():
         from datetime import date
         print(mail_banner(journal.read_text(encoding="utf-8", errors="ignore"),
-                          date.today().isoformat()))
+                          date.today().isoformat(), paused=ops_mail_paused(repo_root)))
 
     if not latest.exists():
         sys.exit(0)
