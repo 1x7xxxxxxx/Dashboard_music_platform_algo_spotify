@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R687 — Suite rouge du 2026-11-01 01:26 (`.pytest-last.log` : 1 failed, `test_a_failing_row_lea… (livrée 2026-11-01)
+
+- [x] **R687 — Suite rouge du 2026-11-01 01:26 (`.pytest-last.log` : 1 failed, `test_a_failing_row_leaves_none_of_its_batch_behind`) — `Connection refused` sur 5433 : `postgres_spotify_airflow` a reçu un « fast shutdown » à 01:22:06, la seconde où la suite démarrait, et n'est revenu qu'à 01:25:09 ; ~730 tests ont skippé en silence. Aucun site de ce dépôt n'émet `docker stop` ; le test passe seul (6/6). Relancer la suite base allumée et consigner l'arrêt au master (son `fleet_guard` arrête cette base, son journal n'est pas horodaté).** (P3) ✅ (2026-11-01, 1cf8acff)
+  Mesuré par : `make test` vert, base allumée tout du long ; courrier posté au master
+  Rouge = environnement : Postgres arrêté (fast shutdown) à 01:22:06, la seconde du départ de la suite, relancé 01:25:09 ; aucun docker stop dans ce dépôt. Suite rejouée base allumée tout du long : 13 145 passed, 0 failed. Courrier au master : horodater fleet-guard.log, ne rien arrêter sous heavy-memory.lock
+  Commits : 1cf8acff R688 : test-suite-timing.json porte le verdict de la suite verte (13 1
+
+## ✅ R688 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROU… (livrée 2026-11-01)
+
+- [x] **R688 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROUGE de R687 (1 failed, 258 s, 3 workers — base absente, donc ~730 tests en moins). Le remplacer par celui de la suite verte et le commiter.** (P4) ✅ (2026-11-01, 1cf8acff)
+  Mesuré par : `git status` propre ; le JSON dit `failed: 0`
+  JSON de durée remplacé par la suite verte du 2026-11-01 (13 145 passed, 0 failed, 511 s) ; arbre propre
+  Commits : 1cf8acff R688 : test-suite-timing.json porte le verdict de la suite verte (13 1
+
 ## ✅ R685 — `alert_monitor` inscrit `delivered = TRUE` dans `monitoring_run` pour une alerte que la… (livrée 2026-11-01)
 
 - [x] **R685 — `alert_monitor` inscrit `delivered = TRUE` dans `monitoring_run` pour une alerte que la pause R572 (ou le blocage hors prod) a RETENUE — `deliver_or_raise` revient sans rien dire, et les deux appelants (récap `_send_recap`, alerte consolidée) ferment la ligne comme livrée. Mesuré en prod : 18 nuits depuis le 2026-10-15 à `delivered=t`, aucun mail parti. Conséquence : `_last_delivered_digest` prend une nuit retenue pour un mail lu, donc à la reprise une alerte identique serait réduite à « inchangé depuis le mail du X » ; et la table de PREUVE (mig. 073) ment.** (P2) ✅ (2026-11-01, a874b0c6)
