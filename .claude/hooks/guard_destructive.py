@@ -993,6 +993,15 @@ def _raw_verdict(text: str, warn: bool = True) -> tuple[str, str] | None:
                     "rien n'a été vérifié sur sa structure. Relire avant de lancer.")
 
 
+def _make_targets() -> set[str]:
+    """Les cibles du Makefile du dossier jugé — un message ne nomme que celles qui existent ici."""
+    try:
+        with open(_os.path.join(_CWD or _os.getcwd(), "Makefile"), encoding="utf-8") as f:
+            return set(re.findall(r"^([\w-]+)\s*:(?!=)", f.read(), re.M))
+    except (OSError, UnicodeDecodeError):
+        return set()
+
+
 def _check(cmd: str) -> tuple[str, str] | None:
     an = _analyse(cmd)                       # lève sur une ligne illisible -> `_raw_verdict`
     env_file = _reads_an_env_file(cmd)
@@ -1061,13 +1070,15 @@ def _check(cmd: str) -> tuple[str, str] | None:
     # c'est le seul de ces gardes dont la forme sûre est plus COURTE à taper.
     serial = _serial_full_suite(cmd)
     if serial:
+        # T596 (lignée 9e456bd3, msdr/streamlytics) : la cible rapide n'est nommée que là où elle existe
+        fast = "  make test-fast      # tout sauf les documents\n" if "test-fast" in _make_targets() else ""
         return ("block",
                 "cette commande lance la suite COMPLÈTE en SÉRIE — elle perd "
                 "`-n auto --dist loadgroup`, que les cibles du Makefile posent. Mesuré "
                 "le 2026-09-16 sur ce poste : 888, 921 et 963 s, soit ~15 min.\n"
-                "Ce que tu veux est presque toujours l'une de ces trois :\n"
+                f"Ce que tu veux est presque toujours l'une de ces {'trois' if fast else 'deux'} :\n"
                 "  make test-changed   # les tests atteignables depuis le diff — SECONDES\n"
-                "  make test-fast      # tout sauf les documents\n"
+                f"{fast}"
                 "  make test           # la barrière avant de livrer, drapeaux de la CI\n"
                 "Un fichier précis n'est PAS bloqué : "
                 "`.venv/bin/python -m pytest tests/test_x.py -q`.")
