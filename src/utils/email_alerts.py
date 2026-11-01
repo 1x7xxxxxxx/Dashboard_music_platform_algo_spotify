@@ -224,8 +224,12 @@ class EmailAlert:
             return False
 
 
-def deliver_or_raise(subject: str, body: str) -> None:
+def deliver_or_raise(subject: str, body: str) -> str | None:
     """Send, or raise naming WHY. For the one path whose silence is the incident.
+
+    Returns None when the mail LEFT, or the reason it was deliberately withheld (ops-mail
+    pause R572, non-production block). The two must stay distinguishable: until R685 both
+    returned None, and `alert_monitor` wrote `delivered = TRUE` for 18 paused nights.
 
     `send_alert` stays non-raising on purpose — six callers depend on that, including
     `dag_failure_callback` below, which runs inside a failure callback where a raise
@@ -250,12 +254,13 @@ def deliver_or_raise(subject: str, body: str) -> None:
     # the distinction the two branches below carry ("SMTP absent" vs "SMTP configured
     # and the send failed") stays legible; collapsing all three into one message is
     # what `tests/test_alert_delivery_is_proven` caught when this gate was added.
+    # A withheld mail is neither delivered nor owed: the caller records it so (R685).
     suppressed = alert._outbound_blocked() or paused_reason()
     if suppressed:
         logger.info("✉️  nightly alert suppressed (%s): %r", suppressed, subject)
-        return
+        return suppressed
     if alert.send_alert(subject, body):
-        return
+        return None
     raise AlertDeliveryError(
         f"the nightly alert was NOT delivered — {alert.last_error or 'unknown reason'}. "
         f"Subject was: {subject!r}"

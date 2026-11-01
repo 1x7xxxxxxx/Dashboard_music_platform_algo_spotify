@@ -1421,7 +1421,8 @@ def _last_delivered_digest():
     `WHERE delivered` is load-bearing twice over. A suppressed night must not become
     the comparison point — the silence window would re-arm itself every night and
     never close again — and neither must a FAILED delivery, whose findings nobody
-    ever read.
+    ever read, nor a WITHHELD one (R572 pause, non-prod block — R685), which is
+    recorded neither delivered nor expected.
 
     Any failure here returns (None, None), which makes the caller send. Bookkeeping
     that cannot be read is a reason to mail, never a reason to stay quiet.
@@ -1481,6 +1482,39 @@ def _close_alert_attempt(run_id, delivered: bool, error) -> None:
             db.close()
     except Exception as e:  # noqa: BLE001
         logger.error("could not close the alert-delivery ledger row: %s", safe_error(e))
+
+
+def _close_alert_withheld(run_id, reason: str) -> None:
+    """Record a mail deliberately withheld (R572 pause, non-prod block). Never raises.
+
+    `delivery_expected = FALSE`, like `_record_suppressed_repeat`: `infra_health_cron.sh`
+    escalates `expected AND NOT delivered`, and a pause is not a channel outage.
+    `delivered = FALSE`, so `_last_delivered_digest` never takes a night nobody received
+    for the last mail read (R685 — 18 paused nights had been written `delivered = TRUE`).
+    """
+    if run_id is None:
+        return
+    try:
+        from src.database.postgres_handler import PostgresHandler
+        db = PostgresHandler.from_env_or_config()
+        try:
+            db.execute_query(
+                "UPDATE monitoring_run SET delivery_expected = FALSE, delivered = FALSE, "
+                "delivery_error = %s WHERE id = %s", (f"withheld: {reason}", run_id))
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001
+        logger.error("could not record the withheld alert: %s", safe_error(e))
+
+
+def _close_after_send(run_id, withheld: str | None, subject: str) -> None:
+    """The one outcome branch both nightly sends share, so they cannot drift apart."""
+    if withheld:
+        _close_alert_withheld(run_id, withheld)
+        logger.info("✉️  nightly mail withheld (%s): %s", withheld, subject)
+        return
+    _close_alert_attempt(run_id, delivered=True, error=None)
+    logger.info("Nightly mail delivered: %s", subject)
 
 
 def check_metric_bounds(**context):
@@ -1668,12 +1702,11 @@ def send_consolidated_alert(**context):
             subject += " | 🔴 GitHub"
         run_id = _record_alert_attempt(subject, 0)
         try:
-            deliver_or_raise(subject, body)
+            withheld = deliver_or_raise(subject, body)
         except AlertDeliveryError as exc:
             _close_alert_attempt(run_id, delivered=False, error=safe_error(exc))
             raise
-        _close_alert_attempt(run_id, delivered=True, error=None)
-        logger.info("Nightly recap delivered: %s", subject)
+        _close_after_send(run_id, withheld, subject)
 
     if not has_issues:
         _send_recap("nuit calme, rien à signaler")
@@ -2455,15 +2488,14 @@ def send_consolidated_alert(**context):
 
     run_id = _record_alert_attempt(subject, len(sections), digest)
     try:
-        deliver_or_raise(subject, body)
+        withheld = deliver_or_raise(subject, body)
     except AlertDeliveryError as exc:
         _close_alert_attempt(run_id, delivered=False, error=safe_error(exc))
         # Fail the task. `send_alert` returned False and the next line used to log
         # "Consolidated alert sent" regardless — three nights of findings evaporated
         # that way (16, 17, 18 Aug 2026) while the task stayed green.
         raise
-    _close_alert_attempt(run_id, delivered=True, error=None)
-    logger.info(f"Consolidated alert delivered: {subject}")
+    _close_after_send(run_id, withheld, subject)
 
 
 def nightly_maintenance(**context):
