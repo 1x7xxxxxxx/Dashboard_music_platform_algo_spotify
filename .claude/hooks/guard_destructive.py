@@ -943,7 +943,9 @@ def _glob_restore_into_repo(command: str) -> str | None:
         *sources, dest = words
         if _is_a_backup_path(dest, an):
             continue
-        if any(_is_a_backup_path(a, an) and any(c in a for c in "*?[") for a in sources):
+        # `${1:?usage}` est un développement de paramètre, pas un motif : son `?` ne compte pas.
+        if any(_is_a_backup_path(a, an) and any(c in re.sub(r"\$\{[^}]*\}", "", a) for c in "*?[")
+               for a in sources):
             return " ".join(u)
     return None
 
@@ -2046,6 +2048,17 @@ def _end_dq(s: str, i: int, subs: list | None = None) -> int:
     raise ValueError('unclosed "')
 
 
+class _Word(str):
+    """Un mot du lexeur, et les plages `(début, fin)` de ses segments entre guillemets DOUBLES : une
+    variable développée dans l'une d'elles n'est pas recoupée aux blancs (T589, msdr R541)."""
+    __slots__ = ("dq",)
+
+    def __new__(cls, text: str, dq: tuple[tuple[int, int], ...] = ()) -> "_Word":
+        w = super().__new__(cls, text)
+        w.dq = dq
+        return w
+
+
 def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
     """Jetons d'une ligne de shell : ("w", mot) | ("op", opérateur) | ("redir", op) |
     ("hd", _Heredoc) | ("sub", (corps, "cmd"|"proc")).
@@ -2058,6 +2071,7 @@ def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
     """
     toks: list[tuple[str, object]] = []
     word: str | None = None
+    dq: list[tuple[int, int]] = []          # les plages "…" du mot en cours
     pending: list[_Heredoc] = []
     i, n = 0, len(s)
 
@@ -2065,20 +2079,26 @@ def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
         nonlocal word
         word = (word or "") + text
 
+    def emit() -> None:
+        """Le mot en cours devient un jeton, ses plages "…" avec lui ; tout site qui clôt un mot
+        passe par ici, sinon la protection des guillemets doubles s'y perd sans bruit."""
+        nonlocal word
+        toks.append(("w", _Word(word, tuple(dq))))
+        word = None
+        dq.clear()
+
     while i < n:
         c = s[i]
         if c == "\n":
             if word is not None:
-                toks.append(("w", word))
-                word = None
+                emit()
             toks.append(("op", "\n"))
             i = _read_bodies(s, i + 1, pending)
             pending = []
             continue
         if c in " \t\r":
             if word is not None:
-                toks.append(("w", word))
-                word = None
+                emit()
             i += 1
             continue
         if c == "#" and word is None:
@@ -2112,7 +2132,9 @@ def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
             subs: list = []
             j = _end_dq(s, i, subs)
             toks.extend(("sub", x) for x in subs)
+            start = len(word or "")
             add(re.sub(r'\\([\\"$`])', r"\1", s[i + 1:j - 1].replace("\\\n", "")))
+            dq.append((start, len(word)))
             i = j
             continue
         if not naive and c == "$" and s[i + 1:i + 2] == "(":
@@ -2149,9 +2171,9 @@ def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
         if op in _REDIRS or op in ("<<", "<<-"):
             if word is not None and (word.isdigit() or re.fullmatch(r"\{\w+\}", word)):
                 word = None                 # `2>`, `{fd}>` : le descripteur n'est pas un mot
+                dq.clear()
             if word is not None:
-                toks.append(("w", word))
-                word = None
+                emit()
             i += len(op)
             if op in ("<<", "<<-"):
                 m = _HEREDOC_DELIM.match(s, i)
@@ -2165,12 +2187,11 @@ def _lex(s: str, naive: bool = False) -> list[tuple[str, object]]:
             toks.append(("redir", op))
             continue
         if word is not None:
-            toks.append(("w", word))
-            word = None
+            emit()
         toks.append(("op", op))
         i += len(op)
     if word is not None:
-        toks.append(("w", word))
+        emit()
     for hd in pending:                      # ouvert, jamais suivi d'un saut de ligne
         hd.count = len(pending)
     return toks
@@ -3110,9 +3131,11 @@ def _feed(u: _Argv, argv: _Argv, prev, download: bool, depth: int,
 
 # ── Les variables : UN point de développement, à la production des argv (T150b) ─────
 #
-# Chaque `$X` d'un mot est remplacé par la valeur que la ligne lui donne À CET ENDROIT, cité
-# ou non (un faux positif plutôt qu'un trou : `T=~; rm -rf '$T'` bloque), puis coupé aux
-# blancs si le mot n'en contenait pas. Une affectation dans une boucle ou une condition, et
+# Chaque `$X` d'un mot est remplacé par la valeur que la ligne lui donne À CET ENDROIT, même
+# entre guillemets simples (un faux positif plutôt qu'un trou : `T=~; rm -rf '$T'` bloque),
+# puis coupé aux blancs si le mot n'en contenait pas — sauf la valeur d'un `$X` écrit entre
+# guillemets DOUBLES, qui reste un seul mot comme pour le shell (T589 : `mv "$OUT/a.pdf" …`
+# avec `OUT="${1:?usage: x.sh <d>}"` lisait `${1:?usage:` comme un chemin). Une affectation dans une boucle ou une condition, et
 # la liste d'un `for`, s'AJOUTENT aux valeurs possibles ; ailleurs elles les remplacent. Au
 # plus `_MAX_ALTS` lectures d'une commande : au-delà, trou déclaré.
 _MAX_ALTS = 16
@@ -3121,9 +3144,16 @@ _OPENERS = frozenset({"if", "while", "until", "case", "select"})
 _CLOSERS = frozenset({"fi", "done", "esac"})
 
 
+_KEEP = str.maketrans({" ": "\x01", "\t": "\x02", "\n": "\x03"})   # pas \x00 : préfixe des marqueurs
+_UNKEEP = str.maketrans({"\x01": " ", "\x02": "\t", "\x03": "\n"})
+
+
 def _word_alts(word: str, an: _Analysis, split: bool = True) -> list[list[str]]:
-    """Les lectures possibles d'un mot, chacune une liste de mots (coupée aux blancs)."""
+    """Les lectures possibles d'un mot, chacune une liste de mots (coupée aux blancs).
+    Un `_Word` dit ses plages entre guillemets doubles ; un `str` nu (une tranche, comme celle
+    de `_assigned`, appelé avec split=False) n'en a aucune."""
     outs = [word]
+    dq = getattr(word, "dq", ())
     if "$" in word:
         for m in reversed(list(_VAR_ANY.finditer(word))):
             vals = an.vars.get(m.group(1) or m.group(4))
@@ -3133,6 +3163,8 @@ def _word_alts(word: str, an: _Analysis, split: bool = True) -> list[list[str]]:
                 vals = [m.group(3)]
             if vals is None:
                 continue
+            if any(a <= m.start() and m.end() <= b for a, b in dq):
+                vals = [v.translate(_KEEP) for v in vals]
             outs = [o[:m.start()] + v + o[m.end():] for o in outs for v in vals]
             if len(outs) > _MAX_ALTS:
                 outs = outs[:_MAX_ALTS + 1]
@@ -3148,7 +3180,7 @@ def _word_alts(word: str, an: _Analysis, split: bool = True) -> list[list[str]]:
         # une valeur qui reste une substitution non lue : `$(cd "$(dirname …)" && pwd)`
         # coupé en morceaux ferait de `$(cd` un nom de script.
         cut = split and not re.search(r"\s", word) and "$(" not in o and "`" not in o
-        res.append(o.split() if cut else [o])
+        res.append([x.translate(_UNKEEP) for x in (o.split() if cut else [o])])
     return res
 
 
@@ -3198,8 +3230,10 @@ def _expand_command(argv: _Argv, an: _Analysis) -> list[_Argv]:
         return [argv]
     alts: list[list[str]] = [[]]
     over = False
-    for w in words:
-        wa = _word_alts(w, an)
+    for k, w in enumerate(words):
+        # La TÊTE reste coupée même citée : `"$C"` avec `C="rm -rf ~"` cherche un programme de ce
+        # nom, mais un faux positif vaut mieux qu'un trou (T589, la tête n'est jamais un chemin).
+        wa = _word_alts(str(w) if k == i else w, an)
         alts = [a + b for a in alts for b in wa]
         if len(alts) > _MAX_ALTS:
             alts, over = alts[:_MAX_ALTS], True
