@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R691 — Courrier du parc msg:1793500324060081508-2122506 (master T575) : cause de l'arrêt de Postgres de R687/R689 (livrée 2026-11-01)
+
+- [x] **R691 — Courrier du parc msg:1793500324060081508-2122506 (master T575) : l'émetteur de l'arrêt de Postgres de R687/R689 est le hook SessionEnd LOCAL `.claude/local/stack.sh stop` (settings.local.json, non versionné).** (P4) ✅ (2026-11-01, 1b2c658a)
+  Mesuré par : `stack.log` porte `stop` à 01:22:02 et 02:40:59 (4 s avant chaque « fast shutdown ») ; `stack.sh` l. 43 ignore le stop sous `FLEET_RUN_SESSION` ou un ancêtre `claude -p` de fleet_run (corrigé par le master dans ce fichier local) ; l'entrée R689 nomme désormais la cause.
+  Rien à corriger dans le code versionné : la seule livraison est la correction de l'archive (1b2c658a, CI verte). Leçon : le balayage de R689 ne couvrait pas `.claude/local/` — la couche locale non versionnée (hooks de settings.local.json) est un site à balayer quand un effet n'a pas d'émetteur dans le dépôt.
+  Commits : 1b2c658a R691 : l'entrée d'archive de R689 nomme la vraie cause
+
 ## ✅ R690 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROU… (livrée 2026-11-01)
 
 - [x] **R690 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROUGE de R689 (1 failed, 332 s, 2 workers, ~745 tests en moins). Le remplacer par celui de la suite verte rejouée et le commiter.** (P4) ✅ (2026-11-01, 2ac823ee)
