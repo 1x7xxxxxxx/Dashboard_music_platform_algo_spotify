@@ -24,6 +24,7 @@ si le total passe sous son plancher.
   Mesuré par : `make test` vert, base allumée tout du long (StartedAt inchangé) ; journal `docker events` de la fenêtre ; courrier posté au master
   Récidive de R687 : arrêt de Postgres 3 s après le départ de la suite (02:41:03), émetteur non trouvé dans ce dépôt ni dans fleet_guard/caches-prune. Rejouée sous docker events : 13 145 passed, 0 failed, aucun stop/kill, StartedAt inchangé. Récidive consignée au master par courrier.
   Commits : 2ac823ee R690 : test-suite-timing.json porte le verdict de la suite verte rejou
+  Cause trouvée APRÈS la fermeture (R691, courrier du master T575) : le hook SessionEnd LOCAL `.claude/local/stack.sh stop` (settings.local.json, non versionné) — `stack.log` porte `stop` à 01:22:02 et 02:40:59, 4 s avant chaque « fast shutdown » ; la fin d'une séance `fleet_run` arrêtait la base sous la suite du master partie 1 s après. Corrigé côté master : `stack.sh` ignore le stop quand `FLEET_RUN_SESSION` est posé ou que l'ancêtre est le `claude -p` de fleet_run. Le balayage de R689 avait raté `.claude/local/` (hors de son périmètre : Makefile, tools/, tests/, hooks).
 
 ## ✅ R687 — Suite rouge du 2026-11-01 01:26 (`.pytest-last.log` : 1 failed, `test_a_failing_row_lea… (livrée 2026-11-01)
 
