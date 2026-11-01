@@ -292,8 +292,13 @@ def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head
         # else: roadmap_autocommit pushes this HEAD (index at 0), or the gate below says its refusal
     if "gate" in reds and ac is not None and not pending and not (autopush and refused and refused != head):
         rc = reds["gate"].rsplit("rc=", 1)[-1]
+        # T547: a project session told « le master : blast_radius » ran the MASTER's gate from streamlytics, 89 min
+        master = (root / "tools/dev/blast_radius.py").is_file()
+        rerun = ("relance la porte (`python3 tools/dev/blast_radius.py --run`)" if master else
+                 "relance la porte de CE dépôt (son pre-push, jamais l'outillage du master) ; si elle reste rouge, "
+                 "inscris-la dans une ligne de roadmap et arrête-toi")
         ask(f"gate@{head}@{rc}", f"Porte : {reds['gate']} — push automatique refusé, voir `tail {AUTOPUSH_LOG}`. "
-            "Corrige, puis relance la porte (le master : `python3 tools/dev/blast_radius.py --run`) et "
+            f"Corrige, puis {rerun} et "
             f"`echo rc=0 >> {AUTOPUSH_LOG}` : le push automatique repart (et repasse la porte).", False)
     if "mailbox" in reds:
         ask(f"mailbox@{_box_ids(root)}", f"Boîte aux lettres : {reds['mailbox']} — "
