@@ -169,8 +169,9 @@ def gate(untracked: list[str], hook: dict, asked: dict) -> tuple[str | None, dic
     if not new or hook.get("stop_hook_active"):
         return None, asked
     reason = ("Boîte aux lettres : " + ", ".join(f"msg:{i}" for i in new) + " pris sans ligne de roadmap. "
-              "Inscris pour CHACUN une ligne qui cite son msg:<id> (ou « sans suite : <raison> »), "
-              "puis mène-la à la fermeture.")
+              "Cite CHACUN par son msg:<id> : s'il répète un geste déjà inscrit, ajoute-le à CETTE ligne "
+              "(T598 : une alerte répétée n'ouvre pas une ligne de plus) ; sinon inscris-en une "
+              "(ou « sans suite : <raison> »), puis mène-la à la fermeture.")
     return reason, {sid: sorted(done | set(new))}
 
 
@@ -302,8 +303,8 @@ def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head
             f"`echo rc=0 >> {AUTOPUSH_LOG}` : le push automatique repart (et repasse la porte).", False)
     if "mailbox" in reds:
         ask(f"mailbox@{_box_ids(root)}", f"Boîte aux lettres : {reds['mailbox']} — "
-            f"`python3 ~/.fleet-master/tools/hud/fleet_mailbox.py state {root.name} {root}`, puis une ligne "
-            "de roadmap par message (msg:<id>).", False)
+            f"`python3 ~/.fleet-master/tools/hud/fleet_mailbox.py state {root.name} {root}`, puis cite "
+            "chaque msg:<id> — dans la ligne déjà ouverte du même geste s'il le répète, sinon une ligne neuve.", False)
     if not msgs or hook.get("stop_hook_active"):  # a prolonged turn records what it saw, says nothing
         return None, {"seen": sorted(seen), "said": sorted(memo.get("said", []))}
     memo = {"seen": sorted(seen), "said": sorted(said)}
