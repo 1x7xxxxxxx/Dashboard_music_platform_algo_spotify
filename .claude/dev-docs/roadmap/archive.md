@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R685 — `alert_monitor` inscrit `delivered = TRUE` dans `monitoring_run` pour une alerte que la… (livrée 2026-11-01)
+
+- [x] **R685 — `alert_monitor` inscrit `delivered = TRUE` dans `monitoring_run` pour une alerte que la pause R572 (ou le blocage hors prod) a RETENUE — `deliver_or_raise` revient sans rien dire, et les deux appelants (récap `_send_recap`, alerte consolidée) ferment la ligne comme livrée. Mesuré en prod : 18 nuits depuis le 2026-10-15 à `delivered=t`, aucun mail parti. Conséquence : `_last_delivered_digest` prend une nuit retenue pour un mail lu, donc à la reprise une alerte identique serait réduite à « inchangé depuis le mail du X » ; et la table de PREUVE (mig. 073) ment.** (P2) ✅ (2026-11-01, a874b0c6)
+  Mesuré par : une alerte retenue écrit `delivery_expected=FALSE, delivered=FALSE, delivery_error=<raison>` ; test qui rejoue la pause et lit la ligne
+  CI verte sur a874b0c6 (run 41255423758) ; une alerte retenue par la pause s'écrit delivery_expected=FALSE, delivered=FALSE ; quatre mutations rouges ; make test-changed 9 958 passés ; les 18 lignes déjà en prod restent à corriger à la reprise (R686, 🙋)
+  Commits : a874b0c6 R685 : une alerte retenue par la pause R572 n'est plus inscrite comme 
+
 ## ✅ R684 — Deux détecteurs lisent l'absence de mails ops comme une panne alors que le propriétaire… (livrée 2026-11-01)
 
 - [x] **R684 — Deux détecteurs lisent l'absence de mails ops comme une panne alors que le propriétaire les a mis en pause (`OPS_MAIL_PAUSED = True`, R572) : `session_start.mail_banner` crie « No 📋 Récap de la nuit logged for 17 days … the recap itself stopped » à chaque séance (le récap tourne vert et écrit « not mailed — paused ») et `night_run.py` « journal vieux de N j » ; consulter `paused_reason()` (chargé par chemin) dans les deux lecteurs + tests, garde muté (balayage : 2 sites vivants, 1 test qui épingle le défaut)** (P3) ✅ (2026-11-01, 10557639)
