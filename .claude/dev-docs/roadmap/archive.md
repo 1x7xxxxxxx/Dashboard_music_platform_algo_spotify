@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R690 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROU… (livrée 2026-11-01)
+
+- [x] **R690 — Arbre sale : `.claude/dev-docs/test-suite-timing.json` porte le verdict de la suite ROUGE de R689 (1 failed, 332 s, 2 workers, ~745 tests en moins). Le remplacer par celui de la suite verte rejouée et le commiter.** (P4) ✅ (2026-11-01, 2ac823ee)
+  Mesuré par : `git status` propre ; le JSON dit `failed: 0`
+  JSON de durée remplacé par la suite verte rejouée du 2026-11-01 (13 145 passed, 0 failed, 507 s, 2 workers) ; arbre propre.
+  Commits : 2ac823ee R690 : test-suite-timing.json porte le verdict de la suite verte rejou
+
+## ✅ R689 — Suite rouge du 2026-11-01 02:46 (`.pytest-last.log` : 1 failed, 12 400 passed, 856 skip… (livrée 2026-11-01)
+
+- [x] **R689 — Suite rouge du 2026-11-01 02:46 (`.pytest-last.log` : 1 failed, 12 400 passed, 856 skipped — `test_a_failing_row_leaves_none_of_its_batch_behind`, `Connection refused` sur 5433) — RÉCIDIVE de R687 : `postgres_spotify_airflow` a reçu un « fast shutdown » à 02:41:03, **3 s après** le départ de la suite (scope systemd `pytest` lancé à 02:41:00), revenu à 02:44:57. Deux fois sur deux l'arrêt suit le départ d'une suite à la seconde : la cause n'est pas un cron horaire. Ni ce dépôt (`docker stop` absent de tests/, tools/, Makefile, hooks), ni `fleet_guard` (base `always_on`, verdict `keep` au journal) n'en sont l'émetteur lu. Rejouer la suite avec `docker events` en écoute sur le conteneur pour prendre l'arrêt sur le fait s'il revient, et consigner au master.** (P3) ✅ (2026-11-01, 2ac823ee)
+  Mesuré par : `make test` vert, base allumée tout du long (StartedAt inchangé) ; journal `docker events` de la fenêtre ; courrier posté au master
+  Récidive de R687 : arrêt de Postgres 3 s après le départ de la suite (02:41:03), émetteur non trouvé dans ce dépôt ni dans fleet_guard/caches-prune. Rejouée sous docker events : 13 145 passed, 0 failed, aucun stop/kill, StartedAt inchangé. Récidive consignée au master par courrier.
+  Commits : 2ac823ee R690 : test-suite-timing.json porte le verdict de la suite verte rejou
+
 ## ✅ R687 — Suite rouge du 2026-11-01 01:26 (`.pytest-last.log` : 1 failed, `test_a_failing_row_lea… (livrée 2026-11-01)
 
 - [x] **R687 — Suite rouge du 2026-11-01 01:26 (`.pytest-last.log` : 1 failed, `test_a_failing_row_leaves_none_of_its_batch_behind`) — `Connection refused` sur 5433 : `postgres_spotify_airflow` a reçu un « fast shutdown » à 01:22:06, la seconde où la suite démarrait, et n'est revenu qu'à 01:25:09 ; ~730 tests ont skippé en silence. Aucun site de ce dépôt n'émet `docker stop` ; le test passe seul (6/6). Relancer la suite base allumée et consigner l'arrêt au master (son `fleet_guard` arrête cette base, son journal n'est pas horodaté).** (P3) ✅ (2026-11-01, 1cf8acff)
