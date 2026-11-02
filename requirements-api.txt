@@ -68,7 +68,7 @@ streamlit==1.66.1
 python-dateutil>=2.8.2
 PyYAML==6.0.3
 requests==2.34.2
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 
 # Observabilite (ADR-026) — expose /metrics ; voir src/utils/metrics.py
 prometheus-client>=0.20.0
