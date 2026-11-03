@@ -29,6 +29,18 @@ repos:
         stages: [commit-msg]
         always_run: true
 
+      # The commit-msg half above judges the INDEX diff, so a `git commit --amend`
+      # (index == HEAD) escaped it while CI refused the same commit (206acd0). This hook
+      # runs CI's own judge (`--range`) on the commits being pushed: local == CI by
+      # construction, no amend detection needed.
+      - id: roadmap-range-pre-push
+        name: push — every pushed commit passes the roadmap judge CI runs (check_range)
+        language: system
+        entry: python3 tools/dev/require_roadmap_id.py --pre-push
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+
       # R444 — main went red twice on 2026-10-07 (R438, R443) on guards `make test-changed`
       # runs; both commits were pushed after targeted tests only. No suite here (~0.3 s):
       # the hook compares the pushed tree with the one the last green run stamped.

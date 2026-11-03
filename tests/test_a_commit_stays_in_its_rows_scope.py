@@ -57,6 +57,45 @@ def test_every_new_row_declares_its_scope_not_vacuous():
     assert undeclared(_checklist("| R300 | x <!-- critic: non --> | P3 | m |")) == ["R300"]
 
 
+def unshaped_scope_tokens(checklist: str, files: list[str], first: int = FIRST_SCOPED) -> dict[str, list[str]]:
+    """Per open row from `first` on, the RAW scope tokens whose first path component is no
+    top-level name of the repo (`(new`, `file)`, prose). Reads the marker text, not scope_of
+    output, so a separator fix cannot make it vacuous. Pure."""
+    tops = {f.split("/")[0] for f in files}
+    out = {}
+    for rid, row in gate.open_rows(checklist).items():
+        found = gate._SCOPE.findall(row)
+        if int(re.sub(r"\D", "", rid)) < first or not found:
+            continue
+        bad = [t for t in re.split(r"[,\s]+", found[-1]) if t and t.split("/")[0] not in tops]
+        if bad:
+            out[rid] = bad
+    return out
+
+
+def test_scope_separated_by_spaces_or_commas_is_read_token_by_token():
+    row = "| R300 | x <!-- scope: tools/dev/a.py tests/b.py --> | P3 | m |"
+    assert gate.scope_of(row) == ["tools/dev/a.py", "tests/b.py"]
+    assert gate.out_of_scope(["tools/dev/a.py"], [row]) == []
+    assert gate.out_of_scope(["src/other.py"], [row]) == ["src/other.py"], "not a widening"
+    mixed = "| R300 | x <!-- scope: tools/dev/a.py, src/b.py src/c.py --> | P3 | m |"
+    assert gate.scope_of(mixed) == ["tools/dev/a.py", "src/b.py", "src/c.py"]
+
+
+def test_every_open_row_scope_token_is_path_shaped():
+    import subprocess
+    files = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,
+                           check=True).stdout.split("\n")
+    assert "tools" in {f.split("/")[0] for f in files}, "ls-files returned nothing usable"
+    with open(ROOT / ".claude/dev-docs/roadmap/checklist.md", encoding="utf-8") as fh:
+        live = unshaped_scope_tokens(fh.read(), files)
+    assert not live, f"scope avec des jetons qui ne sont pas des chemins : {live}"
+    prose = _checklist("| R300 | x <!-- scope: tools/dev/a.py (new file) --> | P3 | m |")
+    assert unshaped_scope_tokens(prose, ["tools/dev/a.py"]) == {"R300": ["(new", "file)"]}
+    ok = _checklist("| R300 | x <!-- scope: tools/dev/a.py, tests/ Makefile --> | P3 | m |")
+    assert unshaped_scope_tokens(ok, ["tools/dev/a.py", "tests/x.py", "Makefile"]) == {}
+
+
 def test_a_non_product_file_outside_the_scope_is_refused_too():
     """R450 — 2026-10-07: a commit « R449 » (scope tools/dev/, tests/) carried R448's
     ci.yml; only product paths were judged, so nothing said so."""

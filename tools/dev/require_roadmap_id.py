@@ -48,6 +48,18 @@ functions below.
 Usage:
   require_roadmap_id.py <commit-msg-file>        # git commit-msg hook (staged files)
   require_roadmap_id.py --range <A>..<B>          # CI: every commit of a push
+  require_roadmap_id.py --pre-push                # git pre-push hook: the SAME judge as CI,
+                                                  # on the real commits being pushed
+
+Amend blind spot (2026-11-03, commit 206acd0): the commit-msg half judges the INDEX diff and
+HEAD's checklist. On `git commit --amend` the index equals HEAD, so it sees no file and reads
+HEAD's checklist instead of HEAD^'s -- local said yes, CI (`--range`, parents[0]) said no, on
+the identical commit. The guarantee is NOT a better amend detector (no env marker exists;
+/proc ancestry is absent on macOS/Windows; a prepare-commit-msg marker goes stale): it is
+that the pre-push hook runs `check_range`, so local and CI judge the same object by
+construction -- amend, rebase, cherry-pick and -C/-c included. The commit-msg half stays
+early feedback for a plain commit only: an amend is NOT judged there. Not covered:
+`git commit --no-verify` then `git push --no-verify` (CI still judges it).
 ---
 rex: []
 ---
@@ -120,7 +132,9 @@ def scope_of(row: str) -> list[str] | None:
     # R450: the LAST marker — the real one closes the row; an earlier one is prose quoting
     # the syntax, and read first it gave R450 the scope « … » on its own commit.
     found = _SCOPE.findall(row)
-    return [p.strip() for p in found[-1].split(",") if p.strip()] if found else None
+    # Whitespace separates too: repo paths hold none, and `scope: a b` read as ONE path 'a b'
+    # put every file of the row out of scope — CI refused 206acd0 (R693, fixed by 6a416af7).
+    return [p for p in re.split(r"[,\s]+", found[-1]) if p] if found else None
 
 
 # R450 (2026-10-07): what a cited row's scope does NOT judge. Every other file is judged,
@@ -323,9 +337,33 @@ def check_range(rng: str) -> int:
     return 0
 
 
+_ZERO = "0" * 40
+
+
+def push_range(from_ref: str | None, to_ref: str | None) -> str | None:
+    """The `A..B` range a push carries, or None when nothing is judged (a deleted ref).
+    A new branch (remote sha all zeros) is judged from its merge-base with origin/main."""
+    if not to_ref or to_ref == _ZERO:
+        return None
+    if from_ref and from_ref != _ZERO:
+        return f"{from_ref}..{to_ref}"
+    base = _git("merge-base", "origin/main", to_ref).strip()
+    return f"{base}..{to_ref}" if base else to_ref
+
+
+def check_pre_push() -> int:
+    """pre-commit exports the pushed refs as PRE_COMMIT_FROM_REF / PRE_COMMIT_TO_REF."""
+    import os
+    to_ref = os.environ.get("PRE_COMMIT_TO_REF") or _git("rev-parse", "HEAD").strip()
+    rng = push_range(os.environ.get("PRE_COMMIT_FROM_REF"), to_ref)
+    return 0 if rng is None else check_range(rng)
+
+
 def main(argv: list[str]) -> int:
     if len(argv) == 3 and argv[1] == "--range":
         return check_range(argv[2])
+    if argv[1:] == ["--pre-push"]:
+        return check_pre_push()
     if len(argv) == 2:
         return check_staged(argv[1])
     print(__doc__.split("Usage:")[1].split("---")[0], file=sys.stderr)
