@@ -204,12 +204,52 @@ def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict
     if not new or hook.get("stop_hook_active") or os.environ.get("ROADMAP_AUTODEV") == "0":
         return None, asked
     reason = ("Roadmap : " + ", ".join(new) + " ouverte(s) dans « 📋 Tâches ouvertes ». Développe-les "
-              "maintenant, jusqu'à la fermeture (roadmap.py close) — sans attendre qu'on te le demande. "
+              "maintenant, jusqu'à la fermeture (roadmap.py close : un close par appel Bash, timeout 600000, "
+              "jamais chaîné) — sans attendre qu'on te le demande. "
               "Une ligne qui exige un geste du propriétaire (achat, choix, mot de passe, BIOS) passe "
               "dans « 🙋 En attente de toi » : dis-le-lui en une ligne. Une ligne qui attend une date ou "
               "un tiers y ouvre son geste par « ⏳ <condition> : ». Ajoutes-y ce qui bloque, "
               "`<!-- problème: … -->`, et ton avis au propriétaire, `<!-- reco: Reprendre|Répondre|Archiver|"
-              "Attendre — pourquoi -->` (ni « > » ni « | » dedans) : sa fiche d'arbitrage les affiche (T532).")
+              "Attendre — pourquoi -->` (ni « > » ni « | » dedans) : sa fiche d'arbitrage les affiche (T532). "
+              + PLAIN_ASK)
+    return reason, {sid: sorted(done | set(new))}
+
+
+# T609 (REQ-PARC-163) — the owner's sheet speaks plain words; only the session can write them.
+PLAIN_MARKS = {"cause": re.compile(r"<!--\s*cause:"), "garde": re.compile(r"<!--\s*garde:"),
+               "intégration": re.compile(r"<!--\s*int[ée]gration:")}
+PLAIN_SHOWN = 12
+PLAIN_ASK = ("Écris aussi, en mots simples pour le propriétaire — sans nom de fichier, de fonction, de commande ni "
+             "id : `<!-- cause: pourquoi c'est arrivé -->`, `<!-- garde: le test ou la sonde qui saura que c'est "
+             "réglé pour de bon -->`, `<!-- intégration: qui le fait, où, comment ça arrive sur le parc -->` (T609).")
+
+
+def unwritten_ids(text: str, title: str = WAITING_TITLE) -> list[str]:
+    """The 🙋 rows missing one of the owner's plain fields (cause, garde, intégration), in table order."""
+    lines = text.splitlines()
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(title)), None)
+    if start is None:
+        return []
+    out = []
+    for ln in lines[start + 1:]:
+        if ln.startswith("## "):
+            break
+        m = re.match(r"^\|\s*([A-Z]{1,3}\d{1,5})\s*\|", ln.strip())
+        if m and not all(rx.search(ln) for rx in PLAIN_MARKS.values()) and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def plain_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict]:
+    """(block reason or None, ids asked per session) — once per row and per session, as todo_gate."""
+    sid = str(hook.get("session_id") or "?")
+    done = set(asked.get(sid, []))
+    new = [i for i in ids if i not in done]
+    if not new or hook.get("stop_hook_active") or os.environ.get("ROADMAP_PLAIN") == "0":
+        return None, asked
+    shown = ", ".join(new[:PLAIN_SHOWN]) + (f" et {len(new) - PLAIN_SHOWN} autre(s)" if len(new) > PLAIN_SHOWN else "")
+    reason = (f"🙋 {shown} : la fiche du propriétaire n'a pas ses mots simples. " + PLAIN_ASK +
+              " Une ligne dont tu ne sais pas la cause : écris-le (« cause inconnue : … »), n'invente rien.")
     return reason, {sid: sorted(done | set(new))}
 
 
@@ -370,6 +410,9 @@ def main() -> int:
         reason, todo = todo_gate(ids, hook, saved.get("todo") or {})
     else:
         todo = saved.get("todo") or {}
+    plain = saved.get("plain") or {}
+    if not reason and not ids:
+        reason, plain = plain_gate(unwritten_ids(text, waiting), hook, plain)
     memos = saved.get("closable") or {}
     sid = str(hook.get("session_id") or "?")
     if not reason and not ids and (got := closable(root, hook)):
@@ -386,7 +429,7 @@ def main() -> int:
     ring, record = decide(saved.get("last_open"), now_open, datetime.now().astimezone())  # local wall time: the quiet window
     record = saved.get("last_open") if record is None else record
     state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text(json.dumps({"last_open": record, "asked": asked, "todo": todo, "closable": memos}), encoding="utf-8")
+    state.write_text(json.dumps({"last_open": record, "asked": asked, "todo": todo, "plain": plain, "closable": memos}), encoding="utf-8")
     if ring and os.environ.get("ROADMAP_BEEP") != "0":
         beep()
     if reason:
