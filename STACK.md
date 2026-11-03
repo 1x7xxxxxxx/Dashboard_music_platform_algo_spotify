@@ -1,4 +1,4 @@
-<!-- stack-inventory: généré par le master du parc (T245) — ne pas éditer ; sha=a9d14e4bed88 -->
+<!-- stack-inventory: généré par le master du parc (T245) — ne pas éditer ; sha=306a28b99b95 -->
 # STACK — streamlytics
 
 Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés par le parc.
@@ -16,12 +16,15 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 
 ### `pyproject.toml`
 
+- aiohttp `>=3.14.4`
 - apache-airflow `==2.11.2`
 - apache-airflow-providers-common-sql
 - apache-airflow-providers-http
 - apache-airflow-providers-postgres
 - authlib `>=1.3.2`
 - bcrypt `>=4.0,<4.1`
+- brotli `>=1.2.1`
+- certifi `>=2026.10.19`
 - cryptography `>=42.0.0`
 - facebook-business `==18.0.5`
 - fastapi `>=0.110.0`
@@ -31,8 +34,10 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 - multidict `>=6.9.1`
 - numpy `==1.26.4`
 - openpyxl
+- opentelemetry-api `>=1.45.1`
 - pandas `==2.3.3`
 - passlib `>=1.7.4`
+- pillow `>=13.0.0`
 - plotly `==5.24.1`
 - prometheus-client `>=0.20.0`
 - psutil `>=5.9.0`
@@ -48,7 +53,7 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 - scikit-learn `>=1.3.0`
 - shap `>=0.44.0`
 - spotipy `==2.26.0`
-- streamlit `==1.63.0`
+- streamlit `==1.66.1`
 - stripe `>=15.6.1,<16`
 - urllib3 `>=2.8.0`
 - uvicorn `>=0.27.0`
@@ -94,7 +99,7 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 - pyyaml `==6.0.3`
 - qrcode `>=7.4.2`
 - requests `==2.34.2`
-- streamlit `==1.63.0`
+- streamlit `==1.66.1`
 - stripe `>=15.6.1,<16`
 - urllib3 `>=2.8.0`
 - uvicorn `>=0.27.0`
@@ -109,11 +114,14 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 
 ### `requirements.txt`
 
+- aiohttp `>=3.14.4`
 - apache-airflow-providers-common-sql
 - apache-airflow-providers-http
 - apache-airflow-providers-postgres
 - authlib `>=1.3.2`
 - bcrypt `>=4.0,<4.1`
+- brotli `>=1.2.1`
+- certifi `>=2026.10.19`
 - cryptography `>=42.0.0`
 - facebook-business `==18.0.5`
 - fastapi `>=0.110.0`
@@ -123,8 +131,10 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 - multidict `>=6.9.1`
 - numpy `==1.26.4`
 - openpyxl
+- opentelemetry-api `>=1.45.1`
 - pandas `==2.3.3`
 - passlib `>=1.7.4`
+- pillow `>=13.0.0`
 - plotly `==5.24.1`
 - prometheus-client `>=0.20.0`
 - psutil `>=5.9.0`
@@ -140,7 +150,7 @@ Langages, versions et dépendances DÉCLARÉES du dépôt, hors fichiers livrés
 - scikit-learn `>=1.3.0`
 - shap `>=0.44.0`
 - spotipy `==2.26.0`
-- streamlit `==1.63.0`
+- streamlit `==1.66.1`
 - stripe `>=15.6.1,<16`
 - urllib3 `>=2.8.0`
 - uvicorn `>=0.27.0`
