@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R697 — Un `` séparé par des ESPACES est lu par `scope_of` (`tools/dev/require_roadmap_id.py`)… (livrée 2026-11-03)
+
+- [x] **R697 — Un `` séparé par des ESPACES est lu par `scope_of` (`tools/dev/require_roadmap_id.py`) comme UN chemin « a b » : aucun fichier ne commence par lui, tout commit de la ligne est hors périmètre, et rien ne le dit à l'inscription (`test_every_new_row_declares_its_scope_not_vacuous` passe) — vu le 2026-11-03 sur R692-R694, rattrapé par le job CI `roadmap` après le push. Rendre la forme impossible (découper aussi sur les blancs, ou refuser à l'inscription)** (P3) ✅ (2026-11-03, acf80bd3)
+  Mesuré par : test rouge sur un scope à espaces avant correctif, vert après
+  scope_of découpe sur [,\s]+ : un scope séparé par des espaces n'est plus lu comme un seul chemin. Gardes test_scope_separated_by_spaces_or_commas_is_read_token_by_token et test_every_open_row_scope_token_is_path_shaped (détecteur sur le texte BRUT du marqueur, chaque jeton doit commencer par un nom de premier niveau suivi par git), muté rouge sur l'arbre principal (split(',') → 1 rouge). Pas d'entrée de catalogue : une occurrence datée, sites:1 (règle 15). make test-changed 9124 passed ; CI + Nightly recap verts sur acf80bd3.
+  Commits : acf80bd3 R696, R697 : le juge de la CI tourne au pre-push sur les commits pouss
+
+## ✅ R696 — Le garde R196 (`require_roadmap_id.py`, étape commit-msg) juge les fichiers INDEXÉS : u… (livrée 2026-11-03)
+
+- [x] **R696 — Le garde R196 (`require_roadmap_id.py`, étape commit-msg) juge les fichiers INDEXÉS : un `git commit --amend -m` sans rien d'indexé lui présente une liste vide et passe, alors que le commit amendé porte du code hors périmètre — vu le 2026-11-03 sur 206acd0 (R693), rattrapé seulement par le job CI `roadmap`. Lire les fichiers du commit amendé (HEAD + index) quand c'est un amend, avec un test qui rejoue l'amend** (P3) ✅ (2026-11-03, acf80bd3)
+  Mesuré par : test rouge sur l'amend avant correctif, vert après
+  Hook pre-push roadmap-range-pre-push : require_roadmap_id.py --pre-push lance check_range (le juge de la CI) sur les commits poussés — local et CI jugent le même objet, amend/rebase/cherry-pick compris ; aucune détection d'amend (code-critic : BUILD-MODIFIED, /proc et marqueur fragiles). Garde tests/test_a_pushed_commit_is_judged_by_the_ci_judge.py (7), muté rouge sur l'arbre principal (entrée --range → 1 rouge ; plage to..to → 4 rouges). Récidive consignée dans ci-gate-with-no-local-counterpart. Reste non couvert : l'amend n'est toujours pas jugé au commit-msg (retour au push), et --no-verify. Le hook a tourné vert sur le push réel de acf80bd3 ; make test-changed 9124 passed ; CI + Nightly recap verts sur acf80bd3.
+  Commits : acf80bd3 R696, R697 : le juge de la CI tourne au pre-push sur les commits pouss
+
 ## ✅ R694 — Courrier du parc msg:1793623153287415207-499640 (fleet_apply) : preset roadmap_empty_beep + STACK.md (close 2026-11-03)
 
 - [x] **R694 — Courrier du parc msg:1793623153287415207-499640 (fleet_apply) : (a) preset-refresh `roadmap_empty_beep.py` ; (b) `STACK.md` en retard sur le relevé du 2026-11-01T15:23:05Z.** (P4) ✅ (2026-11-03, consigné)
