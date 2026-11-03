@@ -11,6 +11,20 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R698 — Courrier du parc msg:1793704825127607368-934842 (baseline) : le dernier `make test` est… (livrée 2026-11-03)
+
+- [x] **R698 — Courrier du parc msg:1793704825127607368-934842 (baseline) : le dernier `make test` est rouge (83 failed / 120 errors, `.pytest-last.log` du 2026-11-03 11:21) et du code a été commité après — lu dans le log : Postgres 5433 refusait puis coupait les connexions pendant la suite (conteneurs à la demande) ; rejouer `make test` base allumée et lire ce qui reste** (P2) ✅ (2026-11-03, 3f287dbf)
+  Mesuré par : `.pytest-last.log` : 0 failed, 0 error
+  make test rejoué base allumée : 13 158 passed, 111 skipped, 0 failed, 0 error (582 s). Le rouge de 11:21 (83 failed/120 errors) = Postgres 5433 refusait/coupait les connexions (log : Connection refused / server closed the connection), aucun défaut de code
+  Commits : 3f287dbf R698 : make test rejoué base allumée — 13 158 passed, 0 failed (le rou
+
+## ✅ R699 — Courrier du parc msg:1793706554686299202-1147931 (claude_code_deployment_baseline, répo… (livrée 2026-11-03)
+
+- [x] **R699 — Courrier du parc msg:1793706554686299202-1147931 (claude_code_deployment_baseline, réponse T635) : recopier tels quels les rendus `docs/CADRAGE.md` (blocs cadrage:auto sur HEAD) et `STACK.md` (relevé du 2026-11-01T15:23:05Z) déposés sous `fleet-apply/20261103-124906/streamlytics/` — ferme aussi les volets (b) de R692 et R694** (P4) ✅ (2026-11-03, cafbee02)
+  Mesuré par : `diff` vide avec les rendus
+  docs/CADRAGE.md et STACK.md recopiés depuis fleet-apply/20261103-124906 — diff -q vide avec les deux rendus ; ferme aussi les volets (b) de R692/R694 consignés au master
+  Commits : cafbee02 R699 : rendus du master recopiés tels quels — docs/CADRAGE.md (cadrage
+
 ## ✅ R697 — Un `` séparé par des ESPACES est lu par `scope_of` (`tools/dev/require_roadmap_id.py`)… (livrée 2026-11-03)
 
 - [x] **R697 — Un `` séparé par des ESPACES est lu par `scope_of` (`tools/dev/require_roadmap_id.py`) comme UN chemin « a b » : aucun fichier ne commence par lui, tout commit de la ligne est hors périmètre, et rien ne le dit à l'inscription (`test_every_new_row_declares_its_scope_not_vacuous` passe) — vu le 2026-11-03 sur R692-R694, rattrapé par le job CI `roadmap` après le push. Rendre la forme impossible (découper aussi sur les blancs, ou refuser à l'inscription)** (P3) ✅ (2026-11-03, acf80bd3)

@@ -1,6 +1,6 @@
 # Santé de la roadmap
 
-> Généré par `python3 tools/dev/roadmap_health.py` (R644) depuis `.claude/dev-docs/roadmap/checklist.md` le 2026-11-03T11:04:54 — ne pas éditer. Régénéré à chaque `make roadmap-close`.
+> Généré par `python3 tools/dev/roadmap_health.py` (R644) depuis `.claude/dev-docs/roadmap/checklist.md` le 2026-11-03T14:28:34 — ne pas éditer. Régénéré à chaque `make roadmap-close`.
 > Décision éclairée : quelle tâche ouvrir ensuite, laquelle n'a pas de mesure exécutable, laquelle traîne.
 
 **0 tâche(s) ouverte(s)** — ok 0 · avertissement 0 · échec 0
@@ -13,6 +13,8 @@ Aucune tâche ouverte.
 
 | id | jours (premier → dernier commit qui la cite) | commits |
 |---|---|---|
+| R698 | 0.0 | 2 |
+| R699 | 0.0 | 2 |
 | R697 | 0.0 | 2 |
 | R696 | 0.0 | 3 |
 | R694 | 0.0 | 1 |
@@ -41,5 +43,3 @@ Aucune tâche ouverte.
 | R673 | 0.0 | 1 |
 | R670 | 0.0 | 1 |
 | R671 | 0.0 | 1 |
-| R669 | 0.0 | 1 |
-| R668 | 0.0 | 1 |
