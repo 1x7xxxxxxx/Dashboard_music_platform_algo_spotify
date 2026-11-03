@@ -104,6 +104,7 @@ APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
 APPLY_HISTORY = "state/fleet-history.jsonl"  # fleet_apply's readings; `source: apply` rows carry the HEAD (T159)
 APPLY_LOCK = "state/fleet-apply.lock"
 APPLY_LOG = Path(".claude/sessions/fleet-apply.log")
+DEFER_RETRY_S = 600  # T613: an apply deferred by a live session elsewhere is relaunched by a Stop at most this often
 ROADMAP_TOOL = "tools/governance/roadmap.py"
 CI_EVERY_S = 300
 
@@ -280,6 +281,36 @@ def start_push(root: Path) -> int:
                             stderr=subprocess.DEVNULL, start_new_session=True).pid
 
 
+def _apply_tail(root: Path) -> list[dict]:
+    """The rows about the apply (`source: apply`, or `deferred` with `action: apply`), newest first — the tail only."""
+    try:
+        with (root / APPLY_HISTORY).open("rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 256_000))
+            tail = f.read().decode("utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    rows = []
+    for line in reversed(tail):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and (row.get("source") == "apply"
+                                      or (row.get("source") == "deferred" and row.get("action") == "apply")):
+            rows.append(row)
+    return rows
+
+
+def deferred_at(root: Path, head: str) -> float | None:
+    """T613: the time fleet_apply deferred THIS HEAD's apply (a session live in another repo), when that deferral is
+    the last word on the apply — None once an apply ran, or for another HEAD."""
+    rows = _apply_tail(root)
+    if rows and rows[0].get("source") == "deferred" and rows[0].get("head") == head:
+        return rows[0].get("t")
+    return None
+
+
 def last_applied_head(root: Path) -> str | None:
     """The master HEAD of the last `source: apply` row — the tail only, the file grows daily."""
     try:
@@ -344,6 +375,11 @@ def maybe_apply(root: Path, state: dict) -> str | None:
         state["push_seen_head"] = head  # once per HEAD; an auto push already wrote its exact row
         push_seen(root, head)
         save(root, state)
+    t = deferred_at(root, head)
+    if (state.get("launched_head") == head and t is not None and not state.get("push_pending")
+            and time.time() - t >= DEFER_RETRY_S and state.get("deferred_retried") != t):
+        state.pop("launched_head")  # T613: launched, then deferred by a session elsewhere — not « applied »: retry,
+        state["deferred_retried"] = t  # once per deferral row (a relaunch that writes none is not retried forever)
     if state.get("push_pending") or state.get("launched_head") == head:
         return None  # a push in flight runs its own apply; this HEAD was launched already
     if last_applied_head(root) == head or apply_running(root):
