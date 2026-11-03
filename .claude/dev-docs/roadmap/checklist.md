@@ -30,6 +30,8 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 | id | Tâche | P | Mesuré par |
 |---|---|---|---|
+| R698 | Courrier du parc msg:1793704825127607368-934842 (baseline) : le dernier `make test` est rouge (83 failed / 120 errors, `.pytest-last.log` du 2026-11-03 11:21) et du code a été commité après — lu dans le log : Postgres 5433 refusait puis coupait les connexions pendant la suite (conteneurs à la demande) ; rejouer `make test` base allumée et lire ce qui reste <!-- scope: .claude/dev-docs/test-suite-timing.json --> <!-- critic: non — rejeu de la suite, aucun code tant qu'aucun test ne reste rouge base allumée --> | P2 | `.pytest-last.log` : 0 failed, 0 error |
+| R699 | Courrier du parc msg:1793706554686299202-1147931 (claude_code_deployment_baseline, réponse T635) : recopier tels quels les rendus `docs/CADRAGE.md` (blocs cadrage:auto sur HEAD) et `STACK.md` (relevé du 2026-11-01T15:23:05Z) déposés sous `fleet-apply/20261103-124906/streamlytics/` — ferme aussi les volets (b) de R692 et R694 <!-- scope: docs/CADRAGE.md STACK.md --> <!-- critic: non — copie verbatim de fichiers générés par le master --> | P4 | `diff` vide avec les rendus |
 
 ---
 
@@ -37,7 +39,7 @@ code-critic. À la livraison : `make roadmap-close ID=Rnnn` (écrit l'archive, r
 
 ## 🔖 REPRISE — état au 2026-10-04 (à lire EN PREMIER au `/resume`)
 
-<!-- reprise: open=R686, R661 -->
+<!-- reprise: open=R698, R699, R686, R661 -->
 **État au 2026-10-10 (fin de nuit)** : toutes les recos portées en roadmap — R507 tranchée (a), R509 mutmut, R510 inachevés, R511 YouTube Analytics. **État au 2026-10-10 (nuit)** : R501-R508 — passe défauts produit (Hypothesis : iMusician P1, rejets comptés, locale par fichier, bornes), propriétés vague 2, portes de documents allégées, Dependabot uv, cibles make ; études E1-E6 dans `.claude/dev-docs/studies/`. **État au 2026-10-10 (soir)** : R497-R500 — moins de rouges auto-infligés (analyse : 42 % des ids testent le processus, 1 rouge CI sur 15 est un défaut produit) : porte des durées, deux voies, pilote Hypothesis, admission du catalogue. **État au 2026-10-10** : R494-R496 — restes vivants des balayages de R493 et R495 (résolution d’imports au nom importé ; un plantage n’est pas un verdict ; déclencheur p50 non lu). **État au 2026-10-09** : 2ᵉ lot de retours vocaux (W1-W14, `revue/notes-vocales-2026-10-09.md`) → R474-R489, à faire en séance de nuit dans l'ordre de l'index (bugs P2/P3, puis les deux vues réceptrices R476/R477 et le filtre commun R478, puis vue par vue). Avant :  retours vocaux du propriétaire sur l'app → R437-R443 (assistant, mapping, saisie S4A, Hypeddit), toutes livrées et déployées le 2026-10-07 (R442 en option A : le pari du modèle est un onglet admin, les grilles restent chez l’artiste). R116 (ADR-027) et R131
 (seuils de charge dérivés par Prometheus) sont livrées le 2026-10-12 : plus aucun bloc ⏸️.
 Le récit des journées précédentes est dans l'archive (« 🗄️ Historique de l'actif »).
