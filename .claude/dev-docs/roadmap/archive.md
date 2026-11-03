@@ -11,6 +11,30 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R694 — Courrier du parc msg:1793623153287415207-499640 (fleet_apply) : preset roadmap_empty_beep + STACK.md (close 2026-11-03)
+
+- [x] **R694 — Courrier du parc msg:1793623153287415207-499640 (fleet_apply) : (a) preset-refresh `roadmap_empty_beep.py` ; (b) `STACK.md` en retard sur le relevé du 2026-11-01T15:23:05Z.** (P4) ✅ (2026-11-03, consigné)
+  (a) même geste que R693, livré par 206acd02 (diff vide avec le preset governance). (b) `STACK.md` est généré par `stack_inventory.py` du maître (« ne pas éditer ; sha=… ») ; la séance n'exécute pas les outils du maître et ce dépôt est `apply: hand` : consigné au maître par courrier le 2026-11-03 (demande : déposer le fichier rendu sous `tools/local-only/fleet-apply/<horodatage>/streamlytics/`, qu'une séance recopiera). Aucun commit de code. CI verte sur 6a416af7.
+
+## ✅ R692 — Courrier du parc msg:1793508762207058573-3097918 (fleet_apply) : lignée de guard_destructive + cadrage (close 2026-11-03)
+
+- [x] **R692 — Courrier du parc msg:1793508762207058573-3097918 (fleet_apply) : (a) guard-lineage `guard_destructive.py` copie 9e456bd3 de lignée inconnue ; (b) blocs `cadrage:auto` de `docs/CADRAGE.md` en retard sur HEAD.** (P4) ✅ (2026-11-03, consigné)
+  (a) déjà fait avant ce courrier traité : d99ca0d9 (T596) a recopié les octets du maître — `sha256sum` égal (3cc409e3…) le 2026-11-03. (b) blocs produits par `project_brief.py` du maître, non exécutable ici : consigné au maître par le même courrier que R694. Aucun commit de code.
+
+## ✅ R695 — Arbre sale : `test-suite-timing.json` porte une suite du 2026-11-02 verte mais à 857 sk… (livrée 2026-11-03)
+
+- [x] **R695 — Arbre sale : `test-suite-timing.json` porte une suite du 2026-11-02 verte mais à 857 skipped (12 400 passed contre 13 145 base allumée) — rejouer `make test` base allumée et commiter son verdict** (P4) ✅ (2026-11-03, d627a6a9)
+  Mesuré par : `.pytest-last.log` ; `git status` propre
+  Suite rejouée base allumée : 13 145 passed / 0 failed / 549 s / 2 workers (au lieu de 12 400 passed + 857 skipped du 2026-11-02). CI de d627a6a9 rouge sur le SEUL job roadmap, qui jugeait 206acd0 (R693, scopes séparés par des espaces) dans la même plage poussée — rien dans ce JSON ; CI verte sur 6a416af7 qui le suit.
+  Commits : d627a6a9 R695 : test-suite-timing.json porte la suite verte base allumée (13 14
+
+## ✅ R693 — Courrier du parc msg:1793519445111134427-1212512 (fleet_apply) : preset-refresh `roadma… (livrée 2026-11-03)
+
+- [x] **R693 — Courrier du parc msg:1793519445111134427-1212512 (fleet_apply) : preset-refresh `roadmap_empty_beep.py` périmé — porter le preset `governance` du maître (T602 : un close par appel ; T609 : mots simples cause/garde/intégration des lignes 🙋) et remplir ces trois champs sur R686 et R661** (P4) ✅ (2026-11-03, 206acd02)
+  Mesuré par : `diff` vide avec le preset ; `py_compile` ; tests du hook
+  R693 : preset governance du maître recopié tel quel (diff vide), unwritten_ids rend [] après cause/garde/intégration sur R686 et R661 ; test-changed 7512 passed. R695 : suite rejouée base allumée, 13 145 passed / 0 failed / 549 s. CI verte sur 6a416af7 (la CI de d627a6a9 était rouge sur le job roadmap : scopes séparés par des espaces, corrigé par 6a416af7, trou du garde inscrit en R696).
+  Commits : 206acd02 R693 : roadmap_empty_beep = preset governance du maître (T602 un close
+
 ## ✅ R691 — Courrier du parc msg:1793500324060081508-2122506 (master T575) : cause de l'arrêt de Postgres de R687/R689 (livrée 2026-11-01)
 
 - [x] **R691 — Courrier du parc msg:1793500324060081508-2122506 (master T575) : l'émetteur de l'arrêt de Postgres de R687/R689 est le hook SessionEnd LOCAL `.claude/local/stack.sh stop` (settings.local.json, non versionné).** (P4) ✅ (2026-11-01, 1b2c658a)
