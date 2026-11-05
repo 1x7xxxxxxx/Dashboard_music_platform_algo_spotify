@@ -7,7 +7,9 @@ rex: []
 Type: Hook
 Uses: governance.toml ([roadmap] dir, index_title, id_prefix) or streamlytics' .claude/dev-docs/roadmap/
 Persists in: .claude/sessions/roadmap-autocommit.json (session start snapshot + open ids),
-             .claude/sessions/roadmap-autopush.log (the detached push and its exit code)
+             .claude/sessions/roadmap-autopush.log (the detached push and its exit code),
+             .claude/sessions/roadmap-autopush-history.log (APPENDED: one `rc=N head=H` per push — the
+             log above is overwritten by the next push, the journal never is)
 Triggers: git commit (hooks run), git push detached (hooks run), a systemMessage per action
 
 Owner's request (2026-10-17): « automatiser les commit après avoir terminé une tâche en roadmap
@@ -48,6 +50,29 @@ puis dès qu'on a 0 tâche en roadmap on pousse de façon automatique ».
   `echo rc=0 >> .claude/sessions/roadmap-autopush.log` (the beep says so). The retried push goes
   through the pre-push gate again — a wrong `rc=0` costs a gate run, never an ungated push.
 
+- T653 (2026-11-03): a refusal is no longer said only by a `systemMessage` (shown to the owner, read by
+  neither the model nor a Stop gate). A refused push, a refused automatic commit and a failed apply
+  put a ROW back at the head of « Tâches ouvertes » (`<!-- défaut -->`, `<!-- motif: … -->`, the three
+  plain fields): the open row blocks the Stop (todo_gate) and the index is no longer 0, so no push
+  loop. ONE row per motif: a second refusal completes the open row, it adds none. The row is closed
+  by the normal `roadmap.py close` (a proof), never by this hook. The systemMessage stays.
+
+- T682 (2026-11-05): the automatic commit no longer dies on a TRANSIENT git lock. `git add` and `git commit`
+  share one bounded retry (COMMIT_LOCK_WAIT_S, well under the Stop hook's 120 s timeout), retried ONLY when
+  git's own `fatal:/error:` line matches LOCKED (a copy of tools/dev/commit_readings.LOCKED — the hook is
+  deployed where tools/dev is not; a test pins the two equal). A hook refusal (pre-commit) is never retried,
+  never forced. The add's rc is read. The WHOLE refusal text is APPENDED to REFUSAL_JOURNAL (bounded); the
+  message and the row carry the line that names the cause, not blindly the last one.
+- T686 (2026-11-05): (a) a push is not launched while a local CI run (ci_local.sh) runs under THIS repo
+  (it rm's its stamp at its start: the pre-push --check would refuse the push). Not a refusal: the next Stop
+  retries; after CI_WAIT_MAX_STOPS Stops the wait is given up and said. The detection is RACY (a ci-local
+  started after the check is not seen): the pre-push --check stays the real guard. (b) the hook does not dirty
+  the TRACKED checklist while a gate judges the tree: a refusal row raised while a push or a ci-local is in
+  flight is parked in the state (`pending_refusals`, and journalled), flushed at the top of the next Stop
+  before anything reads the checklist, and the Stop is BLOCKED while it is parked (T653 holds). The `reprise:`
+  anchor is no longer rewritten ahead of a push: it is written at the end of the Stop, and not when a push
+  was launched or a gate is in flight.
+
 ROADMAP_AUTOCOMMIT=0 / ROADMAP_AUTOPUSH=0 turn each off. Never fails a turn.
 
 guard_scope: the closed-id diff, the session snapshot filter, the index-only count, the push
@@ -75,6 +100,17 @@ _trace(__file__)
 
 STATE = Path(".claude/sessions/roadmap-autocommit.json")
 PUSH_LOG = Path(".claude/sessions/roadmap-autopush.log")
+PUSH_HISTORY = Path(".claude/sessions/roadmap-autopush-history.log")  # appended, never overwritten (T653)
+REFUSAL_JOURNAL = Path(".claude/sessions/roadmap-autocommit-refusals.log")  # APPENDED, trimmed to the last MAX bytes (T682)
+REFUSAL_JOURNAL_MAX = 64_000
+# A copy of tools/dev/commit_readings.LOCKED: the hook ships to repos without tools/dev, so it cannot import it.
+# test_the_lock_regex_equals_the_one_of_commit_readings pins the copies equal.
+LOCKED = re.compile(r"index\.lock|cannot lock ref|Unable to create .*\.lock")
+# Both in seconds. The whole on_stop has a 120 s hook timeout (settings.json) and also pushes, reads CI and applies:
+# the retry shares ONE deadline across add and commit and stays far below it, or the harness kills the hook mid-flight.
+COMMIT_LOCK_WAIT_S = 20.0
+COMMIT_LOCK_STEP_S = 1.0
+CI_WAIT_MAX_STOPS = 40  # T686a: Stops a running ci-local may hold the push back before the wait is given up
 STALE_PUSH_S = 2 * 3600  # T282: the gate takes ~16 min; a log frozen this long has no live push
 
 
@@ -194,10 +230,48 @@ def ahead_of_remote(root: Path, remote: str) -> int | None:
 
 
 def decide_push(last_index: int | None, now_index: int, ahead: int, behind: int = 0,
-                pending: bool = False, head: str = "", refused: str | None = None) -> bool:
-    """Index at 0, commits ahead, nothing to pull, no push in flight, HEAD not already refused."""
+                pending: bool = False, head: str = "", refused: str | None = None,
+                ci_running: bool = False) -> bool:
+    """Index at 0, commits ahead, nothing to pull, no push in flight, HEAD not already refused, and no
+    ci-local running (T686a: it removed its stamp, the pre-push --check would refuse; the next Stop retries)."""
     return (last_index is not None and now_index == 0 and ahead > 0 and behind == 0
-            and not pending and head != refused)
+            and not pending and head != refused and not ci_running)
+
+
+def ci_local_running(root: Path, proc: str = "/proc") -> bool:
+    """T686a: a local CI run (`ci_local.sh`) of THIS repo is running. A process counts only when its argv[0]
+    is a shell or make (not an editor, grep or pgrep naming the script), it runs ci_local.sh or `ci-local`, its
+    cwd is under `root`, and it is neither this hook nor its parent. An unreadable /proc entry is « not running »
+    and said on stderr. RACY by construction: a ci-local started after this look is not seen — the pre-push
+    `ci_local.sh --check` remains the real guard."""
+    skip, here = {os.getpid(), os.getppid()}, str(root.resolve())
+    try:
+        entries = [e for e in os.listdir(proc) if e.isdigit()]
+    except OSError as exc:
+        print(f"roadmap_autocommit: {proc} unreadable ({exc}), ci-local taken as not running", file=sys.stderr)
+        return False
+    for pid in entries:
+        if int(pid) in skip:
+            continue
+        try:
+            argv = [x.decode("utf-8", "replace") for x in (Path(proc) / pid / "cmdline").read_bytes().split(b"\0") if x]
+            if not argv or Path(argv[0]).name not in ("bash", "sh", "dash", "zsh", "make", "gmake"):
+                continue
+            if not any(Path(x).name == "ci_local.sh" or x == "ci-local" for x in argv[1:]):
+                continue
+            cwd = os.readlink(Path(proc) / pid / "cwd")
+        except OSError as exc:  # PermissionError, ProcessLookupError, FileNotFoundError: gone or not ours
+            print(f"roadmap_autocommit: {proc}/{pid} unreadable ({exc.__class__.__name__}), taken as not running",
+                  file=sys.stderr)
+            continue
+        if cwd == here or cwd.startswith(here + os.sep):
+            return True
+    return False
+
+
+def gate_in_flight(root: Path, state: dict) -> bool:
+    """T686b: a push (its pre-push gate) or a ci-local is judging the working tree right now."""
+    return bool(state.get("push_pending")) or ci_local_running(root)
 
 
 def load(root: Path) -> dict:
@@ -213,10 +287,169 @@ def save(root: Path, state: dict) -> None:
 
 
 def last_rc(root: Path) -> str | None:
-    """The LAST `rc=` of the push log — a gate rerun by hand appends `rc=0` after a refusal."""
-    log = root / PUSH_LOG
+    """The LAST `rc=` of the push log — a gate rerun by hand appends `rc=0` after a refusal. The log is
+    overwritten by the next push: with none in it (a push in flight), the journal's last push answers (T653)."""
+    log, hist = root / PUSH_LOG, root / PUSH_HISTORY
     rcs = re.findall(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M) if log.is_file() else []
+    if not rcs and hist.is_file():
+        rcs = re.findall(r"^rc=(\d+) head=", hist.read_text(encoding="utf-8", errors="replace"), re.M)
     return rcs[-1] if rcs else None
+
+
+# T653 — a refusal reopens a row: the only channel a Stop gate reads is the open index.
+MOTIFS = {
+    "push-refusé": (
+        "Défaut — le push automatique du dernier commit a été refusé par la porte",
+        "le contrôle fait avant l'envoi a échoué ; l'envoi n'a pas eu lieu et seul un message, que ni toi ni "
+        "la séance ne relisent, le disait",
+        "le journal des envois automatiques se termine par un succès",
+        "la séance corrige la cause, relance le contrôle, puis ferme cette ligne ; l'envoi repart ensuite tout seul",
+        f"`tail -1 {PUSH_HISTORY}` rend rc=0"),
+    "commit-refusé": (
+        "Défaut — le commit automatique d'une tâche fermée a été refusé",
+        "le contrôle fait avant l'enregistrement a échoué ; les fichiers de la tâche restent non enregistrés "
+        "et seul un message le disait",
+        "un enregistrement de la tâche existe et l'arbre n'a plus de fichier à elle en attente",
+        "la séance corrige ce que le contrôle refuse, enregistre elle-même, puis ferme cette ligne",
+        "`git status --short` ne liste plus les fichiers de la tâche"),
+    "apply-échoué": (
+        "Défaut — le déploiement automatique sur le parc a échoué",
+        "la commande qui répand la configuration validée est sortie en échec et seul un fichier de trace, "
+        "que personne ne relit, le disait",
+        "la dernière trace du déploiement automatique se termine par un succès",
+        "la séance lit la trace, corrige, relance le déploiement, puis ferme cette ligne",
+        f"`tail -1 {APPLY_LOG}` rend rc=0"),
+}
+
+
+def next_id(checklist: Path, text: str, prefix: str) -> str:
+    """The first id above every one the checklist AND its archive ever held."""
+    seen = [text]
+    archive = checklist.parent / "archive.md"
+    if archive.is_file():
+        seen.append(archive.read_text(encoding="utf-8", errors="replace"))
+    nums = [int(n) for t in seen for n in re.findall(rf"\b{re.escape(prefix)}(\d{{1,5}})\b", t)]
+    return f"{prefix}{max(nums, default=0) + 1}"
+
+
+REFUSAL_REQ = "REQ-GOV-43"  # T679: the requirement a refusal row serves, where the repo's catalogue holds it
+
+
+def trace_tags(root: Path) -> str:
+    """T679: the `exigence` and `livrable` a gate demands of every open row (requirements_trace,
+    deliverables). Without them the next pre-push gate went red on the very row that said the push was
+    refused, and the push never came back (T678, 2026-11-03). A repo whose catalogue lacks
+    REFUSAL_REQ gets `aucune — <raison>`: close refuses an unknown id."""
+    try:
+        known = f"id: {REFUSAL_REQ}" in (root / "docs/architecture/requirements.yaml").read_text(encoding="utf-8")
+    except OSError:
+        known = False
+    req = REFUSAL_REQ if known else "aucune — défaut rouvert par le hook, sa cause est corrigée sous sa propre ligne"
+    return f"<!-- exigence: {req} --> <!-- livrable: .claude/hooks/roadmap_autocommit.py -->"
+
+
+def reopen_refusal(root: Path, motif: str, detail: str, state: dict | None = None) -> bool:
+    """T653: a refusal said where a gate reads it — a `<!-- défaut -->` row at the head of the index.
+    One row per `motif`: while one is open, a new `detail` is appended to it, never a second row. True
+    when the checklist changed. Needs no roadmap.py (a repo of the fleet may lack it): pure text.
+    T686b: with a `state` and a gate in flight (a push, a ci-local) the TRACKED checklist is not written — it
+    would dirty the tree the gate judges. The refusal is parked in `state['pending_refusals']` (and journalled,
+    in case the state is lost) and flushed by the next Stop; False."""
+    if state is not None and gate_in_flight(root, state):
+        parked = state.setdefault("pending_refusals", [])
+        if [motif, detail] not in parked:
+            parked.append([motif, detail])
+            journal_refusal(root, f"PARKED {motif}", detail)
+        return False
+    path, title, prefix = config(root)
+    if not path.is_file() or motif not in MOTIFS:
+        return False
+    detail = detail.replace("|", "/").replace("-->", "->")
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(title)), None)
+    if start is None:
+        return False
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    mark = f"<!-- motif: {motif} -->"
+    for i in range(start + 1, end):
+        if mark in lines[i]:
+            if detail in lines[i]:
+                return False
+            lines[i] = lines[i].replace(mark, f"; aussi {detail} {mark}", 1)
+            path.write_text(sync_anchor("".join(lines), prefix), encoding="utf-8")
+            return True
+    sep = next((i for i in range(start + 1, end) if re.match(r"^\|\s*:?-{3,}", lines[i])), None)
+    if sep is None:
+        return False
+    what, cause, guard, integ, measure = MOTIFS[motif]
+    row = (f"| {next_id(path, text, prefix)} | {what} ({detail}) <!-- défaut --> {mark} {trace_tags(root)} "
+           f"<!-- cause: {cause} --> <!-- garde: {guard} --> <!-- intégration: {integ} --> | P1 | {measure} |\n")
+    lines.insert(sep + 1, row)
+    path.write_text(sync_anchor("".join(lines), prefix), encoding="utf-8")
+    return True
+
+
+def flush_refusals(root: Path, state: dict) -> int:
+    """T686b: the parked refusals written to the checklist once no gate is in flight. Number flushed."""
+    parked = state.get("pending_refusals") or []
+    if not parked or gate_in_flight(root, state):
+        return 0
+    for motif, detail in parked:
+        reopen_refusal(root, motif, detail)
+    state["pending_refusals"] = []
+    return len(parked)
+
+
+def journal_refusal(root: Path, title: str, text: str) -> None:
+    """T682: the whole refusal APPENDED (never overwritten), the file trimmed to its last REFUSAL_JOURNAL_MAX bytes."""
+    path = root / REFUSAL_JOURNAL
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"--- {time.strftime('%Y-%m-%dT%H:%M:%S%z')} {title}\n{text.rstrip()}\n")
+        if path.stat().st_size > REFUSAL_JOURNAL_MAX:
+            path.write_bytes(path.read_bytes()[-REFUSAL_JOURNAL_MAX:])
+    except OSError:
+        pass  # a journal that cannot be written must not cost the commit's own report
+
+
+def is_lock_refusal(text: str) -> bool:
+    """git's OWN lock error: a `fatal:`/`error:` line matching LOCKED. A pre-commit hook that merely prints
+    « index.lock » is a refusal, not a lock — it is never retried."""
+    return any(LOCKED.search(ln) and re.match(r"\s*(fatal|error):", ln) for ln in text.splitlines())
+
+
+def refusal_summary(text: str) -> str:
+    """The line that names the cause: the LOCKED one, else the first « error / hook / fatal » line, else the last."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    for ln in lines:
+        if LOCKED.search(ln):
+            return ln
+    for ln in lines:
+        if re.search(r"error|hook|fatal", ln, re.I):
+            return ln
+    return lines[-1] if lines else ""
+
+
+def commit_with_retry(root: Path, files: list[str], msg: str, wait_s: float | None = None,
+                      step_s: float | None = None) -> subprocess.CompletedProcess:
+    """T682: `git add -A` then `git commit`, retried while git's own lock error clears, ONE deadline for both.
+    The add's rc is read (a failed add never reaches the commit). Anything else — a hook refusal above all —
+    is returned at once. The returned process carries the stage that failed in `.stage`."""
+    wait = COMMIT_LOCK_WAIT_S if wait_s is None else wait_s
+    step = COMMIT_LOCK_STEP_S if step_s is None else step_s
+    deadline = time.monotonic() + wait
+    while True:
+        r = git(root, "add", "-A", "--", *files)
+        r.stage = "add"
+        if r.returncode == 0:
+            r = git(root, "commit", "-q", "-m", msg, "--", *files)
+            r.stage = "commit"
+        if r.returncode == 0 or not is_lock_refusal((r.stderr or "") + (r.stdout or "")) \
+                or time.monotonic() + step > deadline:
+            return r
+        time.sleep(step)
 
 
 def push_dead(state: dict, log: Path, now: float | None = None) -> bool:
@@ -245,6 +478,7 @@ def push_report(root: Path, state: dict) -> str | None:
         return "🚀 roadmap à 0 : push automatique réussi"
     state["refused_head"] = state.get("push_head")
     state["refused_said"] = f"{state.get('push_head')}:{m.group(1)}"
+    reopen_refusal(root, "push-refusé", f"{str(state.get('push_head') or '?')[:7]} rc={m.group(1)}", state)
     return f"⚠️ push automatique refusé (rc={m.group(1)}) — voir {PUSH_LOG}"
 
 
@@ -261,6 +495,7 @@ def refused_notice(root: Path, state: dict, head: str) -> str | None:
     if rc is None or state.get("refused_said") == f"{head}:{rc}":
         return None
     state["refused_said"] = f"{head}:{rc}"
+    reopen_refusal(root, "push-refusé", f"{head[:7]} rc={rc}", state)
     return (f"⚠️ push refusé par le gate (rc={rc}) sur {head[:7]} — corrige puis relance : un commit le "
             f"retente, ou la porte repassée puis `echo rc=0 >> {PUSH_LOG}`")
 
@@ -274,9 +509,12 @@ def start_push(root: Path) -> int:
     # apply (which may wait on the lock) nor at the commit (which may wait days for its push).
     row = (f'printf \'{{"source": "push", "head": "%s", "at": "%s", "how": "auto"}}\\n\' '
            f'"$h" "$(date +%Y-%m-%dT%H:%M:%S%z)" >> {APPLY_HISTORY}')
-    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); git push; rc=$?; echo "rc=$rc"; }} > "{log}" 2>&1; '
+    # T653: the log is overwritten by the next push; the journal (>>) keeps every verdict, apply's included.
+    hist = root / PUSH_HISTORY
+    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); git push; rc=$?; echo "rc=$rc"; '
+           f'echo "rc=$rc head=$h" >> "{hist}"; }} > "{log}" 2>&1; '
            f'[ "$rc" = 0 ] && [ -f {APPLY} ] && {{ mkdir -p {Path(APPLY_HISTORY).parent}; {row}; '
-           f'python3 {APPLY} apply --push >> "{log}" 2>&1; }}')
+           f'python3 {APPLY} apply --push >> "{log}" 2>&1; echo "apply_rc=$? head=$h" >> "{hist}"; }}')
     return subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL, start_new_session=True).pid
 
@@ -361,10 +599,28 @@ def push_seen(root: Path, head: str) -> None:
                             "how": "vu"}) + "\n")
 
 
+def apply_failure(root: Path) -> str | None:
+    """T653: « <head7> rc=N » of the last apply that failed — read from its own log (`start_apply`) or
+    from the journal (the apply chained to a push) — else None. Said once per value by the caller."""
+    log, hist = root / APPLY_LOG, root / PUSH_HISTORY
+    if log.is_file():
+        rcs = re.findall(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M)
+        if rcs and rcs[-1] != "0":
+            return f"fleet-apply rc={rcs[-1]}"
+    if hist.is_file():
+        rows = re.findall(r"^apply_rc=(\d+) head=(\w+)", hist.read_text(encoding="utf-8", errors="replace"), re.M)
+        if rows and rows[-1][0] != "0":
+            return f"{rows[-1][1][:7]} apply rc={rows[-1][0]}"
+    return None
+
+
 def maybe_apply(root: Path, state: dict) -> str | None:
     """T159: the master at its upstream, on a HEAD no apply has seen → apply, once per HEAD."""
     if not (root / APPLY).is_file() or "0" in (os.environ.get("ROADMAP_AUTOAPPLY"), os.environ.get("ROADMAP_AUTOPUSH")):
         return None
+    if (failed := apply_failure(root)) and state.get("apply_failed_said") != failed:
+        state["apply_failed_said"] = failed  # once per failure; the row is the lasting channel
+        reopen_refusal(root, "apply-échoué", failed, state)
     if git(root, "rev-parse", "--git-dir").stdout.strip() != git(root, "rev-parse", "--git-common-dir").stdout.strip():
         return None  # a linked worktree: its HEAD is not the master's
     head = git(root, "rev-parse", "HEAD").stdout.strip()
@@ -419,34 +675,39 @@ def on_stop(root: Path, session: str) -> list[str]:
     path, title, prefix = config(root)
     if not path.is_file():
         return []
-    text = path.read_text(encoding="utf-8")
-    if (synced := sync_anchor(text, prefix)) != text:
-        path.write_text(synced, encoding="utf-8")
-        text = synced
     state, msgs = load(root), []
     if report := push_report(root, state):
         msgs.append(report)
+    if n := flush_refusals(root, state):  # T686b: before ANY read of the checklist below, and before a gate reads it
+        msgs.append(f"⚠️ {n} refus différé(s) pendant un gate, écrit(s) au tableau des tâches ouvertes")
+    text = sync_anchor(path.read_text(encoding="utf-8"), prefix)  # in memory: the write comes last, after the push decision (T686b)
     if report := ci_report(root, path, state, time.time()):
         msgs.append(report)
-        text = path.read_text(encoding="utf-8")  # a red CI put its task back in the index
+        text = sync_anchor(path.read_text(encoding="utf-8"), prefix)  # a red CI put its task back in the index
     if state.get("session") != session:  # SessionStart missed: snapshot now, act from next turn
         state.update(session=session, start=dirty(root))
     ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
     closed = sorted(set(state.get("open", [])) - ids)
     if closed and os.environ.get("ROADMAP_AUTOCOMMIT") != "0":
+        write_anchor(path, prefix)  # the commit below carries the synced anchor, as it always did
         now = dirty(root)
         files = touched(state.get("start", {}), now)
         if files:
-            git(root, "add", "-A", "--", *files)
             msg = f"{', '.join(closed)} fermée{'s' if len(closed) > 1 else ''} — commit automatique"
-            r = git(root, "commit", "-q", "-m", msg, "--", *files)
+            r = commit_with_retry(root, files, msg)
             if r.returncode == 0:
                 msgs.append(f"✅ {msg} ({len(files)} fichier(s))")
                 state["start"] = {p: h for p, h in state.get("start", {}).items() if p not in files}
             else:
                 git(root, "reset", "-q", "--", *files)
-                err = (r.stderr or r.stdout).strip().splitlines()
-                msgs.append(f"⚠️ commit automatique refusé pour {', '.join(closed)} : {err[-1] if err else r.returncode}")
+                full = "\n".join(x for x in (r.stderr, r.stdout) if x).strip()
+                why = refusal_summary(full) or str(r.returncode)
+                journal_refusal(root, f"commit-refusé {', '.join(closed)} (rc={r.returncode}, {getattr(r, 'stage', '?')})", full)
+                msgs.append(f"⚠️ commit automatique refusé pour {', '.join(closed)} : {why}")
+                reopen_refusal(root, "commit-refusé", f"{', '.join(closed)} : {why}")  # no gate in flight: the commit precedes the push
+    text = path.read_text(encoding="utf-8")  # a refusal above may have put a row back (T653)
+    ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
+    launched = False
     if os.environ.get("ROADMAP_AUTOPUSH") != "0":
         r = git(root, "rev-list", "--left-right", "--count", "HEAD...@{u}")
         upstream = r.returncode == 0
@@ -459,8 +720,20 @@ def on_stop(root: Path, session: str) -> list[str]:
             if behind and ahead and not idx and state.get("behind_head") != head:
                 state["behind_head"] = head
                 msgs.append(f"⚠️ index à 0 mais ↓{behind} : pull avant le push automatique ({ahead} commit(s))")
-            if decide_push(state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
-                           head, state.get("refused_head")):
+            args = (state.get("index"), len(idx), ahead, behind, bool(state.get("push_pending")),
+                    head, state.get("refused_head"))
+            waiting = False
+            if decide_push(*args) and ci_local_running(root):  # T686a
+                if state.get("ci_wait", 0) < CI_WAIT_MAX_STOPS:
+                    waiting = True
+                    state["ci_wait"] = state.get("ci_wait", 0) + 1
+                    msgs.append("⏳ index à 0 : push différé, un ci-local tourne (réessayé au prochain tour)")
+                elif state.get("ci_wait") == CI_WAIT_MAX_STOPS:
+                    state["ci_wait"] += 1
+                    msgs.append(f"⚠️ ci-local toujours en cours après {CI_WAIT_MAX_STOPS} tours : attente abandonnée, push lancé")
+            if decide_push(*args, ci_running=waiting):
+                state.pop("ci_wait", None)
+                launched = True
                 state.update(push_pending=True, push_head=head, launched_head=head, push_pid=start_push(root))
                 msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
         elif remote:
@@ -475,9 +748,29 @@ def on_stop(root: Path, session: str) -> list[str]:
                             f"poussé(s) — `git push -u {remote} HEAD` à faire à la main")
     if report := maybe_apply(root, state):
         msgs.append(report)
+    if not launched and not gate_in_flight(root, state):
+        write_anchor(path, prefix)  # T686b: never ahead of a push, never under a gate
+    text = path.read_text(encoding="utf-8")
+    ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
     state.update(open=sorted(ids), index=len(idx))
+    if state.get("pending_refusals"):
+        msgs.append(f"⛔ {len(state['pending_refusals'])} refus en attente d'écriture (gate en cours) : "
+                    f"{refusal_names(state)} — écrit(s) au prochain tour, une fois le gate fini")
     save(root, state)
     return msgs
+
+
+def refusal_names(state: dict) -> str:
+    return ", ".join(f"{m} ({d})" for m, d in state.get("pending_refusals", []))
+
+
+def write_anchor(path: Path, prefix: str) -> bool:
+    """T34: the `reprise:` anchor rewritten on disk when stale. True when the file changed."""
+    text = path.read_text(encoding="utf-8")
+    if (synced := sync_anchor(text, prefix)) == text:
+        return False
+    path.write_text(synced, encoding="utf-8")
+    return True
 
 
 def main(argv: list[str]) -> int:
@@ -494,7 +787,11 @@ def main(argv: list[str]) -> int:
         on_start(root, session)
         return 0
     if msgs := on_stop(root, session):
-        print(json.dumps({"systemMessage": " · ".join(msgs)}, ensure_ascii=False))
+        out = {"systemMessage": " · ".join(msgs)}
+        parked = load(root).get("pending_refusals")
+        if parked and not payload.get("stop_hook_active"):  # T686b: a parked refusal still blocks the Stop, once per cycle
+            out.update(decision="block", reason=f"Refus non écrit au tableau (gate en cours) : {refusal_names({'pending_refusals': parked})}")
+        print(json.dumps(out, ensure_ascii=False))
     return 0
 
 

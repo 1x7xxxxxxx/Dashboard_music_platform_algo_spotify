@@ -43,6 +43,15 @@ background task is not the model's to finish) and nothing blocks while `stop_hoo
 session_closable, or one that raises or exceeds CLOSABLE_S → the behaviour before T158.
 ROADMAP_CLOSABLE=0 silences it.
 
+T655 (2026-11-03, owner: « tu t'es arrêté sans atteindre un niveau d'état fermable avec 82 non
+poussés … c'est une exigence très importante »): a push in flight, or one launched at this very
+Stop, no longer lets the session go. With the automatic push on, the commits ahead block EVERY Stop
+(even `stop_hook_active`: the model waits for the verdict, it does not end its turn) until a `rc=`
+lands — then the gate branch or a pushed HEAD decides. On the master, a pushed HEAD whose deploy
+was never launched (session_closable `deploy`) blocks the same way. Both are bounded by wall clock:
+past push_wait_limit() (1.25 × p95 of the measured gate runs, within [30 min, 2 h]) since the first
+hold of that HEAD, the Stop is released with a « NON VÉRIFIÉ » systemMessage, never held forever.
+
 guard_scope: both index tables of the checklist (open and waiting-on-a-human — both are open
 tasks), the window, the transition, the closable blocks and their keys. NOT covered: a muted
 Windows sound output.
@@ -254,9 +263,27 @@ def plain_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dic
 
 
 CLOSABLE_S = 20  # the budget of session_closable.checks(): beyond, the hook behaves as before T158
-BLOCKING = ("commit", "push", "gate", "mailbox")  # never `tasks`, never `roadmap` (todo_gate's)
+BLOCKING = ("commit", "push", "gate", "mailbox", "deploy")  # never `tasks`, never `roadmap` (todo_gate's)
 AUTOCOMMIT_STATE = Path(".claude/sessions/roadmap-autocommit.json")
 AUTOPUSH_LOG = ".claude/sessions/roadmap-autopush.log"
+APPLY_LOG = ".claude/sessions/fleet-apply.log"
+GATE_TIMINGS = Path.home() / ".cache" / "gate-timings.jsonl"  # blast_radius._record: one `end` row per gate run
+WAIT_MIN_S, WAIT_MAX_S, WAIT_DEFAULT_S = 1800, 7200, 3600
+
+
+def push_wait_limit(path: Path | None = None) -> float:
+    """T655: how long a Stop is held for a push / deploy verdict — 1.25 × p95 of the master's measured gate
+    runs (`end` rows without `repo`; 2026-11-03: p50 691 s, p95 2887 s, max 3841 s), clamped to
+    [WAIT_MIN_S, WAIT_MAX_S]; WAIT_DEFAULT_S with fewer than 5 measures or an unreadable journal."""
+    try:
+        lines = (path or GATE_TIMINGS).read_text(encoding="utf-8", errors="replace").splitlines()[-20000:]
+        rows = [json.loads(ln) for ln in lines if ln.strip()]
+        ends = sorted(float(r["s"]) for r in rows if isinstance(r, dict) and r.get("step") == "end" and not r.get("repo"))
+    except (OSError, ValueError, KeyError, TypeError):
+        ends = []
+    if len(ends) < 5:
+        return WAIT_DEFAULT_S
+    return min(WAIT_MAX_S, max(WAIT_MIN_S, 1.25 * ends[int(0.95 * (len(ends) - 1))]))
 
 
 def _expired(_sig, _frame):
@@ -300,9 +327,12 @@ def _box_ids(root: Path) -> str:
 
 
 def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head: str, ac: dict | None,
-                  memo: dict) -> tuple[str | None, dict]:
-    """(block reason or None, this session's memo {seen, said}). `ac` is roadmap_autocommit's state
-    (None: unreadable this turn — being written beside us — so push and gate wait a turn)."""
+                  memo: dict, now: float | None = None, limit: float | None = None) -> tuple[str | None, dict]:
+    """(block reason or None, this session's memo {seen, said, wait, note}). `ac` is roadmap_autocommit's state
+    (None: unreadable this turn — being written beside us — so push and gate wait a turn). T655: `wait` maps
+    « push@HEAD » / « deploy@HEAD » to the first hold; `note` is a release said once (systemMessage)."""
+    now = datetime.now().astimezone().timestamp() if now is None else now
+    limit = push_wait_limit() if limit is None else limit
     seen_before, said = set(memo.get("seen", [])), set(memo.get("said", []))
     reds = {n: w for n, ok, w in res if not ok and n in BLOCKING}
     ac_ = ac or {}
@@ -341,14 +371,42 @@ def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head
         ask(f"gate@{head}@{rc}", f"Porte : {reds['gate']} — push automatique refusé, voir `tail {AUTOPUSH_LOG}`. "
             f"Corrige, puis {rerun} et "
             f"`echo rc=0 >> {AUTOPUSH_LOG}` : le push automatique repart (et repasse la porte).", False)
+    # T655: the session is closable only HEAD pushed and green, and (master) its deploy launched. A hold is said
+    # on EVERY Stop, prolonged or not — the model waits for the verdict — until a wall-clock release.
+    wait, holds, notes = dict(memo.get("wait") or {}), [], set(memo.get("noted", []))
+    pushing = ("push" in reds and ac is not None and autopush and reds["push"] != "pas d'amont"
+               and ac_.get("behind_head") != head and refused != head)
+    deploying = "deploy" in reds and ac is not None and not pushing and "push" not in reds
+
+    def hold(key: str, text: str) -> None:
+        first = wait.setdefault(key, now)
+        if now - first < limit:
+            holds.append(text)
+        elif key not in notes:
+            notes.add(key)
+            memo_note.append(f"⚠️ {key.split('@')[0]} NON VÉRIFIÉ après {limit / 60:.0f} min d'attente "
+                             f"({reds.get(key.split('@')[0], '?')}) — séance relâchée sans verdict")
+
+    memo_note: list[str] = []
+    if pushing:
+        how = "tourne" if pending else "part à ce Stop (roadmap_autocommit)"
+        hold(f"push@{head}", f"Push : {reds['push']} — la séance n'est fermable qu'HEAD poussé et vert. Le push "
+             f"automatique {how} : attends son verdict sans finir le tour (Monitor jusqu'à une ligne `rc=` dans "
+             f"`{AUTOPUSH_LOG}`, porte ≤ {limit / 60:.0f} min), puis arrête-toi.")
+    if deploying:
+        hold(f"deploy@{head}", f"Déploiement : {reds['deploy']} — la séance n'est fermable que déploiement lancé. "
+             f"Il part au Stop (roadmap_autocommit) : vérifie `tail {APPLY_LOG}`, puis arrête-toi.")
     if "mailbox" in reds:
         ask(f"mailbox@{_box_ids(root)}", f"Boîte aux lettres : {reds['mailbox']} — "
             f"`python3 ~/.fleet-master/tools/hud/fleet_mailbox.py state {root.name} {root}`, puis cite "
             "chaque msg:<id> — dans la ligne déjà ouverte du même geste s'il le répète, sinon une ligne neuve.", False)
-    if not msgs or hook.get("stop_hook_active"):  # a prolonged turn records what it saw, says nothing
-        return None, {"seen": sorted(seen), "said": sorted(memo.get("said", []))}
-    memo = {"seen": sorted(seen), "said": sorted(said)}
-    return "Séance pas encore fermable (session_closable) : " + " · ".join(msgs), memo
+    keep = {"wait": wait, "noted": sorted(notes), "note": " · ".join(memo_note)}
+    if hook.get("stop_hook_active"):  # a prolonged turn says nothing new — but a hold still holds (T655)
+        msgs = []
+    if not msgs and not holds:
+        return None, {"seen": sorted(seen), "said": sorted(memo.get("said", [])), **keep}
+    memo = {"seen": sorted(seen), "said": sorted(said) if msgs else sorted(memo.get("said", [])), **keep}
+    return "Séance pas encore fermable (session_closable) : " + " · ".join(msgs + holds), memo
 
 
 def decide(last: int | None, now_open: int, now: datetime) -> tuple[bool, int | None]:
@@ -414,6 +472,7 @@ def main() -> int:
     if not reason and not ids:
         reason, plain = plain_gate(unwritten_ids(text, waiting), hook, plain)
     memos = saved.get("closable") or {}
+    note = ""
     sid = str(hook.get("session_id") or "?")
     if not reason and not ids and (got := closable(root, hook)):
         head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
@@ -425,6 +484,7 @@ def main() -> int:
         except (OSError, ValueError):
             ac = None
         reason, memo = closable_gate(got[0], hook, root, head, ac, memos.get(sid) or {})
+        note = memo.pop("note", "")
         memos = {sid: memo}
     ring, record = decide(saved.get("last_open"), now_open, datetime.now().astimezone())  # local wall time: the quiet window
     record = saved.get("last_open") if record is None else record
@@ -434,6 +494,8 @@ def main() -> int:
         beep()
     if reason:
         print(json.dumps({"decision": "block", "reason": reason}, ensure_ascii=False))
+    elif note:
+        print(json.dumps({"systemMessage": note}, ensure_ascii=False))
     return 0
 
 
