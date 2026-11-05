@@ -19,6 +19,19 @@ GIT_BINDING_VARS = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_OBJECT_DI
 for _var in GIT_BINDING_VARS:
     os.environ.pop(_var, None)
 
+# R708: run from a make recipe (`make roadmap-close NOTE=…`, `make test ARGS=…`), pytest
+# inherits make's command-line variables twice — each as an env var and inside MAKEFLAGS —
+# and a test's own `make -n` then expands THE PARENT's values: a NOTE starting with « R »
+# read as a roadmap id (R707, 2026-11-05), an ARGS replaced `tests/`. In MAKEFLAGS a space
+# inside a value is backslash-escaped, so one unescaped token after `--` is one variable.
+# MAKELEVEL stays: it carries no value of the parent's, and roadmap.py reads it.
+_overrides = os.environ.get("MAKEFLAGS", "").partition(" -- ")[2]
+for _token in __import__("re").split(r"(?<!\\)\s+", _overrides):
+    if "=" in _token:
+        os.environ.pop(_token.partition("=")[0].rstrip(":"), None)
+for _var in ("MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES"):
+    os.environ.pop(_var, None)
+
 # R506: a test that runs a hook or `defect_capture` writes its symptoms here, never into
 # `.claude/sessions/defects.jsonl` — 26 refusals in 7 days were our own tests (`probe`).
 os.environ["DEFECT_LOG"] = os.path.join(
