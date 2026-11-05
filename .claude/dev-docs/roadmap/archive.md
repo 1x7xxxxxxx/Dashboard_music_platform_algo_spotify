@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R1000 — Défaut — le commit automatique d'une tâche fermée a été refusé (R706 : error-class cata… (livrée 2026-11-05)
+
+- [x] **R1000 — Défaut — le commit automatique d'une tâche fermée a été refusé (R706 : error-class catalogue — a new class is bound to its sweep............................(no files to check)Skipped)** (P1) ✅ (2026-11-05, 2ceb5b41, e18f7853)
+  Mesuré par : `git status --short` ne liste plus les fichiers de la tâche
+  Cause : docs/ROADMAP-HEALTH.md, écrit à chaque fermeture par roadmap_health.py en processus enfant, manquait à UNSCOPED, et le garde de R490 ne lisait pas ce processus. Ajouté, garde étendu : rouge sur le défaut et sur l'élargissement à docs/. code-critic BUILD, sibling-sweeper : un seul site vivant. make test-changed 9 724 passed, CI et Nightly recap verts sur 2ceb5b41. Preuve : le commit automatique de la fermeture de R705 (f1db0755) passe, sans nouveau refus au journal. rex: aucun — une seule occurrence et un seul site vivant, pas de billet d'admission ; le garde étendu en tient lieu.
+  Commits : 2ceb5b41 R1000 : docs/ROADMAP-HEALTH.md écrit par la fermeture sort du contrôle · e18f7853 R201 : les 2 rappels de roadmap retires, ~15 references perimees corri
+
 ## ✅ R705 — Courrier du parc msg:1793865289255531904-1915330 (claude_code_deployment_baseline, T734… (livrée 2026-11-05)
 
 - [x] **R705 — Courrier du parc msg:1793865289255531904-1915330 (claude_code_deployment_baseline, T734) : le pre-push vient du framework pre-commit sans l'enveloppe T406b, les verdicts de push n'arrivent pas dans gate-timings ; reposer l'enveloppe sur `.git/hooks/pre-push`** (P3) ✅ (2026-11-05, be70d6de)
