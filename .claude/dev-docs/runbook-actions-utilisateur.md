@@ -2350,3 +2350,19 @@ raccourcie en « inchangé depuis le mail du X » pour un mail que personne n'a 
 
 `make prod-psql Q="SELECT count(*) FROM monitoring_run WHERE run_at >= '2026-10-15' AND run_at < '<date de reprise>' AND delivered"`
 rend 0.
+
+## 49. R704 — Rattraper la prod, restée sur le commit du 2026-10-16 · P2
+
+`tools/deploy.sh` porte un `git reset --hard` de retour arrière : le garde destructif refuse de le
+lancer sans ta confirmation, y compris depuis une séance.
+
+### Étapes
+
+1. Répondre « déploie » dans une séance de ce projet, ou lancer toi-même :
+   `ssh root@167.233.92.1 'cd /opt/streamlytics && tools/deploy.sh api dashboard'`.
+
+### Vérification
+
+`ssh root@167.233.92.1 'cd /opt/streamlytics && git rev-parse --short HEAD'` rend le HEAD de main ;
+la nuit suivante, `make prod-psql Q="SELECT delivered, delivery_error FROM monitoring_run ORDER BY run_at DESC LIMIT 1"`
+rend `delivered = f`.
