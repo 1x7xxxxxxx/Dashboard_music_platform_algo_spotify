@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R707 — Courrier du parc msg:1793880711933971882-555295 (claude_code_deployment_baseline) : rec… (livrée 2026-11-05)
+
+- [x] **R707 — Courrier du parc msg:1793880711933971882-555295 (claude_code_deployment_baseline) : recopier tel quel dans `docs/CADRAGE.md` le rendu déposé par le maître (seule différence : py 1549, compte de HEAD)** (P4) ✅ (2026-11-05, c3d76900)
+  Mesuré par : `diff` entre le rendu et `docs/CADRAGE.md` vide ; 1549 fichiers py versionnés sur HEAD
+  Rendu du maître recopié tel quel : diff vide, py 1549 = git ls-files sur HEAD. Enveloppe pre-push relevée côté master : ARRIVÉ ; streamlytics reste NOMMÉ, le hook du framework ne passe pas par le parc.
+  Commits : c3d76900 R707 : rendu du maître recopié tel quel dans docs/CADRAGE.md (py 1549)
+
 ## ✅ R1000 — Défaut — le commit automatique d'une tâche fermée a été refusé (R706 : error-class cata… (livrée 2026-11-05)
 
 - [x] **R1000 — Défaut — le commit automatique d'une tâche fermée a été refusé (R706 : error-class catalogue — a new class is bound to its sweep............................(no files to check)Skipped)** (P1) ✅ (2026-11-05, 2ceb5b41, e18f7853)
