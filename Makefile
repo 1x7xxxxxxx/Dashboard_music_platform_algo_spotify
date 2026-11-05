@@ -1025,6 +1025,8 @@ hooks-install: ## Install pre-commit hooks (ruff + secret scan + hygiene)
 		echo "   Réparer : pip install pre-commit   (ou ajouter ~/.local/bin au PATH)"; \
 		exit 1; }
 	@pre-commit install
+	@# R705: the line above moves the fleet's gate-timings wrapper to pre-push.legacy.
+	@python3 tools/dev/restore_pre_push_wrapper.py "$$(git rev-parse --git-path hooks/pre-push)"
 	@# gitleaks (provider formats) next to detect-secrets (entropy) — pinned, checksummed.
 	@bash tools/dev/install_gitleaks.sh
 	@echo "✅ pre-commit hooks installed. Bypass once with: git commit --no-verify"
