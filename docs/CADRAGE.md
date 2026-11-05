@@ -49,7 +49,7 @@ résiduel = probabilité × impact une fois la mitigation en place (« réduire 
 ## 3. Stack
 
 <!-- cadrage:auto:stack -->
-Langages (fichiers versionnés) : py (1546), sql (152), sh (22), js (1).
+Langages (fichiers versionnés) : py (1549), sql (152), sh (22), js (1).
 
 - `Dockerfile` : python:3.11-slim
 - `Dockerfile.airflow` : aucune dépendance déclarée
