@@ -146,6 +146,8 @@ UNSCOPED = ("tests/", ".test_durations", ".claude/dev-docs/roadmap/checklist.md"
             ".claude/dev-docs/ops-mail-journal.md",
             # written by `make roadmap-close` (R268) — bookkeeping, like the archive (R490)
             ".claude/dev-docs/architecture/notes-triage.yaml",
+            # written at each close by roadmap_health.py, run from tools/dev/roadmap.py:330 (R644)
+            "docs/ROADMAP-HEALTH.md",
             # rewritten by detect-secrets whenever a line number moves (R506)
             ".secrets.baseline")
 

@@ -143,13 +143,18 @@ def _paths_built_under_root(source: str) -> set[str]:
 def test_every_file_roadmap_close_writes_is_roadmap_bookkeeping():
     """R490 — 2026-10-09: `make roadmap-close R474` rewrote notes-triage.yaml (R268) and
     the commit-msg gate refused the closing commit, the file being outside R474's scope.
-    A file the closing tool writes is bookkeeping, like the archive : never judged."""
-    src = (ROOT / "tools/dev/roadmap.py").read_text(encoding="utf-8")
-    written = _paths_built_under_root(src)
+    A file the closing tool writes is bookkeeping, like the archive : never judged.
+    R1000 — 2026-11-05: the close also runs roadmap_health.py as a child process, which this
+    test did not read, and the refused commit was R706's."""
+    written = set()
+    for tool in ("roadmap.py", "roadmap_health.py"):
+        written |= _paths_built_under_root((ROOT / "tools/dev" / tool).read_text(encoding="utf-8"))
     assert ".claude/dev-docs/architecture/notes-triage.yaml" in written, "le détecteur ne voit plus le fichier"
+    assert "docs/ROADMAP-HEALTH.md" in written, "le détecteur ne voit plus le processus enfant"
     row = "| R474 | x <!-- critic: non --> <!-- scope: src/dashboard/, tests/ --> | P2 | m |"
     assert gate.out_of_scope(sorted(written), [row]) == [], "roadmap-close écrit hors comptabilité"
     assert gate.out_of_scope(["src/api/main.py"], [row]) == ["src/api/main.py"], "le garde ne juge plus rien"
+    assert gate.out_of_scope(["docs/CADRAGE.md"], [row]) == ["docs/CADRAGE.md"], "docs/ exempté en bloc"
 
 
 def test_the_root_path_detector_reads_the_chain():
