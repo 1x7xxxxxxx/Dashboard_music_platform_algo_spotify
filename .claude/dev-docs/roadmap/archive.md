@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R705 — Courrier du parc msg:1793865289255531904-1915330 (claude_code_deployment_baseline, T734… (livrée 2026-11-05)
+
+- [x] **R705 — Courrier du parc msg:1793865289255531904-1915330 (claude_code_deployment_baseline, T734) : le pre-push vient du framework pre-commit sans l'enveloppe T406b, les verdicts de push n'arrivent pas dans gate-timings ; reposer l'enveloppe sur `.git/hooks/pre-push`** (P3) ✅ (2026-11-05, be70d6de)
+  Mesuré par : un push laisse une ligne `"gate":"pre-push"` dans gate-timings
+  Cause : pre-commit install déplaçait l'enveloppe T406b en pre-push.legacy, dernière ligne pre-push le 2026-10-26. make hooks-install la remet (restore_pre_push_wrapper.py), bloc templated rafraîchi. code-critic BUILD-MODIFIED (copie versionnée écartée : elle dériverait du gabarit du maître), garde muté 6 fois rouge, make test-changed 8 661 passed, CI et Nightly recap verts sur be70d6de. Preuve : deux vrais pushs, lignes pre-push de ce dépôt 8 puis 9 puis 10. error_channel_probe.py non lancé (outil du maître), relevé demandé au maître.
+  Commits : be70d6de R705 : make hooks-install remet l'enveloppe pre-push que pre-commit in
+
 ## ✅ R706 — Courrier du parc msg:1793871202432930640-2345415 (fleet_apply) : cadrage en retard (close 2026-11-05)
 
 - [x] **R706 — Courrier du parc msg:1793871202432930640-2345415 (fleet_apply) : `docs/CADRAGE.md`, blocs cadrage:auto en retard sur HEAD.** (P4) ✅ (2026-11-05, consigné)
