@@ -49,8 +49,13 @@ la sélection :
 
 - un test qui fait un import dynamique (`importlib`, `__import__`) est
   **toujours** inclus, parce que rien de statique ne dira ce qu'il charge ;
-- un test qui **manipule `sys.path`** est toujours inclus, pour la même raison :
-  après une insertion de chemin, `import x` peut désigner n'importe quoi ;
+- un fichier qui **manipule `sys.path`** sans que le sélecteur puisse lire le
+  dossier inséré est toujours inclus, pour la même raison : après une insertion de
+  chemin, `import x` peut désigner n'importe quoi. Quand le dossier se lit dans la
+  source (`ROOT / "tools" / "dev"`, `Path(__file__).parent`) et existe, il est
+  parcouru et les imports du fichier se résolvent À TRAVERS lui, fichier par
+  fichier (`syspath_inserts`) : le test n'est plus pris que si ce qu'il importe a
+  changé (2026-10-20 : 90 tests sur 109 étaient pris à chaque diff) ;
 - un test dont la source **nomme en clair** un fichier modifié est inclus, même
   s'il ne l'importe pas : c'est la forme qu'a un test qui lance un script par
   `subprocess` ;
@@ -86,6 +91,7 @@ from __future__ import annotations
 import argparse
 import ast
 import fnmatch
+import json
 import re
 import subprocess
 import sys
@@ -143,7 +149,10 @@ def _FORCE_LA_SUITE(chemin: str) -> bool:
     n = Path(c).name
     # `.streamlit/` (R338): the runtime reads it on every render, never by a name a test
     # could carry — measured by `make select-audit`, three render tests read it unselected.
-    return (n in _ENV_NAMES or n.startswith(("requirements", ".env"))
+    # T649: `requirements*` means pip's files (requirements.txt, requirements-dev.in, requirements/…), never
+    # any file so named — docs/architecture/requirements.yaml, a catalogue tests name, forced the whole suite.
+    pip_reqs = (n.startswith("requirements") and Path(n).suffix in (".txt", ".in", "")) or c.startswith("requirements/")
+    return (n in _ENV_NAMES or pip_reqs or n.startswith(".env")
             or c.endswith(".sql") or c.startswith(("config/", ".streamlit/")))
 DYNAMIC = {"importlib", "__import__"}
 
@@ -569,7 +578,8 @@ def _ignores(root: Path) -> set[str]:
     return {str(root / d.rstrip("/")) for d in r.stdout.splitlines() if d.endswith("/")}
 
 
-def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
+def _walk_python(root: Path, roots: list[Path] | None = None,
+                 _ignores_: set[str] | None = None) -> list[Path]:
     """Les `.py` du dépôt, en ÉLAGUANT pendant la descente.
 
     Les dossiers en point restent élagués — SAUF ceux qu'il faut traverser pour
@@ -587,7 +597,7 @@ def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     """
     import os
     autorises = {str(r) for r in (roots or []) if str(r) != str(root)}
-    ignores = _ignores(root)
+    ignores = _ignores(root) if _ignores_ is None else _ignores_
     out: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         gardes = []
@@ -609,6 +619,280 @@ def _walk_python(root: Path, roots: list[Path] | None = None) -> list[Path]:
     return out
 
 
+_SYSPATH_NARROWS = {"remove", "pop"}   # only ever takes a directory away
+
+
+def _is_sys_path(node: ast.AST) -> bool:
+    return (isinstance(node, ast.Attribute) and node.attr == "path"
+            and isinstance(node.value, ast.Name) and node.value.id == "sys")
+
+
+def _touches_sys_path(tree: ast.AST) -> bool:
+    return any(_is_sys_path(n) for n in ast.walk(tree))
+
+
+def _scope_names(scopes: list[ast.AST]) -> dict[str, list[ast.AST]]:
+    """What each name stands for at a site, outermost scope first: `scopes` is the module,
+    then each enclosing function. A scope that assigns a name replaces what the outer one
+    said; a parameter or a loop target unsays it, whatever a module-level `=` claims."""
+    out: dict[str, list[ast.AST]] = {}
+    for scope in scopes:
+        here: dict[str, list[ast.AST]] = {}
+        unsaid: set[str] = set()
+        stack = list(ast.iter_child_nodes(scope))
+        while stack:
+            n = stack.pop()
+            if isinstance(n, ast.arguments):
+                unsaid |= {a.arg for a in ast.walk(n) if isinstance(a, ast.arg)}
+                continue
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                continue   # its own scope
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if isinstance(t, ast.Name):
+                        here.setdefault(t.id, []).append(n.value)
+                    else:
+                        # `a, b = …` rebinds; `sys.modules[_NAME] = m` only reads `_NAME`.
+                        unsaid |= {x.id for x in ast.walk(t) if isinstance(x, ast.Name)
+                                   and isinstance(x.ctx, ast.Store)}
+            elif (isinstance(n, ast.For) and isinstance(n.target, ast.Name)
+                  and isinstance(n.iter, (ast.Tuple, ast.List))):
+                here.setdefault(n.target.id, []).extend(n.iter.elts)
+            elif isinstance(n, (ast.For, ast.AsyncFor, ast.comprehension, ast.AugAssign,
+                                ast.AnnAssign, ast.NamedExpr)):
+                unsaid |= {x.id for x in ast.walk(n.target) if isinstance(x, ast.Name)}
+            elif isinstance(n, ast.withitem) and n.optional_vars is not None:
+                unsaid |= {x.id for x in ast.walk(n.optional_vars) if isinstance(x, ast.Name)}
+            stack.extend(ast.iter_child_nodes(n))
+        out.update(here)
+        for name in unsaid:
+            out.pop(name, None)
+        out.update(_param_values(scopes[0], scope))
+        out.update(_parametrized(scope))
+    return out
+
+
+def _tails(node: ast.AST, names: dict[str, list[ast.AST]], depth: int = 0,
+           here: tuple[str, ...] | None = None) -> set[str] | None:
+    """The literal tails of `<anything> / "a" / "b.py"`, or None when the tail is computed.
+    An f-string is a pattern: `dir / f"{name}.py"` is `dir/*.py`, every file it can be."""
+    if depth > 8:
+        return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        rights = _tails(node.right, names, depth + 1, here)
+        if rights is None:
+            return None
+        anchored = _anchor(node.left, names, here)
+        lefts = {"/".join(anchored)} if anchored is not None else (
+            _tails(node.left, names, depth + 1, here) or {""})
+        return {f"{a}/{b.strip('/')}".strip("/") for a in lefts for b in rights}
+    got = _strings(node, names)
+    if got is not None:
+        return {g.strip("/") for g in got}
+    if isinstance(node, ast.JoinedStr):
+        # `f"{_NAME}.py"` with `_NAME` a literal is one file. Read as `*`, tools/conftest.py
+        # "loaded" all of tools/dev, so every crossroads reached a conftest (T702).
+        out = {""}
+        for p in node.values:
+            said = None
+            if isinstance(p, ast.FormattedValue) and p.conversion == -1 and not p.format_spec:
+                said = _strings(p.value, names)
+            vals = {p.value} if isinstance(p, ast.Constant) else set(said or ("*",))
+            out = {a + b for a in out for b in vals}
+        return out
+    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Path"
+            and len(node.args) == 1):
+        return _tails(node.args[0], names, depth + 1, here)
+    if isinstance(node, ast.Name) and node.id in names:
+        vals = [_tails(v, names, depth + 1, here) for v in names[node.id]]
+        return None if any(v is None for v in vals) else set().union(*vals)
+    return None
+
+
+def _param_values(tree: ast.AST, fn: ast.AST) -> dict[str, list[ast.AST]]:
+    """{parameter of `fn`: what each call in this file passes}, for a private function called
+    only by its name, positionally. Anything else about it, and it says nothing."""
+    if not (isinstance(fn, ast.FunctionDef) and fn.name.startswith("_")) or fn.args.vararg \
+            or fn.args.kwarg or fn.args.kwonlyargs or fn.args.defaults:
+        return {}
+    params = [a.arg for a in fn.args.args]
+    calls: list[ast.Call] = []
+    uses = 0
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Name) and n.id == fn.name:
+            uses += 1
+        elif isinstance(n, ast.Attribute) and n.attr == fn.name:
+            return {}
+        elif isinstance(n, ast.Call) and getattr(n.func, "id", "") == fn.name:
+            calls.append(n)
+    if not calls or uses != len(calls) or any(
+            len(c.args) != len(params) or c.keywords
+            or any(isinstance(a, ast.Starred) for a in c.args) for c in calls):
+        return {}
+    return {p: [c.args[i] for c in calls] for i, p in enumerate(params)}
+
+
+def _parametrized(fn: ast.AST) -> dict[str, list[ast.AST]]:
+    """{parameter: its values}, for `@pytest.mark.parametrize("x", [literal, …])`."""
+    out: dict[str, list[ast.AST]] = {}
+    for d in getattr(fn, "decorator_list", ()):
+        if (isinstance(d, ast.Call) and getattr(d.func, "attr", "") == "parametrize"
+                and len(d.args) >= 2 and isinstance(d.args[0], ast.Constant)
+                and isinstance(d.args[0].value, str) and "," not in d.args[0].value
+                and isinstance(d.args[1], (ast.List, ast.Tuple))):
+            out[d.args[0].value.strip()] = list(d.args[1].elts)
+    return out
+
+
+def _enclosing(site: ast.AST, parents: dict[ast.AST, ast.AST], tree: ast.AST) -> list[ast.AST]:
+    """The scopes a site sees, module first."""
+    chain: list[ast.AST] = []
+    up = parents.get(site)
+    while up is not None:
+        if isinstance(up, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            chain.append(up)
+        up = parents.get(up)
+    return [tree] + chain[::-1]
+
+
+def _inserted_dirs(arg: ast.AST, names: dict[str, list[ast.AST]], here: tuple[str, ...],
+                   depth: int = 0) -> set[str | None]:
+    """What `sys.path.insert(0, ARG)` designates: `str()` unwrapped, a name followed through
+    its assignments in scope, and, past `Path(__file__)`, the literal tail of a path built on
+    a parameter (`repo / "tools/dev"`: `_load_paths` says why that is enough). T702."""
+    if depth > 8:
+        return {_UNKNOWN}
+    if isinstance(arg, ast.Call) and getattr(arg.func, "id", "") == "str" and len(arg.args) == 1:
+        return _inserted_dirs(arg.args[0], names, here, depth + 1)
+    if isinstance(arg, ast.Name) and arg.id in names:
+        return set().union(*(_inserted_dirs(v, names, here, depth + 1) for v in names[arg.id]))
+    exact = _literal_paths(arg, names, {}, here)
+    if _UNKNOWN not in exact:
+        return exact
+    if isinstance(arg, ast.Attribute) and arg.attr == "parent":
+        above = _inserted_dirs(arg.value, names, here, depth + 1)
+        return {_UNKNOWN} if _UNKNOWN in above else {d.rpartition("/")[0] for d in above}
+    tails = _tails(arg, names)
+    return tails if tails and all(tails) else {_UNKNOWN}
+
+
+def _only_reads_or_restores(node: ast.AST, up: ast.AST | None,
+                            parents: dict[ast.AST, ast.AST]) -> bool:
+    """`sys.path[:]` and `list(sys.path)` copy it, a loop reads it, `sys.path[:] = saved` puts
+    a copy back: none of them adds a directory. `sys.path[:] = other` with `other` built
+    from anything else than a name or a filter of `sys.path` itself stays unread."""
+    if isinstance(up, ast.Call) and getattr(up.func, "id", "") == "list" and up.args == [node]:
+        return True
+    if isinstance(up, (ast.comprehension, ast.For)) and up.iter is node:
+        return True
+    if not (isinstance(up, ast.Subscript) and up.value is node and isinstance(up.slice, ast.Slice)
+            and up.slice.lower is None and up.slice.upper is None):
+        return False
+    if isinstance(up.ctx, ast.Load):
+        return True
+    assign = parents.get(up)
+    if not isinstance(assign, ast.Assign):
+        return False
+    value = assign.value
+    return isinstance(value, ast.Name) or (
+        isinstance(value, ast.ListComp) and _is_sys_path(value.generators[0].iter))
+
+
+def _only_absent_is_wrong(tree: ast.AST, p: Path, root: Path) -> bool:
+    """Would this file resolve if the directories it names existed?"""
+    class Everything(type(root)):
+        def is_dir(self):
+            return True
+    return syspath_inserts(tree, p.relative_to(root).as_posix(), Everything(root))[1]
+
+
+def _names_tmp_path(arg: ast.AST) -> bool:
+    if isinstance(arg, ast.Call) and getattr(arg.func, "id", "") == "str" and len(arg.args) == 1:
+        arg = arg.args[0]
+    return isinstance(arg, ast.Name) and arg.id == "tmp_path"
+
+
+def syspath_inserts(tree: ast.AST, rel: str, root: Path,
+                    absent: set[str] | None = None) -> tuple[set[str], bool]:
+    """(repo-relative directories this file puts on `sys.path`, fully resolved?).
+
+    2026-10-20: every file that touched `sys.path` was `dynamic`, so 90 of 109 tests here
+    and 246 of 880 in streamlytics were picked on every diff, whatever changed. Most of
+    them insert a directory the source states (`ROOT / "tools" / "dev"`). That directory
+    is resolved here, and the file's imports are resolved THROUGH it (`_build_graph`): the
+    edge exists, so the blanket flag is no longer needed for that file.
+
+    Resolved means EVERY use of `sys.path` in the file is one of:
+      - the receiver of `.insert(i, D)` / `.append(D)` whose `D` resolves (`_literal_paths`,
+        `str(...)` unwrapped) to directories that EXIST inside the repository;
+      - the receiver of `.remove(...)` / `.pop(...)`: it can only narrow what is importable;
+      - the right side of `x in sys.path` / `x not in sys.path`.
+    Anything else (`sys.path[:0] = …`, `.extend`, `sys.path = …`, `sys.path` passed as an
+    argument, an unresolvable or missing directory) returns False: the file stays
+    `dynamic`, the safe fallback. A miss here costs over-selection, never a false green.
+    `absent` collects the directories that resolved but do not exist here."""
+    if not _touches_sys_path(tree):     # most files: skip the parent map (4x slower otherwise)
+        return set(), True
+    parents: dict[ast.AST, ast.AST] = {}
+    for n in ast.walk(tree):
+        for c in ast.iter_child_nodes(n):
+            parents[c] = n
+    here = tuple(rel.split("/"))
+    dirs: set[str] = set()
+    ok = True
+    for node in ast.walk(tree):
+        if not _is_sys_path(node):
+            continue
+        up = parents.get(node)
+        call = parents.get(up) if up is not None else None
+        if (isinstance(up, ast.Attribute) and up.value is node and isinstance(call, ast.Call)
+                and call.func is up):
+            if up.attr in _SYSPATH_NARROWS:
+                continue
+            if up.attr in ("insert", "append") and not call.keywords:
+                args = call.args[1:] if up.attr == "insert" else call.args
+                if len(args) != 1:
+                    ok = False
+                    continue
+                if _names_tmp_path(args[0]):
+                    continue    # a pytest scratch directory: no file of this repository
+                for d in _inserted_dirs(args[0], _scope_names(_enclosing(call, parents, tree)),
+                                        here):
+                    if d is not _UNKNOWN and absent is not None and not (root / d).is_dir():
+                        absent.add(d)
+                    if d is _UNKNOWN or not (root / d).is_dir():
+                        ok = False
+                    else:
+                        dirs.add(d)
+                continue
+            ok = False      # extend, clear, sort, …: what it adds is not read
+            continue
+        if (isinstance(up, ast.Compare) and node in up.comparators
+                and all(isinstance(o, (ast.In, ast.NotIn)) for o in up.ops)):
+            continue
+        if _only_reads_or_restores(node, up, parents):
+            continue
+        ok = False          # sys.path[...] = …, sys.path = …, f(sys.path), …
+    return dirs, ok
+
+
+def _resolve_in_dirs(name: str, dirs: list[Path], canon_of: dict[Path, str]) -> set[str]:
+    """Every in-repo module `import name` can load from `dirs`, packages included. Pure.
+
+    `import a.b` executes `a/__init__.py` too, and `from a import sym` names `a.sym`: every
+    dotted prefix is tried, each against `D/x.py` and `D/x/__init__.py`. Over-approximate on
+    purpose: an extra edge costs a test, a missing one the guarantee."""
+    parts = [p for p in name.split(".") if p]
+    out: set[str] = set()
+    for d in dirs:
+        for i in range(1, len(parts) + 1):
+            base = d.joinpath(*parts[:i])
+            for cand in (base.parent / (base.name + ".py"), base / "__init__.py"):
+                if cand in canon_of:
+                    out.add(canon_of[cand])
+    return out
+
+
 def build_graph(root: Path,
                 roots: list[Path] | None = None,
                 ) -> tuple[dict[str, set[str]], set[str], list[str], dict[str, Path]]:
@@ -618,28 +902,258 @@ def build_graph(root: Path,
     découverte parcourt l'arbre à la recherche des `conftest.py`, et un parcours
     de plus coûte ici plus cher que tout le reste (F4 — un `stat` sur `/mnt/c`).
     """
+    return _build_graph(root, roots)[:4]
+
+
+def _importlib_aliases(tree: ast.AST) -> tuple[dict[str, str], bool]:
+    """({local name: the `importlib` path it stands for}, a star import seen?)."""
+    aliases: dict[str, str] = {}
+    star = False
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name == "importlib" or a.name.startswith("importlib."):
+                    aliases[a.asname or "importlib"] = a.name if a.asname else "importlib"
+        elif isinstance(n, ast.ImportFrom) and not n.level and n.module and (
+                n.module == "importlib" or n.module.startswith("importlib.")):
+            for a in n.names:
+                star = star or a.name == "*"
+                aliases[a.asname or a.name] = f"{n.module}.{a.name}"
+    return aliases, star
+
+
+def _load_paths(arg: ast.AST, names: dict[str, list[ast.AST]],
+                here: tuple[str, ...], depth: int = 0) -> set[str] | None:
+    """Repo-relative files `spec_from_file_location` is given, or None if unstated.
+
+    `root / "tools/x.py"`, with `root` a parameter, says which file of WHICHEVER repository:
+    in this one it is `tools/x.py`, and elsewhere a diff here cannot change it. So a literal
+    tail is enough; `importlib_loads` refuses it if no such file exists (`tmp / "x.py"`)."""
+    if isinstance(arg, ast.Call) and getattr(arg.func, "id", "") == "str" and len(arg.args) == 1:
+        arg = arg.args[0]
+    if (isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute)
+            and arg.func.attr == "with_name" and len(arg.args) == 1):
+        base = _anchor(arg.func.value, names, here)
+        sibling = _strings(arg.args[0], names)
+        if base is None or not sibling:
+            return None
+        return {"/".join(base[:-1] + (s,)) for s in sibling}
+    if isinstance(arg, ast.Name) and arg.id in names:
+        if depth > 8:
+            return None    # `path = path.parent`: a name that says itself says nothing
+        vals = [_load_paths(v, names, here, depth + 1) for v in names[arg.id]]
+        return None if any(v is None for v in vals) else set().union(*vals)
+    exact = _literal_paths(arg, names, {}, here)
+    if _UNKNOWN not in exact:
+        return exact
+    tails = _tails(arg, names, 0, here)
+    # A bare `f"{x}.py"` says nothing of where: not a tail, an unknown.
+    return None if tails is None or any("*" in t and "/" not in t for t in tails) else tails
+
+
+def dunder_imports(tree: ast.AST) -> tuple[set[str], bool]:
+    """(modules named by `__import__("x")`, any other use of `__import__`?). T702: 17 files
+    wrote `__import__("time")` for a one-off stdlib call, and all 17 were picked on every
+    diff; a literal is an `import` written differently, `test_fleet_apply` alone is 254 s."""
+    named: set[str] = set()
+    def self_(a: ast.expr) -> bool:
+        return isinstance(a, ast.Name) and a.id == "__name__"
+
+    calls = {id(n.func) for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and len(n.args) == 1 and not n.keywords
+             and (self_(n.args[0]) or (isinstance(n.args[0], ast.Constant)
+                                       and isinstance(n.args[0].value, str)))}
+    other = False
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and id(n.func) in calls \
+                and getattr(n.func, "id", "") == "__import__":
+            if not self_(n.args[0]):
+                named.add(n.args[0].value)
+        elif isinstance(n, ast.Name) and n.id == "__import__" and id(n) not in calls:
+            other = True
+    return named, other
+
+
+def importlib_loads(tree: ast.AST, rel: str) -> tuple[set[str], set[str], bool]:
+    """(module names, repo-relative files this file loads through `importlib`, opaque?).
+
+    T702, 2026-11-04: every use of `importlib` made a file `dynamic`, and `_build_graph`
+    widens that to each resolved `sys.path` file reaching it. `find_spec("xdist")` in
+    `blast_radius.py` loads nothing, yet 134 of 213 tests were picked on every diff:
+    `devtime_report.py` alone reached 1 test by the graph and selected 142.
+
+    Read here, each site is one of:
+      - it locates or describes, and loads no code of ours: `importlib.metadata.*`,
+        `module_from_spec`, `find_spec` (unless its result reaches a loader other than
+        through a stated module: then `import_module`'s name says what is loaded, and any
+        other spec executed is judged at the site that built it, see below);
+      - it loads what the source states: `import_module("x")`,
+        `spec_from_file_location(n, ROOT / "a" / "b.py")`. That is an edge, as `import x`;
+      - it re-reads a module already imported: `spec_from_file_location(n, m.gf.__file__)`,
+        the graph has that edge from the `import` itself;
+      - anything else: opaque. A computed name or path, `reload`, `importlib` passed as a
+        value, a `*` import, a loader built by hand.
+    Opaque keeps the old behaviour, `dynamic`. A miss here costs over-selection, never a
+    false green; a path read wrong would cost a false green, hence `_scope_names`."""
+    aliases, star = _importlib_aliases(tree)
+    if not aliases:
+        return set(), set(), False
+    parents: dict[ast.AST, ast.AST] = {}
+    for n in ast.walk(tree):
+        for c in ast.iter_child_nodes(n):
+            parents[c] = n
+    here = tuple(rel.split("/"))
+    loaded: set[str] = set()
+    files: set[str] = set()
+    opaque = star
+    imported_names = {(a.asname or a.name).split(".")[0] for n in ast.walk(tree)
+                      if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names}
+
+    def names_at(site: ast.AST) -> dict[str, list[ast.AST]]:
+        return _scope_names(_enclosing(site, parents, tree))
+
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Name) and node.id in aliases
+                and isinstance(node.ctx, ast.Load)):
+            continue
+        top: ast.AST = node
+        dotted = aliases[node.id]
+        while isinstance(parents.get(top), ast.Attribute) and parents[top].value is top:
+            top = parents[top]
+            dotted += "." + top.attr
+        call = parents.get(top)
+        called = isinstance(call, ast.Call) and call.func is top
+        if dotted.startswith("importlib.metadata") or dotted == "importlib.util.module_from_spec":
+            continue
+        if dotted == "importlib.reload" and called and len(call.args) == 1 \
+                and isinstance(call.args[0], ast.Name) and call.args[0].id in imported_names:
+            continue   # the graph has that edge from the `import` itself
+        if dotted == "importlib.util" and isinstance(call, ast.Call) \
+                and getattr(call.func, "attr", "") == "setattr":
+            continue   # a test stubbing `find_spec`: it narrows, it loads nothing
+        if dotted == "importlib.util.find_spec" and called:
+            # A spec found by a stated name is an edge, as `import x`. By a computed name,
+            # only a yes/no is safe: a spec kept may reach a loader nothing here reads.
+            got = _strings(call.args[0], names_at(call)) if call.args else None
+            if got is not None:
+                loaded |= set(got)
+            elif not isinstance(parents.get(call), (ast.IfExp, ast.If, ast.Compare, ast.UnaryOp,
+                                                    ast.BoolOp, ast.Assert)):
+                opaque = True
+        elif dotted == "importlib.import_module" and called and len(call.args) == 1 \
+                and not call.keywords:
+            got = _strings(call.args[0], names_at(call))
+            if got is None or any(g.startswith(".") for g in got):
+                opaque = True
+            else:
+                loaded |= set(got)
+        elif dotted == "importlib.util.spec_from_file_location" and called \
+                and len(call.args) >= 2:
+            arg = call.args[1]
+            if isinstance(arg, ast.Attribute) and arg.attr == "__file__":
+                continue
+            paths = _load_paths(arg, names_at(call), here)
+            if paths is None:
+                opaque = True
+            else:
+                files |= paths
+        else:
+            opaque = True
+    return loaded, files, opaque
+
+
+_INSERT_ROUNDS = 3   # a directory found only through a file found only through an insert…
+
+
+def _build_graph(root: Path, roots: list[Path] | None = None):
+    """`build_graph`, plus the modules that entered the graph ONLY through a `sys.path` insert.
+
+    Two phases, because the directories files insert are known only once they are parsed:
+    (1) walk with the global roots and parse every file, collecting its resolved inserts;
+    (2) walk again with every inserted directory allowed (`.claude/scripts` is a dot
+    directory the first walk prunes), and repeat for the files that appear, up to
+    `_INSERT_ROUNDS` times; (3) only then build `known`, the aliases and the per-file
+    resolution. The inserted directories are NEVER global roots: `known` and the aliases
+    collide on a basename two directories share (`select_tests.py` lives in `tools/dev`
+    AND in `config-optimale/.claude/scripts`). Resolution through them is per file.
+
+    The fifth element names those modules: dependency nodes, never test candidates
+    (R305: a test hidden by a dot or by `.gitignore`, once selected, fails to import)."""
     roots = roots or source_roots(root)
-    py = _walk_python(root, roots)
-    known = {module_name(root, p, roots): p for p in py}
+    ignores = _ignores(root)
+    trees: dict[Path, ast.AST | None] = {}
+    inserted: dict[Path, set[str]] = {}
+    unresolved_sp: set[Path] = set()
+    absent_sp: set[Path] = set()
+    touches: set[Path] = set()
+    extra: set[str] = set()
+    base_walk: set[Path] | None = None
+    py: list[Path] = []
+    for _ in range(_INSERT_ROUNDS + 1):
+        py = _walk_python(root, list(roots) + [root / d for d in sorted(extra) if d],
+                          _ignores_=ignores)
+        if base_walk is None:
+            base_walk = set(py)
+        for p in py:
+            if p in trees:
+                continue
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+                tree = ast.parse(text)
+            except (SyntaxError, ValueError, OSError):
+                trees[p] = None
+                continue
+            trees[p] = tree
+            # `sys.path` is an attribute named `path`: no such word, no use — and no walk.
+            if "path" not in text or not _touches_sys_path(tree):
+                inserted[p] = set()
+                continue
+            touches.add(p)
+            absent: set[str] = set()
+            dirs, ok = syspath_inserts(tree, p.relative_to(root).as_posix(), root, absent)
+            inserted[p] = dirs
+            if not ok:
+                unresolved_sp.add(p)
+                if absent and _only_absent_is_wrong(tree, p, root):
+                    absent_sp.add(p)
+        wanted = set().union(*inserted.values()) if inserted else set()
+        if wanted <= extra:
+            break
+        extra |= wanted
+    walked = {d for d in extra}
+    for p, dirs in inserted.items():   # bound hit: an insert never walked stays dynamic
+        if not dirs <= walked:
+            unresolved_sp.add(p)
+
+    canon_of = {p: module_name(root, p, roots) for p in py}
+    known = {canon_of[p]: p for p in py}
+    canon_by_rel = {p.relative_to(root).as_posix(): canon_of[p] for p in py}
+    dependency_only = {canon_of[p] for p in py if p not in (base_walk or set())}
     # Un fichier, plusieurs noms possibles selon la racine par laquelle on l'importe.
     # `known` reste la carte CANONIQUE (un nom, celui du graphe) ; cet index-ci relie
     # chaque alias à ce nom canonique, et c'est lui qui résout les `import`.
     alias: dict[str, str] = {}
     for p in py:
-        canon = module_name(root, p, roots)
+        canon = canon_of[p]
         for a in module_aliases(root, p, roots):
             alias.setdefault(a, canon)
     imports: dict[str, set[str]] = {}
     dynamic: set[str] = set()
+    only_absent: set[str] = set()   # `dynamic` for one reason: a directory that does not exist
     unparsable: list[str] = []
 
     for p in py:
-        mod = module_name(root, p, roots)
-        try:
-            tree = ast.parse(p.read_text(encoding="utf-8", errors="replace"))
-        except (SyntaxError, ValueError, OSError):
+        mod = canon_of[p]
+        tree = trees.get(p)
+        if tree is None:
             unparsable.append(str(p.relative_to(root)))
             continue
+        if p in unresolved_sp:
+            # `sys.path` touched in a way `syspath_inserts` cannot read: after it, `import x`
+            # can designate a file no static edge links to this module.
+            dynamic.add(mod)
+            if p in absent_sp:
+                only_absent.add(mod)
         got: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -654,21 +1168,21 @@ def build_graph(root: Path,
                 got.add(prefix)
                 for a in node.names:
                     got.add(f"{prefix}.{a.name}" if prefix else a.name)
-            elif isinstance(node, ast.Name) and node.id == "__import__":
-                dynamic.add(mod)
-            elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
-                    and node.value.id == "importlib":
-                dynamic.add(mod)
-            # `sys.path` manipulé : après une insertion de chemin, `import x` peut
-            # désigner un fichier qu'aucune arête statique ne relie à ce module.
-            # C'est exactement la forme qu'ont les tests des scripts `.claude/`,
-            # et c'est ce qui rend sûr de ne PAS rendre la suite entière quand un
-            # `.py` hors racine bouge (règle 6).
-            elif isinstance(node, ast.Attribute) and node.attr == "path" \
-                    and isinstance(node.value, ast.Name) and node.value.id == "sys":
-                dynamic.add(mod)
-        if "importlib" in got:
+        spelled, unspelled = dunder_imports(tree)
+        got |= spelled
+        if unspelled:
             dynamic.add(mod)
+            only_absent.discard(mod)
+        loaded_names, loaded_files, opaque = importlib_loads(tree, p.relative_to(root).as_posix())
+        got |= loaded_names
+        # A tail may follow a computed folder (`ROOT / copy / "x.py"`): every file it can be.
+        # No such file here (`root / "hooks/_verdict.py"`, another repository's): no
+        # diff here reaches it. A file on disk the walk pruned: no edge can say so, `dynamic`.
+        matching_files = {r for f in loaded_files for r in canon_by_rel
+                          if fnmatch.fnmatchcase(r, f) or fnmatch.fnmatchcase(r, "*/" + f)}
+        if opaque or any(f not in canon_by_rel and (root / f).exists() for f in loaded_files):
+            dynamic.add(mod)
+            only_absent.discard(mod)
         in_strings, templated = imports_in_strings(tree)
         got |= in_strings
         for prefix in templated:
@@ -685,9 +1199,31 @@ def build_graph(root: Path,
                 head = name.rsplit(".", 1)[0]
                 if head in alias:
                     resolved.add(alias[head])
+        # ADDED to the global resolution, never in place of it: the directories this file
+        # puts on `sys.path`, and its own directory. A script run as `python tools/dev/a.py`
+        # imports its sibling `b` with no package; 84/84 bare sibling imports in tools/dev
+        # and .claude/scripts here, 46/46 in streamlytics, had no edge (2026-10-20).
+        local = [p.parent] + [root / d if d else root for d in sorted(inserted.get(p, ()))]
+        for name in got:
+            resolved |= _resolve_in_dirs(name, local, canon_of)
+        for f in matching_files:
+            resolved.add(canon_by_rel[f])
+        resolved.discard(mod)
         imports[mod] = resolved
 
-    return imports, dynamic, unparsable, known
+    # Released from `dynamic` only if what it imports is static too. A file that touched
+    # `sys.path` was always picked; once its inserts resolve, the graph alone selects it —
+    # and the graph does not see what an `importlib` module it imports loads. Measured
+    # 2026-10-20: 10 tests here, 46 in streamlytics, would have lost their only selection.
+    # (Tests that never touched `sys.path` and reach such a module are not widened here.)
+    released = {canon_of[p] for p in touches if p not in unresolved_sp}
+    # A directory that does not exist hides no file: the module itself stays `dynamic`, its
+    # importers have nothing more to see (`presets/…/roadmap_health.py` names `tools/dev` as
+    # deployed; through it test_fleet_apply, 254 s, was picked on every diff. T702).
+    reaching = importers_closure(imports, dynamic - only_absent)
+    dynamic |= released & reaching
+
+    return imports, dynamic, unparsable, known, dependency_only
 
 
 def importers_closure(imports: dict[str, set[str]], seeds: set[str]) -> set[str]:
@@ -855,8 +1391,8 @@ def _anchor(node: ast.AST, names: dict[str, list[ast.AST]], here: tuple[str, ...
     if depth > 8 or here is None:
         return None
     if isinstance(node, ast.Call):
-        if getattr(node.func, "id", "") == "Path" and node.args and \
-                getattr(node.args[0], "id", "") == "__file__":
+        if (getattr(node.func, "id", "") == "Path" or getattr(node.func, "attr", "") == "Path") \
+                and node.args and getattr(node.args[0], "id", "") == "__file__":
             return here
         if isinstance(node.func, ast.Attribute) and node.func.attr in ("resolve", "absolute"):
             return _anchor(node.func.value, names, here, depth + 1)
@@ -914,6 +1450,12 @@ def scanned_patterns(source: str, rel: str | None = None) -> set[tuple[str | Non
         tree = ast.parse(source)
     except SyntaxError:
         return set()
+    return _walks_in(tree, tree, rel)
+
+
+def _walks_in(tree: ast.AST, site: ast.AST,
+              rel: str | None) -> set[tuple[str | None, str, bool]]:
+    """`scanned_patterns` of the walks written inside `site`, names read from the whole file."""
     names: dict[str, list[ast.AST]] = {}
     for n in ast.walk(tree):
         if isinstance(n, ast.Assign):
@@ -924,7 +1466,7 @@ def scanned_patterns(source: str, rel: str | None = None) -> set[tuple[str | Non
              if isinstance(n, (ast.For, ast.comprehension)) and isinstance(n.target, ast.Name)}
     here = tuple(rel.split("/")) if rel else None
     out: set[tuple[str | None, str, bool]] = set()
-    for n in ast.walk(tree):
+    for n in ast.walk(site):
         if isinstance(n, ast.Call) and _callee(n) == "repo_files":
             out |= _repo_files_walk(n, names, loops)
             continue
@@ -1057,8 +1599,326 @@ def tests_listing_the_repository(any_change: bool, all_tests: set[str],
     return hits
 
 
+# T702 — the four crossroads. Every tool imports them for one helper, so a change to any of them
+# reached 110-135 of the 213 test files, test_fleet_apply's 254 s among them, and none of them is
+# `parc`: such a diff runs the selection alone, and the 150 % of `devtime_report --lever selected`
+# was largely this. Reading WHICH names a file takes from them is a dependency table: built here
+# from the sources at selection time, so it cannot go stale, and checked against a measure of what
+# the tests really execute (`test_select_tests_symbols.py`). Any doubt gives the whole closure back.
+CROSSROADS = ("tools/hud/hud.py", "tools/dev/gate_timer.py", "tools/dev/blast_radius.py",
+              "tools/governance/config.py")
+_REFLECTS = {"globals", "locals", "vars", "eval", "exec"}   # a name reached by its spelling
+
+
+def _binds(stmt: ast.stmt) -> set[str] | None:
+    """The names a top-level statement binds, or None when it is not a plain binding."""
+    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return {stmt.name}
+    if isinstance(stmt, ast.Assign) and all(isinstance(x, ast.Name) for x in stmt.targets):
+        return {x.id for x in stmt.targets}
+    if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+        return {stmt.target.id}
+    if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+        return {(a.asname or a.name).split(".")[0] for a in stmt.names}
+    return None
+
+
+def _runs_as_a_script_only(stmt: ast.stmt) -> bool:
+    """`if __name__ == "__main__":`, which no importer executes."""
+    return (isinstance(stmt, ast.If) and isinstance(stmt.test, ast.Compare)
+            and getattr(stmt.test.left, "id", "") == "__name__"
+            and any(getattr(c, "value", None) == "__main__" for c in stmt.test.comparators))
+
+
+def changed_symbols(old: str, new: str) -> set[str] | None:
+    """The top-level names whose definition differs, or None if anything else moved: an import,
+    a statement that runs at import, a file that does not parse. Comments do not count."""
+    def facts(source: str) -> tuple[dict[str, str], list[str]]:
+        named: dict[str, str] = {}
+        others: list[str] = []
+        for s in ast.parse(source).body:
+            binds = None if isinstance(s, (ast.Import, ast.ImportFrom)) else _binds(s)
+            if binds is None:
+                others.append(ast.dump(s))
+                continue
+            for b in binds:
+                named[b] = named.get(b, "") + ast.dump(s)
+        return named, others
+    try:
+        (was, was_other), (now, now_other) = facts(old), facts(new)
+    except SyntaxError:
+        return None
+    if was_other != now_other:
+        return None
+    return {n for n in was.keys() | now.keys() if was.get(n) != now.get(n)}
+
+
+def _refs(stmt: ast.AST) -> set[str]:
+    """Every name a statement can reach: read, taken as a fixture (`def t(cfg)`), `alias.attr`,
+    `alias.module.attr` (a module its importer holds, read through it: `names_through`)."""
+    out: set[str] = set()
+    for n in ast.walk(stmt):
+        if isinstance(n, ast.Name):
+            out.add(n.id)
+        elif isinstance(n, ast.arg):
+            out.add(n.arg)
+        elif isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name):
+            out.add(f"{n.value.id}.{n.attr}")
+        elif (isinstance(n, ast.Attribute) and isinstance(n.value, ast.Attribute)
+              and isinstance(n.value.value, ast.Name)):
+            out.add(f"{n.value.value.id}.{n.value.attr}.{n.attr}")
+    return out
+
+
+def _autouse(stmt: ast.stmt) -> bool:
+    return any(k.arg == "autouse" for d in getattr(stmt, "decorator_list", ())
+               if isinstance(d, ast.Call) for k in d.keywords)
+
+
+def symbols_reached(tree: ast.Module, names: set[str]) -> set[str] | None:
+    """`names` and everything in this file built on them, or None: the whole file is touched
+    (a statement that runs at import reads them, an autouse fixture, a name reached by its
+    spelling). A function that writes a `global` hands it on: its readers see what it wrote."""
+    if any(isinstance(n, ast.Name) and n.id in _REFLECTS for n in ast.walk(tree)):
+        return None
+    reached = set(names)
+    grew = True
+    while grew:
+        grew = False
+        for stmt in tree.body:
+            if _runs_as_a_script_only(stmt):
+                continue
+            binds = _binds(stmt)
+            if not (_refs(stmt) | (binds or set())) & reached:
+                continue
+            if binds is None or _autouse(stmt):
+                return None
+            written = {g for n in ast.walk(stmt) if isinstance(n, ast.Global) for g in n.names}
+            if not (binds | written) <= reached:
+                reached |= binds | written
+                grew = True
+    return reached
+
+
+def _says_nothing_of_a_module(tree: ast.Module) -> set[int]:
+    """The ids of the `Name`s that read no attribute of what they hold: the optional import
+    `try: import m / except ImportError: m = None`, then `if m is None:`. Read as handing the
+    module around, these two lines of blast_radius made all of it, and all its importers, whole."""
+    out = {id(n) for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Compare) and isinstance(n.left, ast.Name) and len(n.ops) == 1
+                and isinstance(n.ops[0], (ast.Is, ast.IsNot))
+                and isinstance(n.comparators[0], ast.Constant) and n.comparators[0].value is None):
+            out.add(id(n.left))
+    return out
+
+
+def _patches_another_name(tree: ast.Module, symbols: set[str]) -> set[int]:
+    """The ids of `m` in `monkeypatch.setattr(m, "x", …)` with `x` no name of `symbols`: it writes
+    one attribute, spelled, and reads none. A patched name that moved, or a computed one, says
+    nothing of the kind and stays a module handed around. One such line made test_fleet_apply,
+    a third of the suite, whole on every change to anything it imports."""
+    return {id(n.args[0]) for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "setattr" and len(n.args) >= 2
+            and isinstance(n.args[1], ast.Constant) and isinstance(n.args[1].value, str)
+            and n.args[1].value not in symbols}
+
+
+def names_taken_from(tree: ast.Module, stem: str, symbols: set[str]) -> set[str] | None:
+    """What this importer of module `stem` holds of `symbols`, spelled as it says them; None when
+    it can reach all of it: `import *`, the module handed around as a value, or an edge with no
+    `import` statement to read (a file loaded through importlib)."""
+    aliases: set[str] = set()
+    out: set[str] = set()
+    found = False
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name.split(".")[-1] == stem:
+                    found = True
+                    if not a.asname and "." in a.name:
+                        return None
+                    aliases.add(a.asname or a.name)
+        elif isinstance(n, ast.ImportFrom):
+            if (n.module or "").split(".")[-1] == stem:
+                found = True
+                for a in n.names:
+                    if a.name == "*":
+                        return None
+                    if a.name in symbols:
+                        out.add(a.asname or a.name)
+            else:
+                for a in n.names:
+                    if a.name == stem:
+                        found = True
+                        aliases.add(a.asname or a.name)
+    if not found:
+        return None
+    held = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    held |= _says_nothing_of_a_module(tree) | _patches_another_name(tree, symbols)
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Name) and n.id in aliases and id(n) not in held:
+            return None
+        if (isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
+                and n.value.id in aliases and n.attr in symbols):
+            out.add(f"{n.value.id}.{n.attr}")
+    return out
+
+
+def modules_held(tree: ast.Module, stem: str) -> set[str]:
+    """The names this file binds to module `stem`, the attributes its own importers can read."""
+    out: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            out |= {a.asname or a.name for a in n.names if a.name.split(".")[-1] == stem}
+        elif isinstance(n, ast.ImportFrom):
+            out |= {a.asname or a.name for a in n.names if a.name == stem}
+    return out
+
+
+def names_through(tree: ast.Module, carrier: str, held: set[str],
+                  symbols: set[str]) -> set[str] | None:
+    """What this importer of `carrier` holds of `symbols` through a module `carrier` imports:
+    `sl.hud.refresh` calls hud with no name of statusline changed, so the edge hud -> statusline
+    says nothing of it (T702: `test_t622_hud_refresh…`, the one escape out of 2008 traced runs).
+    Read by its spelling, whatever `sl` is: most tests load their module through importlib, with
+    no `import` to name it. `sl.hud` read as a value (`setattr(sl.hud, …)`) can be any name of it.
+    None: `from carrier import *`, or the module itself taken and handed around."""
+    local: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and (n.module or "").split(".")[-1] == carrier:
+            for a in n.names:
+                if a.name == "*":
+                    return None
+                if a.name in held:
+                    local.add(a.asname or a.name)
+    parent = {id(n.value): n for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    quiet = _says_nothing_of_a_module(tree) | _patches_another_name(tree, symbols)
+    out: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Name) and n.id in local and id(n) not in parent and id(n) not in quiet:
+            return None
+        if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name):
+            if n.value.id in local:
+                if n.attr in symbols:
+                    out.add(f"{n.value.id}.{n.attr}")
+            elif n.attr in held:
+                above = parent.get(id(n))
+                if above is None:
+                    if id(n) not in quiet:
+                        out.add(f"{n.value.id}.{n.attr}")
+                elif above.attr in symbols:
+                    out.add(f"{n.value.id}.{n.attr}.{above.attr}")
+    return out
+
+
+def symbol_reach(imports: dict[str, set[str]], known: dict[str, Path],
+                 changed: dict[str, set[str]]) -> dict[str, set[str] | None]:
+    """{module: the names of it the change reaches, None for all of them}, across importers."""
+    importers: dict[str, set[str]] = {}
+    for mod, deps in imports.items():
+        for d in deps:
+            importers.setdefault(d, set()).add(mod)
+    trees: dict[str, ast.Module | None] = {}
+
+    def tree_of(mod: str) -> ast.Module | None:
+        if mod not in trees:
+            try:
+                trees[mod] = ast.parse(known[mod].read_text(encoding="utf-8", errors="replace"))
+            except (KeyError, OSError, SyntaxError):
+                trees[mod] = None
+        return trees[mod]
+
+    reach: dict[str, set[str] | None] = {}
+    todo: list[str] = []
+
+    def hand(user: str, taken: set[str] | None) -> None:
+        if taken is not None and not taken:
+            return
+        got = None if taken is None else symbols_reached(
+            tree_of(user), taken | (reach.get(user) or set()))
+        if user not in reach or got != reach[user]:
+            reach[user] = got
+            todo.append(user)
+
+    for mod, names in changed.items():
+        tree = tree_of(mod)
+        reach[mod] = None if tree is None else symbols_reached(tree, names)
+        todo.append(mod)
+    while todo:
+        mod = todo.pop()
+        symbols = reach[mod]
+        for user in importers.get(mod, ()):
+            if user in reach and reach[user] is None:
+                continue
+            tree = tree_of(user)
+            hand(user, None if symbols is None or tree is None else names_taken_from(
+                tree, mod.rsplit(".", 1)[-1], symbols))
+        for carrier in () if symbols is None else importers.get(mod, ()):
+            tree = tree_of(carrier)
+            held = modules_held(tree, mod.rsplit(".", 1)[-1]) if tree is not None else set()
+            for user in importers.get(carrier, ()) if held else ():
+                if user in reach and reach[user] is None:
+                    continue
+                tree = tree_of(user)
+                hand(user, None if tree is None else names_through(
+                    tree, carrier.rsplit(".", 1)[-1], held, symbols))
+    return reach
+
+
+def _test_names(tree: ast.Module, names: set[str]) -> set[str]:
+    """The pytest node names among `names`: what `path::name` can say."""
+    return {s.name for s in tree.body if getattr(s, "name", None) in names and (
+        (isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef)) and s.name.startswith("test"))
+        or (isinstance(s, ast.ClassDef) and s.name.startswith("Test")))}
+
+
+def tests_of_statements(text: str, hit) -> set[str] | None:
+    """The tests built on the top-level statements `hit` accepts, or None for the whole file: a
+    sweep rule read a file, this reads which of its tests sweep (3 of test_fleet_apply's)."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    start: set[str] = set()
+    for stmt in tree.body:
+        if hit(tree, stmt):
+            binds = _binds(stmt)
+            if binds is None:
+                return None
+            start |= binds
+    reached = symbols_reached(tree, start) if start else None
+    return (_test_names(tree, reached) or None) if reached else None
+
+
+def _statement_text(text: str, stmt: ast.stmt) -> str:
+    first = min([stmt.lineno, *(d.lineno for d in getattr(stmt, "decorator_list", ()))])
+    return "\n".join(text.splitlines()[first - 1:stmt.end_lineno])
+
+
+def crossroads_changed(sources: list[str], root: Path, roots: list[Path],
+                       old_text) -> dict[str, set[str]]:
+    """{module: the names its diff changed}, for the crossroads whose diff reads as symbols."""
+    out: dict[str, set[str]] = {}
+    if old_text is None:
+        return out
+    for c in sources:
+        if c in CROSSROADS:
+            old = old_text(c)
+            try:
+                new = (root / c).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            names = None if old is None else changed_symbols(old, new)
+            if names is not None:
+                out[module_name(root, root / c, roots)] = names
+    return out
+
+
 def select(root: Path, base: str | None = None, _max_depth: int | None = None,
-           _sans_dossier: bool = False, _changed: list[str] | None = None) -> dict:
+           _sans_dossier: bool = False, _changed: list[str] | None = None,
+           _old_text=None) -> dict:
     """Rend {'all': bool, 'tests': [...], 'reason': str}.
 
     `_max_depth` n'existe que pour `--self-test` : il bride la fermeture
@@ -1105,13 +1965,16 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
     sources = [c for c in sources if c not in non_py]
 
     roots = source_roots(root)
-    imports, dynamic, unparsable, known = build_graph(root, roots)
+    imports, dynamic, unparsable, known, dependency_only = _build_graph(root, roots)
     if unparsable:
         return {"all": True, "tests": [],
                 "reason": f"{len(unparsable)} fichier(s) non parsable(s) — graphe incomplet : "
                           f"{', '.join(unparsable[:3])}"}
 
-    all_tests = sorted(m for m in imports if is_test(m.replace(".", "/") + ".py"))
+    # A module reached only through a `sys.path` insert is a dependency node, never a test
+    # candidate: the walk prunes its directory for a reason (dot, `.gitignore`, R305).
+    all_tests = sorted(m for m in imports if is_test(m.replace(".", "/") + ".py")
+                       and m not in dependency_only)
     if not all_tests:
         return {"all": True, "tests": [],
                 "reason": "aucun test trouvé — un sélecteur qui rend « rien » n'est pas distinguable d'un sélecteur cassé"}
@@ -1131,8 +1994,12 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
             # Aucun `import` ne peut le nommer : son chemin traverse un dossier
             # dont le nom n'est pas un identifiant Python (`.claude/…`) et que
             # rien ne déclare comme racine. Il n'est atteignable que par
-            # `subprocess` ou après une insertion dans `sys.path` — les deux sont
-            # couverts, l'un par la mention littérale, l'autre par `dynamic`.
+            # `subprocess` ou après une insertion dans `sys.path`. Le premier est
+            # couvert par la mention littérale. Le second l'est par le graphe quand
+            # l'insertion se résout : le dossier inséré est alors parcouru
+            # (`_build_graph`), le fichier y est un module connu et n'arrive pas
+            # ici. Une insertion qui ne se résout pas laisse son fichier `dynamic`,
+            # donc toujours pris.
             hors_racine.append(c)
 
     # A data file (template, fixture, CSS) is read by the modules BESIDE it: their
@@ -1159,8 +2026,22 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
             except OSError:
                 continue
 
+    # A crossroads read by symbol leaves the seeds; a reached `conftest` applies without being
+    # imported, so it says nothing of who sees it: the plain closure then.
+    if _old_text is None and _changed is None:
+        start = base or _unpushed_base(root)
+        if start:
+            def _old_text(rel: str) -> str | None:
+                return _git(root, "show", f"{start}:{rel}")
+    by_symbol: dict[str, set[str] | None] = {}
+    bysym = crossroads_changed(sources, root, roots, _old_text) if _max_depth is None else {}
+    if bysym:
+        by_symbol = symbol_reach(imports, known, bysym)
+        if any(m.rsplit(".", 1)[-1] == "conftest" for m in by_symbol):
+            bysym, by_symbol = {}, {}
+
     if _max_depth is None:
-        reached = importers_closure(imports, seeds)
+        reached = importers_closure(imports, seeds - set(bysym))
     else:  # chemin de mutation, --self-test uniquement
         reached, frontier = set(seeds), set(seeds)
         reverse: dict[str, set[str]] = {}
@@ -1171,24 +2052,55 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
             frontier = {u for f in frontier for u in reverse.get(f, ())} - reached
             reached |= frontier
 
+    reached |= {m for m, names in by_symbol.items() if names is None}
     picked = {t for t in all_tests if t in reached}
     picked |= {t for t in all_tests if t in dynamic}   # import dynamique : toujours
     picked |= {t for t in all_tests if t in seeds}     # le test lui-même a changé
     named = tests_mentioning(root, sources + non_py + etat, set(all_tests), known) - picked
     picked |= named                                    # appel par subprocess
+    # `narrow`: a test FILE some rule read at function level. A rule that wants the file wins.
+    narrow: dict[str, set[str]] = {}
+    for mod, names in by_symbol.items():
+        if mod in picked or not names or mod not in known or mod not in set(all_tests):
+            continue
+        try:
+            tests = _test_names(ast.parse(known[mod].read_text(encoding="utf-8",
+                                                               errors="replace")), names)
+        except (OSError, SyntaxError):
+            picked.add(mod)
+            continue
+        if tests:
+            narrow[mod] = tests
     par_dossier = set() if _sans_dossier else (
         tests_reading_the_directory(non_py, set(all_tests), known) - picked)
     picked |= par_dossier                              # glob du dossier, sans le nom
+    for mod in par_dossier:
+        narrow.pop(mod, None)
     meta = set() if _sans_dossier else (
         tests_scanning_the_test_files(sources, set(all_tests), known) - picked)
     picked |= meta                                     # gardes qui balaient tests/
+    for mod in meta:
+        narrow.pop(mod, None)
     # `_sans_dossier` (self-test) cuts the WHOLE directory family: containment (R338) now
     # covers what the two older rules caught, and a mutation must still be seen to miss.
     tree = set() if _sans_dossier else (
         tests_scanning_the_tree(sources + non_py, set(all_tests), known, root) - picked)
-    picked |= tree                                     # gardes qui balaient un dossier (R338)
     listing = tests_listing_the_repository(bool(changed), set(all_tests), known) - picked
-    picked |= listing                                  # tests sur `git ls-files` (R338)
+    swept = sources + non_py
+    for mod in tree | listing:
+        text = known[mod].read_text(encoding="utf-8", errors="replace")
+        rel = known[mod].relative_to(root).as_posix()
+        tests = tests_of_statements(text, lambda whole, stmt: (
+            (mod in tree and any(_walk_matches(d, pat, rec, c)
+                                 for d, pat, rec in _walks_in(whole, stmt, rel) for c in swept))
+            or (mod in listing and bool(_LISTS_THE_REPOSITORY.search(_statement_text(text, stmt))))))
+        if tests is None:
+            picked.add(mod)            # gardes qui balaient un dossier, `git ls-files` (R338)
+            narrow.pop(mod, None)
+        else:
+            narrow[mod] = narrow.get(mod, set()) | tests
+    narrow = {m: v for m, v in narrow.items() if m not in picked}
+    picked |= set(narrow)
 
     reason = f"{len(picked)}/{len(all_tests)} tests atteignent {len(seeds)} module(s) modifié(s)"
     if named:
@@ -1207,11 +2119,16 @@ def select(root: Path, base: str | None = None, _max_depth: int | None = None,
         reason += f" ; {len(tree)} garde(s) qui balaient un dossier modifié"
     if listing:
         reason += f" ; {len(listing)} test(s) qui lisent tout le dépôt (`git ls-files`)"
-    return {"all": False, "tests": sorted(picked),
-            "paths": _chemins(root, sorted(picked), known), "reason": reason}
+    if bysym:
+        reason += f" ; {len(bysym)} carrefour(s) lu(s) par symbole"
+    if narrow:
+        reason += f" ; {len(narrow)} fichier(s) réduit(s) à leurs fonctions"
+    return {"all": False, "tests": sorted(picked), "narrow": narrow,
+            "paths": _chemins(root, sorted(picked), known, narrow), "reason": reason}
 
 
-def _chemins(root: Path, tests: list[str], known: dict[str, Path]) -> list[str]:
+def _chemins(root: Path, tests: list[str], known: dict[str, Path],
+             narrow: dict[str, set[str]] | None = None) -> list[str]:
     """Les chemins RÉELS des tests choisis.
 
     `as_paths` reconstruit un chemin en remplaçant les points par des slashs.
@@ -1223,9 +2140,29 @@ def _chemins(root: Path, tests: list[str], known: dict[str, Path]) -> list[str]:
     out = []
     for t in tests:
         p = known.get(t)
-        out.append(str(p.relative_to(root)).replace("\\", "/") if p
-                   else t.replace(".", "/") + ".py")
+        path = (str(p.relative_to(root)).replace("\\", "/") if p
+                else t.replace(".", "/") + ".py")
+        out += [f"{path}::{n}" for n in sorted((narrow or {}).get(t, ()))] or [path]
     return out
+
+
+def last_red_files(root: Path) -> list[str]:
+    """The test files pytest's own cache says failed last, that still exist. [] when unreadable."""
+    try:
+        failed = json.loads((root / ".pytest_cache/v/cache/lastfailed").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(failed, dict):
+        return []
+    return sorted({n.split("::")[0] for n in failed if (root / n.split("::")[0]).is_file()})
+
+
+def reds_first(paths: list[str], reds: list[str]) -> list[str]:
+    """T700: the files red in the last run lead, so a push still red says so in its first seconds. Here
+    because this script is the piece of the gate a repo receives again (a posed Makefile never is,
+    REQ-PARC-78), and `--ff` through the environment breaks a nested `-p no:cacheprovider` (rc 4)."""
+    red = set(reds)
+    return sorted(paths, key=lambda p: p.split("::")[0] not in red)
 
 
 def as_paths(tests: list[str]) -> list[str]:
@@ -1366,19 +2303,26 @@ def self_test() -> int:
 
         # La racine DÉCLARÉE. Quand le dépôt dit lui-même qu'il importe depuis
         # `.claude/hooks`, le sous-arbre entre dans le graphe et la sélection
-        # redevient une vraie sélection — pas un repli. Et le test qui bricole
-        # `sys.path` est pris quoi qu'il arrive : après une insertion, `import x`
-        # peut désigner n'importe quoi.
+        # redevient une vraie sélection — pas un repli. Le test qui insère dans
+        # `sys.path` un chemin ILLISIBLE est pris quoi qu'il arrive : après une
+        # insertion, `import x` peut désigner n'importe quoi. Celui dont le dossier
+        # inséré se lit dans la source n'est pris que si ce qu'il importe a changé.
         dc_root = Path(tempfile.mkdtemp(prefix="select-tests-declare-"))
         (dc_root / ".claude" / "hooks").mkdir(parents=True)
         (dc_root / "tests").mkdir()
+        (dc_root / "outils").mkdir()
         (dc_root / ".claude" / "hooks" / "sensor.py").write_text("X = 1\n")
+        (dc_root / "outils" / "zq_outil_cible.py").write_text("Y = 1\n")
         (dc_root / "conftest.py").write_text(
             "import sys\nsys.path.insert(0, '.claude/hooks')\n")
         (dc_root / "tests" / "test_imp.py").write_text(
             "import sensor\ndef test_i(): assert sensor.X\n")
         (dc_root / "tests" / "test_syspath.py").write_text(
             "import sys\nsys.path.insert(0, 'ailleurs')\ndef test_s(): assert True\n")
+        (dc_root / "tests" / "test_insere.py").write_text(
+            "import sys\nfrom pathlib import Path\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'outils'))\n"
+            "import zq_outil_cible\ndef test_o(): assert zq_outil_cible.Y\n")
         (dc_root / "tests" / "test_neutre.py").write_text("def test_n(): assert True\n")
         subprocess.run(["git", "init", "-q", str(dc_root)], check=True)
         subprocess.run(["git", "-C", str(dc_root), "add", "-A", "-f"], check=True)
@@ -1386,15 +2330,22 @@ def self_test() -> int:
                         "-c", "user.name=t", "commit", "-qm", "base"], check=True)
         (dc_root / ".claude" / "hooks" / "sensor.py").write_text("X = 2\n")
         s_decl = select(dc_root)
+        (dc_root / ".claude" / "hooks" / "sensor.py").write_text("X = 1\n")
+        (dc_root / "outils" / "zq_outil_cible.py").write_text("Y = 2\n")
+        s_ins = select(dc_root)
         cas_decl = [
             ("VERT   racine déclarée : le test qui IMPORTE le hook est atteint par le graphe",
              not s_decl["all"] and "tests.test_imp" in s_decl["tests"]),
-            ("VERT   ... le test qui manipule sys.path est toujours pris",
+            ("VERT   ... le test qui insère un chemin illisible ('ailleurs') est toujours pris",
              "tests.test_syspath" in s_decl["tests"]),
+            ("ROUGE  ... le test qui insère un dossier LISIBLE n'est pas pris pour un autre fichier",
+             "tests.test_insere" not in s_decl["tests"]),
             ("ROUGE  ... et le test sans rapport ne l'est pas",
              "tests.test_neutre" not in s_decl["tests"]),
             ("VERT   ... et le chemin rendu est celui du disque, pas un nom pointé",
              "tests/test_imp.py" in s_decl["paths"]),
+            ("VERT   dossier inséré lisible : le module importé À TRAVERS lui sélectionne le test",
+             not s_ins["all"] and "tests.test_insere" in s_ins["tests"]),
         ]
         shutil.rmtree(dc_root, ignore_errors=True)
 
@@ -1525,9 +2476,11 @@ def main() -> int:
             print(f"  {t}")
         return 0
     if r["all"]:
+        # No reds in front of it: `pytest tests/z.py tests/` collects a, then z (measured, pytest 9), the
+        # directory's own order wins. Whole suite, so only the stop after 5 failures speeds a red here.
         print("tests/", file=sys.stdout)
     else:
-        for t in chemins:
+        for t in reds_first(chemins, last_red_files(args.root.resolve())):
             print(t)
     print(f"# {r['reason']}", file=sys.stderr)
     return 0
