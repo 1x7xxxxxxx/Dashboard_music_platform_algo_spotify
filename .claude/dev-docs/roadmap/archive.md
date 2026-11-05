@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R708 — Défaut — `make roadmap-close` échoue sur un garde de pilotage quand NOTE commence par «… (livrée 2026-11-05)
+
+- [x] **R708 — Défaut — `make roadmap-close` échoue sur un garde de pilotage quand NOTE commence par « R » : les variables de ligne de commande de make passent par `MAKEFLAGS` au `make -n` imbriqué de `tests/test_roadmap_close_takes_several_ids.py`, et le filtre `startswith("R")` prend la note pour un id (R707, 2026-11-05 ; reproduit : `MAKEFLAGS=" -- NOTE=Rendu"` 2 rouges, `NOTE=Autre` 3 verts). Balayer les tests qui lancent make** (P4) ✅ (2026-11-05, cad9970b, f580af06)
+  Mesuré par : le test passe sous `MAKEFLAGS=" -- NOTE=Rendu"` ; garde vu rouge sur le défaut
+  Retiré à l'entrée de pytest (conftest) : les variables de ligne de commande du make parent, sur les deux canaux env et MAKEFLAGS. Balayage : 6 sites de make en sous-processus, 2 confirmés rouges (filtre d'ids, ARGS du test de l'index Makefile). Garde par un vrai make, vu rouge sous deux mutations. Suite 13 176 passed, CI verte. Hors garde : les make lancés hors pytest (audit_runner, arch_benchmark), aucun ne lit NOTE/ID/ARGS aujourd'hui.
+  Commits : cad9970b R708 : pytest retire les variables de ligne de commande du make parent · f580af06 Roadmap : R707 fermée, R708 inscrite — make roadmap-close rouge sur un
+
 ## ✅ R707 — Courrier du parc msg:1793880711933971882-555295 (claude_code_deployment_baseline) : rec… (livrée 2026-11-05)
 
 - [x] **R707 — Courrier du parc msg:1793880711933971882-555295 (claude_code_deployment_baseline) : recopier tel quel dans `docs/CADRAGE.md` le rendu déposé par le maître (seule différence : py 1549, compte de HEAD)** (P4) ✅ (2026-11-05, c3d76900)
