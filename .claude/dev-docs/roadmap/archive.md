@@ -11,6 +11,11 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R706 — Courrier du parc msg:1793871202432930640-2345415 (fleet_apply) : cadrage en retard (close 2026-11-05)
+
+- [x] **R706 — Courrier du parc msg:1793871202432930640-2345415 (fleet_apply) : `docs/CADRAGE.md`, blocs cadrage:auto en retard sur HEAD.** (P4) ✅ (2026-11-05, consigné)
+  Blocs produits par `project_brief.py` du maître, non exécutable en séance, et ce dépôt est `apply: hand`. Écart mesuré : py 1546 dans le bloc, 1549 sur HEAD. Dépôt du rendu demandé au maître par courrier le 2026-11-05 ; une séance le recopiera, comme R699. Aucun commit de code.
+
 ## ✅ R703 — Arbre sale relevé par le master : `.claude/dev-docs/test-suite-timing.json` modifié (13… (livrée 2026-11-05)
 
 - [x] **R703 — Arbre sale relevé par le master : `.claude/dev-docs/test-suite-timing.json` modifié (13 155 passed, 274 s, 5 workers, 2026-11-03) depuis le dernier commit — relevé écrit par `make test`, à commiter ou à écarter selon ce qu'il mesure** (P4) ✅ (2026-11-05, 33c68414)
