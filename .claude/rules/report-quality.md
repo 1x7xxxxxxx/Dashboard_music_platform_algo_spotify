@@ -38,3 +38,12 @@ compréhension du problème. Norme complète et sources : `~/.fleet-master/prese
 10. **Avant de livrer le PDF, lance `python3 ~/.fleet-master/tools/dev/report_quality.py <pdf>
     --strict`** (`--kind guide` pour un mode d'emploi) **et corrige jusqu'à l'exit 0.** Une règle
     que tu juges inapplicable se dit au propriétaire, avec sa raison ; elle ne se tait pas.
+11. **Donne à chaque graphique et à chaque page pour titre ce qu'on veut prédire ou la valeur
+    ajoutée** (« La purge rend 11 Go dimanche », jamais « Cache images »), **et dis son état en
+    vert, orange ou rouge** : vert tenu, orange à surveiller, rouge à traiter. Cette règle vaut
+    pour les PDF ; la barre d'état garde ses trois couleurs d'état (REQ-PARC-75).
+12. **Mets le minimum de texte** : un chiffre et son graphique plutôt qu'un paragraphe.
+13. **Dépose le PDF sur le Bureau pour validation, jamais ailleurs.** Validé par le propriétaire
+    (bouton Valider du panneau, ou `python3 ~/.fleet-master/tools/dev/validation_pdf.py validate
+    <pdf>`), il porte la mention validé, part dans le dossier d'archive du dépôt et quitte le Bureau.
+    Aucun test unitaire n'écrit sur le contenu ou la mise en page d'un PDF : le propriétaire juge.
