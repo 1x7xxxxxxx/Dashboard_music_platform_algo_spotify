@@ -11,6 +11,33 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R703 — Arbre sale relevé par le master : `.claude/dev-docs/test-suite-timing.json` modifié (13… (livrée 2026-11-05)
+
+- [x] **R703 — Arbre sale relevé par le master : `.claude/dev-docs/test-suite-timing.json` modifié (13 155 passed, 274 s, 5 workers, 2026-11-03) depuis le dernier commit — relevé écrit par `make test`, à commiter ou à écarter selon ce qu'il mesure** (P4) ✅ (2026-11-05, 33c68414)
+  Mesuré par : `git status` propre sur ce fichier
+  CI verte sur 33c68414 (run 41975503200). R700 : classify 0,98 s → 0,05 s, session_start 0,66 s, rendu identique sur le journal réel, garde muté 3× rouge. R702 : trois chemins ignorés, règle égale au preset. R703 : relevé commité.
+  Commits : 33c68414 R703 : relevé make test du 2026-11-03 commité — 13 155 passed, 274 s, 
+
+## ✅ R702 — Courrier du parc msg:1793848993337998313-2612298 (fleet_apply) : harness-state-ignored… (livrée 2026-11-05)
+
+- [x] **R702 — Courrier du parc msg:1793848993337998313-2612298 (fleet_apply) : harness-state-ignored — `.claude/settings.local.json`, `.claude/state/`, `.claude/curator/*` à ignorer dans un `.gitignore` versionné ; report-rule — `.claude/rules/report-quality.md` en retard sur le preset** (P4) ✅ (2026-11-05, 59817b8e)
+  Mesuré par : `git check-ignore` rend les trois chemins ; règle égale au preset
+  CI verte sur 33c68414 (run 41975503200). R700 : classify 0,98 s → 0,05 s, session_start 0,66 s, rendu identique sur le journal réel, garde muté 3× rouge. R702 : trois chemins ignorés, règle égale au preset. R703 : relevé commité.
+  Commits : 59817b8e R702 : état du harnais ignoré par le .gitignore versionné, règle repor
+
+## ✅ R700 — Courrier du parc msg:1793733645235208916-4078287 (baseline, T382/DK-12) : ouverture de… (livrée 2026-11-05)
+
+- [x] **R700 — Courrier du parc msg:1793733645235208916-4078287 (baseline, T382/DK-12) : ouverture de séance lente — `tools/dev/defect_log.py classify` est quadratique (`_closers` et `_answer` repassent sur TOUS les événements pour chacune des ~672 empreintes, 1,6 M appels de `_covers`) ; indexer une fois les événements par empreinte et les verts par fichier, même rendu qu'avant** (P3) ✅ (2026-11-05, 7b18ec05)
+  Mesuré par : test de durée sur ~700 empreintes + égalité du rendu avec l'ancienne implémentation sur le journal réel
+  CI verte sur 33c68414 (run 41975503200). R700 : classify 0,98 s → 0,05 s, session_start 0,66 s, rendu identique sur le journal réel, garde muté 3× rouge. R702 : trois chemins ignorés, règle égale au preset. R703 : relevé commité.
+  Commits : 7b18ec05 R700 : classify lit le journal une fois — 0,98 s → 0,05 s sur 672 empr
+
+## ✅ R701 — Courrier du parc msg:1793751129369667396-3272791 (fleet_apply, preset-refresh) : sans suite (close 2026-11-05)
+
+- [x] **R701 — Courrier du parc msg:1793751129369667396-3272791 (fleet_apply, preset-refresh) : `roadmap_autocommit.py` et `roadmap_empty_beep.py` déclarés périmés.** (P4) ✅ (2026-11-05, sans suite)
+  Mesuré par : `diff` vide entre `.claude/hooks/` et `presets/governance/hooks/` du master le 2026-11-05
+  Sans suite : écart déjà comblé par 3922ec4a (baseline T691), postérieur au courrier ; aucun commit de livraison.
+
 ## ✅ R698 — Courrier du parc msg:1793704825127607368-934842 (baseline) : le dernier `make test` est… (livrée 2026-11-03)
 
 - [x] **R698 — Courrier du parc msg:1793704825127607368-934842 (baseline) : le dernier `make test` est rouge (83 failed / 120 errors, `.pytest-last.log` du 2026-11-03 11:21) et du code a été commité après — lu dans le log : Postgres 5433 refusait puis coupait les connexions pendant la suite (conteneurs à la demande) ; rejouer `make test` base allumée et lire ce qui reste** (P2) ✅ (2026-11-03, 3f287dbf)
