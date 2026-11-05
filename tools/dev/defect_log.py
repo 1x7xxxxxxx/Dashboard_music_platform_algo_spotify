@@ -32,6 +32,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 SESSIONS = ROOT / ".claude" / "sessions"
@@ -60,35 +61,52 @@ def _greens(events: list[dict]) -> list[tuple[str, str, set[str]]]:
             if e["kind"] == "test_green" and e.get("scope") in ("files", "suite")]
 
 
-def _covers(files: set[str], node: str) -> bool:
-    return not files or node.split("::", 1)[0] in files  # scope `suite`: no file named
-
-
 RED_KINDS = ("test_red", "traceback", "ci_step", "cron_red")
 
 
-def _closers(fp: str, seen: list[dict], events: list[dict], greens: list,
+class _Index(NamedTuple):
+    """The log read ONCE: per-fingerprint lookups replace a pass over every event (R700)."""
+    marks: dict[tuple[str, str], list[dict]]  # (kind, fingerprint) → closed/cron_ok/ticket events
+    suite: list[tuple[str, str, set[str]]]    # greens that name no file: they cover every node
+    by_file: dict[str, list[tuple[str, str, set[str]]]]
+    ci: list[tuple[str, str, set[str]]]
+
+
+def _index(events: list[dict]) -> _Index:
+    """One pass over the log, so that `classify` stays linear in fingerprints × their own closers."""
+    idx = _Index(defaultdict(list), [], defaultdict(list), [])
+    for e in events:
+        if e["kind"] in ("closed", "cron_ok", "ticket"):
+            idx.marks[e["kind"], e["fingerprint"]].append(e)
+    for g in _greens(events):
+        if not g[2]:
+            idx.suite.append(g)
+        for name in g[2]:
+            idx.by_file[name].append(g)
+        if g[1].startswith("ci:"):
+            idx.ci.append(g)
+    return idx
+
+
+def _closers(fp: str, seen: list[dict], idx: _Index,
              touched: dict[str, str]) -> list[tuple[str, str, str]]:
     """(ts, session, how) of every event that says this fingerprint is fixed. Pure.
 
     R353 — before it, only a `test:` red could ever close: a traceback, a gate red or a cron
     failure stayed `open` forever, so `open` stopped meaning anything."""
     kind = seen[0]["kind"]
-    out = [(e["ts"], e["session"], "closed") for e in events
-           if e["kind"] == "closed" and e["fingerprint"] == fp]
+    out = [(e["ts"], e["session"], "closed") for e in idx.marks.get(("closed", fp), ())]
     if kind == "test_red":
-        node = fp.removeprefix("test:")
-        out += [(g[0], g[1], "green") for g in greens if _covers(g[2], node)]
+        name = fp.removeprefix("test:").split("::", 1)[0]
+        out += [(g[0], g[1], "green") for g in idx.suite + idx.by_file.get(name, [])]
     elif kind == "ci_step":
-        out += [(g[0], g[1], "green") for g in greens if g[1].startswith("ci:")]
+        out += [(g[0], g[1], "green") for g in idx.ci]
     elif kind == "cron_red":
-        out += [(e["ts"], e["session"], "green") for e in events
-                if e["kind"] == "cron_ok" and e["fingerprint"] == fp]
+        out += [(e["ts"], e["session"], "green") for e in idx.marks.get(("cron_ok", fp), ())]
     elif kind == "traceback" and touched.get(fp.partition("@")[2], "") > seen[-1]["ts"]:
         # its file was committed AFTER its last sighting, then main's CI went green
         fixed_at = touched[fp.partition("@")[2]]
-        out += [(g[0], g[1], "fixed") for g in greens
-                if g[1].startswith("ci:") and g[0] > fixed_at]
+        out += [(g[0], g[1], "fixed") for g in idx.ci if g[0] > fixed_at]
     return sorted(out)
 
 
@@ -108,9 +126,9 @@ def _status(seen: list[dict], after: list[tuple[str, str, str]], days: list[str]
 VERDICTS = ("same-cause", "distinct")
 
 
-def _answer(fp: str, events: list[dict], back: list[str]) -> dict | None:
+def _answer(fp: str, idx: _Index, back: list[str]) -> dict | None:
     """The latest ticket answer that postdates every clean return, or None. Pure."""
-    answers = [e for e in events if e["kind"] == "ticket" and e["fingerprint"] == fp]
+    answers = idx.marks.get(("ticket", fp), ())
     if not answers or not back or answers[-1]["ts"][:10] < back[-1]:
         return None
     return {"verdict": answers[-1]["verdict"], "note": answers[-1]["excerpt"],
@@ -121,14 +139,14 @@ def classify(events: list[dict], touched: dict[str, str] | None = None) -> list[
     """One row per red fingerprint. Pure.
 
     `touched`: file → when it was last committed (UTC, the log's format), for tracebacks."""
-    greens, touched = _greens(events), touched or {}
+    idx, touched = _index(events), touched or {}
     reds: dict[str, list[dict]] = defaultdict(list)
     for e in events:
         if e["kind"] in RED_KINDS:
             reds[e["fingerprint"]].append(e)
     rows = []
     for fp, seen in reds.items():
-        closers = _closers(fp, seen, events, greens, touched)
+        closers = _closers(fp, seen, idx, touched)
         after = [c for c in closers if c[0] > seen[-1]["ts"]]
         days = sorted({e["ts"][:10] for e in seen})
         returned = [d for d in days[1:] if any(
@@ -142,7 +160,7 @@ def classify(events: list[dict], touched: dict[str, str] | None = None) -> list[
             "first_seen": seen[0]["ts"], "last_seen": seen[-1]["ts"], "days": days,
             "sightings": len(seen), "excerpt": seen[-1]["excerpt"],
             "recurrence_proposal": f"recurrence:{days[0]},{back[0]}" if back else None,
-            "ticket": _answer(fp, events, back),
+            "ticket": _answer(fp, idx, back),
             "returned_unvouched": [d for d in returned if d not in clean],
         })
     return sorted(rows, key=lambda r: (r["recurrence_proposal"] is None, r["status"] != "open",
