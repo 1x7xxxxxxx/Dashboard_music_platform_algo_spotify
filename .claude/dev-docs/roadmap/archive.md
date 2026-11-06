@@ -11,6 +11,11 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R709 — Sans suite : preset-refresh posé par 02097d85 — msg:1793936257802085062-3011227 (close 2026-11-06)
+
+- [x] **R709 — Sans suite : preset-refresh posé par 02097d85 — msg:1793936257802085062-3011227** (P4) ✅ (2026-11-06, sans suite)
+  Mesuré par : `fleet_apply.py plan --project streamlytics` du 2026-11-06 ne liste plus « preset-refresh », verdict vert, 0 écart ouvert
+
 ## ✅ R708 — Défaut — `make roadmap-close` échoue sur un garde de pilotage quand NOTE commence par «… (livrée 2026-11-05)
 
 - [x] **R708 — Défaut — `make roadmap-close` échoue sur un garde de pilotage quand NOTE commence par « R » : les variables de ligne de commande de make passent par `MAKEFLAGS` au `make -n` imbriqué de `tests/test_roadmap_close_takes_several_ids.py`, et le filtre `startswith("R")` prend la note pour un id (R707, 2026-11-05 ; reproduit : `MAKEFLAGS=" -- NOTE=Rendu"` 2 rouges, `NOTE=Autre` 3 verts). Balayer les tests qui lancent make** (P4) ✅ (2026-11-05, cad9970b, f580af06)
