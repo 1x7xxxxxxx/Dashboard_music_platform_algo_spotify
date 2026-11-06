@@ -266,7 +266,7 @@ CLOSABLE_S = 20  # the budget of session_closable.checks(): beyond, the hook beh
 BLOCKING = ("commit", "push", "gate", "mailbox", "deploy")  # never `tasks`, never `roadmap` (todo_gate's)
 AUTOCOMMIT_STATE = Path(".claude/sessions/roadmap-autocommit.json")
 AUTOPUSH_LOG = ".claude/sessions/roadmap-autopush.log"
-APPLY_LOG = ".claude/sessions/fleet-apply.log"
+AUTOPUSH_HISTORY = ".claude/sessions/roadmap-autopush-history.log"  # T782: where the apply verdict (`apply_rc=`) lands
 GATE_TIMINGS = Path.home() / ".cache" / "gate-timings.jsonl"  # blast_radius._record: one `end` row per gate run
 WAIT_MIN_S, WAIT_MAX_S, WAIT_DEFAULT_S = 1800, 7200, 3600
 
@@ -395,7 +395,7 @@ def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head
              f"`{AUTOPUSH_LOG}`, porte ≤ {limit / 60:.0f} min), puis arrête-toi.")
     if deploying:
         hold(f"deploy@{head}", f"Déploiement : {reds['deploy']} — la séance n'est fermable que déploiement lancé. "
-             f"Il part au Stop (roadmap_autocommit) : vérifie `tail {APPLY_LOG}`, puis arrête-toi.")
+             f"Il part au Stop (roadmap_autocommit) : vérifie la dernière ligne `apply_rc=` de `{AUTOPUSH_HISTORY}`, puis arrête-toi.")
     if "mailbox" in reds:
         ask(f"mailbox@{_box_ids(root)}", f"Boîte aux lettres : {reds['mailbox']} — "
             f"`python3 ~/.fleet-master/tools/hud/fleet_mailbox.py state {root.name} {root}`, puis cite "

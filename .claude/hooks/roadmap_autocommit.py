@@ -296,6 +296,16 @@ def last_rc(root: Path) -> str | None:
     return rcs[-1] if rcs else None
 
 
+def _last_verdict(key: str, *files: Path) -> str:
+    """T782: a closure measure that CAN fail. `tail -1` of a file exits 0 whatever it reads — and the journal's
+    last line is an `apply_rc=` after a green push, so it never held the push's `rc=`. This keeps the values of
+    the lines starting with `key=` over the files in order (the later file wins, as `last_rc` reads the log after
+    the journal; a missing file is skipped: a push overwrites the log) and exits 0 only if the last one is 0; no
+    such line is a failure too. No pipe: the measure sits in a table cell."""
+    names = " ".join(str(f) for f in files)
+    return f"v=$(echo $(sed -En 's/^{key}=([0-9]+).*/\\1/p' {names} 2>/dev/null)); test \"${{v##* }}\" = 0"
+
+
 # T653 — a refusal reopens a row: the only channel a Stop gate reads is the open index.
 MOTIFS = {
     "push-refusé": (
@@ -304,21 +314,22 @@ MOTIFS = {
         "la séance ne relisent, le disait",
         "le journal des envois automatiques se termine par un succès",
         "la séance corrige la cause, relance le contrôle, puis ferme cette ligne ; l'envoi repart ensuite tout seul",
-        f"`tail -1 {PUSH_HISTORY}` rend rc=0"),
+        f"`{_last_verdict('rc', PUSH_HISTORY, PUSH_LOG)}` sort à 0"),
     "commit-refusé": (
         "Défaut — le commit automatique d'une tâche fermée a été refusé",
         "le contrôle fait avant l'enregistrement a échoué ; les fichiers de la tâche restent non enregistrés "
         "et seul un message le disait",
         "un enregistrement de la tâche existe et l'arbre n'a plus de fichier à elle en attente",
         "la séance corrige ce que le contrôle refuse, enregistre elle-même, puis ferme cette ligne",
-        "`git status --short` ne liste plus les fichiers de la tâche"),
+        "`test -z \"$(git status --short)\"` sort à 0 (l'arbre n'a plus de fichier en attente)"),
     "apply-échoué": (
         "Défaut — le déploiement automatique sur le parc a échoué",
         "la commande qui répand la configuration validée est sortie en échec et seul un fichier de trace, "
         "que personne ne relit, le disait",
-        "la dernière trace du déploiement automatique se termine par un succès",
-        "la séance lit la trace, corrige, relance le déploiement, puis ferme cette ligne",
-        f"`tail -1 {APPLY_LOG}` rend rc=0"),
+        "la dernière ligne `apply_rc=` du journal des envois automatiques est un succès",
+        "la séance lit le journal (le détail est dans roadmap-autopush.log), corrige, relance le déploiement, "
+        "puis ferme cette ligne",
+        f"`{_last_verdict('apply_rc', PUSH_HISTORY)}` sort à 0"),
 }
 
 
@@ -390,15 +401,66 @@ def reopen_refusal(root: Path, motif: str, detail: str, state: dict | None = Non
     return True
 
 
-def flush_refusals(root: Path, state: dict) -> int:
-    """T686b: the parked refusals written to the checklist once no gate is in flight. Number flushed."""
+def _keep_always(root: Path, state: dict, detail: str) -> bool:
+    return True
+
+
+def _push_refusal_holds(root: Path, state: dict, detail: str) -> bool:
+    """« <head7> rc=N » holds until THAT head is seen back at rc=0: the journal's last row for the head, or
+    (a gate rerun by hand: `echo rc=0 >> log`) the log's last rc while the log is the one of that head. A bare
+    last_rc() is not enough: it falls back to the journal and can answer for another push. Unknown → keep."""
+    m = re.match(r"(\w+) rc=\d+", detail)
+    if not m:
+        return True
+    h7, hist = m.group(1)[:7], root / PUSH_HISTORY
+    if hist.is_file():
+        rows = [rc for rc, h in re.findall(r"^rc=(\d+) head=(\w+)", hist.read_text(encoding="utf-8", errors="replace"), re.M)
+                if h.startswith(h7)]
+        if rows and rows[-1] == "0":
+            return False
+    log = root / PUSH_LOG
+    log_rcs = re.findall(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M) if log.is_file() else []
+    if log_rcs and log_rcs[-1] == "0" and str(state.get("push_head") or "").startswith(h7) and not state.get("push_pending"):
+        return False  # the LOG only (never last_rc's journal fallback): it is the log of state['push_head']
+    return True
+
+
+def _apply_refusal_holds(root: Path, state: dict, detail: str) -> bool:
+    """Holds while apply_failure() reports ANY failure, whatever its value: a failure that moved (rc=86 → 87,
+    another head, the legacy trace) is still a failure — only the journal back at apply_rc=0 lifts the refusal."""
+    return apply_failure(root) is not None
+
+
+# motif → « does the source still say so? ». commit-refusé and any motif without a reader default to KEEP
+# (fail-closed toward writing); test_every_motif_has_a_park_check keeps a new motif from taking the default silently.
+PARK_CHECKS = {"push-refusé": _push_refusal_holds, "apply-échoué": _apply_refusal_holds, "commit-refusé": _keep_always}
+
+
+def prune_parked(root: Path, state: dict) -> int:
+    """A parked refusal is a value read EARLIER: dropped (journalled DROPPED) when its source no longer says
+    it. Pure on `state`, runs even while a gate is in flight (the Stop block reads the same list). Number dropped."""
+    parked = state.get("pending_refusals") or []
+    kept = [[m, d] for m, d in parked if PARK_CHECKS.get(m, _keep_always)(root, state, d)]
+    for m, d in parked:
+        if [m, d] not in kept:
+            journal_refusal(root, f"DROPPED {m}", d)
+    if apply_failure(root) is None:
+        state.pop("apply_failed_said", None)  # a later recurrence of the same « head apply rc=N » must be said again
+    if len(kept) != len(parked):
+        state["pending_refusals"] = kept
+    return len(parked) - len(kept)
+
+
+def flush_refusals(root: Path, state: dict) -> tuple[int, int]:
+    """T686b: the parked refusals written to the checklist once no gate is in flight, each re-checked against its
+    source first. (rows really written, rows dropped as no longer true)."""
+    dropped = prune_parked(root, state)
     parked = state.get("pending_refusals") or []
     if not parked or gate_in_flight(root, state):
-        return 0
-    for motif, detail in parked:
-        reopen_refusal(root, motif, detail)
+        return 0, dropped
+    written = sum(bool(reopen_refusal(root, motif, detail)) for motif, detail in parked)
     state["pending_refusals"] = []
-    return len(parked)
+    return written, dropped
 
 
 def journal_refusal(root: Path, title: str, text: str) -> None:
@@ -584,7 +646,11 @@ def apply_running(root: Path) -> bool:
 def start_apply(root: Path) -> None:
     log = root / APPLY_LOG
     log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = f'cd "{root}" && {{ date -Is; python3 {APPLY} apply --push; echo "rc=$?"; }} > "{log}" 2>&1'
+    # T782: the verdict goes to the journal too (`apply_rc=` + head, as the apply chained to a push writes it):
+    # one journal, this log is only the detail. `rc=` stays in the log for the readers of the legacy trace.
+    hist = root / PUSH_HISTORY
+    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); python3 {APPLY} apply --push; rc=$?; '
+           f'echo "apply_rc=$rc head=$h" >> "{hist}"; echo "rc=$rc"; }} > "{log}" 2>&1')
     subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
 
@@ -600,17 +666,19 @@ def push_seen(root: Path, head: str) -> None:
 
 
 def apply_failure(root: Path) -> str | None:
-    """T653: « <head7> rc=N » of the last apply that failed — read from its own log (`start_apply`) or
-    from the journal (the apply chained to a push) — else None. Said once per value by the caller."""
+    """T653/T782: « <head7> apply rc=N #k » of the last apply that failed, from the journal (`apply_rc=` rows,
+    written by the apply chained to a push AND by `start_apply`). `#k` is the row's rank: a second failed retry of
+    the same head is a new key, so it reaches the open row. Only a journal with no `apply_rc=` row at all falls
+    back to the legacy trace of `start_apply` — a stale failing log can never mask a newer green row. Else None."""
     log, hist = root / APPLY_LOG, root / PUSH_HISTORY
+    rows = (re.findall(r"^apply_rc=(\d+) head=(\w+)", hist.read_text(encoding="utf-8", errors="replace"), re.M)
+            if hist.is_file() else [])
+    if rows:
+        return f"{rows[-1][1][:7]} apply rc={rows[-1][0]} #{len(rows)}" if rows[-1][0] != "0" else None
     if log.is_file():
         rcs = re.findall(r"^rc=(\d+)$", log.read_text(encoding="utf-8", errors="replace"), re.M)
         if rcs and rcs[-1] != "0":
             return f"fleet-apply rc={rcs[-1]}"
-    if hist.is_file():
-        rows = re.findall(r"^apply_rc=(\d+) head=(\w+)", hist.read_text(encoding="utf-8", errors="replace"), re.M)
-        if rows and rows[-1][0] != "0":
-            return f"{rows[-1][1][:7]} apply rc={rows[-1][0]}"
     return None
 
 
@@ -678,8 +746,10 @@ def on_stop(root: Path, session: str) -> list[str]:
     state, msgs = load(root), []
     if report := push_report(root, state):
         msgs.append(report)
-    if n := flush_refusals(root, state):  # T686b: before ANY read of the checklist below, and before a gate reads it
-        msgs.append(f"⚠️ {n} refus différé(s) pendant un gate, écrit(s) au tableau des tâches ouvertes")
+    prune_parked(root, state)  # before the flush AND before save(): the Stop block in main reads this saved state
+    written, _dropped = flush_refusals(root, state)  # T686b: before ANY read of the checklist below, and before a gate reads it
+    if written:
+        msgs.append(f"⚠️ {written} refus différé(s) pendant un gate, écrit(s) au tableau des tâches ouvertes")
     text = sync_anchor(path.read_text(encoding="utf-8"), prefix)  # in memory: the write comes last, after the push decision (T686b)
     if report := ci_report(root, path, state, time.time()):
         msgs.append(report)
