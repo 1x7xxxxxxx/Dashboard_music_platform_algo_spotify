@@ -165,6 +165,16 @@ def all_ids(text: str, prefix: str) -> set[str]:
     return set(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M))
 
 
+def closed_this_turn(root: Path, checklist: Path, prefix: str, ids: set[str]) -> set[str]:
+    """T800: rows whose archive entry is added but not committed and whose row is gone. `state["open"]`
+    is read at Stop, so a row opened AND closed between two Stops never entered it: nothing was
+    committed and the push left on a dirty tree (f08b5326, refused by the generated-files gate)."""
+    archive = checklist.parent / "archive.md"
+    r = git(root, "diff", "HEAD", "--unified=0", "--", str(archive))
+    added = re.findall(rf"^\+- \[[xX]\] \*\*({re.escape(prefix)}\d{{1,5}})\b", r.stdout, re.M)
+    return set(added) - ids
+
+
 def index_ids(text: str, title: str, prefix: str) -> set[str]:
     """Ids of the open-tasks table only: from its heading to the next `## `."""
     start = next((i for i, ln in enumerate(text.splitlines()) if ln.startswith(title)), None)
@@ -757,7 +767,7 @@ def on_stop(root: Path, session: str) -> list[str]:
     if state.get("session") != session:  # SessionStart missed: snapshot now, act from next turn
         state.update(session=session, start=dirty(root))
     ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
-    closed = sorted(set(state.get("open", [])) - ids)
+    closed = sorted((set(state.get("open", [])) - ids) | closed_this_turn(root, path, prefix, ids))
     if closed and os.environ.get("ROADMAP_AUTOCOMMIT") != "0":
         write_anchor(path, prefix)  # the commit below carries the synced anchor, as it always did
         now = dirty(root)
