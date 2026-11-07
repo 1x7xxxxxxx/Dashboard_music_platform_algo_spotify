@@ -11,6 +11,13 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R711 — Courrier du parc msg:1794018382882674016-3532363 — écart `report-rule` : `.claude/rules… (livrée 2026-11-07)
+
+- [x] **R711 — Courrier du parc msg:1794018382882674016-3532363 — écart `report-rule` : `.claude/rules/report-quality.md` en retard sur le preset (règles 14 à 16), à aligner à la main (`apply: hand`)** (P4) ✅ (2026-11-07, 4703c19f)
+  Mesuré par : `diff` de la règle contre `presets/report-quality/templates/rules/report-quality.md` vide
+  règle alignée sur le preset, diff vide, make test-changed vert
+  Commits : 4703c19f R711 : règle report-quality alignée sur le preset (règles 14 à 16), en
+
 ## ✅ R712 — Sans suite : garde R660 mordu sur quatre mutations, sans défaut (close 2026-11-07)
 
 - [x] **R712 — Sans suite : `tests/test_the_dependency_gate_never_reads_a_stale_report.py` n'était pas aveugle, la nuit n'avait essayé qu'une mutation sans jugement (`argv`)** (P4) ✅ (2026-11-07, sans suite)
