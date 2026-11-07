@@ -47,3 +47,19 @@ compréhension du problème. Norme complète et sources : `~/.fleet-master/prese
     (bouton Valider du panneau, ou `python3 ~/.fleet-master/tools/dev/validation_pdf.py validate
     <pdf>`), il porte la mention validé, part dans le dossier d'archive du dépôt et quitte le Bureau.
     Aucun test unitaire n'écrit sur le contenu ou la mise en page d'un PDF : le propriétaire juge.
+14. **À la demande d'un PDF, recueille le besoin avant d'écrire, et pose d'un coup tout ce que seul
+    le propriétaire sait** : la décision attendue, qui la prend et pour quand ; ce qui est dedans,
+    dehors et déjà tranché ; le contexte de départ (matériel possédé, contraintes, budget) ; le
+    format de lecture ; ce qui doit être sourcé ; ce que le lecteur connaît déjà. Écris-le dans le
+    PDF, section `Cadrage de la demande` : Problème, Besoin, Contexte, Hors périmètre, Impact,
+    Critique, Vérification, Reste à demander. Sur 28 révisions dont la cause est connue, 16 étaient
+    évitables (`~/.fleet-master/docs/decisions/PDF-REVISIONS.md`).
+15. **À chaque révision, écris dans la roadmap ce qui a manqué, avec la phrase du propriétaire.**
+    Un seul rendu par jeu de retours.
+16. **PDF d'achats** : deux URL par article, la conseillée en gras selon la note du vendeur, le
+    rapport qualité-prix et le prix. Vise le prix total du panier, TVA et port compris, en
+    regroupant sur une plateforme quand le stock le permet. Deux propositions pour un même besoin
+    forment un bloc à part, avec une seule case et le conseil écrit. Un composant suivi porte un
+    prix cible et un relevé daté sur un an ; ne nomme une fenêtre d'achat qu'après un an lu.
+    Vérifie l'occasion entre particuliers pour chaque article, sauf si le dépôt a écrit que ses
+    équipements s'achètent neufs. Choisis la plateforme de batteries avant les appareils.
