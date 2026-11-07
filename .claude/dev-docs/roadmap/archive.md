@@ -11,6 +11,16 @@ si le total passe sous son plancher.
 
 ---
 
+## ✅ R712 — Sans suite : garde R660 mordu sur quatre mutations, sans défaut (close 2026-11-07)
+
+- [x] **R712 — Sans suite : `tests/test_the_dependency_gate_never_reads_a_stale_report.py` n'était pas aveugle, la nuit n'avait essayé qu'une mutation sans jugement (`argv`)** (P4) ✅ (2026-11-07, sans suite)
+  Mesuré par : rouge sur chacune des 4 mutations qui incarnent R660 (gate à 0 sur rapport absent, gate à 0 sur rapport vide, `rm -f .pip-audit.json` retiré, `check-pipaudit` revenu à `test -x`), arbre restauré, rouges datés dans `guard-red-log.jsonl`. `night-status` garde son 🟠 jusqu'au prochain run de `security-nightly.yml` : il n'a plus de cron (R650), rien n'a tourné depuis le 2026-10-26
+
+## ✅ R710 — Sans suite : dérive restaurée par 32b599d7 — msg:1793972222113002884-2769688 (close 2026-11-07)
+
+- [x] **R710 — Sans suite : dérive des hooks `roadmap_autocommit` et `roadmap_empty_beep` déjà restaurée par 32b599d7 — msg:1793972222113002884-2769688** (P4) ✅ (2026-11-07, sans suite)
+  Mesuré par : `diff` de `.claude/hooks/` contre `presets/governance/hooks/` vide sur les deux fichiers, le 2026-11-07
+
 ## ✅ R709 — Sans suite : preset-refresh posé par 02097d85 — msg:1793936257802085062-3011227 (close 2026-11-06)
 
 - [x] **R709 — Sans suite : preset-refresh posé par 02097d85 — msg:1793936257802085062-3011227** (P4) ✅ (2026-11-06, sans suite)
