@@ -326,6 +326,22 @@ def _box_ids(root: Path) -> str:
     return ",".join(sorted(f.stem for f in [*box.glob("*.json"), *box.glob("read/*.json")])) if box.is_dir() else ""
 
 
+def wait_command(head: str, limit: float) -> str:
+    """The wait the Stop asks for: bounded, and naming HEAD literally so wait_armed can recognise it (T806)."""
+    return f"timeout {limit:.0f} sh -c 'until grep -q \"^rc=.*{head}\" {AUTOPUSH_HISTORY}; do sleep 10; done'"
+
+
+def wait_armed(head: str, proc: Path = Path("/proc")) -> bool:
+    """A live process waits for THIS head's verdict (T806). A hold on every Stop made a session with a waiter
+    armed poll in 29 s calls for the whole gate. No /proc: False, the hold stands as before."""
+    try:
+        cmds = [(p / "cmdline").read_bytes() for p in proc.iterdir() if p.name.isdigit() and (p / "cmdline").is_file()]
+    except OSError:
+        return False
+    want = (b"until", AUTOPUSH_HISTORY.encode(), head.encode())
+    return any(all(w in c for w in want) for c in cmds)
+
+
 def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head: str, ac: dict | None,
                   memo: dict, now: float | None = None, limit: float | None = None) -> tuple[str | None, dict]:
     """(block reason or None, this session's memo {seen, said, wait, note}). `ac` is roadmap_autocommit's state
@@ -390,9 +406,10 @@ def closable_gate(res: list[tuple[str, bool, str]], hook: dict, root: Path, head
     memo_note: list[str] = []
     if pushing:
         how = "tourne" if pending else "part à ce Stop (roadmap_autocommit)"
-        hold(f"push@{head}", f"Push : {reds['push']} — la séance n'est fermable qu'HEAD poussé et vert. Le push "
-             f"automatique {how} : attends son verdict sans finir le tour (Monitor jusqu'à une ligne `rc=` dans "
-             f"`{AUTOPUSH_LOG}`, porte ≤ {limit / 60:.0f} min), puis arrête-toi.")
+        if not wait_armed(head):  # T806: the waiter's end calls the session back, so this Stop may end the turn
+            hold(f"push@{head}", f"Push : {reds['push']} — la séance n'est fermable qu'HEAD poussé et vert. Le push "
+                 f"automatique {how} : lance en `run_in_background` `{wait_command(head, limit)}` puis finis le tour — "
+                 f"sa fin te rappelle (porte ≤ {limit / 60:.0f} min) ; lis alors la ligne `rc=`, puis arrête-toi.")
     if deploying:
         hold(f"deploy@{head}", f"Déploiement : {reds['deploy']} — la séance n'est fermable que déploiement lancé. "
              f"Il part au Stop (roadmap_autocommit) : vérifie la dernière ligne `apply_rc=` de `{AUTOPUSH_HISTORY}`, puis arrête-toi.")

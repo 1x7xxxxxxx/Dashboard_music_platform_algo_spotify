@@ -199,7 +199,7 @@ def sync_anchor(text: str, prefix: str) -> str:
 def dirty(root: Path) -> dict[str, str]:
     """path → content hash of every modified or untracked (not ignored) file. A submodule or a
     nested repo is never one: committed, it is a gitlink (T158)."""
-    out = git(root, "status", "--porcelain", "-z", "--untracked-files=all", "--ignore-submodules=all").stdout
+    out = git(root, "--no-optional-locks", "status", "--porcelain", "-z", "--untracked-files=all", "--ignore-submodules=all").stdout
     paths = [e[3:] for e in out.split("\0") if len(e) > 3]
     result = {}
     for p in paths:
@@ -572,6 +572,9 @@ def refused_notice(root: Path, state: dict, head: str) -> str | None:
             f"retente, ou la porte repassée puis `echo rc=0 >> {PUSH_LOG}`")
 
 
+REGEN = "tools/dev/regen_generated.py"
+
+
 def start_push(root: Path) -> int:
     log = root / PUSH_LOG
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -583,7 +586,12 @@ def start_push(root: Path) -> int:
            f'"$h" "$(date +%Y-%m-%dT%H:%M:%S%z)" >> {APPLY_HISTORY}')
     # T653: the log is overwritten by the next push; the journal (>>) keeps every verdict, apply's included.
     hist = root / PUSH_HISTORY
-    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); git push; rc=$?; echo "rc=$rc"; '
+    # T804: the gate judges the working tree, so its derived files are rendered right before the push, here
+    # and not earlier in on_stop (every checklist writer of the turn has run). A failed render pushes nothing.
+    # Only the master has the module. Render-to-gate stays an open window, counted on real Stops (R214).
+    cmd = (f'cd "{root}" && {{ date -Is; h=$(git rev-parse HEAD); rc=0; '
+           f'[ -f {REGEN} ] && {{ python3 {REGEN} --worktree; rc=$?; }}; '
+           f'[ "$rc" = 0 ] && {{ git push; rc=$?; }}; echo "rc=$rc"; '
            f'echo "rc=$rc head=$h" >> "{hist}"; }} > "{log}" 2>&1; '
            f'[ "$rc" = 0 ] && [ -f {APPLY} ] && {{ mkdir -p {Path(APPLY_HISTORY).parent}; {row}; '
            f'python3 {APPLY} apply --push >> "{log}" 2>&1; echo "apply_rc=$? head=$h" >> "{hist}"; }}')
