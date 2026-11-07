@@ -370,7 +370,7 @@ test-changed: ## [SECONDES] Seulement les tests atteignables depuis le diff — 
 	@# DURING the run and cannot say whether the suite began after the last edit.
 	@touch .pytest-last.started
 	@bash -c '$(HOLD_HEAVY_LOCK) set -o pipefail; $(PYTHON) .claude/scripts/select_tests.py | { grep -v "^#" || true; } | tee .pytest-selected \
-	  | xargs -r $(SUITE_SCOPE) $(PYTHON) -m pytest -q $(PYTEST_DIST) 2>&1 | tee .pytest-last.log'; \
+	  | xargs -r $(SUITE_SCOPE) $(PYTHON) -m pytest -q $(PYTEST_DIST) --junit-xml=$$HOME/.cache/gate-junit-parc/streamlytics/$$(date +%s).xml 2>&1 | tee .pytest-last.log'; \
 	  rc=$$?; echo "   journal complet : .pytest-last.log"; [ $$rc -eq 0 ] || exit $$rc; \
 	  bash -c 'set -o pipefail; $(PYTHON) .claude/scripts/check_guards_are_env_independent.py \
 	    --changed 2>&1 | tee -a .pytest-last.log'; \
