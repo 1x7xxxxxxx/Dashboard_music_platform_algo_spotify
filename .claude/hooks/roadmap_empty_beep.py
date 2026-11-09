@@ -105,6 +105,34 @@ def titles(root: Path) -> tuple[Path, str, str, str]:
     return root / rdir / "checklist.md", prefix, index, waiting
 
 
+# --- the 📋 reader: ONE definition, copied verbatim into every executable that reads the open table
+# (deliverables.py — roadmap.py and objectives.py import it —, roadmap_gate.py, roadmap_autocommit.py ×2,
+# roadmap_empty_beep.py ×2, session_brief.py ×2, hud.py), since a hook deployed to the fleet cannot import
+# this module. tools/dev/test_open_rows_parity.py holds the copies to the same text and the same ids.
+# Prefix-free, like the 🙋 reader beside it: a 📋 row `X1` under id_prefix "T" was invisible to the
+# index, the anchor, the Stop beep and the gate (2026-11-07). Read UNDER the heading, never outside it.
+OPEN_ID = re.compile(r"^\|\s*([A-Z][A-Za-z]*-?\d{1,5})\s*\|")
+
+
+def open_ids(text: str, *titles: str) -> list[str]:
+    """Ids (any prefix, first occurrence, in order) of the rows under each `title` heading, up to the
+    next `## `. Several titles = their union, an id present in two tables counted once."""
+    lines = text.splitlines()
+    out: list[str] = []
+    for title in titles:
+        start = next((i for i, ln in enumerate(lines) if ln.startswith(title)), None)
+        if start is None:
+            continue
+        for ln in lines[start + 1:]:
+            if ln.startswith("## "):
+                break
+            m = OPEN_ID.match(ln)
+            if m and m.group(1) not in out:
+                out.append(m.group(1))
+    return out
+# --- end of the copied 📋 reader
+
+
 # --- the 🙋 reader: ONE definition, copied verbatim into every executable that reads the table
 # (session_brief.py ×2, roadmap_empty_beep.py ×2, objectives.py), since a hook deployed to the fleet
 # cannot import this module. tools/dev/test_waiting_rows_parity.py holds the copies to the same
@@ -138,11 +166,11 @@ def waiting_rows(text: str, title: str) -> tuple[list[str], int] | None:
 # --- end of the copied 🙋 reader
 
 
-def open_count(text: str, prefix: str = "R", waiting: str = WAITING_TITLE) -> int:
-    """Distinct ids in the index rows, as roadmap.py index_ids counts them, plus the 🙋 rows
-    whatever their prefix: dofus' H1, H2 are open tasks too."""
-    ids = set(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M))
-    return len(ids | set((waiting_rows(text, waiting) or ([], 0))[0]))
+def open_count(text: str, prefix: str = "R", waiting: str = WAITING_TITLE, title: str = OPEN_TITLE) -> int:
+    """Distinct ids of the open table and the 🙋 table, as roadmap.py index_ids counts them, whatever
+    their prefix (`prefix` is kept for the callers: no reader is bound to it any more): dofus' H1, H2
+    are open tasks, and so is a 📋 row `X1` under id_prefix T."""
+    return len(set(open_ids(text, title)) | set((waiting_rows(text, waiting) or ([], 0))[0]))
 
 
 MAILBOX = Path.home() / ".fleet-master/tools/hud/fleet_mailbox.py"
@@ -194,15 +222,8 @@ def todo_title(text: str, index: str = OPEN_TITLE, waiting: str = WAITING_TITLE)
 
 def todo_ids(text: str, prefix: str = "R", title: str = OPEN_TITLE, waiting: str = WAITING_TITLE) -> list[str]:
     """The ids of the open table only — never one of the 🙋 table, whatever the titles."""
-    i = text.find(title)
-    if i < 0:
-        return []
-    body = text[i + len(title):]
-    j = body.find("\n## ")
-    body = body if j < 0 else body[:j]
     mine = set((waiting_rows(text, waiting) or ([], 0))[0])
-    ids = re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", body, re.M)
-    return [i for i in dict.fromkeys(ids) if i not in mine]
+    return [i for i in open_ids(text, title) if i not in mine]  # `prefix` unused: see open_count
 
 
 def todo_gate(ids: list[str], hook: dict, asked: dict) -> tuple[str | None, dict]:
@@ -479,7 +500,7 @@ def main() -> int:
     box = mailbox_state(root)
     reason, asked = gate(list(box.get("untracked") or []), hook, saved.get("asked") or {})
     text = path.read_text(encoding="utf-8")
-    now_open = open_count(text, prefix, waiting) + int(box.get("pending") or 0)
+    now_open = open_count(text, prefix, waiting, index) + int(box.get("pending") or 0)
     ids = todo_ids(text, prefix, todo_title(text, index, waiting), waiting)
     if not reason:
         reason, todo = todo_gate(ids, hook, saved.get("todo") or {})

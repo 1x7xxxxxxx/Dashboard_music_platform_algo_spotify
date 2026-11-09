@@ -137,6 +137,7 @@ NEVER_SWEPT_NAMES = tuple(getattr(_GOV, "RUNTIME_FILES", ("ci-pending.json",)))
 NEVER_SWEPT = (".claude/sessions/", ".claude/worktrees/",  # this hook's state; the agents' worktrees (T158)
                *getattr(_GOV, "ROOT_RUNTIME_DIRS", ("state/",)))
 APPLY = "tools/dev/fleet_apply.py"  # only the fleet master has it (T66)
+DESKTOP = "tools/dev/bureau_data.py"  # only the fleet master has it (T864)
 APPLY_HISTORY = "state/fleet-history.jsonl"  # fleet_apply's readings; `source: apply` rows carry the HEAD (T159)
 APPLY_LOCK = "state/fleet-apply.lock"
 APPLY_LOG = Path(".claude/sessions/fleet-apply.log")
@@ -149,20 +150,52 @@ def git(root: Path, *args: str, timeout: int = 120) -> subprocess.CompletedProce
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=timeout)
 
 
-def config(root: Path) -> tuple[Path, str, str]:
-    rdir, title, prefix = ".claude/dev-docs/roadmap", "## 📋 Tâches ouvertes", "R"
+def config(root: Path) -> tuple[Path, str, str, str]:
+    rdir, title, prefix, wtitle = ".claude/dev-docs/roadmap", "## 📋 Tâches ouvertes", "R", "## 🙋 En attente de toi"
     toml = root / "governance.toml"
     if toml.is_file():
         import tomllib
         cfg = tomllib.loads(toml.read_text(encoding="utf-8")).get("roadmap", {})
         rdir = cfg.get("dir", "docs/roadmap")
         title, prefix = cfg.get("index_title", title), cfg.get("id_prefix", prefix)
-    return root / rdir / "checklist.md", title, prefix
+        wtitle = cfg.get("waiting_title", wtitle)
+    return root / rdir / "checklist.md", title, prefix, wtitle
 
 
-def all_ids(text: str, prefix: str) -> set[str]:
-    """Every id in an index row, both tables — as roadmap_empty_beep counts them."""
-    return set(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M))
+# --- the 📋 reader: ONE definition, copied verbatim into every executable that reads the open table
+# (deliverables.py — roadmap.py and objectives.py import it —, roadmap_gate.py, roadmap_autocommit.py ×2,
+# roadmap_empty_beep.py ×2, session_brief.py ×2, hud.py), since a hook deployed to the fleet cannot import
+# this module. tools/dev/test_open_rows_parity.py holds the copies to the same text and the same ids.
+# Prefix-free, like the 🙋 reader beside it: a 📋 row `X1` under id_prefix "T" was invisible to the
+# index, the anchor, the Stop beep and the gate (2026-11-07). Read UNDER the heading, never outside it.
+OPEN_ID = re.compile(r"^\|\s*([A-Z][A-Za-z]*-?\d{1,5})\s*\|")
+
+
+def open_ids(text: str, *titles: str) -> list[str]:
+    """Ids (any prefix, first occurrence, in order) of the rows under each `title` heading, up to the
+    next `## `. Several titles = their union, an id present in two tables counted once."""
+    lines = text.splitlines()
+    out: list[str] = []
+    for title in titles:
+        start = next((i for i, ln in enumerate(lines) if ln.startswith(title)), None)
+        if start is None:
+            continue
+        for ln in lines[start + 1:]:
+            if ln.startswith("## "):
+                break
+            m = OPEN_ID.match(ln)
+            if m and m.group(1) not in out:
+                out.append(m.group(1))
+    return out
+# --- end of the copied 📋 reader
+
+
+WAITING_TITLE = "## 🙋 En attente de toi"
+
+
+def all_ids(text: str, title: str, wtitle: str = WAITING_TITLE) -> set[str]:
+    """Every id of the open table and the 🙋 table, whatever its prefix — as roadmap_empty_beep counts them."""
+    return set(open_ids(text, title, wtitle))
 
 
 def closed_this_turn(root: Path, checklist: Path, prefix: str, ids: set[str]) -> set[str]:
@@ -175,24 +208,19 @@ def closed_this_turn(root: Path, checklist: Path, prefix: str, ids: set[str]) ->
     return set(added) - ids
 
 
-def index_ids(text: str, title: str, prefix: str) -> set[str]:
+def index_ids(text: str, title: str) -> set[str]:
     """Ids of the open-tasks table only: from its heading to the next `## `."""
-    start = next((i for i, ln in enumerate(text.splitlines()) if ln.startswith(title)), None)
-    if start is None:
-        return set()
-    lines = text.splitlines()[start + 1:]
-    end = next((i for i, ln in enumerate(lines) if ln.startswith("## ")), len(lines))
-    return all_ids("\n".join(lines[:end]), prefix)
+    return set(open_ids(text, title))
 
 
 _ANCHOR = re.compile(r"<!--\s*reprise:\s*open=([^>]*?)\s*-->")
 
 
-def sync_anchor(text: str, prefix: str) -> str:
+def sync_anchor(text: str, title: str, wtitle: str = WAITING_TITLE) -> str:
     """T34: the `<!-- reprise: open=… -->` anchor rewritten from the index rows (both tables),
     as `roadmap.py sync` does. A row added by hand left it stale until the next close. A
     checklist without the anchor is left as it is."""
-    ids = list(dict.fromkeys(re.findall(rf"^\|\s*({re.escape(prefix)}\d{{1,5}})\s*\|", text, re.M)))
+    ids = open_ids(text, title, wtitle)
     return _ANCHOR.sub(f"<!-- reprise: open={', '.join(ids)} -->", text, count=1)
 
 
@@ -382,7 +410,7 @@ def reopen_refusal(root: Path, motif: str, detail: str, state: dict | None = Non
             parked.append([motif, detail])
             journal_refusal(root, f"PARKED {motif}", detail)
         return False
-    path, title, prefix = config(root)
+    path, title, prefix, wtitle = config(root)
     if not path.is_file() or motif not in MOTIFS:
         return False
     detail = detail.replace("|", "/").replace("-->", "->")
@@ -398,7 +426,7 @@ def reopen_refusal(root: Path, motif: str, detail: str, state: dict | None = Non
             if detail in lines[i]:
                 return False
             lines[i] = lines[i].replace(mark, f"; aussi {detail} {mark}", 1)
-            path.write_text(sync_anchor("".join(lines), prefix), encoding="utf-8")
+            path.write_text(sync_anchor("".join(lines), title, wtitle), encoding="utf-8")
             return True
     sep = next((i for i in range(start + 1, end) if re.match(r"^\|\s*:?-{3,}", lines[i])), None)
     if sep is None:
@@ -407,7 +435,7 @@ def reopen_refusal(root: Path, motif: str, detail: str, state: dict | None = Non
     row = (f"| {next_id(path, text, prefix)} | {what} ({detail}) <!-- défaut --> {mark} {trace_tags(root)} "
            f"<!-- cause: {cause} --> <!-- garde: {guard} --> <!-- intégration: {integ} --> | P1 | {measure} |\n")
     lines.insert(sep + 1, row)
-    path.write_text(sync_anchor("".join(lines), prefix), encoding="utf-8")
+    path.write_text(sync_anchor("".join(lines), title, wtitle), encoding="utf-8")
     return True
 
 
@@ -573,6 +601,20 @@ def refused_notice(root: Path, state: dict, head: str) -> str | None:
 
 
 REGEN = "tools/dev/regen_generated.py"
+AVANT_PUSH = "tools/dev/avant_push.py"  # T1114 (S1) : seul le master l'a ; ailleurs « absent », rien ne change
+
+
+def avant_push_etat(root: Path, head: str) -> str:
+    """T1114 : le verdict du passage d'avant-push pour HEAD — vert | rouge | en-cours | absent. Fail-open : absent."""
+    if not head or not (root / AVANT_PUSH).is_file():
+        return "absent"
+    try:
+        r = subprocess.run([sys.executable, AVANT_PUSH, "--etat", "--sha", head], cwd=root, capture_output=True,
+                           text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return "absent"
+    v = r.stdout.strip()
+    return v if v in ("vert", "rouge", "en-cours") else "absent"
 
 
 def start_push(root: Path) -> int:
@@ -758,7 +800,7 @@ def on_start(root: Path, session: str) -> None:
 
 
 def on_stop(root: Path, session: str) -> list[str]:
-    path, title, prefix = config(root)
+    path, title, prefix, wtitle = config(root)
     if not path.is_file():
         return []
     state, msgs = load(root), []
@@ -768,16 +810,16 @@ def on_stop(root: Path, session: str) -> list[str]:
     written, _dropped = flush_refusals(root, state)  # T686b: before ANY read of the checklist below, and before a gate reads it
     if written:
         msgs.append(f"⚠️ {written} refus différé(s) pendant un gate, écrit(s) au tableau des tâches ouvertes")
-    text = sync_anchor(path.read_text(encoding="utf-8"), prefix)  # in memory: the write comes last, after the push decision (T686b)
+    text = sync_anchor(path.read_text(encoding="utf-8"), title, wtitle)  # in memory: the write comes last, after the push decision (T686b)
     if report := ci_report(root, path, state, time.time()):
         msgs.append(report)
-        text = sync_anchor(path.read_text(encoding="utf-8"), prefix)  # a red CI put its task back in the index
+        text = sync_anchor(path.read_text(encoding="utf-8"), title, wtitle)  # a red CI put its task back in the index
     if state.get("session") != session:  # SessionStart missed: snapshot now, act from next turn
         state.update(session=session, start=dirty(root))
-    ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
+    ids, idx = all_ids(text, title, wtitle), index_ids(text, title)
     closed = sorted((set(state.get("open", [])) - ids) | closed_this_turn(root, path, prefix, ids))
     if closed and os.environ.get("ROADMAP_AUTOCOMMIT") != "0":
-        write_anchor(path, prefix)  # the commit below carries the synced anchor, as it always did
+        write_anchor(path, title, wtitle)  # the commit below carries the synced anchor, as it always did
         now = dirty(root)
         files = touched(state.get("start", {}), now)
         if files:
@@ -794,7 +836,7 @@ def on_stop(root: Path, session: str) -> list[str]:
                 msgs.append(f"⚠️ commit automatique refusé pour {', '.join(closed)} : {why}")
                 reopen_refusal(root, "commit-refusé", f"{', '.join(closed)} : {why}")  # no gate in flight: the commit precedes the push
     text = path.read_text(encoding="utf-8")  # a refusal above may have put a row back (T653)
-    ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
+    ids, idx = all_ids(text, title, wtitle), index_ids(text, title)
     launched = False
     if os.environ.get("ROADMAP_AUTOPUSH") != "0":
         r = git(root, "rev-list", "--left-right", "--count", "HEAD...@{u}")
@@ -819,8 +861,25 @@ def on_stop(root: Path, session: str) -> list[str]:
                 elif state.get("ci_wait") == CI_WAIT_MAX_STOPS:
                     state["ci_wait"] += 1
                     msgs.append(f"⚠️ ci-local toujours en cours après {CI_WAIT_MAX_STOPS} tours : attente abandonnée, push lancé")
+            if decide_push(*args) and not waiting:  # T1114 (S1) : un rouge connu ne part plus
+                verdict = avant_push_etat(root, head)
+                if verdict == "rouge":
+                    waiting = True
+                    if state.get("avant_rouge") != head:
+                        state["avant_rouge"] = head
+                        msgs.append(f"⚠️ push retenu : l'avant-push est rouge sur {head[:7]} (state/avant-push.json) — "
+                                    f"corrige et recommite ; un faux rouge : `python3 {AVANT_PUSH} lancer`")
+                elif verdict == "en-cours":
+                    if state.get("avant_wait", 0) < CI_WAIT_MAX_STOPS:
+                        waiting = True
+                        state["avant_wait"] = state.get("avant_wait", 0) + 1
+                        msgs.append("⏳ index à 0 : push différé, l'avant-push tourne (réessayé au prochain tour)")
+                    elif state.get("avant_wait") == CI_WAIT_MAX_STOPS:
+                        state["avant_wait"] += 1
+                        msgs.append(f"⚠️ avant-push toujours en cours après {CI_WAIT_MAX_STOPS} tours : push lancé")
             if decide_push(*args, ci_running=waiting):
                 state.pop("ci_wait", None)
+                state.pop("avant_wait", None)
                 launched = True
                 state.update(push_pending=True, push_head=head, launched_head=head, push_pid=start_push(root))
                 msgs.append(f"⏳ index à 0 : push automatique lancé ({ahead} commit(s)), résultat au prochain tour")
@@ -837,9 +896,9 @@ def on_stop(root: Path, session: str) -> list[str]:
     if report := maybe_apply(root, state):
         msgs.append(report)
     if not launched and not gate_in_flight(root, state):
-        write_anchor(path, prefix)  # T686b: never ahead of a push, never under a gate
+        write_anchor(path, title, wtitle)  # T686b: never ahead of a push, never under a gate
     text = path.read_text(encoding="utf-8")
-    ids, idx = all_ids(text, prefix), index_ids(text, title, prefix)
+    ids, idx = all_ids(text, title, wtitle), index_ids(text, title)
     state.update(open=sorted(ids), index=len(idx))
     if state.get("pending_refusals"):
         msgs.append(f"⛔ {len(state['pending_refusals'])} refus en attente d'écriture (gate en cours) : "
@@ -852,13 +911,21 @@ def refusal_names(state: dict) -> str:
     return ", ".join(f"{m} ({d})" for m, d in state.get("pending_refusals", []))
 
 
-def write_anchor(path: Path, prefix: str) -> bool:
+def write_anchor(path: Path, title: str, wtitle: str = WAITING_TITLE) -> bool:
     """T34: the `reprise:` anchor rewritten on disk when stale. True when the file changed."""
     text = path.read_text(encoding="utf-8")
-    if (synced := sync_anchor(text, prefix)) == text:
+    if (synced := sync_anchor(text, title, wtitle)) == text:
         return False
     path.write_text(synced, encoding="utf-8")
     return True
+
+
+def refresh_desktop(root: Path) -> None:
+    """T864: the owner's Desktop follows the master's roadmap. Only the master has the module ; detached, the Stop never
+    waits on it, and it asks Windows for nothing unless what the Desktop shows has moved."""
+    if (root / DESKTOP).is_file():
+        subprocess.Popen([sys.executable, str(root / DESKTOP), "--si-change"], cwd=root, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 def main(argv: list[str]) -> int:
@@ -874,6 +941,7 @@ def main(argv: list[str]) -> int:
     if len(argv) > 1 and argv[1] == "start":
         on_start(root, session)
         return 0
+    refresh_desktop(root)
     if msgs := on_stop(root, session):
         out = {"systemMessage": " · ".join(msgs)}
         parked = load(root).get("pending_refusals")
