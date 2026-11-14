@@ -5,7 +5,7 @@
 #
 # In Railway: set DATABASE_URL and PORT is injected automatically.
 
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 # System deps for WeasyPrint (PDF export) + psycopg2. fonts-noto-color-emoji (R287):
 # without it every emoji of a chart (🎵 🎬 🚀) exports as a square in the PDF.
